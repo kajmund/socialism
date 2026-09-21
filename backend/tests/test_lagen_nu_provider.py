@@ -250,12 +250,96 @@ def _source(
     client: FakeLagenNuClient,
     source_type: str = "swedish_law",
     selector: LagenNuPassageSelector | None = None,
+    interpreter=None,
 ) -> LagenNuResearchSource:
     return LagenNuResearchSource(
         source_type=source_type,
         client=client,
         selector=selector or PassthroughLagenNuSelector(),
+        interpreter=interpreter or FakeLegalInterpreter(),
     )
+
+
+class FakeLegalInterpreter:
+    async def interpret(self, *, source, question, raw_text, truncated, context):
+        from app.services.legal_research_result import (
+            CaseLawAnalysis,
+            LegalQuestionRelation,
+            LegalResearchResult,
+            PreparatoryWorkAnalysis,
+            StatuteAnalysis,
+            LegalCitation,
+        )
+
+        citation = LegalCitation(
+            source_uri=source.canonical_uri,
+            quote=raw_text[: min(len(raw_text), 100)],
+        )
+        analyses = {
+            "case_law": lambda: {"case_law": CaseLawAnalysis(
+                legal_issue=question, court_reasoning=raw_text, outcome="unknown",
+                citations=[citation],
+            )},
+            "preparatory_work": lambda: {"preparatory_work": PreparatoryWorkAnalysis(
+                legislative_intent=raw_text, proposal_or_commentary=raw_text,
+                citations=[citation],
+            )},
+            "statute": lambda: {"statute": StatuteAnalysis(
+                operative_rule=raw_text, citations=[citation]
+            )},
+        }
+        return LegalResearchResult(
+            source=source,
+            relation=LegalQuestionRelation(
+                relation="contextual", explanation=raw_text, confidence="low"
+            ),
+            raw_text=raw_text, truncated=truncated, **analyses[source.kind](),
+        )
+
+
+async def test_domain_extraction_failure_is_isolated_to_one_document():
+    from app.llm.legal_research import LegalDomainExtractionError
+
+    first_uri = "https://lagen.nu/1981:101"
+    second_uri = "https://lagen.nu/1981:102"
+
+    class FailsFirst(FakeLegalInterpreter):
+        async def interpret(self, *, source, question, raw_text, truncated, context):
+            if source.canonical_uri == first_uri:
+                raise LegalDomainExtractionError("invalid structured output")
+            return await super().interpret(
+                source=source, question=question, raw_text=raw_text,
+                truncated=truncated, context=context,
+            )
+
+    client = FakeLagenNuClient(
+        search=SearchResults(
+            query="preskription", total=2,
+            results=(
+                _hit(uri=first_uri, pinpoint=None, highlight="första fordran"),
+                _hit(uri=second_uri, pinpoint=None, highlight="andra fordran"),
+            ),
+        ),
+        documents={
+            first_uri: _document(
+                uri=first_uri, pinpoint=None, text="Första fordran preskriberas.",
+            ),
+            second_uri: _document(
+                uri=second_uri, pinpoint=None, text="Andra fordran preskriberas.",
+            ),
+        },
+    )
+    evidence = await _source(client, interpreter=FailsFirst()).research(
+        _need("swedish_law", question="preskription av fordran"), _context()
+    )
+
+    assert [item.status for item in evidence] == ["error", "found"]
+    assert evidence[0].metadata["reason"] == "legal_domain_extraction_failed"
+    assert evidence[1].source_id == second_uri
+    assert evidence[1].legal_result is not None
+    assert [args["uri"] for name, args in client.calls if name == "get_document"] == [
+        first_uri, second_uri,
+    ]
 
 
 def test_canonical_uri_rewrites_ferenda_and_rejects_foreign_hosts():

@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from app.services.knowledge.models import KnowledgeScope, require_scope
+from app.services.legal_research_result import LegalResearchResult
 
 ResearchSourceType = Literal[
     "case_knowledge",
@@ -122,6 +123,7 @@ class ResearchEvidence:
     score: float | None
     retrieved_at: datetime
     metadata: dict[str, object] = field(default_factory=dict)
+    legal_result: LegalResearchResult | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "metadata", dict(self.metadata))
@@ -171,6 +173,7 @@ def research_evidence(
     score: float | None = None,
     retrieved_at: datetime | None = None,
     metadata: dict[str, object] | None = None,
+    legal_result: LegalResearchResult | None = None,
 ) -> ResearchEvidence:
     return ResearchEvidence(
         evidence_id=make_evidence_id(
@@ -194,4 +197,5 @@ def research_evidence(
         score=score,
         retrieved_at=retrieved_at or utc_now(),
         metadata=metadata or {},
+        legal_result=legal_result,
     )
