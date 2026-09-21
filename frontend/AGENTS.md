@@ -156,6 +156,7 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/tools/playground` | Anchor-/SSR-kalibrering + prompt-iteration |
 | `/tools/cache` | Lista/rensa diskcachade SSR-ankarembeddings |
 | `/tools/memory` | Expertminnen (Mem0) per kund och expert |
+| `/tools/llm` | LLM-konfigurationer (namngivna presets + default + probe) |
 | `/configurations`, `/playground`, `/config` | Redirect → `/tools/...` |
 Home is `/` (dashboard). Unknown routes redirect to `/`.
 
