@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 from app.auth.dependencies import get_current_user
 from app.auth.scope import (
     assert_kund_access,
+    customer_id_for_expert_create,
     customer_id_for_user,
     effective_customer_id,
     require_user_kund_id,
@@ -579,18 +580,22 @@ async def create_persona(
         raise HTTPException(status_code=409, detail="Persona id already exists")
 
     if body.kind == "expert":
-        customer_id = body.customer_id or await bolag_demo_customer_id(session)
         occ = body.occ or profile.yrkesbakgrund or profile.yrke or "—"
         quote = body.quote or (
             profile.beskrivning if profile.beskrivning not in ("", "—") else ""
         )
+        customer_id = customer_id_for_expert_create(
+            user,
+            body.customer_id,
+            await bolag_demo_customer_id(session),
+        )
     else:
-        customer_id = body.customer_id or await default_os_customer_id(session)
         occ = body.occ
         quote = body.quote
-
-    if user.role != "admin":
-        customer_id = require_user_kund_id(user)
+        if user.role != "admin":
+            customer_id = require_user_kund_id(user)
+        else:
+            customer_id = body.customer_id or await default_os_customer_id(session)
 
     persona = Persona(
         id=persona_id,

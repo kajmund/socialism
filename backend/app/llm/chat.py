@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from app.services.actor_profiles import ActorToolHandler
-
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -11,7 +9,9 @@ from app.config import settings
 from app.llm import complete_structured, complete_text, stream_text
 from app.llm.vision_content import user_content_with_optional_image
 from app.schemas.domain import ChatMode, EditablePersona, FollowUpQuestions
+from app.services.actor_profiles import ActorToolHandler
 from app.services.dd.company_mcp import (
+    ConsultToolHandler,
     ResearchToolHandler,
     complete_text_with_company_tools,
 )
@@ -213,6 +213,7 @@ async def reply_as_persona(
     user_image_sha256: str | None = None,
     tools: list[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
 ) -> str:
     allowed = resolve_chat_tools(tools, kind=profile_kind)
@@ -238,6 +239,7 @@ async def reply_as_persona(
             messages,
             allowed_tools=frozenset(allowed),
             research_tool_handler=research_tool_handler,
+            consult_tool_handler=consult_tool_handler,
             actor_tool_handler=actor_tool_handler,
         )
     return await complete_text(messages, model=model)
@@ -258,6 +260,7 @@ async def stream_reply_as_persona(
     tools: list[str] | None = None,
     user_image_sha256: str | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
 ) -> AsyncIterator[str]:
     allowed = resolve_chat_tools(tools, kind=profile_kind)
@@ -283,6 +286,7 @@ async def stream_reply_as_persona(
             messages,
             allowed_tools=frozenset(allowed),
             research_tool_handler=research_tool_handler,
+            consult_tool_handler=consult_tool_handler,
             actor_tool_handler=actor_tool_handler,
         )
         if reply:

@@ -7,6 +7,8 @@ type Options = {
   onSuggestions: (threadId: string, questions: string[]) => void
   onError: (threadId: string | null, detail: string, requestId: string | null) => void
   onToken: (threadId: string, text: string, requestId: string) => void
+  onThreadMessage: (threadId: string, messages: SmeMessage[]) => void
+  onConsultAnswered: (threadId: string) => void
   onReady: () => void
   onDisconnected: () => void
 }
@@ -47,6 +49,8 @@ export function useSmeChatSocket({
   onSuggestions,
   onError,
   onToken,
+  onThreadMessage,
+  onConsultAnswered,
   onReady,
   onDisconnected,
 }: Options) {
@@ -58,6 +62,8 @@ export function useSmeChatSocket({
     onSuggestions,
     onError,
     onToken,
+    onThreadMessage,
+    onConsultAnswered,
     onReady,
     onDisconnected,
   })
@@ -66,6 +72,8 @@ export function useSmeChatSocket({
     onSuggestions,
     onError,
     onToken,
+    onThreadMessage,
+    onConsultAnswered,
     onReady,
     onDisconnected,
   }
@@ -117,6 +125,17 @@ export function useSmeChatSocket({
                 questionsFromUnknown(event.questions),
               )
             }
+            break
+          case "thread.message":
+            if (threadId) {
+              callbacksRef.current.onThreadMessage(
+                threadId,
+                messagesFromUnknown(event.messages),
+              )
+            }
+            break
+          case "consult.answered":
+            if (threadId) callbacksRef.current.onConsultAnswered(threadId)
             break
           case "error":
             callbacksRef.current.onError(

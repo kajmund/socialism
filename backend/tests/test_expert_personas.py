@@ -3,9 +3,49 @@
 from __future__ import annotations
 
 import pytest
+from fastapi import HTTPException
 from httpx import AsyncClient
 
-from app.services.kund_store import BOLAG_DEMO_KUND_SLUG
+from app.auth.scope import customer_id_for_expert_create
+from app.database.models import UserAccount
+from app.services.kund_store import BOLAG_DEMO_KUND_SLUG, OS_DEFAULT_KUND_SLUG
+from tests.conftest import ADMIN_USER_ID
+
+
+def _account(*, role: str, kund_id: int | None) -> UserAccount:
+    return UserAccount(id="scope-user", email="scope@test.local", role=role, kund_id=kund_id)
+
+
+def test_customer_id_for_expert_create_bound_admin_ignores_requested():
+    assert customer_id_for_expert_create(_account(role="admin", kund_id=7), 2, 2) == 7
+
+
+def test_customer_id_for_expert_create_unbound_admin_uses_requested_or_default():
+    unbound = _account(role="admin", kund_id=None)
+    assert customer_id_for_expert_create(unbound, 9, 2) == 9
+    assert customer_id_for_expert_create(unbound, None, 2) == 2
+
+
+def test_customer_id_for_expert_create_user_stays_on_kund():
+    assert customer_id_for_expert_create(_account(role="user", kund_id=1), 2, 2) == 1
+
+
+def test_customer_id_for_expert_create_user_without_kund_denied():
+    with pytest.raises(HTTPException) as exc:
+        customer_id_for_expert_create(_account(role="user", kund_id=None), 2, 2)
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "kund_access_denied"
+
+
+async def _kund_ids(client: AsyncClient) -> tuple[int, int]:
+    listed = await client.get("/kunder")
+    rows = {row["slug"]: row["id"] for row in listed.json()}
+    return rows[OS_DEFAULT_KUND_SLUG], rows[BOLAG_DEMO_KUND_SLUG]
+
+
+async def _expert_on_customer(client: AsyncClient, expert_id: str, customer_id: int) -> bool:
+    listed = await client.get("/personas", params={"kind": "expert", "customer_id": customer_id})
+    return any(row["id"] == expert_id for row in listed.json())
 
 
 @pytest.mark.asyncio
@@ -74,6 +114,7 @@ async def test_create_expert_assigns_sampled_name_and_age(client: AsyncClient):
         "search_duckduckgo",
         "search_wiki",
         "start_research",
+        "ask_expert",
         "get_actor_context",
         "propose_actor_context_update",
     ]
@@ -199,3 +240,69 @@ async def test_reject_unknown_expert_tool(client: AsyncClient):
         },
     )
     assert create.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_expert_unbound_admin_defaults_to_bolag_demo(client: AsyncClient):
+    os_id, bolag_id = await _kund_ids(client)
+    create = await client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "name": "Unbound Admin Expert",
+            "occ": "Jurist",
+            "district": "—",
+            "quote": "Test.",
+        },
+    )
+    assert create.status_code == 201, create.text
+    expert_id = create.json()["id"]
+    assert await _expert_on_customer(client, expert_id, bolag_id)
+    assert not await _expert_on_customer(client, expert_id, os_id)
+
+
+@pytest.mark.asyncio
+async def test_create_expert_bound_admin_uses_kund_not_body_customer_id(client_db):
+    client, factory = client_db
+    os_id, bolag_id = await _kund_ids(client)
+    async with factory() as db:
+        admin = await db.get(UserAccount, ADMIN_USER_ID)
+        assert admin is not None
+        admin.kund_id = os_id
+        await db.commit()
+
+    create = await client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "customer_id": bolag_id,
+            "name": "Bound Admin Expert",
+            "occ": "Jurist",
+            "district": "—",
+            "quote": "Test.",
+        },
+    )
+    assert create.status_code == 201, create.text
+    expert_id = create.json()["id"]
+    assert await _expert_on_customer(client, expert_id, os_id)
+    assert not await _expert_on_customer(client, expert_id, bolag_id)
+
+
+@pytest.mark.asyncio
+async def test_create_expert_user_stays_on_own_kund(user_client: AsyncClient):
+    create = await user_client.post(
+        "/personas",
+        json={
+            "kind": "expert",
+            "customer_id": 2,
+            "name": "User Kund Expert",
+            "occ": "Jurist",
+            "district": "—",
+            "quote": "Test.",
+        },
+    )
+    assert create.status_code == 201, create.text
+    expert_id = create.json()["id"]
+    listed = await user_client.get("/personas", params={"kind": "expert"})
+    assert listed.status_code == 200
+    assert any(row["id"] == expert_id for row in listed.json())

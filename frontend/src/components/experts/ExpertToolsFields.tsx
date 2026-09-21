@@ -11,12 +11,19 @@ import {
 } from "@/data/expert-tools"
 import { useLocale, type MessageKey } from "@/i18n"
 
-const GROUP_ORDER: ExpertToolGroup[] = ["company", "search", "research", "context"]
+const GROUP_ORDER: ExpertToolGroup[] = [
+  "company",
+  "search",
+  "research",
+  "consult",
+  "context",
+]
 
 const GROUP_LABEL: Record<ExpertToolGroup, MessageKey> = {
   company: "experts.tools.groupCompany",
   search: "experts.tools.groupSearch",
   research: "experts.tools.groupResearch",
+  consult: "experts.tools.groupConsult",
   context: "profile.groupContext",
 }
 
@@ -27,6 +34,7 @@ const TOOL_LABEL: Record<ExpertToolId, MessageKey> = {
   search_duckduckgo: "experts.tools.search_duckduckgo",
   search_wiki: "experts.tools.search_wiki",
   start_research: "experts.tools.start_research",
+  ask_expert: "experts.tools.ask_expert",
   get_actor_context: "profile.get_actor_context",
   propose_actor_context_update: "profile.propose_actor_context_update",
 }
