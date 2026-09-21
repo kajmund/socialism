@@ -29,6 +29,9 @@ export type LlmActive = {
   reasoning_effort: string | null
 }
 
+export type LlmSelectionMode = "default" | "fixed" | "auto"
+export type LlmSelectionRole = "fast" | "balanced" | "deep"
+
 export type LlmConfiguration = {
   id: number
   name: string
@@ -39,9 +42,21 @@ export type LlmConfiguration = {
   top_p: number | null
   max_tokens: number
   reasoning_effort: string | null
+  selection_role: LlmSelectionRole
+  capability_vision: boolean
+  capability_tools: boolean
+  capability_structured_output: boolean
+  capability_long_context: boolean
+  enabled_for_auto: boolean
+  priority: number
   is_default: boolean
   created_at: string
   updated_at: string
+}
+
+export type PromptLlmAssignment = {
+  llm_selection_mode: LlmSelectionMode
+  llm_configuration_id: number | null
 }
 
 export type LlmSettingsResponse = {
@@ -50,7 +65,7 @@ export type LlmSettingsResponse = {
   credentials: { cerebras: boolean; deepseek: boolean }
   configurations: LlmConfiguration[]
   default_id: number | null
-  assignments: Record<string, number>
+  assignments: Record<string, PromptLlmAssignment>
 }
 
 export type LlmPutBody = {
@@ -69,6 +84,13 @@ export type LlmConfigurationWrite = {
   max_tokens?: number | null
   reasoning_effort?: string | null
   is_default?: boolean
+  selection_role?: LlmSelectionRole
+  capability_vision?: boolean
+  capability_tools?: boolean
+  capability_structured_output?: boolean
+  capability_long_context?: boolean
+  enabled_for_auto?: boolean
+  priority?: number
 }
 
 export type LlmProbeBody = {
@@ -124,11 +146,12 @@ export function deleteLlmConfiguration(id: number): Promise<void> {
 
 export function assignPromptLlmConfiguration(
   promptKey: string,
-  llmConfigurationId: number | null,
+  body: {
+    llm_selection_mode: LlmSelectionMode
+    llm_configuration_id?: number | null
+  },
 ): Promise<LlmSettingsResponse> {
-  return api.put<LlmSettingsResponse>(`/llm/prompt-fields/${encodeURIComponent(promptKey)}`, {
-    llm_configuration_id: llmConfigurationId,
-  })
+  return api.put<LlmSettingsResponse>(`/llm/prompt-fields/${encodeURIComponent(promptKey)}`, body)
 }
 
 export function probeLlm(body: LlmProbeBody): Promise<LlmProbeResult> {

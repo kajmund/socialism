@@ -4,6 +4,8 @@ import {
   assignPromptLlmConfiguration,
   getLlmSettings,
   type LlmConfiguration,
+  type LlmSelectionMode,
+  type PromptLlmAssignment,
 } from "@/api/llmSettings"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -16,6 +18,29 @@ type PromptFieldsPanelProps = {
 }
 
 type FieldRow = PromptField & { sectionLabel: string }
+
+function assignmentSelectValue(assignment: PromptLlmAssignment | undefined): string {
+  if (assignment == null || assignment.llm_selection_mode === "default") return "default"
+  if (assignment.llm_selection_mode === "auto") return "auto"
+  if (assignment.llm_configuration_id != null) return `fixed:${assignment.llm_configuration_id}`
+  return "default"
+}
+
+function parseAssignmentSelect(raw: string): {
+  llm_selection_mode: LlmSelectionMode
+  llm_configuration_id: number | null
+} {
+  if (raw === "auto") {
+    return { llm_selection_mode: "auto", llm_configuration_id: null }
+  }
+  if (raw.startsWith("fixed:")) {
+    return {
+      llm_selection_mode: "fixed",
+      llm_configuration_id: Number(raw.slice("fixed:".length)),
+    }
+  }
+  return { llm_selection_mode: "default", llm_configuration_id: null }
+}
 
 function extractPlaceholders(hint: string): string[] {
   const matches = hint.match(/\{[a-z_]+\}/g)
@@ -42,11 +67,23 @@ export function PromptFieldsPanel({ catalog, prompts, onChange }: PromptFieldsPa
   const [query, setQuery] = useState("")
   const [activeKey, setActiveKey] = useState<string | null>(catalog.fields[0]?.key ?? null)
   const [llmConfigs, setLlmConfigs] = useState<LlmConfiguration[]>([])
-  const [assignments, setAssignments] = useState<Record<string, number>>(() =>
+  const [assignments, setAssignments] = useState<Record<string, PromptLlmAssignment>>(() =>
     Object.fromEntries(
       catalog.fields
-        .filter((field) => field.llm_configuration_id != null)
-        .map((field) => [field.key, field.llm_configuration_id as number]),
+        .filter(
+          (field) =>
+            field.llm_selection_mode === "auto" ||
+            field.llm_selection_mode === "fixed" ||
+            field.llm_configuration_id != null,
+        )
+        .map((field) => [
+          field.key,
+          {
+            llm_selection_mode: (field.llm_selection_mode ??
+              (field.llm_configuration_id != null ? "fixed" : "default")) as LlmSelectionMode,
+            llm_configuration_id: field.llm_configuration_id ?? null,
+          },
+        ]),
     ),
   )
   const [llmError, setLlmError] = useState<string | null>(null)
@@ -194,13 +231,12 @@ export function PromptFieldsPanel({ catalog, prompts, onChange }: PromptFieldsPa
                 </span>
                 <select
                   className="w-full max-w-md rounded-[var(--radius-md)] border-[1.5px] border-[color:var(--border-hairline)] bg-transparent px-3 py-2 text-[0.82rem]"
-                  value={assignments[selected.key] ?? ""}
+                  value={assignmentSelectValue(assignments[selected.key])}
                   disabled={llmSaving || llmConfigs.length === 0}
                   onChange={(event) => {
-                    const raw = event.target.value
-                    const nextId = raw === "" ? null : Number(raw)
+                    const next = parseAssignmentSelect(event.target.value)
                     setLlmSaving(true)
-                    void assignPromptLlmConfiguration(selected.key, nextId)
+                    void assignPromptLlmConfiguration(selected.key, next)
                       .then((payload) => {
                         setAssignments(payload.assignments)
                         setLlmError(null)
@@ -215,11 +251,12 @@ export function PromptFieldsPanel({ catalog, prompts, onChange }: PromptFieldsPa
                       .finally(() => setLlmSaving(false))
                   }}
                 >
-                  <option value="">{t("configurations.editor.llmDefault")}</option>
+                  <option value="default">{t("configurations.editor.llmDefault")}</option>
+                  <option value="auto">{t("configurations.editor.llmAuto")}</option>
                   {llmConfigs
                     .filter((row) => !row.is_default)
                     .map((row) => (
-                      <option key={row.id} value={row.id}>
+                      <option key={row.id} value={`fixed:${row.id}`}>
                         {row.name}
                       </option>
                     ))}

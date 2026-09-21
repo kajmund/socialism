@@ -10,6 +10,7 @@ import {
   type LlmCatalogProfile,
   type LlmConfiguration,
   type LlmProbeResult,
+  type LlmSelectionRole,
   type LlmSettingsResponse,
 } from "@/api/llmSettings"
 import { LLM_CAPABILITIES_CHANGED_EVENT } from "@/components/chat/useLlmCapabilities"
@@ -24,6 +25,19 @@ type Draft = {
   topP: number
   maxTokens: number
   reasoningEffort: string
+  selectionRole: LlmSelectionRole
+  capabilityVision: boolean
+  capabilityTools: boolean
+  capabilityStructuredOutput: boolean
+  capabilityLongContext: boolean
+  enabledForAuto: boolean
+  priority: number
+}
+
+function defaultRoleForProfile(profileId: string): LlmSelectionRole {
+  if (profileId === "deepseek-v4-pro") return "deep"
+  if (profileId === "deepseek-flash" || profileId === "qwen-3.8-27b") return "fast"
+  return "balanced"
 }
 
 function draftFromProfile(profile: LlmCatalogProfile, name: string): Draft {
@@ -35,6 +49,13 @@ function draftFromProfile(profile: LlmCatalogProfile, name: string): Draft {
     topP: Number(defaults.top_p ?? 1),
     maxTokens: Number(defaults.max_tokens ?? 8192),
     reasoningEffort: String(defaults.reasoning_effort ?? "medium"),
+    selectionRole: defaultRoleForProfile(profile.id),
+    capabilityVision: Boolean(profile.supports_vision),
+    capabilityTools: true,
+    capabilityStructuredOutput: true,
+    capabilityLongContext: profile.provider === "deepseek",
+    enabledForAuto: true,
+    priority: 100,
   }
 }
 
@@ -48,6 +69,13 @@ function draftFromConfiguration(row: LlmConfiguration, catalog: LlmCatalogProfil
     topP: row.top_p ?? fallback?.topP ?? 1,
     maxTokens: row.max_tokens ?? fallback?.maxTokens ?? 8192,
     reasoningEffort: row.reasoning_effort ?? fallback?.reasoningEffort ?? "medium",
+    selectionRole: row.selection_role,
+    capabilityVision: row.capability_vision,
+    capabilityTools: row.capability_tools,
+    capabilityStructuredOutput: row.capability_structured_output,
+    capabilityLongContext: row.capability_long_context,
+    enabledForAuto: row.enabled_for_auto,
+    priority: row.priority,
   }
 }
 
@@ -61,6 +89,13 @@ function draftFromActive(active: LlmActive, catalog: LlmCatalogProfile[], name: 
     topP: active.top_p ?? fallback?.topP ?? 1,
     maxTokens: active.max_tokens ?? fallback?.maxTokens ?? 8192,
     reasoningEffort: active.reasoning_effort ?? fallback?.reasoningEffort ?? "medium",
+    selectionRole: fallback?.selectionRole ?? "balanced",
+    capabilityVision: fallback?.capabilityVision ?? false,
+    capabilityTools: fallback?.capabilityTools ?? true,
+    capabilityStructuredOutput: fallback?.capabilityStructuredOutput ?? true,
+    capabilityLongContext: fallback?.capabilityLongContext ?? false,
+    enabledForAuto: fallback?.enabledForAuto ?? true,
+    priority: fallback?.priority ?? 100,
   }
 }
 
@@ -156,6 +191,13 @@ export function LlmSettingsPage() {
       reasoning_effort: selected.params.some((param) => param.key === "reasoning_effort")
         ? draft.reasoningEffort
         : null,
+      selection_role: draft.selectionRole,
+      capability_vision: selected.supports_vision ? draft.capabilityVision : false,
+      capability_tools: draft.capabilityTools,
+      capability_structured_output: draft.capabilityStructuredOutput,
+      capability_long_context: draft.capabilityLongContext,
+      enabled_for_auto: draft.enabledForAuto,
+      priority: draft.priority,
     }
     try {
       let savedRow: LlmConfiguration
@@ -452,6 +494,90 @@ export function LlmSettingsPage() {
           </label>
         ) : null}
       </div>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-medium">{t("tools.llm.capabilitiesTitle")}</h3>
+        <p className="text-sm text-muted-foreground">{t("tools.llm.autoHint")}</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block text-sm">
+            <span className="mb-1 block">{t("tools.llm.selectionRole")}</span>
+            <select
+              className="w-full rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5"
+              value={draft.selectionRole}
+              onChange={(event) =>
+                setDraft({ ...draft, selectionRole: event.target.value as LlmSelectionRole })
+              }
+            >
+              <option value="fast">{t("tools.llm.roleFast")}</option>
+              <option value="balanced">{t("tools.llm.roleBalanced")}</option>
+              <option value="deep">{t("tools.llm.roleDeep")}</option>
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block">{t("tools.llm.priority")}</span>
+            <input
+              type="number"
+              min={0}
+              max={1000000}
+              className="w-full rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5"
+              value={draft.priority}
+              onChange={(event) => setDraft({ ...draft, priority: Number(event.target.value) })}
+            />
+          </label>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={selected.supports_vision ? draft.capabilityVision : false}
+              disabled={!selected.supports_vision}
+              onChange={(event) =>
+                setDraft({ ...draft, capabilityVision: event.target.checked })
+              }
+            />
+            <span>{t("tools.llm.capabilityVision")}</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.capabilityTools}
+              onChange={(event) => setDraft({ ...draft, capabilityTools: event.target.checked })}
+            />
+            <span>{t("tools.llm.capabilityTools")}</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.capabilityStructuredOutput}
+              onChange={(event) =>
+                setDraft({ ...draft, capabilityStructuredOutput: event.target.checked })
+              }
+            />
+            <span>{t("tools.llm.capabilityStructured")}</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.capabilityLongContext}
+              onChange={(event) =>
+                setDraft({ ...draft, capabilityLongContext: event.target.checked })
+              }
+            />
+            <span>{t("tools.llm.capabilityLongContext")}</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.enabledForAuto}
+              onChange={(event) => setDraft({ ...draft, enabledForAuto: event.target.checked })}
+            />
+            <span>{t("tools.llm.enabledForAuto")}</span>
+          </label>
+        </div>
+        {!selected.supports_vision ? (
+          <p className="text-xs text-muted-foreground">{t("tools.llm.visionLocked")}</p>
+        ) : null}
+      </section>
 
       <div className="flex flex-wrap gap-2">
         <Button
