@@ -30,6 +30,13 @@ class CaseLawAnalysis(BaseModel):
     legal_issue: str
     court_reasoning: str
     outcome: str
+    adjustment_requested: bool | None = None
+    adjustment_granted: bool | None = None
+    adjusted_term_type: str | None = None
+    contract_type: str | None = None
+    decisive_factors: list[str] = Field(default_factory=list)
+    rejected_arguments: list[str] = Field(default_factory=list)
+    party_context: Literal["consumer", "commercial", "mixed", "other", "unknown"] = "unknown"
     rule_or_principle: str | None = None
     applied_provisions: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
@@ -39,6 +46,9 @@ class CaseLawAnalysis(BaseModel):
 class PreparatoryWorkAnalysis(BaseModel):
     legislative_intent: str
     proposal_or_commentary: str
+    interpretation_guidance: list[str] = Field(default_factory=list)
+    policy_considerations: list[str] = Field(default_factory=list)
+    examples: list[str] = Field(default_factory=list)
     provisions: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     citations: list[LegalCitation] = Field(default_factory=list)
@@ -47,6 +57,8 @@ class PreparatoryWorkAnalysis(BaseModel):
 class StatuteAnalysis(BaseModel):
     operative_rule: str
     conditions: list[str] = Field(default_factory=list)
+    legal_effects: list[str] = Field(default_factory=list)
+    cross_references: list[str] = Field(default_factory=list)
     exceptions: list[str] = Field(default_factory=list)
     citations: list[LegalCitation] = Field(default_factory=list)
 
@@ -106,6 +118,17 @@ def legal_result_summary(result: LegalResearchResult) -> list[str]:
             )
         )
         analysis = result.case_law
+        lines.extend(
+            (
+                f"Adjustment requested: {analysis.adjustment_requested}",
+                f"Adjustment granted: {analysis.adjustment_granted}",
+                f"Adjusted term type: {analysis.adjusted_term_type or 'unknown'}",
+                f"Contract type: {analysis.contract_type or 'unknown'}",
+                f"Party context: {analysis.party_context}",
+            )
+        )
+        lines.extend(f"Decisive factor: {factor}" for factor in analysis.decisive_factors)
+        lines.extend(f"Rejected argument: {argument}" for argument in analysis.rejected_arguments)
     elif result.preparatory_work is not None:
         lines.extend(
             (
@@ -114,10 +137,16 @@ def legal_result_summary(result: LegalResearchResult) -> list[str]:
             )
         )
         analysis = result.preparatory_work
+        lines.extend(
+            f"Interpretation guidance: {value}" for value in analysis.interpretation_guidance
+        )
+        lines.extend(f"Policy consideration: {value}" for value in analysis.policy_considerations)
     else:
         assert result.statute is not None
         lines.append(f"Operative rule: {result.statute.operative_rule}")
         analysis = result.statute
+        lines.extend(f"Condition: {value}" for value in analysis.conditions)
+        lines.extend(f"Legal effect: {value}" for value in analysis.legal_effects)
     for citation in analysis.citations:
         lines.append(
             f'Verified quote: "{citation.quote}" ({citation.pinpoint or citation.source_uri})'

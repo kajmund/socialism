@@ -643,8 +643,9 @@ async def test_legal_analysis_is_stored_separately_for_each_research_need(sessio
 
     assert len(stored) == 2
     assert stored[0].passage_id != stored[1].passage_id
-    assert {row.research_need_id: row.provenance["legal_result"]["relation"]["relation"]
+    assert {row.research_need_id: row.domain_result.result["relation"]["relation"]
             for row in stored} == {"need-1": "supports", "need-2": "limits"}
+    assert all("legal_result" not in row.provenance for row in stored)
 
 
 def test_execution_package_has_no_panel_word_or_api_imports():

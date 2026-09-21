@@ -1,0 +1,73 @@
+{
+  "description": "Synthetic document excerpts test the pipeline contract. Proposition identities are real; no synthetic case is asserted to be precedent.",
+  "references": {
+    "relevant_preparatory_work": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/proposition/med-forslag-om-andring-i-lagen-1915218-om-avtal_fz0381/html/",
+    "irrelevant_preparatory_work": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/proposition/kungl-maj-ts-proposition-till-riksdagen-med_fu0320/html/"
+  },
+  "golden": {
+    "plan_topics": ["adjusted_term_types", "positive_cases", "negative_cases", "commercial_factors", "consumer_factors", "contract_type_differences", "preparatory_and_consumer_specific_rules"],
+    "source_decisions": {"synthetic_positive_case": true, "synthetic_negative_case": true, "prop_1975_76_81": true, "prop_1971_20": false, "statute_36": true},
+    "domain_expectations": {
+      "synthetic_positive_case": {"adjustment_granted": true, "adjusted_term_type": "liability_cap", "party_context": "commercial", "contract_type": "services"},
+      "synthetic_negative_case": {"adjustment_granted": false, "party_context": "consumer", "contract_type": "insurance"},
+      "prop_1975_76_81": {"provisions": ["36 § avtalslagen"], "consumer_protection": true},
+      "statute_36": {"operative_rule": "unfair terms may be adjusted", "consumer_protection": true}
+    },
+    "claims": [
+      {"research_need_id": "positive_cases", "predicate": "legal.adjustment_granted", "value": {"value": true}},
+      {"research_need_id": "negative_cases", "predicate": "legal.adjustment_granted", "value": {"value": false}},
+      {"research_need_id": "adjusted_term_types", "predicate": "legal.adjusted_term_type", "value": {"value": "liability_cap"}},
+      {"research_need_id": "commercial_factors", "predicate": "legal.decisive_factor", "value": {"value": "negotiated allocation of risk"}},
+      {"research_need_id": "consumer_factors", "predicate": "legal.decisive_factor", "value": {"value": "consumer's weaker position"}},
+      {"research_need_id": "contract_type_differences", "predicate": "legal.contract_type", "value": {"value": "insurance"}},
+      {"research_need_id": "preparatory_and_consumer_specific_rules", "predicate": "legal.legislative_intent", "value": {"value": "special consumer protections interact with the general clause"}}
+    ],
+    "assessment": {"positive_cases": true, "negative_cases": true, "commercial_factors": true, "consumer_factors": true, "contract_type_differences": true, "preparatory_and_consumer_specific_rules": true},
+    "completeness": "complete",
+    "expert_claim_ids": ["positive", "negative", "commercial", "consumer", "contract_type", "preparatory"],
+    "expert_context_markers": ["adjusted the liability cap", "declined adjustment", "negotiated allocation of risk", "consumer's weaker position", "insurance", "special consumer protections interact"]
+  },
+  "artifacts": {
+    "plan_topics": ["adjusted_term_types", "positive_cases", "negative_cases", "commercial_factors", "consumer_factors", "contract_type_differences", "preparatory_and_consumer_specific_rules"],
+    "sources": {
+      "synthetic_positive_case": {"selected": true}, "synthetic_negative_case": {"selected": true},
+      "prop_1975_76_81": {"selected": true}, "prop_1971_20": {"selected": false}, "statute_36": {"selected": true}
+    },
+    "domain_results": {
+      "synthetic_positive_case": {
+        "source_uri": "fixture://case/positive", "raw_text": "The court adjusted the liability cap after considering negotiated allocation of risk.",
+        "fields": {"adjustment_granted": true, "adjusted_term_type": "liability_cap", "party_context": "commercial", "contract_type": "services"},
+        "citations": [{"source_uri": "fixture://case/positive", "quote": "adjusted the liability cap"}]
+      },
+      "synthetic_negative_case": {
+        "source_uri": "fixture://case/negative", "raw_text": "The court declined adjustment of the insurance term despite the consumer's weaker position.",
+        "fields": {"adjustment_granted": false, "party_context": "consumer", "contract_type": "insurance"},
+        "citations": [{"source_uri": "fixture://case/negative", "quote": "declined adjustment of the insurance term"}]
+      },
+      "prop_1975_76_81": {
+        "source_uri": "fixture://prop/1975-76-81", "raw_text": "The general clause and special consumer protections interact.",
+        "fields": {"provisions": ["36 § avtalslagen"], "consumer_protection": true},
+        "citations": [{"source_uri": "fixture://prop/1975-76-81", "quote": "special consumer protections interact"}]
+      },
+      "statute_36": {
+        "source_uri": "fixture://statute/36", "raw_text": "Unfair terms may be adjusted. Special regard is given to a consumer's weaker position.",
+        "fields": {"operative_rule": "unfair terms may be adjusted", "consumer_protection": true},
+        "citations": [{"source_uri": "fixture://statute/36", "quote": "Unfair terms may be adjusted"}]
+      }
+    },
+    "claims": [
+      {"id": "positive", "source_id": "synthetic_positive_case", "research_need_id": "positive_cases", "predicate": "legal.adjustment_granted", "value": {"value": true}, "citations": [{"source_uri": "fixture://case/positive", "quote": "adjusted the liability cap"}]},
+      {"id": "term_type", "source_id": "synthetic_positive_case", "research_need_id": "adjusted_term_types", "predicate": "legal.adjusted_term_type", "value": {"value": "liability_cap"}, "citations": [{"source_uri": "fixture://case/positive", "quote": "adjusted the liability cap"}]},
+      {"id": "commercial", "source_id": "synthetic_positive_case", "research_need_id": "commercial_factors", "predicate": "legal.decisive_factor", "value": {"value": "negotiated allocation of risk"}, "citations": [{"source_uri": "fixture://case/positive", "quote": "negotiated allocation of risk"}]},
+      {"id": "negative", "source_id": "synthetic_negative_case", "research_need_id": "negative_cases", "predicate": "legal.adjustment_granted", "value": {"value": false}, "citations": [{"source_uri": "fixture://case/negative", "quote": "declined adjustment of the insurance term"}]},
+      {"id": "consumer", "source_id": "synthetic_negative_case", "research_need_id": "consumer_factors", "predicate": "legal.decisive_factor", "value": {"value": "consumer's weaker position"}, "citations": [{"source_uri": "fixture://case/negative", "quote": "consumer's weaker position"}]},
+      {"id": "contract_type", "source_id": "synthetic_negative_case", "research_need_id": "contract_type_differences", "predicate": "legal.contract_type", "value": {"value": "insurance"}, "citations": [{"source_uri": "fixture://case/negative", "quote": "insurance term"}]},
+      {"id": "preparatory", "source_id": "prop_1975_76_81", "research_need_id": "preparatory_and_consumer_specific_rules", "predicate": "legal.legislative_intent", "value": {"value": "special consumer protections interact with the general clause"}, "citations": [{"source_uri": "fixture://prop/1975-76-81", "quote": "special consumer protections interact"}]}
+    ],
+    "assessment": {"needs": {"positive_cases": true, "negative_cases": true, "commercial_factors": true, "consumer_factors": true, "contract_type_differences": true, "preparatory_and_consumer_specific_rules": true}, "completeness": "complete"},
+    "expert_context": {
+      "claim_ids": ["positive", "negative", "commercial", "consumer", "contract_type", "preparatory"],
+      "text": "The positive case adjusted the liability cap after negotiated allocation of risk. The negative case declined adjustment in insurance despite the consumer's weaker position. Preparatory material explains that special consumer protections interact with the general clause."
+    }
+  }
+}

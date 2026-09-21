@@ -98,9 +98,7 @@ async def publish_research_question_knowledge(
         items_query = items_query.join(
             EvidenceSetItemNeed,
             EvidenceSetItemNeed.evidence_set_item_id == EvidenceSetItem.id,
-        ).where(
-            EvidenceSetItemNeed.research_need_id == question.runtime_need_id
-        )
+        ).where(EvidenceSetItemNeed.research_need_id == question.runtime_need_id)
     items = list(
         (
             await session.execute(items_query.order_by(EvidenceSetItem.ordinal, EvidenceSetItem.id))
@@ -264,6 +262,8 @@ def _answer_link(
     source_attempt_id: str,
 ) -> QuestionEvidenceLink:
     provenance = dict(item.provenance or {})
+    if item.domain_result_id is not None:
+        provenance["domain_result_id"] = item.domain_result_id
     provenance["knowledge_module"] = run.module
     raw_context = run.context if isinstance(run.context, dict) else {}
     case_id = raw_context.get("case_id")

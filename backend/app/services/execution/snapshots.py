@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from app.services.execution.errors import ExecutionError
+from app.services.legal_research_result import LegalResearchResult
 from app.services.research.models import ResearchEvidence
 
 
@@ -32,6 +33,7 @@ class EvidenceItemSnapshot:
     original_evidence_id: str | None = None
     ordinal: int | None = None
     content_hash: str | None = None
+    legal_result: LegalResearchResult | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provenance", deepcopy(self.provenance))
@@ -54,8 +56,6 @@ def snapshot_research_evidence(
 ) -> EvidenceItemSnapshot:
     """Copy ResearchEvidence into a historical item. Does not keep a live link."""
     provenance = require_json_object(dict(evidence.metadata), field="provenance")
-    if evidence.legal_result is not None:
-        provenance["legal_result"] = evidence.legal_result.model_dump(mode="json")
     provenance["research_evidence_id"] = evidence.evidence_id
     explicit = provenance.get("content_hash")
     explicit_hash = explicit if isinstance(explicit, str) and explicit.strip() else None
@@ -73,6 +73,7 @@ def snapshot_research_evidence(
         provenance=provenance,
         retrieved_at=evidence.retrieved_at,
         original_evidence_id=evidence.evidence_id,
+        legal_result=evidence.legal_result,
         ordinal=ordinal,
         content_hash=(
             _legal_content_hash(evidence)
