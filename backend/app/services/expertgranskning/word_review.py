@@ -376,6 +376,7 @@ async def _llm[T](
     response_model: type[T],
     prompts: dict[str, str],
     *,
+    prompt_key: str,
     model: str | None = None,
     max_tokens: int | None = None,
 ) -> T:
@@ -384,6 +385,7 @@ async def _llm[T](
         lambda: complete_word_structured(
             messages,
             response_model,
+            prompt_key=prompt_key,
             prompts=prompts,
             timings=limiter.timings,
             model=model,
@@ -649,6 +651,7 @@ async def _review_paragraph(
     return await complete_word_structured(
         [{"role": "user", "content": user}],
         WordParagraphComments,
+        prompt_key="expertgranskning.word.paragraph",
         prompts=prompts,
     )
 
@@ -680,6 +683,7 @@ async def _review_heading(
         ),
         WordHeadingAssessment,
         prompts,
+        prompt_key="expertgranskning.word.heading",
     )
 
 
@@ -715,6 +719,7 @@ async def _moderate_batch(
         ),
         WordBatchModeration,
         prompts,
+        prompt_key="expertgranskning.word.moderator.batch",
     )
     return accepted_review_questions(
         parsed,
@@ -752,6 +757,7 @@ async def _route_question(
         ),
         WordExpertRoute,
         prompts,
+        prompt_key="expertgranskning.word.expert.router",
         model=settings.word_review_router_model_override,
         max_tokens=(
             settings.word_review_router_max_tokens
@@ -796,6 +802,7 @@ async def _raise_hand(
         ),
         WordExpertRaiseHand,
         prompts,
+        prompt_key="expertgranskning.word.expert.raise_hand",
     )
     return slot, selected_review_questions(
         parsed.question_ids,
@@ -864,6 +871,7 @@ async def _comment_question(
         ),
         WordExpertComment,
         prompts,
+        prompt_key="expertgranskning.word.expert.comment",
     )
     atoms = expand_expert_comment(parsed)
     if len(atoms) > 1:
@@ -953,6 +961,7 @@ async def _comment_convergence(
         ),
         WordCommentConvergence,
         prompts,
+        prompt_key="expertgranskning.word.comment_convergence",
     )
     return finalize_word_comment_convergence(parsed)
 
@@ -1042,6 +1051,7 @@ async def _rewrite_convergence(
         ),
         WordRewriteSuggestion,
         prompts,
+        prompt_key="expertgranskning.word.rewrite_convergence",
     )
     return rewrite_suggestion_or_none(parsed)
 

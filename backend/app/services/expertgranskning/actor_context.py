@@ -188,6 +188,7 @@ async def resolve_actor_context(
         lambda: complete_word_structured(
             actor_context_messages(prompts=prompts, source=source, locale=locale),
             ActorContext,
+            prompt_key="expertgranskning.word.actor_context",
             prompts=prompts,
             timings=limiter.timings,
             model=settings.word_review_router_model_override,
@@ -216,6 +217,7 @@ async def resolve_actor_context(
             lambda: complete_word_structured(
                 messages,
                 ActorContext,
+                prompt_key="expertgranskning.word.actor_context",
                 prompts=prompts,
                 timings=limiter.timings,
                 model=settings.word_review_router_model_override,

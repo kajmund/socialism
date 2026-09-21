@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     llm_temperature: float | None = Field(default=None, ge=0, le=2)
     llm_top_p: float | None = Field(default=None, gt=0, le=1)
     llm_timeout_seconds: float = 60.0
+    # TypeSafe Jev classifies Auto task needs. Empty key disables Auto classification.
+    typesafe_api_key: str = ""
+    typesafe_base_url: str = "https://api.typesafe.ai"
+    jev_model: str = "jev-latest"
+    jev_confidence_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    jev_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
+    jev_state_char_budget: int = Field(default=8000, ge=256, le=32_000)
     # Document-understanding batches are bounded separately from the global LLM
     # settings. They contain at most 20 short items and should never inherit a
     # very large global completion budget.

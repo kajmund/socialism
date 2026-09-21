@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -13,7 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import LLMProvider, settings
 from app.database.models import LlmConfiguration, LlmRuntimeSettings, PromptField
 from app.llm import reset_client
-from app.llm.runtime_override import LlmRuntimeView, set_prompt_runtime_views
+from app.llm.runtime_override import (
+    CachedLlmConfiguration,
+    LlmRuntimeView,
+    PromptLlmAssignmentView,
+    SelectionMode,
+    SelectionRole,
+    set_runtime_selection_cache,
+)
 from app.serializers import utcnow
 
 ProfileId = Literal[
@@ -138,6 +145,84 @@ MODEL_CATALOG: tuple[ModelProfile, ...] = (
 )
 
 _CATALOG_BY_ID = {row.id: row for row in MODEL_CATALOG}
+
+SELECTION_ROLES: tuple[SelectionRole, ...] = ("fast", "balanced", "deep")
+SELECTION_MODES: tuple[SelectionMode, ...] = ("default", "fixed", "auto")
+DEFAULT_AUTO_PRIORITY = 100
+
+
+def default_selection_metadata(profile_id: str) -> dict[str, Any]:
+    profile = get_profile(profile_id)
+    if profile.id == "deepseek-v4-pro":
+        role: SelectionRole = "deep"
+    elif profile.id in {"deepseek-flash", "qwen-3.8-27b"}:
+        role = "fast"
+    else:
+        role = "balanced"
+    return {
+        "selection_role": role,
+        "capability_vision": profile.supports_vision,
+        "capability_tools": True,
+        "capability_structured_output": True,
+        "capability_long_context": profile.provider == "deepseek",
+        "enabled_for_auto": True,
+        "priority": DEFAULT_AUTO_PRIORITY,
+    }
+
+
+def normalize_selection_metadata(
+    *,
+    profile_id: str,
+    selection_role: str | None = None,
+    capability_vision: bool | None = None,
+    capability_tools: bool | None = None,
+    capability_structured_output: bool | None = None,
+    capability_long_context: bool | None = None,
+    enabled_for_auto: bool | None = None,
+    priority: int | None = None,
+) -> dict[str, Any]:
+    defaults = default_selection_metadata(profile_id)
+    role = defaults["selection_role"] if selection_role is None else str(selection_role)
+    if role not in SELECTION_ROLES:
+        raise ValueError(f"selection_role must be one of {list(SELECTION_ROLES)}")
+    vision = (
+        defaults["capability_vision"]
+        if capability_vision is None
+        else bool(capability_vision)
+    )
+    profile = get_profile(profile_id)
+    if vision and not profile.supports_vision:
+        raise ValueError(
+            f"profile {profile.id} does not support vision; capability_vision cannot be true"
+        )
+    priority_value = defaults["priority"] if priority is None else int(priority)
+    if priority_value < 0 or priority_value > 1_000_000:
+        raise ValueError("priority must be between 0 and 1000000")
+    return {
+        "selection_role": role,
+        "capability_vision": vision,
+        "capability_tools": (
+            defaults["capability_tools"]
+            if capability_tools is None
+            else bool(capability_tools)
+        ),
+        "capability_structured_output": (
+            defaults["capability_structured_output"]
+            if capability_structured_output is None
+            else bool(capability_structured_output)
+        ),
+        "capability_long_context": (
+            defaults["capability_long_context"]
+            if capability_long_context is None
+            else bool(capability_long_context)
+        ),
+        "enabled_for_auto": (
+            defaults["enabled_for_auto"]
+            if enabled_for_auto is None
+            else bool(enabled_for_auto)
+        ),
+        "priority": priority_value,
+    }
 
 
 def resolve_profile_id(profile_id: str) -> ProfileId:
@@ -473,10 +558,27 @@ def configuration_as_dict(row: LlmConfiguration) -> dict[str, Any]:
         "top_p": row.top_p,
         "max_tokens": row.max_tokens,
         "reasoning_effort": row.reasoning_effort,
+        "selection_role": row.selection_role,
+        "capability_vision": bool(row.capability_vision),
+        "capability_tools": bool(row.capability_tools),
+        "capability_structured_output": bool(row.capability_structured_output),
+        "capability_long_context": bool(row.capability_long_context),
+        "enabled_for_auto": bool(row.enabled_for_auto),
+        "priority": int(row.priority),
         "is_default": bool(row.is_default),
         "created_at": row.created_at.isoformat() if row.created_at else "",
         "updated_at": row.updated_at.isoformat() if row.updated_at else "",
     }
+
+
+def _apply_selection_metadata(row: LlmConfiguration, metadata: dict[str, Any]) -> None:
+    row.selection_role = metadata["selection_role"]
+    row.capability_vision = metadata["capability_vision"]
+    row.capability_tools = metadata["capability_tools"]
+    row.capability_structured_output = metadata["capability_structured_output"]
+    row.capability_long_context = metadata["capability_long_context"]
+    row.enabled_for_auto = metadata["enabled_for_auto"]
+    row.priority = metadata["priority"]
 
 
 def _normalize_name(name: str) -> str:
@@ -514,36 +616,82 @@ async def get_configuration(session: AsyncSession, configuration_id: int) -> Llm
     return row
 
 
-async def assignment_map(session: AsyncSession) -> dict[str, int]:
-    result = await session.execute(
-        select(PromptField.key, PromptField.llm_configuration_id).where(
-            PromptField.llm_configuration_id.is_not(None)
-        )
+def assignment_as_dict(field: PromptField) -> dict[str, Any]:
+    mode = field.llm_selection_mode if field.llm_selection_mode in SELECTION_MODES else "default"
+    return {
+        "llm_selection_mode": mode,
+        "llm_configuration_id": field.llm_configuration_id,
+    }
+
+
+async def assignment_map(session: AsyncSession) -> dict[str, dict[str, Any]]:
+    result = await session.execute(select(PromptField))
+    assignments: dict[str, dict[str, Any]] = {}
+    for field in result.scalars().all():
+        mode = field.llm_selection_mode if field.llm_selection_mode in SELECTION_MODES else "default"
+        if mode == "default" and field.llm_configuration_id is None:
+            continue
+        assignments[field.key] = assignment_as_dict(field)
+    return assignments
+
+
+def _cached_from_row(row: LlmConfiguration) -> CachedLlmConfiguration:
+    normalized = validate_and_normalize(
+        profile_id=row.profile_id,
+        temperature=row.temperature,
+        top_p=row.top_p,
+        max_tokens=row.max_tokens,
+        reasoning_effort=row.reasoning_effort,
     )
-    return {str(key): int(config_id) for key, config_id in result.all() if config_id is not None}
+    metadata = normalize_selection_metadata(
+        profile_id=normalized["profile_id"],
+        selection_role=row.selection_role,
+        capability_vision=row.capability_vision,
+        capability_tools=row.capability_tools,
+        capability_structured_output=row.capability_structured_output,
+        capability_long_context=row.capability_long_context,
+        enabled_for_auto=row.enabled_for_auto,
+        priority=row.priority,
+    )
+    return CachedLlmConfiguration(
+        id=row.id,
+        name=row.name,
+        is_default=bool(row.is_default),
+        selection_role=cast(SelectionRole, metadata["selection_role"]),
+        capability_vision=bool(metadata["capability_vision"]),
+        capability_tools=bool(metadata["capability_tools"]),
+        capability_structured_output=bool(metadata["capability_structured_output"]),
+        capability_long_context=bool(metadata["capability_long_context"]),
+        enabled_for_auto=bool(metadata["enabled_for_auto"]),
+        priority=int(metadata["priority"]),
+        view=runtime_view_from_normalized(normalized),
+    )
 
 
 async def refresh_prompt_runtime_cache(session: AsyncSession) -> None:
-    configs = {row.id: row for row in await list_configurations(session)}
-    fields = (
-        await session.execute(
-            select(PromptField).where(PromptField.llm_configuration_id.is_not(None))
-        )
-    ).scalars().all()
-    views: dict[str, LlmRuntimeView] = {}
+    rows = await list_configurations(session)
+    configs = {row.id: _cached_from_row(row) for row in rows}
+    default = next((row for row in rows if row.is_default), None)
+    fields = (await session.execute(select(PromptField))).scalars().all()
+    assignments: dict[str, PromptLlmAssignmentView] = {}
     for field in fields:
-        row = configs.get(field.llm_configuration_id or 0)
-        if row is None or row.is_default:
-            continue
-        normalized = validate_and_normalize(
-            profile_id=row.profile_id,
-            temperature=row.temperature,
-            top_p=row.top_p,
-            max_tokens=row.max_tokens,
-            reasoning_effort=row.reasoning_effort,
+        mode: SelectionMode = (
+            cast(SelectionMode, field.llm_selection_mode)
+            if field.llm_selection_mode in SELECTION_MODES
+            else "default"
         )
-        views[field.key] = runtime_view_from_normalized(normalized)
-    set_prompt_runtime_views(views)
+        if mode == "default" and field.llm_configuration_id is None:
+            continue
+        assignments[field.key] = PromptLlmAssignmentView(
+            mode=mode,
+            configuration_id=field.llm_configuration_id,
+            allowed_configuration_ids=None,
+        )
+    set_runtime_selection_cache(
+        assignments=assignments,
+        configurations=configs,
+        default_configuration_id=default.id if default is not None else None,
+    )
 
 
 async def _clear_other_defaults(session: AsyncSession, keep_id: int | None) -> None:
@@ -573,6 +721,7 @@ async def _write_default_from_values(
     )
     row = await get_default_configuration(session)
     now = utcnow()
+    metadata = default_selection_metadata(normalized["profile_id"])
     if row is None:
         row = LlmConfiguration(
             name=DEFAULT_CONFIGURATION_NAME,
@@ -581,6 +730,13 @@ async def _write_default_from_values(
             top_p=normalized["top_p"],
             max_tokens=int(normalized["max_tokens"]),
             reasoning_effort=normalized["reasoning_effort"],
+            selection_role=metadata["selection_role"],
+            capability_vision=metadata["capability_vision"],
+            capability_tools=metadata["capability_tools"],
+            capability_structured_output=metadata["capability_structured_output"],
+            capability_long_context=metadata["capability_long_context"],
+            enabled_for_auto=metadata["enabled_for_auto"],
+            priority=metadata["priority"],
             is_default=True,
             created_at=now,
             updated_at=now,
@@ -592,6 +748,8 @@ async def _write_default_from_values(
         row.top_p = normalized["top_p"]
         row.max_tokens = int(normalized["max_tokens"])
         row.reasoning_effort = normalized["reasoning_effort"]
+        if row.capability_vision and not metadata["capability_vision"]:
+            row.capability_vision = False
         row.updated_at = now
     return row
 
@@ -666,6 +824,13 @@ async def create_configuration(
     max_tokens: int | None,
     reasoning_effort: str | None,
     is_default: bool = False,
+    selection_role: str | None = None,
+    capability_vision: bool | None = None,
+    capability_tools: bool | None = None,
+    capability_structured_output: bool | None = None,
+    capability_long_context: bool | None = None,
+    enabled_for_auto: bool | None = None,
+    priority: int | None = None,
 ) -> LlmConfiguration:
     normalized = validate_and_normalize(
         profile_id=profile_id,
@@ -673,6 +838,16 @@ async def create_configuration(
         top_p=top_p,
         max_tokens=max_tokens,
         reasoning_effort=reasoning_effort,
+    )
+    metadata = normalize_selection_metadata(
+        profile_id=normalized["profile_id"],
+        selection_role=selection_role,
+        capability_vision=capability_vision,
+        capability_tools=capability_tools,
+        capability_structured_output=capability_structured_output,
+        capability_long_context=capability_long_context,
+        enabled_for_auto=enabled_for_auto,
+        priority=priority,
     )
     existing = await list_configurations(session)
     make_default = is_default or not existing
@@ -684,6 +859,13 @@ async def create_configuration(
         top_p=normalized["top_p"],
         max_tokens=int(normalized["max_tokens"]),
         reasoning_effort=normalized["reasoning_effort"],
+        selection_role=metadata["selection_role"],
+        capability_vision=metadata["capability_vision"],
+        capability_tools=metadata["capability_tools"],
+        capability_structured_output=metadata["capability_structured_output"],
+        capability_long_context=metadata["capability_long_context"],
+        enabled_for_auto=metadata["enabled_for_auto"],
+        priority=metadata["priority"],
         is_default=make_default,
         created_at=now,
         updated_at=now,
@@ -715,6 +897,13 @@ async def update_configuration(
     top_p: float | None = None,
     max_tokens: int | None = None,
     reasoning_effort: str | None = None,
+    selection_role: str | None = None,
+    capability_vision: bool | None = None,
+    capability_tools: bool | None = None,
+    capability_structured_output: bool | None = None,
+    capability_long_context: bool | None = None,
+    enabled_for_auto: bool | None = None,
+    priority: int | None = None,
 ) -> LlmConfiguration:
     row = await get_configuration(session, configuration_id)
     normalized = validate_and_normalize(
@@ -724,6 +913,28 @@ async def update_configuration(
         max_tokens=row.max_tokens if max_tokens is None else max_tokens,
         reasoning_effort=row.reasoning_effort if reasoning_effort is None else reasoning_effort,
     )
+    metadata = normalize_selection_metadata(
+        profile_id=normalized["profile_id"],
+        selection_role=row.selection_role if selection_role is None else selection_role,
+        capability_vision=(
+            row.capability_vision if capability_vision is None else capability_vision
+        ),
+        capability_tools=row.capability_tools if capability_tools is None else capability_tools,
+        capability_structured_output=(
+            row.capability_structured_output
+            if capability_structured_output is None
+            else capability_structured_output
+        ),
+        capability_long_context=(
+            row.capability_long_context
+            if capability_long_context is None
+            else capability_long_context
+        ),
+        enabled_for_auto=(
+            row.enabled_for_auto if enabled_for_auto is None else enabled_for_auto
+        ),
+        priority=row.priority if priority is None else priority,
+    )
     if name is not None:
         row.name = _normalize_name(name)
     row.profile_id = normalized["profile_id"]
@@ -731,6 +942,7 @@ async def update_configuration(
     row.top_p = normalized["top_p"]
     row.max_tokens = int(normalized["max_tokens"])
     row.reasoning_effort = normalized["reasoning_effort"]
+    _apply_selection_metadata(row, metadata)
     row.updated_at = utcnow()
     if row.is_default:
         await _sync_singleton_from_configuration(session, row)
@@ -760,6 +972,8 @@ async def set_default_configuration(
     now = utcnow()
     for field in assigned:
         field.llm_configuration_id = None
+        if field.llm_selection_mode == "fixed":
+            field.llm_selection_mode = "default"
         field.updated_at = now
     await _sync_singleton_from_configuration(session, row)
     await session.commit()
@@ -791,15 +1005,38 @@ async def assign_prompt_configuration(
     session: AsyncSession,
     prompt_key: str,
     configuration_id: int | None,
+    selection_mode: SelectionMode | None = None,
 ) -> None:
     field = await session.scalar(select(PromptField).where(PromptField.key == prompt_key))
     if field is None:
         raise LookupError(f"unknown prompt key: {prompt_key}")
-    if configuration_id is None:
-        field.llm_configuration_id = None
+    mode: SelectionMode
+    if selection_mode is None:
+        mode = "default" if configuration_id is None else "fixed"
     else:
+        if selection_mode not in SELECTION_MODES:
+            raise ValueError(f"llm_selection_mode must be one of {list(SELECTION_MODES)}")
+        mode = selection_mode
+    if mode == "default":
+        field.llm_selection_mode = "default"
+        field.llm_configuration_id = None
+    elif mode == "auto":
+        field.llm_selection_mode = "auto"
+        if configuration_id is None:
+            field.llm_configuration_id = None
+        else:
+            config = await get_configuration(session, configuration_id)
+            field.llm_configuration_id = None if config.is_default else config.id
+    else:
+        if configuration_id is None:
+            raise ValueError("llm_configuration_id is required when mode is fixed")
         config = await get_configuration(session, configuration_id)
-        field.llm_configuration_id = None if config.is_default else config.id
+        if config.is_default:
+            field.llm_selection_mode = "default"
+            field.llm_configuration_id = None
+        else:
+            field.llm_selection_mode = "fixed"
+            field.llm_configuration_id = config.id
     field.updated_at = utcnow()
     await session.commit()
     await refresh_prompt_runtime_cache(session)

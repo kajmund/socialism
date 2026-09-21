@@ -16,7 +16,13 @@ from openai import AsyncOpenAI
 from openai.resources.chat.completions import AsyncCompletions
 
 from app.config import settings
-from app.llm.runtime_override import bound_llm_prompt, current_runtime
+from app.llm.runtime_override import (
+    bound_llm_retry,
+    current_resolution,
+    current_retry,
+    current_runtime,
+)
+from app.llm.selection import llm_call_runtime
 from app.llm.structured_retry import (
     StructuredOutputError,
     classify_structured_failure,
@@ -52,6 +58,13 @@ class LLMCallStats:
     completion_tokens: int
     elapsed_ms: float
     kind: LLMCallKind
+    prompt_key: str | None = None
+    selection_mode: str | None = None
+    selected_configuration_id: int | None = None
+    auto_confidence: float | None = None
+    reason_code: str | None = None
+    retry: bool = False
+    failed: bool = False
 
 
 LLMUsageRecorder = Callable[[LLMCallStats], None]
@@ -233,11 +246,13 @@ def _record_call(
     started_at: float,
     prompt_tokens: int = 0,
     completion_tokens: int = 0,
+    failed: bool = False,
 ) -> None:
     recorder = _usage_recorder.get()
     if recorder is None:
         return
     runtime = current_runtime()
+    resolution = current_resolution()
     recorder(
         LLMCallStats(
             provider=runtime.provider,
@@ -247,6 +262,15 @@ def _record_call(
             completion_tokens=completion_tokens,
             elapsed_ms=(time.monotonic() - started_at) * 1000,
             kind=kind,
+            prompt_key=None if resolution is None else resolution.prompt_key,
+            selection_mode=None if resolution is None else resolution.selection_mode,
+            selected_configuration_id=(
+                None if resolution is None else resolution.selected_configuration_id
+            ),
+            auto_confidence=None if resolution is None else resolution.auto_confidence,
+            reason_code=None if resolution is None else resolution.reason_code,
+            retry=current_retry(),
+            failed=failed,
         )
     )
 
@@ -261,7 +285,7 @@ async def complete_structured[T](
     reasoning_effort: str | None = None,
     prompt_key: str | None = None,
 ) -> T:
-    with bound_llm_prompt(prompt_key):
+    async with llm_call_runtime(prompt_key, messages, "structured"):
         return await _complete_structured(
             messages,
             response_model,
@@ -297,29 +321,33 @@ async def _complete_structured[T](
     chosen = _resolved_model(model)
     wait = settings.llm_timeout_seconds if timeout is None else timeout
     started_at = time.monotonic()
-    completion = await asyncio.wait_for(
-        client.chat.completions.create(
-            **_chat_create_kwargs(
-                model=chosen,
-                messages=guided,
-                max_tokens=(
-                    max_tokens if max_tokens is not None else runtime.max_tokens
-                ),
-                extra={
-                    "response_format": _structured_response_format(
-                        response_model, schema
+    try:
+        completion = await asyncio.wait_for(
+            client.chat.completions.create(
+                **_chat_create_kwargs(
+                    model=chosen,
+                    messages=guided,
+                    max_tokens=(
+                        max_tokens if max_tokens is not None else runtime.max_tokens
                     ),
-                    # Override the client's global timeout for call sites with a
-                    # deliberately different structured-output budget.
-                    "timeout": wait,
-                },
-                reasoning_effort=(
-                    reasoning_effort if reasoning_effort is not None else _UNSET
-                ),
-            )
-        ),
-        timeout=wait,
-    )
+                    extra={
+                        "response_format": _structured_response_format(
+                            response_model, schema
+                        ),
+                        # Override the client's global timeout for call sites with a
+                        # deliberately different structured-output budget.
+                        "timeout": wait,
+                    },
+                    reasoning_effort=(
+                        reasoning_effort if reasoning_effort is not None else _UNSET
+                    ),
+                )
+            ),
+            timeout=wait,
+        )
+    except Exception:
+        _record_call(model=chosen, kind="structured", started_at=started_at, failed=True)
+        raise
     prompt_tokens, completion_tokens = _usage_tokens(completion)
     _record_call(
         model=chosen,
@@ -356,27 +384,31 @@ async def complete_structured_retry[T](
 ) -> T:
     """Structured completion with one retry on truncated or invalid JSON."""
 
-    async def _complete(
-        retry_messages: list[ChatMessage],
-        retry_model: type[T],
-    ) -> T:
-        return await complete_structured(
-            retry_messages,
-            retry_model,
-            model=model,
-            max_tokens=max_tokens,
-            timeout=timeout,
-            reasoning_effort=reasoning_effort,
-            prompt_key=prompt_key,
-        )
+    async with llm_call_runtime(prompt_key, messages, "structured"):
+        attempt = {"n": 0}
 
-    return await run_structured_with_retry(
-        _complete,
-        messages,
-        response_model,
-        retry_instruction=retry_instruction,
-        on_retry=on_retry,
-    )
+        async def _complete(
+            retry_messages: list[ChatMessage],
+            retry_model: type[T],
+        ) -> T:
+            attempt["n"] += 1
+            with bound_llm_retry(attempt["n"] > 1):
+                return await _complete_structured(
+                    retry_messages,
+                    retry_model,
+                    model=model,
+                    max_tokens=max_tokens,
+                    timeout=timeout,
+                    reasoning_effort=reasoning_effort,
+                )
+
+        return await run_structured_with_retry(
+            _complete,
+            messages,
+            response_model,
+            retry_instruction=retry_instruction,
+            on_retry=on_retry,
+        )
 
 
 async def complete_text(
@@ -385,7 +417,7 @@ async def complete_text(
     model: str | None = None,
     prompt_key: str | None = None,
 ) -> str:
-    with bound_llm_prompt(prompt_key):
+    async with llm_call_runtime(prompt_key, messages, "text"):
         return await _complete_text(messages, model=model)
 
 
@@ -419,7 +451,7 @@ async def stream_text(
     prompt_key: str | None = None,
 ) -> AsyncIterator[str]:
     """Yield text deltas from the chat completion stream."""
-    with bound_llm_prompt(prompt_key):
+    async with llm_call_runtime(prompt_key, messages, "stream"):
         async for chunk in _stream_text(messages):
             yield chunk
 
@@ -473,7 +505,7 @@ async def stream_text_with_metrics(
     prompt_key: str | None = None,
 ) -> StreamTextMetrics:
     """Stream a completion and return text plus usage / latency metrics."""
-    with bound_llm_prompt(prompt_key):
+    async with llm_call_runtime(prompt_key, messages, "stream"):
         return await _stream_text_with_metrics(messages)
 
 
@@ -563,7 +595,7 @@ async def complete_with_tools(
     prompt_key: str | None = None,
 ) -> Any:
     """One chat.completions turn; may return tool_calls. Injectable for tests."""
-    with bound_llm_prompt(prompt_key):
+    async with llm_call_runtime(prompt_key, messages, "tools"):
         return await _complete_with_tools(messages, tools)
 
 
@@ -611,3 +643,15 @@ async def generate_editable_persona(
     return await complete_structured(
         messages, EditablePersona, prompt_key=prompt_key
     )
+
+
+async def invoke_structured_completer[T](
+    completer: Completer,
+    messages: list[ChatMessage],
+    response_model: type[T],
+    *,
+    prompt_key: str,
+) -> T:
+    if completer is complete_structured or completer is complete_structured_retry:
+        return await completer(messages, response_model, prompt_key=prompt_key)
+    return await completer(messages, response_model)  # type: ignore[return-value]

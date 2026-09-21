@@ -1292,6 +1292,13 @@ class PromptField(Base):
         nullable=False,
     )
 
+    llm_selection_mode: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="default",
+        server_default="default",
+        index=True,
+    )
     llm_configuration_id: Mapped[int | None] = mapped_column(
         ForeignKey("llm_configurations.id", ondelete="SET NULL"),
         nullable=True,
@@ -2573,6 +2580,19 @@ class LlmConfiguration(Base):
     top_p: Mapped[float | None] = mapped_column(Float, nullable=True)
     max_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=8192)
     reasoning_effort: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    selection_role: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="balanced"
+    )
+    capability_vision: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    capability_tools: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    capability_structured_output: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+    capability_long_context: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    enabled_for_auto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

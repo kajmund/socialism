@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,9 +44,21 @@ class LlmConfigurationOut(BaseModel):
     top_p: float | None
     max_tokens: int
     reasoning_effort: str | None
+    selection_role: str
+    capability_vision: bool
+    capability_tools: bool
+    capability_structured_output: bool
+    capability_long_context: bool
+    enabled_for_auto: bool
+    priority: int
     is_default: bool
     created_at: str
     updated_at: str
+
+
+class LlmPromptAssignmentOut(BaseModel):
+    llm_selection_mode: Literal["default", "fixed", "auto"]
+    llm_configuration_id: int | None = None
 
 
 class LlmGetOut(BaseModel):
@@ -53,7 +67,7 @@ class LlmGetOut(BaseModel):
     credentials: dict[str, bool]
     configurations: list[LlmConfigurationOut]
     default_id: int | None
-    assignments: dict[str, int]
+    assignments: dict[str, LlmPromptAssignmentOut]
 
 
 class LlmPutIn(BaseModel):
@@ -72,6 +86,13 @@ class LlmConfigurationCreateIn(BaseModel):
     max_tokens: int | None = None
     reasoning_effort: str | None = None
     is_default: bool = False
+    selection_role: str | None = None
+    capability_vision: bool | None = None
+    capability_tools: bool | None = None
+    capability_structured_output: bool | None = None
+    capability_long_context: bool | None = None
+    enabled_for_auto: bool | None = None
+    priority: int | None = None
 
 
 class LlmConfigurationUpdateIn(BaseModel):
@@ -81,9 +102,17 @@ class LlmConfigurationUpdateIn(BaseModel):
     top_p: float | None = None
     max_tokens: int | None = None
     reasoning_effort: str | None = None
+    selection_role: str | None = None
+    capability_vision: bool | None = None
+    capability_tools: bool | None = None
+    capability_structured_output: bool | None = None
+    capability_long_context: bool | None = None
+    enabled_for_auto: bool | None = None
+    priority: int | None = None
 
 
 class LlmPromptAssignmentIn(BaseModel):
+    llm_selection_mode: Literal["default", "fixed", "auto"] | None = None
     llm_configuration_id: int | None = None
 
 
@@ -182,6 +211,13 @@ async def create_llm_configuration(
             max_tokens=body.max_tokens,
             reasoning_effort=body.reasoning_effort,
             is_default=body.is_default,
+            selection_role=body.selection_role,
+            capability_vision=body.capability_vision,
+            capability_tools=body.capability_tools,
+            capability_structured_output=body.capability_structured_output,
+            capability_long_context=body.capability_long_context,
+            enabled_for_auto=body.enabled_for_auto,
+            priority=body.priority,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -204,6 +240,13 @@ async def update_llm_configuration(
             top_p=body.top_p,
             max_tokens=body.max_tokens,
             reasoning_effort=body.reasoning_effort,
+            selection_role=body.selection_role,
+            capability_vision=body.capability_vision,
+            capability_tools=body.capability_tools,
+            capability_structured_output=body.capability_structured_output,
+            capability_long_context=body.capability_long_context,
+            enabled_for_auto=body.enabled_for_auto,
+            priority=body.priority,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -250,7 +293,10 @@ async def assign_prompt_llm_configuration(
 ) -> LlmGetOut:
     try:
         await runtime.assign_prompt_configuration(
-            session, prompt_key, body.llm_configuration_id
+            session,
+            prompt_key,
+            body.llm_configuration_id,
+            selection_mode=body.llm_selection_mode,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
