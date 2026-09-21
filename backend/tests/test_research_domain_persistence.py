@@ -1,6 +1,7 @@
 """Raw documents are shared, while interpretations and claims retain need lineage."""
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -14,11 +15,13 @@ from app.database.models import (
     Kund,
     RawSource,
     ResearchClaim,
+    ResearchRuntimeNeed,
 )
 from app.llm.research_assessment import _evidence_payload as assessment_payload
 from app.llm.research_completeness import _evidence_payload as completeness_payload
 from app.services.execution import (
     add_evidence_items,
+    create_attempt,
     create_evidence_set,
     create_run,
     list_evidence_items,
@@ -33,6 +36,139 @@ from app.services.legal_research_result import (
 from app.services.research.assessment import EvidenceReviewGroup
 from app.services.research.execution import assessable_from_item
 from app.services.research.models import research_evidence
+
+
+@pytest.mark.asyncio
+async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses():
+    from app.services.lagen_nu.models import ResolvedCitations
+    from app.services.lagen_nu.research_source import LagenNuResearchSource
+    from app.services.research.knowledge_question import research_question_key
+    from tests.test_lagen_nu_provider import (
+        FakeLagenNuClient,
+        FakeLegalInterpreter,
+        PassthroughLagenNuSelector,
+        _document,
+        _hit,
+    )
+    from tests.test_research import _context, _need
+
+    engine = create_async_engine(
+        "sqlite+aiosqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    uri = "https://lagen.nu/dom/nja/2005s142"
+    hit = _hit(
+        uri=uri,
+        title="NJA 2005 s. 142",
+        source="dv",
+        pinpoint=None,
+        highlight="ansvarsbegränsningen jämkades",
+    )
+    client = FakeLagenNuClient(
+        resolved=ResolvedCitations(results=(hit,)),
+        documents={
+            uri: _document(
+                uri=uri,
+                pinpoint=None,
+                source="dv",
+                text="HD jämkade ansvarsbegränsningen i avtalet.",
+            )
+        },
+    )
+
+    class CountingInterpreter(FakeLegalInterpreter):
+        calls = 0
+
+        async def interpret(self, **kwargs):
+            self.calls += 1
+            return await super().interpret(**kwargs)
+
+    interpreter = CountingInterpreter()
+    try:
+        async with factory() as session:
+            customer = Kund(name="Test", slug="source-reuse", available_modules=["dd"])
+            session.add(customer)
+            await session.flush()
+            run = await create_run(session, customer_id=customer.id, module="dd", title="Research")
+            attempt = await create_attempt(session, run_id=run.id, attempt_type="generic_panel")
+            evidence_set = await create_evidence_set(
+                session, run_id=run.id, created_from_attempt_id=attempt.id
+            )
+            context = replace(_context(), attempt_id=attempt.id)
+            source = LagenNuResearchSource(
+                source_type="swedish_case_law",
+                client=client,
+                selector=PassthroughLagenNuSelector(),
+                interpreter=interpreter,
+                reuse_session=session,
+            )
+            for index, question in enumerate(
+                (
+                    "Vilka villkor jämkades i NJA 2005 s. 142?",
+                    "Vilka omständigheter var avgörande i NJA 2005 s. 142?",
+                    "Vilken betydelse har NJA 2005 s. 142 för 36 §?",
+                )
+            ):
+                need = _need("swedish_case_law", question=question)
+                need = replace(need, id=f"followup-{index}")
+                evidence = await source.research(need, context)
+                assert len(evidence) == 1 and evidence[0].status == "found"
+                await add_evidence_items(session, evidence_set_id=evidence_set.id, items=evidence)
+                await session.flush()
+            assert sum(name == "get_document" for name, _ in client.calls) == 1
+            assert len((await session.scalars(select(RawSource))).all()) == 1
+            assert len((await session.scalars(select(DomainResearchResultRecord))).all()) == 3
+            assert interpreter.calls == 3
+            session.add(
+                ResearchRuntimeNeed(
+                    id="runtime-first",
+                    attempt_id=attempt.id,
+                    research_need_id="followup-0",
+                    question="Vilka villkor jämkades i NJA 2005 s. 142?",
+                    why_needed="test",
+                    question_key=research_question_key("Vilka villkor jämkades i NJA 2005 s. 142?"),
+                )
+            )
+            await session.flush()
+            same_need = replace(
+                _need("swedish_case_law", question="Vilka villkor jämkades i NJA 2005 s. 142?"),
+                id="same-question-again",
+            )
+            same_evidence = await source.research(same_need, context)
+            assert same_evidence[0].metadata["reused_domain_result_id"]
+            await add_evidence_items(session, evidence_set_id=evidence_set.id, items=same_evidence)
+            await session.flush()
+            assert len((await session.scalars(select(DomainResearchResultRecord))).all()) == 3
+            assert interpreter.calls == 3
+            from app.api.execution import _evidence_set_out
+
+            first_error = research_evidence(
+                research_need_id="followup-2",
+                source_type="swedish_case_law",
+                status="error",
+                title="NJA 2005 s. 142",
+                source_id=uri,
+                source_url=uri,
+                provider="lagen_nu",
+                metadata={
+                    "reason": "legal_domain_extraction_failed",
+                    "error_type": "LegalDomainExtractionError",
+                },
+            )
+            await add_evidence_items(
+                session, evidence_set_id=evidence_set.id, items=[first_error, first_error]
+            )
+            items = await list_evidence_items(session, evidence_set.id)
+            assert len([item for item in items if item.status == "error"]) == 1
+            response = _evidence_set_out(evidence_set, items)
+            assert len(response.sources) == 1
+            assert len(response.sources[0].research_need_ids) == 4
+            assert len(response.sources[0].domain_result_ids) == 3
+            assert response.sources[0].error_count == 1
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

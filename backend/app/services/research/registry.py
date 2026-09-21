@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.services.knowledge.provider import KnowledgeProvider
 from app.services.lagen_nu.registration import (
     LAGEN_NU_ADAPTER,
@@ -138,21 +140,15 @@ class KnowledgeProviderCapabilityRegistry:
         constraints: NeedConstraints,
     ) -> list[ProviderCandidate]:
         registered = [
-            entry
-            for entry in self._entries
-            if nature in entry.descriptor.evidence_natures
+            entry for entry in self._entries if nature in entry.descriptor.evidence_natures
         ]
         if not registered:
-            return [
-                ProviderCandidate(outcome="unregistered", evidence_nature=nature)
-            ]
+            return [ProviderCandidate(outcome="unregistered", evidence_nature=nature)]
         matched = [
             entry for entry in registered if matches_axis_filters(entry.descriptor, constraints)
         ]
         if not matched:
-            return [
-                ProviderCandidate(outcome="unavailable", evidence_nature=nature)
-            ]
+            return [ProviderCandidate(outcome="unavailable", evidence_nature=nature)]
         return [
             ProviderCandidate(
                 outcome="run",
@@ -190,10 +186,13 @@ def _compose_standard_source(
     descriptor: KnowledgeProviderDescriptor,
     *,
     lagen_nu_selector: LagenNuPassageSelector | None = None,
+    reuse_session: AsyncSession | None = None,
 ) -> tuple[ResearchSource, KnowledgeProviderDescriptor]:
     adapter = descriptor.access.adapter
     if adapter == LAGEN_NU_ADAPTER:
-        return _compose_lagen_nu_source(descriptor, selector=lagen_nu_selector)
+        return _compose_lagen_nu_source(
+            descriptor, selector=lagen_nu_selector, reuse_session=reuse_session
+        )
     if adapter != _KNOWLEDGE_RESEARCH_ADAPTER:
         raise ValueError(
             f"standard capability {descriptor.provider_id} uses unsupported adapter {adapter!r}"
@@ -214,6 +213,7 @@ def _compose_lagen_nu_source(
     descriptor: KnowledgeProviderDescriptor,
     *,
     selector: LagenNuPassageSelector | None = None,
+    reuse_session: AsyncSession | None = None,
 ) -> tuple[ResearchSource, KnowledgeProviderDescriptor]:
     natures = _ordered_evidence_natures(descriptor)
     if len(natures) != 1:
@@ -226,7 +226,7 @@ def _compose_lagen_nu_source(
             f"standard capability {descriptor.provider_id} declares unimplemented lagen.nu nature {nature!r}"
         )
     return (
-        LagenNuResearchSource(source_type=nature, selector=selector),  # type: ignore[arg-type]
+        LagenNuResearchSource(source_type=nature, selector=selector, reuse_session=reuse_session),  # type: ignore[arg-type]
         descriptor,
     )
 
@@ -235,6 +235,7 @@ def build_research_registry(
     provider: KnowledgeProvider,
     *,
     lagen_nu_selector: LagenNuPassageSelector | None = None,
+    reuse_session: AsyncSession | None = None,
 ) -> ResearchSourceRegistry:
     """Compose the configured standard providers through explicit adapters."""
     registry = KnowledgeProviderCapabilityRegistry()
@@ -243,6 +244,7 @@ def build_research_registry(
             provider,
             descriptor,
             lagen_nu_selector=lagen_nu_selector,
+            reuse_session=reuse_session,
         )
         registry.register(source, descriptor=live_descriptor)
     return registry

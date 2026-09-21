@@ -274,6 +274,20 @@ class EvidenceSetOut(BaseModel):
     created_at: datetime
     frozen_at: datetime | None
     items: list[EvidenceSetItemOut]
+    sources: list["EvidenceSourceGroupOut"]
+
+
+class EvidenceSourceGroupOut(BaseModel):
+    source_key: str
+    title: str | None
+    source_url: str | None
+    item_ids: list[str]
+    research_need_ids: list[str]
+    domain_result_ids: list[str]
+    raw_source_ids: list[str]
+    successful_analyses: int
+    error_count: int
+    claim_count: int
 
 
 class RawSourceOut(BaseModel):
