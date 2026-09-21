@@ -344,7 +344,7 @@ async def test_frozen_evidence_path_does_not_run_expert_tools(db, monkeypatch):
 async def test_standalone_expert_complete_still_uses_company_tools(monkeypatch):
     seen: list[frozenset[str] | None] = []
 
-    async def record(messages, *, allowed_tools=None, actor_tool_handler=None):
+    async def record(messages, *, allowed_tools=None, actor_tool_handler=None, **_kwargs):
         seen.append(allowed_tools)
         return "tool-path"
 

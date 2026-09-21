@@ -173,7 +173,7 @@ async def test_parallel_start_interview_persists_all_messages(session, monkeypat
 
     round_count = 0
 
-    async def fake_complete(_messages, _tools):
+    async def fake_complete(_messages, _tools, **_kwargs):
         nonlocal round_count
         round_count += 1
         if round_count == 1:
