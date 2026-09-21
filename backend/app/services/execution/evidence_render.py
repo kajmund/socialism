@@ -68,9 +68,17 @@ def _format_found(ref: str, item: EvidenceSetItem) -> str:
         lines.append(f"Locator: {item.locator.strip()}")
     if item.excerpt and item.excerpt.strip():
         lines.append(f'Excerpt: "{item.excerpt.strip()}"')
-    raw_legal = (item.provenance or {}).get("legal_result")
-    if raw_legal:
-        lines.extend(legal_result_summary(LegalResearchResult.model_validate(raw_legal)))
+    record = getattr(item, "domain_result", None)
+    if record is not None and record.domain == "legal":
+        legal = LegalResearchResult.model_validate(
+            {
+                **record.result,
+                "raw_text": record.raw_source.raw_text,
+            }
+        )
+        lines.extend(legal_result_summary(legal))
+        for claim in record.claims:
+            lines.append(f"Claim {claim.predicate}: {claim.value.get('value')}")
     url = _useful_url(item.source_url)
     if url is not None:
         lines.append(f"URL: {url}")

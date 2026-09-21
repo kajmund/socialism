@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from copy import deepcopy
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database.models import (
+    DomainResearchResultRecord,
     EvidencePassage,
     EvidenceSet,
     EvidenceSetItem,
@@ -20,7 +22,9 @@ from app.database.models import (
     ExecutionAttemptResult,
     ExecutionRun,
     Kund,
+    RawSource,
     ResearchAssessment,
+    ResearchClaim,
     ResearchCompletenessPass,
     ResearchEvidenceQuality,
     ResearchNeedExecution,
@@ -81,6 +85,11 @@ from app.services.research.quality import (
     EvidenceQualityDraft,
     quality_model_identity_key,
 )
+from app.services.research_domain_results import (
+    domain_result_id,
+    legal_claims,
+    raw_source_id,
+)
 
 
 def new_id() -> str:
@@ -136,9 +145,7 @@ async def get_evidence_set(session: AsyncSession, evidence_set_id: str) -> Evide
     return row
 
 
-async def list_evidence_items(
-    session: AsyncSession, evidence_set_id: str
-) -> list[EvidenceSetItem]:
+async def list_evidence_items(session: AsyncSession, evidence_set_id: str) -> list[EvidenceSetItem]:
     await get_evidence_set(session, evidence_set_id)
     result = await session.execute(
         select(EvidenceSetItem)
@@ -164,9 +171,7 @@ async def list_attempt_results(
     if not attempt_ids:
         return {}
     result = await session.execute(
-        select(ExecutionAttemptResult).where(
-            ExecutionAttemptResult.attempt_id.in_(attempt_ids)
-        )
+        select(ExecutionAttemptResult).where(ExecutionAttemptResult.attempt_id.in_(attempt_ids))
     )
     return {row.attempt_id: row for row in result.scalars().all()}
 
@@ -268,9 +273,7 @@ def _assert_building(evidence_set: EvidenceSet) -> None:
 
 async def _used_ordinals(session: AsyncSession, evidence_set_id: str) -> set[int]:
     result = await session.execute(
-        select(EvidenceSetItem.ordinal).where(
-            EvidenceSetItem.evidence_set_id == evidence_set_id
-        )
+        select(EvidenceSetItem.ordinal).where(EvidenceSetItem.evidence_set_id == evidence_set_id)
     )
     return set(result.scalars().all())
 
@@ -283,9 +286,7 @@ def _allocate_ordinals(items: list[EvidenceItemSnapshot], used: set[int]) -> lis
     for snapshot in items:
         if snapshot.ordinal is not None:
             if snapshot.ordinal in claimed:
-                raise ExecutionError(
-                    f"duplicate evidence ordinal {snapshot.ordinal} on set item"
-                )
+                raise ExecutionError(f"duplicate evidence ordinal {snapshot.ordinal} on set item")
             claimed.add(snapshot.ordinal)
             allocated.append(snapshot.ordinal)
             if snapshot.ordinal >= cursor:
@@ -299,9 +300,7 @@ def _allocate_ordinals(items: list[EvidenceItemSnapshot], used: set[int]) -> lis
     return allocated
 
 
-async def _existing_original_evidence_ids(
-    session: AsyncSession, evidence_set_id: str
-) -> set[str]:
+async def _existing_original_evidence_ids(session: AsyncSession, evidence_set_id: str) -> set[str]:
     result = await session.execute(
         select(EvidenceSetItem.original_evidence_id).where(
             EvidenceSetItem.evidence_set_id == evidence_set_id,
@@ -343,15 +342,15 @@ async def add_evidence_items(
     ]
     if not snapshots:
         return stored
-    ordinals = _allocate_ordinals(
-        snapshots, await _used_ordinals(session, evidence_set.id)
-    )
+    ordinals = _allocate_ordinals(snapshots, await _used_ordinals(session, evidence_set.id))
     for snapshot, ordinal in zip(snapshots, ordinals, strict=True):
         provenance = require_json_object(snapshot.provenance, field="provenance")
+        provenance.pop("legal_result", None)
         content_hash = snapshot.content_hash or compute_content_hash(
             excerpt=snapshot.excerpt, provenance=provenance
         )
         passage_id = None
+        domain_id = None
         if snapshot.status == "found":
             source_key = evidence_source_id(
                 provider=snapshot.provider,
@@ -374,14 +373,52 @@ async def add_evidence_items(
                         snapshot.source_id, snapshot.source_url
                     )
                     or f"content:{content_hash}",
-                    source_type=_require_non_empty(
-                        snapshot.source_type, field="source_type"
-                    ),
+                    source_type=_require_non_empty(snapshot.source_type, field="source_type"),
                     source_id=snapshot.source_id,
                     source_url=snapshot.source_url,
                     title=snapshot.title,
                 )
                 session.add(source)
+            if snapshot.legal_result is not None:
+                legal = snapshot.legal_result
+                raw_id = raw_source_id(source_key, legal.raw_text)
+                domain_id = domain_result_id(raw_id, snapshot.research_need_id or "", legal)
+                if await session.get(RawSource, raw_id) is None:
+                    session.add(
+                        RawSource(
+                            id=raw_id,
+                            source_id=source_key,
+                            content_hash=hashlib.sha256(legal.raw_text.encode("utf-8")).hexdigest(),
+                            raw_text=legal.raw_text,
+                            truncated=legal.truncated,
+                        )
+                    )
+                if await session.get(DomainResearchResultRecord, domain_id) is None:
+                    session.add(
+                        DomainResearchResultRecord(
+                            id=domain_id,
+                            raw_source_id=raw_id,
+                            research_need_id=snapshot.research_need_id or "",
+                            domain="legal",
+                            schema_version=2,
+                            result=legal.model_dump(mode="json", exclude={"raw_text"}),
+                        )
+                    )
+                for claim in legal_claims(
+                    legal, result_id=domain_id, research_need_id=snapshot.research_need_id or ""
+                ):
+                    if await session.get(ResearchClaim, claim.id) is None:
+                        session.add(
+                            ResearchClaim(
+                                id=claim.id,
+                                domain_result_id=domain_id,
+                                research_need_id=claim.research_need_id,
+                                predicate=claim.predicate,
+                                value=claim.value,
+                                relation=claim.relation,
+                                citations=claim.citations,
+                            )
+                        )
             passage = await session.get(EvidencePassage, passage_id)
             if passage is None:
                 session.add(
@@ -427,6 +464,7 @@ async def add_evidence_items(
             evidence_set_id=evidence_set.id,
             research_need_id=snapshot.research_need_id,
             passage_id=passage_id,
+            domain_result_id=domain_id,
             original_evidence_id=snapshot.original_evidence_id,
             ordinal=ordinal,
             source_type=_require_non_empty(snapshot.source_type, field="source_type"),
@@ -500,9 +538,7 @@ def _require_need_status(value: str) -> ResearchNeedExecutionStatus:
     return value  # type: ignore[return-value]
 
 
-async def get_need_execution(
-    session: AsyncSession, execution_id: str
-) -> ResearchNeedExecution:
+async def get_need_execution(session: AsyncSession, execution_id: str) -> ResearchNeedExecution:
     row = await session.get(ResearchNeedExecution, execution_id)
     if row is None:
         raise ExecutionNotFoundError("research_need_execution", execution_id)
@@ -583,9 +619,7 @@ async def complete_need_execution(
     return row
 
 
-async def fail_need_execution(
-    session: AsyncSession, execution_id: str
-) -> ResearchNeedExecution:
+async def fail_need_execution(session: AsyncSession, execution_id: str) -> ResearchNeedExecution:
     row = await get_need_execution(session, execution_id)
     status = _require_need_status(row.status)
     if status in TERMINAL_NEED_EXECUTION_STATUSES:
@@ -622,14 +656,10 @@ async def _load_evidence_set_for_run(
 ) -> EvidenceSet:
     evidence_set = await get_evidence_set(session, evidence_set_id)
     if evidence_set.run_id != run.id:
-        raise ExecutionScopeError(
-            "Attempt may only attach an EvidenceSet from the same run"
-        )
+        raise ExecutionScopeError("Attempt may only attach an EvidenceSet from the same run")
     evidence_run = await get_run(session, evidence_set.run_id)
     if evidence_run.customer_id != run.customer_id:
-        raise ExecutionScopeError(
-            "Attempt may not attach an EvidenceSet owned by another customer"
-        )
+        raise ExecutionScopeError("Attempt may not attach an EvidenceSet owned by another customer")
     return evidence_set
 
 
@@ -682,9 +712,7 @@ async def create_attempt(
         ),
         input_snapshot=require_json_object(input_snapshot or {}, field="input_snapshot"),
         research_objective_snapshot=(
-            require_json_object(
-                research_objective_snapshot, field="research_objective_snapshot"
-            )
+            require_json_object(research_objective_snapshot, field="research_objective_snapshot")
             if research_objective_snapshot is not None
             else None
         ),
@@ -729,9 +757,7 @@ async def set_attempt_snapshots(
             configuration_snapshot, field="configuration_snapshot"
         )
     if input_snapshot is not None:
-        attempt.input_snapshot = require_json_object(
-            input_snapshot, field="input_snapshot"
-        )
+        attempt.input_snapshot = require_json_object(input_snapshot, field="input_snapshot")
     if research_objective_snapshot is not None:
         attempt.research_objective_snapshot = _set_once_snapshot(
             attempt.research_objective_snapshot,
@@ -761,9 +787,7 @@ def _set_once_snapshot(
     if current is None:
         return snapshot
     if current != snapshot:
-        raise ExecutionImmutableError(
-            f"Attempt {attempt_id} {field} is immutable once persisted"
-        )
+        raise ExecutionImmutableError(f"Attempt {attempt_id} {field} is immutable once persisted")
     return current
 
 
@@ -788,9 +812,7 @@ async def require_frozen_evidence_for_attempt(
     return evidence_set
 
 
-async def claim_attempt_running(
-    session: AsyncSession, attempt_id: str
-) -> ExecutionAttempt:
+async def claim_attempt_running(session: AsyncSession, attempt_id: str) -> ExecutionAttempt:
     """Compare-and-set ready → running so two workers cannot execute the same Attempt."""
     now = utc_now()
     result = await session.execute(
@@ -809,9 +831,7 @@ async def claim_attempt_running(
     if attempt.status == "completed":
         return attempt
     if attempt.status == "running":
-        raise ExecutionStatusError(
-            f"Attempt {attempt_id} panel execution is already in progress"
-        )
+        raise ExecutionStatusError(f"Attempt {attempt_id} panel execution is already in progress")
     raise ExecutionStatusError(
         f"Cannot start panel execution on attempt {attempt_id} with status={attempt.status}"
     )
@@ -822,9 +842,7 @@ async def get_attempt_result(
 ) -> ExecutionAttemptResult | None:
     await get_attempt(session, attempt_id)
     result = await session.execute(
-        select(ExecutionAttemptResult).where(
-            ExecutionAttemptResult.attempt_id == attempt_id
-        )
+        select(ExecutionAttemptResult).where(ExecutionAttemptResult.attempt_id == attempt_id)
     )
     return result.scalar_one_or_none()
 
@@ -847,9 +865,7 @@ async def persist_attempt_result(
         )
     existing = await get_attempt_result(session, attempt_id)
     if existing is not None:
-        raise ExecutionImmutableError(
-            f"Attempt {attempt_id} already has a persisted result"
-        )
+        raise ExecutionImmutableError(f"Attempt {attempt_id} already has a persisted result")
     row = ExecutionAttemptResult(
         id=new_id(),
         attempt_id=attempt.id,
@@ -929,9 +945,7 @@ async def persist_research_assessment(
     assessment_pass: int = INITIAL_ASSESSMENT_PASS,
 ) -> ResearchAssessment:
     """Insert one row per Attempt pass. Re-runs return the existing row."""
-    existing = await get_research_assessment(
-        session, attempt_id, assessment_pass=assessment_pass
-    )
+    existing = await get_research_assessment(session, attempt_id, assessment_pass=assessment_pass)
     if existing is not None:
         return existing
     attempt = await get_attempt(session, attempt_id)
@@ -1024,9 +1038,7 @@ async def persist_evidence_quality(
         if item is None:
             raise ExecutionNotFoundError("evidence_set_item", draft.evidence_set_item_id)
         if item.evidence_set_id != evidence_set.id:
-            raise ExecutionScopeError(
-                "Evidence quality must belong to the supplied EvidenceSet"
-            )
+            raise ExecutionScopeError("Evidence quality must belong to the supplied EvidenceSet")
         row = ResearchEvidenceQuality(
             id=new_id(),
             evidence_set_item_id=item.id,
@@ -1173,9 +1185,7 @@ async def persist_research_completeness(
         completeness_pass=completeness_pass,
         result=_require_completeness_result(draft.result),
         rationale=draft.rationale,
-        missing_questions=[
-            missing_question_to_json(item) for item in draft.missing_questions
-        ],
+        missing_questions=[missing_question_to_json(item) for item in draft.missing_questions],
         considered_evidence_ids=list(draft.considered_evidence_ids),
         considered_question_keys=list(draft.considered_question_keys),
         evidence_fingerprint=evidence_fingerprint.strip(),
@@ -1223,9 +1233,7 @@ def runtime_need_from_row(row: ResearchRuntimeNeed) -> RuntimeResearchNeed:
     )
 
 
-async def list_runtime_needs(
-    session: AsyncSession, attempt_id: str
-) -> list[ResearchRuntimeNeed]:
+async def list_runtime_needs(session: AsyncSession, attempt_id: str) -> list[ResearchRuntimeNeed]:
     await get_attempt(session, attempt_id)
     result = await session.execute(
         select(ResearchRuntimeNeed)
@@ -1339,9 +1347,7 @@ async def claim_attempt_researching(
     research_plan_snapshot: dict[str, object],
 ) -> ExecutionAttempt:
     """Compare-and-set created → researching and persist the executed plan."""
-    snapshot = require_json_object(
-        research_plan_snapshot, field="research_plan_snapshot"
-    )
+    snapshot = require_json_object(research_plan_snapshot, field="research_plan_snapshot")
     result = await session.execute(
         update(ExecutionAttempt)
         .where(
@@ -1358,9 +1364,7 @@ async def claim_attempt_researching(
     if attempt.status == "ready":
         return attempt
     if attempt.status == "researching":
-        raise ExecutionStatusError(
-            f"Attempt {attempt_id} research is already in progress"
-        )
+        raise ExecutionStatusError(f"Attempt {attempt_id} research is already in progress")
     raise ExecutionStatusError(
         f"Cannot start research on attempt {attempt_id} with status={attempt.status}"
     )
@@ -1440,9 +1444,7 @@ async def clone_attempt(
     source = await get_attempt(session, source_attempt_id)
     source_status = _require_status(source.status)
     if source_status not in CLONEABLE_ATTEMPT_STATUSES:
-        raise ExecutionStatusError(
-            f"Cannot clone attempt {source.id} with status={source_status}"
-        )
+        raise ExecutionStatusError(f"Cannot clone attempt {source.id} with status={source_status}")
     evidence_set = await require_frozen_evidence_for_attempt(session, source)
 
     source_config = deepcopy(source.configuration_snapshot)
@@ -1458,9 +1460,7 @@ async def clone_attempt(
     if configuration_snapshot is None:
         new_config = deepcopy(source.configuration_snapshot)
     else:
-        new_config = require_json_object(
-            configuration_snapshot, field="configuration_snapshot"
-        )
+        new_config = require_json_object(configuration_snapshot, field="configuration_snapshot")
 
     clone = await create_attempt(
         session,
