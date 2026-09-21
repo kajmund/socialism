@@ -151,7 +151,7 @@ async def _run_help_tool_loop(
     view_path = view.path if view is not None else None
     working = list(messages)
     for _ in range(_MAX_TOOL_ROUNDS):
-        message = await complete_with_tools(working, tools)
+        message = await complete_with_tools(working, tools, prompt_key="help.system")
         working.append(assistant_message_dict(message))
         tool_calls = getattr(message, "tool_calls", None)
         if not tool_calls:
@@ -252,7 +252,7 @@ async def stream_help_chat_turn(
                 chunks.append(piece)
                 yield piece
         else:
-            async for piece in stream_text(working):
+            async for piece in stream_text(working, prompt_key="help.system"):
                 chunks.append(piece)
                 yield piece
         reply = "".join(chunks).strip()

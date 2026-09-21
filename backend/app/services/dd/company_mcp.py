@@ -339,6 +339,7 @@ async def run_company_tool_loop(
     research_tool_handler: ResearchToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
+    prompt_key: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[DdCandidateCompany]]:
     """Run search/lookup tool rounds. Returns the working transcript and parsed hits."""
     found: list[DdCandidateCompany] = []
@@ -363,7 +364,7 @@ async def run_company_tool_loop(
         if not tools:
             return working, found
         for _ in range(max_rounds):
-            reply = await complete_with_tools(working, tools)
+            reply = await complete_with_tools(working, tools, prompt_key=prompt_key)
             working.append(assistant_message_dict(reply))
             tool_calls = getattr(reply, "tool_calls", None)
             if not tool_calls:
@@ -440,10 +441,11 @@ async def complete_text_with_company_tools(
     research_tool_handler: ResearchToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
+    prompt_key: str | None = None,
 ) -> str:
     """Tool loop then a visible assistant reply. Used by DD experts and chats."""
     if allowed_tools is not None and not allowed_tools:
-        reply = (await complete_text(messages)).strip()
+        reply = (await complete_text(messages, prompt_key=prompt_key)).strip()
         if not reply:
             raise CompanyMcpError("Company tools produced an empty reply")
         return reply
@@ -454,11 +456,12 @@ async def complete_text_with_company_tools(
         research_tool_handler=research_tool_handler,
         consult_tool_handler=consult_tool_handler,
         actor_tool_handler=actor_tool_handler,
+        prompt_key=prompt_key,
     )
     content = visible_assistant_text(working[-1])
     if content:
         return content
-    reply = await complete_with_tools(working, None)
+    reply = await complete_with_tools(working, None, prompt_key=prompt_key)
     working.append(assistant_message_dict(reply))
     content = visible_assistant_text(working[-1])
     if not content:

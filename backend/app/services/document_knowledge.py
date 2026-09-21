@@ -461,6 +461,7 @@ async def generate_document_knowledge(
                     ),
                     max_tokens=settings.document_knowledge_llm_max_tokens,
                     timeout=settings.document_knowledge_llm_timeout_seconds,
+                    prompt_key="document_knowledge.ingest.system",
                 )
             except (
                 TimeoutError,

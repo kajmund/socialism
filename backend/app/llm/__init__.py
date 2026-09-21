@@ -16,6 +16,7 @@ from openai import AsyncOpenAI
 from openai.resources.chat.completions import AsyncCompletions
 
 from app.config import settings
+from app.llm.runtime_override import bound_llm_prompt, current_runtime
 from app.llm.structured_retry import (
     StructuredOutputError,
     classify_structured_failure,
@@ -70,22 +71,25 @@ def reset_usage_recorder(token: Token[LLMUsageRecorder | None]) -> None:
 
 def get_client() -> AsyncOpenAI:
     global _client, _client_fingerprint
-    api_key = settings.selected_llm_api_key
+    runtime = current_runtime()
+    api_key = runtime.api_key
     if not api_key:
+        env_name = (
+            "CEREBRAS_API_KEY" if runtime.provider == "cerebras" else "DEEPSEEK_API_KEY"
+        )
         raise RuntimeError(
-            f"{settings.chat_llm_key_env_name} is not configured "
-            f"for LLM_PROVIDER={settings.llm_provider}"
+            f"{env_name} is not configured for LLM_PROVIDER={runtime.provider}"
         )
     fingerprint = (
-        settings.llm_provider,
+        runtime.provider,
         api_key,
-        settings.selected_llm_base_url,
+        runtime.base_url,
         settings.llm_timeout_seconds,
     )
     if _client is None or _client_fingerprint != fingerprint:
         _client = AsyncOpenAI(
             api_key=api_key,
-            base_url=settings.selected_llm_base_url,
+            base_url=runtime.base_url,
             timeout=settings.llm_timeout_seconds,
         )
         _client_fingerprint = fingerprint
@@ -115,7 +119,7 @@ def set_text_streamer(streamer: TextStreamer | None) -> None:
 
 def _resolved_model(model: str | None) -> str:
     chosen = (model or "").strip()
-    return chosen or settings.selected_llm_model
+    return chosen or current_runtime().model
 
 
 def _supports_reasoning_effort(provider: str) -> bool:
@@ -145,7 +149,7 @@ def _structured_response_format(
 ) -> dict[str, Any]:
     # Cerebras gpt-oss-120b rejects tools + response_format on one request.
     # This path is schema-only; tool calls stay on complete_with_tools.
-    if settings.llm_provider == "cerebras":
+    if current_runtime().provider == "cerebras":
         return {
             "type": "json_schema",
             "json_schema": {
@@ -193,19 +197,16 @@ def _chat_create_kwargs(
         "model": model,
         "messages": messages,
     }
-    token_limit = settings.llm_max_tokens if max_tokens is None else max_tokens
+    runtime = current_runtime()
+    token_limit = runtime.max_tokens if max_tokens is None else max_tokens
     if token_limit is not None:
         kwargs["max_tokens"] = token_limit
-    if settings.llm_temperature is not None:
-        kwargs["temperature"] = settings.llm_temperature
-    if settings.llm_top_p is not None:
-        kwargs["top_p"] = settings.llm_top_p
-    effort = (
-        settings.selected_reasoning_effort
-        if reasoning_effort is _UNSET
-        else reasoning_effort
-    )
-    if effort is not None and _supports_reasoning_effort(settings.llm_provider):
+    if runtime.temperature is not None:
+        kwargs["temperature"] = runtime.temperature
+    if runtime.top_p is not None:
+        kwargs["top_p"] = runtime.top_p
+    effort = runtime.reasoning_effort if reasoning_effort is _UNSET else reasoning_effort
+    if effort is not None and _supports_reasoning_effort(runtime.provider):
         _attach_reasoning_effort(kwargs, str(effort))
     if extra:
         kwargs.update(extra)
@@ -236,11 +237,12 @@ def _record_call(
     recorder = _usage_recorder.get()
     if recorder is None:
         return
+    runtime = current_runtime()
     recorder(
         LLMCallStats(
-            provider=settings.llm_provider,
+            provider=runtime.provider,
             model=model,
-            reasoning_effort=settings.selected_reasoning_effort,
+            reasoning_effort=runtime.reasoning_effort,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             elapsed_ms=(time.monotonic() - started_at) * 1000,
@@ -257,14 +259,36 @@ async def complete_structured[T](
     max_tokens: int | None = None,
     timeout: float | None = None,
     reasoning_effort: str | None = None,
+    prompt_key: str | None = None,
+) -> T:
+    with bound_llm_prompt(prompt_key):
+        return await _complete_structured(
+            messages,
+            response_model,
+            model=model,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            reasoning_effort=reasoning_effort,
+        )
+
+
+async def _complete_structured[T](
+    messages: list[ChatMessage],
+    response_model: type[T],
+    *,
+    model: str | None,
+    max_tokens: int | None,
+    timeout: float | None,
+    reasoning_effort: str | None,
 ) -> T:
     if _structured_completer is not None:
         return await _structured_completer(messages, response_model)  # type: ignore[return-value]
 
+    runtime = current_runtime()
     client = get_client()
     schema = response_model.model_json_schema()  # type: ignore[attr-defined]
     guided = list(messages)
-    if settings.llm_provider == "cerebras":
+    if runtime.provider == "cerebras":
         schema = strict_json_schema(schema)
         if not _messages_have_user_turn(guided):
             guided.append(_cerebras_structured_user_message())
@@ -279,9 +303,7 @@ async def complete_structured[T](
                 model=chosen,
                 messages=guided,
                 max_tokens=(
-                    max_tokens
-                    if max_tokens is not None
-                    else settings.llm_max_tokens
+                    max_tokens if max_tokens is not None else runtime.max_tokens
                 ),
                 extra={
                     "response_format": _structured_response_format(
@@ -330,6 +352,7 @@ async def complete_structured_retry[T](
     max_tokens: int | None = None,
     timeout: float | None = None,
     reasoning_effort: str | None = None,
+    prompt_key: str | None = None,
 ) -> T:
     """Structured completion with one retry on truncated or invalid JSON."""
 
@@ -344,6 +367,7 @@ async def complete_structured_retry[T](
             max_tokens=max_tokens,
             timeout=timeout,
             reasoning_effort=reasoning_effort,
+            prompt_key=prompt_key,
         )
 
     return await run_structured_with_retry(
@@ -355,7 +379,17 @@ async def complete_structured_retry[T](
     )
 
 
-async def complete_text(messages: list[ChatMessage], *, model: str | None = None) -> str:
+async def complete_text(
+    messages: list[ChatMessage],
+    *,
+    model: str | None = None,
+    prompt_key: str | None = None,
+) -> str:
+    with bound_llm_prompt(prompt_key):
+        return await _complete_text(messages, model=model)
+
+
+async def _complete_text(messages: list[ChatMessage], *, model: str | None) -> str:
     if _text_completer is not None:
         return await _text_completer(messages)
 
@@ -379,8 +413,18 @@ async def complete_text(messages: list[ChatMessage], *, model: str | None = None
     return content.strip()
 
 
-async def stream_text(messages: list[ChatMessage]) -> AsyncIterator[str]:
+async def stream_text(
+    messages: list[ChatMessage],
+    *,
+    prompt_key: str | None = None,
+) -> AsyncIterator[str]:
     """Yield text deltas from the chat completion stream."""
+    with bound_llm_prompt(prompt_key):
+        async for chunk in _stream_text(messages):
+            yield chunk
+
+
+async def _stream_text(messages: list[ChatMessage]) -> AsyncIterator[str]:
     if _text_streamer is not None:
         async for chunk in _text_streamer(messages):
             yield chunk
@@ -394,7 +438,7 @@ async def stream_text(messages: list[ChatMessage]) -> AsyncIterator[str]:
         return
 
     client = get_client()
-    chosen = settings.selected_llm_model
+    chosen = current_runtime().model
     started_at = time.monotonic()
     stream = await client.chat.completions.create(
         **_chat_create_kwargs(
@@ -423,8 +467,17 @@ class StreamTextMetrics:
     finish_reason: str | None
 
 
-async def stream_text_with_metrics(messages: list[ChatMessage]) -> StreamTextMetrics:
+async def stream_text_with_metrics(
+    messages: list[ChatMessage],
+    *,
+    prompt_key: str | None = None,
+) -> StreamTextMetrics:
     """Stream a completion and return text plus usage / latency metrics."""
+    with bound_llm_prompt(prompt_key):
+        return await _stream_text_with_metrics(messages)
+
+
+async def _stream_text_with_metrics(messages: list[ChatMessage]) -> StreamTextMetrics:
     if _text_streamer is not None or _text_completer is not None:
         raise RuntimeError(
             "stream_text_with_metrics requires provider usage; "
@@ -432,7 +485,7 @@ async def stream_text_with_metrics(messages: list[ChatMessage]) -> StreamTextMet
         )
 
     client = get_client()
-    chosen = settings.selected_llm_model
+    chosen = current_runtime().model
     started_at = time.monotonic()
     stream = await client.chat.completions.create(
         **_chat_create_kwargs(
@@ -506,16 +559,27 @@ def set_tools_completer(completer: ToolsCompleter | None) -> None:
 async def complete_with_tools(
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]] | None = None,
+    *,
+    prompt_key: str | None = None,
 ) -> Any:
     """One chat.completions turn; may return tool_calls. Injectable for tests."""
+    with bound_llm_prompt(prompt_key):
+        return await _complete_with_tools(messages, tools)
+
+
+async def _complete_with_tools(
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None,
+) -> Any:
     if _tools_completer is not None:
         return await _tools_completer(messages, tools)
     if _text_completer is not None:
         content = await _text_completer(messages)  # type: ignore[arg-type]
         return SimpleNamespace(content=content, tool_calls=None)
 
+    runtime = current_runtime()
     client = get_client()
-    chosen = settings.selected_llm_model
+    chosen = runtime.model
     extra: dict[str, Any] = {}
     if tools:
         extra["tools"] = tools
@@ -524,9 +588,7 @@ async def complete_with_tools(
     completion = await client.chat.completions.create(
         **_chat_create_kwargs(
             model=chosen,
-            messages=normalize_messages_for_provider(
-                messages, settings.llm_provider
-            ),
+            messages=normalize_messages_for_provider(messages, runtime.provider),
             extra=extra or None,
         )
     )
@@ -541,5 +603,11 @@ async def complete_with_tools(
     return completion.choices[0].message
 
 
-async def generate_editable_persona(messages: list[ChatMessage]) -> EditablePersona:
-    return await complete_structured(messages, EditablePersona)
+async def generate_editable_persona(
+    messages: list[ChatMessage],
+    *,
+    prompt_key: str | None = None,
+) -> EditablePersona:
+    return await complete_structured(
+        messages, EditablePersona, prompt_key=prompt_key
+    )

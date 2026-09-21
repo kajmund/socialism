@@ -39,6 +39,7 @@ async def _default_plan(fraga: str, prompts: dict[str, str]) -> SearchPlan:
             {"role": "user", "content": user},
         ],
         SearchPlan,
+        prompt_key="rattsunderlag.search_terms.system",
     )
 
 
@@ -63,7 +64,8 @@ async def _default_summarize(
         [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
-        ]
+        ],
+        prompt_key="rattsunderlag.sammanfattning.system",
     )
 
 

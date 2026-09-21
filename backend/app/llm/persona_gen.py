@@ -167,7 +167,8 @@ async def llm_personas_from_description(
             [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
-            ]
+            ],
+            prompt_key="persona.from_description.system",
         )
         if demografi:
             for key, value in demografi.items():

@@ -352,11 +352,12 @@ async def _run_variant(
     variant_id: Literal["A", "B"],
     rendered: str,
     user_message: str | None,
+    prompt_key: str,
 ) -> PromptVariantOut:
     messages: list[dict[str, str]] = [{"role": "system", "content": rendered}]
     if user_message is not None and user_message.strip():
         messages.append({"role": "user", "content": user_message.strip()})
-    response = await complete_text(messages)
+    response = await complete_text(messages, prompt_key=prompt_key)
     return PromptVariantOut(
         id=variant_id,
         rendered_prompt=rendered,
@@ -393,6 +394,7 @@ async def post_prompts_run(
             variant_id="A",
             rendered=rendered_a,
             user_message=body.user_message,
+            prompt_key=body.prompt_key,
         )
     ]
     if body.prompt_override is not None:
@@ -406,6 +408,7 @@ async def post_prompts_run(
                 variant_id="B",
                 rendered=rendered_b,
                 user_message=body.user_message,
+                prompt_key=body.prompt_key,
             )
         )
     return PromptRunOut(

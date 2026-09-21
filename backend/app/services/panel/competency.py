@@ -143,7 +143,9 @@ async def assess_expert_competency(
         }
     )
     try:
-        return await complete_structured_retry(messages, ExpertCompetency)
+        return await complete_structured_retry(
+            messages, ExpertCompetency, prompt_key="panel.expert.system"
+        )
     except (ValidationError, StructuredOutputError) as exc:
         category = classify_structured_failure(exc)
         logger.info(

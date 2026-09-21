@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.llm import complete_structured_retry
+from app.llm.runtime_override import bound_llm_prompt
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.research.assessment import (
@@ -278,7 +279,8 @@ class LlmResearchCompletenessReviewer:
             },
         ]
         try:
-            parsed = await self._completer(messages, CompletenessModel)
+            with bound_llm_prompt("research.completeness.system"):
+                parsed = await self._completer(messages, CompletenessModel)
         except Exception as exc:
             raise ResearchCompletenessError(
                 "Research completeness model call failed"

@@ -381,7 +381,9 @@ async def synthesize_generic_panel_result(
             ),
         }
     )
-    synthesis = await complete_structured_retry(messages, GenericPanelSynthesis)
+    synthesis = await complete_structured_retry(
+        messages, GenericPanelSynthesis, prompt_key="panel.moderator.system"
+    )
     return panel_result_from_synthesis(
         synthesis,
         transcript=transcript,
