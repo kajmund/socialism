@@ -12,7 +12,7 @@ This is the FastAPI service for **Socialism**. Read [../AGENTS.md](../AGENTS.md)
 - SQLAlchemy models + Alembic migrations for database schema changes
 - **Persistent DB:** Supabase Postgres via `psycopg`
 - **Local/test DB:** SQLite via `aiosqlite` (local file under `backend/data/`)
-- **LLM:** Cerebras `gpt-oss-120b` default via OpenAI-compatible SDK (`app/llm/`); DeepSeek via `LLM_PROVIDER=deepseek`. Named presets live in `llm_configurations` (one default). Prompt fields may point at a non-default preset; otherwise the default applies.
+- **LLM:** Cerebras `gpt-oss-120b` default via OpenAI-compatible SDK (`app/llm/`); DeepSeek via `LLM_PROVIDER=deepseek`. Named presets live in `llm_configurations` (one default) with Auto role/capability metadata. Prompt fields use `default | fixed | auto`; Auto classifies task needs with Jev and matches a concrete preset.
 - `structlog` for logging
 - `uv` for dependency + project management
 

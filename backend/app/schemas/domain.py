@@ -820,6 +820,7 @@ class PromptFieldOut(BaseModel):
     label: str
     hint: str
     default: str
+    llm_selection_mode: str = "default"
     llm_configuration_id: int | None = None
 
 

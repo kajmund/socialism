@@ -151,7 +151,12 @@ async def prompt_catalog(
             label=field["label"].get(ui) or field["label"]["sv"],
             hint=field["hint"].get(ui) or field["hint"]["sv"],
             default=field["defaults"].get(language) or field["defaults"]["sv"],
-            llm_configuration_id=assignments.get(field["key"]),
+            llm_selection_mode=(
+                assignments.get(field["key"], {}).get("llm_selection_mode", "default")
+            ),
+            llm_configuration_id=(
+                assignments.get(field["key"], {}).get("llm_configuration_id")
+            ),
         )
         for field in PROMPT_FIELDS
     ]

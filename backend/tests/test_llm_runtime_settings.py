@@ -394,7 +394,10 @@ async def test_llm_configuration_crud_default_and_prompt_assignment(client_db):
         json={"llm_configuration_id": creative["id"]},
     )
     assert assigned_before_default.status_code == 200, assigned_before_default.text
-    assert assigned_before_default.json()["assignments"]["help.system"] == creative["id"]
+    assert assigned_before_default.json()["assignments"]["help.system"] == {
+        "llm_selection_mode": "fixed",
+        "llm_configuration_id": creative["id"],
+    }
 
     promoted = await client.post(f"/llm/configurations/{creative['id']}/default")
     assert promoted.status_code == 200, promoted.text
@@ -411,7 +414,10 @@ async def test_llm_configuration_crud_default_and_prompt_assignment(client_db):
         json={"llm_configuration_id": reasoning["id"]},
     )
     assert assigned.status_code == 200, assigned.text
-    assert assigned.json()["assignments"]["research.planner.system"] == reasoning["id"]
+    assert assigned.json()["assignments"]["research.planner.system"] == {
+        "llm_selection_mode": "fixed",
+        "llm_configuration_id": reasoning["id"],
+    }
 
     catalog = await client.get("/configurations/catalog", params={"language": "sv"})
     assert catalog.status_code == 200
@@ -421,6 +427,7 @@ async def test_llm_configuration_crud_default_and_prompt_assignment(client_db):
         if row["key"] == "research.planner.system"
     )
     assert field["llm_configuration_id"] == reasoning["id"]
+    assert field["llm_selection_mode"] == "fixed"
 
     cleared = await client.put(
         "/llm/prompt-fields/research.planner.system",
@@ -428,6 +435,16 @@ async def test_llm_configuration_crud_default_and_prompt_assignment(client_db):
     )
     assert cleared.status_code == 200
     assert "research.planner.system" not in cleared.json()["assignments"]
+
+    auto = await client.put(
+        "/llm/prompt-fields/help.system",
+        json={"llm_selection_mode": "auto", "llm_configuration_id": None},
+    )
+    assert auto.status_code == 200, auto.text
+    assert auto.json()["assignments"]["help.system"] == {
+        "llm_selection_mode": "auto",
+        "llm_configuration_id": None,
+    }
 
     deleted = await client.delete(f"/llm/configurations/{reasoning['id']}")
     assert deleted.status_code == 204
