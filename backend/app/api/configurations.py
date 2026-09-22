@@ -45,6 +45,7 @@ from app.services.anchor_store import (
     validate_configuration_anchor_refs,
 )
 from app.services.kund_store import default_os_customer_id
+from app.services.llm_runtime_settings import assignment_map
 from app.services.prompt_fields_store import filled_prompts, replace_prompt_overrides
 from app.services.prompt_store import ensure_default_configurations, set_active_configuration
 from app.services.report.thresholds import (
@@ -139,8 +140,10 @@ def _catalog_sort_key(row: CatalogList) -> tuple[int, str]:
 async def prompt_catalog(
     language: ConfigurationLanguage = Query(default="sv"),
     label_locale: ConfigurationLanguage = Query(default="sv"),
+    session: AsyncSession = Depends(get_session),
 ) -> PromptCatalogOut:
     ui = "en" if label_locale == "en" else "sv"
+    assignments = await assignment_map(session)
     fields = [
         PromptFieldOut(
             key=field["key"],
@@ -148,6 +151,12 @@ async def prompt_catalog(
             label=field["label"].get(ui) or field["label"]["sv"],
             hint=field["hint"].get(ui) or field["hint"]["sv"],
             default=field["defaults"].get(language) or field["defaults"]["sv"],
+            llm_selection_mode=(
+                assignments.get(field["key"], {}).get("llm_selection_mode", "default")
+            ),
+            llm_configuration_id=(
+                assignments.get(field["key"], {}).get("llm_configuration_id")
+            ),
         )
         for field in PROMPT_FIELDS
     ]

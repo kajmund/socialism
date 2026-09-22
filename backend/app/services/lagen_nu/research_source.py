@@ -650,7 +650,7 @@ class LagenNuResearchSource:
                     EvidenceSource.provider == self.provider_id,
                     EvidenceSource.canonical_identity == source_identity,
                     RawSource.content_hash == raw_hash,
-                    DomainResearchResultRecord.schema_version == 3,
+                    DomainResearchResultRecord.schema_version == 4,
                     ResearchRuntimeNeed.question_key == research_question_key(need.question),
                 )
                 .order_by(DomainResearchResultRecord.created_at.desc())

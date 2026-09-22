@@ -75,7 +75,8 @@ async def _memory_summary(
                 "role": "user",
                 "content": json.dumps({"memories": source}, ensure_ascii=False),
             },
-        ]
+        ],
+        prompt_key="chat.live.memory_summary",
     )
 
 

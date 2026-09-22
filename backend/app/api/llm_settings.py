@@ -1,6 +1,8 @@
-"""Admin endpoints for chat LLM profile selection and probe metrics."""
+"""Admin endpoints for chat LLM configurations and probe metrics."""
 
 from __future__ import annotations
+
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -32,10 +34,40 @@ class LlmActiveOut(BaseModel):
     reasoning_effort: str | None
 
 
+class LlmConfigurationOut(BaseModel):
+    id: int
+    name: str
+    profile_id: str
+    provider: str
+    model: str
+    temperature: float | None
+    top_p: float | None
+    max_tokens: int
+    reasoning_effort: str | None
+    selection_role: str
+    capability_vision: bool
+    capability_tools: bool
+    capability_structured_output: bool
+    capability_long_context: bool
+    enabled_for_auto: bool
+    priority: int
+    is_default: bool
+    created_at: str
+    updated_at: str
+
+
+class LlmPromptAssignmentOut(BaseModel):
+    llm_selection_mode: Literal["default", "fixed", "auto"]
+    llm_configuration_id: int | None = None
+
+
 class LlmGetOut(BaseModel):
     catalog: list[dict]
     active: LlmActiveOut
     credentials: dict[str, bool]
+    configurations: list[LlmConfigurationOut]
+    default_id: int | None
+    assignments: dict[str, LlmPromptAssignmentOut]
 
 
 class LlmPutIn(BaseModel):
@@ -44,6 +76,44 @@ class LlmPutIn(BaseModel):
     top_p: float | None = None
     max_tokens: int | None = None
     reasoning_effort: str | None = None
+
+
+class LlmConfigurationCreateIn(BaseModel):
+    name: str
+    profile_id: str
+    temperature: float | None = None
+    top_p: float | None = None
+    max_tokens: int | None = None
+    reasoning_effort: str | None = None
+    is_default: bool = False
+    selection_role: str | None = None
+    capability_vision: bool | None = None
+    capability_tools: bool | None = None
+    capability_structured_output: bool | None = None
+    capability_long_context: bool | None = None
+    enabled_for_auto: bool | None = None
+    priority: int | None = None
+
+
+class LlmConfigurationUpdateIn(BaseModel):
+    name: str | None = None
+    profile_id: str | None = None
+    temperature: float | None = None
+    top_p: float | None = None
+    max_tokens: int | None = None
+    reasoning_effort: str | None = None
+    selection_role: str | None = None
+    capability_vision: bool | None = None
+    capability_tools: bool | None = None
+    capability_structured_output: bool | None = None
+    capability_long_context: bool | None = None
+    enabled_for_auto: bool | None = None
+    priority: int | None = None
+
+
+class LlmPromptAssignmentIn(BaseModel):
+    llm_selection_mode: Literal["default", "fixed", "auto"] | None = None
+    llm_configuration_id: int | None = None
 
 
 class LlmProbeIn(BaseModel):
@@ -75,13 +145,28 @@ def _active_out() -> LlmActiveOut:
     return LlmActiveOut(**runtime.active_settings_dict())
 
 
-@router.get("", response_model=LlmGetOut)
-async def get_llm_settings() -> LlmGetOut:
+def _configuration_out(row: object) -> LlmConfigurationOut:
+    return LlmConfigurationOut(**runtime.configuration_as_dict(row))  # type: ignore[arg-type]
+
+
+async def _get_payload(session: AsyncSession) -> LlmGetOut:
+    rows = await runtime.list_configurations(session)
+    default = next((row for row in rows if row.is_default), None)
     return LlmGetOut(
         catalog=runtime.catalog_as_dicts(),
         active=_active_out(),
         credentials=runtime.credentials_status(),
+        configurations=[_configuration_out(row) for row in rows],
+        default_id=default.id if default is not None else None,
+        assignments=await runtime.assignment_map(session),
     )
+
+
+@router.get("", response_model=LlmGetOut)
+async def get_llm_settings(
+    session: AsyncSession = Depends(get_session),
+) -> LlmGetOut:
+    return await _get_payload(session)
 
 
 @router.put("", response_model=LlmActiveOut)
@@ -101,6 +186,123 @@ async def put_llm_settings(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _active_out()
+
+
+@router.get("/configurations", response_model=list[LlmConfigurationOut])
+async def list_llm_configurations(
+    session: AsyncSession = Depends(get_session),
+) -> list[LlmConfigurationOut]:
+    rows = await runtime.list_configurations(session)
+    return [_configuration_out(row) for row in rows]
+
+
+@router.post("/configurations", response_model=LlmConfigurationOut, status_code=201)
+async def create_llm_configuration(
+    body: LlmConfigurationCreateIn,
+    session: AsyncSession = Depends(get_session),
+) -> LlmConfigurationOut:
+    try:
+        row = await runtime.create_configuration(
+            session,
+            name=body.name,
+            profile_id=body.profile_id,
+            temperature=body.temperature,
+            top_p=body.top_p,
+            max_tokens=body.max_tokens,
+            reasoning_effort=body.reasoning_effort,
+            is_default=body.is_default,
+            selection_role=body.selection_role,
+            capability_vision=body.capability_vision,
+            capability_tools=body.capability_tools,
+            capability_structured_output=body.capability_structured_output,
+            capability_long_context=body.capability_long_context,
+            enabled_for_auto=body.enabled_for_auto,
+            priority=body.priority,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _configuration_out(row)
+
+
+@router.patch("/configurations/{configuration_id}", response_model=LlmConfigurationOut)
+async def update_llm_configuration(
+    configuration_id: int,
+    body: LlmConfigurationUpdateIn,
+    session: AsyncSession = Depends(get_session),
+) -> LlmConfigurationOut:
+    try:
+        row = await runtime.update_configuration(
+            session,
+            configuration_id,
+            name=body.name,
+            profile_id=body.profile_id,
+            temperature=body.temperature,
+            top_p=body.top_p,
+            max_tokens=body.max_tokens,
+            reasoning_effort=body.reasoning_effort,
+            selection_role=body.selection_role,
+            capability_vision=body.capability_vision,
+            capability_tools=body.capability_tools,
+            capability_structured_output=body.capability_structured_output,
+            capability_long_context=body.capability_long_context,
+            enabled_for_auto=body.enabled_for_auto,
+            priority=body.priority,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _configuration_out(row)
+
+
+@router.post(
+    "/configurations/{configuration_id}/default",
+    response_model=LlmConfigurationOut,
+)
+async def set_default_llm_configuration(
+    configuration_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> LlmConfigurationOut:
+    try:
+        row = await runtime.set_default_configuration(session, configuration_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _configuration_out(row)
+
+
+@router.delete("/configurations/{configuration_id}", status_code=204)
+async def delete_llm_configuration(
+    configuration_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    try:
+        await runtime.delete_configuration(session, configuration_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put("/prompt-fields/{prompt_key:path}", response_model=LlmGetOut)
+async def assign_prompt_llm_configuration(
+    prompt_key: str,
+    body: LlmPromptAssignmentIn,
+    session: AsyncSession = Depends(get_session),
+) -> LlmGetOut:
+    try:
+        await runtime.assign_prompt_configuration(
+            session,
+            prompt_key,
+            body.llm_configuration_id,
+            selection_mode=body.llm_selection_mode,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await _get_payload(session)
 
 
 @router.post("/probe", response_model=LlmProbeOut)

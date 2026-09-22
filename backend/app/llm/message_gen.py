@@ -233,7 +233,7 @@ async def summarize_url_content(
             ),
         },
     ]
-    return await complete_text(messages)
+    return await complete_text(messages, prompt_key="messages.summarize_url.system")
 
 
 def _variant_prompt(
@@ -289,7 +289,8 @@ async def generate_message_variants(
     async def one(key: MessageVariant, label: str, prompt_key: str) -> MessageVariantOut:
         instruction = render_prompt(prompts, prompt_key)
         text = await complete_text(
-            _variant_prompt(body, instruction, source_material, prompts=prompts)
+            _variant_prompt(body, instruction, source_material, prompts=prompts),
+            prompt_key=prompt_key,
         )
         return MessageVariantOut(key=key, label=label, body=text)
 

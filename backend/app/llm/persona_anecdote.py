@@ -137,7 +137,11 @@ async def llm_persona_anecdote(
     last_detail = ""
     for attempt in range(_MAX_ATTEMPTS):
         try:
-            result = await complete_structured(messages, PersonaAnecdoteOut)
+            result = await complete_structured(
+                messages,
+                PersonaAnecdoteOut,
+                prompt_key="persona.anecdote.system",
+            )
         except (ValidationError, ValueError, RuntimeError) as exc:
             # Validation / empty-model failures: retry with feedback. Do not fail
             # the whole population job for a missing anecdote.

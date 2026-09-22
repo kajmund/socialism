@@ -11,7 +11,7 @@ from app.services.prompt_catalog import default_prompts
 async def test_llm_personas_from_description_still_calls_llm(monkeypatch):
     calls = 0
 
-    async def fake_generate(_messages):
+    async def fake_generate(_messages, **_kwargs):
         nonlocal calls
         calls += 1
         return EditablePersona(

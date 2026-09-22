@@ -120,7 +120,7 @@ async def _moderator_opening(
             expert_list=_expert_list(config),
         ),
     )
-    return (await complete_text(messages)).strip()
+    return (await complete_text(messages, prompt_key="panel.moderator.system")).strip()
 
 
 async def _moderator_next_question(
@@ -145,7 +145,7 @@ async def _moderator_next_question(
             round_index=round_index,
         ),
     )
-    return (await complete_text(messages)).strip()
+    return (await complete_text(messages, prompt_key="panel.moderator.system")).strip()
 
 
 async def _moderator_missing_expertise(
@@ -167,7 +167,7 @@ async def _moderator_missing_expertise(
             expert_list=_expert_list(config),
         ),
     )
-    return (await complete_text(messages)).strip()
+    return (await complete_text(messages, prompt_key="panel.moderator.system")).strip()
 
 
 async def _expert_raise_hand(
@@ -192,7 +192,7 @@ async def _expert_raise_hand(
             scratchpad=scratchpad or "(tom)",
         ),
     )
-    answer = (await complete_text(messages)).strip()
+    answer = (await complete_text(messages, prompt_key="panel.expert.system")).strip()
     return raise_hand_is_yes(answer)
 
 
@@ -205,10 +205,13 @@ async def _expert_complete(
 ) -> str:
     """Frozen-evidence mode uses plain completion even if the slot lists tools."""
     if not allow_expert_tools:
-        return (await complete_text(messages)).strip()
+        return (await complete_text(messages, prompt_key="panel.expert.system")).strip()
     return (
         await complete_text_with_company_tools(
-            messages, allowed_tools=frozenset(slot.tools), actor_tool_handler=actor_tool_handler
+            messages,
+            allowed_tools=frozenset(slot.tools),
+            actor_tool_handler=actor_tool_handler,
+            prompt_key="panel.expert.system",
         )
     ).strip()
 
@@ -290,7 +293,7 @@ async def _moderator_analysis(
             transcript=public_transcript_text(transcript),
         ),
     )
-    return (await complete_text(messages)).strip()
+    return (await complete_text(messages, prompt_key="panel.moderator.system")).strip()
 
 
 async def _static_unassessable_note() -> str:

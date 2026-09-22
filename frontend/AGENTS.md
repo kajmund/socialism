@@ -150,12 +150,13 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/populations/new`, `/populations/:id/edit` | Population builder |
 | `/messages` | Budskapsbibliotek |
 | `/messages/new`, `/messages/:id/edit` | Budskapsverkstad |
-| `/tools` | Verktyg (flikar: konfigurationer, playground, cache) |
+| `/tools` | Verktyg (flikar: konfigurationer, playground, cache, LLM) |
 | `/tools/configurations` | Konfigurationer (namn + språk + prompts + SSR-temperatur + grunddata) |
 | `/tools/configurations/new`, `/tools/configurations/:id/edit` | Skapa/redigera konfiguration |
 | `/tools/playground` | Anchor-/SSR-kalibrering + prompt-iteration |
 | `/tools/cache` | Lista/rensa diskcachade SSR-ankarembeddings |
 | `/tools/memory` | Expertminnen (Mem0) per kund och expert |
+| `/tools/llm` | LLM-konfigurationer (namngivna presets + default + probe) |
 | `/configurations`, `/playground`, `/config` | Redirect → `/tools/...` |
 Home is `/` (dashboard). Unknown routes redirect to `/`.
 

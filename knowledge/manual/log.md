@@ -2,6 +2,7 @@
 
 ## 2026-09-21
 
+* **LLM**: Under **Verktyg** → **LLM** skapar du namngivna konfigurationer (modell, temperatur, roll och capabilities). En av dem är default. Under **Konfigurationer** kan varje prompt använda default, en fast konfiguration eller Auto. Auto klassificerar uppgiften och matchar mot roll och capabilities.
 * **Research**: Huvudfrågor kan få tydligt märkta härledda sammanställningar från besvarade underfrågor. Besvarade frågor visas inte längre samtidigt som väntande på historiska beroenden.
 
 * **Research**: Källor i inspektören grupperas per dokument. Kortet visar hur många frågor och analyser som använder källan och hur många analysfel den har. Du kan fälla ut de frågespecifika posterna.

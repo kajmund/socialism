@@ -1,39 +1,55 @@
 ---
 type: guide
 title: Välja LLM-modell
-description: Så byter du aktiv chat-modell under Verktyg och mäter latency med en probe.
+description: Så skapar du LLM-konfigurationer, sätter default och väljer default, fast eller Auto per prompt.
 tags: [grunddata, jobb]
 ---
 
 # Välja LLM-modell
 
-Under **Verktyg** → **LLM** sätter du vilken chat-modell Socialism använder för personas, panel, expertgranskning, playground-prompts och liknande flöden.
+Under **Verktyg** → **LLM** skapar du namngivna **LLM-konfigurationer**. Varje konfiguration har samma inställningar som tidigare: modell, temperatur, top P, max tokens och reasoning effort.
+
+**En** konfiguration är **default**. Varje prompt kan använda default, en **fast** konfiguration eller **Auto**. Auto klassificerar vad uppgiften behöver; systemet väljer sedan en konfiguration med rätt roll och capabilities.
 
 **OASIS** (simulering) påverkas inte — den fortsätter använda DeepSeek.
 
-## Välj modell och parametrar
+## Skapa och redigera konfigurationer
 
 1. Öppna **Verktyg** → **LLM**.
-2. Välj en av profilerna:
+2. Klicka **Ny konfiguration** eller välj en sparad i listan.
+3. Ge den ett **Namn**.
+4. Välj en av profilerna:
    - **DeepSeek Flash** — `deepseek-flash`
    - **DeepSeek V4 Pro** — `deepseek-v4-pro`
    - **OpenAI GPT OSS** — Cerebras `gpt-oss-120b`
    - **Qwen 3.8 27B** — Cerebras `qwen-3.8-27b`
-3. Justera parametrar som visas för vald modell:
+5. Justera parametrar som visas för vald modell:
    - **Temperatur** och **Top P** (alla modeller)
    - **Max tokens** (DeepSeek upp till 393 216; Cerebras GPT OSS och Qwen upp till 40 000)
    - **Reasoning effort**:
      - DeepSeek: `none` / `low` / `high` / `max` (`none` stänger av thinking)
      - Cerebras GPT OSS och Qwen: `low` / `medium` / `high`
-4. Klicka **Spara som aktiv**.
+6. Sätt **Auto-roll** (`Snabb` / `Balanserad` / `Djup`), capabilities och om konfigurationen får användas av Auto. Vision kan bara vara på om modellprofilen stödjer bilder.
+7. Klicka **Spara konfiguration**.
+
+Den första konfigurationen blir automatiskt default. För en senare konfiguration: öppna den och klicka **Sätt som default**. Default kan inte tas bort — byt default först.
 
 Om API-nyckel saknas för leverantören visas ett fel och du kan varken spara eller köra probe.
 
-Ändringen gäller direkt i den körande backend-processen. Vid omstart läses den sparade profilen från databasen (annars gäller miljövariablerna som default).
+Ändringen av default gäller direkt i den körande backend-processen. Vid omstart läses default från databasen (annars gäller miljövariablerna).
+
+## Koppla en konfiguration till en prompt
+
+1. Öppna **Verktyg** → **Konfigurationer** och redigera en konfiguration.
+2. Under **Innehåll & ton** väljer du ett promptfält.
+3. I **LLM-konfiguration** väljer du **Standard (default)**, **Auto** eller en namngiven konfiguration.
+4. Valet sparas direkt och gäller **alla kunder** — inte bara den konfiguration du redigerar.
+
+Nya och befintliga prompter använder default tills du byter. Auto faller tillbaka till default om klassificeringen misslyckas, är osäker eller inte matchar någon konfiguration.
 
 ## Bild i personachatt
 
-DeepSeek Flash och Qwen kan ta emot bilder i personachatten och körningsintervjun. DeepSeek V4 Pro och GPT OSS är text-only — då visas ingen bildknapp. Qwen tar bara PNG och JPEG.
+DeepSeek Flash och Qwen kan ta emot bilder i personachatten och körningsintervjun. DeepSeek V4 Pro och GPT OSS är text-only — då visas ingen bildknapp. Qwen tar bara PNG och JPEG. Bildknappen följer **default**-konfigurationen.
 
 ## Probe med statistik
 
@@ -49,5 +65,6 @@ Efter körning visas bland annat:
 
 ## Relaterade guider
 
+- [Hantera konfigurationer](hantera-konfigurationer.md)
 - [Använda playground](anvanda-playground.md)
 - [Följa bakgrundsjobb](folja-bakgrundsjobb.md)

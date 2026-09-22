@@ -103,7 +103,7 @@ async def test_spindoctor_tool_loop_runs_calls_in_parallel(monkeypatch):
 
     round_count = 0
 
-    async def fake_complete(_messages, _tools):
+    async def fake_complete(_messages, _tools, **_kwargs):
         nonlocal round_count
         round_count += 1
         if round_count == 1:

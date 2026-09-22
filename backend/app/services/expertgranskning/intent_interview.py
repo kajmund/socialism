@@ -366,6 +366,7 @@ async def generate_document_intent_interview(
     raw = await complete_word_structured(
         messages,
         LlmDocumentIntentInterview,
+        prompt_key="expertgranskning.word.intent_interview",
         prompts=prompts,
     )
     return finalize_intent_interview(raw)

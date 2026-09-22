@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.session import SessionLocal
-from app.llm import complete_structured_retry
+from app.llm import complete_structured_retry, invoke_structured_completer
 from app.services.lagen_nu.selection import (
     HIT_ROLES,
     ExcerptDecision,
@@ -116,7 +116,9 @@ class LlmLagenNuSelector:
                 ),
             },
         ]
-        parsed = await self._complete(messages, HitSelectionModel)
+        parsed = await self._complete(
+            messages, HitSelectionModel, prompt_key="research.lagen_nu.select.system"
+        )
         decisions = [
             HitDecision(
                 candidate_id=item.candidate_id,
@@ -160,16 +162,28 @@ class LlmLagenNuSelector:
                 ),
             },
         ]
-        parsed = await self._complete(messages, ExcerptDecisionModel)
+        parsed = await self._complete(
+            messages,
+            ExcerptDecisionModel,
+            prompt_key="research.lagen_nu.excerpt.system",
+        )
         return ExcerptDecision(
             excerpt=parsed.excerpt,
             pinpoint=parsed.pinpoint or None,
             why=parsed.why,
         )
 
-    async def _complete(self, messages: list[dict[str, Any]], model: type[Any]):
+    async def _complete(
+        self,
+        messages: list[dict[str, Any]],
+        model: type[Any],
+        *,
+        prompt_key: str,
+    ):
         try:
-            parsed = await self._completer(messages, model)
+            parsed = await invoke_structured_completer(
+                self._completer, messages, model, prompt_key=prompt_key
+            )
         except Exception as exc:
             raise LagenNuSelectionError(
                 f"lagen.nu selector model call failed: {exc}"
