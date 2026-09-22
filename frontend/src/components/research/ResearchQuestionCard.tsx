@@ -1,6 +1,7 @@
 import type { ResearchOverviewQuestion } from "@/api/execution"
 import { useLocale, type MessageKey } from "@/i18n"
 import { legalSourceDisplay } from "@/lib/legalSourceDisplay"
+import { blockingDependencyCount } from "@/lib/researchStatus"
 import { cn } from "@/lib/utils"
 
 const statusKeys: Record<string, MessageKey> = {
@@ -22,7 +23,7 @@ export function ResearchQuestionCard({ question }: { question: ResearchOverviewQ
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2"><span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", statusTone(question.status))}>{t(statusKeys[question.status] ?? "execution.researchMonitor.status.waiting")}</span>{question.assigned_to ? <span className="text-xs text-muted-foreground">{t("execution.researchMonitor.assignedTo", { name: question.assigned_to.name })}</span> : null}</div>
           <h3 className="text-sm font-medium leading-6 text-foreground">{question.question}</h3>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">{question.raised_by.length > 0 ? <span>{t("execution.researchMonitor.raisedBy", { names: question.raised_by.map((expert) => expert.name).join(", ") })}</span> : null}{question.dependency_ids.length > 0 ? <span>{t("execution.researchMonitor.dependsOn", { count: question.dependency_ids.length })}</span> : null}<span>{t("execution.researchMonitor.sources", { count: question.source_count })}</span></div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">{question.raised_by.length > 0 ? <span>{t("execution.researchMonitor.raisedBy", { names: question.raised_by.map((expert) => expert.name).join(", ") })}</span> : null}{blockingDependencyCount(question) > 0 ? <span>{t("execution.researchMonitor.dependsOn", { count: blockingDependencyCount(question) })}</span> : null}<span>{t("execution.researchMonitor.sources", { count: question.source_count })}</span></div>
         </div>
         <span className="mt-1 text-db-gold-500 transition-transform group-open:rotate-90">›</span>
       </summary>
@@ -32,7 +33,7 @@ export function ResearchQuestionCard({ question }: { question: ResearchOverviewQ
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("execution.researchMonitor.sources", { count: question.source_count })}</h4>
           {question.sources.length === 0 ? <p className="text-sm text-muted-foreground">{t("execution.researchMonitor.noSources")}</p> : <div className="space-y-2">{question.sources.map((source) => {
             const display = legalSourceDisplay(source)
-            return <div key={source.id} className="rounded-lg border border-white/10 bg-black/10 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium">{display.title}</p><p className="mt-1 text-xs text-muted-foreground">{source.provider ?? source.source_type}{source.locator ? ` · ${source.locator}` : ""}</p></div><span className="text-xs text-muted-foreground">{t(source.status === "found" ? "execution.researchMonitor.sourceStatus.found" : source.status === "error" ? "execution.researchMonitor.sourceStatus.error" : "execution.researchMonitor.sourceStatus.notFound")}</span></div>{source.analysis ? <p className="mt-2 text-sm leading-5 text-foreground/80">{source.analysis}</p> : null}{display.excerpt ? <p className="mt-2 text-sm leading-5 text-muted-foreground">{display.excerpt}</p> : null}{source.source_url ? <a className="mt-2 inline-block text-xs font-medium text-db-gold-500 hover:underline" href={source.source_url} target="_blank" rel="noreferrer">{t("execution.researchMonitor.openSource")}</a> : null}</div>
+            return <div key={source.id} className="rounded-lg border border-white/10 bg-black/10 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium">{display.title}</p><p className="mt-1 text-xs text-muted-foreground">{source.derived ? t("execution.researchMonitor.derivedAnswer") : source.provider ?? source.source_type}{source.locator ? ` · ${source.locator}` : ""}</p></div><span className="text-xs text-muted-foreground">{t(source.status === "found" ? "execution.researchMonitor.sourceStatus.found" : source.status === "error" ? "execution.researchMonitor.sourceStatus.error" : "execution.researchMonitor.sourceStatus.notFound")}</span></div>{source.analysis ? <p className="mt-2 text-sm leading-5 text-foreground/80">{source.analysis}</p> : null}{display.excerpt ? <p className="mt-2 text-sm leading-5 text-muted-foreground">{display.excerpt}</p> : null}{source.source_url ? <a className="mt-2 inline-block text-xs font-medium text-db-gold-500 hover:underline" href={source.source_url} target="_blank" rel="noreferrer">{t("execution.researchMonitor.openSource")}</a> : null}</div>
           })}</div>}
         </div>
       </div>

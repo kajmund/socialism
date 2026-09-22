@@ -26,6 +26,7 @@ from app.services.research.assessment import (
     sanitize_assessment_draft,
 )
 from app.services.research.models import ResearchPlan
+from app.services.research.review_payload import compact_claims
 
 Completer = Callable[[list[dict[str, Any]], type[Any]], Awaitable[Any]]
 
@@ -101,12 +102,12 @@ def _evidence_payload(group: EvidenceReviewGroup) -> dict[str, object]:
         "source_url": item.source_url,
         "provider": item.provider,
         "score": item.score,
-        "provenance": {k: v for k, v in item.provenance.items() if k != "legal_result"},
+        "provenance": {k: v for k, v in item.provenance.items() if k not in {"legal_result", "derived_claims"}},
         "legal_result": (
             item.legal_result.model_dump(mode="json", exclude={"raw_text"})
             if item.legal_result else None
         ),
-        "claims": list(item.claims),
+        **compact_claims(item.claims),
         "retrieved_at": item.retrieved_at.isoformat(),
         "content_hash": item.content_hash,
         **(

@@ -159,6 +159,33 @@ def evaluate_case(golden: dict[str, Any], artifacts: dict[str, Any]) -> dict[str
     return report
 
 
+def success_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
+    """Observed rates only; a missing stage measurement is not a success."""
+    needs = artifacts.get("assessment", {}).get("needs", {})
+    need_ids = set(artifacts.get("need_ids", artifacts.get("plan_topics", []))) | set(needs)
+    answered = sum(needs.get(need_id) is True for need_id in need_ids)
+    metrics: dict[str, Any] = {
+        "answered_needs": answered,
+        "total_needs": len(need_ids),
+        "answered_rate": answered / len(need_ids) if need_ids else None,
+    }
+    rows = artifacts.get("evidence", [])
+    for stage in ("fetch", "domain_extraction"):
+        grouped: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            metadata = row.get("metadata", row.get("provenance", {}))
+            observed = metadata.get(f"{stage}_success")
+            if type(observed) is not bool or metadata.get("derived"):
+                continue
+            group = grouped.setdefault(row["source_type"], {"success": 0, "attempted": 0})
+            group["attempted"] += 1
+            group["success"] += int(observed)
+        for group in grouped.values():
+            group["rate"] = group["success"] / group["attempted"]
+        metrics[f"{stage}_success_by_source_type"] = grouped
+    return metrics
+
+
 def load_case(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     case = json.loads(path.read_text(encoding="utf-8"))
     return case["golden"], case["artifacts"]
@@ -175,7 +202,14 @@ def main() -> int:
     )
     report = evaluate_case(golden, artifacts)
     print(
-        json.dumps({stage: asdict(report[stage]) for stage in STAGES}, ensure_ascii=False, indent=2)
+        json.dumps(
+            {
+                "stages": {stage: asdict(report[stage]) for stage in STAGES},
+                "metrics": success_metrics(artifacts),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
     )
     return 0 if all(row.passed for row in report.values()) else 1
 

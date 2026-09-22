@@ -5,7 +5,11 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, computed_field, model_validator
+
+
+class CitationGroundingError(ValueError):
+    """A citation does not refer to an exact span in the fetched source."""
 
 
 class LegalSourceIdentity(BaseModel):
@@ -22,16 +26,72 @@ class LegalSourceIdentity(BaseModel):
 
 class LegalCitation(BaseModel):
     source_uri: str
-    quote: str
+    quote: str = ""
+    source_span_id: str | None = None
     pinpoint: str | None = None
 
 
-class CaseLawAnalysis(BaseModel):
-    legal_issue: str
-    court_reasoning: str
+class CourtStatement(BaseModel):
+    court_level: Literal["supreme", "appeal", "first_instance", "specialist", "unknown"]
+    text_role: Literal[
+        "majority_reasons",
+        "operative_order",
+        "lower_court",
+        "party_submission",
+        "dissent",
+        "reporter_proposal",
+    ]
     outcome: str
+    decision_basis: Literal[
+        "statutory_adjustment", "contract_interpretation", "other", "not_determined"
+    ] = "not_determined"
+    adjustment_granted: bool | None = Field(
+        default=None,
+        description="Whether this court legally adjusted the CONTRACT term. Appellate reversal, repayment and contract interpretation alone are not adjustment.",
+    )
+    citations: list[LegalCitation] = Field(min_length=1)
+
+
+class CaseLawAnalysis(BaseModel):
+    @model_validator(mode="after")
+    def validate_holding(self) -> CaseLawAnalysis:
+        holding = self.authoritative_holding
+        if holding is not None:
+            if holding.text_role not in {"majority_reasons", "operative_order"}:
+                raise ValueError(
+                    "established holding requires the deciding court's majority or order"
+                )
+            if holding.court_level == "unknown":
+                raise ValueError("established holding requires an identified court level")
+            if (
+                holding.adjustment_granted is True
+                and holding.decision_basis != "statutory_adjustment"
+            ):
+                raise ValueError("granted adjustment requires statutory_adjustment decision basis")
+        return self
+
+    @computed_field
+    @property
+    def holding_status(self) -> Literal["established", "not_determined"]:
+        return "established" if self.authoritative_holding is not None else "not_determined"
+
+    @computed_field
+    @property
+    def outcome(self) -> str:
+        return (
+            self.authoritative_holding.outcome if self.authoritative_holding else "Not determined"
+        )
+
+    @computed_field
+    @property
+    def adjustment_granted(self) -> bool | None:
+        return self.authoritative_holding.adjustment_granted if self.authoritative_holding else None
+
+    legal_issue: str
+    court_reasoning: str = Field(
+        description="Explain the deciding court majority’s actual legal reasoning and basis before classifying its outcome. Distinguish interpretation of an existing obligation from modification of that obligation under a statutory adjustment power."
+    )
     adjustment_requested: bool | None = None
-    adjustment_granted: bool | None = None
     adjusted_term_type: str | None = None
     contract_type: str | None = None
     decisive_factors: list[str] = Field(default_factory=list)
@@ -41,6 +101,9 @@ class CaseLawAnalysis(BaseModel):
     applied_provisions: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     citations: list[LegalCitation] = Field(default_factory=list)
+
+    other_statements: list[CourtStatement] = Field(default_factory=list)
+    authoritative_holding: CourtStatement | None = None
 
 
 class PreparatoryWorkAnalysis(BaseModel):
@@ -95,11 +158,21 @@ class LegalResearchResult(BaseModel):
             raise ValueError("raw source text is required")
         if not selected.citations:
             raise ValueError("legal analysis requires a verified citation")
-        for citation in selected.citations:
+        citations = list(selected.citations)
+        if self.case_law is not None:
+            statements = list(self.case_law.other_statements)
+            if self.case_law.authoritative_holding is not None:
+                statements.append(self.case_law.authoritative_holding)
+            citations.extend(
+                citation for statement in statements for citation in statement.citations
+            )
+        for citation in citations:
             if citation.source_uri != self.source.canonical_uri:
-                raise ValueError("citation URI differs from retrieved source")
+                raise CitationGroundingError("citation URI differs from retrieved source")
             if not citation.quote or citation.quote not in self.raw_text:
-                raise ValueError("citation quote is absent from raw source")
+                raise CitationGroundingError(
+                    f"citation quote is absent from raw source: {citation.quote!r}"
+                )
         return self
 
 
@@ -115,6 +188,8 @@ def legal_result_summary(result: LegalResearchResult) -> list[str]:
                 f"Legal issue: {result.case_law.legal_issue}",
                 f"Court reasoning: {result.case_law.court_reasoning}",
                 f"Outcome: {result.case_law.outcome}",
+                f"Holding status: {result.case_law.holding_status}",
+                f"Authoritative holding: {result.case_law.authoritative_holding}",
             )
         )
         analysis = result.case_law
