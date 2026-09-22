@@ -8,6 +8,7 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select
 
+import app.services.sme_panel_lease as panel_lease_mod
 from app.database.models import (
     Persona,
     PersonaMessage,
@@ -24,7 +25,6 @@ from app.services.sme_expert_turns import (
     renew_expert_turn_lease,
 )
 from app.services.sme_panel_chat import run_panel_message
-import app.services.sme_panel_lease as panel_lease_mod
 from app.services.sme_panel_lease import (
     panel_lease_still_held,
     release_panel_lease,
@@ -278,6 +278,7 @@ async def test_panel_chat_without_company_tools_does_not_enable_them(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("client", ["file_database"], indirect=True)
 async def test_concurrent_panel_turns_serialize_across_two_sessions(
     client_db, monkeypatch
 ) -> None:
@@ -326,7 +327,9 @@ async def test_concurrent_panel_turns_serialize_across_two_sessions(
     task_b = asyncio.create_task(second_turn())
     await started.wait()
     async with factory() as session_a, factory() as session_b:
-        assert session_a is not session_b
+        connection_a = await (await session_a.connection()).get_raw_connection()
+        connection_b = await (await session_b.connection()).get_raw_connection()
+        assert connection_a.driver_connection is not connection_b.driver_connection
     release_first.set()
     await asyncio.gather(task_a, task_b)
 
@@ -398,6 +401,7 @@ async def test_stale_panel_lease_cannot_renew_after_losing_fence(client_db) -> N
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("client", ["file_database"], indirect=True)
 async def test_panel_lease_heartbeat_blocks_second_session_after_ttl(
     client_db, monkeypatch
 ) -> None:
@@ -457,7 +461,9 @@ async def test_panel_lease_heartbeat_blocks_second_session_after_ttl(
     assert stolen is None
     assert second_started_during_first is False
     async with factory() as session_a, factory() as session_b:
-        assert session_a is not session_b
+        connection_a = await (await session_a.connection()).get_raw_connection()
+        connection_b = await (await session_b.connection()).get_raw_connection()
+        assert connection_a.driver_connection is not connection_b.driver_connection
     release_first.set()
     await asyncio.gather(task_a, task_b)
 
