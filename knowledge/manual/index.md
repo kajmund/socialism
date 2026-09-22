@@ -15,6 +15,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Byta gränssnittsspråk](byta-granssnittssprak.md) — Växla mellan svenska och engelska i menyn
 * [Använda hjälpchatten](anvanda-hjalpchatten.md) — Fråga hur appen fungerar i adminytan
 * [Hantera återkoppling](hantera-aterkoppling.md) — Granska buggar, idéer och åsikter från hjälpchatten
+* [Profil och organisationsuppgifter](profil-och-organisation.md) — Namn, yrkesroll, profilbild och expertförslag
 
 # Körningar
 
@@ -57,6 +58,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 * [Hantera konfigurationer](hantera-konfigurationer.md) — Prompts och grunddata per konfiguration
 * [Hantera kundmoduler](hantera-kundmoduler.md) — Slå på och av produktmoduler per kund
+* [Redigera kundens organisationsuppgifter](redigera-kundens-organisationsuppgifter.md) — Organisation, org.nr och adress per kund
 * [Redigera panelkatalog](redigera-panelkatalog.md) — Sub-frågor, default-expertprofiler och förslag från underlag
 * [Konfigurera panelkatalog för Expertgranskning](konfigurera-panelkatalog-for-expertgranskning.md) — Sub-frågor för expertgranskningens panel
 * [Hantera SSR-ankare](hantera-ssr-ankare.md) — Skapa, testa och publicera ton- och stilankare för rapporter
@@ -67,6 +69,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Visa expertminnen](visa-expertminnen.md) — Se, redigera och ta bort vad experterna har sparat i långtidsminnet
 * [Välja LLM-modell](valja-llm-modell.md) — Byt aktiv chat-modell och mät latency med probe
 * [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering, sourcing, rättsunderlag och rapporter
+* [Följa research i realtid](folja-research-i-realtid.md) — Live-vy för research innan expertgranskning och panel
 
 # Due Diligence (bolag)
 
@@ -100,10 +103,11 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Hantera rapporter](hantera-rapporter.md) — Lista och öppna beställda rapporter
 * [Beställa en rapport](bestalla-rapport.md) — Sammanfattning eller jämförelse från resultat
 * [Läsa simuleringsrapport](lasa-simuleringsrapport.md) — Öppna och läsa HTML-rapporten
+* [Läsa Due Diligence-rapport](lasa-due-diligence-rapport.md) — Tolka panelpoäng, källor och nyckeltal i DD-rapporten
+* [Läsa expertgranskningsrapport](lasa-expertgranskningsrapport.md) — HTML-rapport och PDF-underlag efter granskning
+* [Läsa rättsunderlags-PM](lasa-rattsunderlags-pm.md) — Juridiskt PM, källor och Spinndoktor efter rättsunderlag
 * [Spinndoktor — rapportchatt](spinndoktor-rapportchatt.md) — Resonera kring en klar rapport med Spinndoktor
 
 # Taggar
 
 Återanvänd dessa taggar i nya guider: `korningar`, `personas`, `populationer`, `budskap`, `grunddata`, `jobb`, `rapporter`.
-
-- [Profil och organisationsuppgifter](profil-och-organisation.md)
