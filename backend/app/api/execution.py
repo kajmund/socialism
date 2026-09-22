@@ -953,6 +953,7 @@ async def get_attempt_research_overview(
         items_by_set.setdefault(item.evidence_set_id, []).append(item)
     assessment_by_attempt = {row.attempt_id: row for row in assessments}
 
+    completed_question_ids = {row.id for row, _, _ in question_rows if row.status == "completed"}
     questions: list[ResearchQuestionOverviewOut] = []
     for row, question_text, specific_text in question_rows:
         child = child_by_id.get(row.execution_attempt_id or "")
@@ -1000,6 +1001,13 @@ async def get_attempt_research_overview(
                 child_attempt_id=row.execution_attempt_id,
                 child_attempt_status=child.status if child else None,
                 dependency_ids=dependency_ids.get(row.id, []),
+                blocking_dependency_ids=[
+                    dependency_id
+                    for dependency_id in dependency_ids.get(row.id, [])
+                    if dependency_id not in completed_question_ids
+                ]
+                if row.status in {"pending", "blocked"}
+                else [],
                 raised_by=[
                     ResearchExpertOut(
                         id=link.expert_id,
@@ -1015,6 +1023,8 @@ async def get_attempt_research_overview(
                 ),
                 sources=[
                     ResearchSourceOut(
+                        derived=bool(item.provenance.get("derived")),
+                        failure_category=item.provenance.get("failure_category"),
                         id=item.id,
                         passage_id=item.passage_id,
                         domain_result_id=item.domain_result_id,

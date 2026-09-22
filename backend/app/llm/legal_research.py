@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, ValidationError, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.session import SessionLocal
@@ -20,6 +20,7 @@ from app.services.legal_research_result import (
 )
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
+from app.services.research.failures import FailureCategory
 from app.services.research.models import ResearchContext
 
 Completer = Callable[[list[dict[str, Any]], type[Any]], Awaitable[Any]]
@@ -27,6 +28,12 @@ Completer = Callable[[list[dict[str, Any]], type[Any]], Awaitable[Any]]
 
 class LegalDomainExtractionError(Exception):
     """The model could not produce a verified interpretation of this document."""
+
+    def __init__(
+        self, message: str, *, category: FailureCategory = "domain_schema_invalid"
+    ) -> None:
+        super().__init__(message)
+        self.category = category
 
 
 class LegalInterpretation(BaseModel):
@@ -84,35 +91,87 @@ class LlmLegalInterpreter:
             prompts = await require_active_prompts(
                 session, customer_id=customer_id, module=module, language="sv"
             )
+        spans = {
+            f"s{index}": paragraph
+            for index, paragraph in enumerate(raw_text.split("\n\n"))
+            if paragraph.strip()
+        }
+        marked_source = "\n\n".join(f"[{key}]\n{text}" for key, text in spans.items())
         messages = [
             {
                 "role": "system",
-                "content": render_prompt(prompts, "research.lagen_nu.domain.system"),
+                "content": render_prompt(prompts, "research.lagen_nu.domain.v3.system"),
             },
             {
                 "role": "user",
                 "content": render_prompt(
                     prompts,
-                    "research.lagen_nu.domain.user",
+                    "research.lagen_nu.domain.v3.user",
                     question=question,
                     source_kind=source.kind,
                     source_uri=source.canonical_uri,
-                    source_text=raw_text,
+                    source_text=("[truncated=true]\n" if truncated else "[truncated=false]\n")
+                    + marked_source,
                 ),
             },
         ]
-        try:
-            parsed = LegalInterpretation.model_validate(
-                await self._completer(messages, LegalInterpretation)
-            )
-            return LegalResearchResult(
-                source=source,
-                relation=parsed.relation,
-                case_law=parsed.case_law,
-                preparatory_work=parsed.preparatory_work,
-                statute=parsed.statute,
-                raw_text=raw_text,
-                truncated=truncated,
-            )
-        except Exception as exc:
-            raise LegalDomainExtractionError("legal domain extraction failed") from exc
+        for attempt in range(3):
+            parsed = None
+            try:
+                parsed = LegalInterpretation.model_validate(
+                    await self._completer(messages, LegalInterpretation)
+                )
+                analysis = parsed.case_law or parsed.preparatory_work or parsed.statute
+                assert analysis is not None
+                citations = list(analysis.citations)
+                if parsed.case_law:
+                    statements = list(parsed.case_law.other_statements)
+                    if parsed.case_law.authoritative_holding:
+                        statements.append(parsed.case_law.authoritative_holding)
+                    citations.extend(
+                        citation for statement in statements for citation in statement.citations
+                    )
+                for citation in citations:
+                    if citation.source_span_id is not None:
+                        if citation.source_span_id not in spans:
+                            raise LegalDomainExtractionError(
+                                f"unknown source span: {citation.source_span_id}",
+                                category="citation_grounding_failed",
+                            )
+                        citation.quote = spans[citation.source_span_id]
+                return LegalResearchResult(
+                    source=source,
+                    relation=parsed.relation,
+                    case_law=parsed.case_law,
+                    preparatory_work=parsed.preparatory_work,
+                    statute=parsed.statute,
+                    raw_text=raw_text,
+                    truncated=truncated,
+                )
+            except ValidationError as exc:
+                category = "domain_schema_invalid"
+                if any(
+                    error.get("ctx", {}).get("error").__class__.__name__ == "CitationGroundingError"
+                    for error in exc.errors()
+                ):
+                    category = "citation_grounding_failed"
+                detail = "; ".join(f"{error['loc']}: {error['msg']}" for error in exc.errors())
+                if attempt == 2:
+                    raise LegalDomainExtractionError(detail, category=category) from exc
+                if parsed is not None:
+                    messages.append({"role": "assistant", "content": parsed.model_dump_json()})
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": render_prompt(
+                            prompts,
+                            "research.lagen_nu.domain.v3.repair",
+                            validation_errors=detail,
+                        ),
+                    }
+                )
+            except LegalDomainExtractionError:
+                raise
+            except Exception as exc:
+                raise LegalDomainExtractionError(f"{type(exc).__name__}: {exc}") from exc
+        raise AssertionError("unreachable")
