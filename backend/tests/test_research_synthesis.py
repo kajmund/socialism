@@ -88,20 +88,30 @@ def test_unanswered_or_cross_need_or_derived_evidence_cannot_be_used():
 
 
 @pytest.mark.asyncio
-async def test_synthesis_persists_then_reassesses_parent_in_research_engine():
+@pytest.mark.parametrize("quality_fails", [False, True])
+async def test_synthesis_persists_then_reassesses_parent_in_research_engine(quality_fails):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
     from sqlalchemy.pool import StaticPool
 
     from app.database.base import Base
     from app.services.execution.service import (
         add_evidence_items,
+        claim_freeze_evidence_set,
         create_evidence_set,
+        get_evidence_set,
+        get_research_assessment,
         list_evidence_items,
+        list_evidence_quality,
         persist_runtime_needs,
     )
     from app.services.research.assessment import ProgrammaticResearchAssessor
-    from app.services.research.execution import _assess_persisted_evidence, assessable_from_item
+    from app.services.research.execution import (
+        _assess_persisted_evidence,
+        _persist_evidence_quality,
+        assessable_from_item,
+    )
     from app.services.research.models import research_evidence
+    from app.services.research.quality import EvidenceQualityError, EvidenceRelevanceJudgment
     from tests.test_research_execution import _created_attempt
 
     engine = create_async_engine("sqlite+aiosqlite://", poolclass=StaticPool)
@@ -129,13 +139,60 @@ async def test_synthesis_persists_then_reassesses_parent_in_research_engine():
                     for child in ("a", "b")
                 ],
             )
+            initial_quality = await _persist_evidence_quality(
+                session,
+                evidence_set_id=evidence_set.id,
+                plan=plan_from_runtime_needs(needs),
+                descriptors=(),
+                relevance_assessor=None,
+            )
+            assert len(initial_quality) == 2
+            judged = []
+
+            class RelevanceAssessor:
+                async def judge(self, need, item):
+                    judged.append(item.original_evidence_id)
+                    assert need.id == "parent"
+                    if quality_fails:
+                        raise RuntimeError("quality provider unavailable")
+                    return EvidenceRelevanceJudgment(relevance="high", model_name="test-model")
+
+            class CheckingAssessor(ProgrammaticResearchAssessor):
+                async def assess(self, plan, evidence):
+                    for item in evidence:
+                        assert item.quality is not None
+                        if item.provenance.get("derived"):
+                            assert item.quality.relevance == "high"
+                            assert item.quality.model_name == "test-model"
+                            assert item.quality.independent_source_count == 0
+                            assert item.quality.source_nature == "secondary"
+                    return await super().assess(plan, evidence)
+
+            if quality_fails:
+                with pytest.raises(EvidenceQualityError):
+                    await _assess_persisted_evidence(
+                        session,
+                        attempt=attempt,
+                        evidence_set_id=evidence_set.id,
+                        plan=plan_from_runtime_needs(needs),
+                        assessor=CheckingAssessor(),
+                        relevance_assessor=RelevanceAssessor(),
+                        assessment_pass=1,
+                        quality=initial_quality,
+                    )
+                assert (await get_evidence_set(session, evidence_set.id)).status == "building"
+                assert await get_research_assessment(session, attempt.id, assessment_pass=1) is None
+                assert len(await list_evidence_quality(session, evidence_set.id)) == 2
+                return
             assessment = await _assess_persisted_evidence(
                 session,
                 attempt=attempt,
                 evidence_set_id=evidence_set.id,
                 plan=plan_from_runtime_needs(needs),
-                assessor=ProgrammaticResearchAssessor(),
+                assessor=CheckingAssessor(),
+                relevance_assessor=RelevanceAssessor(),
                 assessment_pass=1,
+                quality=initial_quality,
             )
             parent = next(
                 row for row in assessment.need_assessments if row["research_need_id"] == "parent"
@@ -150,9 +207,21 @@ async def test_synthesis_persists_then_reassesses_parent_in_research_engine():
                 attempt=attempt,
                 evidence_set_id=evidence_set.id,
                 plan=plan_from_runtime_needs(needs),
-                assessor=ProgrammaticResearchAssessor(),
+                assessor=CheckingAssessor(),
+                relevance_assessor=RelevanceAssessor(),
                 assessment_pass=1,
+                quality=initial_quality,
             )
             assert len(await list_evidence_items(session, evidence_set.id)) == 3
+            assert judged == [derived.original_evidence_id]
+            qualities = await list_evidence_quality(session, evidence_set.id)
+            assert len(qualities) == 3
+            (quality,) = [row for row in qualities if row.evidence_set_item_id == derived.id]
+            assert quality.evidence_set_item_id == derived.id
+            assert quality.relevance == "high"
+            assert quality.independent_source_count == 0
+            assert await claim_freeze_evidence_set(session, evidence_set.id) is not None
+            await session.commit()
+            assert len(await list_evidence_quality(session, evidence_set.id)) == 3
     finally:
         await engine.dispose()

@@ -149,7 +149,7 @@ def _reset_llm_completers():
 
 
 @pytest.fixture
-async def client():
+async def client(request, tmp_path):
     settings.persona_generator = "stub"
     settings.cerebras_api_key = "test-key-not-real"
     settings.deepseek_api_key = "test-key-not-real"
@@ -181,11 +181,16 @@ async def client():
     set_text_completer(_mock_text)
     set_structured_completer(_mock_structured)
 
-    engine = create_async_engine(
-        "sqlite+aiosqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    # Concurrent transaction tests need distinct physical connections: StaticPool
+    # shares one connection, so one session's rollback can erase another's writes.
+    if getattr(request, "param", None) == "file_database":
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
+    else:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
     session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
     async with engine.begin() as conn:

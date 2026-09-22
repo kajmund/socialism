@@ -227,14 +227,21 @@ class LlmLegalInterpreter:
                     raw_text=raw_text,
                     truncated=truncated,
                 )
-            except ValidationError as exc:
-                category = "domain_schema_invalid"
-                if any(
-                    error.get("ctx", {}).get("error").__class__.__name__ == "CitationGroundingError"
-                    for error in exc.errors()
-                ):
-                    category = "citation_grounding_failed"
-                detail = "; ".join(f"{error['loc']}: {error['msg']}" for error in exc.errors())
+            except (ValidationError, LegalDomainExtractionError) as exc:
+                if isinstance(exc, LegalDomainExtractionError):
+                    if exc.category != "citation_grounding_failed":
+                        raise
+                    category = exc.category
+                    detail = str(exc)
+                else:
+                    category = "domain_schema_invalid"
+                    if any(
+                        error.get("ctx", {}).get("error").__class__.__name__
+                        == "CitationGroundingError"
+                        for error in exc.errors()
+                    ):
+                        category = "citation_grounding_failed"
+                    detail = "; ".join(f"{error['loc']}: {error['msg']}" for error in exc.errors())
                 if attempt == 2:
                     raise LegalDomainExtractionError(detail, category=category) from exc
                 if parsed is not None:
@@ -249,8 +256,6 @@ class LlmLegalInterpreter:
                         ),
                     }
                 )
-            except LegalDomainExtractionError:
-                raise
             except Exception as exc:
                 raise LegalDomainExtractionError(f"{type(exc).__name__}: {exc}") from exc
         raise AssertionError("unreachable")
