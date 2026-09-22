@@ -1,6 +1,7 @@
 ---
 type: guide
 title: Profil och organisationsuppgifter
+description: Så redigerar du namn, yrkesroll, profilbild och godkänner expertförslag.
 tags: [grunddata]
 ---
 
