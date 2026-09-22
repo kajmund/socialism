@@ -492,7 +492,7 @@ def assessable_from_item(
             for claim in record.claims
         )
         if record is not None
-        else ()
+        else tuple((item.provenance or {}).get("derived_claims", []))
     )
     return AssessableEvidence(
         evidence_id=item.original_evidence_id or item.id,
@@ -691,6 +691,21 @@ async def _assess_persisted_evidence(
     except Exception as exc:
         raise ResearchAssessmentError(f"Attempt {attempt.id} evidence assessment failed") from exc
     draft = sanitize_assessment_draft(draft, plan=plan, evidence=evidence)
+    from app.services.research.synthesis import derive_parent_answers
+
+    runtime_needs = [
+        runtime_need_from_row(row) for row in await list_runtime_needs(session, attempt.id)
+    ]
+    derived = derive_parent_answers(runtime_needs, draft, evidence)
+    existing_ids = {item.original_evidence_id for item in items}
+    new_derived = [item for item in derived if item.evidence_id not in existing_ids]
+    if new_derived:
+        await add_evidence_items(session, evidence_set_id=evidence_set_id, items=new_derived)
+        items = await list_evidence_items(session, evidence_set_id)
+        evidence = [assessable_from_item(item, quality=quality_map.get(item.id)) for item in items]
+        draft = sanitize_assessment_draft(
+            await assessor.assess(plan, evidence), plan=plan, evidence=evidence
+        )
     assessment = await persist_research_assessment(
         session,
         attempt_id=attempt.id,

@@ -27,11 +27,8 @@ from app.llm.legal_research import (
     LlmLegalInterpreter,
 )
 from app.services.lagen_nu.display import (
-    WINDOW_CHARS,
     display_source_title,
     is_legal_front_matter,
-    relevant_legal_excerpt,
-    selector_passage_text,
 )
 from app.services.lagen_nu.mcp_client import (
     LagenNuMcpClient,
@@ -48,19 +45,16 @@ from app.services.lagen_nu.registration import (
     mcp_source_for_nature,
 )
 from app.services.lagen_nu.selection import (
-    MAX_SELECTOR_DOCUMENT_CHARS,
     HitDecision,
     LagenNuPassageSelector,
     LagenNuSelectionError,
-    SelectableDocument,
     SelectableHit,
-    clip_selector_document,
     resolve_passage_selector,
-    verify_excerpt_span,
 )
 from app.services.lagen_nu.uris import compose_canonical_uri
 from app.services.legal_research_result import LegalResearchResult, LegalSourceIdentity
 from app.services.research.evidence_identity import canonical_source_identity
+from app.services.research.failures import FailureCategory
 from app.services.research.knowledge_question import research_question_key
 from app.services.research.models import (
     ResearchContext,
@@ -74,7 +68,7 @@ logger = logging.getLogger(__name__)
 
 MAX_SEARCH_HITS = 10
 MAX_DOCUMENT_FETCHES = 5
-MAX_DOCUMENT_CHARS = 100000
+MAX_DOCUMENT_CHARS = 200000
 MAX_EVIDENCE_CHARS = 16000
 MAX_MCP_TOOL_CALLS = 12
 
@@ -102,17 +96,11 @@ _PREPARATORY_CITATION = re.compile(
     r"bet(?:änkande)?\.?\s*\d{4}/\d{2}:[A-Za-z]+\d+)",
     re.IGNORECASE,
 )
-_STATUTE_RESTATEMENT = re.compile(
-    r"jämkas eller lämnas utan avseende.{0,80}oskäligt",
-    re.IGNORECASE,
-)
 _PROVISION_CITATION = re.compile(r"\b\d+\s*§")
-_STATUTE_PINPOINT = re.compile(r"^(?:K\d+)?P\d+[A-Za-z]?$")
 _COVER_PINPOINT = re.compile(
     r"huvudsaklig|innehållsförteckning|titelsida|omslag",
     re.IGNORECASE,
 )
-_PROVISION_EXCERPT_CUES = ("jämk", "oskälig")
 _JUDICIAL_REASON_CUES = (
     "domskäl",
     "domstolens bedömning",
@@ -129,20 +117,6 @@ _PARTY_SUBMISSION_CUES = (
     "har invänt",
     "har anfört",
     "åberopade i tr",
-)
-_COURT_HEADINGS = (
-    "högsta domstolen",
-    "högsta förvaltningsdomstolen",
-    "arbetsdomstolen",
-    "patent- och marknadsöverdomstolen",
-    "marknadsöverdomstolen",
-    "hovrätt",
-)
-_REASON_HEADINGS = (
-    "domskäl",
-    "domstolens bedömning",
-    "bedömning",
-    "skälen för avgörandet",
 )
 _QUERY_STOPWORDS = frozenset(
     {
@@ -333,9 +307,12 @@ def _search_query(question: str, source_type: ResearchSourceType) -> str:
         }:
             extra.append("generalklausul")
         law_terms = [term for term in terms if term.casefold().endswith("lagen")]
-        if _PREPARATORY_CITATION.search(question) and law_terms:
-            terms = extra + law_terms[:2]
-        elif _PROVISION_CITATION.search(question) and law_terms:
+        if (
+            _PREPARATORY_CITATION.search(question)
+            and law_terms
+            or _PROVISION_CITATION.search(question)
+            and law_terms
+        ):
             terms = extra + law_terms[:2]
         else:
             terms = extra + terms[:3]
@@ -359,79 +336,6 @@ def _term_overlap(terms: frozenset[str], value: str) -> int:
     if not terms:
         return 0
     return len(terms & _query_terms(value))
-
-
-def _judicial_reasons(text: str) -> str:
-    """Return the highest available court's reasons and outcome."""
-    lines = text.splitlines()
-    legacy_courts = [
-        index
-        for index, line in enumerate(lines)
-        if re.match(r"^(?:HD|HFD|AD)\s*\(", line)
-        or "Högsta domstolen" in line
-        or "Högsta förvaltningsdomstolen" in line
-    ]
-    if legacy_courts:
-        court_start = legacy_courts[-1]
-        reason_start = next(
-            (
-                index
-                for index in range(court_start, len(lines))
-                if lines[index].strip().casefold().startswith("domskäl")
-            ),
-            court_start,
-        )
-        outcome_end = next(
-            (
-                index + 1
-                for index in range(reason_start + 1, len(lines))
-                if lines[index].strip().casefold().startswith("domslut")
-            ),
-            len(lines),
-        )
-        selected = "\n".join(lines[reason_start:outcome_end]).strip()
-        if selected:
-            return selected[:MAX_EVIDENCE_CHARS]
-    headings = [
-        (index, line[3:].strip().casefold())
-        for index, line in enumerate(lines)
-        if line.startswith("## ")
-    ]
-    if not headings:
-        return text[:MAX_EVIDENCE_CHARS]
-    court_positions = [
-        (index, heading)
-        for index, heading in headings
-        if any(court in heading for court in _COURT_HEADINGS)
-    ]
-    court_start = court_positions[-1][0] if court_positions else 0
-    next_court = next(
-        (
-            index
-            for index, heading in headings
-            if index > court_start and any(court in heading for court in _COURT_HEADINGS)
-        ),
-        len(lines),
-    )
-    reason_start = next(
-        (
-            index
-            for index, heading in headings
-            if court_start <= index < next_court
-            and any(reason in heading for reason in _REASON_HEADINGS)
-        ),
-        court_start,
-    )
-    outcome_end = next(
-        (index for index, heading in headings if index > reason_start and "domslut" in heading),
-        next_court,
-    )
-    following_heading = next(
-        (index for index, _heading in headings if index > outcome_end),
-        len(lines),
-    )
-    selected = "\n".join(lines[reason_start:following_heading]).strip()
-    return (selected or text)[:MAX_EVIDENCE_CHARS]
 
 
 def _fragment_rank(
@@ -746,6 +650,7 @@ class LagenNuResearchSource:
                     EvidenceSource.provider == self.provider_id,
                     EvidenceSource.canonical_identity == source_identity,
                     RawSource.content_hash == raw_hash,
+                    DomainResearchResultRecord.schema_version == 3,
                     ResearchRuntimeNeed.question_key == research_question_key(need.question),
                 )
                 .order_by(DomainResearchResultRecord.created_at.desc())
@@ -787,20 +692,34 @@ class LagenNuResearchSource:
         # Public corpus: never send ResearchContext.scope to lagen.nu.
         budget = _CallBudget(MAX_MCP_TOOL_CALLS)
         source = mcp_source_for_nature(self.source_type)
-        if self.source_type == "swedish_case_law":
-            candidates = await self._case_law_candidates(need, context, budget, source)
-        else:
-            candidates = await self._document_candidates(need, context, budget, source)
+        try:
+            if self.source_type == "swedish_case_law":
+                candidates = await self._case_law_candidates(need, context, budget, source)
+            else:
+                candidates = await self._document_candidates(need, context, budget, source)
+        except OfficialLagenNuMcpError as exc:
+            return [self._failure(need, budget, exc.category, None, str(exc))]
         ranked = _rank_candidates(need, _merge_candidates(candidates))
         if not ranked:
-            return [self._not_found(need, budget, reason="no_hit")]
-        selected = await self._select_candidates(need, context, ranked)
+            return [
+                self._not_found(
+                    need,
+                    budget,
+                    reason="resolve_no_document"
+                    if any(call["tool"] == "resolve_citation" for call in budget.calls)
+                    else "search_no_hit",
+                )
+            ]
+        try:
+            selected = await self._select_candidates(need, context, ranked)
+        except LagenNuSelectionError as exc:
+            return [self._failure(need, budget, "selection_failed", None, str(exc))]
         if not selected:
-            return [self._not_found(need, budget, reason="selector_rejected")]
+            return [self._not_found(need, budget, reason="irrelevant_relation")]
         found = await self._fetch_candidates(need, context, selected, budget, source)
         if found:
             return found
-        return [self._not_found(need, budget, reason="no_fetchable_document")]
+        return [self._not_found(need, budget, reason="budget_exhausted")]
 
     async def _document_candidates(
         self,
@@ -1040,9 +959,25 @@ class LagenNuResearchSource:
                             "max_chars": MAX_DOCUMENT_CHARS,
                         },
                     )
-            except OfficialLagenNuMcpNotFoundError:
+            except OfficialLagenNuMcpError as exc:
+                category = (
+                    "resolve_no_document"
+                    if isinstance(exc, OfficialLagenNuMcpNotFoundError)
+                    else getattr(exc, "category", "fetch_failed")
+                )
+                found.append(self._failure(need, budget, category, uri, str(exc)))
                 continue
             if document.source and document.source != source:
+                found.append(
+                    self._failure(
+                        need,
+                        budget,
+                        "unsupported_source_shape",
+                        uri,
+                        f"expected source {source}, received {document.source}",
+                        fetch_success=True,
+                    )
+                )
                 continue
             try:
                 found.append(
@@ -1056,32 +991,15 @@ class LagenNuResearchSource:
                         raw_reused=raw_reused,
                     )
                 )
-            except LagenNuSelectionError:
-                logger.exception(
-                    "lagen.nu excerpt rejected for %s (%s)",
-                    uri,
-                    need.id,
-                )
-            except LegalDomainExtractionError:
-                logger.exception(
-                    "lagen.nu legal analysis failed for %s (%s)",
-                    uri,
-                    need.id,
-                )
+            except LegalDomainExtractionError as exc:
                 found.append(
-                    research_evidence(
-                        research_need_id=need.id,
-                        source_type=self.source_type,
-                        status="error",
-                        title=document.title or candidate.hit.title,
-                        source_id=uri,
-                        source_url=uri,
-                        provider=self.provider_id,
-                        metadata=self._provenance(
-                            budget,
-                            reason="legal_domain_extraction_failed",
-                            error_type="LegalDomainExtractionError",
-                        ),
+                    self._failure(
+                        need,
+                        budget,
+                        exc.category,
+                        uri,
+                        str(exc),
+                        fetch_success=True,
                     )
                 )
         return found
@@ -1099,75 +1017,13 @@ class LagenNuResearchSource:
     ) -> ResearchEvidence:
         hit = candidate.hit
         raw_document = document.text.strip()
-        hit_excerpt = _excerpt_from_hit(hit, terms) or ""
-        passage_source = raw_document or hit_excerpt
-        passage = selector_passage_text(
-            passage_source,
-            needles=_passage_needles(need.question, terms),
-            title=document.title or hit.title,
-            max_chars=MAX_SELECTOR_DOCUMENT_CHARS,
-        )
-        trusted = candidate.direct_rank is not None
-        excerpt = None
-        excerpt_why = ""
-        excerpt_pinpoint = None
-        try:
-            excerpt_decision = await self._require_selector().select_excerpt(
-                need=need,
-                source_type=self.source_type,
-                document=SelectableDocument(
-                    uri=document.uri,
-                    title=document.title or hit.title,
-                    identifier=hit.identifier,
-                    pinpoint=_usable_fetch_pinpoint(
-                        document.pinpoint or _hit_pinpoint(hit, terms),
-                        source_type=self.source_type,
-                    ),
-                    text=passage or clip_selector_document(raw_document or hit_excerpt),
-                    highlight=hit_excerpt,
-                    truncated=bool(document.truncated),
-                ),
-                context=context,
+        if not raw_document:
+            raise LegalDomainExtractionError(
+                "retrieved document has no text", category="unsupported_source_shape"
             )
-            excerpt = self._usable_excerpt(
-                excerpt_decision.excerpt,
-                need=need,
-                document=document,
-                hit=hit,
-                raw_document=raw_document,
-                hit_excerpt=hit_excerpt,
-                excerpt_pinpoint=excerpt_decision.pinpoint,
-            )
-            excerpt_why = excerpt_decision.why
-            excerpt_pinpoint = excerpt_decision.pinpoint
-        except LagenNuSelectionError:
-            if not trusted:
-                raise
-            logger.exception(
-                "lagen.nu excerpt rejected for trusted %s (%s); using window",
-                document.uri,
-                need.id,
-            )
-        if excerpt is None:
-            excerpt = self._usable_excerpt(
-                _window_excerpt(
-                    passage or raw_document or hit_excerpt,
-                    need.question,
-                    title=document.title or hit.title,
-                ),
-                need=need,
-                document=document,
-                hit=hit,
-                raw_document=raw_document,
-                hit_excerpt=hit_excerpt,
-                excerpt_pinpoint=None,
-            )
-            excerpt_why = excerpt_why or "windowed_passage"
-        pinpoint = _usable_fetch_pinpoint(
-            document.pinpoint or excerpt_pinpoint,
-            source_type=self.source_type,
-            label=excerpt,
-        )
+        # Interpret the source before choosing display text. A rejected display
+        # passage must never erase an otherwise fetchable, relevant document.
+        pinpoint = document.pinpoint
         source_uri = compose_canonical_uri(document.uri, pinpoint)
         title = display_source_title(
             uri=source_uri,
@@ -1217,10 +1073,16 @@ class LagenNuResearchSource:
                 metadata=self._provenance(
                     budget,
                     reason="domain_relation_irrelevant",
+                    failure_category="irrelevant_relation",
+                    fetch_success=True,
+                    domain_extraction_success=True,
                     canonical_uri=source_uri,
                     selection_why=legal_result.relation.explanation,
                 ),
             )
+        analysis = legal_result.case_law or legal_result.preparatory_work or legal_result.statute
+        assert analysis is not None
+        excerpt = analysis.citations[0].quote[:MAX_EVIDENCE_CHARS]
         return research_evidence(
             research_need_id=need.id,
             source_type=self.source_type,
@@ -1249,49 +1111,47 @@ class LagenNuResearchSource:
                 direct_rank=candidate.direct_rank,
                 query_term_overlap=_term_overlap(terms, _highlight_text(hit)),
                 selection_role=("named_citation" if candidate.direct_rank is not None else None),
-                selection_why=excerpt_why or None,
+                selection_why="verified_domain_citation",
+                fetch_success=True,
+                domain_extraction_success=True,
                 reused_domain_result_id=cached[0] if cached is not None else None,
             ),
         )
 
-    def _usable_excerpt(
+    def _failure(
         self,
-        excerpt: str,
-        *,
         need: ResearchNeed,
-        document: LagenNuDocument,
-        hit: LagenNuSearchHit,
-        raw_document: str,
-        hit_excerpt: str,
-        excerpt_pinpoint: str | None,
-    ) -> str:
-        verified = verify_excerpt_span(
-            raw_document or hit_excerpt,
-            excerpt,
-            max_chars=MAX_EVIDENCE_CHARS,
-            allowed_extra=hit_excerpt,
+        budget: _CallBudget,
+        category: FailureCategory,
+        uri: str | None,
+        detail: str,
+        *,
+        fetch_success: bool = False,
+    ) -> ResearchEvidence:
+        logger.warning(
+            "research_failure provider=%s need=%s source=%s category=%s detail=%s",
+            self.provider_id,
+            need.id,
+            uri,
+            category,
+            detail,
         )
-        if is_legal_front_matter(verified, title=document.title or hit.title):
-            raise LagenNuSelectionError("selector excerpt is front matter")
-        if self.source_type == "swedish_case_law" and _excerpt_is_party_submission(verified):
-            raise LagenNuSelectionError("selector excerpt is a party submission")
-        if self.source_type == "swedish_case_law" and _excerpt_is_statute_restatement(verified):
-            raise LagenNuSelectionError("selector excerpt only restates the statute")
-        pinpoint = _usable_fetch_pinpoint(
-            document.pinpoint or excerpt_pinpoint,
+        return research_evidence(
+            research_need_id=need.id,
             source_type=self.source_type,
-            label=verified,
+            status="not_found" if category == "resolve_no_document" else "error",
+            source_id=uri,
+            source_url=uri,
+            provider=self.provider_id,
+            metadata=self._provenance(
+                budget,
+                reason=category,
+                failure_category=category,
+                detail=detail,
+                fetch_success=fetch_success,
+                domain_extraction_success=False if fetch_success else None,
+            ),
         )
-        if not _excerpt_addresses_question(
-            verified,
-            need.question,
-            pinpoint=pinpoint or document.pinpoint,
-            source_type=self.source_type,
-        ):
-            raise LagenNuSelectionError(
-                "selector excerpt does not mention the provision in the question"
-            )
-        return verified
 
     def _not_found(
         self,
@@ -1306,7 +1166,7 @@ class LagenNuResearchSource:
             status="not_found",
             excerpt=reason,
             provider=self.provider_id,
-            metadata=self._provenance(budget, reason=reason),
+            metadata=self._provenance(budget, reason=reason, failure_category=reason),
         )
 
     def _provenance(
@@ -1381,89 +1241,6 @@ def _hit_pinpoint(hit: LagenNuSearchHit, terms: frozenset[str]) -> str | None:
     return fragment.pinpoint if fragment is not None else None
 
 
-def _passage_needles(question: str, terms: frozenset[str]) -> frozenset[str]:
-    needles = set(terms)
-    needles.update(_PROVISION_EXCERPT_CUES)
-    for match in _PROVISION_CITATION.finditer(question):
-        needles.add(match.group(0))
-        needles.add(match.group(0).replace(" ", ""))
-    return frozenset(needles)
-
-
-def _window_excerpt(passage: str, question: str, *, title: str | None) -> str:
-    terms = _query_terms(question) | frozenset(_PROVISION_EXCERPT_CUES)
-    chosen = relevant_legal_excerpt(
-        passage,
-        terms=terms,
-        title=title,
-        max_chars=WINDOW_CHARS,
-    )
-    return (chosen or passage).strip()
-
-
-def _excerpt_addresses_question(
-    excerpt: str,
-    question: str,
-    *,
-    pinpoint: str | None = None,
-    source_type: ResearchSourceType | None = None,
-) -> bool:
-    provisions = [match.group(0) for match in _PROVISION_CITATION.finditer(question)]
-    if not provisions:
-        return True
-    compact = excerpt.casefold()
-    compact_nospace = compact.replace(" ", "")
-    if any(
-        provision.casefold() in compact or provision.casefold().replace(" ", "") in compact_nospace
-        for provision in provisions
-    ):
-        return True
-    if _pinpoint_matches_provision(pinpoint, provisions):
-        return True
-    if source_type == "swedish_preparatory_works":
-        return False
-    excerpt_numbers = {
-        match.group(0).replace(" ", "").replace("§", "")
-        for match in _PROVISION_CITATION.finditer(excerpt)
-    }
-    asked_numbers = {
-        provision.casefold().replace(" ", "").replace("§", "") for provision in provisions
-    }
-    if excerpt_numbers and excerpt_numbers.isdisjoint(asked_numbers):
-        return False
-    return any(cue in compact for cue in _PROVISION_EXCERPT_CUES)
-
-
-def _excerpt_is_statute_restatement(excerpt: str) -> bool:
-    compact = " ".join(excerpt.split()).casefold()
-    if _STATUTE_RESTATEMENT.search(compact) is None:
-        return False
-    if any(cue in compact for cue in _JUDICIAL_REASON_CUES):
-        return False
-    return len(compact) < 400
-
-
-def _excerpt_is_party_submission(excerpt: str) -> bool:
-    normalized = excerpt.casefold()
-    submissions = sum(cue in normalized for cue in _PARTY_SUBMISSION_CUES)
-    reasons = sum(cue in normalized for cue in _JUDICIAL_REASON_CUES)
-    return submissions > 0 and reasons == 0
-
-
-def _pinpoint_matches_provision(
-    pinpoint: str | None,
-    provisions: list[str],
-) -> bool:
-    if not pinpoint:
-        return False
-    match = _STATUTE_PINPOINT.fullmatch(pinpoint)
-    if match is None:
-        return False
-    number = re.sub(r"^(?:K\d+)?P", "", pinpoint)
-    number = re.sub(r"[A-Za-z]$", "", number)
-    return any(re.search(rf"\b{re.escape(number)}\s*§", provision) for provision in provisions)
-
-
 def _usable_fetch_pinpoint(
     pinpoint: str | None,
     *,
@@ -1479,8 +1256,6 @@ def _usable_fetch_pinpoint(
         or is_legal_front_matter(label)
     ):
         return None
-    if source_type == "swedish_preparatory_works" and not _STATUTE_PINPOINT.fullmatch(pinpoint):
-        return None
     return pinpoint
 
 
@@ -1490,6 +1265,8 @@ def _fetch_target(
     *,
     source_type: ResearchSourceType,
 ) -> tuple[str | None, str | None]:
+    if source_type == "swedish_case_law":
+        return _document_identity(hit) or None, None
     if hit.pin is not None and hit.pin.uri:
         uri = hit.pin.uri.split("#", 1)[0]
         return uri, _usable_fetch_pinpoint(

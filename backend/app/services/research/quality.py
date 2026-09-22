@@ -400,7 +400,7 @@ def _found_independence_counts(
     """Distinct underlying sources per ResearchNeed among found items."""
     keys_by_need: dict[str, set[str]] = {}
     for item in items:
-        if item.status != "found":
+        if item.status != "found" or item.provenance.get("derived"):
             continue
         need_id = item.research_need_id or ""
         keys_by_need.setdefault(need_id, set()).add(independence_key(item))

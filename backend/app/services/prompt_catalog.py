@@ -3329,7 +3329,7 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
-        "research.lagen_nu.domain.system",
+        "research.lagen_nu.domain.v3.system",
         "research",
         "Juridisk källanalys",
         "Legal source analysis",
@@ -3337,11 +3337,32 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Structured analysis of a retrieved legal source.",
         (
             "Analysera endast den angivna källtexten i relation till frågan. "
+            "Källans stycken har ID:n [s0], [s1] osv. För varje citation: sätt source_span_id "
+            "till det stödjande styckets ID (t.ex. s12), source_uri till angiven URI och quote "
+            "till tom sträng. Systemet kopierar då det exakta originalstycket som citat. "
+            "Välj det stycke som faktiskt stöder uppgiften och textrollen. "
             "Sätt relation=irrelevant när samma paragrafnummer gäller en annan lag "
             "eller källan inte behandlar den efterfrågade rättsfrågan. "
             "Välj exakt en analys för källtypen. Skilj domstolens egna skäl från "
             "partsargument och förarbetsuttalanden från gällande rätt. "
             "Ange även begränsningar, motsägande utfall och osäkerhet. "
+            "För rättsfall: redovisa authoritative_holding med court_level, text_role, "
+            "outcome, adjustment_granted och egna exakta citations från den avgörande "
+            "domstolens majoritet eller domslut. Sätt authoritative_holding=null om "
+            "den beslutande domstolens utfall inte kan fastställas ur den hämtade texten. "
+            "Separera underinstanser, partsuttalanden, föredragandens förslag och "
+            "skiljaktiga meningar i other_statements med egna citat och text_role. "
+            "Identifiera först den beslutande majoritetens rättsliga resonemang. En hänvisning "
+            "till 36 § i bakgrunden eller partsyrkanden betyder inte att domstolen tillämpar regeln. "
+            "För adjustment_granted=true måste majoritetens egna skäl uttryckligen stödja "
+            "att avtalsvillkoret åsidosätts eller ändras genom en jämkningsregel; citera dessa skäl, "
+            "inte enbart domslutet. Tolkning av befintliga avtalsförpliktelser räknas inte. "
+            "En parts begäran är aldrig ett beviljande. Ange decision_basis: statutory_adjustment, "
+            "contract_interpretation, other eller not_determined. Att ändra underinstansens "
+            "domslut, förplikta till återbetalning eller tolka ett avtal är INTE i sig "
+            "jämkning av avtalsvillkor. Sätt adjustment_granted=false när domstolen "
+            "löser frågan genom avtalstolkning utan att jämka villkoret. Frågans formulering "
+            "är inte bevis för att 36 § har tillämpats. "
             "För rättsfall: ange uttryckligen om jämkning begärdes och beviljades, "
             "vilken villkorstyp och avtalstyp som prövades, avgörande faktorer, "
             "avvisade argument och parternas konsument- eller näringsidkarställning. "
@@ -3349,16 +3370,33 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "policyöverväganden och exempel från gällande lagtext. "
             "För lagtext: ange villkor, rättsföljder, undantag och hänvisningar. "
             "Lämna okända utfall som null och okända listor tomma; gissa inte. "
-            "Varje analys måste ha minst ett citat som stödjer dess slutsatser. "
-            "Varje citat måste vara en exakt delsträng av källtexten med angiven URI."
+            "Varje analys måste ha minst ett kort citat som stödjer dess slutsatser. Kopiera även markdown-länkar exakt. "
+            "Varje citat måste vara en exakt delsträng av källtexten med angiven URI. "
+            "Bevara sidnummer/ankare i pinpoint när källtexten stöder dem. "
+            "Texten kan vara kapad; påstå aldrig att utelämnade delar har granskats."
         ),
         (
             "Analyze only the supplied source text against the question. "
+            "Paragraphs have IDs [s0], [s1], etc. For each citation set source_span_id to "
+            "the supporting paragraph ID (e.g. s12), source_uri to the supplied URI, and "
+            "quote to an empty string. The system copies the exact source paragraph. "
             "Set relation=irrelevant when the same section number concerns another "
             "statute or the source does not address the requested legal issue. "
             "Select exactly one analysis for its kind. Distinguish the court's own "
             "reasoning from party submissions and legislative intent from enacted law. "
             "State limitations, contrary outcomes and uncertainty. "
+            "For cases supply authoritative_holding with court_level, text_role, outcome, "
+            "adjustment_granted and exact citations from the deciding majority or order. "
+            "Set authoritative_holding=null if the deciding court's outcome is not established "
+            "by the retrieved text. Separate lower courts, parties, reporter proposals and dissents "
+            "in other_statements with their own roles and citations. First explain the deciding majority’s "
+            "actual legal reasoning. For adjustment_granted=true its own reasons must explicitly "
+            "support modifying or setting aside the contract term under an adjustment rule; "
+            "cite those reasons, not only the order. Mention of a statute by a party is insufficient. "
+            "State decision_basis. "
+            "Reversing a lower judgment, ordering repayment or interpreting a contract "
+            "is not itself statutory adjustment of a contract term. Set adjustment_granted=false "
+            "when the deciding court resolves the issue by interpretation without adjusting the term. "
             "For cases, explicitly identify whether adjustment was requested and granted, "
             "the term and contract types, decisive factors, rejected arguments and party context. "
             "For preparatory works, separate intent, interpretation guidance, policy and examples. "
@@ -3369,7 +3407,18 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
-        "research.lagen_nu.domain.user",
+        "research.lagen_nu.domain.v3.repair", "research",
+        "Korrigera källanalys", "Repair source analysis",
+        "Platshållare: {validation_errors}.", "Placeholders: {validation_errors}.",
+        "Valideringen underkände analysen: {validation_errors}. Returnera hela analysen igen. "
+        "Kopiera korta citat exakt från den ursprungliga källtexten, inklusive markdown-länkar, "
+        "mellanslag och skiljetecken. Hitta inte på eller skriv om citat. Behåll domstol och textroll.",
+        "Validation rejected the analysis: {validation_errors}. Return the entire analysis again. "
+        "Copy short quotes exactly from the original source, including markdown links, whitespace "
+        "and punctuation. Do not invent or paraphrase quotes. Preserve court and text role.",
+    ),
+    _f(
+        "research.lagen_nu.domain.v3.user",
         "research",
         "Juridisk källanalys (underlag)",
         "Legal source analysis (input)",
