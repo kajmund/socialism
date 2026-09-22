@@ -29,6 +29,14 @@ from app.database.models import (
     ResearchNeedExecution,
     ResearchRuntimeNeed,
 )
+from app.observability.context import bind_log_context, reset_log_context
+from app.observability.research import (
+    ResearchObsStats,
+    bind_research_stats,
+    current_research_stats,
+    emit_research_execution_summary,
+    reset_research_stats,
+)
 from app.services.execution.errors import ExecutionStatusError
 from app.services.execution.models import (
     INITIAL_RESEARCH_WAVE,
@@ -68,14 +76,6 @@ from app.services.execution.service import (
     seed_need_executions,
     set_attempt_snapshots,
     set_research_loop_state,
-)
-from app.observability.context import bind_log_context, reset_log_context
-from app.observability.research import (
-    ResearchObsStats,
-    bind_research_stats,
-    current_research_stats,
-    emit_research_execution_summary,
-    reset_research_stats,
 )
 from app.services.knowledge.models import KnowledgeScope
 from app.services.research.assessment import (
@@ -1038,7 +1038,7 @@ async def _run_research_loop(
 ) -> None:
     wave = INITIAL_RESEARCH_WAVE if start_wave is None else start_wave
     while True:
-        wave_token = bind_log_context(wave_number=wave)
+        bind_log_context(wave_number=wave)
         async with factory() as wave_session:
             pending = await _pending_need_pairs(wave_session, attempt_id)
             runtime_plan = await _runtime_plan(wave_session, attempt_id)

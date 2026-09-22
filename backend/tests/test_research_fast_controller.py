@@ -532,9 +532,8 @@ async def test_representative_shadow_comparison_measures_skip_opportunity(
     inner = RecordingAssessor(_llm_draft(result="sufficient"))
     client = ScriptedJev(_sufficient_nouls())
     gated = GatedResearchAssessor(inner, ResearchFastController(client))
-    with research_obs_scope() as stats:
-        with caplog.at_level("INFO"):
-            await gated.assess(_plan(), [_evidence()])
+    with research_obs_scope() as stats, caplog.at_level("INFO"):
+        await gated.assess(_plan(), [_evidence()])
     assert inner.calls == 1
     assert stats.assessor_llm_skipped == 0
     comparison = None

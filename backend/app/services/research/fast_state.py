@@ -10,7 +10,7 @@ from typing import Any
 
 from app.services.research.assessment import AssessableEvidence, review_excerpt
 from app.services.research.followup import RuntimeResearchNeed
-from app.services.research.models import ResearchPlan
+from app.services.research.models import ResearchNeed, ResearchPlan
 from app.services.research.planner import ResearchObjective
 
 JEV_EXCERPT_CHARS = 280
@@ -103,14 +103,14 @@ def found_evidence_ids(need_id: str, evidence: Sequence[AssessableEvidence]) -> 
     ]
 
 
-def _need_row(need: object, evidence: Sequence[AssessableEvidence]) -> dict[str, Any]:
-    need_id = str(getattr(need, "id"))
+def _need_row(need: ResearchNeed, evidence: Sequence[AssessableEvidence]) -> dict[str, Any]:
+    need_id = need.id
     found = found_evidence_ids(need_id, evidence)
     return {
         "id": need_id,
-        "question": str(getattr(need, "question")),
-        "why_needed": str(getattr(need, "why_needed")),
-        "source_types": list(getattr(need, "source_types")),
+        "question": need.question,
+        "why_needed": need.why_needed,
+        "source_types": list(need.source_types),
         "found_evidence_count": len(found),
         "status": "supported" if found else "unsupported",
     }

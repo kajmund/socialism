@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 MAX_STRING_CHARS = 2000
@@ -46,7 +47,7 @@ _RESERVED_RECORD_KEYS = frozenset(
 
 def sanitize_event_value(value: object, *, max_chars: int = MAX_STRING_CHARS) -> object:
     if value is None or isinstance(value, (bool, int, float)):
-        if isinstance(value, float) and (value != value or value in {float("inf"), float("-inf")}):
+        if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
             return None
         return value
     if isinstance(value, str):

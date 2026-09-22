@@ -218,7 +218,7 @@ class ResearchFastController:
                 model=model,
                 timeout_seconds=settings.research_jev_timeout_seconds,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - Jev failure must fall back to LLM
             decision = _error_decision(
                 exc,
                 mode=mode,
@@ -231,7 +231,7 @@ class ResearchFastController:
             return decision
         try:
             decision = _decision_from_result(result, mode=mode, state=state)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - invalid Jev payload falls back
             decision = _error_decision(
                 exc,
                 mode=mode,

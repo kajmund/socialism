@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
-from typing import Iterator, Literal
+from typing import Literal
 
 from app.observability.events import EVENT_DATASET_RESEARCH, log_event
 
