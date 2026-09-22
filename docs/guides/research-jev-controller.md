@@ -18,6 +18,8 @@ path still runs, and ELK records the comparison.
    construction in tests is unchanged.
 4. `execute_attempt_research` binds correlation IDs and emits
    `research.execution.summary`.
+5. System One HTTP lives in `app/jev/system.py`, not `app.llm`, so the
+   research package stays free of chat-LLM imports.
 
 ## Config
 

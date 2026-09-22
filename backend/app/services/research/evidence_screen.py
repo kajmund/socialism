@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.config import settings
-from app.llm.jev_system import (
+from app.jev.system import (
     HttpJevSystemOne,
     JevSystemOne,
     parse_noul,

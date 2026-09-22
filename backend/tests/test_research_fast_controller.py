@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from app.config import settings
-from app.llm.jev_system import (
+from app.jev.system import (
     JevClientError,
     JevSystemOneResult,
     JevUsage,
