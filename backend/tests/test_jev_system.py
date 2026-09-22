@@ -5,7 +5,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from app.llm.jev_system import (
+from app.jev.system import (
     HttpJevSystemOne,
     JevClientError,
     classify_jev_error,
@@ -28,9 +28,9 @@ def test_parse_usage_aliases():
 
 @pytest.mark.asyncio
 async def test_http_status_categories(monkeypatch):
-    monkeypatch.setattr("app.llm.jev_system.settings.typesafe_api_key", "k")
+    monkeypatch.setattr("app.jev.system.settings.typesafe_api_key", "k")
     monkeypatch.setattr(
-        "app.llm.jev_system.settings.typesafe_base_url", "https://jev.example.test"
+        "app.jev.system.settings.typesafe_base_url", "https://jev.example.test"
     )
 
     async def expect(status: int, category: str) -> None:

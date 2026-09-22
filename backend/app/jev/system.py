@@ -10,7 +10,6 @@ from typing import Any, Literal, Protocol
 import httpx
 
 from app.config import settings
-from app.llm.jev import JevError
 
 JevErrorCategory = Literal[
     "timeout",
@@ -23,7 +22,7 @@ JevErrorCategory = Literal[
 ]
 
 
-class JevClientError(JevError):
+class JevClientError(Exception):
     """Typed Jev failure. Research treats this as an expected LLM fallback."""
 
     def __init__(self, message: str, *, category: JevErrorCategory) -> None:
@@ -191,7 +190,6 @@ class HttpJevSystemOne:
             usage=parse_usage(payload),
             raw=payload,
         )
-
 
     async def _post(
         self,
