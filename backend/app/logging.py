@@ -14,12 +14,50 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 from app.config import settings
+from app.observability.events import EVENT_PAYLOAD_ATTR
+from app.observability.sanitize import sanitize_event_payload
 
 FILE_HANDLER_NAME = "opinionssimulator.rotating"
 LOGSTASH_HANDLER_NAME = "opinionssimulator.logstash"
 LOG_FILE_NAME = "app.log"
 _UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access")
 _logstash_listener: QueueListener | None = None
+_RESERVED_DOCUMENT_KEYS = frozenset({"@timestamp", "message", "log", "process"})
+
+
+class StructuredLogFormatter(logging.Formatter):
+    """JSON lines for structured events; keep the human format otherwise."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        if getattr(record, EVENT_PAYLOAD_ATTR, None) is not None:
+            return json.dumps(log_document_from_record(record), ensure_ascii=False)
+        return super().format(record)
+
+
+def log_document_from_record(record: logging.LogRecord) -> dict[str, object]:
+    """Shared local/remote document. Structured extras survive as real fields."""
+    payload: dict[str, object] = {
+        "@timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
+        "message": record.getMessage(),
+        "log": {"level": record.levelname.lower(), "logger": record.name},
+        "service": settings.log_service.strip(),
+        "environment": settings.log_environment.strip(),
+        "process": {"pid": record.process, "thread": {"name": record.threadName}},
+    }
+    extra = getattr(record, EVENT_PAYLOAD_ATTR, None)
+    if isinstance(extra, dict):
+        for key, value in sanitize_event_payload(extra).items():
+            if key in _RESERVED_DOCUMENT_KEYS:
+                continue
+            payload[key] = value
+    if record.exc_info:
+        exc_type, exc_value, _ = record.exc_info
+        payload["error"] = {
+            "type": exc_type.__name__ if exc_type else "Exception",
+            "message": str(exc_value),
+            "stack_trace": "".join(traceback.format_exception(*record.exc_info)),
+        }
+    return payload
 
 
 class LocalQueueHandler(QueueHandler):
@@ -43,21 +81,7 @@ class LogstashHTTPHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            payload: dict[str, object] = {
-                "@timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
-                "message": record.getMessage(),
-                "log": {"level": record.levelname.lower(), "logger": record.name},
-                "service": settings.log_service.strip(),
-                "environment": settings.log_environment.strip(),
-                "process": {"pid": record.process, "thread": {"name": record.threadName}},
-            }
-            if record.exc_info:
-                exc_type, exc_value, _ = record.exc_info
-                payload["error"] = {
-                    "type": exc_type.__name__ if exc_type else "Exception",
-                    "message": str(exc_value),
-                    "stack_trace": "".join(traceback.format_exception(*record.exc_info)),
-                }
+            payload = log_document_from_record(record)
             request = Request(
                 self.url,
                 data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -102,7 +126,9 @@ def configure_logging() -> Path | None:
         )
         handler.set_name(FILE_HANDLER_NAME)
         handler.setLevel(settings.log_level)
-        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+        handler.setFormatter(
+            StructuredLogFormatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+        )
         _attach_handler(handler)
 
     if settings.logstash_url.strip() and _named_handler(LOGSTASH_HANDLER_NAME) is None:
