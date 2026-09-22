@@ -26,6 +26,12 @@ _FOLLOW_UP_MAX_TOKENS = 512
 _FOLLOW_UP_TIMEOUT_SECONDS = 15.0
 
 
+def _chat_prompt_key(mode: ChatMode) -> str:
+    if mode == "interview":
+        return "chat.mode.interview"
+    return "chat.mode.in_character"
+
+
 def _follow_up_reasoning_effort() -> str | None:
     if settings.llm_provider == "deepseek":
         return "none"
@@ -241,8 +247,11 @@ async def reply_as_persona(
             research_tool_handler=research_tool_handler,
             consult_tool_handler=consult_tool_handler,
             actor_tool_handler=actor_tool_handler,
+            prompt_key=_chat_prompt_key(mode),
         )
-    return await complete_text(messages, model=model)
+    return await complete_text(
+        messages, model=model, prompt_key=_chat_prompt_key(mode)
+    )
 
 
 async def stream_reply_as_persona(
@@ -288,11 +297,12 @@ async def stream_reply_as_persona(
             research_tool_handler=research_tool_handler,
             consult_tool_handler=consult_tool_handler,
             actor_tool_handler=actor_tool_handler,
+            prompt_key=_chat_prompt_key(mode),
         )
         if reply:
             yield reply
         return
-    async for chunk in stream_text(messages):
+    async for chunk in stream_text(messages, prompt_key=_chat_prompt_key(mode)):
         yield chunk
 
 
@@ -404,5 +414,6 @@ async def suggest_follow_up_questions(
         max_tokens=_FOLLOW_UP_MAX_TOKENS,
         timeout=_FOLLOW_UP_TIMEOUT_SECONDS,
         reasoning_effort=_follow_up_reasoning_effort(),
+        prompt_key=questions_key,
     )
     return normalize_follow_up_questions(result.questions)

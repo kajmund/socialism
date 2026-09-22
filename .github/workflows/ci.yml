@@ -148,6 +148,18 @@ jobs:
         run: uv sync --frozen
       - name: Apply all Alembic migrations
         run: uv run alembic upgrade head
+      - name: Verify LLM configuration table is protected
+        run: |
+          uv run python - <<'PYCODE'
+          import psycopg
+          from app.config import settings
+          url = str(settings.database_url).replace("postgresql+psycopg://", "postgresql://", 1)
+          with psycopg.connect(url) as connection:
+              enabled = connection.execute(
+                  "SELECT relrowsecurity FROM pg_class WHERE oid = 'public.llm_configurations'::regclass"
+              ).fetchone()[0]
+              assert enabled, "llm_configurations must deny direct client access through RLS"
+          PYCODE
 
   frontend:
     name: Frontend tests

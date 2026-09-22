@@ -71,6 +71,7 @@ async def llm_experts_from_underlag(
             {"role": "user", "content": user},
         ],
         ExpertCandidatesOut,
+        prompt_key="expert.from_underlag.system",
     )
     if len(result.candidates) != count:
         raise RuntimeError(

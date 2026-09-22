@@ -85,7 +85,9 @@ async def run_sourcing_chat_turn(
                 "content": render_prompt(prompts, "dd.sourcing.chat.visible_reply"),
             }
         )
-        reply = await complete_with_tools(working, None)
+        reply = await complete_with_tools(
+            working, None, prompt_key="dd.sourcing.chat.system"
+        )
         working.append(assistant_message_dict(reply))
         content = visible_assistant_text(working[-1])
     if not content:

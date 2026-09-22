@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.llm import complete_structured_retry
+from app.llm import complete_structured_retry, invoke_structured_completer
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.research.planner import (
@@ -127,7 +127,12 @@ class LlmResearchPlanner:
             },
         ]
         try:
-            parsed = await self._completer(messages, PlannedResearchModel)
+            parsed = await invoke_structured_completer(
+                self._completer,
+                messages,
+                PlannedResearchModel,
+                prompt_key="research.planner.system",
+            )
         except Exception as exc:
             raise ResearchPlannerError("Research planner model call failed") from exc
         if not isinstance(parsed, PlannedResearchModel):

@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
+  createLlmConfiguration,
+  deleteLlmConfiguration,
   getLlmSettings,
   probeLlm,
-  putLlmSettings,
+  setDefaultLlmConfiguration,
+  updateLlmConfiguration,
   type LlmActive,
   type LlmCatalogProfile,
+  type LlmConfiguration,
   type LlmProbeResult,
+  type LlmSelectionRole,
   type LlmSettingsResponse,
 } from "@/api/llmSettings"
 import { LLM_CAPABILITIES_CHANGED_EVENT } from "@/components/chat/useLlmCapabilities"
@@ -14,24 +19,83 @@ import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
 type Draft = {
+  name: string
   profileId: string
   temperature: number
   topP: number
   maxTokens: number
   reasoningEffort: string
+  selectionRole: LlmSelectionRole
+  capabilityVision: boolean
+  capabilityTools: boolean
+  capabilityStructuredOutput: boolean
+  capabilityLongContext: boolean
+  enabledForAuto: boolean
+  priority: number
 }
 
-function draftFromActive(active: LlmActive, catalog: LlmCatalogProfile[]): Draft {
-  const profile = catalog.find((row) => row.id === active.profile_id) ?? catalog[0]
-  const defaults = Object.fromEntries(
-    (profile?.params ?? []).map((param) => [param.key, param.default]),
-  )
+function defaultRoleForProfile(profileId: string): LlmSelectionRole {
+  if (profileId === "deepseek-v4-pro") return "deep"
+  if (profileId === "deepseek-flash" || profileId === "qwen-3.8-27b") return "fast"
+  return "balanced"
+}
+
+function draftFromProfile(profile: LlmCatalogProfile, name: string): Draft {
+  const defaults = Object.fromEntries(profile.params.map((param) => [param.key, param.default]))
   return {
+    name,
+    profileId: profile.id,
+    temperature: Number(defaults.temperature ?? 1),
+    topP: Number(defaults.top_p ?? 1),
+    maxTokens: Number(defaults.max_tokens ?? 8192),
+    reasoningEffort: String(defaults.reasoning_effort ?? "medium"),
+    selectionRole: defaultRoleForProfile(profile.id),
+    capabilityVision: Boolean(profile.supports_vision),
+    capabilityTools: true,
+    capabilityStructuredOutput: true,
+    capabilityLongContext: profile.provider === "deepseek",
+    enabledForAuto: true,
+    priority: 100,
+  }
+}
+
+function draftFromConfiguration(row: LlmConfiguration, catalog: LlmCatalogProfile[]): Draft {
+  const profile = catalog.find((item) => item.id === row.profile_id) ?? catalog[0]
+  const fallback = profile ? draftFromProfile(profile, row.name) : null
+  return {
+    name: row.name,
+    profileId: row.profile_id,
+    temperature: row.temperature ?? fallback?.temperature ?? 1,
+    topP: row.top_p ?? fallback?.topP ?? 1,
+    maxTokens: row.max_tokens ?? fallback?.maxTokens ?? 8192,
+    reasoningEffort: row.reasoning_effort ?? fallback?.reasoningEffort ?? "medium",
+    selectionRole: row.selection_role,
+    capabilityVision: row.capability_vision,
+    capabilityTools: row.capability_tools,
+    capabilityStructuredOutput: row.capability_structured_output,
+    capabilityLongContext: row.capability_long_context,
+    enabledForAuto: row.enabled_for_auto,
+    priority: row.priority,
+  }
+}
+
+function draftFromActive(active: LlmActive, catalog: LlmCatalogProfile[], name: string): Draft {
+  const profile = catalog.find((row) => row.id === active.profile_id) ?? catalog[0]
+  const fallback = profile ? draftFromProfile(profile, name) : null
+  return {
+    name,
     profileId: active.profile_id,
-    temperature: active.temperature ?? Number(defaults.temperature ?? 1),
-    topP: active.top_p ?? Number(defaults.top_p ?? 1),
-    maxTokens: active.max_tokens ?? Number(defaults.max_tokens ?? 8192),
-    reasoningEffort: active.reasoning_effort ?? String(defaults.reasoning_effort ?? "medium"),
+    temperature: active.temperature ?? fallback?.temperature ?? 1,
+    topP: active.top_p ?? fallback?.topP ?? 1,
+    maxTokens: active.max_tokens ?? fallback?.maxTokens ?? 8192,
+    reasoningEffort: active.reasoning_effort ?? fallback?.reasoningEffort ?? "medium",
+    selectionRole: fallback?.selectionRole ?? "balanced",
+    capabilityVision: fallback?.capabilityVision ?? false,
+    capabilityTools: fallback?.capabilityTools ?? true,
+    capabilityStructuredOutput: fallback?.capabilityStructuredOutput ?? true,
+    capabilityLongContext: fallback?.capabilityLongContext ?? false,
+    enabledForAuto: fallback?.enabledForAuto ?? true,
+    priority: fallback?.priority ?? 100,
   }
 }
 
@@ -44,6 +108,7 @@ export function LlmSettingsPage() {
   const intFmt = useMemo(() => new Intl.NumberFormat(intl), [intl])
 
   const [data, setData] = useState<LlmSettingsResponse | null>(null)
+  const [selectedId, setSelectedId] = useState<number | "new" | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -60,7 +125,13 @@ export function LlmSettingsPage() {
     try {
       const next = await getLlmSettings()
       setData(next)
-      setDraft(draftFromActive(next.active, next.catalog))
+      setSelectedId((current) => {
+        if (current === "new") return current
+        if (current != null && next.configurations.some((row) => row.id === current)) {
+          return current
+        }
+        return next.default_id ?? next.configurations[0]?.id ?? "new"
+      })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("tools.llm.loadError"))
     } finally {
@@ -72,37 +143,115 @@ export function LlmSettingsPage() {
     void load()
   }, [load])
 
+  useEffect(() => {
+    if (!data) return
+    if (selectedId === "new") {
+      const profile = data.catalog[0]
+      setDraft(profile ? draftFromProfile(profile, "") : draftFromActive(data.active, data.catalog, ""))
+      return
+    }
+    const row = data.configurations.find((item) => item.id === selectedId)
+    if (row) {
+      setDraft(draftFromConfiguration(row, data.catalog))
+      return
+    }
+    if (data.configurations.length === 0) {
+      setDraft(draftFromActive(data.active, data.catalog, t("tools.llm.defaultName")))
+    }
+  }, [data, selectedId, t])
+
   const selected = useMemo(() => {
     if (!data || !draft) return null
     return data.catalog.find((row) => row.id === draft.profileId) ?? null
   }, [data, draft])
 
-  const missingKey = Boolean(
-    data && selected && !data.credentials[selected.provider],
-  )
+  const selectedRow =
+    data && typeof selectedId === "number"
+      ? data.configurations.find((row) => row.id === selectedId) ?? null
+      : null
 
-  async function onSave() {
+  const missingKey = Boolean(data && selected && !data.credentials[selected.provider])
+
+  async function persistDraft(makeDefault: boolean) {
     if (!draft || !selected || !data) return
+    const name = draft.name.trim()
+    if (!name) {
+      setError(t("tools.llm.nameRequired"))
+      return
+    }
     setSaving(true)
     setError(null)
     setSaved(false)
+    const body = {
+      name,
+      profile_id: draft.profileId,
+      temperature: draft.temperature,
+      top_p: draft.topP,
+      max_tokens: draft.maxTokens,
+      reasoning_effort: selected.params.some((param) => param.key === "reasoning_effort")
+        ? draft.reasoningEffort
+        : null,
+      selection_role: draft.selectionRole,
+      capability_vision: selected.supports_vision ? draft.capabilityVision : false,
+      capability_tools: draft.capabilityTools,
+      capability_structured_output: draft.capabilityStructuredOutput,
+      capability_long_context: draft.capabilityLongContext,
+      enabled_for_auto: draft.enabledForAuto,
+      priority: draft.priority,
+    }
     try {
-      const body = {
-        profile_id: draft.profileId,
-        temperature: draft.temperature,
-        top_p: draft.topP,
-        max_tokens: draft.maxTokens,
-        reasoning_effort: selected.params.some((param) => param.key === "reasoning_effort")
-          ? draft.reasoningEffort
-          : null,
+      let savedRow: LlmConfiguration
+      if (selectedId === "new" || selectedId == null || !selectedRow) {
+        savedRow = await createLlmConfiguration({ ...body, is_default: makeDefault })
+      } else {
+        savedRow = await updateLlmConfiguration(selectedRow.id, body)
+        if (makeDefault && !savedRow.is_default) {
+          savedRow = await setDefaultLlmConfiguration(savedRow.id)
+        }
       }
-      const active = await putLlmSettings(body)
-      setData({ ...data, active })
-      setDraft(draftFromActive(active, data.catalog))
+      const next = await getLlmSettings()
+      setData(next)
+      setSelectedId(savedRow.id)
+      setSaved(true)
+      if (savedRow.is_default) {
+        window.dispatchEvent(new Event(LLM_CAPABILITIES_CHANGED_EVENT))
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("tools.llm.saveError"))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function onSetDefault() {
+    if (typeof selectedId !== "number") return
+    setSaving(true)
+    setError(null)
+    try {
+      await setDefaultLlmConfiguration(selectedId)
+      const next = await getLlmSettings()
+      setData(next)
       setSaved(true)
       window.dispatchEvent(new Event(LLM_CAPABILITIES_CHANGED_EVENT))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("tools.llm.saveError"))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function onDelete() {
+    if (typeof selectedId !== "number" || !selectedRow) return
+    setSaving(true)
+    setError(null)
+    try {
+      await deleteLlmConfiguration(selectedId)
+      const next = await getLlmSettings()
+      setData(next)
+      setSelectedId(next.default_id ?? next.configurations[0]?.id ?? "new")
+      setSaved(false)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("tools.llm.deleteError"))
     } finally {
       setSaving(false)
     }
@@ -191,6 +340,70 @@ export function LlmSettingsPage() {
         </p>
       ) : null}
 
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-base font-medium">{t("tools.llm.listTitle")}</h3>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setSelectedId("new")
+              setSaved(false)
+            }}
+          >
+            {t("tools.llm.new")}
+          </Button>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {data.configurations.map((row) => {
+            const profile = data.catalog.find((item) => item.id === row.profile_id)
+            const selectedRowId = selectedId === row.id
+            return (
+              <button
+                key={row.id}
+                type="button"
+                className={`rounded border p-3 text-left text-sm ${
+                  selectedRowId
+                    ? "border-db-ink-950 bg-db-ink-50"
+                    : "border-[color:var(--border-hairline)]"
+                }`}
+                onClick={() => {
+                  setSelectedId(row.id)
+                  setSaved(false)
+                }}
+              >
+                <span className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{row.name}</span>
+                  {row.is_default ? (
+                    <span className="rounded-full border border-[color:var(--border-hairline)] px-2 py-0.5 text-[11px]">
+                      {t("tools.llm.defaultBadge")}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="mt-1 block text-muted-foreground">
+                  {profile?.label ?? row.profile_id} · {row.provider} · {row.model}
+                </span>
+              </button>
+            )
+          })}
+          {selectedId === "new" ? (
+            <div className="rounded border border-dashed border-db-ink-950 p-3 text-sm">
+              <span className="font-medium">{t("tools.llm.newDraft")}</span>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <label className="block text-sm">
+        <span className="mb-1 block">{t("tools.llm.nameLabel")}</span>
+        <input
+          className="w-full max-w-md rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5"
+          value={draft.name}
+          onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+        />
+      </label>
+
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium">{t("tools.llm.profileLabel")}</legend>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -205,16 +418,8 @@ export function LlmSettingsPage() {
                 className="mt-1"
                 checked={draft.profileId === profile.id}
                 onChange={() => {
-                  const defaults = Object.fromEntries(
-                    profile.params.map((param) => [param.key, param.default]),
-                  )
-                  setDraft({
-                    profileId: profile.id,
-                    temperature: Number(defaults.temperature ?? 1),
-                    topP: Number(defaults.top_p ?? 1),
-                    maxTokens: Number(defaults.max_tokens ?? 8192),
-                    reasoningEffort: String(defaults.reasoning_effort ?? "medium"),
-                  })
+                  const next = draftFromProfile(profile, draft.name)
+                  setDraft(next)
                   setSaved(false)
                 }}
               />
@@ -290,15 +495,121 @@ export function LlmSettingsPage() {
         ) : null}
       </div>
 
-      <div>
+      <section className="space-y-3">
+        <h3 className="text-sm font-medium">{t("tools.llm.capabilitiesTitle")}</h3>
+        <p className="text-sm text-muted-foreground">{t("tools.llm.autoHint")}</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block text-sm">
+            <span className="mb-1 block">{t("tools.llm.selectionRole")}</span>
+            <select
+              className="w-full rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5"
+              value={draft.selectionRole}
+              onChange={(event) =>
+                setDraft({ ...draft, selectionRole: event.target.value as LlmSelectionRole })
+              }
+            >
+              <option value="fast">{t("tools.llm.roleFast")}</option>
+              <option value="balanced">{t("tools.llm.roleBalanced")}</option>
+              <option value="deep">{t("tools.llm.roleDeep")}</option>
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block">{t("tools.llm.priority")}</span>
+            <input
+              type="number"
+              min={0}
+              max={1000000}
+              className="w-full rounded border border-[color:var(--border-hairline)] bg-transparent px-2 py-1.5"
+              value={draft.priority}
+              onChange={(event) => setDraft({ ...draft, priority: Number(event.target.value) })}
+            />
+          </label>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={selected.supports_vision ? draft.capabilityVision : false}
+              disabled={!selected.supports_vision}
+              onChange={(event) =>
+                setDraft({ ...draft, capabilityVision: event.target.checked })
+              }
+            />
+            <span>{t("tools.llm.capabilityVision")}</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.capabilityTools}
+              onChange={(event) => setDraft({ ...draft, capabilityTools: event.target.checked })}
+            />
+            <span>{t("tools.llm.capabilityTools")}</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.capabilityStructuredOutput}
+              onChange={(event) =>
+                setDraft({ ...draft, capabilityStructuredOutput: event.target.checked })
+              }
+            />
+            <span>{t("tools.llm.capabilityStructured")}</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.capabilityLongContext}
+              onChange={(event) =>
+                setDraft({ ...draft, capabilityLongContext: event.target.checked })
+              }
+            />
+            <span>{t("tools.llm.capabilityLongContext")}</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.enabledForAuto}
+              onChange={(event) => setDraft({ ...draft, enabledForAuto: event.target.checked })}
+            />
+            <span>{t("tools.llm.enabledForAuto")}</span>
+          </label>
+        </div>
+        {!selected.supports_vision ? (
+          <p className="text-xs text-muted-foreground">{t("tools.llm.visionLocked")}</p>
+        ) : null}
+      </section>
+
+      <div className="flex flex-wrap gap-2">
         <Button
           type="button"
           size="sm"
           disabled={saving || missingKey}
-          onClick={() => void onSave()}
+          onClick={() => void persistDraft(false)}
         >
           {saving ? t("tools.llm.saving") : t("tools.llm.save")}
         </Button>
+        {selectedRow && !selectedRow.is_default ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={saving || missingKey}
+            onClick={() => void onSetDefault()}
+          >
+            {t("tools.llm.setDefault")}
+          </Button>
+        ) : null}
+        {selectedRow && !selectedRow.is_default ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={saving}
+            onClick={() => void onDelete()}
+          >
+            {t("tools.llm.delete")}
+          </Button>
+        ) : null}
       </div>
 
       <section className="space-y-3 border-t border-[color:var(--border-hairline)] pt-6">

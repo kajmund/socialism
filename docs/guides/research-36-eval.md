@@ -35,7 +35,7 @@ See [captured metrics, assessment and source URLs](research-36-eval.json). Found
 
 `search_no_hit`: no search candidates. `resolve_no_document`: citation resolved to no retrievable document, including upstream not-found. `fetch_failed`: transport/tool failure. `unsupported_source_shape`: malformed MCP payload or unexpected source kind. `selection_failed`: candidate selection failed. `budget_exhausted`: no fetch remained within the call budget. `domain_schema_invalid`: interpretation could not satisfy its schema. `citation_grounding_failed`: citation URI/span did not match the retrieved source. `irrelevant_relation`: selected source did not address the requested legal issue.
 
-Failures retain source URI when available, stage flags and diagnostic detail. Sibling document fetches continue; one failed document does not erase successful results. Cached domain results are reused only at schema version 3.
+Failures retain source URI when available, stage flags and diagnostic detail. Sibling document fetches continue; one failed document does not erase successful results. The measured milestone used schema version 3. The subsequent integration correction uses version 4 to invalidate cached interpretations made before deciding-court passage selection.
 
 ## Reproduce
 
@@ -52,3 +52,7 @@ The live flags are opt-in; normal CI tests use recorded actual MCP documents and
 `--artifacts /tmp/36-sources.json` explicitly reuses captured retrieval results for a new assessment only. Its mode/questions must match. This is never an automatic alternate path after a failure.
 
 Metrics count observed fetch/extraction attempts by source type and sanitized answered needs. Derived evidence is excluded from source-success counters. This harness tests retrieval, extraction and assessment; it does not replay the entire production conversation/follow-up scheduling loop.
+
+## Integration follow-up
+
+Additional live runs during integration with per-prompt model selection exposed non-deterministic NJA 2005 s. 142 outcomes despite the passing milestone observations. The case interpreter now first identifies the final court's complete majority-reasons/order passage using model-selected, schema-constrained source span boundaries, then explicitly separates that passage from the full context in the interpretation input. Authoritative citations must fall inside that passage. No textual heuristic identifies the court or decides the outcome. Earlier court/party text remains available for relation and other-statements analysis. This adds one model call per uncached case interpretation. The original measurements above predate this correction.

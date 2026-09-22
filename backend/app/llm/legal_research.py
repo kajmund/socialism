@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ValidationError, model_validator
+from pydantic import BaseModel, ValidationError, create_model, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.session import SessionLocal
-from app.llm import complete_structured_retry
+from app.llm import complete_structured_retry, invoke_structured_completer
 from app.services.legal_research_result import (
     CaseLawAnalysis,
     LegalQuestionRelation,
@@ -50,6 +50,12 @@ class LegalInterpretation(BaseModel):
         ):
             raise ValueError("exactly one analysis is required")
         return self
+
+
+class DecidingCourtPassage(BaseModel):
+    reasoning_start: str
+    reasoning_end: str
+    explanation: str
 
 
 class LegalInterpreter(Protocol):
@@ -97,6 +103,51 @@ class LlmLegalInterpreter:
             if paragraph.strip()
         }
         marked_source = "\n\n".join(f"[{key}]\n{text}" for key, text in spans.items())
+        holding_text = None
+        if source.kind == "case_law":
+            passage_schema = create_model(
+                "DecidingCourtPassageSelection",
+                __base__=DecidingCourtPassage,
+                reasoning_start=(Literal[tuple(spans)], ...),
+                reasoning_end=(Literal[tuple(spans)], ...),
+            )
+            try:
+                selection = passage_schema.model_validate(
+                    await invoke_structured_completer(
+                        self._completer,
+                        [
+                            {
+                                "role": "system",
+                                "content": render_prompt(
+                                    prompts, "research.lagen_nu.domain.v3.court_passage"
+                                ),
+                            },
+                            {"role": "user", "content": marked_source},
+                        ],
+                        passage_schema,
+                        prompt_key="research.lagen_nu.domain.v3.system",
+                    )
+                )
+            except Exception as exc:
+                raise LegalDomainExtractionError(
+                    f"deciding court source selection failed: {exc}"
+                ) from exc
+            keys = list(spans)
+            if selection.reasoning_start not in spans or selection.reasoning_end not in spans:
+                raise LegalDomainExtractionError(
+                    "deciding court passage has unknown source span",
+                    category="citation_grounding_failed",
+                )
+            start = keys.index(selection.reasoning_start)
+            end = keys.index(selection.reasoning_end)
+            if end < start:
+                raise LegalDomainExtractionError("deciding court passage ends before it starts")
+            holding_text = "\n\n".join(spans[key] for key in keys[start : end + 1])
+            marked_source += "\n\n" + render_prompt(
+                prompts,
+                "research.lagen_nu.domain.v3.court_context",
+                court_text="\n\n".join(f"[{key}]\n{spans[key]}" for key in keys[start : end + 1]),
+            )
         messages = [
             {
                 "role": "system",
@@ -115,11 +166,27 @@ class LlmLegalInterpreter:
                 ),
             },
         ]
+        analysis_type = {
+            "case_law": CaseLawAnalysis,
+            "preparatory_work": PreparatoryWorkAnalysis,
+            "statute": StatuteAnalysis,
+        }[source.kind]
+        interpretation_schema = create_model(
+            "LegalInterpretation",
+            relation=(LegalQuestionRelation, ...),
+            **{source.kind: (analysis_type, ...)},
+        )
         for attempt in range(3):
             parsed = None
             try:
+                response = await invoke_structured_completer(
+                    self._completer,
+                    messages,
+                    interpretation_schema,
+                    prompt_key="research.lagen_nu.domain.v3.system",
+                )
                 parsed = LegalInterpretation.model_validate(
-                    await self._completer(messages, LegalInterpretation)
+                    response.model_dump() if isinstance(response, BaseModel) else response
                 )
                 analysis = parsed.case_law or parsed.preparatory_work or parsed.statute
                 assert analysis is not None
@@ -139,6 +206,18 @@ class LlmLegalInterpreter:
                                 category="citation_grounding_failed",
                             )
                         citation.quote = spans[citation.source_span_id]
+                if (
+                    holding_text is not None
+                    and parsed.case_law
+                    and parsed.case_law.authoritative_holding
+                ) and any(
+                    citation.quote not in holding_text
+                    for citation in parsed.case_law.authoritative_holding.citations
+                ):
+                    raise LegalDomainExtractionError(
+                        "authoritative citation is outside deciding court passage",
+                        category="citation_grounding_failed",
+                    )
                 return LegalResearchResult(
                     source=source,
                     relation=parsed.relation,

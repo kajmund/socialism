@@ -34,6 +34,12 @@ cp .env.example .env
 | `DEEPSEEK_API_KEY` | **when `LLM_PROVIDER=deepseek`** (also OASIS) | — | Same `app.llm` path; required for OASIS regardless of chat provider |
 | `DEEPSEEK_MODEL` | no | `deepseek-chat` | Used when `LLM_PROVIDER=deepseek` and `LLM_MODEL` is empty |
 | `DEEPSEEK_BASE_URL` | no | `https://api.deepseek.com` | |
+| `TYPESAFE_API_KEY` | no | empty | Jev Auto classifier. Empty key makes Auto fall back to the prompt/default config |
+| `TYPESAFE_BASE_URL` | no | `https://api.typesafe.ai` | |
+| `JEV_MODEL` | no | `jev-latest` | TypeSafe System One model |
+| `JEV_CONFIDENCE_THRESHOLD` | no | `0.6` | Below this, Auto uses the prompt/default fallback config |
+| `JEV_TIMEOUT_SECONDS` | no | `3` | Jev HTTP timeout |
+| `JEV_STATE_CHAR_BUDGET` | no | `8000` | Max message text sent to Jev |
 | `OPENAI_API_KEY` | **yes** | — | OpenAI embeddings for SSR reports (separate from chat LLM) |
 | `EMBEDDING_MODEL` | no | `text-embedding-3-large` | |
 | `EMBEDDING_BASE_URL` | no | `https://api.openai.com/v1` | |

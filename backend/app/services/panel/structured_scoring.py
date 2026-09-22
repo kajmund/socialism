@@ -244,7 +244,7 @@ async def _moderator_opening(
             expert_list=_expert_list(config.expert_slots),
         ),
     )
-    return _visible_moderator_text(await complete_text(messages))
+    return _visible_moderator_text(await complete_text(messages, prompt_key="panel.moderator.system"))
 
 
 async def _moderator_sub_question(
@@ -266,7 +266,7 @@ async def _moderator_sub_question(
             transcript=_transcript_text(transcript),
         ),
     )
-    return _visible_moderator_text(await complete_text(messages))
+    return _visible_moderator_text(await complete_text(messages, prompt_key="panel.moderator.system"))
 
 
 async def _expert_raise_hand_dd(
@@ -294,7 +294,7 @@ async def _expert_raise_hand_dd(
             ),
         },
     ]
-    answer = (await complete_text(messages)).strip()
+    answer = (await complete_text(messages, prompt_key="panel.moderator.system")).strip()
     wants, visible = parse_raise_hand_reply(answer)
     return wants, visible
 
@@ -337,7 +337,7 @@ async def _expert_score(
         raw = visible_assistant_text(working[-1]).strip()
     else:
         working = list(messages)
-        raw = (await complete_text(working)).strip()
+        raw = (await complete_text(working, prompt_key="panel.expert.system")).strip()
     try:
         return _parse_score_payload(raw)
     except ValueError:
@@ -347,7 +347,7 @@ async def _expert_score(
                 "content": render_prompt(prompts, "panel.dd.expert.score_json"),
             }
         )
-        raw = (await complete_text(working)).strip()
+        raw = (await complete_text(working, prompt_key="panel.expert.system")).strip()
         return _parse_score_payload(raw)
 
 
@@ -369,7 +369,7 @@ async def _moderator_no_answer(
             expert_list=", ".join(s.label for s in expert_slots),
         ),
     )
-    return _visible_moderator_text((await complete_text(messages)).strip())
+    return _visible_moderator_text((await complete_text(messages, prompt_key="panel.moderator.system")).strip())
 
 
 async def _moderator_summary(
@@ -406,7 +406,7 @@ async def _moderator_summary(
             unanswered="\n".join(unanswered_lines),
         ),
     )
-    return _visible_moderator_text(await complete_text(messages))
+    return _visible_moderator_text(await complete_text(messages, prompt_key="panel.moderator.system"))
 
 
 async def run_structured_scoring(

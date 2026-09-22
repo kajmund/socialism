@@ -1817,7 +1817,8 @@ async def test_analyze_batch_logs_routing_counts_without_document_text(caplog):
 def test_word_alembic_chain_is_linear_after_main_head():
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["111_raw_domain_claims"]
+    assert script.get_heads() == ["113_llm_selection_mode"]
+    assert script.get_revision("113_llm_selection_mode").down_revision == "112_llm_configurations"
     assert script.get_revision("107_persona_avatars").down_revision == "106_mem0_postgres_storage"
     assert script.get_revision("106_mem0_postgres_storage").down_revision == "105_enable_postgres_rls"
     assert script.get_revision("104_document_knowledge_focus").down_revision == "103_actor_profiles"
@@ -2148,6 +2149,7 @@ async def test_word_structured_retries_truncated_json_once(caplog):
         parsed = await complete_word_structured(
             [{"role": "user", "content": "kommentera"}],
             WordExpertComment,
+            prompt_key="expertgranskning.word.expert.comment",
             prompts=default_prompts("sv"),
         )
     assert parsed.kommentar == "Komplett IP-bedömning."
@@ -2182,6 +2184,7 @@ async def test_word_structured_retry_increments_job_call_counts():
         lambda: complete_word_structured(
             [{"role": "user", "content": "kommentera"}],
             WordExpertComment,
+            prompt_key="expertgranskning.word.expert.comment",
             prompts=default_prompts("sv"),
             timings=timings,
         ),
@@ -2211,6 +2214,7 @@ async def test_word_structured_second_json_error_propagates():
         await complete_word_structured(
             [{"role": "user", "content": "kommentera"}],
             WordExpertComment,
+            prompt_key="expertgranskning.word.expert.comment",
             prompts=default_prompts("sv"),
         )
     assert is_json_syntax_validation_error(caught.value)
@@ -2233,6 +2237,7 @@ async def test_word_structured_does_not_retry_semantic_validation():
         await complete_word_structured(
             [{"role": "user", "content": "kommentera"}],
             WordExpertComment,
+            prompt_key="expertgranskning.word.expert.comment",
             prompts=default_prompts("sv"),
         )
     assert not is_json_syntax_validation_error(caught.value)
