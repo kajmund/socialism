@@ -619,6 +619,7 @@ async def _persist_evidence_quality(
     plan: ResearchPlan,
     descriptors: tuple[KnowledgeProviderDescriptor, ...],
     relevance_assessor: EvidenceRelevanceAssessor | None,
+    item_ids: set[str] | None = None,
 ) -> list[EvidenceQualityDraft]:
     """Score persisted items before local sufficiency. Does not mutate items."""
     items = await list_evidence_items(session, evidence_set_id)
@@ -632,7 +633,11 @@ async def _persist_evidence_quality(
         for row in existing
     }
     drafts = await assess_evidence_quality(
-        [quality_input_from_item(item) for item in items],
+        [
+            quality_input_from_item(item)
+            for item in items
+            if item_ids is None or item.id in item_ids
+        ],
         needs=plan.needs,
         descriptors=descriptors,
         relevance_assessor=relevance_assessor,
@@ -676,6 +681,8 @@ async def _assess_persisted_evidence(
     assessor: ResearchAssessor,
     assessment_pass: int,
     quality: list[EvidenceQualityDraft] | None = None,
+    descriptors: tuple[KnowledgeProviderDescriptor, ...] = (),
+    relevance_assessor: EvidenceRelevanceAssessor | None = None,
 ) -> ResearchAssessment:
     """Judge persisted EvidenceSet items. Insufficient is a valid outcome."""
     existing = await get_research_assessment(session, attempt.id, assessment_pass=assessment_pass)
@@ -702,6 +709,17 @@ async def _assess_persisted_evidence(
     if new_derived:
         await add_evidence_items(session, evidence_set_id=evidence_set_id, items=new_derived)
         items = await list_evidence_items(session, evidence_set_id)
+        derived_ids = {item.evidence_id for item in new_derived}
+        quality_map = _quality_by_item(
+            await _persist_evidence_quality(
+                session,
+                evidence_set_id=evidence_set_id,
+                plan=plan,
+                descriptors=descriptors,
+                relevance_assessor=relevance_assessor,
+                item_ids={item.id for item in items if item.original_evidence_id in derived_ids},
+            )
+        )
         evidence = [assessable_from_item(item, quality=quality_map.get(item.id)) for item in items]
         draft = sanitize_assessment_draft(
             await assessor.assess(plan, evidence), plan=plan, evidence=evidence
@@ -1051,6 +1069,8 @@ async def _run_research_loop(
                     assessor=assessor,
                     assessment_pass=next_assessment_pass(wave),
                     quality=quality,
+                    descriptors=_quality_descriptors(router, provider_descriptors),
+                    relevance_assessor=relevance_assessor,
                 )
                 await set_research_loop_state(
                     barrier_session,

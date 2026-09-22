@@ -209,8 +209,10 @@ async def test_structured_interpreter_verifies_model_quote(monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("span_id,valid", [("s1", True), ("invented", False)])
-async def test_interpreter_projects_selected_source_span_exactly(monkeypatch, span_id, valid):
+@pytest.mark.parametrize(
+    "span_ids,valid", [(["s1"], True), (["invented", "s1"], True), (["invented"] * 3, False)]
+)
+async def test_interpreter_projects_selected_source_span_exactly(monkeypatch, span_ids, valid):
     from app.services.prompt_catalog import default_prompts
 
     class Session:
@@ -225,7 +227,14 @@ async def test_interpreter_projects_selected_source_span_exactly(monkeypatch, sp
 
     raw = "Heading\n\nExact [section](https://lagen.nu/1981:130#P2), punctuation and spacing."
 
+    calls = 0
+
     async def complete(messages, schema):
+        nonlocal calls
+        span_id = span_ids[calls]
+        if calls:
+            assert "unknown source span: invented" in messages[-1]["content"]
+        calls += 1
         assert "[s1]" in messages[1]["content"]
         return {
             "relation": {
@@ -268,6 +277,7 @@ async def test_interpreter_projects_selected_source_span_exactly(monkeypatch, sp
         with pytest.raises(LegalDomainExtractionError) as error:
             await interpreter.interpret(**kwargs)
         assert error.value.category == "citation_grounding_failed"
+    assert calls == len(span_ids)
 
 
 def test_review_claim_citations_are_deduplicated_without_losing_text():
