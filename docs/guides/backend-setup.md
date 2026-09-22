@@ -40,6 +40,17 @@ cp .env.example .env
 | `JEV_CONFIDENCE_THRESHOLD` | no | `0.6` | Below this, Auto uses the prompt/default fallback config |
 | `JEV_TIMEOUT_SECONDS` | no | `3` | Jev HTTP timeout |
 | `JEV_STATE_CHAR_BUDGET` | no | `8000` | Max message text sent to Jev |
+| `RESEARCH_JEV_ENABLED` | no | `false` | Jev research control layer. Also requires `TYPESAFE_API_KEY` |
+| `RESEARCH_JEV_MODE` | no | `shadow` | `shadow` compares Jev to the current LLM; `active` may skip assessor/completeness LLM |
+| `RESEARCH_JEV_MODEL` | no | `jev-1.12` | System One model for research control only |
+| `RESEARCH_JEV_SUFFICIENT_THRESHOLD` | no | `0.9` | High bar before Jev may treat state as sufficient/complete |
+| `RESEARCH_JEV_INCOMPLETE_THRESHOLD` | no | `0.85` | High bar for a confident insufficient/incomplete decision |
+| `RESEARCH_JEV_CONFIDENCE_THRESHOLD` | no | `0.8` | Minimum Noul confidence before a directional Jev decision |
+| `RESEARCH_JEV_MAX_EVIDENCE_ITEMS` | no | `24` | Evidence rows in one compact Jev state |
+| `RESEARCH_JEV_MAX_STATE_CHARS` | no | `6000` | Hard cap for compact Jev state JSON |
+| `RESEARCH_JEV_CONCURRENCY` | no | `8` | Bounded parallel evidence-screen System One calls |
+| `RESEARCH_JEV_TIMEOUT_SECONDS` | no | `5` | Research Jev HTTP timeout |
+| `RESEARCH_JEV_EVIDENCE_SCREEN_ENABLED` | no | `true` | Shadow-score retrieved evidence. Never deletes evidence |
 | `OPENAI_API_KEY` | **yes** | — | OpenAI embeddings for SSR reports (separate from chat LLM) |
 | `EMBEDDING_MODEL` | no | `text-embedding-3-large` | |
 | `EMBEDDING_BASE_URL` | no | `https://api.openai.com/v1` | |

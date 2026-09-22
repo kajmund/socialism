@@ -9,6 +9,7 @@ ResearchNeedExecution rows while the Attempt is still researching.
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
@@ -68,6 +69,14 @@ from app.services.execution.service import (
     set_attempt_snapshots,
     set_research_loop_state,
 )
+from app.observability.context import bind_log_context, reset_log_context
+from app.observability.research import (
+    ResearchObsStats,
+    bind_research_stats,
+    current_research_stats,
+    emit_research_execution_summary,
+    reset_research_stats,
+)
 from app.services.knowledge.models import KnowledgeScope
 from app.services.research.assessment import (
     AssessableEvidence,
@@ -91,6 +100,10 @@ from app.services.research.completeness import (
     sanitize_completeness_draft,
 )
 from app.services.research.composition import standard_available_source_types
+from app.services.research.fast_controller import (
+    research_jev_available,
+    research_jev_mode,
+)
 from app.services.research.followup import (
     FollowUpPlannerError,
     FollowUpResearchPlanner,
@@ -166,6 +179,8 @@ from app.services.research.registry import standard_capability_descriptors
 from app.services.research.router import ResearchRouter
 
 ResearchRouterFactory = Callable[[AsyncSession], ResearchRouter]
+
+logger = logging.getLogger(__name__)
 
 
 class ResearchExecutionError(ResearchError):
@@ -1023,6 +1038,7 @@ async def _run_research_loop(
 ) -> None:
     wave = INITIAL_RESEARCH_WAVE if start_wave is None else start_wave
     while True:
+        wave_token = bind_log_context(wave_number=wave)
         async with factory() as wave_session:
             pending = await _pending_need_pairs(wave_session, attempt_id)
             runtime_plan = await _runtime_plan(wave_session, attempt_id)
@@ -1518,6 +1534,10 @@ async def execute_attempt_research(
     claimed = resume
     evidence_set_id: str | None = attempt.evidence_set_id
     fence_token = _write_fence.set(lease_lost)
+    log_token = _bind_attempt_log_context(attempt, run, research_objective)
+    stats_token = bind_research_stats(ResearchObsStats())
+    final_status = "unknown"
+    total_waves = attempt.research_wave
     try:
         with ProgressTracker() as progress:
             if not resume:
@@ -1569,12 +1589,14 @@ async def execute_attempt_research(
             start_wave=start_wave,
         )
         async with factory() as final_session:
-            result = await _result_from_attempt(
-                final_session, await get_attempt(final_session, attempt_id)
-            )
+            finished = await get_attempt(final_session, attempt_id)
+            result = await _result_from_attempt(final_session, finished)
+            total_waves = finished.research_wave
         await _refresh_caller_state(session, attempt_id, evidence_set_id)
+        final_status = result.status
         return result
     except BaseException as exc:
+        final_status = "failed"
         if isinstance(exc, asyncio.CancelledError):
             raise
         if isinstance(exc, ExecutionStatusError) and not claimed:
@@ -1596,6 +1618,19 @@ async def execute_attempt_research(
             raise ResearchExecutionError(f"Attempt {attempt_id} research failed") from exc
         raise
     finally:
+        stats = current_research_stats()
+        if stats is not None:
+            try:
+                emit_research_execution_summary(
+                    stats=stats,
+                    final_status=final_status,
+                    total_waves=total_waves,
+                    mode=research_jev_mode() if research_jev_available() else None,
+                )
+            except Exception:
+                logger.exception("research execution summary failed")
+        reset_research_stats(stats_token)
+        reset_log_context(log_token)
         if _write_fence.get() is lease_lost:
             _write_fence.reset(fence_token)
 
@@ -1641,3 +1676,32 @@ async def _refresh_caller_state(
         )
         for row in cached_quality.scalars():
             session.expire(row)
+
+
+def _bind_attempt_log_context(
+    attempt: ExecutionAttempt,
+    run: ExecutionRun,
+    research_objective: ResearchObjective | None,
+):
+    snapshot = attempt.input_snapshot if isinstance(attempt.input_snapshot, dict) else {}
+    context = {}
+    if attempt.research_objective_snapshot is not None:
+        context = research_objective_from_snapshot(
+            attempt.research_objective_snapshot
+        ).context
+    elif research_objective is not None:
+        context = research_objective.context
+    question_id = context.get("research_question_id") or snapshot.get(
+        "research_question_id"
+    )
+    child_id = attempt.id if attempt.attempt_type == "research_question" else None
+    return bind_log_context(
+        run_id=attempt.run_id,
+        attempt_id=attempt.id,
+        research_question_id=None if question_id is None else str(question_id),
+        child_attempt_id=child_id,
+        customer_id=str(run.customer_id),
+        module=run.module,
+        wave_number=attempt.research_wave,
+        ensure_trace_id=True,
+    )
