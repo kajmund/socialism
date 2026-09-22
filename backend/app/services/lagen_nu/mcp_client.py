@@ -25,11 +25,15 @@ _CLIENT_VERSION = "0.1"
 
 
 class OfficialLagenNuMcpError(RuntimeError):
-    pass
+    category = "fetch_failed"
 
 
 class OfficialLagenNuMcpNotFoundError(OfficialLagenNuMcpError):
-    pass
+    category = "resolve_no_document"
+
+
+class OfficialLagenNuMcpShapeError(OfficialLagenNuMcpError):
+    category = "unsupported_source_shape"
 
 
 class LagenNuMcpClient(Protocol):
@@ -69,16 +73,19 @@ def _parse_rpc_body(body: str) -> dict[str, Any]:
         payload = line[5:].strip()
         if not payload:
             continue
-        parsed = json.loads(payload)
+        try:
+            parsed = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise OfficialLagenNuMcpShapeError("lagen.nu MCP SSE payload was not JSON") from exc
         if not isinstance(parsed, dict):
-            raise OfficialLagenNuMcpError("lagen.nu MCP SSE payload was not an object")
+            raise OfficialLagenNuMcpShapeError("lagen.nu MCP SSE payload was not an object")
         return parsed
     try:
         parsed = json.loads(body)
     except json.JSONDecodeError as exc:
-        raise OfficialLagenNuMcpError("lagen.nu MCP response was not JSON or SSE") from exc
+        raise OfficialLagenNuMcpShapeError("lagen.nu MCP response was not JSON or SSE") from exc
     if not isinstance(parsed, dict):
-        raise OfficialLagenNuMcpError("lagen.nu MCP JSON payload was not an object")
+        raise OfficialLagenNuMcpShapeError("lagen.nu MCP JSON payload was not an object")
     return parsed
 
 
@@ -100,14 +107,14 @@ def _tool_result_payload(result: dict[str, Any]) -> Any:
     elif result:
         return result
     else:
-        raise OfficialLagenNuMcpError("lagen.nu MCP tool returned empty content")
+        raise OfficialLagenNuMcpShapeError("lagen.nu MCP tool returned empty content")
     stripped = text.strip()
     if not stripped:
-        raise OfficialLagenNuMcpError("lagen.nu MCP tool returned empty content")
+        raise OfficialLagenNuMcpShapeError("lagen.nu MCP tool returned empty content")
     try:
         return json.loads(stripped)
     except json.JSONDecodeError as exc:
-        raise OfficialLagenNuMcpError("lagen.nu MCP tool content was not JSON") from exc
+        raise OfficialLagenNuMcpShapeError("lagen.nu MCP tool content was not JSON") from exc
 
 
 def _optional_str(value: object) -> str | None:
@@ -150,7 +157,7 @@ def _string_tuple(value: object) -> tuple[str, ...]:
 
 def _as_object(value: object, *, what: str) -> dict[str, Any]:
     if not isinstance(value, dict):
-        raise OfficialLagenNuMcpError(f"lagen.nu MCP {what} was not an object")
+        raise OfficialLagenNuMcpShapeError(f"lagen.nu MCP {what} was not an object")
     return value
 
 
@@ -200,7 +207,7 @@ def parse_search_results(payload: object) -> SearchResults:
     data = _as_object(payload, what="search result")
     rows = data.get("results")
     if not isinstance(rows, list):
-        raise OfficialLagenNuMcpError("lagen.nu MCP search results was not a list")
+        raise OfficialLagenNuMcpShapeError("lagen.nu MCP search results was not a list")
     return SearchResults(
         query=str(data.get("query") or ""),
         total=_optional_int(data.get("total")) or 0,
@@ -213,11 +220,11 @@ def parse_resolved_citations(payload: object) -> ResolvedCitations:
     rows = data.get("results")
     recognized_rows = data.get("recognized")
     if not isinstance(rows, list):
-        raise OfficialLagenNuMcpError("lagen.nu MCP resolve results was not a list")
+        raise OfficialLagenNuMcpShapeError("lagen.nu MCP resolve results was not a list")
     if recognized_rows is None:
         recognized_rows = []
     if not isinstance(recognized_rows, list):
-        raise OfficialLagenNuMcpError("lagen.nu MCP recognized citations was not a list")
+        raise OfficialLagenNuMcpShapeError("lagen.nu MCP recognized citations was not a list")
     recognized: list[RecognizedCitation] = []
     for item in recognized_rows:
         row = _as_object(item, what="recognized citation")
@@ -239,12 +246,12 @@ def parse_incoming_citations(payload: object) -> IncomingCitations:
     data = _as_object(payload, what="get_incoming_citations result")
     uri = canonical_lagen_nu_uri(data.get("uri"))
     if uri is None:
-        raise OfficialLagenNuMcpError(
+        raise OfficialLagenNuMcpShapeError(
             "lagen.nu MCP get_incoming_citations result had no canonical URI"
         )
     rows = data.get("citations")
     if not isinstance(rows, list):
-        raise OfficialLagenNuMcpError(
+        raise OfficialLagenNuMcpShapeError(
             "lagen.nu MCP get_incoming_citations citations was not a list"
         )
     return IncomingCitations(
@@ -258,10 +265,10 @@ def parse_document(payload: object) -> LagenNuDocument:
     data = _as_object(payload, what="get_document result")
     uri = canonical_lagen_nu_uri(data.get("uri"))
     if uri is None:
-        raise OfficialLagenNuMcpError("lagen.nu MCP document had no canonical URI")
+        raise OfficialLagenNuMcpShapeError("lagen.nu MCP document had no canonical URI")
     text = data.get("text")
     if not isinstance(text, str):
-        raise OfficialLagenNuMcpError("lagen.nu MCP document text was not a string")
+        raise OfficialLagenNuMcpShapeError("lagen.nu MCP document text was not a string")
     return LagenNuDocument(
         uri=uri,
         title=_optional_str(data.get("title")) or _optional_str(data.get("label")),
@@ -414,9 +421,7 @@ class OfficialLagenNuMcpClient:
         }
         if source is not None:
             arguments["source"] = source
-        return parse_incoming_citations(
-            await self.call_tool("get_incoming_citations", arguments)
-        )
+        return parse_incoming_citations(await self.call_tool("get_incoming_citations", arguments))
 
     async def get_document(
         self,

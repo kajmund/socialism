@@ -303,3 +303,8 @@ async def bolag_client(client):
     token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
     client.headers["Authorization"] = f"Bearer {token}"
     yield client
+
+
+def pytest_addoption(parser):
+    parser.addoption("--live-research-sources", action="store_true", help="Read real lagen.nu source paths")
+    parser.addoption("--live-research-model", action="store_true", help="Run configured model against live legal sources")

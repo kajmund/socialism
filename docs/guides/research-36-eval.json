@@ -1,0 +1,606 @@
+{
+  "date": "2026-09-22",
+  "base_sha": "6b9f07d754b04a0f73ac5c7c2f205c75d88ddf12",
+  "model": "gpt-oss-120b",
+  "baseline": [
+    {
+      "citation": "NJA 1987 s. 394",
+      "results": [
+        {
+          "status": "not_found",
+          "reason": "no_fetchable_document"
+        }
+      ]
+    },
+    {
+      "citation": "NJA 1992 s. 782",
+      "results": [
+        {
+          "status": "found",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "citation": "NJA 2009 s. 672",
+      "results": [
+        {
+          "status": "error",
+          "reason": "legal_domain_extraction_failed"
+        }
+      ]
+    },
+    {
+      "citation": "NJA 2002 s. 244",
+      "results": [
+        {
+          "status": "found",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "citation": "AD 1998 nr 109",
+      "results": [
+        {
+          "status": "error",
+          "reason": "legal_domain_extraction_failed"
+        }
+      ]
+    },
+    {
+      "citation": "SOU 1974:83",
+      "results": [
+        {
+          "status": "error",
+          "reason": "legal_domain_extraction_failed"
+        }
+      ]
+    },
+    {
+      "citation": "NJA 2005 s. 142",
+      "results": [
+        {
+          "status": "error",
+          "reason": "legal_domain_extraction_failed"
+        }
+      ]
+    },
+    {
+      "citation": "prop. 1975/76:81",
+      "results": [
+        {
+          "status": "error",
+          "reason": "legal_domain_extraction_failed"
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "metrics": {
+      "answered_needs": 7,
+      "total_needs": 8,
+      "answered_rate": 0.875,
+      "fetch_success_by_source_type": {
+        "swedish_case_law": {
+          "success": 6,
+          "attempted": 6,
+          "rate": 1.0
+        },
+        "swedish_preparatory_works": {
+          "success": 2,
+          "attempted": 2,
+          "rate": 1.0
+        }
+      },
+      "domain_extraction_success_by_source_type": {
+        "swedish_case_law": {
+          "success": 6,
+          "attempted": 6,
+          "rate": 1.0
+        },
+        "swedish_preparatory_works": {
+          "success": 2,
+          "attempted": 2,
+          "rate": 1.0
+        }
+      }
+    },
+    "questions": {
+      "source_1": "Hur behandlas jämkning enligt 36 § avtalslagen i NJA 1987 s. 394? Skilj partsyrkanden, underinstanser och avgörande domstols utfall.",
+      "source_2": "Hur behandlas jämkning enligt 36 § avtalslagen i NJA 1992 s. 782? Skilj partsyrkanden, underinstanser och avgörande domstols utfall.",
+      "source_3": "Hur behandlas jämkning enligt 36 § avtalslagen i NJA 2009 s. 672? Skilj partsyrkanden, underinstanser och avgörande domstols utfall.",
+      "source_4": "Hur behandlas jämkning enligt 36 § avtalslagen i NJA 2002 s. 244? Skilj partsyrkanden, underinstanser och avgörande domstols utfall.",
+      "source_5": "Hur behandlas jämkning enligt 36 § avtalslagen i AD 1998 nr 109? Skilj partsyrkanden, underinstanser och avgörande domstols utfall.",
+      "source_6": "Hur behandlas jämkning enligt 36 § avtalslagen i SOU 1974:83? Ange föreslagen regel, tolkningsvägledning och begränsningar.",
+      "source_7": "Hur behandlas jämkning enligt 36 § avtalslagen i NJA 2005 s. 142? Skilj partsyrkanden, underinstanser och avgörande domstols utfall.",
+      "source_8": "Hur behandlas jämkning enligt 36 § avtalslagen i prop. 1975/76:81? Ange föreslagen regel, tolkningsvägledning och begränsningar."
+    },
+    "assessment": {
+      "needs": {
+        "source_1": true,
+        "source_2": true,
+        "source_3": true,
+        "source_4": true,
+        "source_5": true,
+        "source_6": false,
+        "source_7": true,
+        "source_8": true
+      },
+      "details": {
+        "result": "insufficient",
+        "rationale": "All eight research needs are directly answered by the retrieved evidence. For each case the evidence contains the parties' claims concerning § 36 avtalslagen, the procedural history (lower court, appellate court, supreme court), and the final judicial outcome, which satisfies the requirement to “skilj partsyrkanden, underinstanser och avgörande domstols utfall”. The two preparatory‑work sources (SOU 1974:83 and Prop. 1975/76:81) provide the proposed rule, interpretative guidance, and limitations for § 36, fulfilling the corresponding need. No contradictions or gaps are identified across the evidence set.",
+        "need_assessments": [
+          {
+            "research_need_id": "source_1",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "2d045af798173d7dd2032671477961e839cb54fd14bdb26da462730565a61a43"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": null
+          },
+          {
+            "research_need_id": "source_2",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "ef23da63f37de42ff17b0a08cbc94baf86d1acfd4d50211856a7bf3a773d4763"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": null
+          },
+          {
+            "research_need_id": "source_3",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "d8e1a9327d5b12dea35fceeb528b1a19cbd52ba8514b9c496a45d22669aae5ad"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": null
+          },
+          {
+            "research_need_id": "source_4",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "84bcf69c9559994ba8b8483ea240c1d98808b82ca7e15193e7a1cc05bf3314b6"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": null
+          },
+          {
+            "research_need_id": "source_5",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "173eaa7cf0b5654e503576823f70b3a497e5ab47146759987621a6dc9c7026dc"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": null
+          },
+          {
+            "research_need_id": "source_6",
+            "sufficient": false,
+            "supporting_evidence_ids": [],
+            "missing_or_weak": "Supporting evidence IDs were not in the supplied EvidenceSet.",
+            "contradictions": [],
+            "further_information": "Hur behandlas jämkning enligt 36 § avtalslagen i SOU 1974:83? Ange föreslagen regel, tolkningsvägledning och begränsningar."
+          },
+          {
+            "research_need_id": "source_7",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "db05c0d9dbc5908d36dbdc7d26b62d7ef343a601837c071df78fea193b971584"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": null
+          },
+          {
+            "research_need_id": "source_8",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "a305bb7434d0187fdc882891e6625aed25ec2132ca5718084c8f091f4a37d29f"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": null
+          }
+        ],
+        "gaps": [
+          "source_6: Supporting evidence IDs were not in the supplied EvidenceSet."
+        ],
+        "contradictions": [],
+        "considered_evidence_ids": [
+          "ef23da63f37de42ff17b0a08cbc94baf86d1acfd4d50211856a7bf3a773d4763",
+          "d8e1a9327d5b12dea35fceeb528b1a19cbd52ba8514b9c496a45d22669aae5ad",
+          "a305bb7434d0187fdc882891e6625aed25ec2132ca5718084c8f091f4a37d29f",
+          "2d045af798173d7dd2032671477961e839cb54fd14bdb26da462730565a61a43",
+          "173eaa7cf0b5654e503576823f70b3a497e5ab47146759987621a6dc9c7026dc",
+          "84bcf69c9559994ba8b8483ea240c1d98808b82ca7e15193e7a1cc05bf3314b6",
+          "bad1a69d39ebbe0beb3c326c0ae3a0c83e7522ddb8eba14799289739e1f03abe",
+          "db05c0d9dbc5908d36dbdc7d26b62d7ef343a601837c071df78fea193b971584"
+        ],
+        "model_provider": "cerebras",
+        "model_name": "gpt-oss-120b",
+        "model_version": null
+      }
+    },
+    "sources": [
+      {
+        "need": "source_1",
+        "source_url": "https://lagen.nu/dom/nja/1987s394",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_2",
+        "source_url": "https://lagen.nu/dom/nja/1992s782",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_3",
+        "source_url": "https://lagen.nu/dom/nja/2009s672",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_4",
+        "source_url": "https://lagen.nu/dom/nja/2002s244",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_5",
+        "source_url": "https://lagen.nu/dom/ad/1998:109",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_6",
+        "source_url": "https://lagen.nu/sou/1974:83",
+        "status": "found",
+        "failure_category": null,
+        "truncated": true
+      },
+      {
+        "need": "source_7",
+        "source_url": "https://lagen.nu/dom/nja/2005s142",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_8",
+        "source_url": "https://lagen.nu/prop/1975/76:81",
+        "status": "found",
+        "failure_category": null,
+        "truncated": true
+      }
+    ]
+  },
+  "topics": {
+    "metrics": {
+      "answered_needs": 6,
+      "total_needs": 7,
+      "answered_rate": 0.8571428571428571,
+      "fetch_success_by_source_type": {
+        "swedish_case_law": {
+          "success": 15,
+          "attempted": 15,
+          "rate": 1.0
+        },
+        "swedish_preparatory_works": {
+          "success": 5,
+          "attempted": 5,
+          "rate": 1.0
+        }
+      },
+      "domain_extraction_success_by_source_type": {
+        "swedish_case_law": {
+          "success": 15,
+          "attempted": 15,
+          "rate": 1.0
+        },
+        "swedish_preparatory_works": {
+          "success": 5,
+          "attempted": 5,
+          "rate": 1.0
+        }
+      }
+    },
+    "questions": {
+      "source_1": "Vilka typer av avtalsvillkor har faktiskt jämkats med stöd av 36 § avtalslagen i svensk rättspraxis?",
+      "source_2": "Vilka HD- eller hovrättsavgöranden har faktiskt beviljat jämkning enligt 36 § avtalslagen, och av vilka skäl?",
+      "source_3": "Vilka svenska rättsfall visar när jämkning enligt 36 § avtalslagen har nekats eller frågan lösts genom avtalstolkning?",
+      "source_4": "Vilka faktorer väger tyngst vid oskälighetsbedömningen enligt 36 § avtalslagen i kommersiella avtal?",
+      "source_5": "Vilka konsumentskyddshänsyn har varit avgörande i rättsfall om 36 § avtalslagen och konsumentavtal?",
+      "source_6": "Hur skiljer sig bedömningen enligt 36 § avtalslagen mellan olika avtalstyper enligt svensk rättspraxis?",
+      "source_7": "Vilket syfte och vilka bedömningsfaktorer för 36 § avtalslagen framgår av förarbetena?"
+    },
+    "assessment": {
+      "needs": {
+        "source_1": true,
+        "source_2": true,
+        "source_3": true,
+        "source_4": true,
+        "source_5": false,
+        "source_6": true,
+        "source_7": true
+      },
+      "details": {
+        "result": "insufficient",
+        "rationale": "All research needs except source_5 are adequately covered by the evidence provided. Evidence IDs exist that show concrete examples of contract terms adjusted under §36, decisions where the provision was granted or denied, cases where the issue was resolved by contract interpretation, the factors considered in unfairness assessments, differences in assessment across contract types, and the legislative intent with the relevant assessment criteria. No evidence was found for source_5 (consumer‑protection considerations), so the overall evidence set is incomplete.",
+        "need_assessments": [
+          {
+            "research_need_id": "source_1",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "4660f3ceb2f9a3b1c31ead19de34af8f5a78514bf600178750f580d48c5be5c7",
+              "8b6a51f964978f693b33e9f697b34ed3fda49c1cc456d50973394e4255f9520c"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": "None needed."
+          },
+          {
+            "research_need_id": "source_2",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "f129b953c7049e6782d31bb967ecc96fdb8c8a50455dd03424fe9b9580aedea2",
+              "4a36bebf0dcab4d6e3f76b64954caed4598a1ffd4343ac80d89700ea81ff1a4e",
+              "453f7449fdca12de4bdeee4c6e85c0de0345e2a30069793c022a19b79b9dd004"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": "None needed."
+          },
+          {
+            "research_need_id": "source_3",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "ee9b7437320c28f95b57a2e3039136e026b081043658a5e70c10e1d5ca6a5800"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": "None needed."
+          },
+          {
+            "research_need_id": "source_4",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "a7583a78fd73aa2406d2c1706594dbde89211a0bfba72708bf87d35a178b8295"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": "None needed."
+          },
+          {
+            "research_need_id": "source_5",
+            "sufficient": false,
+            "supporting_evidence_ids": [],
+            "missing_or_weak": "No evidence found for consumer‑protection considerations in §36 cases.",
+            "contradictions": [],
+            "further_information": "Additional case law or preparatory material that discusses consumer‑protection aspects of §36 is required."
+          },
+          {
+            "research_need_id": "source_6",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "2cffd2244bee9129a198dbc2db47a7d91d93718802d574f59dcf753f7e51210c",
+              "e34a75236080186a2ca64dfc824501914ea5c6582831ed8e94ccd775796b5ab4",
+              "73e2541bd9eba3b63673224b0983128bafc1484a7b56309982aca8ff3da7fa02",
+              "24da0004aa4b14e99ce6628e5018d6140e5a60a2480fc9cc0523057ac6b895ab"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": "None needed."
+          },
+          {
+            "research_need_id": "source_7",
+            "sufficient": true,
+            "supporting_evidence_ids": [
+              "498c26eb72d95c99c524e7426cac21b661d30baea45a1ef6314309b1ed92d36d",
+              "c02546af53a8bec3210c8b34111b43e7b5c14677b20b0c6e229f58ce598de063",
+              "e1491b7a2cf4c6c8c5b222787c5c4a762ccf9bc299a8c0b063041b5b3f860b7c",
+              "1e548d5e00b65304d50f055fbbb05fab530b057a69febb71183f140f011e5622",
+              "d593a63375d9ca3b6c8f7f64486b3813a21037fde109c6b0b1d24bd4312836f5"
+            ],
+            "missing_or_weak": "",
+            "contradictions": [],
+            "further_information": "None needed."
+          }
+        ],
+        "gaps": [
+          "source_5",
+          "source_5: No evidence found for consumer‑protection considerations in §36 cases."
+        ],
+        "contradictions": [],
+        "considered_evidence_ids": [
+          "f129b953c7049e6782d31bb967ecc96fdb8c8a50455dd03424fe9b9580aedea2",
+          "453f7449fdca12de4bdeee4c6e85c0de0345e2a30069793c022a19b79b9dd004",
+          "a57955107c13b6323145c99bcf53f14a691c1415d933a3024aeab697b9bf8599",
+          "28d40256acf9d8b16fd69ccfbd3d2d9fbb3787741d9fa30043bcfa5fa172e663",
+          "498c26eb72d95c99c524e7426cac21b661d30baea45a1ef6314309b1ed92d36d",
+          "2cffd2244bee9129a198dbc2db47a7d91d93718802d574f59dcf753f7e51210c",
+          "e1491b7a2cf4c6c8c5b222787c5c4a762ccf9bc299a8c0b063041b5b3f860b7c",
+          "8b6a51f964978f693b33e9f697b34ed3fda49c1cc456d50973394e4255f9520c",
+          "ee9b7437320c28f95b57a2e3039136e026b081043658a5e70c10e1d5ca6a5800",
+          "1e548d5e00b65304d50f055fbbb05fab530b057a69febb71183f140f011e5622",
+          "4a36bebf0dcab4d6e3f76b64954caed4598a1ffd4343ac80d89700ea81ff1a4e",
+          "e4978f1fb4856c7d35da8f42ca0cbc509d73497335ac0e9b0a218c4f0a0fb7fe",
+          "e34a75236080186a2ca64dfc824501914ea5c6582831ed8e94ccd775796b5ab4",
+          "51c5e68db7eb9877425853e04d2012df4f2bf48d87a961881eb1f1a807272d81",
+          "24da0004aa4b14e99ce6628e5018d6140e5a60a2480fc9cc0523057ac6b895ab",
+          "c02546af53a8bec3210c8b34111b43e7b5c14677b20b0c6e229f58ce598de063",
+          "73e2541bd9eba3b63673224b0983128bafc1484a7b56309982aca8ff3da7fa02",
+          "a7583a78fd73aa2406d2c1706594dbde89211a0bfba72708bf87d35a178b8295",
+          "537c83700c69ae0fa706884d0ca3c386d0bfaf79cbcf6ded4b8c1f0e34609552",
+          "4660f3ceb2f9a3b1c31ead19de34af8f5a78514bf600178750f580d48c5be5c7",
+          "d593a63375d9ca3b6c8f7f64486b3813a21037fde109c6b0b1d24bd4312836f5"
+        ],
+        "model_provider": "cerebras",
+        "model_name": "gpt-oss-120b",
+        "model_version": null
+      }
+    },
+    "sources": [
+      {
+        "need": "source_1",
+        "source_url": "https://lagen.nu/dom/nja/2005s142",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_1",
+        "source_url": "https://lagen.nu/dom/nja/1987s394",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_2",
+        "source_url": "https://lagen.nu/dom/nja/2005s142",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_2",
+        "source_url": "https://lagen.nu/dom/nja/1992s66",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_2",
+        "source_url": "https://lagen.nu/dom/nja/1992s782",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_2",
+        "source_url": "https://lagen.nu/dom/nja/2009s672",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_2",
+        "source_url": "https://lagen.nu/dom/nja/2002s244",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_3",
+        "source_url": "https://lagen.nu/dom/nja/2009s672",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_3",
+        "source_url": "https://lagen.nu/dom/nja/2002s244",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_4",
+        "source_url": "https://lagen.nu/dom/pmod/2018:30",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_5",
+        "source_url": null,
+        "status": "not_found",
+        "failure_category": "irrelevant_relation",
+        "truncated": null
+      },
+      {
+        "need": "source_6",
+        "source_url": "https://lagen.nu/dom/nja/1987s394",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_6",
+        "source_url": "https://lagen.nu/dom/nja/2014s760",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_6",
+        "source_url": "https://lagen.nu/dom/nja/1994s204",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_6",
+        "source_url": "https://lagen.nu/dom/nja/2002s142",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_6",
+        "source_url": "https://lagen.nu/dom/nja/2017s113",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_7",
+        "source_url": "https://lagen.nu/prop/1975/76:81#a2.4",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_7",
+        "source_url": "https://lagen.nu/prop/1994/95:17#a4.2",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_7",
+        "source_url": "https://lagen.nu/bet/2002/03:LU4",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_7",
+        "source_url": "https://lagen.nu/bet/2003/04:LU7#sec13",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      },
+      {
+        "need": "source_7",
+        "source_url": "https://lagen.nu/sou/1974:83#sec1",
+        "status": "found",
+        "failure_category": null,
+        "truncated": false
+      }
+    ]
+  }
+}

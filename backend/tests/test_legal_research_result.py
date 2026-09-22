@@ -70,6 +70,14 @@ def test_legal_claim_projection_preserves_negative_outcomes_and_citations():
             outcome="Avslag",
             adjustment_requested=True,
             adjustment_granted=False,
+            holding_status="established",
+            authoritative_holding={
+                "court_level": "supreme",
+                "text_role": "majority_reasons",
+                "outcome": "Avslag",
+                "adjustment_granted": False,
+                "citations": [{"source_uri": uri, "quote": "Ingen jämkning"}],
+            },
             contract_type="insurance",
             party_context="consumer",
             decisive_factors=["konsumentens ställning"],
@@ -157,8 +165,9 @@ async def test_structured_interpreter_verifies_model_quote(monkeypatch):
 
     async def prompts(*_args, **_kwargs):
         return {
-            "research.lagen_nu.domain.system": "Read the source",
-            "research.lagen_nu.domain.user": (
+            "research.lagen_nu.domain.v3.system": "Read the source",
+            "research.lagen_nu.domain.v3.repair": "Repair: {validation_errors}",
+            "research.lagen_nu.domain.v3.user": (
                 "{question}\n{source_kind}\n{source_uri}\n{source_text}"
             ),
         }
@@ -179,6 +188,11 @@ async def test_structured_interpreter_verifies_model_quote(monkeypatch):
             },
         }
 
+    async def invoke(completer, messages, schema, *, prompt_key):
+        assert prompt_key == "research.lagen_nu.domain.v3.system"
+        return await completer(messages, schema)
+
+    monkeypatch.setattr("app.llm.legal_research.invoke_structured_completer", invoke)
     monkeypatch.setattr("app.llm.legal_research.require_active_prompts", prompts)
     interpreter = LlmLegalInterpreter(completer=complete, session_factory=Session)
     with pytest.raises(LegalDomainExtractionError) as error:
@@ -192,3 +206,77 @@ async def test_structured_interpreter_verifies_model_quote(monkeypatch):
             context=ResearchContext(scope=KnowledgeScope(customer_id=1, module="dd")),
         )
     assert isinstance(error.value.__cause__, ValidationError)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("span_id,valid", [("s1", True), ("invented", False)])
+async def test_interpreter_projects_selected_source_span_exactly(monkeypatch, span_id, valid):
+    from app.services.prompt_catalog import default_prompts
+
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+    async def prompts(*_args, **_kwargs):
+        return default_prompts("sv")
+
+    raw = "Heading\n\nExact [section](https://lagen.nu/1981:130#P2), punctuation and spacing."
+
+    async def complete(messages, schema):
+        assert "[s1]" in messages[1]["content"]
+        return {
+            "relation": {
+                "relation": "supports",
+                "explanation": "Direct rule",
+                "confidence": "high",
+            },
+            "statute": {
+                "operative_rule": "Rule",
+                "citations": [
+                    {
+                        "source_uri": "https://lagen.nu/1981:130",
+                        "quote": "",
+                        "source_span_id": span_id,
+                    }
+                ],
+            },
+        }
+
+    async def invoke(completer, messages, schema, *, prompt_key):
+        assert prompt_key == "research.lagen_nu.domain.v3.system"
+        return await completer(messages, schema)
+
+    monkeypatch.setattr("app.llm.legal_research.invoke_structured_completer", invoke)
+    monkeypatch.setattr("app.llm.legal_research.require_active_prompts", prompts)
+    interpreter = LlmLegalInterpreter(completer=complete, session_factory=Session)
+    kwargs = {
+        "source": LegalSourceIdentity(
+            kind="statute", title="Source", canonical_uri="https://lagen.nu/1981:130"
+        ),
+        "question": "Rule?",
+        "raw_text": raw,
+        "truncated": False,
+        "context": ResearchContext(scope=KnowledgeScope(customer_id=1, module="dd")),
+    }
+    if valid:
+        result = await interpreter.interpret(**kwargs)
+        assert result.statute.citations[0].quote == raw.split("\n\n")[1]
+    else:
+        with pytest.raises(LegalDomainExtractionError) as error:
+            await interpreter.interpret(**kwargs)
+        assert error.value.category == "citation_grounding_failed"
+
+
+def test_review_claim_citations_are_deduplicated_without_losing_text():
+    from app.services.research.review_payload import compact_claims
+
+    quote = {"source_uri": "source", "quote": "Exact original"}
+    claims = [{"id": str(i), "predicate": "fact", "citations": [quote]} for i in range(50)]
+    result = compact_claims(claims)
+    assert len(result["claim_citations"]) == 1
+    for claim in result["claims"]:
+        assert result["claim_citations"][claim["citation_ids"][0]] == quote
+    assert claims[0]["citations"] == [quote]

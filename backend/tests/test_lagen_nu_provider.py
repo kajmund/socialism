@@ -6,6 +6,7 @@ import inspect
 from dataclasses import replace
 
 from app.services.knowledge.models import KnowledgeScope
+from app.services.lagen_nu.display import choose_legal_excerpt
 from app.services.lagen_nu.mcp_client import (
     OfficialLagenNuMcpError,
     parse_document,
@@ -28,14 +29,12 @@ from app.services.lagen_nu.registration import (
     lagen_nu_capability_descriptors,
     lagen_nu_descriptor,
 )
-from app.services.lagen_nu.display import choose_legal_excerpt
 from app.services.lagen_nu.research_source import (
     MAX_DOCUMENT_FETCHES,
     MAX_MCP_TOOL_CALLS,
     MAX_SEARCH_HITS,
     LagenNuResearchSource,
     _candidates,
-    _judicial_reasons,
     _preparatory_citations,
     _query_terms,
     looks_like_citation,
@@ -228,7 +227,7 @@ class PassthroughLagenNuSelector:
     ) -> ExcerptDecision:
         text = document.text or document.highlight
         if source_type == "swedish_case_law":
-            excerpt = _judicial_reasons(text) or text
+            excerpt = text
         else:
             excerpt = choose_legal_excerpt(
                 document_text=text,
@@ -265,19 +264,23 @@ def _source(
 
 
 class FakeLegalInterpreter:
+    def __init__(self, *, quote=None, relation="contextual"):
+        self.quote = quote
+        self.relation = relation
+
     async def interpret(self, *, source, question, raw_text, truncated, context):
         from app.services.legal_research_result import (
             CaseLawAnalysis,
+            LegalCitation,
             LegalQuestionRelation,
             LegalResearchResult,
             PreparatoryWorkAnalysis,
             StatuteAnalysis,
-            LegalCitation,
         )
 
         citation = LegalCitation(
             source_uri=source.canonical_uri,
-            quote=raw_text[: min(len(raw_text), 100)],
+            quote=self.quote or raw_text[: min(len(raw_text), 100)],
         )
         analyses = {
             "case_law": lambda: {
@@ -302,7 +305,7 @@ class FakeLegalInterpreter:
         return LegalResearchResult(
             source=source,
             relation=LegalQuestionRelation(
-                relation="contextual", explanation=raw_text, confidence="low"
+                relation=self.relation, explanation=raw_text, confidence="low"
             ),
             raw_text=raw_text,
             truncated=truncated,
@@ -355,7 +358,7 @@ async def test_domain_extraction_failure_is_isolated_to_one_document():
     )
 
     assert [item.status for item in evidence] == ["error", "found"]
-    assert evidence[0].metadata["reason"] == "legal_domain_extraction_failed"
+    assert evidence[0].metadata["reason"] == "domain_schema_invalid"
     assert evidence[1].source_id == second_uri
     assert evidence[1].legal_result is not None
     assert [args["uri"] for name, args in client.calls if name == "get_document"] == [
@@ -562,7 +565,7 @@ async def test_proposition_cover_page_is_replaced_by_body_and_citation_title():
             )
         },
     )
-    evidence = await _source(client, "swedish_preparatory_works").research(
+    evidence = await _source(client, "swedish_preparatory_works", interpreter=FakeLegalInterpreter(quote="Kungl. Maj:t föreslår riksdagen att anta ett nytt obeståndsbegrepp som knyter konkursförutsättningen till gäldenärens betalningsoförmåga.")).research(
         _need(
             "swedish_preparatory_works",
             question="Hur bedöms obestånd enligt konkurslagen?",
@@ -576,7 +579,7 @@ async def test_proposition_cover_page_is_replaced_by_body_and_citation_title():
     assert "beslutad den 16 januari 1975" not in (item.excerpt or "")
 
 
-async def test_unpinned_law_prefers_search_highlight_over_document_dump():
+async def test_search_highlight_cannot_replace_grounded_citation():
     hit = _hit(pinpoint=None, highlight="Omsättningstillgångar är tillgångar som...")
     client = FakeLagenNuClient(
         search=SearchResults(query="q", total=1, results=(hit,)),
@@ -594,8 +597,8 @@ async def test_unpinned_law_prefers_search_highlight_over_document_dump():
     assert [item.status for item in evidence] == ["found"]
     item = evidence[0]
     assert item.locator is None
-    assert item.excerpt == "Omsättningstillgångar är tillgångar som..."
-    assert "1 kap. Inledande bestämmelser" not in (item.excerpt or "")
+    assert item.excerpt == item.legal_result.statute.citations[0].quote
+    assert "Omsättningstillgångar" not in item.excerpt
 
 
 async def test_citation_resolution_path_fetches_pinpoint():
@@ -693,7 +696,7 @@ async def test_provider_error_does_not_call_disabled_tenant_knowledge():
     assert statuses.count("error") == 1
     error = next(item for item in evidence if item.status == "error")
     assert error.provider == LAGEN_NU_PROVIDER_ID
-    assert error.metadata["error_type"] == "OfficialLagenNuMcpError"
+    assert error.metadata["failure_category"] == "fetch_failed"
     assert provider.queries == []
     assert all("customer_id" not in str(args) for _name, args in client.calls)
 
@@ -961,8 +964,7 @@ async def test_preparatory_works_resolve_every_named_citation():
     proposition_item = next(
         item for item in evidence if "prop/1975/76:81" in (item.source_id or "")
     )
-    assert "36 § avtalslagen" in (proposition_item.excerpt or "")
-    assert "Huvudsakligt innehåll" not in (proposition_item.excerpt or "")
+    assert proposition_item.excerpt == proposition_item.legal_result.preparatory_work.citations[0].quote
 
 
 async def test_search_hits_are_fetched_only_when_selector_keeps_them():
@@ -1214,7 +1216,7 @@ async def test_case_search_filters_false_provision_matches():
     assert [item.source_id for item in evidence] == ["https://lagen.nu/dom/nja/2012s776"]
 
 
-async def test_case_fetch_prefers_judicial_reasons_over_party_submissions():
+async def test_case_fetch_preserves_whole_document_for_role_analysis():
     submissions = LagenNuPin(
         uri="https://lagen.nu/dom/nja/2012s776#yrkanden",
         pinpoint="yrkanden",
@@ -1222,7 +1224,7 @@ async def test_case_fetch_prefers_judicial_reasons_over_party_submissions():
         highlight=("Konsumenten yrkade jämkning av det oskäliga avtalsvillkoret.",),
     )
     reasons = LagenNuPin(
-        uri="https://lagen.nu/dom/nja/2012s776#domskal",
+        uri="https://lagen.nu/dom/nja/2012s776",
         pinpoint="domskal",
         label="Högsta domstolens domskäl",
         highlight=("Högsta domstolen bedömer om villkoret ska jämkas.",),
@@ -1239,9 +1241,9 @@ async def test_case_fetch_prefers_judicial_reasons_over_party_submissions():
     client = FakeLagenNuClient(
         search=SearchResults(query="jämkning villkor", total=1, results=(hit,)),
         documents={
-            "https://lagen.nu/dom/nja/2012s776#domskal": _document(
+            "https://lagen.nu/dom/nja/2012s776": _document(
                 uri="https://lagen.nu/dom/nja/2012s776",
-                pinpoint="domskal",
+                pinpoint=None,
                 text="Högsta domstolens avgörande skäl.",
                 source="dv",
             )
@@ -1254,9 +1256,9 @@ async def test_case_fetch_prefers_judicial_reasons_over_party_submissions():
         ),
         _context(),
     )
-    assert evidence[0].source_id == "https://lagen.nu/dom/nja/2012s776#domskal"
+    assert evidence[0].source_id == "https://lagen.nu/dom/nja/2012s776"
     fetch = next(args for name, args in client.calls if name == "get_document")
-    assert fetch["pinpoint"] == "domskal"
+    assert fetch["pinpoint"] is None
 
 
 async def test_preparatory_work_fetches_most_relevant_fragment():
@@ -1284,9 +1286,9 @@ async def test_preparatory_work_fetches_most_relevant_fragment():
     client = FakeLagenNuClient(
         search=SearchResults(query="oskäliga konsumentavtal", total=1, results=(hit,)),
         documents={
-            "https://lagen.nu/prop/1975/76:81": _document(
+            "https://lagen.nu/prop/1975/76:81#sec-oskalighet": _document(
                 uri="https://lagen.nu/prop/1975/76:81",
-                pinpoint=None,
+                pinpoint="sec-oskalighet",
                 text=(
                     "Huvudsakligt innehåll Propositionen föreslår en generalklausul.\n\n"
                     "Relevanta faktorer för oskälighetsbedömningen enligt 36 §."
@@ -1302,12 +1304,11 @@ async def test_preparatory_work_fetches_most_relevant_fragment():
         ),
         _context(),
     )
-    assert evidence[0].source_id == "https://lagen.nu/prop/1975/76:81"
+    assert evidence[0].source_id == "https://lagen.nu/prop/1975/76:81#sec-oskalighet"
     fetch = next(args for name, args in client.calls if name == "get_document")
-    assert fetch["pinpoint"] is None
-    assert fetch["max_chars"] == 100000
-    assert "oskälig" in (evidence[0].excerpt or "").casefold()
-    assert "Huvudsakligt innehåll" not in (evidence[0].excerpt or "")
+    assert fetch["pinpoint"] == "sec-oskalighet"
+    assert fetch["max_chars"] == 200000
+    assert evidence[0].excerpt == evidence[0].legal_result.preparatory_work.citations[0].quote
 
 
 async def test_hybrid_case_law_stays_within_quality_budget():
@@ -1542,12 +1543,8 @@ async def test_search_requires_a_selector():
         documents={"https://lagen.nu/1915:218#P36": _document()},
     )
     source = LagenNuResearchSource(source_type="swedish_law", client=client)
-    try:
-        await source.research(_need("swedish_law", question="jämkning"), _context())
-    except LagenNuSelectionError as exc:
-        assert "selector is required" in str(exc)
-    else:
-        raise AssertionError("expected LagenNuSelectionError")
+    evidence = await source.research(_need("swedish_law", question="jämkning"), _context())
+    assert evidence[0].metadata["failure_category"] == "selection_failed"
 
 
 async def test_owned_client_is_closed_on_no_hit_and_error():
@@ -1566,12 +1563,8 @@ async def test_owned_client_is_closed_on_no_hit_and_error():
     boom = FakeLagenNuClient(search_error=OfficialLagenNuMcpError("lagen.nu MCP timed out"))
     failing = LagenNuResearchSource(source_type="swedish_law")
     failing._owned_client = boom
-    try:
-        await failing.research(_need("swedish_law", question="jämkning"), _context())
-    except OfficialLagenNuMcpError:
-        pass
-    else:
-        raise AssertionError("expected OfficialLagenNuMcpError")
+    evidence = await failing.research(_need("swedish_law", question="jämkning"), _context())
+    assert evidence[0].metadata["failure_category"] == "fetch_failed"
     assert boom.closed is True
     assert failing._owned_client is None
     assert failing._client is None
@@ -1644,21 +1637,7 @@ def test_flow_selection_is_deterministic():
     assert select_lagen_nu_flow(resolve_need) == "resolve"
 
 
-def test_legacy_case_extracts_highest_court_reasons_and_outcome():
-    text = """# Referat
-Domskäl. Tingsrättens skäl och parternas yrkanden.
-Domslut. Tingsrättens dom.
-HD (JustR A, B och C) beslöt följande dom:
-Domskäl. HD prövade 36 § avtalslagen och jämkade villkoret.
-Domslut. Villkoret jämkas.
-JustR D var skiljaktig."""
-    selected = _judicial_reasons(text)
-    assert selected.startswith("Domskäl. HD prövade 36 § avtalslagen")
-    assert "Villkoret jämkas" in selected
-    assert "Tingsrättens skäl" not in selected
-
-
-async def test_bad_excerpt_skips_that_document():
+async def test_display_selector_cannot_discard_domain_results():
     class InventOneExcerpt(PassthroughLagenNuSelector):
         async def select_excerpt(self, *, need, source_type, document, context):
             if "1915:218" in document.uri:
@@ -1694,8 +1673,8 @@ async def test_bad_excerpt_skips_that_document():
     evidence = await _source(client, "swedish_law", selector=InventOneExcerpt()).research(
         _need("swedish_law", question="jämkning"), _context()
     )
-    assert [item.status for item in evidence] == ["found"]
-    assert evidence[0].source_id == "https://lagen.nu/1981:130#P1"
+    assert [item.status for item in evidence] == ["found", "found"]
+    assert all(item.legal_result is not None for item in evidence)
 
 
 async def test_cover_pinpoint_fetches_full_travaux():
@@ -1744,7 +1723,6 @@ async def test_cover_pinpoint_fetches_full_travaux():
     fetch = next(args for name, args in client.calls if name == "get_document")
     assert fetch["pinpoint"] is None
     assert evidence[0].status == "found"
-    assert body in (evidence[0].excerpt or "")
     assert evidence[0].locator != "Propositionens huvudsakliga innehåll"
 
 
@@ -1770,7 +1748,7 @@ async def test_named_case_without_the_provision_is_skipped():
             )
         },
     )
-    evidence = await _source(client, "swedish_case_law").research(
+    evidence = await _source(client, "swedish_case_law", interpreter=FakeLegalInterpreter(relation="irrelevant")).research(
         _need(
             "swedish_case_law",
             question="Vilka villkor jämkades i NJA 1992 s. 66 enligt 36 §?",
@@ -1778,8 +1756,8 @@ async def test_named_case_without_the_provision_is_skipped():
         _context(),
     )
     assert [item.status for item in evidence] == ["not_found"]
-    assert evidence[0].excerpt == "no_fetchable_document"
-    assert evidence[0].metadata.get("reason") == "no_fetchable_document"
+    assert evidence[0].metadata["fetch_success"] is True
+    assert evidence[0].metadata.get("reason") == "domain_relation_irrelevant"
 
 
 async def test_excerpt_without_the_provision_is_skipped():
@@ -1811,7 +1789,7 @@ async def test_excerpt_without_the_provision_is_skipped():
             )
         },
     )
-    evidence = await _source(client, "swedish_case_law", selector=OptionsExcerpt()).research(
+    evidence = await _source(client, "swedish_case_law", selector=OptionsExcerpt(), interpreter=FakeLegalInterpreter(relation="irrelevant")).research(
         _need(
             "swedish_case_law",
             question="Vilka villkor har jämkats enligt 36 § avtalslagen?",
@@ -1819,7 +1797,7 @@ async def test_excerpt_without_the_provision_is_skipped():
         _context(),
     )
     assert [item.status for item in evidence] == ["not_found"]
-    assert evidence[0].metadata.get("reason") == "no_fetchable_document"
+    assert evidence[0].metadata.get("reason") == "domain_relation_irrelevant"
 
 
 async def test_party_submission_excerpt_is_skipped():
@@ -1859,7 +1837,7 @@ async def test_party_submission_excerpt_is_skipped():
             )
         },
     )
-    evidence = await _source(client, "swedish_case_law", selector=PartyExcerpt()).research(
+    evidence = await _source(client, "swedish_case_law", selector=PartyExcerpt(), interpreter=FakeLegalInterpreter(relation="irrelevant")).research(
         _need(
             "swedish_case_law",
             question="Finns det skillnader i hur 36 § tillämpas?",
@@ -1867,7 +1845,7 @@ async def test_party_submission_excerpt_is_skipped():
         _context(),
     )
     assert [item.status for item in evidence] == ["not_found"]
-    assert evidence[0].metadata.get("reason") == "no_fetchable_document"
+    assert evidence[0].metadata.get("reason") == "domain_relation_irrelevant"
 
 
 async def test_named_citations_survive_search_selection_failure():
@@ -2095,7 +2073,7 @@ async def test_statute_restatement_excerpt_is_skipped():
             )
         },
     )
-    evidence = await _source(client, "swedish_case_law", selector=RestateExcerpt()).research(
+    evidence = await _source(client, "swedish_case_law", selector=RestateExcerpt(), interpreter=FakeLegalInterpreter(relation="irrelevant")).research(
         _need(
             "swedish_case_law",
             question="Vilka faktorer vägde HD i NJA 2015 s. 98 enligt 36 §?",
@@ -2103,7 +2081,7 @@ async def test_statute_restatement_excerpt_is_skipped():
         _context(),
     )
     assert [item.status for item in evidence] == ["not_found"]
-    assert evidence[0].metadata.get("reason") == "no_fetchable_document"
+    assert evidence[0].metadata.get("reason") == "domain_relation_irrelevant"
 
 
 async def test_named_case_keeps_window_when_selector_excerpt_is_empty():
@@ -2146,7 +2124,7 @@ async def test_named_case_keeps_window_when_selector_excerpt_is_empty():
     )
     assert [item.status for item in evidence] == ["found"]
     assert "ansvarsbegränsningen" in (evidence[0].excerpt or "")
-    assert evidence[0].metadata.get("selection_why") == "windowed_passage"
+    assert evidence[0].metadata.get("selection_why") == "verified_domain_citation"
 
 
 async def test_search_empty_excerpt_is_still_skipped():
@@ -2178,7 +2156,7 @@ async def test_search_empty_excerpt_is_still_skipped():
             )
         },
     )
-    evidence = await _source(client, "swedish_case_law", selector=EmptyExcerpt()).research(
+    evidence = await _source(client, "swedish_case_law", selector=EmptyExcerpt(), interpreter=FakeLegalInterpreter(relation="irrelevant")).research(
         _need(
             "swedish_case_law",
             question="Vilka villkor har jämkats enligt 36 § avtalslagen?",
@@ -2188,7 +2166,7 @@ async def test_search_empty_excerpt_is_still_skipped():
     assert [item.status for item in evidence] == ["not_found"]
 
 
-async def test_incoming_travaux_without_the_provision_are_skipped():
+async def test_incoming_travaux_reach_interpreter_without_literal_section():
     statute = _hit()
     older = replace(
         _hit(
@@ -2245,7 +2223,7 @@ async def test_incoming_travaux_without_the_provision_are_skipped():
         ),
         _context(),
     )
-    assert [item.source_id for item in evidence] == ["https://lagen.nu/prop/1975/76:81"]
+    assert {item.source_id for item in evidence} == {"https://lagen.nu/prop/1971:15", "https://lagen.nu/prop/1975/76:81"}
 
 
 async def test_36_avtl_live_selection_rejects_wrong_proposition_despite_keep_flag():

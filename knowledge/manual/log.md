@@ -3,6 +3,8 @@
 ## 2026-09-21
 
 * **LLM**: Under **Verktyg** → **LLM** skapar du namngivna konfigurationer (modell, temperatur, roll och capabilities). En av dem är default. Under **Konfigurationer** kan varje prompt använda default, en fast konfiguration eller Auto. Auto klassificerar uppgiften och matchar mot roll och capabilities.
+* **Research**: Huvudfrågor kan få tydligt märkta härledda sammanställningar från besvarade underfrågor. Besvarade frågor visas inte längre samtidigt som väntande på historiska beroenden.
+
 * **Research**: Källor i inspektören grupperas per dokument. Kortet visar hur många frågor och analyser som använder källan och hur många analysfel den har. Du kan fälla ut de frågespecifika posterna.
 * **Experter / SME**: En ny expert sparas på den kund kontot tillhör, även för administratör. Administratör utan kundkoppling sparar som tidigare i Bolag demo. Listan under **Experter** och SME-chatten visar samma kunds experter.
 * **Expertchatten / SME**: En expert kan nu använda **Fråga en annan expert** när en fråga ligger utanför den egna kompetensen. En kunnig kollega svarar i sin egen chatt, den första experten återger svaret direkt och båda experternas minnen uppdateras med frågan och svaret.

@@ -3146,6 +3146,7 @@ export const sv = {
       unansweredEmpty: "Inga öppna frågor.",
     },
     researchMonitor: {
+      derivedAnswer: 'Härledd sammanställning från besvarade underfrågor',
       crumb: "Research",
       title: "Researchförlopp",
       intro: "Följ frågor, evidens och bedömningar medan underlaget växer fram.",
