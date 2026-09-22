@@ -3343,6 +3343,9 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Välj det stycke som faktiskt stöder uppgiften och textrollen. "
             "Sätt relation=irrelevant när samma paragrafnummer gäller en annan lag "
             "eller källan inte behandlar den efterfrågade rättsfrågan. "
+            "Ett rättsfall som löser den efterfrågade avtalstvisten genom en annan rättslig grund "
+            "är relevant som limits eller contextual även när den efterfrågade jämkningsregeln "
+            "inte tillämpas. Att jämkning inte beviljades gör inte i sig källan irrelevant. "
             "Välj exakt en analys för källtypen. Skilj domstolens egna skäl från "
             "partsargument och förarbetsuttalanden från gällande rätt. "
             "Ange även begränsningar, motsägande utfall och osäkerhet. "
@@ -3405,6 +3408,42 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "Include at least one citation that supports the analysis. Every quote must "
             "be an exact substring of the source text with the supplied URI."
         ),
+    ),
+    _f(
+        "research.lagen_nu.domain.v3.court_context", "research",
+        "Avgörande domstols underlag", "Deciding court context",
+        "Platshållare: {court_text}.", "Placeholders: {court_text}.",
+        "Avgörande domstolens egna skäl och domslut följer nedan. Grunda authoritative_holding "
+        "enbart på detta avsnitt, inklusive frågan vilken rättslig grund domstolen faktiskt "
+        "tillämpade. Använd resten av referatet ovan för partsyrkanden, andra instanser och "
+        "relationen till researchfrågan. Ett yrkande om jämkning i originalreferatet gör "
+        "frågan relevant även om avgörandet i stället bygger på avtalstolkning.\n{court_text}",
+        "The deciding court's own reasons and order follow. Base authoritative_holding "
+        "only on this passage, including which legal basis the court actually applied. "
+        "Use the full report above for submissions, other courts and relation to the question. "
+        "A pleaded adjustment remedy is relevant even if the deciding court resolves the "
+        "dispute through interpretation instead.\n{court_text}",
+    ),
+    _f(
+        "research.lagen_nu.domain.v3.court_passage", "research",
+        "Avgränsa avgörande domstol", "Locate deciding court reasons",
+        "Välj avgörande majoritetens källavsnitt.", "Select the deciding majority's source passage.",
+        "Lokalisera den sista avgörande domstolens egna majoritetsskäl och domslut i rättsfallsreferatet. "
+        "Källans stycken har ID:n s0, s1 osv. Returnera reasoning_start och reasoning_end för hela "
+        "det sammanhängande avsnittet, från introduktionen av den beslutande domstolens ledamöter "
+        "eller början av dess egna domskäl till och med dess domslut. Avsnittet måste innehålla "
+        "ALLA majoritetens domskäl, inte bara några stödjande meningar. Skilj noga föredragandens "
+        "betänkande/förslag från domstolens egen dom, som ofta följer direkt efter förslaget. "
+        "Uteslut underinstansernas domar, parternas utveckling av talan och skiljaktiga meningar. "
+        "Gör ingen bedömning av juridisk fråga eller utfall; uppgiften är bara att identifiera "
+        "textens avsändare och avgränsning. Förklara avgränsningen utifrån källans introduktioner.",
+        "Locate the final deciding court's own majority reasons and operative order. Paragraphs "
+        "have IDs s0, s1, etc. Return reasoning_start and reasoning_end bounding the complete "
+        "contiguous passage from the introduction of the deciding judges or their own reasons "
+        "through the operative order. Include ALL majority reasons, not just selected sentences. "
+        "Carefully exclude the reporter's proposed opinion, which often precedes the actual "
+        "judgment. Exclude lower courts, party submissions and dissents. Do not assess the legal "
+        "issue or outcome: only identify the author and boundaries using source introductions.",
     ),
     _f(
         "research.lagen_nu.domain.v3.repair", "research",

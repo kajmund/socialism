@@ -280,3 +280,57 @@ def test_review_claim_citations_are_deduplicated_without_losing_text():
     for claim in result["claims"]:
         assert result["claim_citations"][claim["citation_ids"][0]] == quote
     assert claims[0]["citations"] == [quote]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outside_holding", [False, True])
+async def test_case_interpretation_scopes_to_model_selected_deciding_court(
+    monkeypatch, outside_holding
+):
+    from app.services.prompt_catalog import default_prompts
+    from tests.test_research_36_integration import PARTY_QUOTE, document, nja_result
+
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+    async def prompts(*_args, **_kwargs):
+        return default_prompts("sv")
+
+    calls = []
+
+    async def complete(messages, schema):
+        calls.append(schema.__name__)
+        if schema.__name__ == "DecidingCourtPassageSelection":
+            assert "s150" in schema.model_json_schema()["properties"]["reasoning_start"]["enum"]
+            return {
+                "reasoning_start": "s150",
+                "reasoning_end": "s170",
+                "explanation": "HD:s egna skäl och domslut efter betänkandet.",
+            }
+        assert "[s150]" in messages[1]["content"]
+        assert messages[1]["content"].count("[s150]") == 2
+        assert messages[1]["content"].count("[s27]") == 1
+        result = nja_result()
+        if outside_holding:
+            result.case_law.authoritative_holding.citations[0].quote = PARTY_QUOTE
+        return {"relation": result.relation.model_dump(), "case_law": result.case_law.model_dump()}
+
+    monkeypatch.setattr("app.llm.legal_research.require_active_prompts", prompts)
+    interpretation = LlmLegalInterpreter(completer=complete, session_factory=Session).interpret(
+        source=nja_result().source,
+        question="Har jämkning beviljats?",
+        raw_text=document("nja_2005_142").text,
+        truncated=False,
+        context=ResearchContext(scope=KnowledgeScope(customer_id=1, module="dd")),
+    )
+    if outside_holding:
+        with pytest.raises(LegalDomainExtractionError, match="outside deciding court passage"):
+            await interpretation
+        return
+    result = await interpretation
+    assert calls == ["DecidingCourtPassageSelection", "LegalInterpretation"]
+    assert result.case_law.adjustment_granted is False
