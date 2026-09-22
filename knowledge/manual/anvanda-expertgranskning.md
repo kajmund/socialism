@@ -39,6 +39,17 @@ Underlag du laddar upp är personliga — andra på samma kund ser inte dina fil
 
 Researchsteget gäller Expertgranskning i webbläsaren. Word-tillägget startar ingen research.
 
+### Underfrågor och härledda svar
+
+När en huvudfråga får stöd från besvarade underfrågor märks sammanställningen
+**Härledd sammanställning från besvarade underfrågor**. Den bygger på underfrågornas
+källor och är inte en ny primärkälla. Huvudfrågan blir besvarad först när stödet
+har bedömts räcka för just den frågan.
+
+Texten **Väntar på …** visas bara när en annan fråga faktiskt blockerar fortsatt
+arbete. En besvarad fråga kan behålla sin koppling till andra frågor utan att
+presenteras som väntande.
+
 ## Relaterade guider
 
 - [Hantera kundmoduler](hantera-kundmoduler.md)

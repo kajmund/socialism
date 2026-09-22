@@ -49,6 +49,8 @@ def upgrade() -> None:
     )
 
     conn = op.get_bind()
+    if conn.dialect.name == "postgresql":
+        op.execute("ALTER TABLE llm_configurations ENABLE ROW LEVEL SECURITY")
     row = conn.execute(
         sa.text(
             "SELECT profile_id, temperature, top_p, max_tokens, reasoning_effort "

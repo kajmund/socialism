@@ -3146,6 +3146,7 @@ export const en: LocalizedTree<SvMessages> = {
       unansweredEmpty: "No open questions.",
     },
     researchMonitor: {
+      derivedAnswer: 'Derived answer from answered subquestions',
       crumb: "Research",
       title: "Research progress",
       intro: "Follow questions, evidence, and assessments as the research develops.",
