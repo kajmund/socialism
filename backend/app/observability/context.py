@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, replace
-from typing import Iterator
 from uuid import uuid4
 
 
@@ -23,13 +23,13 @@ class LogContext:
     job_id: str | None = None
 
 
-_log_context: ContextVar[LogContext] = ContextVar(
-    "observability_log_context", default=LogContext()
+_log_context: ContextVar[LogContext | None] = ContextVar(
+    "observability_log_context", default=None
 )
 
 
 def current_log_context() -> LogContext:
-    return _log_context.get()
+    return _log_context.get() or LogContext()
 
 
 def bind_log_context(
@@ -45,8 +45,8 @@ def bind_log_context(
     wave_number: int | None = None,
     job_id: str | None = None,
     ensure_trace_id: bool = False,
-) -> Token[LogContext]:
-    current = _log_context.get()
+) -> Token[LogContext | None]:
+    current = current_log_context()
     updates: dict[str, object] = {}
     if trace_id is not None:
         updates["trace_id"] = trace_id
@@ -73,7 +73,7 @@ def bind_log_context(
     return _log_context.set(replace(current, **updates))
 
 
-def reset_log_context(token: Token[LogContext]) -> None:
+def reset_log_context(token: Token[LogContext | None]) -> None:
     _log_context.reset(token)
 
 
@@ -81,14 +81,14 @@ def reset_log_context(token: Token[LogContext]) -> None:
 def log_context(**kwargs: object) -> Iterator[LogContext]:
     token = bind_log_context(**kwargs)  # type: ignore[arg-type]
     try:
-        yield _log_context.get()
+        yield current_log_context()
     finally:
         reset_log_context(token)
 
 
 def context_fields(context: LogContext | None = None) -> dict[str, object]:
     """ECS-shaped identifiers. Omit empty values so Kibana stays sparse."""
-    row = context or _log_context.get()
+    row = context or current_log_context()
     payload: dict[str, object] = {}
     if row.trace_id:
         payload["trace"] = {"id": row.trace_id}

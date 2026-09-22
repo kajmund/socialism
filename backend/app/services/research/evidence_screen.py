@@ -169,7 +169,7 @@ async def _score_one(
                 model=research_jev_model(),
                 timeout_seconds=settings.research_jev_timeout_seconds,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 - shadow scores must not fail research
             return None
     try:
         scores = EvidenceJevScores(
@@ -192,7 +192,7 @@ async def _score_one(
             ),
             latency_ms=result.latency_ms,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 - omit one bad score, keep the item
         return None
     record_jev_call(scores.latency_ms)
     emit_jev_evidence_scored(
