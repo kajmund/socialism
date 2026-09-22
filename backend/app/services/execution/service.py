@@ -430,7 +430,7 @@ async def add_evidence_items(
                             raw_source_id=raw_id,
                             research_need_id=snapshot.research_need_id or "",
                             domain="legal",
-                            schema_version=2,
+                            schema_version=3,
                             result=legal.model_dump(mode="json", exclude={"raw_text"}),
                         )
                     )

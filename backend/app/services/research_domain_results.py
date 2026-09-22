@@ -49,7 +49,9 @@ def legal_claims(
     citations = [citation.model_dump(mode="json") for citation in analysis.citations]
     claims: list[DomainClaim] = []
 
-    def add(predicate: str, value: object) -> None:
+    def add(
+        predicate: str, value: object, *, support: list[dict[str, object]] | None = None
+    ) -> None:
         if value is None or value == "" or value == [] or value == "unknown":
             return
         structured = {"value": value}
@@ -61,14 +63,22 @@ def legal_claims(
                 predicate=predicate,
                 value=structured,
                 relation=result.relation.relation,
-                citations=citations,
+                citations=citations if support is None else support,
             )
         )
 
     if result.case_law is not None:
         case = result.case_law
         add("legal.adjustment_requested", case.adjustment_requested)
-        add("legal.adjustment_granted", case.adjustment_granted)
+        holding_citations = (
+            [citation.model_dump(mode="json") for citation in case.authoritative_holding.citations]
+            if case.authoritative_holding
+            else []
+        )
+        if case.holding_status == "established":
+            add("legal.adjustment_granted", case.adjustment_granted, support=holding_citations)
+            add("legal.outcome", case.outcome, support=holding_citations)
+        add("legal.holding_status", case.holding_status)
         add("legal.adjusted_term_type", case.adjusted_term_type)
         add("legal.contract_type", case.contract_type)
         add("legal.party_context", case.party_context)
@@ -76,7 +86,6 @@ def legal_claims(
             add("legal.decisive_factor", factor)
         for argument in case.rejected_arguments:
             add("legal.rejected_argument", argument)
-        add("legal.outcome", case.outcome)
         add("legal.rule_or_principle", case.rule_or_principle)
         for provision in case.applied_provisions:
             add("legal.applied_provision", provision)

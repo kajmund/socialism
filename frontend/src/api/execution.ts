@@ -289,6 +289,8 @@ export function getResearchProgressEvents(
 }
 
 export type ResearchOverviewSource = {
+  derived?: boolean
+  failure_category?: string | null
   id: string
   passage_id: string | null
   domain_result_id: string | null
@@ -322,6 +324,7 @@ export type ResearchOverviewQuestion = {
   child_attempt_id: string | null
   child_attempt_status: string | null
   dependency_ids: string[]
+  blocking_dependency_ids?: string[]
   raised_by: ResearchOverviewExpert[]
   assigned_to: ResearchOverviewExpert | null
   sources: ResearchOverviewSource[]

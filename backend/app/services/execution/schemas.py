@@ -274,7 +274,7 @@ class EvidenceSetOut(BaseModel):
     created_at: datetime
     frozen_at: datetime | None
     items: list[EvidenceSetItemOut]
-    sources: list["EvidenceSourceGroupOut"]
+    sources: list[EvidenceSourceGroupOut]
 
 
 class EvidenceSourceGroupOut(BaseModel):
@@ -329,6 +329,8 @@ class ResearchExpertOut(BaseModel):
 
 
 class ResearchSourceOut(BaseModel):
+    derived: bool = False
+    failure_category: str | None = None
     id: str
     passage_id: str | None
     domain_result_id: str | None = None
@@ -357,6 +359,7 @@ class ResearchQuestionOverviewOut(BaseModel):
     child_attempt_id: str | None
     child_attempt_status: str | None
     dependency_ids: list[str]
+    blocking_dependency_ids: list[str] = Field(default_factory=list)
     raised_by: list[ResearchExpertOut]
     assigned_to: ResearchExpertOut | None
     sources: list[ResearchSourceOut]

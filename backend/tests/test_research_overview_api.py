@@ -231,6 +231,7 @@ async def test_research_overview_aggregates_question_graph_and_sources(client_db
     assert body["phase"] == "completed_with_gaps"
     answered_out = next(row for row in body["questions"] if row["id"] == answered.id)
     assert answered_out["status"] == "answered"
+    assert answered_out["blocking_dependency_ids"] == []
     assert answered_out["assigned_to"]["name"] == expert.name
     assert answered_out["sources"][0]["title"] == "Avtalslagen"
     assert answered_out["source_count"] == 8
@@ -243,6 +244,7 @@ async def test_research_overview_aggregates_question_graph_and_sources(client_db
     assert len(evidence_response.json()["items"]) == 78
     waiting_out = next(row for row in body["questions"] if row["id"] == waiting.id)
     assert waiting_out["dependency_ids"] == [answered.id]
+    assert waiting_out["blocking_dependency_ids"] == []
 
 
 async def test_overview_keeps_shared_raw_source_domain_results_with_their_needs(client_db):

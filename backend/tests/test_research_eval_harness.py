@@ -60,3 +60,21 @@ def test_reports_regression_at_its_stage(stage, mutate):
     report = evaluate_case(golden, broken)
     assert not report[stage].passed
     assert report[stage].regressions
+
+
+def test_success_metrics_count_unanswered_needs_and_only_observed_stages():
+    from app.services.research_eval_harness import success_metrics
+    result = success_metrics({
+        'need_ids':['a','b','c'], 'assessment':{'needs':{'a':True,'b':False}},
+        'evidence':[
+            {'source_type':'swedish_case_law','metadata':{'fetch_success':True,'domain_extraction_success':False}},
+            {'source_type':'swedish_case_law','metadata':{'fetch_success':False}},
+            {'source_type':'derived','metadata':{'derived':True,'fetch_success':True}},
+        ],
+    })
+    assert result['answered_needs'] == 1
+    assert result['total_needs'] == 3
+    assert result['answered_rate'] == 1/3
+    assert result['fetch_success_by_source_type']['swedish_case_law'] == {'success':1,'attempted':2,'rate':0.5}
+    assert result['domain_extraction_success_by_source_type']['swedish_case_law'] == {'success':0,'attempted':1,'rate':0}
+    assert 'derived' not in result['fetch_success_by_source_type']
