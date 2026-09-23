@@ -53,3 +53,25 @@ async def test_http_status_categories(monkeypatch):
     await expect(401, "auth")
     await expect(429, "rate_limit")
     await expect(503, "transport")
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf"), "NaN"])
+def test_noul_rejects_nonfinite_probabilities(value):
+    from app.jev.system import parse_noul
+    with pytest.raises(JevClientError) as error:
+        parse_noul({"answer": {"noul": value}}, "answer")
+    assert error.value.category == "schema_validation"
+
+
+@pytest.mark.asyncio
+async def test_client_reports_invalid_model_and_applies_injected_timeout(monkeypatch):
+    monkeypatch.setattr("app.jev.system.settings.typesafe_api_key", "test")
+    def handler(request):
+        assert request.extensions["timeout"]["read"] == 0.25
+        return httpx.Response(400, json={"detail": {"message": "Unknown model"}})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        with pytest.raises(JevClientError) as error:
+            await HttpJevSystemOne(http).ask(
+                state={}, questions={}, model="invalid", timeout_seconds=0.25,
+            )
+    assert error.value.category == "invalid_request"

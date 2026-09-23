@@ -26,6 +26,7 @@ from app.services.research.completeness import (
     can_review_programmatically,
 )
 from app.services.research.evidence_screen import (
+    EvidenceJevScores,
     order_evidence_for_state,
     screen_evidence,
     screening_objective,
@@ -56,6 +57,7 @@ class GatedResearchAssessor:
     ) -> None:
         self._inner = inner
         self._controller = controller or ResearchFastController()
+        self._evidence_scores: dict[tuple[str, str], EvidenceJevScores] = {}
 
     async def assess(
         self,
@@ -68,6 +70,7 @@ class GatedResearchAssessor:
             objective=screening_objective(objective=None, plan=plan),
             evidence=evidence,
             client=self._controller.client,
+            cache=self._evidence_scores,
         )
         ordered = order_evidence_for_state(evidence, scores) if scores else list(evidence)
         decision = await self._controller.assess_state(
