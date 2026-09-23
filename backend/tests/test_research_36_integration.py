@@ -18,7 +18,7 @@ from app.services.lagen_nu.question_validation import (
 from app.services.lagen_nu.research_source import MAX_DOCUMENT_CHARS, LagenNuResearchSource
 from app.services.legal_research_result import LegalResearchResult
 from app.services.research_domain_results import legal_claims
-from tests.test_lagen_nu_provider import _context, _need
+from tests.test_lagen_nu_provider import TargetCaseCitationPlanner, _context, _need
 
 FIXTURES = Path(__file__).parent / "fixtures" / "research_eval"
 SOURCES = [
@@ -146,7 +146,8 @@ async def test_official_transport_resolve_fetch_interpret_actual_nja_path():
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
         client = OfficialLagenNuMcpClient(http=http)
         provider = LagenNuResearchSource(
-            source_type="swedish_case_law", client=client, interpreter=Interpreter()
+            source_type="swedish_case_law", client=client, interpreter=Interpreter(),
+            case_citation_planner=TargetCaseCitationPlanner(),
         )
         evidence = await provider.research(
             _need(

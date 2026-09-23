@@ -81,9 +81,9 @@ class PreparatorySourceRole(BaseModel):
 
 
 class DecidingCourtPassage(BaseModel):
+    explanation: str
     reasoning_start: str
     reasoning_end: str
-    explanation: str
 
 
 class LegalInterpreter(Protocol):
@@ -179,7 +179,7 @@ class LlmLegalInterpreter:
                             {
                                 "role": "system",
                                 "content": render_prompt(
-                                    prompts, "research.lagen_nu.domain.v3.court_passage"
+                                    prompts, "research.lagen_nu.domain.v3.court_passage_v2"
                                 ),
                             },
                             {"role": "user", "content": marked_source},
@@ -203,9 +203,9 @@ class LlmLegalInterpreter:
             if end < start:
                 raise LegalDomainExtractionError("deciding court passage ends before it starts")
             holding_text = "\n\n".join(spans[key] for key in keys[start : end + 1])
-            marked_source += "\n\n" + render_prompt(
+            marked_source = render_prompt(
                 prompts,
-                "research.lagen_nu.domain.v3.court_context",
+                "research.lagen_nu.domain.v3.court_analysis",
                 court_text="\n\n".join(f"[{key}]\n{spans[key]}" for key in keys[start : end + 1]),
             )
         messages = [
@@ -243,8 +243,8 @@ class LlmLegalInterpreter:
         }[source.kind]
         interpretation_schema = create_model(
             "LegalInterpretation",
-            relation=(LegalQuestionRelation, ...),
             **{source.kind: (analysis_type, ...)},
+            relation=(LegalQuestionRelation, ...),
         )
         for attempt in range(3):
             parsed = None
@@ -285,13 +285,8 @@ class LlmLegalInterpreter:
                                 category="citation_grounding_failed",
                             )
                         citation.quote = spans[citation.source_span_id]
-                if (
-                    holding_text is not None
-                    and parsed.case_law
-                    and parsed.case_law.authoritative_holding
-                ) and any(
-                    citation.quote not in holding_text
-                    for citation in parsed.case_law.authoritative_holding.citations
+                if holding_text is not None and any(
+                    citation.quote not in holding_text for citation in citations
                 ):
                     raise LegalDomainExtractionError(
                         "authoritative citation is outside deciding court passage",
