@@ -43,7 +43,7 @@ cp .env.example .env
 | `JEV_STATE_CHAR_BUDGET` | no | `8000` | Max message text sent to Jev |
 | `RESEARCH_JEV_ENABLED` | no | `false` | Jev research control layer. Also requires `TYPESAFE_API_KEY` |
 | `RESEARCH_JEV_MODE` | no | `shadow` | `shadow` compares Jev to the current LLM; `active` may skip assessor/completeness LLM |
-| `RESEARCH_JEV_MODEL` | no | `jev-1.12` | System One model for research control only |
+| `RESEARCH_JEV_MODEL` | no | `JEV_MODEL` | Optional System One model override for research control |
 | `RESEARCH_JEV_SUFFICIENT_THRESHOLD` | no | `0.9` | High bar before Jev may treat state as sufficient/complete |
 | `RESEARCH_JEV_INCOMPLETE_THRESHOLD` | no | `0.85` | High bar for a confident insufficient/incomplete decision |
 | `RESEARCH_JEV_CONFIDENCE_THRESHOLD` | no | `0.8` | Minimum Noul confidence before a directional Jev decision |

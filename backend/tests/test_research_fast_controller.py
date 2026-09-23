@@ -600,3 +600,101 @@ async def test_structured_assessment_event_has_kibana_fields(jev_settings, caplo
 
 def test_summary_event_name_is_stable():
     assert EVENT_RESEARCH_EXECUTION_SUMMARY == "research.execution.summary"
+
+
+def test_research_model_uses_configured_jev_model_unless_overridden(monkeypatch):
+    from app.services.research.fast_controller import research_jev_model
+    monkeypatch.setattr(settings, "jev_model", "configured-model")
+    monkeypatch.setattr(settings, "research_jev_model", "")
+    assert research_jev_model() == "configured-model"
+    monkeypatch.setattr(settings, "research_jev_model", "explicit-research-model")
+    assert research_jev_model() == "explicit-research-model"
+
+
+def test_compact_state_keeps_relevance_order_when_clipping():
+    from dataclasses import replace
+    relevant = replace(_evidence(), evidence_id="z-relevant")
+    irrelevant = replace(_evidence(), evidence_id="a-irrelevant")
+    state = compact_research_state(
+        objective="skatt", plan=_plan(), evidence=[relevant, irrelevant],
+        max_evidence_items=1, max_state_chars=4000,
+    )
+    assert [row["evidence_id"] for row in state.payload["evidence"]] == ["z-relevant"]
+    assert state.clipped_evidence_count == 1
+
+
+@pytest.mark.asyncio
+async def test_evidence_screen_reuses_only_identical_state_and_model(jev_settings, monkeypatch):
+    from dataclasses import replace
+
+    settings.research_jev_evidence_screen_enabled = True
+    client = ScriptedJev(_sufficient_nouls())
+    cache = {}
+    item = _evidence()
+    async def score(objective, evidence):
+        return await screen_evidence(objective=objective, evidence=[evidence],
+                                     client=client, cache=cache)
+    first = await score("question", item)
+    assert await score("question", item) == first
+    assert len(client.states) == 1
+    await score("changed question", item)
+    await score("question", replace(item, excerpt="changed evidence"))
+    monkeypatch.setattr(settings, "research_jev_model", "different-model")
+    await score("question", item)
+    assert len(client.states) == 4
+
+
+@pytest.mark.asyncio
+async def test_gate_reuses_screening_across_assessments(jev_settings):
+    settings.research_jev_evidence_screen_enabled = True
+    client = ScriptedJev(_uncertain_nouls())
+    inner = RecordingAssessor(_llm_draft())
+    gate = GatedResearchAssessor(inner, ResearchFastController(client))
+    await gate.assess(_plan(), [_evidence()])
+    await gate.assess(_plan(), [_evidence()])
+    screening_calls = [keys for keys in client.question_sets if "relevant_to_question" in keys]
+    assert len(screening_calls) == 1
+    assert inner.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_clipped_evidence_cannot_skip_assessment(jev_settings):
+    from dataclasses import replace
+
+    settings.research_jev_mode = "active"
+    settings.research_jev_max_evidence_items = 1
+    client = ScriptedJev(_sufficient_nouls())
+    controller = ResearchFastController(client)
+    evidence = [_evidence(), replace(_evidence(), evidence_id="omitted")]
+    decision = await controller.assess_state(plan=_plan(), evidence=evidence)
+    assert not decision.would_short_circuit
+    assert decision.fallback_reason == "input_truncated"
+    inner = RecordingAssessor(_llm_draft())
+    await GatedResearchAssessor(inner, controller).assess(_plan(), evidence)
+    assert inner.calls == 1
+
+
+def test_compaction_removes_repeated_context_before_evidence():
+    from dataclasses import replace
+
+    plan = _plan()
+    plan = ResearchPlan(needs=[replace(n, why_needed="long context " * 1000) for n in plan.needs])
+    state = compact_research_state(
+        objective="long objective " * 1000, plan=plan, evidence=[_evidence()],
+        max_evidence_items=24, max_state_chars=2000,
+    )
+    assert state.input_chars <= 2000
+    assert len(state.payload["evidence"]) == 1
+    assert state.input_truncated
+
+
+@pytest.mark.asyncio
+async def test_oversized_need_metadata_is_not_sent_to_jev(jev_settings):
+    from dataclasses import replace
+
+    plan = ResearchPlan(needs=[replace(n, question="question " * 1000) for n in _plan().needs])
+    client = ScriptedJev(_sufficient_nouls())
+    decision = await ResearchFastController(client).assess_state(plan=plan, evidence=[_evidence()])
+    assert decision.error_category == "invalid_request"
+    assert not decision.would_short_circuit
+    assert client.states == []
