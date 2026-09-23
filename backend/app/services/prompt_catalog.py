@@ -3705,6 +3705,37 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Question:\n{question}\n\nResolved document:\n{document_json}",
     ),
     _f(
+        "research.lagen_nu.select.triage", "research",
+        "Research — urval före fulltext", "Research — pre-full-text triage",
+        "Skilj möjlig relevans från verifierat stöd.",
+        "Distinguish potential relevance from verified support.",
+        (
+            "Detta steg väljer fulltexter att läsa, inte evidens att godkänna. Utdragen är "
+            "ofullständiga sökträffar och kan återge en part eller en lägre instans. Påstå "
+            "inte att högsta instansen har tillämpat en regel, att den var avgörande, eller "
+            "vilka faktorer domstolen vägde tyngst utan att det uttryckligen framgår. "
+            "Behåll en källa med möjlig materiell relevans och förenlig domstol som "
+            "keep=true, role=potentially_relevant när fulltext krävs för att avgöra frågan. "
+            "Skriv i why vad utdraget faktiskt visar och vad som behöver verifieras. "
+            "Frånvaro av detaljer i ett kort utdrag är inte belägg för peripheral. Släpp "
+            "belagda fel i domstol, ämne eller lagrum samt uttryckligen uteslutna källor. "
+            "Ett titelcitat är inte named_citation om frågan inte efterfrågar just det fallet. "
+            "Urvalets keep=true innebär aldrig att källan besvarar ResearchNeed."
+        ),
+        (
+            "This step selects full texts to inspect, not evidence to approve. Search snippets "
+            "are incomplete and may quote a party or lower court. Do not assert that the final "
+            "court applied a rule, that it was decisive, or which factors it prioritized unless "
+            "the snippet explicitly establishes that. Keep a source with plausible substantive "
+            "relevance and a compatible court as keep=true, role=potentially_relevant when "
+            "full text is needed to decide. In why state what is visible and what needs checking. "
+            "Missing detail in a short snippet is not evidence of a peripheral mention. Drop "
+            "demonstrable wrong courts, subjects, provisions and explicitly excluded sources. "
+            "A case identifier in a title is not named_citation unless the question requests "
+            "that particular case. keep=true never establishes that the need is answered."
+        ),
+    ),
+    _f(
         "research.lagen_nu.select.system",
         "research",
         "Research — lagen.nu träffurval",
