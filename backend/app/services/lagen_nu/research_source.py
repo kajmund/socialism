@@ -57,7 +57,11 @@ from app.services.lagen_nu.selection import (
     resolve_passage_selector,
 )
 from app.services.lagen_nu.uris import compose_canonical_uri
-from app.services.legal_research_result import LegalResearchResult, LegalSourceIdentity
+from app.services.legal_research_result import (
+    LEGAL_RESULT_SCHEMA_VERSION,
+    LegalResearchResult,
+    LegalSourceIdentity,
+)
 from app.services.research.evidence_identity import canonical_source_identity
 from app.services.research.failures import FailureCategory
 from app.services.research.knowledge_question import research_question_key
@@ -659,7 +663,7 @@ class LagenNuResearchSource:
                     EvidenceSource.provider == self.provider_id,
                     EvidenceSource.canonical_identity == source_identity,
                     RawSource.content_hash == raw_hash,
-                    DomainResearchResultRecord.schema_version == 4,
+                    DomainResearchResultRecord.schema_version == LEGAL_RESULT_SCHEMA_VERSION,
                     ResearchRuntimeNeed.question_key == research_question_key(need.question),
                 )
                 .order_by(DomainResearchResultRecord.created_at.desc())

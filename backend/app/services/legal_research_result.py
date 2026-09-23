@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
+LEGAL_RESULT_SCHEMA_VERSION = 5
+
 
 class CitationGroundingError(ValueError):
     """A citation does not refer to an exact span in the fetched source."""
@@ -106,7 +108,25 @@ class CaseLawAnalysis(BaseModel):
     authoritative_holding: CourtStatement | None = None
 
 
+PreparatoryTextRole = Literal[
+    "government_special_commentary", "government_general_reasoning", "consultation_response",
+    "inquiry_proposal", "committee_statement", "proposed_statutory_text", "contents", "unknown",
+]
+
+
+class PreparatoryAttribution(BaseModel):
+    speaker: str
+    text_role: PreparatoryTextRole
+    requested_text_role: Literal[
+        "any", "government_special_commentary", "government_general_reasoning",
+        "consultation_response", "inquiry_proposal", "committee_statement",
+        "proposed_statutory_text", "contents", "unknown",
+    ]
+    role_citations: list[LegalCitation] = Field(min_length=1, description="Cite the actual heading or speaker introduction establishing the text role, not the user's question. Use unknown when the supplied passage cannot establish it.")
+
+
 class PreparatoryWorkAnalysis(BaseModel):
+    attribution: PreparatoryAttribution | None = None
     legislative_intent: str
     proposal_or_commentary: str
     interpretation_guidance: list[str] = Field(default_factory=list)
@@ -159,6 +179,8 @@ class LegalResearchResult(BaseModel):
         if not selected.citations:
             raise ValueError("legal analysis requires a verified citation")
         citations = list(selected.citations)
+        if self.preparatory_work and self.preparatory_work.attribution:
+            citations.extend(self.preparatory_work.attribution.role_citations)
         if self.case_law is not None:
             statements = list(self.case_law.other_statements)
             if self.case_law.authoritative_holding is not None:
@@ -212,6 +234,13 @@ def legal_result_summary(result: LegalResearchResult) -> list[str]:
             )
         )
         analysis = result.preparatory_work
+        if analysis.attribution:
+            attribution = analysis.attribution
+            lines.extend((
+                f"Source speaker: {attribution.speaker}",
+                f"Source text role: {attribution.text_role}",
+                f"Requested text role: {attribution.requested_text_role}",
+            ))
         lines.extend(
             f"Interpretation guidance: {value}" for value in analysis.interpretation_guidance
         )

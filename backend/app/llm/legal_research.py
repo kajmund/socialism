@@ -5,16 +5,19 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ValidationError, create_model, model_validator
+from pydantic import BaseModel, Field, ValidationError, create_model, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.session import SessionLocal
 from app.llm import complete_structured_retry, invoke_structured_completer
 from app.services.legal_research_result import (
     CaseLawAnalysis,
+    LegalCitation,
     LegalQuestionRelation,
     LegalResearchResult,
     LegalSourceIdentity,
+    PreparatoryAttribution,
+    PreparatoryTextRole,
     PreparatoryWorkAnalysis,
     StatuteAnalysis,
 )
@@ -49,7 +52,32 @@ class LegalInterpretation(BaseModel):
             != 1
         ):
             raise ValueError("exactly one analysis is required")
+        if self.preparatory_work is not None:
+            attribution = self.preparatory_work.attribution
+            if attribution is None:
+                raise ValueError("preparatory analysis requires source attribution")
+            if self.relation.relation == "supports" and (
+                attribution.text_role in {"unknown", "contents"}
+                or attribution.requested_text_role not in {"any", attribution.text_role}
+            ):
+                restriction = (
+                    f"Source text role '{attribution.text_role}' does not establish the requested "
+                    f"role '{attribution.requested_text_role}'. The model's proposed direct support "
+                    "was restricted to contextual evidence by the source attribution check."
+                )
+                self.relation = self.relation.model_copy(update={
+                    "relation": "contextual", "confidence": "low", "explanation": restriction,
+                    "unresolved_questions": [*self.relation.unresolved_questions,
+                        f"Retrieve evidence establishing requested text role: {attribution.requested_text_role}"],
+                })
+                self.preparatory_work.limitations.append(restriction)
         return self
+
+
+class PreparatorySourceRole(BaseModel):
+    speaker: str
+    text_role: PreparatoryTextRole
+    role_span_ids: list[str] = Field(min_length=1, max_length=3)
 
 
 class DecidingCourtPassage(BaseModel):
@@ -79,6 +107,38 @@ class LlmLegalInterpreter:
     ) -> None:
         self._completer = completer or complete_structured_retry
         self._session_factory = session_factory or SessionLocal
+
+    async def _preparatory_source_role(
+        self, *, prompts: dict[str, str], spans: dict[str, str], source: LegalSourceIdentity,
+    ) -> PreparatoryAttribution:
+        # Classify source context without the research question to avoid priming.
+        visible: dict[str, str] = {}
+        used = 0
+        for key, paragraph in spans.items():
+            if used + len(paragraph) > 16000:
+                break
+            visible[key] = paragraph
+            used += len(paragraph)
+        if not visible:
+            raise LegalDomainExtractionError("No bounded source context available for attribution")
+        message = render_prompt(
+            prompts, "research.lagen_nu.domain.v3.preparatory_role",
+            source_text="\n\n".join(f"[{key}]\n{text}" for key, text in visible.items()),
+        )
+        try:
+            response = await invoke_structured_completer(
+                self._completer, [{"role": "user", "content": message}], PreparatorySourceRole,
+                prompt_key="research.lagen_nu.domain.v3.preparatory_role",
+            )
+            role = PreparatorySourceRole.model_validate(response)
+            if any(key not in visible for key in role.role_span_ids):
+                raise ValueError("attribution cites an unavailable source span")
+            return PreparatoryAttribution(
+                speaker=role.speaker, text_role=role.text_role, requested_text_role="unknown",
+                role_citations=[LegalCitation(source_uri=source.canonical_uri, quote=visible[key], source_span_id=key) for key in role.role_span_ids],
+            )
+        except Exception as exc:
+            raise LegalDomainExtractionError(f"Source attribution failed: {exc}") from exc
 
     async def interpret(
         self,
@@ -166,6 +226,16 @@ class LlmLegalInterpreter:
                 ),
             },
         ]
+        if source.kind == "preparatory_work":
+            messages[0]["content"] += "\n\n" + render_prompt(
+                prompts, "research.lagen_nu.domain.v3.preparatory_attribution"
+            )
+        source_attribution = None
+        if source.kind == "preparatory_work":
+            source_attribution = await self._preparatory_source_role(
+                prompts=prompts, spans=spans, source=source,
+            )
+            messages[1]["content"] += "\n\nSource attribution (independently classified):\n" + source_attribution.model_dump_json(exclude={"requested_text_role"})
         analysis_type = {
             "case_law": CaseLawAnalysis,
             "preparatory_work": PreparatoryWorkAnalysis,
@@ -185,12 +255,21 @@ class LlmLegalInterpreter:
                     interpretation_schema,
                     prompt_key="research.lagen_nu.domain.v3.system",
                 )
-                parsed = LegalInterpretation.model_validate(
-                    response.model_dump() if isinstance(response, BaseModel) else response
-                )
+                payload = response.model_dump() if isinstance(response, BaseModel) else response
+                if source_attribution is not None and isinstance(payload, dict):
+                    analysis_payload = payload.get("preparatory_work")
+                    if isinstance(analysis_payload, dict):
+                        proposed = analysis_payload.get("attribution") or {}
+                        analysis_payload["attribution"] = {
+                            **source_attribution.model_dump(),
+                            "requested_text_role": proposed.get("requested_text_role", "unknown"),
+                        }
+                parsed = LegalInterpretation.model_validate(payload)
                 analysis = parsed.case_law or parsed.preparatory_work or parsed.statute
                 assert analysis is not None
                 citations = list(analysis.citations)
+                if parsed.preparatory_work and parsed.preparatory_work.attribution:
+                    citations.extend(parsed.preparatory_work.attribution.role_citations)
                 if parsed.case_law:
                     statements = list(parsed.case_law.other_statements)
                     if parsed.case_law.authoritative_holding:

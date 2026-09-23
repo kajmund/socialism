@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database.models import DomainResearchResultRecord
-from app.services.legal_research_result import LegalResearchResult
+from app.services.legal_research_result import LEGAL_RESULT_SCHEMA_VERSION, LegalResearchResult
 from app.services.research.evidence_identity import (
     evidence_passage_id,
     evidence_source_id,
@@ -287,7 +287,6 @@ async def lookup_reusable_evidence(
                 scope=scope,
             ):
                 continue
-            seen_refs.add(link.evidence_ref)
             freshness = classify_freshness(
                 observed_at=link.observed_at,
                 retrieved_at=link.retrieved_at,
@@ -299,6 +298,9 @@ async def lookup_reusable_evidence(
             domain_id = link.provenance.get("domain_result_id")
             if isinstance(domain_id, str):
                 domain_record = await session.get(DomainResearchResultRecord, domain_id)
+            if domain_record is not None and domain_record.domain == "legal" and domain_record.schema_version != LEGAL_RESULT_SCHEMA_VERSION:
+                continue
+            seen_refs.add(link.evidence_ref)
             legal_result = (
                 LegalResearchResult.model_validate(
                     {
