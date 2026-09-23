@@ -96,6 +96,7 @@ async def screen_evidence(
     objective: str,
     evidence: Sequence[AssessableEvidence],
     client: JevSystemOne | None = None,
+    cache: dict[tuple[str, str], EvidenceJevScores] | None = None,
 ) -> list[EvidenceJevScores]:
     """Score items concurrently. Failures are omitted; evidence is unchanged."""
     if not research_jev_available() or not settings.research_jev_evidence_screen_enabled:
@@ -104,7 +105,7 @@ async def screen_evidence(
     slots = asyncio.Semaphore(settings.research_jev_concurrency)
     tasks = [
         asyncio.create_task(
-            _score_one(system, objective=objective, item=item, slots=slots)
+            _score_one(system, objective=objective, item=item, slots=slots, cache=cache)
         )
         for item in evidence
     ]
@@ -155,18 +156,23 @@ async def _score_one(
     objective: str,
     item: AssessableEvidence,
     slots: asyncio.Semaphore,
+    cache: dict[tuple[str, str], EvidenceJevScores] | None = None,
 ) -> EvidenceJevScores | None:
-    payload, input_chars, _digest = compact_evidence_item_state(
+    payload, input_chars, digest = compact_evidence_item_state(
         objective=objective,
         item=item,
         max_state_chars=settings.research_jev_max_state_chars,
     )
+    model = research_jev_model()
+    cache_key = (model, digest)
+    if cache is not None and cache_key in cache:
+        return cache[cache_key]
     async with slots:
         try:
             result = await client.ask(
                 state=payload,
                 questions=EVIDENCE_SCREEN_QUESTIONS,
-                model=research_jev_model(),
+                model=model,
                 timeout_seconds=settings.research_jev_timeout_seconds,
             )
         except Exception:  # noqa: BLE001 - shadow scores must not fail research
@@ -194,6 +200,10 @@ async def _score_one(
         )
     except Exception:  # noqa: BLE001 - omit one bad score, keep the item
         return None
+    if cache is not None:
+        cache[cache_key] = scores
+        while len(cache) > 256:
+            del cache[next(iter(cache))]
     record_jev_call(scores.latency_ms)
     emit_jev_evidence_scored(
         mode=research_jev_mode(),
