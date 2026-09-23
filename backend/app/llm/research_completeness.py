@@ -24,10 +24,12 @@ from app.services.research.completeness import (
     MaterialMissingQuestion,
     ResearchCompletenessDraft,
     ResearchCompletenessError,
+    ResearchCompletenessReviewer,
     can_review_programmatically,
     programmatic_completeness,
     sanitize_completeness_draft,
 )
+from app.services.research.fast_gate import wrap_completeness_reviewer
 from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.models import ResearchPlan
 from app.services.research.planner import ResearchObjective
@@ -314,17 +316,19 @@ async def build_llm_research_completeness_reviewer(
     *,
     customer_id: int,
     module: str,
-) -> LlmResearchCompletenessReviewer:
+) -> ResearchCompletenessReviewer:
     prompts = await require_active_prompts(
         session,
         customer_id=customer_id,
         module=module,
         language="sv",
     )
-    return LlmResearchCompletenessReviewer(
-        system_prompt=render_prompt(prompts, "research.completeness.system"),
-        user_prompt=prompts["research.completeness.user"],
-        provider=settings.llm_provider,
-        model=settings.selected_llm_model,
-        source_types=production_registered_source_types(),
+    return wrap_completeness_reviewer(
+        LlmResearchCompletenessReviewer(
+            system_prompt=render_prompt(prompts, "research.completeness.system"),
+            user_prompt=prompts["research.completeness.user"],
+            provider=settings.llm_provider,
+            model=settings.selected_llm_model,
+            source_types=production_registered_source_types(),
+        )
     )
