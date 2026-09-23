@@ -151,6 +151,16 @@ def _evidence_row(item: AssessableEvidence) -> dict[str, Any]:
             "unresolved_questions": [review_excerpt(value, max_chars=160) for value in result.relation.unresolved_questions[:3]],
             "source_truncated": result.truncated,
         }
+        if result.case_law:
+            holding = result.case_law.authoritative_holding
+            context["court_holding"] = {
+                "status": result.case_law.holding_status,
+                "court_level": holding.court_level if holding else None,
+                "text_role": holding.text_role if holding else None,
+                "decision_basis": holding.decision_basis if holding else None,
+                "adjustment_granted": holding.adjustment_granted if holding else None,
+                "outcome": review_excerpt(holding.outcome, max_chars=200) if holding else None,
+            }
         if result.preparatory_work and result.preparatory_work.attribution:
             attribution = result.preparatory_work.attribution
             context.update(
