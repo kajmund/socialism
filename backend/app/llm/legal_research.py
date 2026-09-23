@@ -246,6 +246,15 @@ class LlmLegalInterpreter:
             **{source.kind: (analysis_type, ...)},
             relation=(LegalQuestionRelation, ...),
         )
+        if source.kind == "case_law":
+            interpretation_schema = CaseLawAnalysis
+            messages = [
+                {"role": "system", "content": render_prompt(
+                    prompts, "research.lagen_nu.case_facts.system")},
+                {"role": "user", "content": render_prompt(
+                    prompts, "research.lagen_nu.case_facts.user",
+                    source_uri=source.canonical_uri, court_text=marked_source)},
+            ]
         for attempt in range(3):
             parsed = None
             try:
@@ -253,9 +262,15 @@ class LlmLegalInterpreter:
                     self._completer,
                     messages,
                     interpretation_schema,
-                    prompt_key="research.lagen_nu.domain.v3.system",
+                    prompt_key=("research.lagen_nu.case_facts.system" if source.kind == "case_law"
+                                else "research.lagen_nu.domain.v3.system"),
                 )
                 payload = response.model_dump() if isinstance(response, BaseModel) else response
+                if source.kind == "case_law":
+                    payload = {"case_law": payload, "relation": {
+                        "relation": "unclear", "confidence": "low",
+                        "explanation": "Question relevance has not yet been assessed.",
+                    }}
                 if source_attribution is not None and isinstance(payload, dict):
                     analysis_payload = payload.get("preparatory_work")
                     if isinstance(analysis_payload, dict):
@@ -292,7 +307,7 @@ class LlmLegalInterpreter:
                         "authoritative citation is outside deciding court passage",
                         category="citation_grounding_failed",
                     )
-                return LegalResearchResult(
+                result = LegalResearchResult(
                     source=source,
                     relation=parsed.relation,
                     case_law=parsed.case_law,
@@ -301,6 +316,7 @@ class LlmLegalInterpreter:
                     raw_text=raw_text,
                     truncated=truncated,
                 )
+                break
             except (ValidationError, LegalDomainExtractionError) as exc:
                 if isinstance(exc, LegalDomainExtractionError):
                     if exc.category != "citation_grounding_failed":
@@ -319,7 +335,10 @@ class LlmLegalInterpreter:
                 if attempt == 2:
                     raise LegalDomainExtractionError(detail, category=category) from exc
                 if parsed is not None:
-                    messages.append({"role": "assistant", "content": parsed.model_dump_json()})
+                    messages.append({"role": "assistant", "content": (
+                        parsed.case_law.model_dump_json() if source.kind == "case_law" and parsed.case_law
+                        else parsed.model_dump_json()
+                    )})
                 messages.append(
                     {
                         "role": "user",
@@ -332,4 +351,24 @@ class LlmLegalInterpreter:
                 )
             except Exception as exc:
                 raise LegalDomainExtractionError(f"{type(exc).__name__}: {exc}") from exc
-        raise AssertionError("unreachable")
+        if source.kind == "case_law":
+            assert result.case_law is not None
+            try:
+                relation = await invoke_structured_completer(
+                    self._completer,
+                    [
+                        {"role": "system", "content": render_prompt(
+                            prompts, "research.lagen_nu.case_relation.system")},
+                        {"role": "user", "content": render_prompt(
+                            prompts, "research.lagen_nu.case_relation.user", question=question,
+                            analysis_json=result.case_law.model_dump_json())},
+                    ],
+                    LegalQuestionRelation,
+                    prompt_key="research.lagen_nu.case_relation.system",
+                )
+                result = result.model_copy(update={
+                    "relation": LegalQuestionRelation.model_validate(relation)
+                })
+            except Exception as exc:
+                raise LegalDomainExtractionError(f"Case relevance assessment failed: {exc}") from exc
+        return result

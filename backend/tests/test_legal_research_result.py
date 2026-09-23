@@ -321,6 +321,10 @@ async def test_case_interpretation_scopes_to_model_selected_deciding_court(
                 "reasoning_end": "s170",
                 "explanation": "HD:s egna skäl och domslut efter betänkandet.",
             }
+        if schema.__name__ == "LegalQuestionRelation":
+            assert "Har jämkning beviljats?" in messages[1]["content"]
+            return {**nja_result().relation.model_dump(), "case_law": {"authoritative_holding": None}}
+        assert "Har jämkning beviljats?" not in str(messages)
         assert "[s150]" in messages[1]["content"]
         assert messages[1]["content"].count("[s150]") == 1
         assert messages[1]["content"].count("[s27]") == 0
@@ -328,7 +332,7 @@ async def test_case_interpretation_scopes_to_model_selected_deciding_court(
         result.case_law.other_statements = []
         if outside_holding:
             result.case_law.authoritative_holding.citations[0].quote = PARTY_QUOTE
-        return {"relation": result.relation.model_dump(), "case_law": result.case_law.model_dump()}
+        return result.case_law.model_dump()
 
     monkeypatch.setattr("app.llm.legal_research.require_active_prompts", prompts)
     interpretation = LlmLegalInterpreter(completer=complete, session_factory=Session).interpret(
@@ -341,7 +345,8 @@ async def test_case_interpretation_scopes_to_model_selected_deciding_court(
     if outside_holding:
         with pytest.raises(LegalDomainExtractionError, match="outside deciding court passage"):
             await interpretation
+        assert "LegalQuestionRelation" not in calls
         return
     result = await interpretation
-    assert calls == ["DecidingCourtPassageSelection", "LegalInterpretation"]
+    assert calls == ["DecidingCourtPassageSelection", "CaseLawAnalysis", "LegalQuestionRelation"]
     assert result.case_law.adjustment_granted is False

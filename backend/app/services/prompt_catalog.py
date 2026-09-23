@@ -3412,6 +3412,70 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "research.lagen_nu.case_facts.system", "research",
+        "Rättsfall — källans faktiska utfall", "Case law — source holding",
+        "Läs majoritetens beslut utan researchfråga.", "Read the majority without a research question.",
+        "Extrahera avgörandets faktiska rättsfråga, majoritetsskäl och domslut ur det givna "
+        "källavsnittet. Ingen researchfråga finns i detta steg. Redovisa authoritative_holding "
+        "när domstolens beslut framgår, oavsett vilka rättsregler domstolen använde. "
+        "Skilj lagtolkning och andra rättsliga grunder (other) från tolkning av avtalsvillkor "
+        "(contract_interpretation) och jämkning (statutory_adjustment). Använd exakt källcitat "
+        "eller angivna source_span_id. En rubrik, domarlista eller ett fastställt domslut "
+        "styrker inte på egen hand den rättsliga grunden. Citera materiella skäl för grunden "
+        "och relevanta skäl eller domslut för utfallet. Återge belopp, jämförelser och "
+        "negationer exakt: 'överstiger inte' får aldrig bli 'överstiger', och 'jämkas till' "
+        "är inte 'minskas med'. Ta bara med faktorer som domstolen faktiskt väger in. "
+        "Hitta inte på uppgifter eller citat.",
+        "Extract the case's actual issue, majority reasons and operative order from the "
+        "provided source passage. No research question is present in this stage. Establish "
+        "authoritative_holding whenever the decision is clear, regardless of which law was "
+        "applied. Statutory interpretation and other legal grounds are other; construing a "
+        "contractual term is contract_interpretation; modifying one under an adjustment "
+        "power is statutory_adjustment. Use exact quotes or supplied source_span_id. A heading, "
+        "list of judges or affirmed order alone does not establish the legal basis. Cite "
+        "substantive reasons for the basis and reasons or the order for the outcome. Preserve "
+        "amounts, comparisons and negations exactly: does not exceed must not become exceeds; "
+        "reduced to is not reduced by. Include only factors actually weighed by the court. "
+        "Do not invent facts.",
+    ),
+    _f(
+        "research.lagen_nu.case_facts.user", "research",
+        "Rättsfall — avgränsad källa", "Case law — bounded source",
+        "Platshållare: {source_uri} {court_text}.", "Placeholders: {source_uri} {court_text}.",
+        "Käll-URI: {source_uri}\n\n{court_text}",
+        "Source URI: {source_uri}\n\n{court_text}",
+    ),
+    _f(
+        "research.lagen_nu.case_relation.system", "research",
+        "Rättsfall — relation till frågan", "Case law — question relevance",
+        "Bedöm relevans efter oberoende källanalys.", "Assess relevance after independent source analysis.",
+        "Bedöm endast hur den givna källanalysen förhåller sig till researchfrågan. "
+        "Analysen har gjorts utan frågan; ändra inte dess faktiska utfall eller rättsliga grund. "
+        "Att frågan kräver en viss regel betyder inte att domstolen använde den. Respektera "
+        "uttryckliga uteslutningar och krav på instans, grund och utfall. Använd supports "
+        "endast om källanalysen belägger det efterfrågade, annars redovisa relevans och luckor. "
+        "Bedöm denna källas bidrag, inte hela researchens fullständighet. Ett enda "
+        "avgörande som uppfyller kriterierna är supports även när frågan efterfrågar flera; "
+        "behov av fler avgöranden kan redovisas som olöst utan att stödet nedgraderas. "
+        "Du får inte skapa eller ändra domstolsanalysen.",
+        "Assess only the supplied source analysis's relation to the research question. "
+        "The analysis was produced without the question; do not change its actual holding "
+        "or legal basis. A question requiring a rule does not mean the court used it. Respect "
+        "explicit exclusions and requirements for court, basis and outcome. Use supports only "
+        "when the analysis establishes the requested facts; otherwise state relevance and "
+        "gaps. Assess this source's contribution, not completeness of the whole research. "
+        "One qualifying case is supports even when multiple cases are requested; further "
+        "cases may remain an unresolved need without downgrading this source's support. "
+        "Do not create or amend the court analysis.",
+    ),
+    _f(
+        "research.lagen_nu.case_relation.user", "research",
+        "Rättsfall — fråga och källanalys", "Case law — question and source analysis",
+        "Platshållare: {question} {analysis_json}.", "Placeholders: {question} {analysis_json}.",
+        "Fråga:\n{question}\n\nOberoende källanalys:\n{analysis_json}",
+        "Question:\n{question}\n\nIndependent source analysis:\n{analysis_json}",
+    ),
+    _f(
         "research.lagen_nu.domain.v3.court_analysis", "research",
         "Analysera avgörande majoritet", "Analyze deciding majority",
         "Platshållare: {court_text}.", "Placeholders: {court_text}.",
