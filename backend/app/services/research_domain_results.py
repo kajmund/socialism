@@ -91,6 +91,11 @@ def legal_claims(
             add("legal.applied_provision", provision)
     elif result.preparatory_work is not None:
         preparatory = result.preparatory_work
+        if preparatory.attribution:
+            attribution = preparatory.attribution
+            role_support = [citation.model_dump(mode="json") for citation in attribution.role_citations]
+            add("legal.source_speaker", attribution.speaker, support=role_support)
+            add("legal.source_text_role", attribution.text_role, support=role_support)
         add("legal.legislative_intent", preparatory.legislative_intent)
         for guidance in preparatory.interpretation_guidance:
             add("legal.interpretation_guidance", guidance)

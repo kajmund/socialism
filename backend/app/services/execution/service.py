@@ -64,6 +64,7 @@ from app.services.execution.snapshots import (
     require_json_object,
     snapshot_research_evidence,
 )
+from app.services.legal_research_result import LEGAL_RESULT_SCHEMA_VERSION
 from app.services.research.assessment import (
     ResearchAssessmentDraft,
     need_assessment_to_json,
@@ -430,7 +431,7 @@ async def add_evidence_items(
                             raw_source_id=raw_id,
                             research_need_id=snapshot.research_need_id or "",
                             domain="legal",
-                            schema_version=4,
+                            schema_version=LEGAL_RESULT_SCHEMA_VERSION,
                             result=legal.model_dump(mode="json", exclude={"raw_text"}),
                         )
                     )

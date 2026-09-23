@@ -769,3 +769,29 @@ async def test_failed_graph_write_does_not_fail_ready_attempt(db):
     assert result.status == "ready"
     assert source.calls == 1
     assert items[0].status == "found"
+
+
+@pytest.mark.parametrize("current", [False, True])
+async def test_question_reuse_requires_current_legal_interpretation_version(current):
+    from types import SimpleNamespace
+
+    from app.services.legal_research_result import LEGAL_RESULT_SCHEMA_VERSION
+    from app.services.research.question_reuse import lookup_reusable_evidence
+    from tests.test_legal_research_result import _result
+    from tests.test_research import _context
+
+    result = _result()
+    record = SimpleNamespace(domain="legal", schema_version=LEGAL_RESULT_SCHEMA_VERSION if current else LEGAL_RESULT_SCHEMA_VERSION - 1,
+                             result=result.model_dump(exclude={"raw_text"}), raw_source=SimpleNamespace(raw_text=result.raw_text))
+
+    class Session:
+        async def get(self, model, key):
+            return record
+
+    session = Session()
+    graph = InMemoryQuestionEvidenceGraph()
+    need = _need("n1", "swedish_law")
+    question = await graph.upsert_question(session, identity_from_text(need.question), tenant_question_scope(7))
+    await graph.upsert_answer(session, QuestionEvidenceLink(question_id=question.id, evidence_ref="e1", source_type="swedish_law", excerpt="fordran preskriberas", provenance={"domain_result_id": "d1"}))
+    reused = await lookup_reusable_evidence(session, graph=graph, need=need, context=_context())
+    assert bool(reused) == current
