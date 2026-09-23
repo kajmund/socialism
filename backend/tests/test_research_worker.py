@@ -35,6 +35,7 @@ from app.services.execution import (
 )
 from app.services.execution.errors import ExecutionStatusError
 from app.services.execution.service import attach_evidence_set, utc_now
+from app.services.research import claims as research_claims
 from app.services.research.assessment import ProgrammaticResearchAssessor
 from app.services.research.claims import (
     claim_research_lease,
@@ -99,6 +100,14 @@ async def worker_db(tmp_path):
     set_follow_up_planner_factory(None)
     set_completeness_reviewer_factory(None)
     await engine.dispose()
+
+
+@pytest.fixture
+def fast_lease_heartbeat(monkeypatch):
+    # Detect the deliberately expired lease promptly, without giving either
+    # worker a 300 ms deadline for database work on a busy CI runner.
+    monkeypatch.setattr(settings, "research_claim_lease_seconds", 0.3)
+    monkeypatch.setattr(research_claims, "lease_ttl", lambda: timedelta(seconds=60))
 
 
 async def _attempt(session: AsyncSession, slug: str) -> tuple[object, object, ExecutionAttempt]:
@@ -535,10 +544,9 @@ async def test_due_claim_loop_does_not_await_reclaimed_work_inline(worker_db):
 
 @pytest.mark.asyncio
 async def test_lease_loss_fences_old_worker_after_second_claimant(
-    worker_db, monkeypatch
+    worker_db, fast_lease_heartbeat
 ):
     session, factory = worker_db
-    monkeypatch.setattr(settings, "research_claim_lease_seconds", 0.3)
     _kund, _run, attempt = await _attempt(session, "fence-co")
     entered = asyncio.Event()
     gate = asyncio.Event()
@@ -752,9 +760,8 @@ async def test_worker_emits_progress_events_without_request_context(worker_db):
 
 
 @pytest.mark.asyncio
-async def test_lease_loss_does_not_emit_research_failed(worker_db, monkeypatch):
+async def test_lease_loss_does_not_emit_research_failed(worker_db, fast_lease_heartbeat):
     session, factory = worker_db
-    monkeypatch.setattr(settings, "research_claim_lease_seconds", 0.3)
     _kund, _run, attempt = await _attempt(session, "prog-fence")
     entered = asyncio.Event()
     gate = asyncio.Event()

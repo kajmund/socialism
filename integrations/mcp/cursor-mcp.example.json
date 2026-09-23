@@ -26,6 +26,22 @@
       "env": {
         "ARTIFACT_ROOT": "/absolute/path/to/socialism/backend/data/reports"
       }
+    },
+    "kibana": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--locked",
+        "--directory",
+        "/absolute/path/to/socialism/integrations/mcp",
+        "python",
+        "kibana_server.py"
+      ],
+      "env": {
+        "ELASTICSEARCH_URL": "https://your-elasticsearch-host:9200",
+        "ELASTICSEARCH_INDEX": "logs-socialism-*",
+        "ELASTICSEARCH_API_KEY": "your-encoded-read-only-api-key"
+      }
     }
   }
 }
