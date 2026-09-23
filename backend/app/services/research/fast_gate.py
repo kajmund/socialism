@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 
 from app.observability.research import (
     emit_jev_shadow_comparison,
@@ -35,6 +36,7 @@ from app.services.research.fast_controller import (
     ResearchFastController,
     ResearchFastDecision,
     research_jev_available,
+    research_jev_mode,
 )
 from app.services.research.fast_state import found_evidence_ids
 from app.services.research.followup import RuntimeResearchNeed
@@ -66,18 +68,13 @@ class GatedResearchAssessor:
     ) -> ResearchAssessmentDraft:
         if not research_jev_available() or can_assess_programmatically(plan, evidence):
             return await self._inner.assess(plan, evidence)
-        scores = await screen_evidence(
-            objective=screening_objective(objective=None, plan=plan),
-            evidence=evidence,
-            client=self._controller.client,
-            cache=self._evidence_scores,
-        )
-        ordered = order_evidence_for_state(evidence, scores) if scores else list(evidence)
-        decision = await self._controller.assess_state(
-            plan=plan,
-            evidence=ordered,
-            gate="assessment",
-        )
+        if research_jev_mode() == "shadow":
+            decision, draft, latency_ms = await _parallel_shadow(
+                self._assess_jev(plan, evidence), lambda: self._call_inner(plan, evidence)
+            )
+            _compare_assessment(decision, draft, llm_latency_ms=latency_ms)
+            return draft
+        decision = await self._assess_jev(plan, evidence)
         if decision.mode == "active" and decision.would_short_circuit:
             draft = _sufficient_draft(plan, evidence, decision)
             if draft is not None:
@@ -94,6 +91,22 @@ class GatedResearchAssessor:
         llm_latency_ms = (time.perf_counter() - started) * 1000
         _compare_assessment(decision, draft, llm_latency_ms=llm_latency_ms)
         return draft
+
+    async def _assess_jev(
+        self, plan: ResearchPlan, evidence: Sequence[AssessableEvidence],
+    ) -> ResearchFastDecision:
+        scores = await screen_evidence(
+            objective=screening_objective(objective=None, plan=plan),
+            evidence=evidence,
+            client=self._controller.client,
+            cache=self._evidence_scores,
+        )
+        ordered = order_evidence_for_state(evidence, scores) if scores else list(evidence)
+        return await self._controller.assess_state(
+            plan=plan,
+            evidence=ordered,
+            gate="assessment",
+        )
 
     async def _call_inner(
         self,
@@ -136,7 +149,7 @@ class GatedResearchCompletenessReviewer:
                 evidence=evidence,
                 available_source_types=available_source_types,
             )
-        decision = await self._controller.assess_state(
+        jev_call = self._controller.assess_state(
             plan=plan,
             evidence=evidence,
             objective=objective,
@@ -144,6 +157,18 @@ class GatedResearchCompletenessReviewer:
             known_contradictions=assessment.contradictions if assessment else None,
             gate="completeness",
         )
+        if research_jev_mode() == "shadow":
+            decision, draft, latency_ms = await _parallel_shadow(
+                jev_call,
+                lambda: self._call_inner(
+                    objective=objective, plan=plan, runtime_needs=runtime_needs,
+                    assessment=assessment, assessments=assessments, evidence=evidence,
+                    available_source_types=available_source_types,
+                ),
+            )
+            _compare_completeness(decision, draft, llm_latency_ms=latency_ms)
+            return draft
+        decision = await jev_call
         if decision.mode == "active" and decision.would_short_circuit:
             record_completeness_llm(skipped=True)
             record_follow_up_wave_avoided()
@@ -197,6 +222,29 @@ class GatedResearchCompletenessReviewer:
             evidence=evidence,
             available_source_types=available_source_types,
         )
+
+
+async def _timed_call[T](call: Callable[[], Awaitable[T]]) -> tuple[T, float]:
+    started = time.perf_counter()
+    result = await call()
+    return result, (time.perf_counter() - started) * 1000
+
+
+async def _parallel_shadow[T](
+    jev_call: Awaitable[ResearchFastDecision], inner_call: Callable[[], Awaitable[T]],
+) -> tuple[ResearchFastDecision, T, float]:
+    """Independent shadow evaluation must not serialize the authoritative review."""
+    jev_task = asyncio.ensure_future(jev_call)
+    inner_task = asyncio.create_task(_timed_call(inner_call))
+    try:
+        decision, (draft, latency_ms) = await asyncio.gather(jev_task, inner_task)
+        return decision, draft, latency_ms
+    finally:
+        # A failed/cancelled review must not leave billable network calls running.
+        for task in (jev_task, inner_task):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(jev_task, inner_task, return_exceptions=True)
 
 
 def wrap_research_assessor(inner: ResearchAssessor) -> ResearchAssessor:
