@@ -48,7 +48,8 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 def test_researchplan_migrations_are_linear_after_word_head():
     script = ScriptDirectory.from_config(Config(str(_BACKEND_ROOT / "alembic.ini")))
-    assert script.get_heads() == ["113_llm_selection_mode"]
+    assert script.get_heads() == ["114_legal_question_validation"]
+    assert script.get_revision("114_legal_question_validation").down_revision == "113_llm_selection_mode"
     assert script.get_revision("113_llm_selection_mode").down_revision == "112_llm_configurations"
     assert script.get_revision("107_persona_avatars").down_revision == "106_mem0_postgres_storage"
     assert script.get_revision("106_mem0_postgres_storage").down_revision == "105_enable_postgres_rls"

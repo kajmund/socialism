@@ -53,6 +53,11 @@ class ResearchNeedDraft:
     why_needed: str
     source_types: list[ResearchSourceType] = field(default_factory=list)
     proposed_id: str = ""
+    generated_from: str = ""
+    original_need_id: str = ""
+    original_question: str = ""
+    normalization_reason: str = ""
+    already_normalized: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "source_types", list(self.source_types))
@@ -203,6 +208,11 @@ def plan_from_planner_drafts(
                 question=question,
                 why_needed=why_needed,
                 source_types=source_types,  # type: ignore[arg-type]
+                generated_from=draft.generated_from,
+                original_need_id=draft.original_need_id,
+                original_question=draft.original_question,
+                normalization_reason=draft.normalization_reason,
+                already_normalized=draft.already_normalized,
             )
         )
     return validate_research_plan(ResearchPlan(needs=needs))

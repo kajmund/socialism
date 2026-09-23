@@ -18,6 +18,7 @@ STAGES = (
     "claim_coverage",
     "assessment_completeness",
     "expert_context",
+    "legal_question_coherence",
 )
 
 
@@ -156,6 +157,24 @@ def evaluate_case(golden: dict[str, Any], artifacts: dict[str, Any]) -> dict[str
         if marker not in expert_text
     ]
     record("expert_context", expert_errors)
+
+    blocked = {
+        str(question)
+        for question in golden.get("blocked_retrieval_questions", [])
+        if str(question).strip()
+    }
+    retrieved = {
+        str(question)
+        for question in artifacts.get("retrieval_questions", [])
+        if str(question).strip()
+    }
+    record(
+        "legal_question_coherence",
+        [
+            f"incoherent question sent to retrieval: {question}"
+            for question in sorted(blocked & retrieved)
+        ],
+    )
     return report
 
 

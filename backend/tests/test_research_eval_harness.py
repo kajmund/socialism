@@ -51,6 +51,12 @@ def test_golden_36_avtl_passes_all_stages():
         ("claim_coverage", lambda a: a["claims"].pop(0)),
         ("assessment_completeness", lambda a: a["assessment"].update(completeness="incomplete")),
         ("expert_context", lambda a: a["expert_context"]["claim_ids"].remove("negative")),
+        (
+            "legal_question_coherence",
+            lambda a: a["retrieval_questions"].append(
+                "Vilka avgöranden från Marknadsdomstolen eller Konsumentombudsmannen finns där avtalsvillkor i konsumentförhållanden har lämnats utan avseende eller jämkats med stöd av 36 § avtalslagen?"
+            ),
+        ),
     ],
 )
 def test_reports_regression_at_its_stage(stage, mutate):

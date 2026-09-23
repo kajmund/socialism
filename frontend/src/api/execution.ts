@@ -66,6 +66,11 @@ export type RuntimeResearchNeed = {
   source_completeness_pass?: number | null
   source_gap: string
   question_key: string
+  generated_from_need_id?: string | null
+  original_need_id?: string | null
+  original_question?: string | null
+  normalization_reason?: string | null
+  already_normalized?: boolean
 }
 
 export type MissingQuestion = {
