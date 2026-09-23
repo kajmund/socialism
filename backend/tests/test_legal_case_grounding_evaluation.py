@@ -77,3 +77,9 @@ async def test_extraction_failure_is_recorded_and_does_not_skip_remaining_case(
     assert len(payload["cases"]) == 2
     assert all(row["category"] == "citation_grounding_failed" for row in payload["cases"])
     assert all(row["passed"] is False for row in payload["cases"])
+
+
+def test_statutory_good_faith_is_not_contract_interpretation():
+    raw, result = fixture("2010s467")
+    result.case_law.authoritative_holding.decision_basis = "contract_interpretation"
+    assert not check_result("2010s467", raw, result)["decision_basis"]

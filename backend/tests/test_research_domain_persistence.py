@@ -48,6 +48,7 @@ async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses
         FakeLagenNuClient,
         FakeLegalInterpreter,
         PassthroughLagenNuSelector,
+        TargetCaseCitationPlanner,
         _document,
         _hit,
     )
@@ -102,6 +103,7 @@ async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses
                 source_type="swedish_case_law",
                 client=client,
                 selector=PassthroughLagenNuSelector(),
+                case_citation_planner=TargetCaseCitationPlanner(),
                 interpreter=interpreter,
                 reuse_session=session,
             )

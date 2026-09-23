@@ -3412,6 +3412,34 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "research.lagen_nu.domain.v3.court_analysis", "research",
+        "Analysera avgörande majoritet", "Analyze deciding majority",
+        "Platshållare: {court_text}.", "Placeholders: {court_text}.",
+        "Nedan finns endast den avgörande domstolens majoritetsskäl och domslut. "
+        "Beskriv först avgörandets faktiska rättsfråga och utfall, därefter relationen till "
+        "researchfrågan. Fyll authoritative_holding även när avgörandet inte besvarar "
+        "researchfrågan: irrelevans gör inte ett tydligt domslut obestämt. "
+        "Analysera vad denna domstol själv beslutade och vilken grund den faktiskt använde. "
+        "Ett fastställt domslut innebär inte att underinstansens motivering har antagits. "
+        "Återge inte omnämnda partsyrkanden eller underinstansers skäl som majoritetens. "
+        "En introduktion som räknar upp domarna eller en rubrik styrker inte beslutets "
+        "rättsliga grund. Citera de materiella domskälen för decision_basis och domskälen "
+        "eller domslutet för adjustment_granted. Om detta inte kan beläggas, lämna holding "
+        "obestämd och redovisa luckan. Begränsa även relation, faktorer och övriga påståenden "
+        "till vad detta avsnitt visar; gissa inte resten av referatet.\n{court_text}",
+        "Only the deciding court's majority reasons and order appear below. Describe the "
+        "case's actual issue and holding before assessing relevance to the research question. "
+        "Populate authoritative_holding even if the case is irrelevant to that question: "
+        "irrelevance does not make a clear holding undetermined. Analyze its "
+        "own decision and actual legal basis. Affirming a lower court's order does not "
+        "mean adopting its reasons. Do not attribute quoted party submissions or lower "
+        "court reasoning to the majority. A list of judges or heading does not support "
+        "the legal basis. Cite substantive reasons for decision_basis and reasons or the "
+        "order for adjustment_granted. Leave the holding undetermined and disclose the gap "
+        "if unsupported. Ground relation, factors and every other claim in this passage; "
+        "do not guess the remainder of the report.\n{court_text}",
+    ),
+    _f(
         "research.lagen_nu.domain.v3.court_context", "research",
         "Avgörande domstols underlag", "Deciding court context",
         "Platshållare: {court_text}.", "Placeholders: {court_text}.",
@@ -3425,6 +3453,37 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Use the full report above for submissions, other courts and relation to the question. "
         "A pleaded adjustment remedy is relevant even if the deciding court resolves the "
         "dispute through interpretation instead.\n{court_text}",
+    ),
+    _f(
+        "research.lagen_nu.domain.v3.court_passage_v2", "research",
+        "Avgränsa avgörande domstol", "Locate deciding court reasons",
+        "Välj avgörande majoritetens källavsnitt.", "Select the deciding majority's source passage.",
+        "Lokalisera den sista avgörande domstolens egna majoritetsskäl och domslut i rättsfallsreferatet. "
+        "Källans stycken har ID:n s0, s1 osv. Returnera reasoning_start och reasoning_end för hela "
+        "det sammanhängande avsnittet, från introduktionen av den beslutande domstolens ledamöter "
+        "eller början av dess egna domskäl till och med dess domslut. Avsnittet måste innehålla "
+        "ALLA majoritetens domskäl, inte bara några stödjande meningar. Skilj noga föredragandens "
+        "betänkande/förslag från domstolens egen dom, som ofta följer direkt efter förslaget. "
+        "Uteslut underinstansernas domar, parternas utveckling av talan och skiljaktiga meningar. "
+        "Uteslut även tillägg för egen del, särskilda yttranden och instämmande separata meningar, "
+        "även när de skrivits av referenten eller en ledamot som ingår i majoriteten. En rubrik "
+        "som 'Referenten tillade för egen del' byter textens avsändare från domstolen till "
+        "en enskild ledamot. reasoning_end ska ligga SENAST vid majoritetens eget domslut "
+        "före sådana separata avsnitt. Gå inte till slutet av hela referatet. "
+        "Gör ingen bedömning av juridisk fråga eller utfall; uppgiften är bara att identifiera "
+        "textens avsändare och avgränsning. Förklara avgränsningen utifrån källans introduktioner.",
+        "Locate the final deciding court's own majority reasons and operative order. Paragraphs "
+        "have IDs s0, s1, etc. Return reasoning_start and reasoning_end bounding the complete "
+        "contiguous passage from the introduction of the deciding judges or their own reasons "
+        "through the operative order. Include ALL majority reasons, not just selected sentences. "
+        "Carefully exclude the reporter's proposed opinion, which often precedes the actual "
+        "judgment. Exclude lower courts, party submissions and dissents. Also exclude individual "
+        "addenda, separate statements and concurrences, even when authored by the reporting "
+        "judge or another member of the majority. 'Added on their own behalf' changes the "
+        "speaker from the court to an individual. reasoning_end must be no later than the "
+        "majority's own order before any such separate section, not the end of the report. "
+        "Do not assess the legal "
+        "issue or outcome: only identify the author and boundaries using source introductions.",
     ),
     _f(
         "research.lagen_nu.domain.v3.court_passage", "research",

@@ -322,9 +322,10 @@ async def test_case_interpretation_scopes_to_model_selected_deciding_court(
                 "explanation": "HD:s egna skäl och domslut efter betänkandet.",
             }
         assert "[s150]" in messages[1]["content"]
-        assert messages[1]["content"].count("[s150]") == 2
-        assert messages[1]["content"].count("[s27]") == 1
+        assert messages[1]["content"].count("[s150]") == 1
+        assert messages[1]["content"].count("[s27]") == 0
         result = nja_result()
+        result.case_law.other_statements = []
         if outside_holding:
             result.case_law.authoritative_holding.citations[0].quote = PARTY_QUOTE
         return {"relation": result.relation.model_dump(), "case_law": result.case_law.model_dump()}

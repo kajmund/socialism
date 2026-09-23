@@ -206,3 +206,41 @@ claimed legal basis. This identifies a remaining semantic-grounding problem:
 source-span membership alone cannot prevent lower-court reasoning from being
 attributed to the final court. No production workaround or relaxed validator was
 introduced. The evaluation plus existing legal-result unit suite passed 16 tests.
+
+## Isolated majority analysis (local, migration 119; evaluation still failing)
+
+The case-law interpretation step now receives only the selected majority passage,
+rather than the full report plus a duplicate of that passage. All analysis
+citations, not just authoritative-holding citations, must belong to the selected
+passage. Full original source text remains attached for audit. Interpretation
+schema version is 6, preventing older results from satisfying current reuse checks.
+The interpretation schema presents source analysis before question relevance.
+
+Live iteration exposed two distinct remaining errors. First, the passage selector
+included a judge's individual addendum, whose section-36 discussion was then
+misattributed to the majority. A new boundary prompt explicitly excludes individual
+addenda and concurrences even when authored by a majority member. Second, the model
+sometimes leaves an otherwise clear actual holding undetermined when the judgment
+is irrelevant to the research question. The analysis prompt explicitly distinguishes
+these decisions, but the behavior is not yet stable.
+
+One intermediate pair passed the original evaluation at 4.16 and 3.19 seconds.
+Manual inspection found that the negative case was incorrectly categorized as
+contract interpretation, and the oracle had allowed that label alongside `other`.
+The oracle now requires `other` for the statutory good-faith case; the model field
+also clarifies that applying another statute is not construing a contract term.
+A regression test rejects the formerly accepted incorrect label. The final live
+pair passed the positive case (6.44 seconds) but failed the negative (4.18 seconds):
+relevance was correctly non-supporting, but authoritative_holding was null. This
+is an explicit incomplete result, not a successful benchmark. Do not weaken the
+oracle or claim the attribution issue is solved.
+
+The broad local research/legal run had 443 passed, nine opt-in skips and one test
+that accidentally reached the prompt DB because its new citation-planner boundary
+was not mocked. That seam and the official-transport test seam now inject the
+scripted target planner. The affected domain/integration/legal group then passed
+38 tests with nine skips. After the stricter oracle and field clarification,
+19 focused tests passed; Ruff and diff whitespace checks passed. Migration 119 and
+its two new prompt fields were installed locally. No remote PR was changed in
+this iteration. Next work is to extract the actual holding independently of the
+research question, then assess relevance against that grounded source analysis.

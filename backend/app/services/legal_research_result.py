@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
-LEGAL_RESULT_SCHEMA_VERSION = 5
+LEGAL_RESULT_SCHEMA_VERSION = 6
 
 
 class CitationGroundingError(ValueError):
@@ -46,7 +46,13 @@ class CourtStatement(BaseModel):
     outcome: str
     decision_basis: Literal[
         "statutory_adjustment", "contract_interpretation", "other", "not_determined"
-    ] = "not_determined"
+    ] = Field(
+        default="not_determined",
+        description="statutory_adjustment means modifying a contract term under an adjustment power; "
+        "contract_interpretation means construing the meaning of a contractual term. Interpreting "
+        "or applying another statute (for example statutory good-faith rules) is other, not "
+        "contract_interpretation. Use not_determined when the reasons do not establish the basis.",
+    )
     adjustment_granted: bool | None = Field(
         default=None,
         description="Whether this court legally adjusted the CONTRACT term. Appellate reversal, repayment and contract interpretation alone are not adjustment.",

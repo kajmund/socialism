@@ -58,7 +58,7 @@ def check_result(case: str, raw: str, result: LegalResearchResult) -> dict[str, 
         and (
             holding.decision_basis == "statutory_adjustment"
             if expected["supports"]
-            else holding.decision_basis in {"other", "contract_interpretation"}
+            else holding.decision_basis == "other"
         ),
         "majority_grounding": holding is not None
         and bool(holding.citations)
