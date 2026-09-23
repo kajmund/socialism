@@ -305,6 +305,24 @@ def apply_legal_verdict_to_need(
     raise LegalQuestionValidationError(f"unknown legal validation action: {verdict.action}")
 
 
+def _deduplicate_normalized[
+    NormalizedNeed: (ResearchNeedDraft, FollowUpNeedDraft, ResearchNeed)
+](needs: Sequence[NormalizedNeed]) -> list[NormalizedNeed]:
+    """Normalization can make distinct inputs converge on the same question."""
+    unique: dict[str, NormalizedNeed] = {}
+    for need in needs:
+        key = research_question_key(need.question)
+        if key not in unique:
+            unique[key] = need
+        else:
+            first = unique[key]
+            unique[key] = replace(
+                first,
+                source_types=list(dict.fromkeys([*first.source_types, *need.source_types])),
+            )
+    return list(unique.values())
+
+
 class LegalNeedNormalizer:
     """Planner-adapter seam. Validates legal needs; leaves other domains untouched."""
 
@@ -317,7 +335,7 @@ class LegalNeedNormalizer:
         expanded: list[ResearchNeedDraft] = []
         for draft in drafts:
             expanded.extend(await self._normalize_draft(draft))
-        return expanded
+        return _deduplicate_normalized(expanded)
 
     async def normalize_follow_up_drafts(
         self, drafts: Sequence[FollowUpNeedDraft]
@@ -325,7 +343,7 @@ class LegalNeedNormalizer:
         expanded: list[FollowUpNeedDraft] = []
         for draft in drafts:
             expanded.extend(await self._normalize_follow_up(draft))
-        return expanded
+        return _deduplicate_normalized(expanded)
 
     async def normalize_plan(self, plan: ResearchPlan) -> ResearchPlan:
         needs: list[ResearchNeed] = []
@@ -343,7 +361,7 @@ class LegalNeedNormalizer:
                 )
                 existing_ids.add(child_id)
                 needs.append(replace(child, id=child_id))
-        return validate_research_plan(ResearchPlan(needs=needs))
+        return validate_research_plan(ResearchPlan(needs=_deduplicate_normalized(needs)))
 
     async def _normalize_draft(self, draft: ResearchNeedDraft) -> list[ResearchNeedDraft]:
         if draft.already_normalized or not is_legal_research_need(draft.source_types):
@@ -431,8 +449,10 @@ def mixed_md_avtl_verdict() -> LegalQuestionVerdict:
         provisions=("36 § AvtL",),
         remedy="jämkning eller lämnas utan avseende",
         problems=(
-            "Marknadsdomstolen/KO tillämpar inte 36 § AvtL; konsumentvillkor "
-            "kontrolleras marknadsrättsligt enligt 3 § AVLK.",
+            (
+                "Marknadsdomstolen/KO tillämpar inte 36 § AvtL; konsumentvillkor "
+                "kontrolleras marknadsrättsligt enligt 3 § AVLK."
+            ),
         ),
         action="split",
         split_questions=(MARKET_AVLK_SPLIT_QUESTION, CIVIL_AVTL_SPLIT_QUESTION),
