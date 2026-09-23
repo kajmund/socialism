@@ -734,3 +734,57 @@ def test_jev_legal_context_bounds_large_explanations_and_preserves_truncation():
     assert chars < 6000
     assert state["evidence"]["legal_context"]["source_truncated"] is True
     assert len(state["evidence"]["legal_context"]["unresolved_questions"]) == 3
+
+
+def test_jev_holding_preserves_negative_outcome_and_invalidates_screen_cache():
+    from dataclasses import replace
+
+    from app.services.research.fast_state import compact_evidence_item_state
+    from tests.test_research_36_integration import nja_result
+
+    legal = nja_result()
+    item = replace(_evidence(excerpt="Oförändrat utdrag"), legal_result=legal)
+    state, _, before = compact_evidence_item_state(objective="Fråga", item=item, max_state_chars=6000)
+    holding = state["evidence"]["legal_context"]["court_holding"]
+    assert holding["status"] == "established"
+    assert holding["court_level"] == "supreme"
+    assert holding["adjustment_granted"] is False
+    assert holding["decision_basis"] == "contract_interpretation"
+    legal.case_law.authoritative_holding.decision_basis = "other"
+    _, _, after = compact_evidence_item_state(objective="Fråga", item=item, max_state_chars=6000)
+    assert before != after
+
+
+def test_jev_unknown_holding_is_not_reported_as_refused_adjustment():
+    from dataclasses import replace
+
+    from app.services.research.fast_state import compact_evidence_item_state
+    from tests.test_research_36_integration import nja_result
+
+    legal = nja_result()
+    legal.case_law.authoritative_holding = None
+    state, _, _ = compact_evidence_item_state(
+        objective="Fråga", item=replace(_evidence(), legal_result=legal), max_state_chars=6000
+    )
+    holding = state["evidence"]["legal_context"]["court_holding"]
+    assert holding["status"] == "not_determined"
+    assert holding["adjustment_granted"] is None
+    assert holding["decision_basis"] is None
+    assert holding["outcome"] is None
+
+
+def test_jev_holding_outcome_is_bounded_without_full_citations():
+    from dataclasses import replace
+
+    from app.services.research.fast_state import compact_evidence_item_state
+    from tests.test_research_36_integration import nja_result
+
+    legal = nja_result()
+    legal.case_law.authoritative_holding.outcome = "x" * 20000
+    state, chars, _ = compact_evidence_item_state(
+        objective="Fråga", item=replace(_evidence(), legal_result=legal), max_state_chars=6000
+    )
+    holding = state["evidence"]["legal_context"]["court_holding"]
+    assert len(holding["outcome"]) <= 200
+    assert "citations" not in holding
+    assert chars < 6000

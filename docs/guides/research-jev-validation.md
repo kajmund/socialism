@@ -280,3 +280,28 @@ question is absent from source extraction, that relevance cannot overwrite the
 holding, and that failed source citations prevent relevance calls. Migration 120
 and four configured prompt fields were installed locally. No attempts were modified
 and this change has not been added to remote PR #297.
+
+## Court holding in compact Jev input
+
+The compact legal context now includes bounded court-holding metadata: established
+or undetermined status, court level, text role, decision basis, nullable adjustment
+outcome and a maximum 200-character outcome. Unknown holdings remain null rather
+than being encoded as refused adjustment. This avoids relying solely on a relevance
+label or a truncated explanation. Full holdings, citations and raw texts are not
+added. A changed holding changes the compact digest and invalidates item screening
+reuse even when the excerpt is identical. Existing whole-input truncation guards
+remain in force; adding metadata can reduce evidence coverage under fixed budgets.
+
+An attempted paired Jev diagnostic used only the two public case questions,
+compact excerpts and locally derived legal context, with/without court_holding.
+The initial run terminated on a timeout. One bounded rerun recorded all four
+requests as timeouts. There are no successful comparison scores from this probe,
+and no claimed accuracy improvement. No timeout or model setting was changed.
+
+Local controller/concurrency validation: 35 tests passed, including negative versus
+unknown holdings, bounded outcomes, digest changes and explicit timeout behavior.
+Both assessment and completeness shadow gates preserve the authoritative review
+result and record the Jev timeout as an error with no short circuit. The metadata
+extension remains local with the legal-attribution work; the independent timeout
+regressions are suitable for PR #297. Open PR review confirmed #296 and #297 remain
+open; no merges were performed.
