@@ -33,6 +33,7 @@ class HitDecisionModel(BaseModel):
     candidate_id: str
     keep: bool
     role: Literal[
+        "potentially_relevant",
         "named_citation",
         "travaux",
         "ratio",
@@ -75,12 +76,14 @@ class LlmLagenNuSelector:
         *,
         completer: Completer | None = None,
         system_prompt: str | None = None,
+        triage_prompt: str | None = None,
         user_prompt: str | None = None,
         excerpt_system_prompt: str | None = None,
         excerpt_user_prompt: str | None = None,
         session_factory: async_sessionmaker[AsyncSession] | None = None,
     ) -> None:
         self._completer = completer or complete_structured_retry
+        self._triage_prompt = triage_prompt
         self._system_prompt = system_prompt
         self._user_prompt = user_prompt
         self._excerpt_system_prompt = excerpt_system_prompt
@@ -100,7 +103,12 @@ class LlmLagenNuSelector:
             return []
         prompts = await self._prompts(context)
         messages = [
-            {"role": "system", "content": prompts["research.lagen_nu.select.system"]},
+            {
+                "role": "system",
+                "content": prompts["research.lagen_nu.select.system"]
+                + "\n\n"
+                + prompts["research.lagen_nu.select.triage"],
+            },
             {
                 "role": "user",
                 "content": render_prompt(
@@ -185,9 +193,7 @@ class LlmLagenNuSelector:
                 self._completer, messages, model, prompt_key=prompt_key
             )
         except Exception as exc:
-            raise LagenNuSelectionError(
-                f"lagen.nu selector model call failed: {exc}"
-            ) from exc
+            raise LagenNuSelectionError(f"lagen.nu selector model call failed: {exc}") from exc
         if isinstance(parsed, model):
             return parsed
         try:
@@ -199,13 +205,15 @@ class LlmLagenNuSelector:
 
     async def _prompts(self, context: ResearchContext) -> dict[str, str]:
         if (
-            self._system_prompt is not None
+            self._triage_prompt is not None
+            and self._system_prompt is not None
             and self._user_prompt is not None
             and self._excerpt_system_prompt is not None
             and self._excerpt_user_prompt is not None
         ):
             return {
                 "research.lagen_nu.select.system": self._system_prompt,
+                "research.lagen_nu.select.triage": self._triage_prompt,
                 "research.lagen_nu.select.user": self._user_prompt,
                 "research.lagen_nu.excerpt.system": self._excerpt_system_prompt,
                 "research.lagen_nu.excerpt.user": self._excerpt_user_prompt,
@@ -215,9 +223,7 @@ class LlmLagenNuSelector:
         customer_id = context.scope.customer_id
         module = context.scope.module
         if customer_id is None or not module:
-            raise LagenNuSelectionError(
-                "lagen.nu selector requires customer_id and module"
-            )
+            raise LagenNuSelectionError("lagen.nu selector requires customer_id and module")
         async with self._session_factory() as session:
             loaded = await require_active_prompts(
                 session,
@@ -226,6 +232,7 @@ class LlmLagenNuSelector:
                 language="sv",
             )
         required = (
+            "research.lagen_nu.select.triage",
             "research.lagen_nu.select.system",
             "research.lagen_nu.select.user",
             "research.lagen_nu.excerpt.system",

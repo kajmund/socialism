@@ -2264,6 +2264,7 @@ async def test_36_avtl_live_selection_rejects_wrong_proposition_despite_keep_fla
     selector = LlmLagenNuSelector(
         completer=complete_selection,
         system_prompt=prompts["research.lagen_nu.select.system"],
+        triage_prompt=prompts["research.lagen_nu.select.triage"],
         user_prompt=prompts["research.lagen_nu.select.user"],
         excerpt_system_prompt=prompts["research.lagen_nu.excerpt.system"],
         excerpt_user_prompt=prompts["research.lagen_nu.excerpt.user"],

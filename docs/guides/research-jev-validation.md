@@ -133,3 +133,38 @@ passage retrieval, Jev controller and source attribution; targeted Ruff checks a
 `git diff --check` passed. Migration 117 was applied to the local PostgreSQL
 database and backend health returned `ok`. This legal retrieval change remains
 local and is not part of the independent Jev PR #297.
+
+## Grounded selection triage (local, migration 118)
+
+A fresh diagnostic disproved a blanket conclusion that selection always rejects
+all candidates. The same question generated a different discovery query
+(`36 § avtalslagen oskälighetsbedömning`), and the old selector kept two HD cases.
+The complete provider probe took 20.25 seconds and returned one model-classified
+supporting result (NJA 1999 s. 408) and one contextual result (NJA 2010 s. 467).
+These are interpreter outputs, not an independently verified legal gold set.
+Search-query variation prevents treating this as a controlled improvement over
+the prior 5.50-second empty result.
+
+The recorded selector explanations exposed a separate issue: they asserted that
+the final court used section 36 decisively and identified the weightiest factors,
+although the supplied snippets did not establish those claims. The new required
+DB prompt `research.lagen_nu.select.triage` makes this a pre-full-text decision.
+`potentially_relevant` is now a supported selector role. The model may retain a
+plausible source for inspection while explicitly listing what still needs checking;
+missing detail in a snippet is not itself proof of irrelevance. Proven wrong
+courts/subjects and exclusions still warrant rejection. This does not grant
+supporting-evidence status, alter the interpreter, or increase retrieval budgets.
+
+A paired diagnostic reused exactly the same seven saved candidate snippets,
+question and configured model, with the new triage instruction. In 2.24 seconds it
+kept the same two HD candidates as `potentially_relevant`, explicitly requiring
+full text to verify the requested circumstances. It rejected the other five
+candidates for the court mismatch. Unlike the previous explanations, it did not
+claim the full question was already established. This is one paired example, not
+a calibration or an end-to-end latency benchmark.
+
+Local validation: 118 relevant tests passed, including preservation of the new
+role across the structured-model boundary; Ruff and diff whitespace checks passed.
+Migration 118 was applied locally. A narrow Kibana query for selection/extraction
+failures over the preceding 30 minutes returned no matches; the standalone probes
+are separate from normal runtime logging, so that absence does not prove success.

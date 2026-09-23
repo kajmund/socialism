@@ -14,6 +14,7 @@ _selector_factory: LagenNuSelectorFactory | None = None
 MAX_SELECTOR_DOCUMENT_CHARS = 24000
 
 HitRole = Literal[
+    "potentially_relevant",
     "named_citation",
     "travaux",
     "ratio",
@@ -23,6 +24,7 @@ HitRole = Literal[
 ]
 HIT_ROLES: frozenset[str] = frozenset(
     {
+        "potentially_relevant",
         "named_citation",
         "travaux",
         "ratio",

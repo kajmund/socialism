@@ -29,6 +29,7 @@ def _selector(completer) -> LlmLagenNuSelector:
     return LlmLagenNuSelector(
         completer=completer,
         system_prompt=prompts["research.lagen_nu.select.system"],
+        triage_prompt=prompts["research.lagen_nu.select.triage"],
         user_prompt=prompts["research.lagen_nu.select.user"],
         excerpt_system_prompt=prompts["research.lagen_nu.excerpt.system"],
         excerpt_user_prompt=prompts["research.lagen_nu.excerpt.user"],
@@ -158,10 +159,7 @@ async def test_excerpt_must_be_a_document_span():
         title="Prop. 1975/76:81",
         identifier="Prop. 1975/76:81",
         pinpoint=None,
-        text=(
-            "Huvudsakligt innehåll Propositionen föreslår en generalklausul.\n\n"
-            + body
-        ),
+        text=("Huvudsakligt innehåll Propositionen föreslår en generalklausul.\n\n" + body),
         highlight="Prop. 1975/76:81",
         truncated=False,
     )
@@ -221,3 +219,39 @@ def test_lagen_nu_selector_prompts_exist():
     assert "{candidates_json}" in prompts["research.lagen_nu.select.user"]
     assert "Kopiera bara text" in prompts["research.lagen_nu.excerpt.system"]
     assert "{document_text}" in prompts["research.lagen_nu.excerpt.user"]
+
+
+async def test_preliminary_relevance_survives_selector_boundary():
+    candidate = SelectableHit(
+        candidate_id="https://lagen.nu/dom/nja/1999s408",
+        uri="https://lagen.nu/dom/nja/1999s408",
+        title="NJA 1999 s. 408",
+        identifier="NJA 1999 s. 408",
+        highlight="Frågan gäller jämkning enligt 36 § avtalslagen.",
+        pinpoint=None,
+    )
+
+    async def completer(messages, response_model):
+        assert default_prompts("sv")["research.lagen_nu.select.triage"] in messages[0]["content"]
+        return response_model(
+            decisions=[
+                {
+                    "candidate_id": candidate.candidate_id,
+                    "keep": True,
+                    "role": "potentially_relevant",
+                    "why": "Fulltext krävs för att verifiera HD:s skäl.",
+                }
+            ]
+        )
+
+    decisions = await _selector(completer).select_hits(
+        need=_need(), source_type="swedish_case_law", candidates=[candidate], context=_context()
+    )
+    assert decisions == [
+        HitDecision(
+            candidate_id=candidate.candidate_id,
+            keep=True,
+            role="potentially_relevant",
+            why="Fulltext krävs för att verifiera HD:s skäl.",
+        )
+    ]
