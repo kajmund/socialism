@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
-LEGAL_RESULT_SCHEMA_VERSION = 6
+LEGAL_RESULT_SCHEMA_VERSION = 7
 
 
 class CitationGroundingError(ValueError):

@@ -244,3 +244,39 @@ scripted target planner. The affected domain/integration/legal group then passed
 its two new prompt fields were installed locally. No remote PR was changed in
 this iteration. Next work is to extract the actual holding independently of the
 research question, then assess relevance against that grounded source analysis.
+
+## Question-independent case facts (local, migration 120)
+
+Case-law extraction is now split into a source-only `CaseLawAnalysis` call and a
+subsequent `LegalQuestionRelation` call. Only the latter receives the research
+question. The source analysis is validated against the selected majority passage
+before relevance runs, and the relevance response cannot overwrite court fields.
+Failed source grounding stops before relevance. The temporary unassessed relation
+used during internal source validation is never returned as a successful result;
+a failed relevance call raises an extraction error. Analysis schema version 7
+invalidates older reuse entries. Other source kinds retain their existing paths.
+
+The first live pair established the correct legal bases and outcomes for both
+cases but mislabeled the positive case as contextual because a single case could
+not provide an exhaustive list. The relevance prompt now distinguishes one source's
+support from completeness of the overall research. Inspection also found an
+inverted numeric comparison in a generated factor; the source prompt now explicitly
+preserves comparisons, negation and the difference between reduced to and reduced
+by. That instruction is not a deterministic semantic guarantee.
+
+The subsequent stricter evaluation passed both cases at 6.28 and 7.38 seconds.
+NJA 2010 s. 467 now had an established Supreme Court outcome, no adjustment and
+`other` as the basis. The positive case retained statutory adjustment and supporting
+relevance. Compared with the preceding two-call pipeline this adds a separate
+relevance call: no general speedup is claimed. The pair still does not validate
+every free-text factor or explanation, nor prove semantic entailment merely from
+an authentic citation. The printed holding citations can still be operative orders
+rather than the substantive reasons for the legal basis; finer claim-to-reason
+validation remains necessary.
+
+Local validation: 39 affected legal/domain tests passed, nine opt-in live tests
+skipped; Ruff and whitespace checks passed. Tests assert that the actual research
+question is absent from source extraction, that relevance cannot overwrite the
+holding, and that failed source citations prevent relevance calls. Migration 120
+and four configured prompt fields were installed locally. No attempts were modified
+and this change has not been added to remote PR #297.
