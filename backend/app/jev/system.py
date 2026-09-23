@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import time
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
@@ -15,6 +16,7 @@ JevErrorCategory = Literal[
     "timeout",
     "auth",
     "rate_limit",
+    "invalid_request",
     "invalid_response",
     "schema_validation",
     "transport",
@@ -82,7 +84,7 @@ def parse_noul(answers: dict[str, Any], key: str) -> float:
             f"Jev noul for {key} is not numeric",
             category="schema_validation",
         ) from exc
-    if value < 0.0 or value > 1.0:
+    if not math.isfinite(value) or value < 0.0 or value > 1.0:
         raise JevClientError(
             f"Jev noul for {key} is out of range",
             category="schema_validation",
@@ -133,6 +135,8 @@ def _category_for_status(status_code: int) -> JevErrorCategory:
         return "auth"
     if status_code == 429:
         return "rate_limit"
+    if 400 <= status_code < 500:
+        return "invalid_request"
     if status_code >= 500:
         return "transport"
     return "unknown"
@@ -201,7 +205,7 @@ class HttpJevSystemOne:
         url = f"{base}/v1/systemone"
         headers = _headers(api_key)
         if self._http is not None:
-            return await self._http.post(url, headers=headers, json=body)
+            return await self._http.post(url, headers=headers, json=body, timeout=timeout_seconds)
         async with httpx.AsyncClient(timeout=timeout_seconds) as client:
             return await client.post(url, headers=headers, json=body)
 

@@ -20,6 +20,7 @@ ResearchJevErrorCategory = Literal[
     "timeout",
     "auth",
     "rate_limit",
+    "invalid_request",
     "invalid_response",
     "schema_validation",
     "transport",
