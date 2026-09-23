@@ -33,9 +33,11 @@ from app.api import (
     ws,
 )
 from app.config import settings
+from app.database.session import engine
 from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
+from app.services.expertgranskning.memory import close_default_expert_memory
 from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
 from app.services.knowledge.vector_store import SupabaseVectorBucketStore
 from app.services.kund_store import ensure_default_kunder
@@ -117,6 +119,10 @@ async def lifespan(_app: FastAPI):
         set_lagen_nu_selector_factory(None)
         if vector_runtime is not None:
             await vector_runtime.close()
+        try:
+            close_default_expert_memory()
+        finally:
+            await engine.dispose()
 
 
 def create_app() -> FastAPI:

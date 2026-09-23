@@ -30,6 +30,11 @@ MemorySource = str
 
 _SAVED_EVENTS = frozenset({"ADD", "UPDATE"})
 _AGENT_PREFIX = "expert:"
+# Two Memory clients (text + vision). Each default pgvector pool is min 1 / max 5,
+# plus a dedicated history connection — enough to fill the session-mode pooler
+# of 15 on its own. Keep one connection per pool.
+MEM0_PGVECTOR_MINCONN = 1
+MEM0_PGVECTOR_MAXCONN = 1
 
 LANGUAGE_PRESERVATION_INSTRUCTIONS = """Language preservation:
 - Always write extracted memories in the same language as the source message.
@@ -198,6 +203,8 @@ def _memory_config(*, vision: bool) -> dict[str, Any]:
                 ],
                 "connection_string": _mem0_database_url(),
                 "sslmode": "require",
+                "minconn": MEM0_PGVECTOR_MINCONN,
+                "maxconn": MEM0_PGVECTOR_MAXCONN,
             },
         },
         "llm": {"provider": "openai", "config": llm_config},
@@ -356,6 +363,11 @@ class ExpertMemory:
             Memory.from_config(_memory_config(vision=False)),
             Memory.from_config(_memory_config(vision=True)),
         )
+
+    def close(self) -> None:
+        _close_mem0_client(self._text_client)
+        if self._vision_client is not self._text_client:
+            _close_mem0_client(self._vision_client)
 
     @staticmethod
     def _filters(customer_id: int, expert_id: str) -> dict[str, str]:
@@ -733,10 +745,33 @@ def _default_memory() -> ExpertMemory:
     return ExpertMemory.from_settings()
 
 
+def _close_pg_pool(store: object) -> None:
+    if store is None:
+        return
+    pool = getattr(store, "connection_pool", None)
+    if pool is None or not hasattr(pool, "close"):
+        return
+    pool.close()
+
+
+def _close_mem0_client(client: Memory) -> None:
+    _close_pg_pool(getattr(client, "vector_store", None))
+    _close_pg_pool(getattr(client, "_entity_store", None))
+    _close_pg_pool(getattr(client, "_telemetry_vector_store", None))
+    client.close()
+
+
+def close_default_expert_memory() -> None:
+    if _default_memory.cache_info().currsize == 0:
+        return
+    _default_memory().close()
+    _default_memory.cache_clear()
+
+
 def set_expert_memory_factory(factory: ExpertMemoryFactory | None) -> None:
     global _factory_override
+    close_default_expert_memory()
     _factory_override = factory
-    _default_memory.cache_clear()
 
 
 def get_expert_memory() -> ExpertMemoryPort:

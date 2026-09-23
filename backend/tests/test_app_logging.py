@@ -9,6 +9,7 @@ from json import loads
 
 from pydantic import SecretStr
 
+from app.config import settings
 from app.logging import (
     LogstashHTTPHandler,
     configure_logging,
@@ -108,7 +109,35 @@ def test_logstash_handler_posts_ecs_json(monkeypatch):
     assert "något gick fel" in request.data.decode("utf-8")
     assert '"service": "socialism-backend"' in request.data.decode("utf-8")
     assert '"environment": "test"' in request.data.decode("utf-8")
-    assert sent["timeout"] == 2.0
+    assert sent["timeout"] == settings.logstash_timeout_seconds
+
+
+def test_logstash_handler_timeout_does_not_print_record_message(monkeypatch, capsys):
+    monkeypatch.setattr("app.logging.settings.logstash_url", "https://logs.example.test")
+    monkeypatch.setattr("app.logging.settings.logstash_username", "socialism")
+    monkeypatch.setattr("app.logging.settings.logstash_password", SecretStr("secret"))
+
+    def fake_urlopen(_request, *, timeout):
+        del timeout
+        raise TimeoutError("The read operation timed out")
+
+    monkeypatch.setattr("app.logging.urlopen", fake_urlopen)
+    handler = LogstashHTTPHandler()
+    record = logging.LogRecord(
+        "uvicorn.access",
+        logging.INFO,
+        __file__,
+        1,
+        '%s - "WebSocket %s" [accepted]',
+        ("127.0.0.1:1", "/ws/jobs?access_token=secret-token"),
+        None,
+    )
+    handler.emit(record)
+    err = capsys.readouterr().err
+    assert "Logstash drain dropped" in err
+    assert "TimeoutError" in err
+    assert "secret-token" not in err
+    assert "access_token" not in err
 
 
 def test_logstash_handler_includes_structured_event_fields(monkeypatch):

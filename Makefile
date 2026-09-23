@@ -1,4 +1,4 @@
-.PHONY: help backend frontend word-addin elk-proxy start install test test-backend test-frontend test-word-addin knowledge-validate
+.PHONY: help backend frontend word-addin elk-proxy kibana-proxy start install test test-backend test-frontend test-word-addin knowledge-validate
 
 # Pinned OKF CLI (validate + future MCP). Not a runtime app dependency.
 OKF_MCP_PKG := @mfdaves/okf-mcp@0.3.3
@@ -7,14 +7,24 @@ FLYCTL ?= flyctl
 ELASTICSEARCH_FLY_APP ?= socialism-elasticsearch
 ELASTICSEARCH_PROXY_PORT ?= 19200
 ELASTICSEARCH_REMOTE_PORT ?= 9200
+KIBANA_FLY_APP ?= socialism-kibana
+KIBANA_PROXY_PORT ?= 5601
+KIBANA_REMOTE_PORT ?= 5601
+
+# uvicorn --reload is on by default. Pass RELOAD=0 to keep a single backend process.
+RELOAD ?= 1
+BACKEND_UVICORN_FLAGS := $(if $(filter 0,$(RELOAD)),,--reload)
 
 help:
 	@echo "Targets:"
-	@echo "  make start               Start ELK proxy + backend + frontend together"
+	@echo "  make start               Start ELK proxies + backend + frontend together"
+	@echo "  make start RELOAD=0      Same, backend without uvicorn --reload"
 	@echo "  make backend             Start FastAPI (uvicorn --reload) on :8000"
+	@echo "  make backend RELOAD=0    Start FastAPI without --reload"
 	@echo "  make frontend            Start Vite dev server on :5173"
 	@echo "  make word-addin          Start Word add-in Vite server on :3000"
 	@echo "  make elk-proxy           Proxy local :$(ELASTICSEARCH_PROXY_PORT) to Elasticsearch on Fly"
+	@echo "  make kibana-proxy        Proxy local :$(KIBANA_PROXY_PORT) to Kibana on Fly"
 	@echo "  make install             Install backend + frontend + word-addin deps"
 	@echo "  make test                Backend pytest + frontend and word-addin lint/vitest"
 	@echo "  make test-backend        Backend pytest (excludes smoke)"
@@ -27,7 +37,7 @@ help:
 BACKEND_UV_EXTRA := $(shell grep -E '^SIMULATION_ENGINE=oasis$$' backend/.env 2>/dev/null >/dev/null && echo --extra oasis)
 
 backend:
-	cd backend && uv run $(BACKEND_UV_EXTRA) uvicorn app.main:app --reload
+	cd backend && uv run $(BACKEND_UV_EXTRA) uvicorn app.main:app $(BACKEND_UVICORN_FLAGS)
 
 frontend:
 	cd frontend && pnpm dev
@@ -37,14 +47,24 @@ word-addin:
 
 elk-proxy:
 	@FLYCTL="$(FLYCTL)" \
-	  ELASTICSEARCH_FLY_APP="$(ELASTICSEARCH_FLY_APP)" \
-	  ELASTICSEARCH_PROXY_PORT="$(ELASTICSEARCH_PROXY_PORT)" \
-	  ELASTICSEARCH_REMOTE_PORT="$(ELASTICSEARCH_REMOTE_PORT)" \
+	  FLY_APP="$(ELASTICSEARCH_FLY_APP)" \
+	  LOCAL_PORT="$(ELASTICSEARCH_PROXY_PORT)" \
+	  REMOTE_PORT="$(ELASTICSEARCH_REMOTE_PORT)" \
+	  PROXY_LABEL="Elasticsearch proxy" \
+	  ./scripts/elk-proxy.sh
+
+kibana-proxy:
+	@FLYCTL="$(FLYCTL)" \
+	  FLY_APP="$(KIBANA_FLY_APP)" \
+	  LOCAL_PORT="$(KIBANA_PROXY_PORT)" \
+	  REMOTE_PORT="$(KIBANA_REMOTE_PORT)" \
+	  PROXY_LABEL="Kibana proxy" \
 	  ./scripts/elk-proxy.sh
 
 start:
 	@bash -eu -c '\
-	  proxy_pid=""; \
+	  es_proxy_pid=""; \
+	  kibana_proxy_pid=""; \
 	  backend_pid=""; \
 	  frontend_pid=""; \
 	  cleanup() { \
@@ -53,50 +73,63 @@ start:
 	      kill -TERM -$$pid 2>/dev/null || kill -TERM $$pid 2>/dev/null || true; \
 	    done; \
 	    wait 2>/dev/null || true; \
-	    for port in 8000 5173; do \
+	    for port in 8000 5173 $(ELASTICSEARCH_PROXY_PORT) $(KIBANA_PROXY_PORT); do \
 	      pids=$$(lsof -nP -t -iTCP:$$port -sTCP:LISTEN 2>/dev/null || true); \
 	      if [ -n "$$pids" ]; then kill -TERM $$pids 2>/dev/null || true; fi; \
 	    done; \
 	    sleep 0.2; \
-	    for port in 8000 5173; do \
+	    for port in 8000 5173 $(ELASTICSEARCH_PROXY_PORT) $(KIBANA_PROXY_PORT); do \
 	      pids=$$(lsof -nP -t -iTCP:$$port -sTCP:LISTEN 2>/dev/null || true); \
 	      if [ -n "$$pids" ]; then kill -KILL $$pids 2>/dev/null || true; fi; \
 	    done; \
 	  }; \
-	  trap cleanup EXIT INT TERM HUP; \
-	  command -v curl >/dev/null 2>&1 || { echo "make start: curl is required for the Elasticsearch health check." >&2; exit 1; }; \
-	  FLYCTL="$(FLYCTL)" \
-	    ELASTICSEARCH_FLY_APP="$(ELASTICSEARCH_FLY_APP)" \
-	    ELASTICSEARCH_PROXY_PORT="$(ELASTICSEARCH_PROXY_PORT)" \
-	    ELASTICSEARCH_REMOTE_PORT="$(ELASTICSEARCH_REMOTE_PORT)" \
-	    ./scripts/elk-proxy.sh & \
-	  proxy_pid=$$!; \
-	  proxy_ready=0; \
-	  attempt=0; \
-	  while [ $$attempt -lt 60 ]; do \
-	    if curl --fail --silent --max-time 1 "http://127.0.0.1:$(ELASTICSEARCH_PROXY_PORT)/_cluster/health" >/dev/null 2>&1; then \
-	      proxy_ready=1; \
-	      break; \
-	    fi; \
-	    if ! kill -0 $$proxy_pid 2>/dev/null; then \
-	      wait $$proxy_pid || true; \
-	      echo "make start: ELK proxy stopped before Elasticsearch became ready." >&2; \
-	      exit 1; \
-	    fi; \
-	    attempt=$$((attempt + 1)); \
-	    sleep 0.5; \
-	  done; \
-	  if [ $$proxy_ready -ne 1 ]; then \
-	    echo "make start: Elasticsearch did not become ready on 127.0.0.1:$(ELASTICSEARCH_PROXY_PORT) within 30 seconds." >&2; \
+	  wait_http() { \
+	    name=$$1; \
+	    url=$$2; \
+	    pid=$$3; \
+	    attempts=$$4; \
+	    i=0; \
+	    while [ $$i -lt $$attempts ]; do \
+	      if curl --fail --silent --max-time 8 -o /dev/null "$$url"; then \
+	        return 0; \
+	      fi; \
+	      if ! kill -0 $$pid 2>/dev/null; then \
+	        wait $$pid || true; \
+	        echo "make start: $$name stopped before it became ready." >&2; \
+	        exit 1; \
+	      fi; \
+	      i=$$((i + 1)); \
+	      sleep 0.5; \
+	    done; \
+	    echo "make start: $$name did not become ready at $$url." >&2; \
 	    exit 1; \
-	  fi; \
+	  }; \
+	  trap cleanup EXIT INT TERM HUP; \
+	  command -v curl >/dev/null 2>&1 || { echo "make start: curl is required for the Elasticsearch and Kibana health checks." >&2; exit 1; }; \
+	  FLYCTL="$(FLYCTL)" \
+	    FLY_APP="$(ELASTICSEARCH_FLY_APP)" \
+	    LOCAL_PORT="$(ELASTICSEARCH_PROXY_PORT)" \
+	    REMOTE_PORT="$(ELASTICSEARCH_REMOTE_PORT)" \
+	    PROXY_LABEL="Elasticsearch proxy" \
+	    ./scripts/elk-proxy.sh & \
+	  es_proxy_pid=$$!; \
+	  FLYCTL="$(FLYCTL)" \
+	    FLY_APP="$(KIBANA_FLY_APP)" \
+	    LOCAL_PORT="$(KIBANA_PROXY_PORT)" \
+	    REMOTE_PORT="$(KIBANA_REMOTE_PORT)" \
+	    PROXY_LABEL="Kibana proxy" \
+	    ./scripts/elk-proxy.sh & \
+	  kibana_proxy_pid=$$!; \
+	  wait_http "Elasticsearch proxy" "http://127.0.0.1:$(ELASTICSEARCH_PROXY_PORT)/_cluster/health" $$es_proxy_pid 60; \
 	  echo "make start: Elasticsearch is ready on http://127.0.0.1:$(ELASTICSEARCH_PROXY_PORT)"; \
-	  (cd backend && uv run $(BACKEND_UV_EXTRA) uvicorn app.main:app --reload) & \
+	  wait_http "Kibana proxy" "http://127.0.0.1:$(KIBANA_PROXY_PORT)/api/status" $$kibana_proxy_pid 120; \
+	  echo "make start: Kibana is ready on http://127.0.0.1:$(KIBANA_PROXY_PORT)"; \
+	  (cd backend && uv run $(BACKEND_UV_EXTRA) uvicorn app.main:app $(BACKEND_UVICORN_FLAGS)) & \
 	  backend_pid=$$!; \
 	  (cd frontend && pnpm dev) & \
 	  frontend_pid=$$!; \
 	  while :; do \
-	    for process in "ELK proxy:$$proxy_pid" "backend:$$backend_pid" "frontend:$$frontend_pid"; do \
+	    for process in "Elasticsearch proxy:$$es_proxy_pid" "Kibana proxy:$$kibana_proxy_pid" "backend:$$backend_pid" "frontend:$$frontend_pid"; do \
 	      name=$${process%%:*}; \
 	      pid=$${process#*:}; \
 	      if ! kill -0 $$pid 2>/dev/null; then \

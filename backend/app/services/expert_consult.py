@@ -20,6 +20,7 @@ from app.services.expert_chat_evidence import (
     combine_expert_chat_context,
     reusable_expert_chat_evidence_context,
 )
+from app.services.expert_tools import resolve_chat_tools
 from app.services.expertgranskning.memory import get_expert_memory
 from app.services.panel.competency import assess_expert_competency
 from app.services.panel.expert_slots import profile_text_for_expert
@@ -294,3 +295,21 @@ def expert_consult_handler_for_chat(
         )
 
     return handle
+
+
+def consult_handler_for_persona(
+    session: AsyncSession,
+    *,
+    persona: Persona,
+    mode: ChatMode,
+    prompts: dict[str, str],
+) -> ConsultToolHandler | None:
+    tools = resolve_chat_tools(persona.tools, kind=persona.kind)
+    if persona.kind != "expert" or "ask_expert" not in tools:
+        return None
+    return expert_consult_handler_for_chat(
+        session,
+        asker=persona,
+        mode=mode,
+        prompts=prompts,
+    )

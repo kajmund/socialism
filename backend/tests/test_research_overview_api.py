@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import event, select
 
+from app.api.execution import _domain_result_analysis
 from app.database.models import Persona
 from app.services.execution import (
     add_evidence_items,
@@ -342,7 +343,21 @@ async def test_overview_keeps_shared_raw_source_domain_results_with_their_needs(
             question.status = "completed"
         assert len((await session.scalars(select(RawSource))).all()) == 1
         await session.commit()
-    overview = (await client.get(f"/execution/attempts/{parent.id}/research-overview")).json()
+        sync_engine = session.get_bind()
+    statements: list[str] = []
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _executemany) -> None:
+        statements.append(statement)
+
+    event.listen(sync_engine, "before_cursor_execute", capture)
+    try:
+        overview = (await client.get(f"/execution/attempts/{parent.id}/research-overview")).json()
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", capture)
+    sql = "\n".join(statements).lower()
+    assert "raw_sources" not in sql
+    assert "research_claims" not in sql
+    assert "evidence_passages" not in sql
     by_need = {row["question"]: row for row in overview["questions"]}
     assert [row["source_count"] for row in by_need.values()] == [1, 1]
     assert by_need["Fråga need-a"]["sources"][0]["excerpt"] == "HD prövade ansvarsbegränsningen."
@@ -364,3 +379,10 @@ async def test_overview_keeps_shared_raw_source_domain_results_with_their_needs(
     assert len(attempt_evidence["items"]) == 2
     assert len(attempt_evidence["sources"]) == 1
     assert len(attempt_evidence["sources"][0]["domain_result_ids"]) == 2
+
+
+def test_domain_result_analysis_ignores_non_object_relation():
+    assert _domain_result_analysis({"relation": {"explanation": "HD jämkade."}}) == "HD jämkade."
+    assert _domain_result_analysis({"relation": "supports"}) is None
+    assert _domain_result_analysis({"relation": {}}) is None
+    assert _domain_result_analysis(None) is None

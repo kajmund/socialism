@@ -63,10 +63,14 @@ export function useResearchMonitor(attemptId: string | null) {
       setLoading(false)
       return
     }
+    const controller = new AbortController()
     let cancelled = false
     setLoading(true)
     setError(null)
-    Promise.all([getResearchOverview(attemptId), getResearchProgressEvents(attemptId)])
+    Promise.all([
+      getResearchOverview(attemptId, { signal: controller.signal }),
+      getResearchProgressEvents(attemptId, 0, { signal: controller.signal }),
+    ])
       .then(([nextOverview, history]) => {
         if (cancelled) return
         setOverview(nextOverview)
@@ -81,6 +85,7 @@ export function useResearchMonitor(attemptId: string | null) {
       })
     return () => {
       cancelled = true
+      controller.abort()
     }
   }, [attemptId])
 

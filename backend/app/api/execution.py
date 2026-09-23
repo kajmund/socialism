@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import noload
 
 from app.auth.dependencies import get_current_user
 from app.auth.scope import assert_kund_access
 from app.database.models import (
+    DomainResearchResultRecord,
     EvidenceSet,
     EvidenceSetItem,
     EvidenceSetItemNeed,
@@ -811,6 +812,32 @@ async def get_attempt_progress_events(
     )
 
 
+def _domain_result_analysis(result: object) -> str | None:
+    if not isinstance(result, dict):
+        return None
+    relation = result.get("relation")
+    if not isinstance(relation, dict):
+        return None
+    explanation = relation.get("explanation")
+    if not isinstance(explanation, str) or not explanation:
+        return None
+    return explanation[:1000]
+
+
+def _need_assessment_out(raw: object) -> ResearchNeedAssessmentOut | None:
+    if not raw:
+        return None
+    parsed = need_assessment_from_json(raw)
+    return ResearchNeedAssessmentOut(
+        research_need_id=parsed.research_need_id,
+        sufficient=parsed.sufficient,
+        supporting_evidence_ids=parsed.supporting_evidence_ids,
+        missing_or_weak=parsed.missing_or_weak,
+        contradictions=parsed.contradictions,
+        further_information=parsed.further_information,
+    )
+
+
 @router.get(
     "/attempts/{attempt_id}/research-overview",
     response_model=ResearchOverviewOut,
@@ -897,7 +924,12 @@ async def get_attempt_research_overview(
             (
                 await session.execute(
                     select(EvidenceSetItem)
-                    .options(selectinload(EvidenceSetItem.domain_result))
+                    .options(
+                        noload(EvidenceSetItem.domain_result),
+                        noload(EvidenceSetItem.passage),
+                        noload(EvidenceSetItem.need_links),
+                        noload(EvidenceSetItem.quality_assessments),
+                    )
                     .where(EvidenceSetItem.evidence_set_id.in_(evidence_set_ids))
                     .order_by(EvidenceSetItem.ordinal, EvidenceSetItem.id)
                 )
@@ -906,6 +938,23 @@ async def get_attempt_research_overview(
         if evidence_set_ids
         else []
     )
+    domain_result_ids = [
+        item.domain_result_id for item in evidence_items if item.domain_result_id
+    ]
+    domain_rows = (
+        (
+            await session.execute(
+                select(
+                    DomainResearchResultRecord.id,
+                    DomainResearchResultRecord.raw_source_id,
+                    DomainResearchResultRecord.result,
+                ).where(DomainResearchResultRecord.id.in_(domain_result_ids))
+            )
+        ).all()
+        if domain_result_ids
+        else []
+    )
+    domain_by_id = {row.id: row for row in domain_rows}
     item_need_links = (
         (
             await session.execute(
@@ -1023,20 +1072,19 @@ async def get_attempt_research_overview(
                 ),
                 sources=[
                     ResearchSourceOut(
-                        derived=bool(item.provenance.get("derived")),
-                        failure_category=item.provenance.get("failure_category"),
+                        derived=bool((item.provenance or {}).get("derived")),
+                        failure_category=(item.provenance or {}).get("failure_category"),
                         id=item.id,
                         passage_id=item.passage_id,
                         domain_result_id=item.domain_result_id,
                         raw_source_id=(
-                            item.domain_result.raw_source_id if item.domain_result else None
+                            domain_by_id[item.domain_result_id].raw_source_id
+                            if item.domain_result_id in domain_by_id
+                            else None
                         ),
                         analysis=(
-                            str(
-                                item.domain_result.result.get("relation", {}).get("explanation")
-                                or ""
-                            )[:1000]
-                            if item.domain_result
+                            _domain_result_analysis(domain_by_id[item.domain_result_id].result)
+                            if item.domain_result_id in domain_by_id
                             else None
                         ),
                         research_need_ids=sorted(need_ids_by_item[item.id]),
@@ -1059,9 +1107,7 @@ async def get_attempt_research_overview(
                         for item in items
                     }
                 ),
-                need_assessment=(
-                    ResearchNeedAssessmentOut(**need_assessment) if need_assessment else None
-                ),
+                need_assessment=_need_assessment_out(need_assessment),
             )
         )
     status_counts = {

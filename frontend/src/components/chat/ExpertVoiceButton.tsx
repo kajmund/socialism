@@ -1,13 +1,13 @@
 import { Phone, PhoneOff } from "lucide-react"
 import { ExpertVoiceCallOverlay } from "@/components/chat/ExpertVoiceCallOverlay"
-import type { GeminiLiveVoiceError } from "@/components/chat/geminiLiveVoice"
-import { useGeminiLiveVoice } from "@/components/chat/useGeminiLiveVoice"
+import type { LiveVoiceError } from "@/components/chat/liveVoice"
+import { useLiveVoice } from "@/components/chat/useLiveVoice"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 
 type Translate = (key: MessageKey, params?: TranslateParams) => string
 
-function voiceErrorText(error: GeminiLiveVoiceError, t: Translate): string {
+function voiceErrorText(error: LiveVoiceError, t: Translate): string {
   switch (error) {
     case "microphoneDenied":
       return t("chat.voice.errors.microphoneDenied")
@@ -43,7 +43,7 @@ export function ExpertVoiceButton({
     speakerMuted,
     toggleMicrophone,
     toggleSpeaker,
-  } = useGeminiLiveVoice({
+  } = useLiveVoice({
     personaId,
     onError: (error) => onErrorMessage?.(voiceErrorText(error, t)),
     onMemoryError: () => onErrorMessage?.(t("chat.voice.memorySaveFailed")),

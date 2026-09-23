@@ -80,12 +80,23 @@ class PersonaDetail(LibraryPersona):
     pass
 
 
+LiveVoiceProviderName = Literal["gemini", "elevenlabs"]
+
+
+class LiveVoiceAudioOut(BaseModel):
+    input_format: str
+    output_format: str
+
+
 class PersonaLiveTokenOut(BaseModel):
-    token: str
+    provider: LiveVoiceProviderName
+    websocket_url: str
     model: str
     voice: str
     expires_at: str
     initial_turn: str
+    audio: LiveVoiceAudioOut
+    client_init: dict[str, Any] | None = None
 
 
 class PersonaLiveMemoryRequest(BaseModel):

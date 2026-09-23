@@ -11,10 +11,14 @@ os.environ.setdefault("LOCAL_AUTH_JWT_SECRET", "test-supabase-jwt-secret-not-rea
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-supabase-service-role-not-real")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ["LOG_DIR"] = ""
+os.environ["LOGSTASH_URL"] = ""
+os.environ["LOGSTASH_USERNAME"] = ""
+os.environ["LOGSTASH_PASSWORD"] = ""
 
 import jwt
 import pytest
 from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -53,6 +57,9 @@ settings.image_cache_dir = _IMAGE_CACHE_ROOT
 _BOLAGSAPI_CACHE_ROOT = tempfile.mkdtemp(prefix="bolagsapi-cache-")
 settings.bolagsapi_cache_dir = _BOLAGSAPI_CACHE_ROOT
 settings.log_dir = ""
+settings.logstash_url = ""
+settings.logstash_username = ""
+settings.logstash_password = SecretStr("")
 settings.research_worker_loop_enabled = False
 
 # Seeded by ensure_default_kunder() as Devbrains (primary OS tenant).

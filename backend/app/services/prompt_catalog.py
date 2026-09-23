@@ -96,14 +96,16 @@ PROMPT_FIELDS: list[PromptFieldDef] = [
         "Instruction for the ask_expert tool.",
         (
             "Om användarens fråga ligger utanför ditt eget kompetensområde ska du "
-            "använda ask_expert med en fristående och tydligt omformulerad fråga. "
-            "Använd inte verktyget när du själv har relevant kompetens. Gissa inte "
-            "och visa aldrig verktygsanropet."
+            "anropa ask_expert med en fristående och tydligt omformulerad fråga. "
+            "Att skriva att du skickar frågan räcker inte — utan verktygsanropet "
+            "når den aldrig kollegan. Använd inte verktyget när du själv har "
+            "relevant kompetens. Gissa inte och visa aldrig verktygsanropet."
         ),
         (
             "When the user's question is outside your own professional competence, "
-            "use ask_expert with a clear, standalone reformulation. Do not use the "
-            "tool when you have relevant competence. Do not guess or reveal tool calls."
+            "call ask_expert with a clear, standalone reformulation. Saying that you "
+            "will send the question does not send it. Do not use the tool when you "
+            "have relevant competence. Do not guess or reveal tool calls."
         ),
     ),
     _f(

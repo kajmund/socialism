@@ -39,7 +39,7 @@ from app.services.expert_chat_evidence import (
     reusable_expert_chat_evidence_context,
 )
 from app.services.expert_chat_research_tool import research_tool_handler_for_chat
-from app.services.expert_consult import expert_consult_handler_for_chat
+from app.services.expert_consult import consult_handler_for_persona
 from app.services.expert_tools import resolve_chat_tools
 from app.services.expertgranskning.memory import ExpertMemoryHit, get_expert_memory
 from app.services.expertgranskning.memory_view import serialize_memory_hit
@@ -397,24 +397,22 @@ async def stream_library_chat_turn(
                 question=message,
                 prompts=prompts,
             )
-        chat_tools = library_chat_tools(persona)
+        chat_tools = resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
         with_tools = _library_chat_uses_tools(persona)
         research_tool_handler = None
-        consult_tool_handler = None
-        if persona.kind == "expert" and "start_research" in (chat_tools or []):
+        if persona.kind == "expert" and "start_research" in chat_tools:
             research_tool_handler = research_tool_handler_for_chat(
                 session,
                 persona=persona,
                 history=history,
                 user_message=message,
             )
-        if persona.kind == "expert" and "ask_expert" in (chat_tools or []):
-            consult_tool_handler = expert_consult_handler_for_chat(
-                session,
-                asker=persona,
-                mode=mode,
-                prompts=prompts,
-            )
+        consult_tool_handler = consult_handler_for_persona(
+            session,
+            persona=persona,
+            mode=mode,
+            prompts=prompts,
+        )
 
         user_row = PersonaMessage(
             persona_id=persona_id,

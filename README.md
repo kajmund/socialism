@@ -75,15 +75,15 @@ cd ..
 # 4) Authenticate to Fly once
 flyctl auth login
 
-# 5) Run ELK proxy (:19200), API (:8000), and Vite (:5173)
+# 5) Run Elasticsearch (:19200), Kibana (:5601), API (:8000), and Vite (:5173)
 make start
 ```
 
-Open [http://localhost:5173/login](http://localhost:5173/login) for Supabase magic-link sign-in. For the local shortcut, set `ALLOW_LOCAL_LOGIN=true` and `LOCAL_AUTH_JWT_SECRET` in `backend/.env`, restart the backend, and open [http://localhost:5173/dev-in](http://localhost:5173/dev-in). API docs: [http://localhost:8000/docs](http://localhost:8000/docs).
+Open [http://localhost:5173/login](http://localhost:5173/login) for Supabase magic-link sign-in. For the local shortcut, set `ALLOW_LOCAL_LOGIN=true` and `LOCAL_AUTH_JWT_SECRET` in `backend/.env`, restart the backend, and open [http://localhost:5173/dev-in](http://localhost:5173/dev-in). API docs: [http://localhost:8000/docs](http://localhost:8000/docs). Kibana: [http://127.0.0.1:5601](http://127.0.0.1:5601).
 
-`make start` fails clearly if Fly authentication is missing, the proxy cannot connect, or Elasticsearch does not become healthy. The proxy only listens on `127.0.0.1`. Start it separately for troubleshooting with `make elk-proxy`.
+`make start` fails clearly if Fly authentication is missing, a proxy cannot connect, or Elasticsearch/Kibana does not become healthy. The proxies only listen on `127.0.0.1`. Start them separately with `make elk-proxy` and `make kibana-proxy`.
 
-Or start application services separately: `make backend` / `make frontend` / `make word-addin`. Word add-in sideload: [docs/guides/word-addin.md](docs/guides/word-addin.md).
+Or start application services separately: `make backend` / `make frontend` / `make word-addin`. Pass `RELOAD=0` to run the backend without uvicorn `--reload` (`make start RELOAD=0` or `make backend RELOAD=0`). Word add-in sideload: [docs/guides/word-addin.md](docs/guides/word-addin.md).
 
 ## Frontend
 

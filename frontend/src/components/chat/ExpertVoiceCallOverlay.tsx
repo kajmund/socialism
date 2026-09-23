@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { Mic, MicOff, PhoneOff, Volume2, VolumeX } from "lucide-react"
-import type { GeminiLiveVoiceState } from "@/components/chat/geminiLiveVoice"
+import type { LiveVoiceState } from "@/components/chat/liveVoice"
 import { ExpertAvatar } from "@/components/experts/ExpertAvatar"
 import { useLocale } from "@/i18n"
 
@@ -21,7 +21,7 @@ export function ExpertVoiceCallOverlay({
   onToggleSpeaker,
   onHangUp,
 }: {
-  state: GeminiLiveVoiceState
+  state: LiveVoiceState
   expertName: string
   avatarUrl?: string | null
   microphoneMuted: boolean

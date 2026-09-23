@@ -81,6 +81,7 @@ from app.services.expert_chat_evidence import (
     reusable_expert_chat_evidence_context,
 )
 from app.services.expert_chat_research_tool import research_tool_handler_for_chat
+from app.services.expert_consult import consult_handler_for_persona
 from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
 from app.services.expertgranskning.memory import get_expert_memory, memory_belongs_to
 from app.services.expertgranskning.memory_view import (
@@ -89,12 +90,12 @@ from app.services.expertgranskning.memory_view import (
     expert_directory,
     labeled_memory,
 )
-from app.services.gemini_live import (
-    GeminiLiveProviderError,
-    GeminiLiveUnavailable,
-    create_gemini_live_token,
-)
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
+from app.services.live_voice import (
+    LiveVoiceProviderError,
+    LiveVoiceUnavailable,
+    create_live_voice_session,
+)
 from app.services.live_voice_context import build_live_voice_context
 from app.services.live_voice_tools import live_voice_tool_specs, run_live_voice_tool
 from app.services.object_storage import (
@@ -226,9 +227,8 @@ async def list_personas(
 ) -> list[LibraryPersona]:
     customer_id = effective_customer_id(user, customer_id)
     if kind == "expert":
-        created = await ensure_default_expert_personas(session, customer_id=customer_id)
-        if created:
-            await session.commit()
+        await ensure_default_expert_personas(session, customer_id=customer_id)
+        await session.commit()
 
     stmt = select(Persona).order_by(Persona.updated_at.desc())
     if customer_id is not None:
@@ -368,21 +368,15 @@ async def create_persona_live_token(
         profile_kind="expert",
     )
     try:
-        token, model, voice, expires_at = await create_gemini_live_token(
+        return await create_live_voice_session(
             system_instruction,
+            initial_turn=initial_turn,
             tools=live_voice_tool_specs(persona),
         )
-    except GeminiLiveUnavailable as exc:
+    except LiveVoiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except GeminiLiveProviderError as exc:
+    except LiveVoiceProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return PersonaLiveTokenOut(
-        token=token,
-        model=model,
-        voice=voice,
-        expires_at=expires_at,
-        initial_turn=initial_turn,
-    )
 
 
 @router.post(
@@ -859,6 +853,12 @@ async def chat_with_persona(
             if persona.kind == "expert"
             else None
         ),
+        consult_tool_handler=consult_handler_for_persona(
+            session,
+            persona=persona,
+            mode=body.mode,
+            prompts=prompts,
+        ),
     )
 
     user_row = PersonaMessage(
@@ -1050,6 +1050,12 @@ async def resend_message(
                 if persona.kind == "expert"
                 else None
             ),
+            consult_tool_handler=consult_handler_for_persona(
+                session,
+                persona=persona,
+                mode=mode,
+                prompts=prompts,
+            ),
         )
         session.add(
             PersonaMessage(
@@ -1110,6 +1116,12 @@ async def resend_message(
                 )
                 if persona.kind == "expert"
                 else None
+            ),
+            consult_tool_handler=consult_handler_for_persona(
+                session,
+                persona=persona,
+                mode=mode,
+                prompts=prompts,
             ),
         )
         session.add(

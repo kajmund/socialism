@@ -25,11 +25,6 @@ from app.services.oasis_agent_tools import (
 )
 
 
-def _openai_to_gemini_tools(specs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    declarations = [spec["function"] for spec in specs]
-    return [{"functionDeclarations": declarations}] if declarations else []
-
-
 def live_voice_tool_specs(persona: Persona) -> list[dict[str, Any]]:
     allowed = frozenset(resolve_expert_tools(persona.tools))
     specs = [
@@ -38,7 +33,7 @@ def live_voice_tool_specs(persona: Persona) -> list[dict[str, Any]]:
         research_tool_spec(),
         *actor_tool_specs(),
     ]
-    return _openai_to_gemini_tools(filter_openai_tools(specs, allowed))
+    return filter_openai_tools(specs, allowed)
 
 
 async def run_live_voice_tool(
