@@ -151,6 +151,18 @@ class Settings(BaseSettings):
     research_max_needs_per_attempt: int = Field(default=16, ge=1, le=64)
     # Global completeness reviews after local sufficiency. Prevents cycles.
     research_max_completeness_passes: int = Field(default=2, ge=1, le=8)
+    # Jev is a research control primitive, not chat-LLM routing.
+    research_jev_enabled: bool = False
+    research_jev_mode: Literal["shadow", "active"] = "shadow"
+    research_jev_model: str = "jev-1.12"
+    research_jev_sufficient_threshold: float = Field(default=0.9, ge=0.5, le=1.0)
+    research_jev_incomplete_threshold: float = Field(default=0.85, ge=0.5, le=1.0)
+    research_jev_confidence_threshold: float = Field(default=0.8, ge=0.5, le=1.0)
+    research_jev_max_evidence_items: int = Field(default=24, ge=1, le=100)
+    research_jev_max_state_chars: int = Field(default=6000, ge=256, le=32_000)
+    research_jev_concurrency: int = Field(default=8, ge=1, le=32)
+    research_jev_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
+    research_jev_evidence_screen_enabled: bool = True
     # Bounded Question → Evidence graph read-through before provider retrieval.
     research_knowledge_lookup_limit: int = Field(default=10, ge=1, le=32)
     research_question_semantic_match_threshold: float = Field(

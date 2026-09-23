@@ -18,6 +18,7 @@ from app.services.research.assessment import (
     EvidenceReviewGroup,
     ResearchAssessmentDraft,
     ResearchAssessmentError,
+    ResearchAssessor,
     ResearchNeedAssessment,
     can_assess_programmatically,
     group_evidence_for_review,
@@ -25,6 +26,7 @@ from app.services.research.assessment import (
     review_excerpt,
     sanitize_assessment_draft,
 )
+from app.services.research.fast_gate import wrap_research_assessor
 from app.services.research.models import ResearchPlan
 from app.services.research.review_payload import compact_claims
 
@@ -270,16 +272,18 @@ async def build_llm_research_assessor(
     *,
     customer_id: int,
     module: str,
-) -> LlmResearchAssessor:
+) -> ResearchAssessor:
     prompts = await require_active_prompts(
         session,
         customer_id=customer_id,
         module=module,
         language="sv",
     )
-    return LlmResearchAssessor(
-        system_prompt=render_prompt(prompts, "research.assessment.system"),
-        user_prompt=prompts["research.assessment.user"],
-        provider=settings.llm_provider,
-        model=settings.selected_llm_model,
+    return wrap_research_assessor(
+        LlmResearchAssessor(
+            system_prompt=render_prompt(prompts, "research.assessment.system"),
+            user_prompt=prompts["research.assessment.user"],
+            provider=settings.llm_provider,
+            model=settings.selected_llm_model,
+        )
     )

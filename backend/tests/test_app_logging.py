@@ -16,6 +16,8 @@ from app.logging import (
     detach_logstash_logging,
     log_file_path,
 )
+from app.observability.context import log_context
+from app.observability.events import log_event
 
 
 def test_configure_logging_disabled_when_log_dir_empty(monkeypatch):
@@ -107,6 +109,57 @@ def test_logstash_handler_posts_ecs_json(monkeypatch):
     assert '"service": "socialism-backend"' in request.data.decode("utf-8")
     assert '"environment": "test"' in request.data.decode("utf-8")
     assert sent["timeout"] == 2.0
+
+
+def test_logstash_handler_includes_structured_event_fields(monkeypatch):
+    monkeypatch.setattr("app.logging.settings.logstash_url", "https://logs.example.test")
+    monkeypatch.setattr("app.logging.settings.logstash_username", "socialism")
+    monkeypatch.setattr("app.logging.settings.logstash_password", SecretStr("secret"))
+    sent = {}
+
+    class Response:
+        status = 204
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+    def fake_urlopen(request, *, timeout):
+        sent["payload"] = loads(request.data)
+        return Response()
+
+    monkeypatch.setattr("app.logging.urlopen", fake_urlopen)
+    handler = LogstashHTTPHandler()
+    logger = logging.getLogger("app.tests.research.events")
+    previous_handlers = list(logger.handlers)
+    previous_propagate = logger.propagate
+    logger.handlers = [handler]
+    logger.propagate = False
+    try:
+        with log_context(run_id="run-1", attempt_id="att-1", module="dd", ensure_trace_id=True):
+            log_event(
+                logger,
+                "research.jev.assessment.completed",
+                dataset="socialism.research",
+                outcome="success",
+                duration_ms=12.5,
+                fields={"jev": {"decision": "sufficient", "answerable_now_probability": 0.96}},
+            )
+    finally:
+        logger.handlers = previous_handlers
+        logger.propagate = previous_propagate
+
+    payload = sent["payload"]
+    assert payload["event"]["name"] == "research.jev.assessment.completed"
+    assert payload["event"]["dataset"] == "socialism.research"
+    assert payload["jev"]["decision"] == "sufficient"
+    assert payload["jev"]["answerable_now_probability"] == 0.96
+    assert payload["run"]["id"] == "run-1"
+    assert payload["attempt"]["id"] == "att-1"
+    assert payload["research"]["module"] == "dd"
+    assert payload["trace"]["id"]
 
 
 def test_logstash_handler_includes_exception(monkeypatch):
