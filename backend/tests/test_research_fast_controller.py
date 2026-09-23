@@ -698,3 +698,39 @@ async def test_oversized_need_metadata_is_not_sent_to_jev(jev_settings):
     assert decision.error_category == "invalid_request"
     assert not decision.would_short_circuit
     assert client.states == []
+
+
+def test_jev_state_preserves_legal_relation_and_changes_digest_when_it_changes():
+    from dataclasses import replace
+
+    from app.services.legal_research_result import LegalResearchResult
+    from app.services.research.fast_state import compact_evidence_item_state
+    from tests.test_preparatory_attribution import TEXT, URI, payload
+
+    legal = LegalResearchResult.model_validate({**payload(), "source": {"kind": "preparatory_work", "title": "Proposition", "canonical_uri": URI}, "raw_text": TEXT})
+    item = replace(_evidence(excerpt="Särskild hänsyn till konsumenter."), legal_result=legal)
+    state, _, before = compact_evidence_item_state(objective="Specialmotiveringen", item=item, max_state_chars=6000)
+    context = state["evidence"]["legal_context"]
+    assert context["relation"] == "contextual"
+    assert context["source_text_role"] == "consultation_response"
+    assert context["requested_text_role"] == "government_special_commentary"
+    assert context["speaker"] == "Sveriges domareförbund"
+    assert "raw_text" not in context
+    changed = legal.model_copy(update={"relation": legal.relation.model_copy(update={"relation": "supports"})})
+    _, _, after = compact_evidence_item_state(objective="Specialmotiveringen", item=replace(item, legal_result=changed), max_state_chars=6000)
+    assert before != after
+
+
+def test_jev_legal_context_bounds_large_explanations_and_preserves_truncation():
+    from dataclasses import replace
+
+    from app.services.research.fast_state import compact_evidence_item_state
+    from tests.test_legal_research_result import _result
+
+    legal = _result().model_copy(update={"truncated": True})
+    legal.relation.explanation = "x" * 50000
+    legal.relation.unresolved_questions = ["y" * 50000] * 50
+    state, chars, _ = compact_evidence_item_state(objective="Question", item=replace(_evidence(), legal_result=legal), max_state_chars=6000)
+    assert chars < 6000
+    assert state["evidence"]["legal_context"]["source_truncated"] is True
+    assert len(state["evidence"]["legal_context"]["unresolved_questions"]) == 3

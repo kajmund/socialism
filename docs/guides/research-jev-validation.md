@@ -69,3 +69,12 @@ permission failures. Rerunning the affected tests with permission resolved eight
 an existing OASIS test still expects follower text absent from its default
 prompt template. The OASIS implementation and test were not changed here.
 
+
+
+## Compact legal context
+
+The compact Jev payload now preserves legal relation, confidence, a bounded explanation, up to three bounded unresolved questions, source truncation, and (when available) preparatory-work speaker, source text role and requested text role. This applies both to evidence screening and state assessment. Changes to the legal interpretation alter the compact-input digest, so a cached item score is not reused merely because the displayed excerpt stayed the same. Full source bodies and attribution quotations are not sent in this context block.
+
+A paired live probe used the same public question about the special commentary in prop. 1975/76:81 and the same 280-character excerpt of consultation responses from the earlier provider probe. The second input added the verified consultation/contextual classification. With the configured `jev-latest` request resolving to `openjev-0.1`, `answerable_now` changed from 0.7778 to 0.0925, `material_gap` from 0.8834 to 0.9951, and `follow_up_change` from 0.1213 to 0.9523. Input size was 750 versus 1,278 characters; observed latency 1.92 versus 1.38 seconds. The context in this diagnostic pair was explicitly assembled from the verified source role and prior provider result, rather than replaying an entire stored research attempt. These are uncalibrated Noul scores from one pair, not probabilities of correctness or evidence of a general latency improvement. Shadow mode remains appropriate.
+
+Focused Jev/controller tests: 34 passed, including preserved text roles, interpretation-sensitive input digests, and bounded context for large explanations.

@@ -142,6 +142,23 @@ def _evidence_row(item: AssessableEvidence) -> dict[str, Any]:
             "source_nature": quality.source_nature,
             "flags": [flag.code for flag in quality.flags],
         }
+    if item.legal_result is not None:
+        result = item.legal_result
+        context: dict[str, Any] = {
+            "relation": result.relation.relation,
+            "confidence": result.relation.confidence,
+            "explanation": review_excerpt(result.relation.explanation, max_chars=280),
+            "unresolved_questions": [review_excerpt(value, max_chars=160) for value in result.relation.unresolved_questions[:3]],
+            "source_truncated": result.truncated,
+        }
+        if result.preparatory_work and result.preparatory_work.attribution:
+            attribution = result.preparatory_work.attribution
+            context.update(
+                source_text_role=attribution.text_role,
+                requested_text_role=attribution.requested_text_role,
+                speaker=attribution.speaker[:120],
+            )
+        row["legal_context"] = context
     return row
 
 
