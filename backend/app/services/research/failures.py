@@ -4,6 +4,7 @@ from typing import Literal
 
 FailureCategory = Literal[
     "search_no_hit",
+    "passage_not_found",
     "resolve_no_document",
     "fetch_failed",
     "domain_schema_invalid",

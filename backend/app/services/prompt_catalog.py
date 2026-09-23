@@ -3547,6 +3547,38 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "research.lagen_nu.passage_queries.system", "research",
+        "Research — avsnittssökning", "Research — passage queries",
+        "Planera korta sökningar i ett redan identifierat långt dokument.",
+        "Plan short searches within an already identified long document.",
+        (
+            "Ett känt juridiskt dokument är trunkerat. Formulera 1–3 olika, mycket korta "
+            "fulltextsökningar för att hitta de avsnitt som besvarar frågan. Varje sökning "
+            "ska innehålla ett enda sakord, inte en fras eller hela frågan. Flera ord riskerar att utesluta relevanta avsnitt. Dokumentets "
+            "beteckning läggs till av systemet: upprepa inte den. Använd ord som sannolikt "
+            "står i själva källtexten, även grundformer och äldre formuleringar. Variera "
+            "mellan avsnittets ämne och den materiella frågan så att en innehållsförteckning "
+            "inte blir enda träffen. Hitta inte på ankare, sidnummer, URI:er eller rättsliga svar."
+        ),
+        (
+            "A known legal document is truncated. Propose 1–3 distinct, very short full-text "
+            "queries to locate the passages that answer the question. Use one substantive "
+            "word per query, not a phrase or the whole question. Multiple terms can exclude relevant sections. The system adds "
+            "the document identifier; do not repeat it. Use terms likely to appear in the "
+            "source, including base forms and historical phrasing. Diversify between the "
+            "section topic and substantive issue so a table of contents is not the only hit. "
+            "Do not invent anchors, page numbers, URIs or legal answers."
+        ),
+    ),
+    _f(
+        "research.lagen_nu.passage_queries.user", "research",
+        "Research — avsnittssökning (underlag)", "Research — passage queries (input)",
+        "Platshållare: {question} {document_json}.",
+        "Placeholders: {question} {document_json}.",
+        "Fråga:\n{question}\n\nIdentifierat dokument:\n{document_json}",
+        "Question:\n{question}\n\nResolved document:\n{document_json}",
+    ),
+    _f(
         "research.lagen_nu.select.system",
         "research",
         "Research — lagen.nu träffurval",
