@@ -64,6 +64,8 @@ class LegalQuestionValidationModel(BaseModel):
             raise ValueError("coherent questions must be kept unchanged")
         if not self.is_coherent and self.action == "keep":
             raise ValueError("incoherent questions cannot be kept")
+        if self.legal_track == "mixed" and self.is_coherent:
+            raise ValueError("mixed legal tracks are not coherent")
         if self.legal_track == "mixed" and self.action == "keep":
             raise ValueError("mixed legal tracks must be rewritten or split")
         if self.action == "rewrite" and not self.rewritten_question:

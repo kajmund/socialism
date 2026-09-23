@@ -144,10 +144,10 @@ async def test_already_normalized_need_is_not_validated_again():
 
 
 def test_schema_rejects_keeping_a_mixed_track():
-    with pytest.raises(ValidationError, match="mixed legal tracks"):
+    with pytest.raises(ValidationError, match="mixed legal tracks are not coherent"):
         LegalQuestionValidationModel.model_validate(
             {
-                "is_coherent": False,
+                "is_coherent": True,
                 "legal_track": "mixed",
                 "action": "keep",
                 "rationale": "no",
