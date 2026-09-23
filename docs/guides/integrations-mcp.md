@@ -83,3 +83,7 @@ Example Cursor entry (merge into your MCP config):
 | `OPINIONSSIMULATOR_API_URL` | MCP only | e.g. `http://127.0.0.1:8000` for run tools |
 | `BOLAGSAPI_API_KEY` | backend (DD company tools) | When set, company tools use BolagsAPI; when empty, Allabolag scrape |
 | `BOLAGSAPI_MCP_URL` | backend (DD chat) | Default `https://mcp.bolagsapi.se/mcp` |
+
+## Kibana / Elasticsearch logs
+
+See [Kibana logg-MCP](kibana-mcp.md) for the separate read-only log server, its five tools, environment configuration and tests.
