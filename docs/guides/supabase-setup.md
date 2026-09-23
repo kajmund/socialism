@@ -18,7 +18,7 @@ Keep `service_role` and S3 secrets out of git, client bundles, and frontend env 
 
 ## PostgreSQL
 
-Use the direct or session connection string for the long-running backend process. Do not use Supavisor transaction mode: the application owns normal SQLAlchemy transactions and persistent connection pooling. Plain `postgres://` or `postgresql://` values are normalized to `postgresql+psycopg://` at startup.
+Use the direct or session connection string for the long-running backend process. Do not use Supavisor transaction mode: the application owns normal SQLAlchemy transactions and persistent connection pooling. Session-mode pooler clients are capped at 15; keep a single backend process and restart it after `--reload` storms instead of opening more clients. Plain `postgres://` or `postgresql://` values are normalized to `postgresql+psycopg://` at startup.
 
 Apply schema migrations with `uv run alembic upgrade head`. For the one-time SQLite import, follow [Backend setup](backend-setup.md#supabase-postgres-migration). The importer requires a dedicated new target, explicitly clears migration-created catalog rows with `--replace-target`, and verifies the copy before its transaction commits.
 

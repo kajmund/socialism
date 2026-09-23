@@ -7,6 +7,7 @@ import copy
 import json
 import logging
 import queue
+import sys
 import traceback
 from datetime import UTC, datetime
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
@@ -97,6 +98,17 @@ class LogstashHTTPHandler(logging.Handler):
                     raise OSError(f"Logstash returned HTTP {response.status}")
         except (OSError, TypeError, ValueError):
             self.handleError(record)
+
+    def handleError(self, record: logging.LogRecord) -> None:
+        # Default handleError reprints the originating record. Access logs can
+        # include JWTs in the URL, so keep the drop explicit without the payload.
+        exc = sys.exc_info()[1]
+        kind = type(exc).__name__ if exc is not None else "error"
+        detail = str(exc) if exc is not None else ""
+        sys.stderr.write(
+            f"Logstash drain dropped a {record.levelname} record from "
+            f"{record.name} ({kind}: {detail})\n"
+        )
 
 
 def log_file_path() -> Path | None:

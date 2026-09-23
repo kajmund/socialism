@@ -20,7 +20,7 @@ cp .env.example .env
 
 | Variable | Required | Default | Notes |
 | -------- | -------- | ------- | ----- |
-| `DATABASE_URL` | **yes** | — | Use the Supabase direct/session URL. `postgres://` and `postgresql://` are normalized to the psycopg driver. Do not use the transaction pooler for the long-running backend. |
+| `DATABASE_URL` | **yes** | — | Use the Supabase direct/session URL. `postgres://` and `postgresql://` are normalized to the psycopg driver. Do not use the transaction pooler for the long-running backend. Session-mode pooler (`*.pooler.supabase.com:5432`) caps clients at 15; the backend keeps SQLAlchemy and Mem0 well below that. |
 | `ALLOWED_ORIGINS` | no | Vite localhost origins | Comma-separated CORS list |
 | `LLM_PROVIDER` | no | `cerebras` | `cerebras` or `deepseek`. No automatic fallback |
 | `LLM_MODEL` | no | provider default | Empty → `gpt-oss-120b` (Cerebras) or `DEEPSEEK_MODEL` |
@@ -68,7 +68,7 @@ cp .env.example .env
 | `LOGSTASH_PASSWORD` | no | empty | Logstash HTTP Basic Auth password; set with URL and username |
 | `LOG_SERVICE` | no | `socialism-backend` | Service name attached to remote log events |
 | `LOG_ENVIRONMENT` | no | `local` | Environment attached to remote log events |
-| `LOGSTASH_TIMEOUT_SECONDS` | no | `2` | Per-event remote delivery timeout in the background worker |
+| `LOGSTASH_TIMEOUT_SECONDS` | no | `10` | Per-event remote delivery timeout in the background worker |
 | `LOGSTASH_QUEUE_SIZE` | no | `512` | Maximum queued remote log events before new events are dropped loudly |
 | `BOLAGSAPI_API_KEY` | for DD company tools | — | When set, company tools use BolagsAPI MCP. When empty, the same tools scrape Allabolag.se |
 | `BOLAGSAPI_MCP_URL` | no | `https://mcp.bolagsapi.se/mcp` | BolagsAPI remote MCP |
@@ -138,6 +138,27 @@ Constraints:
 - `SUPABASE_S3_*` are required when storing files (annual reports, generated report HTML). Missing keys fail the upload or report job — there is no disk fallback for new artifacts. See [Supabase setup](supabase-setup.md#storage-s3).
 - Settings live only in `app/config.py` — do not call `os.getenv` / `load_dotenv` in app code.
 - `BOLAGSAPI_API_KEY` selects the company-data backend: BolagsAPI MCP when set, Allabolag scrape when empty. One path per process — a BolagsAPI failure does not fall through to Allabolag. Successful tool results (and Allabolag HTML) are cached on disk for 10 months.
+
+### Live voice
+
+Expert chat can open a live phone-style session. Audio never hits this API: `POST /personas/{id}/live-token` mints provider credentials; the browser talks PCM to the provider WebSocket. Tools and Mem0 stay on `POST /personas/{id}/live-tool` and `POST /personas/{id}/live-memory`. Expert-only (`kind != "expert"` → 404).
+
+| Variable | Required | Default | Notes |
+| -------- | -------- | ------- | ----- |
+| `LIVE_VOICE_PROVIDER` | no | `gemini` | `gemini` or `elevenlabs`. No automatic fallback |
+| `GOOGLE_API_KEY` | **when `LIVE_VOICE_PROVIDER=gemini`** | empty | Same key as playground Gemini vision. Missing key → 503 on mint |
+| `GEMINI_LIVE_MODEL` | no | `gemini-2.5-flash-native-audio-latest` | Constrained Gemini Live model |
+| `GEMINI_LIVE_VOICE` | no | `Algenib` | Prebuilt Gemini voice |
+| `ELEVENLABS_API_KEY` | **when `LIVE_VOICE_PROVIDER=elevenlabs`** | empty | Server-only. Missing key/agent/voice → 503 on mint |
+| `ELEVENLABS_AGENT_ID` | **when `LIVE_VOICE_PROVIDER=elevenlabs`** | empty | One private shell agent; prompt/`first_message` are overridden per call |
+| `ELEVENLABS_VOICE_ID` | **when `LIVE_VOICE_PROVIDER=elevenlabs`** | empty | TTS voice override. Enable voice overrides on the agent Security tab |
+| `ELEVENLABS_TOOL_IDS` | no | empty | JSON object mapping OpenAI tool names to ElevenLabs client tool ids. When set, every allowlisted expert tool must have an id (fail loud). Client tools must already exist on the agent (`expects_response: true`). When unset, v1 still executes `client_tool_call` via `/live-tool` (backend rejects disallowed names) |
+| `ELEVENLABS_BASE_URL` | no | `https://api.elevenlabs.io` | |
+| `ELEVENLABS_SIGNED_URL_TTL_SECONDS` | no | `900` | Conservative `expires_at` on the session payload |
+
+Enable ElevenLabs: set `LIVE_VOICE_PROVIDER=elevenlabs` plus `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, and `ELEVENLABS_VOICE_ID`, then restart the backend. Gemini remains the path when `LIVE_VOICE_PROVIDER=gemini` (and `GOOGLE_API_KEY` is set). Do not add an ElevenLabs SDK — the frontend speaks the WebSocket protocol directly.
+
+On the ElevenLabs agent, enable Security overrides for system prompt, first message, voice, and (if using `ELEVENLABS_TOOL_IDS`) tools.
 
 HTTP access lines and uncaught ASGI exceptions (DeepSeek timeouts, tracebacks) go to **stdout** and to `backend/data/logs/app.log`. When the file hits `LOG_MAX_BYTES` it becomes `app.log.1` and a new `app.log` starts (`LOG_BACKUP_COUNT` files kept). Körning-loggar under `data/oasis/…` are separate.
 
@@ -268,6 +289,8 @@ uv run python -m app.seed
 uv run uvicorn app.main:app --reload
 ```
 
+From the repo root, `make backend` and `make start` enable `--reload` by default. Pass `RELOAD=0` to keep a single backend process (`make backend RELOAD=0`, `make start RELOAD=0`).
+
 - API docs: http://localhost:8000/docs
 - Health: http://localhost:8000/health
 
@@ -327,6 +350,7 @@ Uses in-memory SQLite; no network required. Tests set dummy chat-provider keys a
 | Jobs stuck after crash | Restart API — interrupted jobs are failed on lifespan startup |
 | Report job hangs | Raise/check `LLM_TIMEOUT_SECONDS`; confirm the selected chat provider is reachable |
 | SQLite alter migration fails | Ensure `render_as_batch=True` and review autogenerated revision |
+| `EMAXCONNSESSION` / max clients 15 | Session-mode pooler is full. Restart with `make start RELOAD=0` so leftover uvicorn `--reload` sessions drop; SQLAlchemy and Mem0 pools are capped below 15. |
 
 ## Supabase Postgres migration
 

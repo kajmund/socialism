@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 from typing import Annotated, Literal, Self
@@ -18,6 +19,7 @@ _LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 SimulationEngine = Literal["none", "oasis"]
 PersonaGenerator = Literal["deepseek", "stub"]
 LLMProvider = Literal["cerebras", "deepseek"]
+LiveVoiceProviderName = Literal["gemini", "elevenlabs"]
 # Cerebras: low|medium|high. DeepSeek: none|low|high|max (medium/xhigh map on API).
 LLMReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]
 
@@ -90,6 +92,15 @@ class Settings(BaseSettings):
     gemini_live_voice: str = "Algenib"
     gemini_live_token_ttl_seconds: int = Field(default=600, ge=60, le=1800)
     gemini_live_new_session_ttl_seconds: int = Field(default=60, ge=30, le=300)
+    # Expert live voice. No automatic fallback between providers.
+    live_voice_provider: LiveVoiceProviderName = "gemini"
+    elevenlabs_api_key: str = ""
+    elevenlabs_agent_id: str = ""
+    elevenlabs_voice_id: str = ""
+    elevenlabs_base_url: str = "https://api.elevenlabs.io"
+    elevenlabs_signed_url_ttl_seconds: int = Field(default=900, ge=60, le=3600)
+    # OpenAI tool name → ElevenLabs client tool id. Empty = omit tool_ids override.
+    elevenlabs_tool_ids: Annotated[dict[str, str], NoDecode] = Field(default_factory=dict)
     ollama_api_key: str = ""
     ollama_base_url: str = "https://ollama.com"
     # Write-through cache for SSR anchor embeddings (memory + disk).
@@ -198,7 +209,7 @@ class Settings(BaseSettings):
     logstash_password: SecretStr = SecretStr("")
     log_service: str = "socialism-backend"
     log_environment: str = "local"
-    logstash_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
+    logstash_timeout_seconds: float = Field(default=10.0, gt=0, le=30)
     logstash_queue_size: int = Field(default=512, ge=1, le=10_000)
 
     @field_validator("log_level")
@@ -262,6 +273,51 @@ class Settings(BaseSettings):
     @classmethod
     def strip_provider_api_key(cls, value: str) -> str:
         return value.strip()
+
+    @field_validator("live_voice_provider", mode="before")
+    @classmethod
+    def normalize_live_voice_provider(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+    @field_validator(
+        "elevenlabs_api_key",
+        "elevenlabs_agent_id",
+        "elevenlabs_voice_id",
+        "elevenlabs_base_url",
+    )
+    @classmethod
+    def strip_elevenlabs_value(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("elevenlabs_tool_ids", mode="before")
+    @classmethod
+    def parse_elevenlabs_tool_ids(cls, value: object) -> dict[str, str]:
+        if value is None or value == "":
+            return {}
+        parsed: object = value
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    "ELEVENLABS_TOOL_IDS must be a JSON object of tool name to tool id"
+                ) from exc
+        if not isinstance(parsed, dict):
+            raise TypeError(
+                "ELEVENLABS_TOOL_IDS must be a JSON object of tool name to tool id"
+            )
+        out: dict[str, str] = {}
+        for raw_name, raw_id in parsed.items():
+            name = str(raw_name).strip()
+            tool_id = str(raw_id).strip() if raw_id is not None else ""
+            if not name or not tool_id:
+                raise ValueError(
+                    "ELEVENLABS_TOOL_IDS entries must be non-empty name/id pairs"
+                )
+            out[name] = tool_id
+        return out
 
     @model_validator(mode="after")
     def require_selected_llm_credentials(self) -> Self:

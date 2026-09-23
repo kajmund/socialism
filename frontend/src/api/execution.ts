@@ -1,4 +1,5 @@
 import { api } from "@/lib/api"
+import type { HttpRequestOptions } from "@/lib/http"
 
 export type AttemptStatus =
   | "created"
@@ -281,10 +282,13 @@ export type ResearchProgressEventList = {
 export function getResearchProgressEvents(
   attemptId: string,
   afterSequence = 0,
+  options?: Pick<HttpRequestOptions, "signal">,
 ): Promise<ResearchProgressEventList> {
   const query = afterSequence > 0 ? `?after_sequence=${afterSequence}` : ""
   return api.get<ResearchProgressEventList>(
     `/execution/attempts/${attemptId}/progress-events${query}`,
+    undefined,
+    options,
   )
 }
 
@@ -351,8 +355,13 @@ export type ResearchOverview = {
   questions: ResearchOverviewQuestion[]
 }
 
-export function getResearchOverview(attemptId: string): Promise<ResearchOverview> {
+export function getResearchOverview(
+  attemptId: string,
+  options?: Pick<HttpRequestOptions, "signal">,
+): Promise<ResearchOverview> {
   return api.get<ResearchOverview>(
     `/execution/attempts/${attemptId}/research-overview`,
+    undefined,
+    options,
   )
 }

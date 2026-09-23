@@ -117,16 +117,22 @@ export function getPersona(id: string): Promise<PersonaDetail> {
   return api.get<PersonaDetail>(`/personas/${id}`)
 }
 
-export type PersonaLiveToken = {
-  token: string
+export type PersonaLiveSession = {
+  provider: "gemini" | "elevenlabs"
+  websocket_url: string
   model: string
   voice: string
   expires_at: string
   initial_turn: string
+  audio: {
+    input_format: string
+    output_format: string
+  }
+  client_init: Record<string, unknown> | null
 }
 
-export function createPersonaLiveToken(id: string): Promise<PersonaLiveToken> {
-  return api.post<PersonaLiveToken>(`/personas/${id}/live-token`)
+export function createPersonaLiveToken(id: string): Promise<PersonaLiveSession> {
+  return api.post<PersonaLiveSession>(`/personas/${id}/live-token`)
 }
 
 export function savePersonaLiveMemory(

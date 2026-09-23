@@ -43,6 +43,11 @@ _TOOL_CALL_JSON_RE = re.compile(
     r"<tool_call>\s*(\{.*?\})\s*</tool_call>",
     re.IGNORECASE | re.DOTALL,
 )
+_CONSULT_PROMISE_RE = re.compile(
+    r"(skickar (frågan|den till|vidare)|frågar (en |min )?kollega|hör med|"
+    r"lämnar vidare|tar frågan vidare|ask_expert)",
+    re.IGNORECASE,
+)
 
 COMPANY_TOOL_NAMES = frozenset({"search_companies", "lookup_company", "validate_orgnr"})
 RESEARCH_TOOL_NAME = "start_research"
@@ -330,6 +335,37 @@ def visible_assistant_text(message: dict[str, Any]) -> str:
     return content
 
 
+def looks_like_consult_promise(text: str) -> bool:
+    return bool(_CONSULT_PROMISE_RE.search(text or ""))
+
+
+def _message_text(message: dict[str, Any]) -> str:
+    content = message.get("content")
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts: list[str] = []
+        for part in content:
+            if isinstance(part, dict) and isinstance(part.get("text"), str):
+                parts.append(part["text"])
+        return "\n".join(parts).strip()
+    return ""
+
+
+def last_user_question(messages: list[dict[str, Any]]) -> str:
+    for message in reversed(messages):
+        if message.get("role") == "user":
+            return _message_text(message)
+    return ""
+
+
+def consult_calls_from_promise(text: str, question: str) -> list[Any]:
+    stripped = question.strip()
+    if not stripped or not looks_like_consult_promise(text):
+        return []
+    return [_fake_tool_call(1, CONSULT_TOOL_NAME, {"question": stripped})]
+
+
 async def run_company_tool_loop(
     messages: list[dict[str, Any]],
     *,
@@ -370,6 +406,14 @@ async def run_company_tool_loop(
             if not tool_calls:
                 leaked = str(working[-1].get("content") or "")
                 tool_calls = tool_calls_from_leaked_markup(leaked)
+                if (
+                    not tool_calls
+                    and consult_tool_handler is not None
+                ):
+                    tool_calls = consult_calls_from_promise(
+                        leaked,
+                        last_user_question(working),
+                    )
                 if tool_calls:
                     working[-1]["tool_calls"] = [
                         {

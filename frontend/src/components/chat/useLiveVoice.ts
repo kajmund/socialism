@@ -5,25 +5,26 @@ import {
   savePersonaLiveMemory,
 } from "@/api/personas"
 import {
-  GeminiLiveVoiceSession,
-  type GeminiLiveVoiceError,
-  type GeminiLiveVoiceState,
-} from "@/components/chat/geminiLiveVoice"
+  createLiveVoiceSession,
+  type LiveVoiceError,
+  type LiveVoiceSession,
+  type LiveVoiceState,
+} from "@/components/chat/liveVoice"
 
-type UseGeminiLiveVoiceOptions = {
+type UseLiveVoiceOptions = {
   personaId: string | null
-  onError: (error: GeminiLiveVoiceError) => void
+  onError: (error: LiveVoiceError) => void
   onMemoryError: () => void
   onToolError: (name: string) => void
 }
 
-export function useGeminiLiveVoice({
+export function useLiveVoice({
   personaId,
   onError,
   onMemoryError,
   onToolError,
-}: UseGeminiLiveVoiceOptions): {
-  state: GeminiLiveVoiceState
+}: UseLiveVoiceOptions): {
+  state: LiveVoiceState
   toggle: () => void
   microphoneMuted: boolean
   speakerMuted: boolean
@@ -32,11 +33,11 @@ export function useGeminiLiveVoice({
 } {
   const [snapshot, setSnapshot] = useState<{
     personaId: string | null
-    state: GeminiLiveVoiceState
+    state: LiveVoiceState
   }>({ personaId: null, state: "idle" })
   const [microphoneMuted, setMicrophoneMuted] = useState(false)
   const [speakerMuted, setSpeakerMuted] = useState(false)
-  const sessionRef = useRef<GeminiLiveVoiceSession | null>(null)
+  const sessionRef = useRef<LiveVoiceSession | null>(null)
   const onErrorRef = useRef(onError)
   const onMemoryErrorRef = useRef(onMemoryError)
   const onToolErrorRef = useRef(onToolError)
@@ -52,8 +53,8 @@ export function useGeminiLiveVoice({
     if (!personaId) return
     let disposed = false
     const sessionId = crypto.randomUUID()
-    const session = new GeminiLiveVoiceSession({
-      getToken: () => createPersonaLiveToken(personaId),
+    const session = createLiveVoiceSession({
+      getSession: () => createPersonaLiveToken(personaId),
       onStateChange: (nextState) => {
         if (!disposed) setSnapshot({ personaId, state: nextState })
       },

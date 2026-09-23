@@ -10,7 +10,10 @@ from app.database.models import Persona, PersonaMessage
 from app.llm import set_tools_completer
 from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.services.dd.company_mcp import complete_text_with_company_tools
-from app.services.expert_consult import expert_consult_handler_for_chat
+from app.services.expert_consult import (
+    consult_handler_for_persona,
+    expert_consult_handler_for_chat,
+)
 from app.services.expertgranskning.memory import (
     ExpertMemoryHit,
     set_expert_memory_factory,
@@ -89,6 +92,92 @@ async def test_tool_loop_dispatches_ask_expert():
 
     assert reply == "Roger har svarat."
     assert handled == [{"question": "När gäller regeln?"}]
+
+
+@pytest.mark.asyncio
+async def test_tool_loop_dispatches_ask_expert_when_model_only_promises():
+    calls = 0
+    handled: list[dict[str, Any]] = []
+
+    async def complete(_messages, tools):
+        nonlocal calls
+        calls += 1
+        assert [tool["function"]["name"] for tool in tools or []] == ["ask_expert"]
+        if calls == 1:
+            return SimpleNamespace(
+                content="Jag skickar frågan till kollegan.",
+                tool_calls=None,
+            )
+        return SimpleNamespace(content="Roger har svarat.", tool_calls=None)
+
+    async def handle(arguments):
+        handled.append(arguments)
+        return '{"colleague_name":"Roger","answer":"Vid årsskiftet."}'
+
+    set_tools_completer(complete)
+    try:
+        reply = await complete_text_with_company_tools(
+            [{"role": "user", "content": "När gäller regeln?"}],
+            allowed_tools=frozenset({"ask_expert"}),
+            consult_tool_handler=handle,
+        )
+    finally:
+        set_tools_completer(None)
+
+    assert reply == "Roger har svarat."
+    assert handled == [{"question": "När gäller regeln?"}]
+
+
+@pytest.mark.asyncio
+async def test_tool_loop_does_not_treat_ordinary_reply_as_consult():
+    handled: list[dict[str, Any]] = []
+
+    async def complete(_messages, _tools):
+        return SimpleNamespace(
+            content="Det kan jag svara på själv: tre år.",
+            tool_calls=None,
+        )
+
+    async def handle(arguments):
+        handled.append(arguments)
+        return '{"colleague_name":"Roger","answer":"Vid årsskiftet."}'
+
+    set_tools_completer(complete)
+    try:
+        reply = await complete_text_with_company_tools(
+            [{"role": "user", "content": "Hur lång är preskriptionstiden?"}],
+            allowed_tools=frozenset({"ask_expert"}),
+            consult_tool_handler=handle,
+        )
+    finally:
+        set_tools_completer(None)
+
+    assert reply == "Det kan jag svara på själv: tre år."
+    assert handled == []
+
+
+def test_consult_handler_uses_default_tools_when_stored_tools_are_none():
+    asker = _expert("legacy-tools", "Anna Andersson", "Kommunikation")
+    asker.tools = None
+    handler = consult_handler_for_persona(
+        None,  # type: ignore[arg-type]
+        persona=asker,
+        mode="interview",
+        prompts=default_prompts("sv"),
+    )
+    assert handler is not None
+
+
+def test_consult_handler_stays_off_when_ask_expert_is_disabled():
+    asker = _expert("no-consult", "Anna Andersson", "Kommunikation")
+    asker.tools = ["search_wiki"]
+    handler = consult_handler_for_persona(
+        None,  # type: ignore[arg-type]
+        persona=asker,
+        mode="interview",
+        prompts=default_prompts("sv"),
+    )
+    assert handler is None
 
 
 @pytest.mark.asyncio

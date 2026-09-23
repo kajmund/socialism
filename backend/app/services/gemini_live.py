@@ -1,16 +1,27 @@
 from datetime import UTC, datetime, timedelta
+from typing import Any
+from urllib.parse import quote
 
 import httpx
 
 from app.config import settings
+from app.schemas.domain import LiveVoiceAudioOut, PersonaLiveTokenOut
+from app.services.live_voice import LiveVoiceProviderError, LiveVoiceUnavailable
+
+GEMINI_LIVE_WEBSOCKET_URL = (
+    "wss://generativelanguage.googleapis.com/ws/"
+    "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained"
+)
+GEMINI_INPUT_AUDIO_FORMAT = "pcm_16000"
+GEMINI_OUTPUT_AUDIO_FORMAT = "pcm_24000"
+
+GeminiLiveUnavailable = LiveVoiceUnavailable
+GeminiLiveProviderError = LiveVoiceProviderError
 
 
-class GeminiLiveUnavailable(RuntimeError):
-    pass
-
-
-class GeminiLiveProviderError(RuntimeError):
-    pass
+def openai_to_gemini_tools(specs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    declarations = [spec["function"] for spec in specs if "function" in spec]
+    return [{"functionDeclarations": declarations}] if declarations else []
 
 
 def _rfc3339(value: datetime) -> str:
@@ -107,3 +118,35 @@ async def create_gemini_live_token(
         settings.gemini_live_voice,
         str(payload["expireTime"]),
     )
+
+
+class GeminiLiveVoiceProvider:
+    async def create_session(
+        self,
+        system_instruction: str,
+        *,
+        initial_turn: str,
+        tools: list[dict[str, Any]],
+        client: httpx.AsyncClient | None = None,
+    ) -> PersonaLiveTokenOut:
+        gemini_tools = openai_to_gemini_tools(tools)
+        token, model, voice, expires_at = await create_gemini_live_token(
+            system_instruction,
+            tools=gemini_tools or None,
+            client=client,
+        )
+        return PersonaLiveTokenOut(
+            provider="gemini",
+            websocket_url=(
+                f"{GEMINI_LIVE_WEBSOCKET_URL}?access_token={quote(token, safe='')}"
+            ),
+            model=model,
+            voice=voice,
+            expires_at=expires_at,
+            initial_turn=initial_turn,
+            audio=LiveVoiceAudioOut(
+                input_format=GEMINI_INPUT_AUDIO_FORMAT,
+                output_format=GEMINI_OUTPUT_AUDIO_FORMAT,
+            ),
+            client_init=None,
+        )

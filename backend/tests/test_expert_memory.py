@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -10,7 +11,11 @@ from app.services.expertgranskning.memory import (
     LANGUAGE_PRESERVATION_INSTRUCTIONS,
     ExpertMemory,
     ExpertMemoryHit,
+    MEM0_PGVECTOR_MAXCONN,
+    MEM0_PGVECTOR_MINCONN,
+    _default_memory,
     _memory_config,
+    close_default_expert_memory,
     memory_belongs_to,
     memory_image_sha256,
     memory_user_id,
@@ -650,7 +655,29 @@ def test_memory_config_includes_language_preservation(monkeypatch):
     assert "Never translate memories into English" in LANGUAGE_PRESERVATION_INSTRUCTIONS
     assert config["vector_store"]["provider"] == "pgvector"
     assert config["vector_store"]["config"]["embedding_model_dims"] == 1536
+    assert config["vector_store"]["config"]["minconn"] == MEM0_PGVECTOR_MINCONN
+    assert config["vector_store"]["config"]["maxconn"] == MEM0_PGVECTOR_MAXCONN
     assert config["history_db_path"].startswith("postgresql://")
+
+
+def test_close_default_expert_memory_is_noop_when_unused():
+    assert _default_memory.cache_info().currsize == 0
+    close_default_expert_memory()
+    assert _default_memory.cache_info().currsize == 0
+
+
+def test_expert_memory_close_closes_mem0_clients():
+    text = MagicMock()
+    vision = MagicMock()
+    text._entity_store = None
+    text._telemetry_vector_store = None
+    vision._entity_store = None
+    vision._telemetry_vector_store = None
+    ExpertMemory(text, vision).close()
+    text.vector_store.connection_pool.close.assert_called_once()
+    vision.vector_store.connection_pool.close.assert_called_once()
+    text.close.assert_called_once()
+    vision.close.assert_called_once()
 
 
 @pytest.mark.asyncio

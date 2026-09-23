@@ -1,7 +1,8 @@
-"""SQLite connection pragmas for local development and tests.
+"""Engine kwargs and SQLite connection pragmas.
 
 WAL, foreign_keys, and busy timeout are a defensive complement to short
-write transactions — not a substitute. Non-SQLite engines are unchanged.
+write transactions — not a substitute. Postgres kwargs cap SQLAlchemy below
+the Supabase session-mode pooler client limit.
 """
 
 from __future__ import annotations
@@ -13,6 +14,12 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 SQLITE_BUSY_TIMEOUT_MS = 5000
+# Supabase session-mode pooler (port 5432) caps clients at 15. SQLAlchemy's
+# default QueuePool is pool_size=5 + max_overflow=10 = 15 per process — the
+# entire budget, before Mem0 and leftover uvicorn --reload sessions.
+POSTGRES_POOL_SIZE = 4
+POSTGRES_MAX_OVERFLOW = 2
+POSTGRES_POOL_RECYCLE_SECONDS = 300
 
 
 def is_sqlite_url(url: str) -> bool:
@@ -70,5 +77,9 @@ def async_engine_kwargs(url: str, **extra: Any) -> Mapping[str, Any]:
         connect_args.update(sqlite_connect_args(url))
         kwargs["connect_args"] = connect_args
     else:
-        kwargs["pool_pre_ping"] = True
+        kwargs.setdefault("pool_pre_ping", True)
+        kwargs.setdefault("pool_size", POSTGRES_POOL_SIZE)
+        kwargs.setdefault("max_overflow", POSTGRES_MAX_OVERFLOW)
+        kwargs.setdefault("pool_recycle", POSTGRES_POOL_RECYCLE_SECONDS)
+        kwargs.setdefault("pool_use_lifo", True)
     return kwargs

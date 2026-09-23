@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime, timedelta
+from urllib.parse import unquote
 
 import httpx
 import pytest
@@ -7,14 +8,35 @@ from httpx import AsyncClient
 
 from app.api import personas as personas_api
 from app.config import settings
+from app.schemas.domain import LiveVoiceAudioOut, PersonaLiveTokenOut
 from app.services.expertgranskning.memory import ExpertMemoryHit
 from app.services.gemini_live import (
+    GEMINI_LIVE_WEBSOCKET_URL,
     GeminiLiveProviderError,
     GeminiLiveUnavailable,
+    GeminiLiveVoiceProvider,
     create_gemini_live_token,
+    openai_to_gemini_tools,
 )
+from app.services.live_voice import LiveVoiceUnavailable, create_live_voice_session
 from app.services.live_voice_context import recent_voice_memories
 from tests.conftest import USER_USER_ID, mint_access_token
+
+
+def _gemini_session_out() -> PersonaLiveTokenOut:
+    return PersonaLiveTokenOut(
+        provider="gemini",
+        websocket_url=f"{GEMINI_LIVE_WEBSOCKET_URL}?access_token=auth_tokens/test",
+        model="gemini-3.8-live",
+        voice="Algenib",
+        expires_at="2026-09-20T00:20:00Z",
+        initial_turn="Öppna telefonsamtalet nu.",
+        audio=LiveVoiceAudioOut(
+            input_format="pcm_16000",
+            output_format="pcm_24000",
+        ),
+        client_init=None,
+    )
 
 
 async def _create_expert(client: AsyncClient) -> dict[str, object]:
@@ -48,31 +70,34 @@ async def test_live_token_for_expert_uses_server_built_prompt(
     captured: list[str] = []
     captured_tools: list[list[dict[str, object]]] = []
 
-    async def fake_create_token(
+    async def fake_create_session(
         system_instruction: str,
         *,
-        tools: list[dict[str, object]] | None = None,
+        initial_turn: str,
+        tools: list[dict[str, object]],
+        client: httpx.AsyncClient | None = None,
     ):
         captured.append(system_instruction)
-        captured_tools.append(tools or [])
-        return (
-            "auth_tokens/test",
-            "gemini-3.8-live",
-            "Algenib",
-            "2026-09-20T00:20:00Z",
-        )
+        captured_tools.append(tools)
+        return _gemini_session_out().model_copy(update={"initial_turn": initial_turn})
 
-    monkeypatch.setattr(personas_api, "create_gemini_live_token", fake_create_token)
+    monkeypatch.setattr(personas_api, "create_live_voice_session", fake_create_session)
     response = await client.post(f"/personas/{expert['id']}/live-token")
 
     assert response.status_code == 200, response.text
-    assert response.json() == {
-        "token": "auth_tokens/test",
-        "model": "gemini-3.8-live",
-        "voice": "Algenib",
-        "expires_at": "2026-09-20T00:20:00Z",
-        "initial_turn": "Öppna telefonsamtalet nu.",
+    body = response.json()
+    assert body["provider"] == "gemini"
+    assert body["websocket_url"].endswith("access_token=auth_tokens/test")
+    assert body["model"] == "gemini-3.8-live"
+    assert body["voice"] == "Algenib"
+    assert body["expires_at"] == "2026-09-20T00:20:00Z"
+    assert body["initial_turn"] == "Öppna telefonsamtalet nu."
+    assert body["audio"] == {
+        "input_format": "pcm_16000",
+        "output_format": "pcm_24000",
     }
+    assert body["client_init"] is None
+    assert "token" not in body
     assert len(captured) == 1
     assert "du är den här experten" in captured[0]
     assert str(expert["name"]) in captured[0]
@@ -80,8 +105,7 @@ async def test_live_token_for_expert_uses_server_built_prompt(
     assert '"current_user"' in captured[0]
     assert '"customer"' in captured[0]
     assert "Ja, det är" in captured[0]
-    declarations = captured_tools[0][0]["functionDeclarations"]
-    assert {declaration["name"] for declaration in declarations} == {
+    assert {spec["function"]["name"] for spec in captured_tools[0]} == {
         "search_companies",
         "lookup_company",
         "validate_orgnr",
@@ -118,20 +142,17 @@ async def test_live_token_enforces_customer_scope(
 ):
     expert = await _create_expert(client)
 
-    async def fake_create_token(
+    async def fake_create_session(
         _system_instruction: str,
         *,
-        tools: list[dict[str, object]] | None = None,
+        initial_turn: str,
+        tools: list[dict[str, object]],
+        client: httpx.AsyncClient | None = None,
     ):
         assert tools
-        return (
-            "auth_tokens/test",
-            "gemini-3.8-live",
-            "Algenib",
-            "2026-09-20T00:20:00Z",
-        )
+        return _gemini_session_out()
 
-    monkeypatch.setattr(personas_api, "create_gemini_live_token", fake_create_token)
+    monkeypatch.setattr(personas_api, "create_live_voice_session", fake_create_session)
     user_token = mint_access_token(sub=USER_USER_ID, email="user@test.local")
     response = await client.post(
         f"/personas/{expert['id']}/live-token",
@@ -147,6 +168,7 @@ async def test_live_token_endpoint_fails_loudly_without_google_key(
     monkeypatch: pytest.MonkeyPatch,
 ):
     expert = await _create_expert(client)
+    monkeypatch.setattr(settings, "live_voice_provider", "gemini")
     monkeypatch.setattr(settings, "google_api_key", "")
 
     response = await client.post(f"/personas/{expert['id']}/live-token")
@@ -162,15 +184,17 @@ async def test_live_token_endpoint_maps_google_failure_to_bad_gateway(
 ):
     expert = await _create_expert(client)
 
-    async def fail_create_token(
+    async def fail_create_session(
         _system_instruction: str,
         *,
-        tools: list[dict[str, object]] | None = None,
+        initial_turn: str,
+        tools: list[dict[str, object]],
+        client: httpx.AsyncClient | None = None,
     ):
         assert tools
         raise GeminiLiveProviderError("Gemini Live token request failed (429): quota")
 
-    monkeypatch.setattr(personas_api, "create_gemini_live_token", fail_create_token)
+    monkeypatch.setattr(personas_api, "create_live_voice_session", fail_create_session)
     response = await client.post(f"/personas/{expert['id']}/live-token")
 
     assert response.status_code == 502
@@ -266,6 +290,31 @@ def test_recent_voice_memories_uses_four_hour_window():
     assert recent_voice_memories([old, recent], now=now) == [recent]
 
 
+def test_openai_to_gemini_tools_wraps_function_declarations():
+    specs = [
+        {
+            "type": "function",
+            "function": {
+                "name": "lookup_company",
+                "description": "Slå upp bolag",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        }
+    ]
+    assert openai_to_gemini_tools(specs) == [
+        {
+            "functionDeclarations": [
+                {
+                    "name": "lookup_company",
+                    "description": "Slå upp bolag",
+                    "parameters": {"type": "object", "properties": {}},
+                }
+            ]
+        }
+    ]
+    assert openai_to_gemini_tools([]) == []
+
+
 @pytest.mark.asyncio
 async def test_gemini_live_token_is_single_use_and_constrained(
     monkeypatch: pytest.MonkeyPatch,
@@ -314,12 +363,81 @@ async def test_gemini_live_token_is_single_use_and_constrained(
 
 
 @pytest.mark.asyncio
+async def test_gemini_live_provider_session_includes_websocket_and_audio(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(settings, "google_api_key", "google-test-key")
+    monkeypatch.setattr(settings, "gemini_live_model", "gemini-3.8-live")
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["payload"] = json.loads(request.content)
+        return httpx.Response(200, json={"name": "auth_tokens/constrained"})
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as google_client:
+        session = await GeminiLiveVoiceProvider().create_session(
+            "Server-owned expert instruction",
+            initial_turn="Öppna telefonsamtalet nu.",
+            tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "lookup_company",
+                        "description": "Slå upp bolag",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                }
+            ],
+            client=google_client,
+        )
+
+    assert session.provider == "gemini"
+    assert session.websocket_url.startswith(GEMINI_LIVE_WEBSOCKET_URL + "?access_token=")
+    assert unquote(session.websocket_url.split("access_token=", 1)[1]) == (
+        "auth_tokens/constrained"
+    )
+    assert session.model == "gemini-3.8-live"
+    assert session.voice == "Algenib"
+    assert session.initial_turn == "Öppna telefonsamtalet nu."
+    assert session.audio.input_format == "pcm_16000"
+    assert session.audio.output_format == "pcm_24000"
+    assert session.client_init is None
+    setup = captured["payload"]["bidiGenerateContentSetup"]
+    assert setup["tools"] == [
+        {
+            "functionDeclarations": [
+                {
+                    "name": "lookup_company",
+                    "description": "Slå upp bolag",
+                    "parameters": {"type": "object", "properties": {}},
+                }
+            ]
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_gemini_live_token_requires_google_key(
     monkeypatch: pytest.MonkeyPatch,
 ):
     monkeypatch.setattr(settings, "google_api_key", "")
     with pytest.raises(GeminiLiveUnavailable, match="GOOGLE_API_KEY"):
         await create_gemini_live_token("Expert instruction")
+
+
+@pytest.mark.asyncio
+async def test_create_live_voice_session_uses_gemini_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(settings, "live_voice_provider", "gemini")
+    monkeypatch.setattr(settings, "google_api_key", "")
+    with pytest.raises(LiveVoiceUnavailable, match="GOOGLE_API_KEY"):
+        await create_live_voice_session(
+            "Expert instruction",
+            initial_turn="Öppna.",
+            tools=[],
+        )
 
 
 @pytest.mark.asyncio
