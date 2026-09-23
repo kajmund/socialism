@@ -249,6 +249,13 @@ class PassthroughLagenNuSelector:
         )
 
 
+class TargetCaseCitationPlanner:
+    async def plan(self, *, need, citations, context):
+        from app.llm.lagen_nu_citation_intent import CaseCitationIntent, CaseCitationPlan
+        return CaseCitationPlan(citations=[CaseCitationIntent(citation=c, role="target")
+                                           for c in citations], search_query="")
+
+
 def _source(
     client: FakeLagenNuClient,
     source_type: str = "swedish_law",
@@ -260,6 +267,7 @@ def _source(
         client=client,
         selector=selector or PassthroughLagenNuSelector(),
         interpreter=interpreter or FakeLegalInterpreter(),
+        case_citation_planner=TargetCaseCitationPlanner(),
     )
 
 

@@ -93,3 +93,43 @@ The user subsequently authorized the derived legal-analysis metadata transfer. T
 The only sufficient classification (`research_4`) had clipped input. Production's existing truncation guard would prevent the positive shortcut; this diagnostic script reports raw score classifications rather than applying the full production gate. There were no positive classifications on complete inputs. `followup_10` remained insufficient on an unclipped 3,506-character input, with answerability about 0.0000021 and material-gap score about 0.9999978. These are model scores, not calibrated correctness probabilities. No stored assessment or attempt was modified, and Jev remains in shadow mode.
 
 Inspection confirmed the retrieval mechanism behind the exclusion regression: `_case_law_candidates` resolves every named case and returns immediately when any resolves, while `_select_candidates` retains direct hits unconditionally. Thus named exclusions can both enter the evidence and prevent discovery of additional cases. The repair must distinguish citation intent before the direct-lookup shortcut, preserve exclusions when searching, and verify that excluded canonical sources cannot re-enter through search or citation-graph results. That repair is not implemented yet. Backend `/health` returned `ok`; PR #297's updated concurrency commit passed CI.
+
+## Citation-intent repair (local, migration 117)
+
+Named case-law questions now pass through a structured, provider-owned citation
+intent planner. Every recognized citation must be classified exactly once as a
+requested target, an explicit exclusion, or contextual example. Discovery queries
+are required for non-target roles. Direct-lookup completion applies only when no
+additional search is requested. Exclusions are resolved to canonical document
+identities and filtered from merged candidates, including fragment URLs. An
+unresolvable exclusion or failed intent call produces an explicit selection
+failure before an unsafe search can proceed. Questions without named cases incur
+no additional intent call. The generic research engine is unchanged.
+
+The first live intent probe exposed model errors despite passing boundary tests:
+"utöver" was classified as context, and an open question with examples was
+restricted to named targets. Explicit prompt examples corrected these three
+observed cases: exclusions, a comparison of named cases, and open discovery with
+examples. The corrected three-call probe took 1.87, 1.18 and 3.05 seconds
+respectively. These observations do not establish general semantic accuracy.
+
+A discovery query containing the entire requested analysis produced zero hits.
+The prompt now asks for a short substantive query, retaining detailed constraints
+in the original question for selection. A subsequent live candidate probe took
+2.58 seconds, resolved both excluded cases, searched `36 § avtalslagen`, and
+returned ten other candidates. Neither excluded case was returned. Candidates
+included lower-court and irrelevant-number matches, so candidate counts are not
+evidence counts.
+
+The full provider probe took 5.50 seconds and returned `not_found` with
+`irrelevant_relation`: selection discarded the candidates before full-text
+retrieval. That call generated a somewhat longer search query despite the revised
+instruction. The original false direct-answer path is addressed, but discovery
+quality and restrictive snippet selection still need investigation. No claim is
+made that this question is now answered, and no stored run was changed.
+
+Local verification: 117 tests passed across citation intent, provider, selector,
+passage retrieval, Jev controller and source attribution; targeted Ruff checks and
+`git diff --check` passed. Migration 117 was applied to the local PostgreSQL
+database and backend health returned `ok`. This legal retrieval change remains
+local and is not part of the independent Jev PR #297.
