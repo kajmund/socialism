@@ -354,3 +354,49 @@ def test_apply_keep_marks_normalized_without_changing_question():
     )
     assert kept[0].question == CIVIL_COURT_AVTL_QUESTION
     assert kept[0].already_normalized is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mixed_first", [False, True])
+async def test_normalization_deduplicates_split_against_existing_question(mixed_first):
+    from dataclasses import replace
+
+    from app.services.research.planner import plan_from_planner_drafts
+
+    normalizer = LegalNeedNormalizer(_scripted())
+    civil = _legal_draft(CIVIL_COURT_AVTL_QUESTION)
+    mixed = replace(_legal_draft(MIXED_MD_AVTL_QUESTION), proposed_id="research_2")
+    drafts = [mixed, civil] if mixed_first else [civil, mixed]
+    normalized = await normalizer.normalize_drafts(drafts)
+    plan = plan_from_planner_drafts(normalized)
+    assert len(plan.needs) == 2
+    assert {row.question for row in plan.needs} == {
+        CIVIL_AVTL_SPLIT_QUESTION, MARKET_AVLK_SPLIT_QUESTION,
+    }
+
+    explicit = ResearchPlan(needs=[
+        ResearchNeed(id=str(i), question=d.question, why_needed=d.why_needed,
+                     source_types=d.source_types)
+        for i, d in enumerate(drafts)
+    ])
+    normalized_plan = await normalizer.normalize_plan(explicit)
+    assert len(normalized_plan.needs) == 2
+    assert len({row.id for row in normalized_plan.needs}) == 2
+
+    followups = [FollowUpNeedDraft(
+        question=d.question, why_needed=d.why_needed, source_types=d.source_types,
+        parent_research_need_id="parent",
+    ) for d in drafts]
+    assert len(await normalizer.normalize_follow_up_drafts(followups)) == 2
+
+
+@pytest.mark.asyncio
+async def test_normalization_dedup_preserves_first_and_unions_sources():
+    from dataclasses import replace
+    first = replace(_legal_draft(CIVIL_COURT_AVTL_QUESTION), already_normalized=True)
+    second = replace(first, question="  " + first.question.upper() + "  ",
+                     source_types=["swedish_law"], proposed_id="duplicate")
+    result = await LegalNeedNormalizer(_scripted()).normalize_drafts([first, second])
+    assert len(result) == 1
+    assert result[0].proposed_id == first.proposed_id
+    assert result[0].source_types == ["swedish_case_law", "swedish_law"]
