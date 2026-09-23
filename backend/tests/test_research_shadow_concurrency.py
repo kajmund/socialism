@@ -111,3 +111,42 @@ async def test_cancelled_shadow_gate_awaits_cleanup_of_both_calls():
     with pytest.raises(asyncio.CancelledError):
         await task
     assert all(event.is_set() for event in stops)
+
+
+@pytest.mark.parametrize("gate", ["assessment", "completeness"])
+async def test_shadow_timeout_preserves_authoritative_result_and_records_error(gate, monkeypatch):
+    from app.jev.system import JevClientError
+
+    decisions = []
+
+    def compare(decision, draft, **kwargs):
+        decisions.append(decision)
+
+    monkeypatch.setattr(f"app.services.research.fast_gate._compare_{gate}", compare)
+
+    class TimeoutJev:
+        async def ask(self, **kwargs):
+            raise JevClientError("Jev request timed out", category="timeout")
+
+    controller = ResearchFastController(TimeoutJev())
+    if gate == "assessment":
+        draft = _llm_draft(result="insufficient")
+        inner = RecordingAssessor(draft)
+        result = await GatedResearchAssessor(inner, controller).assess(_plan(), [_evidence()])
+    else:
+        draft = ResearchCompletenessDraft(result="incomplete", rationale="authoritative")
+        inner = RecordingCompleteness(draft)
+        result = await GatedResearchCompletenessReviewer(inner, controller).review(
+            objective=ResearchObjective(objective="Research question"),
+            plan=_plan(),
+            runtime_needs=[],
+            assessment=None,
+            assessments=[],
+            evidence=[_evidence()],
+        )
+    assert result == draft
+    assert inner.calls == 1
+    assert len(decisions) == 1
+    assert decisions[0].outcome == "error"
+    assert decisions[0].error_category == "timeout"
+    assert decisions[0].would_short_circuit is False
