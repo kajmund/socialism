@@ -581,6 +581,9 @@ async def test_lease_loss_fences_old_worker_after_second_claimant(
         )
         first = asyncio.create_task(run_research_claim(attempt.id))
         await asyncio.wait_for(entered.wait(), timeout=2)
+        # Keep the first worker's fast heartbeat, but give the replacement a
+        # normal lease. Only the explicit expiry below should cause lease loss.
+        monkeypatch.setattr(settings, "research_claim_lease_seconds", 60)
         await _expire_until_claimable(factory, attempt.id)
         second = asyncio.create_task(run_research_claim(attempt.id))
         await asyncio.wait_for(second, timeout=5)
@@ -794,6 +797,9 @@ async def test_lease_loss_does_not_emit_research_failed(worker_db, monkeypatch):
         )
         first = asyncio.create_task(run_research_claim(attempt.id))
         await asyncio.wait_for(entered.wait(), timeout=2)
+        # Keep the first worker's fast heartbeat, but give the replacement a
+        # normal lease. Only the explicit expiry below should cause lease loss.
+        monkeypatch.setattr(settings, "research_claim_lease_seconds", 60)
         await _expire_until_claimable(factory, attempt.id)
         second = asyncio.create_task(run_research_claim(attempt.id))
         await asyncio.wait_for(second, timeout=5)
