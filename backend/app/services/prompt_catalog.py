@@ -3619,6 +3619,60 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
     _f(
+        "research.lagen_nu.citation_intent.system", "research",
+        "Research — rättsfallens roll i frågan", "Research — case citation intent",
+        "Skilj sökmål från uteslutna fall och bakgrundsexempel.",
+        "Distinguish lookup targets, excluded cases and contextual examples.",
+        (
+            "Tolka frågans avsikt före sökning. Klassificera varje angivet citat exakt en gång "
+            "med oförändrad citation: target = ett fall som frågan vill få analyserat; exclude = "
+            "ett fall som uttryckligen inte får besvara frågan; context = bakgrund eller exempel "
+            "som inte i sig är ett sökmål. Att ett fall nämns innebär inte att det efterfrågas. "
+            "Om fler eller andra fall efterfrågas, skriv en kort materiell search_query utan "
+            "bakgrundsfallens eller de uteslutna fallens beteckningar. search_query används i "
+            "fulltextsökning: välj endast lagrum och lagens namn eller 2–4 centrala sakord. "
+            "Undvik hela meningar, domstolsnamn och önskade analysresultat: de begränsar "
+            "träffarna. Originalfrågans domstol och övriga krav kontrolleras senare vid urval. "
+            "För 36 § avtalslagen är '36 § avtalslagen' en lämplig sökning. "
+            "Lämna search_query tom endast om enbart target-fallen efterfrågas. "
+            "Tillämpa dessa exempel strikt: 'Vilka andra fall finns utöver A och B?' innebär "
+            "exclude för både A och B och en materiell search_query. Ordet utöver betyder "
+            "att de angivna fallen INTE får besvara denna fråga; context är fel här. "
+            "'Vilka fall, exempelvis A och B, belyser X?' är en öppen upptäcktsfråga: "
+            "context för A och B och search_query för X. Den får inte begränsas till A och B. "
+            "'Jämför A med B' innebär target för båda och tom search_query. "
+            "Kontrollera före svaret: ber frågan om ANDRA/FLER fall eller om enbart dessa? "
+            "Ge inga rättsliga svar och hitta inte på citat eller URI:er."
+        ),
+        (
+            "Interpret retrieval intent. Classify each supplied citation exactly once, copying "
+            "its citation unchanged: target = a case the question asks to analyze; exclude = a "
+            "case expressly disallowed as an answer; context = background or an example that is "
+            "not itself a lookup target. Mention does not imply request. When additional or "
+            "other cases are requested, write a short substantive search_query without excluded "
+            "or contextual case identifiers. This is full-text search: use only the provision "
+            "and statute name or 2–4 substantive terms. Omit sentences, court names and desired "
+            "analysis findings that would overconstrain search. Selection later checks the "
+            "original question's court and other requirements. For section 36 of avtalslagen, "
+            "use '36 § avtalslagen'. Leave "
+            "search_query empty only when solely the target cases are requested. Other than A "
+            "and B excludes both: label exclude, never context. 'Which cases, for example A "
+            "and B, illustrate X?' is an open discovery question: context for both and a query "
+            "for X; do not restrict the answer to the examples. 'Compare A with B' requests "
+            "both as targets and an empty query. Check whether additional cases or only the "
+            "named cases are requested before returning the plan. Do not answer the "
+            "legal question or invent citations or URIs."
+        ),
+    ),
+    _f(
+        "research.lagen_nu.citation_intent.user", "research",
+        "Research — citatavsikt (underlag)", "Research — citation intent (input)",
+        "Platshållare: {question} {citations_json}.",
+        "Placeholders: {question} {citations_json}.",
+        "Fråga:\n{question}\n\nCitat att klassificera:\n{citations_json}",
+        "Question:\n{question}\n\nCitations to classify:\n{citations_json}",
+    ),
+    _f(
         "research.lagen_nu.passage_queries.system", "research",
         "Research — avsnittssökning", "Research — passage queries",
         "Planera korta sökningar i ett redan identifierat långt dokument.",

@@ -21,6 +21,7 @@ from app.database.models import (
     RawSource,
     ResearchRuntimeNeed,
 )
+from app.llm.lagen_nu_citation_intent import CaseCitationPlanner, LlmCaseCitationPlanner
 from app.llm.lagen_nu_passage_queries import LlmPassageQueryPlanner, PassageQueryPlanner
 from app.llm.legal_research import (
     LegalDomainExtractionError,
@@ -523,6 +524,7 @@ class LagenNuResearchSource:
         reuse_session: AsyncSession | None = None,
         question_validator: LegalQuestionValidator | None = None,
         passage_query_planner: PassageQueryPlanner | None = None,
+        case_citation_planner: CaseCitationPlanner | None = None,
     ) -> None:
         if source_type not in LAGEN_NU_EVIDENCE_NATURES:
             raise ValueError(f"{source_type} is not implemented by the official lagen.nu adapter")
@@ -534,6 +536,7 @@ class LagenNuResearchSource:
         self._reuse_session = reuse_session
         self._question_validator = question_validator
         self._passage_query_planner = passage_query_planner or LlmPassageQueryPlanner()
+        self._case_citation_planner = case_citation_planner or LlmCaseCitationPlanner()
         self._owned_client: OfficialLagenNuMcpClient | None = None
 
     def _require_selector(self) -> LagenNuPassageSelector:
@@ -724,6 +727,8 @@ class LagenNuResearchSource:
                 candidates = await self._document_candidates(need, context, budget, source)
         except OfficialLagenNuMcpError as exc:
             return [self._failure(need, budget, exc.category, None, str(exc))]
+        except LagenNuSelectionError as exc:
+            return [self._failure(need, budget, "selection_failed", None, str(exc))]
         ranked = _rank_candidates(need, _merge_candidates(candidates))
         if not ranked:
             return [
@@ -841,17 +846,37 @@ class LagenNuResearchSource:
         citation_graph: list[_Candidate] = []
         target: str | None = None
         named_cases = _case_citations(need.question)
+        excluded: set[str] = set()
+        discovery_query = ""
         if named_cases:
-            for citation in named_cases:
-                if budget.remaining <= 0:
-                    break
+            plan = await self._case_citation_planner.plan(
+                need=need, citations=named_cases, context=context
+            )
+            plan.verify(named_cases)
+            discovery_query = plan.search_query
+            resolvable = [item for item in plan.citations if item.role != "context"]
+            if len(resolvable) >= budget.remaining:
+                raise LagenNuSelectionError("Citation intent resolution exceeds retrieval budget")
+            for intent in resolvable:
                 resolved = await budget.call(
                     "resolve_citation",
-                    self._mcp().resolve_citation(citation),
-                    {"citation": citation},
+                    self._mcp().resolve_citation(intent.citation),
+                    {"citation": intent.citation},
                 )
-                direct.extend(_candidates(resolved.results, source=source, origin="resolve"))
-            if direct:
+                candidates = _candidates(resolved.results, source=source, origin="resolve")
+                if intent.role == "exclude":
+                    if not candidates:
+                        raise LagenNuSelectionError("Excluded case citation could not be resolved")
+                    excluded.update(
+                        canonical_source_identity(item.hit.uri, None) for item in candidates
+                    )
+                else:
+                    direct.extend(candidates)
+            direct = [
+                item for item in direct
+                if canonical_source_identity(item.hit.uri, None) not in excluded
+            ]
+            if direct and not discovery_query:
                 return _merge_candidates(direct)
         if looks_like_citation(need.question) and not named_cases:
             resolved = await budget.call(
@@ -884,7 +909,7 @@ class LagenNuResearchSource:
                     origin="citation_graph",
                 )
         limit = min(context.limit, MAX_SEARCH_HITS)
-        query = _search_query(need.question, self.source_type)
+        query = discovery_query or _search_query(need.question, self.source_type)
         searched = await budget.call(
             "search",
             self._mcp().search(
@@ -901,7 +926,10 @@ class LagenNuResearchSource:
             },
         )
         search = _candidates(searched.results, source=source, origin="search")
-        return _merge_candidates(direct, search, citation_graph)
+        return [
+            item for item in _merge_candidates(direct, search, citation_graph)
+            if canonical_source_identity(item.hit.uri, None) not in excluded
+        ]
 
     async def _select_candidates(
         self,
