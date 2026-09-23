@@ -168,3 +168,41 @@ role across the structured-model boundary; Ruff and diff whitespace checks passe
 Migration 118 was applied locally. A narrow Kibana query for selection/extraction
 failures over the preceding 30 minutes returned no matches; the standalone probes
 are separate from normal runtime logging, so that absence does not prove success.
+
+## Repeatable final-court grounding evaluation
+
+`scripts/evaluate_legal_case_grounding.py` is an opt-in live check using the active
+customer/module prompts, the configured interpreter and complete public MCP case
+texts. Run from `backend/` with `PYTHONPATH=.` and required `--customer-id`,
+`--module`, and `--output` arguments. It performs no research-attempt writes and
+exits nonzero for a failed case. Source hashes, stage duration, individual checks
+and structured analyses are saved in JSON. Extraction failures remain explicit
+failed rows and do not hide the second case. Network/configuration failures raise.
+
+Manual source review established a small positive/negative pair:
+
+- NJA 1999 s. 408: the majority section beginning with Gregow, Lind and Pripp
+  explicitly applies section 36, weighs the guarantors' circumstances and the
+  bank's conduct, and orders a reduced joint payment of SEK 1 million. The earlier
+  reporter proposal and later dissent are outside the reviewed majority boundary.
+- NJA 2010 s. 467: the majority reasons address good faith on acquisition of the
+  promissory note and reject the appeal. The lower court's section-36 adjustment
+  and later separate reasoning must not become the HD majority's legal basis.
+
+The evaluation checks relation, identified Supreme Court holding, adjustment,
+decision basis, nonempty majority-grounded citations, and presence of decisive
+factors for the positive case. It does not independently validate every generated
+factor or explanation, and two cases are not a broad quality benchmark. Unit tests
+ensure that lower-court/dissent quotations, empty quotations and an unclear
+negative classification cannot pass these checks.
+
+The first live execution failed with `authoritative citation is outside deciding
+court passage`. After adding per-case failure reporting, the next execution passed
+NJA 1999 s. 408 (4.78 seconds) but failed NJA 2010 s. 467 (4.41 seconds): the model
+wrongly returned supports/statutory_adjustment/adjustment_granted=true. Its sole
+holding quote was the genuine introductory sentence listing the HD justices. That
+quote passes document and majority-span membership but does not substantiate the
+claimed legal basis. This identifies a remaining semantic-grounding problem:
+source-span membership alone cannot prevent lower-court reasoning from being
+attributed to the final court. No production workaround or relaxed validator was
+introduced. The evaluation plus existing legal-result unit suite passed 16 tests.
