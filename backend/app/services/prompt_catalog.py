@@ -3469,6 +3469,84 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Question: {question}\nSource kind: {source_kind}\nURI: {source_uri}\nSource text:\n{source_text}",
     ),
     _f(
+        "research.lagen_nu.question_validate.system",
+        "research",
+        "Juridisk frågevalidering",
+        "Legal question validation",
+        "Bedöm om en ResearchNeed är juridiskt koherent innan sökning.",
+        "Judge whether a ResearchNeed is legally coherent before retrieval.",
+        (
+            "Du validerar juridiska ResearchNeeds innan retrieval. Du hämtar inte källor "
+            "och du svarar inte på frågan. Analysera institution/domstol, rättsregel, "
+            "rättsföljd, process- eller rättsområde, och om frågan gäller konsument- "
+            "eller kommersiellt spår.\n\n"
+            "Oskäliga avtalsvillkor har två skilda svenska spår:\n"
+            "1) Marknadsrätt: Marknadsdomstolen, Patent- och marknadsdomstolen och "
+            "Konsumentombudsmannen. Kontroll av oskäliga standardvillkor i "
+            "konsumentförhållanden sker enligt 3 § AVLK. Rättsföljden är förbud eller "
+            "åläggande, inte civilrättslig jämkning i det enskilda avtalet.\n"
+            "2) Civilrätt: allmänna domstolar. 36 § avtalslagen (AvtL) jämkar eller "
+            "lämnar villkor utan avseende i individuella avtalsförhållanden. AVLK:s "
+            "särskilda konsumentregler kan vara tillämpliga tillsammans med 36 §, men "
+            "det gör inte MD/KO till 36 §-instanser.\n\n"
+            "En fråga som ber MD/KO/PMD om avgöranden som jämkat eller lämnat villkor "
+            "utan avseende med stöd av 36 § AvtL blandar ihop spåren. Sätt "
+            "is_coherent=false, legal_track=mixed och action=split. Dela i minst två "
+            "frågor: en marknadsrättslig om 3 § AVLK och MD/PMD, och en civilrättslig "
+            "om 36 § AvtL i allmän domstol, med AVLK:s konsumentregler där de är "
+            "tillämpliga.\n"
+            "En korrekt fråga om allmän domstol och 36 § AvtL är koherent: action=keep.\n"
+            "En korrekt MD/PMD-fråga om 3 § AVLK är koherent: action=keep.\n"
+            "En fråga om kommersiell 36 §-praxis ska inte dras in i AVLK.\n"
+            "Koherenta frågor får inte skrivas om. Inkoherenta frågor får inte behållas. "
+            "Blandade spår får inte behållas."
+        ),
+        (
+            "You validate legal ResearchNeeds before retrieval. You do not fetch sources "
+            "and you do not answer the question. Analyze institution/court, legal rule, "
+            "remedy, field of law, and whether the question is consumer or commercial.\n\n"
+            "Unfair contract terms have two distinct Swedish tracks:\n"
+            "1) Market law: the Market Court, the Patent and Market Court, and the "
+            "Consumer Ombudsman. Control of unfair standard terms in consumer relations "
+            "is under section 3 AVLK. The remedy is an injunction, not civil adjustment "
+            "of an individual contract.\n"
+            "2) Civil law: general courts. Section 36 of the Contracts Act (AvtL) adjusts "
+            "or sets aside terms in individual contracts. AVLK consumer rules may apply "
+            "together with section 36, but that does not make MD/KO section-36 courts.\n\n"
+            "A question that asks MD/KO/PMD for decisions that adjusted or set aside "
+            "terms under section 36 AvtL mixes the tracks. Set is_coherent=false, "
+            "legal_track=mixed and action=split. Split into at least two questions: one "
+            "market-law question about section 3 AVLK and MD/PMD, and one civil-law "
+            "question about section 36 AvtL in general courts, with AVLK consumer rules "
+            "where applicable.\n"
+            "A correct general-court + section 36 AvtL question is coherent: action=keep.\n"
+            "A correct MD/PMD question about section 3 AVLK is coherent: action=keep.\n"
+            "A commercial section-36 question must not be pulled into AVLK.\n"
+            "Do not rewrite coherent questions. Do not keep incoherent questions. "
+            "Do not keep mixed tracks."
+        ),
+    ),
+    _f(
+        "research.lagen_nu.question_validate.user",
+        "research",
+        "Juridisk frågevalidering (underlag)",
+        "Legal question validation (input)",
+        "Platshållare: {question} {why_needed} {source_types}.",
+        "Placeholders: {question} {why_needed} {source_types}.",
+        (
+            "Validera ResearchNeed. Hämta inte evidens.\n\n"
+            "Fråga:\n{question}\n\n"
+            "why_needed:\n{why_needed}\n\n"
+            "source_types:\n{source_types}"
+        ),
+        (
+            "Validate the ResearchNeed. Do not retrieve evidence.\n\n"
+            "Question:\n{question}\n\n"
+            "why_needed:\n{why_needed}\n\n"
+            "source_types:\n{source_types}"
+        ),
+    ),
+    _f(
         "research.lagen_nu.select.system",
         "research",
         "Research — lagen.nu träffurval",

@@ -25,6 +25,7 @@ from app.services.research.expert_knowledge import (
     remember_published_question,
 )
 from app.services.research.followup import FollowUpResearchPlanner
+from app.services.research.need_normalization import ResearchNeedNormalizer
 from app.services.research.planner import ResearchObjective, ResearchPlanner
 from app.services.research.quality import EvidenceRelevanceAssessor
 from app.services.research.question_execution import (
@@ -50,6 +51,7 @@ class AttemptResearchQuestionWorker:
         relevance_assessor: EvidenceRelevanceAssessor | None = None,
         question_graph: QuestionEvidenceGraph | None = None,
         research_concurrency: int | None = None,
+        need_normalizer: ResearchNeedNormalizer | None = None,
     ) -> None:
         self._factory = session_factory
         self._router_factory = router_factory
@@ -60,6 +62,7 @@ class AttemptResearchQuestionWorker:
         self._relevance_assessor = relevance_assessor
         self._question_graph = question_graph or build_standard_question_graph()
         self._research_concurrency = research_concurrency
+        self._need_normalizer = need_normalizer
 
     async def research_question(
         self, question: ExecutableResearchQuestion
@@ -88,6 +91,7 @@ class AttemptResearchQuestionWorker:
                 question_graph=self._question_graph,
                 session_factory=self._factory,
                 concurrency=self._research_concurrency,
+                need_normalizer=self._need_normalizer,
             )
         if result.status != "ready":
             raise RuntimeError(

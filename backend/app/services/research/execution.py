@@ -123,6 +123,7 @@ from app.services.research.models import (
     ResearchNeed,
     ResearchPlan,
 )
+from app.services.research.need_normalization import ResearchNeedNormalizer
 from app.services.research.plan import (
     research_plan_from_snapshot,
     research_plan_to_snapshot,
@@ -828,6 +829,7 @@ async def _plan_and_persist_follow_ups(
     max_needs: int,
     router: ResearchRouter | None,
     case_id: str | None,
+    need_normalizer: ResearchNeedNormalizer | None,
 ) -> list[RuntimeResearchNeed] | str:
     previous = [runtime_need_from_row(row) for row in await list_runtime_needs(session, attempt.id)]
     if len(previous) >= max_needs:
@@ -848,6 +850,8 @@ async def _plan_and_persist_follow_ups(
         raise
     except Exception as exc:
         raise FollowUpPlannerError(f"Attempt {attempt.id} follow-up planning failed") from exc
+    if need_normalizer is not None:
+        raw_drafts = await need_normalizer.normalize_follow_up_drafts(raw_drafts)
     accepted = validate_follow_up_drafts(
         raw_drafts,
         previous_needs=previous,
@@ -967,6 +971,7 @@ async def _plan_and_persist_global_needs(
     max_needs: int,
     router: ResearchRouter | None,
     case_id: str | None,
+    need_normalizer: ResearchNeedNormalizer | None,
 ) -> list[RuntimeResearchNeed] | str:
     previous = [runtime_need_from_row(row) for row in await list_runtime_needs(session, attempt.id)]
     if len(previous) >= max_needs:
@@ -974,8 +979,11 @@ async def _plan_and_persist_global_needs(
     draft = completeness_draft_from_row(completeness)
     allowed_source_types = _executable_source_types(router, case_id=case_id)
     runnable = [row for row in draft.missing_questions if row.source_types]
+    raw_drafts = missing_questions_to_follow_up_drafts(runnable)
+    if need_normalizer is not None:
+        raw_drafts = await need_normalizer.normalize_follow_up_drafts(raw_drafts)
     accepted = validate_follow_up_drafts(
-        missing_questions_to_follow_up_drafts(runnable),
+        raw_drafts,
         previous_needs=previous,
         wave_number=wave_number,
         origin=GLOBAL_NEED_ORIGIN,
@@ -1035,6 +1043,7 @@ async def _run_research_loop(
     max_needs: int,
     max_completeness_passes: int,
     start_wave: int | None = None,
+    need_normalizer: ResearchNeedNormalizer | None = None,
 ) -> None:
     wave = INITIAL_RESEARCH_WAVE if start_wave is None else start_wave
     while True:
@@ -1184,6 +1193,7 @@ async def _run_research_loop(
                         max_needs=max_needs,
                         router=router,
                         case_id=context.scope.case_id,
+                        need_normalizer=need_normalizer,
                     )
                     if isinstance(planned, str):
                         await set_research_loop_state(
@@ -1241,6 +1251,7 @@ async def _run_research_loop(
                     max_needs=max_needs,
                     router=router,
                     case_id=context.scope.case_id,
+                    need_normalizer=need_normalizer,
                 )
                 if isinstance(planned, str):
                     await set_research_loop_state(
@@ -1308,6 +1319,7 @@ async def _resolve_initial_plan(
     need_limit: int,
     router: ResearchRouter | None,
     case_id: str | None,
+    need_normalizer: ResearchNeedNormalizer | None,
 ) -> ResearchPlan:
     """Persist objective + initial plan before research is claimed.
 
@@ -1321,6 +1333,8 @@ async def _resolve_initial_plan(
 
     if research_plan is not None:
         plan = validate_research_plan(research_plan)
+        if need_normalizer is not None:
+            plan = await need_normalizer.normalize_plan(plan)
         _assert_plan_within_budget(plan, need_limit)
         await _persist_start_snapshots(
             session,
@@ -1348,6 +1362,8 @@ async def _resolve_initial_plan(
         raise
     except Exception as exc:
         raise ResearchPlannerError(f"Attempt {attempt.id} research planning failed") from exc
+    if need_normalizer is not None:
+        drafts = await need_normalizer.normalize_drafts(drafts)
     plan = plan_from_planner_drafts(drafts, allowed_source_types=allowed_source_types)
     _assert_plan_within_budget(plan, need_limit)
     await _persist_start_snapshots(
@@ -1476,6 +1492,7 @@ async def execute_attempt_research(
     max_needs: int | None = None,
     max_completeness_passes: int | None = None,
     lease_lost: asyncio.Event | None = None,
+    need_normalizer: ResearchNeedNormalizer | None = None,
 ) -> AttemptResearchResult:
     """Plan if needed, then run ResearchNeeds in bounded waves and freeze.
 
@@ -1529,6 +1546,7 @@ async def execute_attempt_research(
             need_limit=need_limit,
             router=router,
             case_id=case_id,
+            need_normalizer=need_normalizer,
         )
     need_concurrency = _concurrency_limit(concurrency)
     claimed = resume
@@ -1587,6 +1605,7 @@ async def execute_attempt_research(
             max_needs=need_limit,
             max_completeness_passes=completeness_limit,
             start_wave=start_wave,
+            need_normalizer=need_normalizer,
         )
         async with factory() as final_session:
             finished = await get_attempt(final_session, attempt_id)

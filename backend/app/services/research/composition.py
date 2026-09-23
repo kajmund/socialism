@@ -21,6 +21,7 @@ from app.services.research.assessment import ResearchAssessor
 from app.services.research.completeness import ResearchCompletenessReviewer
 from app.services.research.followup import FollowUpResearchPlanner
 from app.services.research.models import ResearchError
+from app.services.research.need_normalization import ResearchNeedNormalizer
 from app.services.research.planner import ResearchPlanner
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_semantic import SemanticQuestionIdentityMatcher
@@ -37,6 +38,7 @@ ResearchPlannerFactory = Callable[[], ResearchPlanner]
 ResearchCompletenessReviewerFactory = Callable[[], ResearchCompletenessReviewer]
 KnowledgeVectorStoreFactory = Callable[[], KnowledgeVectorStore]
 LagenNuSelectorFactory = Callable[[], LagenNuPassageSelector]
+NeedNormalizerFactory = Callable[[], ResearchNeedNormalizer]
 
 _UNCONFIGURED_VECTOR_STORE = (
     "KnowledgeVectorStore is not configured; refusing to use an empty in-memory test store"
@@ -49,6 +51,7 @@ _research_planner_factory: ResearchPlannerFactory | None = None
 _completeness_reviewer_factory: ResearchCompletenessReviewerFactory | None = None
 _vector_store_factory: KnowledgeVectorStoreFactory | None = None
 _lagen_nu_selector_factory: LagenNuSelectorFactory | None = None
+_need_normalizer_factory: NeedNormalizerFactory | None = None
 
 
 class ResearchCompositionError(ResearchError):
@@ -102,6 +105,14 @@ def set_lagen_nu_selector_factory(
     global _lagen_nu_selector_factory
     _lagen_nu_selector_factory = factory
     set_passage_selector_factory(factory)
+
+
+def set_research_need_normalizer_factory(
+    factory: NeedNormalizerFactory | None,
+) -> None:
+    """Test seam for domain need normalization. Production leaves this unset."""
+    global _need_normalizer_factory
+    _need_normalizer_factory = factory
 
 
 def require_knowledge_vector_store() -> KnowledgeVectorStore:
@@ -187,4 +198,11 @@ def resolve_completeness_reviewer() -> ResearchCompletenessReviewer | None:
     """Test-injected reviewer, or None so the API can wire the LLM adapter."""
     if _completeness_reviewer_factory is not None:
         return _completeness_reviewer_factory()
+    return None
+
+
+def resolve_research_need_normalizer() -> ResearchNeedNormalizer | None:
+    """Test-injected normalizer, or None so production can wire the legal adapter."""
+    if _need_normalizer_factory is not None:
+        return _need_normalizer_factory()
     return None

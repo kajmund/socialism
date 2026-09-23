@@ -21,6 +21,7 @@ from app.config import settings
 from app.database.base import Base
 from app.database.models import Kund
 from app.llm.lagen_nu_selector import LlmLagenNuSelector
+from app.llm.legal_question_validator import build_llm_legal_question_validator
 from app.llm.legal_research import LlmLegalInterpreter
 from app.llm.research_assessment import LlmResearchAssessor
 from app.services.execution.service import (
@@ -30,6 +31,11 @@ from app.services.execution.service import (
     list_evidence_items,
 )
 from app.services.knowledge.models import KnowledgeScope
+from app.services.lagen_nu.question_validation import (
+    MIXED_MD_AVTL_QUESTION,
+    LegalNeedNormalizer,
+    forbidden_retrieval_questions,
+)
 from app.services.lagen_nu.research_source import LagenNuResearchSource
 from app.services.legal_research_result import LegalResearchResult
 from app.services.prompt_catalog import PROMPT_FIELDS
@@ -90,6 +96,19 @@ TOPICS = [
 ]
 
 
+async def prepare_need_for_retrieval(
+    need: ResearchNeed, normalizer: LegalNeedNormalizer
+) -> list[ResearchNeed]:
+    plan = await normalizer.normalize_plan(ResearchPlan(needs=[need]))
+    blocked = forbidden_retrieval_questions([row.question for row in plan.needs])
+    if blocked:
+        raise ValueError(
+            "incoherent institution/rule combination was sent to retrieval: "
+            + blocked[0]
+        )
+    return plan.needs
+
+
 async def evaluate(
     output: Path, *, input_artifacts: Path | None = None, mode: str = "sources"
 ) -> dict:
@@ -120,9 +139,30 @@ async def evaluate(
                 prompts = await require_active_prompts(
                     session, customer_id=customer.id, module="dd", language="sv"
                 )
+                validator = (
+                    await build_llm_legal_question_validator(
+                        session, customer_id=customer.id, module="dd"
+                    )
+                    if captured is None
+                    else None
+                )
                 await session.commit()
+            normalizer = LegalNeedNormalizer(validator) if validator is not None else None
+            if normalizer is not None:
+                mixed_check = await prepare_need_for_retrieval(
+                    ResearchNeed(
+                        id="mixed_md_avtl",
+                        question=MIXED_MD_AVTL_QUESTION,
+                        why_needed="Koherenskontroll av institution och rättsregel.",
+                        source_types=["swedish_case_law"],
+                    ),
+                    normalizer,
+                )
+                if len(mixed_check) < 2:
+                    raise ValueError("mixed MD/KO + 36 § AvtL question was not split")
             needs = []
             rows = []
+            retrieval_questions = []
             for index, (citation, source_type) in enumerate(CASES if mode == "sources" else TOPICS):
                 question = (
                     citation
@@ -149,13 +189,25 @@ async def evaluate(
                 )
                 needs.append(need)
                 if captured is None:
-                    provider = LagenNuResearchSource(
-                        source_type=source_type,
-                        interpreter=LlmLegalInterpreter(session_factory=factory),
-                        selector=LlmLagenNuSelector(session_factory=factory),
-                    )
-                    found = await provider.research(need, context)
+                    assert normalizer is not None
+                    runnable = await prepare_need_for_retrieval(need, normalizer)
+                    retrieval_questions.extend(child.question for child in runnable)
+                    found = []
+                    for child in runnable:
+                        provider = LagenNuResearchSource(
+                            source_type=source_type,
+                            interpreter=LlmLegalInterpreter(session_factory=factory),
+                            selector=LlmLagenNuSelector(session_factory=factory),
+                        )
+                        found.extend(await provider.research(child, context))
                 else:
+                    blocked = forbidden_retrieval_questions([need.question])
+                    if blocked:
+                        raise ValueError(
+                            "incoherent institution/rule combination was sent to retrieval: "
+                            + blocked[0]
+                        )
+                    retrieval_questions.append(need.question)
                     found = []
                     for raw in captured:
                         if raw["research_need_id"] != need.id:
@@ -183,6 +235,7 @@ async def evaluate(
                             "sources_completed": index + 1,
                             "mode": mode,
                             "questions": {need.id: need.question for need in needs},
+                            "retrieval_questions": list(retrieval_questions),
                             "evidence": [
                                 {
                                     **asdict(row),

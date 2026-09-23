@@ -4,7 +4,7 @@ The live evaluation on 2026-09-22 used Cerebras `gpt-oss-120b`, the official lag
 
 ## Results
 
-The broad, unseeded seven-question search answered **6/7** needs. All 20 retrieved documents fetched and passed domain extraction (15 case-law, 5 preparatory works). The consumer-law question was rejected as irrelevant before document retrieval; it remains unanswered. Earlier development runs also reached 6/7 but failed a different topic, demonstrating search/model variability.
+The broad, unseeded seven-question search answered **6/7** needs. All 20 retrieved documents fetched and passed domain extraction (15 case-law, 5 preparatory works). The consumer-law question was rejected as irrelevant before document retrieval; it remains unanswered. Mixed institution/rule follow-ups such as Marknadsdomstolen/KO + 36 § AvtL are now split or rewritten by the legal question validator before retrieval, so that combination is not searched as one need. Earlier development runs also reached 6/7 but failed a different topic, demonstrating search/model variability.
 
 The eight named-source paths produced **8/8 found and grounded domain results**, up from **2/8** on the baseline. Need assessment accepted 7/8: the SOU result was valid but the assessor emitted an invalid supporting evidence ID, which the need-scoped sanitizer correctly rejected. The harness does not count that as answered.
 

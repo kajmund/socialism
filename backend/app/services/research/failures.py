@@ -12,4 +12,5 @@ FailureCategory = Literal[
     "unsupported_source_shape",
     "selection_failed",
     "budget_exhausted",
+    "question_incoherent",
 ]
