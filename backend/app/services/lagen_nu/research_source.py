@@ -21,6 +21,7 @@ from app.database.models import (
     RawSource,
     ResearchRuntimeNeed,
 )
+from app.llm.lagen_nu_passage_queries import LlmPassageQueryPlanner, PassageQueryPlanner
 from app.llm.legal_research import (
     LegalDomainExtractionError,
     LegalInterpreter,
@@ -36,7 +37,11 @@ from app.services.lagen_nu.mcp_client import (
     OfficialLagenNuMcpError,
     OfficialLagenNuMcpNotFoundError,
 )
-from app.services.lagen_nu.models import LagenNuDocument, LagenNuSearchHit
+from app.services.lagen_nu.models import LagenNuDocument, LagenNuPin, LagenNuSearchHit
+from app.services.lagen_nu.question_validation import (
+    LegalQuestionValidator,
+    is_legal_research_need,
+)
 from app.services.lagen_nu.registration import (
     LAGEN_NU_EVIDENCE_NATURES,
     LAGEN_NU_JURISDICTION,
@@ -50,10 +55,6 @@ from app.services.lagen_nu.selection import (
     LagenNuSelectionError,
     SelectableHit,
     resolve_passage_selector,
-)
-from app.services.lagen_nu.question_validation import (
-    LegalQuestionValidator,
-    is_legal_research_need,
 )
 from app.services.lagen_nu.uris import compose_canonical_uri
 from app.services.legal_research_result import LegalResearchResult, LegalSourceIdentity
@@ -517,6 +518,7 @@ class LagenNuResearchSource:
         interpreter: LegalInterpreter | None = None,
         reuse_session: AsyncSession | None = None,
         question_validator: LegalQuestionValidator | None = None,
+        passage_query_planner: PassageQueryPlanner | None = None,
     ) -> None:
         if source_type not in LAGEN_NU_EVIDENCE_NATURES:
             raise ValueError(f"{source_type} is not implemented by the official lagen.nu adapter")
@@ -527,6 +529,7 @@ class LagenNuResearchSource:
         self._interpreter = interpreter or LlmLegalInterpreter()
         self._reuse_session = reuse_session
         self._question_validator = question_validator
+        self._passage_query_planner = passage_query_planner or LlmPassageQueryPlanner()
         self._owned_client: OfficialLagenNuMcpClient | None = None
 
     def _require_selector(self) -> LagenNuPassageSelector:
@@ -944,7 +947,7 @@ class LagenNuResearchSource:
         seen: set[str] = set()
         terms = _query_terms(need.question)
         for candidate in candidates:
-            if len(found) >= MAX_DOCUMENT_FETCHES or budget.remaining <= 0:
+            if len(found) >= MAX_DOCUMENT_FETCHES or budget.remaining <= 0 or budget.document_fetches >= MAX_DOCUMENT_FETCHES:
                 break
             uri, pinpoint = _fetch_target(candidate.hit, terms, source_type=self.source_type)
             if uri is None:
@@ -997,6 +1000,17 @@ class LagenNuResearchSource:
                     )
                 )
                 continue
+            if document.truncated and self.source_type == "swedish_preparatory_works":
+                try:
+                    found.extend(await self._research_passages(
+                        need, context, candidate, document, budget, source,
+                        MAX_DOCUMENT_FETCHES - len(found),
+                    ))
+                except LagenNuSelectionError as exc:
+                    found.append(self._failure(need, budget, "selection_failed", uri, str(exc)))
+                except OfficialLagenNuMcpError as exc:
+                    found.append(self._failure(need, budget, exc.category, uri, str(exc)))
+                continue
             try:
                 found.append(
                     await self._from_document(
@@ -1021,6 +1035,85 @@ class LagenNuResearchSource:
                     )
                 )
         return found
+
+
+    async def _research_passages(
+        self, need: ResearchNeed, context: ResearchContext, candidate: _Candidate,
+        document: LagenNuDocument, budget: _CallBudget, source: str, limit: int,
+    ) -> list[ResearchEvidence]:
+        """A truncated document requires passage resolution, not another prefix."""
+        limit = min(limit, MAX_DOCUMENT_FETCHES - budget.document_fetches)
+        if limit <= 0 or budget.remaining <= 0:
+            return [self._failure(need, budget, "budget_exhausted", document.uri, "No passage fetch budget remains.")]
+        queries = await self._passage_query_planner.plan_queries(
+            need=need, document=document, context=context,
+        )
+        identity = document.uri.split("#", 1)[0].rstrip("/")
+        fragments: dict[str, LagenNuPin] = {}
+        for query in queries:
+            if budget.remaining < 2:
+                break
+            identifier = candidate.hit.identifier or identity
+            number = re.search(r"\d{4}(?:/\d{2})?:[A-Za-z]*\d+", identifier)
+            scope = number.group(0) if number else identifier
+            scoped_query = f'"{scope}" {query}'
+            result = await budget.call(
+                "search", self._mcp().search(scoped_query, source=source, limit=MAX_SEARCH_HITS),
+                {"query": scoped_query, "source": source, "limit": MAX_SEARCH_HITS},
+            )
+            for hit in result.results:
+                if _document_identity(hit) != identity:
+                    continue
+                for pin in ((hit.pin,) if hit.pin else ()) + hit.fragments:
+                    if not pin.uri or not pin.pinpoint:
+                        continue
+                    if pin.uri.split("#", 1)[0].rstrip("/") != identity:
+                        continue
+                    if _usable_fetch_pinpoint(
+                        pin.pinpoint, source_type=self.source_type,
+                        label=" ".join((pin.label or "", *pin.highlight)),
+                    ):
+                        fragments.setdefault(pin.uri, pin)
+        if not fragments:
+            return [self._failure(
+                need, budget,
+                "budget_exhausted" if budget.remaining < 2 else "passage_not_found",
+                identity, "The document is truncated; no matching passage was resolved.",
+                fetch_success=True,
+            )]
+        # Search snippets often highlight only the document number. Fetch bounded,
+        # source-verified fragments and judge relevance from their actual text.
+        results: list[ResearchEvidence] = []
+        for uri, pin in fragments.items():
+            if len(results) >= limit or budget.remaining <= 0:
+                continue
+            try:
+                passage = await budget.call(
+                    "get_document",
+                    self._mcp().get_document(
+                        identity, pinpoint=pin.pinpoint, max_chars=MAX_DOCUMENT_CHARS,
+                    ),
+                    {"uri": identity, "pinpoint": pin.pinpoint, "max_chars": MAX_DOCUMENT_CHARS},
+                )
+                if passage.uri.split("#", 1)[0].rstrip("/") != identity:
+                    raise OfficialLagenNuMcpError("Passage response changed document identity")
+                if passage.source != source or passage.pinpoint != pin.pinpoint:
+                    raise OfficialLagenNuMcpError("Passage response did not match requested section")
+                results.append(await self._from_document(
+                    need, context, replace(candidate, hit=replace(candidate.hit, pin=pin)),
+                    passage, budget, terms=_query_terms(need.question),
+                ))
+            except OfficialLagenNuMcpError as exc:
+                results.append(self._failure(need, budget, exc.category, uri, str(exc)))
+            except LegalDomainExtractionError as exc:
+                results.append(self._failure(
+                    need, budget, exc.category, uri, str(exc), fetch_success=True,
+                ))
+        return results or [self._failure(
+            need, budget, "passage_not_found", identity,
+            "The document is truncated; no returned passage addresses the question.",
+            fetch_success=True,
+        )]
 
     async def _from_document(
         self,
@@ -1221,6 +1314,10 @@ class _CallBudget:
         self.remaining -= 1
         self.calls.append({"tool": tool, "arguments": dict(arguments)})
         return await awaitable
+
+    @property
+    def document_fetches(self) -> int:
+        return sum(item["tool"] == "get_document" for item in self.calls)
 
     def as_metadata(self) -> list[dict[str, object]]:
         return [dict(item) for item in self.calls]
