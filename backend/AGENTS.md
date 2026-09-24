@@ -92,7 +92,7 @@ chat reads and writes memory, while Word review only writes deduplicated
 findings per `doc_id` in phase 1. Keep literal transcripts in their existing
 tables. See [expert-memory.md](../docs/guides/expert-memory.md).
 
-**Knowledge tenant scope:** persisted knowledge uses `scope_type=shared|customer` with `customer_id` null only when shared (`app/services/knowledge/scope.py`). Customer objects may read/reference shared objects. They must never be promoted, deduped, resolved, or retrieved as shared or as another customer. Missing persist/reuse scope fails closed. See [knowledge-tenant-scope.md](../docs/guides/knowledge-tenant-scope.md).
+**Knowledge tenant scope:** persisted knowledge uses `scope_type=shared|customer` with `customer_id` null only when shared (`app/database/knowledge_scope.py`). Customer objects may read/reference shared objects. They must never be promoted, deduped, resolved, or retrieved as shared or as another customer. Missing persist/reuse scope fails closed. See [knowledge-tenant-scope.md](../docs/guides/knowledge-tenant-scope.md).
 
 ## Domain (admin library)
 

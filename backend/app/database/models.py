@@ -21,6 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from app.database.base import Base
+from app.database.knowledge_scope import bind_scoped_mapper
 
 
 class Kund(Base):
@@ -3268,8 +3269,6 @@ class ActorContextProposal(Base):
 
 
 def _register_knowledge_scope_listeners() -> None:
-    from app.services.knowledge.scope import bind_scoped_mapper
-
     for model in (
         CanonicalDocumentRecord,
         DocumentVersionRecord,

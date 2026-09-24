@@ -11,7 +11,7 @@ customer/private knowledge
 
 ## Scope model
 
-One persist/reuse type, `KnowledgeTenantScope`:
+One persist/reuse type, `KnowledgeTenantScope` in `app/database/knowledge_scope.py` (Alembic-safe; services re-export it):
 
 | `scope_type` | `customer_id` | `scope_key` |
 |---|---|---|
