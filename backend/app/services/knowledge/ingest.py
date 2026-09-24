@@ -23,6 +23,8 @@ class KnowledgeIngestResult:
     status: IngestStatus
     chunks_indexed: int
     content_hash: str | None = None
+    document_version_id: str | None = None
+    reused_version: bool = False
     message: str | None = None
     extracted: ExtractedDocument | None = None
     segmented: SegmentedDocument | None = None
@@ -124,6 +126,7 @@ class KnowledgeIngestService:
             status="indexed",
             chunks_indexed=len(embedded),
             content_hash=content_hash,
+            document_version_id=segmented.version.id,
             extracted=extracted,
             segmented=segmented,
         )
@@ -151,6 +154,7 @@ def _result(
         status=status,
         chunks_indexed=0,
         content_hash=content_hash,
+        document_version_id=segmented.version.id if segmented is not None else None,
         message=message,
         extracted=extracted,
         segmented=segmented,

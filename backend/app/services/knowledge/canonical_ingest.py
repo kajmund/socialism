@@ -54,10 +54,8 @@ async def ingest_extracted_source(
         canonical_uri=canonical_uri,
     )
     resolved = document
-    reuse_vectors = False
     if existing is not None:
         resolved = replace(document, document_id=existing.id)
-        reuse_vectors = existing.content_hash == content_hash
 
     splitter = chunker or KnowledgeChunker()
     segmented = splitter.segment(
@@ -73,22 +71,25 @@ async def ingest_extracted_source(
             status="empty",
             chunks_indexed=0,
             content_hash=content_hash,
+            document_version_id=segmented.version.id,
             extracted=extracted,
             segmented=segmented,
         )
 
-    await persist_segmented_document(
+    persisted = await persist_segmented_document(
         session,
         customer_id=customer_id,
         source_object_id=source_object_id,
         segmented=segmented,
     )
-    if reuse_vectors:
+    if persisted.reused_current:
         return KnowledgeIngestResult(
             document_id=resolved.document_id,
             status="indexed",
             chunks_indexed=len(segmented.text_units),
             content_hash=content_hash,
+            document_version_id=persisted.version.id,
+            reused_version=True,
             extracted=extracted,
             segmented=segmented,
         )
@@ -112,6 +113,7 @@ async def ingest_extracted_source(
         status="indexed",
         chunks_indexed=len(chunks),
         content_hash=content_hash,
+        document_version_id=persisted.version.id,
         extracted=extracted,
         segmented=segmented,
     )
