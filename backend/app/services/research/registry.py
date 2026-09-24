@@ -6,7 +6,9 @@ from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.provider import KnowledgeProvider
+from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.registration import (
     LAGEN_NU_ADAPTER,
     LAGEN_NU_EVIDENCE_NATURES,
@@ -187,11 +189,17 @@ def _compose_standard_source(
     *,
     lagen_nu_selector: LagenNuPassageSelector | None = None,
     reuse_session: AsyncSession | None = None,
+    embeddings: EmbeddingProvider | None = None,
+    vector_store: KnowledgeVectorStore | None = None,
 ) -> tuple[ResearchSource, KnowledgeProviderDescriptor]:
     adapter = descriptor.access.adapter
     if adapter == LAGEN_NU_ADAPTER:
         return _compose_lagen_nu_source(
-            descriptor, selector=lagen_nu_selector, reuse_session=reuse_session
+            descriptor,
+            selector=lagen_nu_selector,
+            session=reuse_session,
+            embeddings=embeddings,
+            vector_store=vector_store,
         )
     if adapter != _KNOWLEDGE_RESEARCH_ADAPTER:
         raise ValueError(
@@ -213,7 +221,9 @@ def _compose_lagen_nu_source(
     descriptor: KnowledgeProviderDescriptor,
     *,
     selector: LagenNuPassageSelector | None = None,
-    reuse_session: AsyncSession | None = None,
+    session: AsyncSession | None = None,
+    embeddings: EmbeddingProvider | None = None,
+    vector_store: KnowledgeVectorStore | None = None,
 ) -> tuple[ResearchSource, KnowledgeProviderDescriptor]:
     natures = _ordered_evidence_natures(descriptor)
     if len(natures) != 1:
@@ -226,7 +236,13 @@ def _compose_lagen_nu_source(
             f"standard capability {descriptor.provider_id} declares unimplemented lagen.nu nature {nature!r}"
         )
     return (
-        LagenNuResearchSource(source_type=nature, selector=selector, reuse_session=reuse_session),  # type: ignore[arg-type]
+        LagenNuResearchSource(
+            source_type=nature,  # type: ignore[arg-type]
+            selector=selector,
+            session=session,
+            embeddings=embeddings,
+            vector_store=vector_store,
+        ),
         descriptor,
     )
 
@@ -236,6 +252,8 @@ def build_research_registry(
     *,
     lagen_nu_selector: LagenNuPassageSelector | None = None,
     reuse_session: AsyncSession | None = None,
+    embeddings: EmbeddingProvider | None = None,
+    vector_store: KnowledgeVectorStore | None = None,
 ) -> ResearchSourceRegistry:
     """Compose the configured standard providers through explicit adapters."""
     registry = KnowledgeProviderCapabilityRegistry()
@@ -245,6 +263,8 @@ def build_research_registry(
             descriptor,
             lagen_nu_selector=lagen_nu_selector,
             reuse_session=reuse_session,
+            embeddings=embeddings,
+            vector_store=vector_store,
         )
         registry.register(source, descriptor=live_descriptor)
     return registry

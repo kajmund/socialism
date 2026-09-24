@@ -6,7 +6,12 @@ from pathlib import Path
 import httpx
 import pytest
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
+from app.database.base import Base
+from app.database.models import Kund
+from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.mcp_client import OfficialLagenNuMcpClient, parse_document
 from app.services.lagen_nu.question_validation import (
     COMMERCIAL_AVTL_QUESTION,
@@ -18,6 +23,7 @@ from app.services.lagen_nu.question_validation import (
 from app.services.lagen_nu.research_source import MAX_DOCUMENT_CHARS, LagenNuResearchSource
 from app.services.legal_research_result import LegalResearchResult
 from app.services.research_domain_results import legal_claims
+from tests.knowledge_fakes import FakeEmbeddingProvider
 from tests.test_lagen_nu_provider import _context, _need
 
 FIXTURES = Path(__file__).parent / "fixtures" / "research_eval"
@@ -143,17 +149,35 @@ async def test_official_transport_resolve_fetch_interpret_actual_nja_path():
             assert PARTY_QUOTE in raw_text and NJA_QUOTE in raw_text
             return nja_result(source, raw_text)
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
-        client = OfficialLagenNuMcpClient(http=http)
-        provider = LagenNuResearchSource(
-            source_type="swedish_case_law", client=client, interpreter=Interpreter()
-        )
-        evidence = await provider.research(
-            _need(
-                "swedish_case_law", question="Jämkade HD villkoret i NJA 2005 s. 142 enligt 36 §?"
-            ),
-            _context(),
-        )
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    async with factory() as session:
+        session.add(Kund(id=7, name="eval", slug="eval", available_modules=["dd"]))
+        await session.flush()
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            client = OfficialLagenNuMcpClient(http=http)
+            provider = LagenNuResearchSource(
+                source_type="swedish_case_law",
+                client=client,
+                interpreter=Interpreter(),
+                session=session,
+                embeddings=FakeEmbeddingProvider(),
+                vector_store=MemoryKnowledgeVectorStore(),
+            )
+            evidence = await provider.research(
+                _need(
+                    "swedish_case_law",
+                    question="Jämkade HD villkoret i NJA 2005 s. 142 enligt 36 §?",
+                ),
+                _context(),
+            )
+    await engine.dispose()
     assert calls == ["resolve_citation", "get_document"]
     assert evidence[0].status == "found"
     assert evidence[0].legal_result.case_law.adjustment_granted is False
@@ -256,38 +280,44 @@ async def test_live_model_nja_and_sou(request, tmp_path):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
+    store = MemoryKnowledgeVectorStore()
+    embeddings = FakeEmbeddingProvider()
     async with factory() as session:
         customer = Kund(name="Eval", slug="eval", available_modules=["dd"])
         session.add(customer)
         await ensure_prompt_field_defaults(session, "dd", PROMPT_FIELDS)
         await session.commit()
         context = ResearchContext(scope=KnowledgeScope(customer_id=customer.id, module="dd"))
-    try:
-        for citation, source_type in [
-            ("NJA 2005 s. 142", "swedish_case_law"),
-            ("SOU 1974:83", "swedish_preparatory_works"),
-        ]:
-            source = LagenNuResearchSource(
-                source_type=source_type, interpreter=LlmLegalInterpreter(session_factory=factory)
-            )
-            rows = await source.research(
-                _need(
-                    source_type,
-                    question=f"Hur behandlas jämkning enligt 36 § avtalslagen i {citation}? Skilj instanser, partsyrkanden och slutligt avgörande.",
-                ),
-                context,
-            )
-            assert rows[0].status == "found", rows[0].metadata
-            result = rows[0].legal_result
-            if result.case_law:
-                assert result.case_law.holding_status == "established"
-                assert result.case_law.authoritative_holding.court_level == "supreme"
-                assert result.case_law.adjustment_granted is False
-            else:
-                assert result.preparatory_work.interpretation_guidance
-                assert result.truncated
-    finally:
-        await engine.dispose()
+        try:
+            for citation, source_type in [
+                ("NJA 2005 s. 142", "swedish_case_law"),
+                ("SOU 1974:83", "swedish_preparatory_works"),
+            ]:
+                source = LagenNuResearchSource(
+                    source_type=source_type,
+                    interpreter=LlmLegalInterpreter(session_factory=factory),
+                    session=session,
+                    embeddings=embeddings,
+                    vector_store=store,
+                )
+                rows = await source.research(
+                    _need(
+                        source_type,
+                        question=f"Hur behandlas jämkning enligt 36 § avtalslagen i {citation}? Skilj instanser, partsyrkanden och slutligt avgörande.",
+                    ),
+                    context,
+                )
+                assert rows[0].status == "found", rows[0].metadata
+                result = rows[0].legal_result
+                if result.case_law:
+                    assert result.case_law.holding_status == "established"
+                    assert result.case_law.authoritative_holding.court_level == "supreme"
+                    assert result.case_law.adjustment_granted is False
+                else:
+                    assert result.preparatory_work.interpretation_guidance
+                    assert result.truncated
+        finally:
+            await engine.dispose()
 
 
 def test_outcome_is_projected_from_authoritative_statement_not_duplicate_model_fields():

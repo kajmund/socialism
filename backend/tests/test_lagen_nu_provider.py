@@ -5,7 +5,14 @@ from __future__ import annotations
 import inspect
 from dataclasses import replace
 
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
+
+from app.database.base import Base
+from app.database.models import Kund
 from app.services.knowledge.models import KnowledgeScope
+from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.display import choose_legal_excerpt
 from app.services.lagen_nu.mcp_client import (
     OfficialLagenNuMcpError,
@@ -66,6 +73,7 @@ from app.services.research import (
 )
 from app.services.research.composition import standard_available_source_types
 from app.services.research.registry import default_standard_capability_descriptors
+from tests.knowledge_fakes import FakeEmbeddingProvider
 from tests.test_research import RecordingKnowledgeProvider, _context, _need
 
 
@@ -196,6 +204,9 @@ class FakeLagenNuClient:
             return self.documents[key]
         if uri in self.documents:
             return self.documents[uri]
+        for stored_key, document in self.documents.items():
+            if stored_key.split("#", 1)[0] == uri:
+                return document
         raise OfficialLagenNuMcpError(f"missing document {key}")
 
     async def aclose(self) -> None:
@@ -253,6 +264,38 @@ class PassthroughLagenNuSelector:
         )
 
 
+_TEXT_UNIT_DEPS: dict[str, object] = {}
+
+
+@pytest.fixture(autouse=True)
+async def lagen_nu_text_unit_knowledge():
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    async with factory() as session:
+        for customer_id in range(1, 11):
+            session.add(
+                Kund(
+                    id=customer_id,
+                    name=f"kund-{customer_id}",
+                    slug=f"kund-{customer_id}",
+                    available_modules=["dd"],
+                )
+            )
+        await session.flush()
+        _TEXT_UNIT_DEPS["session"] = session
+        _TEXT_UNIT_DEPS["embeddings"] = FakeEmbeddingProvider()
+        _TEXT_UNIT_DEPS["vector_store"] = MemoryKnowledgeVectorStore()
+        yield
+        _TEXT_UNIT_DEPS.clear()
+    await engine.dispose()
+
+
 def _source(
     client: FakeLagenNuClient,
     source_type: str = "swedish_law",
@@ -264,6 +307,9 @@ def _source(
         client=client,
         selector=selector or PassthroughLagenNuSelector(),
         interpreter=interpreter or FakeLegalInterpreter(),
+        session=_TEXT_UNIT_DEPS["session"],
+        embeddings=_TEXT_UNIT_DEPS["embeddings"],
+        vector_store=_TEXT_UNIT_DEPS["vector_store"],
     )
 
 
@@ -763,7 +809,7 @@ async def test_preparatory_works_use_forarbete_source_filter():
     assert evidence[0].status == "found"
     assert evidence[0].source_type == "swedish_preparatory_works"
     assert client.calls[0][1]["source"] == "forarbete"
-    assert evidence[0].source_id == "https://lagen.nu/prop/2009/10:241"
+    assert evidence[0].source_id == "https://lagen.nu/prop/2009/10:241#sec1"
 
 
 async def test_preparatory_works_search_when_resolution_only_finds_statute():
@@ -1313,7 +1359,7 @@ async def test_preparatory_work_fetches_most_relevant_fragment():
     )
     assert evidence[0].source_id == "https://lagen.nu/prop/1975/76:81#sec-oskalighet"
     fetch = next(args for name, args in client.calls if name == "get_document")
-    assert fetch["pinpoint"] == "sec-oskalighet"
+    assert fetch["pinpoint"] is None
     assert fetch["max_chars"] == 200000
     assert evidence[0].excerpt == evidence[0].legal_result.preparatory_work.citations[0].quote
 
@@ -1621,8 +1667,8 @@ async def test_duplicate_fetch_targets_do_not_consume_later_distinct_hit():
         (args["uri"], args["pinpoint"]) for name, args in client.calls if name == "get_document"
     ]
     assert fetch_targets == [
-        ("https://lagen.nu/1981:130", "P2"),
-        ("https://lagen.nu/1915:218", "P36"),
+        ("https://lagen.nu/1981:130", None),
+        ("https://lagen.nu/1915:218", None),
     ]
     assert [item.source_id for item in evidence] == [
         "https://lagen.nu/1981:130#P2",

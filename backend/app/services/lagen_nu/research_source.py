@@ -6,13 +6,11 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
 from typing import Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database.models import (
     DomainResearchResultRecord,
     EvidenceSet,
@@ -20,12 +18,15 @@ from app.database.models import (
     EvidenceSource,
     RawSource,
     ResearchRuntimeNeed,
+    TextUnitRecord,
 )
 from app.llm.legal_research import (
     LegalDomainExtractionError,
     LegalInterpreter,
     LlmLegalInterpreter,
 )
+from app.services.knowledge.embeddings import EmbeddingProvider
+from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.display import (
     display_source_title,
     is_legal_front_matter,
@@ -37,6 +38,10 @@ from app.services.lagen_nu.mcp_client import (
     OfficialLagenNuMcpNotFoundError,
 )
 from app.services.lagen_nu.models import LagenNuDocument, LagenNuSearchHit
+from app.services.lagen_nu.question_validation import (
+    LegalQuestionValidator,
+    is_legal_research_need,
+)
 from app.services.lagen_nu.registration import (
     LAGEN_NU_EVIDENCE_NATURES,
     LAGEN_NU_JURISDICTION,
@@ -51,9 +56,13 @@ from app.services.lagen_nu.selection import (
     SelectableHit,
     resolve_passage_selector,
 )
-from app.services.lagen_nu.question_validation import (
-    LegalQuestionValidator,
-    is_legal_research_need,
+from app.services.lagen_nu.text_unit_research import (
+    LagenNuResearchKnowledgeError,
+    current_lagen_nu_units,
+    document_identity_uri,
+    ingest_and_load_text_units,
+    join_text_units,
+    require_lagen_nu_research_knowledge,
 )
 from app.services.lagen_nu.uris import compose_canonical_uri
 from app.services.legal_research_result import LegalResearchResult, LegalSourceIdentity
@@ -515,7 +524,9 @@ class LagenNuResearchSource:
         client: LagenNuMcpClient | None = None,
         selector: LagenNuPassageSelector | None = None,
         interpreter: LegalInterpreter | None = None,
-        reuse_session: AsyncSession | None = None,
+        session: AsyncSession | None = None,
+        embeddings: EmbeddingProvider | None = None,
+        vector_store: KnowledgeVectorStore | None = None,
         question_validator: LegalQuestionValidator | None = None,
     ) -> None:
         if source_type not in LAGEN_NU_EVIDENCE_NATURES:
@@ -525,7 +536,9 @@ class LagenNuResearchSource:
         self._client = client
         self._selector = selector
         self._interpreter = interpreter or LlmLegalInterpreter()
-        self._reuse_session = reuse_session
+        self._session = session
+        self._embeddings = embeddings
+        self._vector_store = vector_store
         self._question_validator = question_validator
         self._owned_client: OfficialLagenNuMcpClient | None = None
 
@@ -539,93 +552,10 @@ class LagenNuResearchSource:
             self._owned_client = OfficialLagenNuMcpClient()
         return self._owned_client
 
-    async def _cached_document(
-        self, uri: str, *, source: str, attempt_id: str | None
-    ) -> LagenNuDocument | None:
-        session = self._reuse_session
-        if session is None:
-            return None
-        identity = canonical_source_identity(uri, None)
-        row = (
-            await session.execute(
-                select(RawSource, EvidenceSource)
-                .join(EvidenceSource, RawSource.source_id == EvidenceSource.id)
-                .where(
-                    EvidenceSource.provider == self.provider_id,
-                    EvidenceSource.source_type == self.source_type,
-                    EvidenceSource.canonical_identity == identity,
-                    RawSource.truncated.is_(False),
-                )
-                .order_by(RawSource.created_at.desc())
-                .limit(1)
-            )
-        ).first()
-        if row is None:
-            return None
-        raw, stored_source = row
-        max_age = settings.research_knowledge_freshness_max_age_seconds
-        uses = (
-            await session.execute(
-                select(
-                    EvidenceSet.created_from_attempt_id,
-                    EvidenceSetItem.retrieved_at,
-                    EvidenceSetItem.provenance,
-                )
-                .join(EvidenceSetItem, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
-                .join(
-                    DomainResearchResultRecord,
-                    EvidenceSetItem.domain_result_id == DomainResearchResultRecord.id,
-                )
-                .where(DomainResearchResultRecord.raw_source_id == raw.id)
-            )
-        ).all()
-        same_attempt = (
-            any(source_attempt == attempt_id for source_attempt, _, _ in uses)
-            if attempt_id
-            else False
-        )
-        provider_fetches = [
-            stamp.replace(tzinfo=UTC) if stamp.tzinfo is None else stamp
-            for _, stamp, provenance in uses
-            if any(
-                isinstance(call, dict) and call.get("tool") == "get_document"
-                for call in provenance.get("mcp_calls", [])
-            )
-        ]
-        latest_fetch = max(provider_fetches, default=None)
-        if not same_attempt and (
-            max_age is None
-            or latest_fetch is None
-            or (datetime.now(UTC) - latest_fetch).total_seconds() > max_age
-        ):
-            return None
-        logger.info(
-            "raw_source_reused provider=%s source=%s raw_source_id=%s",
-            self.provider_id,
-            uri,
-            raw.id,
-        )
-        logger.info(
-            "provider_document_fetch_skipped provider=%s source=%s saved_mcp_calls=1",
-            self.provider_id,
-            uri,
-        )
-        return LagenNuDocument(
-            uri=uri,
-            title=stored_source.title,
-            text=raw.raw_text,
-            source=source,
-            kind=None,
-            label=None,
-            publisher_source_url=None,
-            pinpoint=None,
-            truncated=False,
-        )
-
     async def _cached_domain_result(
         self, *, need: ResearchNeed, source_uri: str, raw_text: str
     ) -> tuple[str, LegalResearchResult] | None:
-        session = self._reuse_session
+        session = self._session
         if session is None:
             return None
         source_identity = canonical_source_identity(source_uri, None)
@@ -940,6 +870,14 @@ class LagenNuResearchSource:
         budget: _CallBudget,
         source: str,
     ) -> list[ResearchEvidence]:
+        session, embeddings, vector_store = require_lagen_nu_research_knowledge(
+            session=self._session,
+            embeddings=self._embeddings,
+            vector_store=self._vector_store,
+        )
+        customer_id = context.scope.customer_id
+        if customer_id is None:
+            raise LagenNuResearchKnowledgeError("lagen.nu research requires customer_id")
         found: list[ResearchEvidence] = []
         seen: set[str] = set()
         terms = _query_terms(need.question)
@@ -949,76 +887,103 @@ class LagenNuResearchSource:
             uri, pinpoint = _fetch_target(candidate.hit, terms, source_type=self.source_type)
             if uri is None:
                 continue
-            target_key = uri if pinpoint is None else f"{uri}#{pinpoint}"
+            try:
+                canonical_uri = document_identity_uri(uri)
+            except LagenNuResearchKnowledgeError as exc:
+                found.append(
+                    self._failure(need, budget, "unsupported_source_shape", uri, str(exc))
+                )
+                continue
+            target_key = canonical_uri if pinpoint is None else f"{canonical_uri}#{pinpoint}"
             if target_key in seen:
                 continue
             seen.add(target_key)
             try:
-                document = (
-                    await self._cached_document(uri, source=source, attempt_id=context.attempt_id)
-                    if pinpoint is None
-                    else None
+                units = await current_lagen_nu_units(
+                    session,
+                    customer_id=customer_id,
+                    canonical_uri=canonical_uri,
                 )
-                raw_reused = document is not None
-                if document is None:
+                reused_units = units is not None
+                document = None
+                if units is None:
                     logger.info(
-                        "provider_retrieval_started provider=%s source=%s", self.provider_id, uri
+                        "provider_retrieval_started provider=%s source=%s",
+                        self.provider_id,
+                        canonical_uri,
                     )
                     document = await budget.call(
                         "get_document",
                         self._mcp().get_document(
-                            uri,
-                            pinpoint=pinpoint,
+                            canonical_uri,
+                            pinpoint=None,
                             max_chars=MAX_DOCUMENT_CHARS,
                         ),
                         {
-                            "uri": uri,
-                            "pinpoint": pinpoint,
+                            "uri": canonical_uri,
+                            "pinpoint": None,
                             "max_chars": MAX_DOCUMENT_CHARS,
                         },
                     )
+                    if document.source and document.source != source:
+                        found.append(
+                            self._failure(
+                                need,
+                                budget,
+                                "unsupported_source_shape",
+                                canonical_uri,
+                                f"expected source {source}, received {document.source}",
+                                fetch_success=True,
+                            )
+                        )
+                        continue
+                    ingest_result, units = await ingest_and_load_text_units(
+                        session,
+                        customer_id=customer_id,
+                        document=document,
+                        embeddings=embeddings,
+                        vector_store=vector_store,
+                    )
+                    if ingest_result.status != "indexed" or units is None:
+                        raise LegalDomainExtractionError(
+                            ingest_result.message or "retrieved document has no text",
+                            category="unsupported_source_shape",
+                        )
+                found.append(
+                    await self._from_document(
+                        need,
+                        context,
+                        candidate,
+                        units,
+                        budget,
+                        terms=terms,
+                        canonical_uri=canonical_uri,
+                        pinpoint=pinpoint,
+                        document=document,
+                        reused_units=reused_units,
+                    )
+                )
             except OfficialLagenNuMcpError as exc:
                 category = (
                     "resolve_no_document"
                     if isinstance(exc, OfficialLagenNuMcpNotFoundError)
                     else getattr(exc, "category", "fetch_failed")
                 )
-                found.append(self._failure(need, budget, category, uri, str(exc)))
-                continue
-            if document.source and document.source != source:
-                found.append(
-                    self._failure(
-                        need,
-                        budget,
-                        "unsupported_source_shape",
-                        uri,
-                        f"expected source {source}, received {document.source}",
-                        fetch_success=True,
-                    )
-                )
-                continue
-            try:
-                found.append(
-                    await self._from_document(
-                        need,
-                        context,
-                        candidate,
-                        document,
-                        budget,
-                        terms=terms,
-                        raw_reused=raw_reused,
-                    )
-                )
+                found.append(self._failure(need, budget, category, canonical_uri, str(exc)))
             except LegalDomainExtractionError as exc:
                 found.append(
                     self._failure(
                         need,
                         budget,
                         exc.category,
-                        uri,
+                        canonical_uri,
                         str(exc),
                         fetch_success=True,
                     )
+                )
+            except LagenNuResearchKnowledgeError as exc:
+                found.append(
+                    self._failure(need, budget, "fetch_failed", canonical_uri, str(exc))
                 )
         return found
 
@@ -1027,26 +992,28 @@ class LagenNuResearchSource:
         need: ResearchNeed,
         context: ResearchContext,
         candidate: _Candidate,
-        document: LagenNuDocument,
+        units: list[TextUnitRecord],
         budget: _CallBudget,
         *,
         terms: frozenset[str],
-        raw_reused: bool = False,
+        canonical_uri: str,
+        pinpoint: str | None,
+        document: LagenNuDocument | None,
+        reused_units: bool = False,
     ) -> ResearchEvidence:
         hit = candidate.hit
-        raw_document = document.text.strip()
+        raw_document = join_text_units(units).strip()
         if not raw_document:
             raise LegalDomainExtractionError(
                 "retrieved document has no text", category="unsupported_source_shape"
             )
-        # Interpret the source before choosing display text. A rejected display
-        # passage must never erase an otherwise fetchable, relevant document.
-        pinpoint = document.pinpoint
-        source_uri = compose_canonical_uri(document.uri, pinpoint)
+        # Interpret ingested TextUnits before choosing display text. A rejected
+        # display passage must never erase an otherwise fetchable document.
+        source_uri = compose_canonical_uri(canonical_uri, pinpoint)
         title = display_source_title(
             uri=source_uri,
             identifier=hit.identifier,
-            title=document.title or hit.title,
+            title=(document.title if document is not None else None) or hit.title,
         )
         kind = {
             "swedish_case_law": "case_law",
@@ -1065,17 +1032,19 @@ class LagenNuResearchSource:
                     title=title,
                     canonical_uri=source_uri,
                     identifier=hit.identifier,
-                    publisher_url=document.publisher_source_url,
+                    publisher_url=(
+                        document.publisher_source_url if document is not None else None
+                    ),
                 ),
                 question=need.question,
                 raw_text=raw_document,
-                truncated=bool(document.truncated),
+                truncated=bool(document.truncated) if document is not None else False,
                 context=context,
             )
         )
-        if cached is None and raw_reused:
+        if cached is None and reused_units:
             logger.info(
-                "domain_result_recomputed_from_raw provider=%s source=%s",
+                "domain_result_recomputed_from_text_units provider=%s source=%s",
                 self.provider_id,
                 source_uri,
             )
@@ -1116,13 +1085,15 @@ class LagenNuResearchSource:
             metadata=self._provenance(
                 budget,
                 canonical_uri=source_uri,
-                source=document.source or hit.source,
-                kind=document.kind or hit.kind,
+                source=(document.source if document is not None else None) or hit.source,
+                kind=(document.kind if document is not None else None) or hit.kind,
                 identifier=hit.identifier,
-                publisher_source_url=document.publisher_source_url,
+                publisher_source_url=(
+                    document.publisher_source_url if document is not None else None
+                ),
                 pinpoint=pinpoint,
-                truncated=document.truncated,
-                inbound_count=document.inbound_count,
+                truncated=bool(document.truncated) if document is not None else False,
+                inbound_count=document.inbound_count if document is not None else None,
                 retrieval_origins=list(candidate.origins),
                 search_rank=candidate.search_rank,
                 citation_rank=candidate.citation_rank,
@@ -1133,6 +1104,10 @@ class LagenNuResearchSource:
                 fetch_success=True,
                 domain_extraction_success=True,
                 reused_domain_result_id=cached[0] if cached is not None else None,
+                reused_text_units=reused_units,
+                canonical_document_id=units[0].document_id,
+                document_version_id=units[0].document_version_id,
+                text_unit_ids=[unit.id for unit in units],
             ),
         )
 
