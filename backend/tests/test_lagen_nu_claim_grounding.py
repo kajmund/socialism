@@ -12,6 +12,8 @@ from app.database.models import (
     KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
     KnowledgeClaimTextUnit,
+    KnowledgeEntityRecord,
+    KnowledgeRelationshipRecord,
     Kund,
     TextUnitRecord,
 )
@@ -54,6 +56,7 @@ def _unit(unit_id: str, text: str, *, ordinal: int = 0) -> TextUnitRecord:
         id=unit_id,
         document_version_id="ver-a",
         document_id="doc-a",
+        customer_id=1,
         section_id="s1",
         ordinal=ordinal,
         text=text,
@@ -170,4 +173,10 @@ async def test_research_persists_claims_on_interpreted_text_units():
         )
         assert {claim.id for claim in reused} == set(claim_ids)
         assert all(claim.supporting_text_unit_ids for claim in reused)
+        entities = list((await session.execute(select(KnowledgeEntityRecord))).scalars().all())
+        assert {row.entity_type for row in entities} >= {"legal.source", "legal.issue"}
+        graph_edges = list(
+            (await session.execute(select(KnowledgeRelationshipRecord))).scalars().all()
+        )
+        assert {row.relation for row in graph_edges} >= {"ABOUT", "SUPPORTED_BY"}
     await engine.dispose()

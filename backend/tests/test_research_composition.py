@@ -7,6 +7,7 @@ import pytest
 from app.services.research.composition import (
     ResearchCompositionError,
     require_research_router_ready,
+    resolve_injected_research_router,
     set_knowledge_vector_store_factory,
     set_research_router_factory,
     standard_available_source_types,
@@ -37,6 +38,20 @@ def test_require_research_router_ready_accepts_vector_store_seam():
         require_research_router_ready()
     finally:
         set_knowledge_vector_store_factory(None)
+
+
+def test_resolve_injected_research_router_is_none_without_test_seam():
+    set_research_router_factory(None)
+    assert resolve_injected_research_router(object()) is None
+
+
+def test_resolve_injected_research_router_returns_test_seam():
+    router = object()
+    set_research_router_factory(lambda _session: router)
+    try:
+        assert resolve_injected_research_router(object()) is router
+    finally:
+        set_research_router_factory(None)
 
 
 def test_require_research_router_ready_fails_when_unconfigured():
