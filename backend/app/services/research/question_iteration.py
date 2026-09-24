@@ -27,11 +27,15 @@ from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.knowledge_question import (
     KnowledgeQuestion,
     KnowledgeQuestionScope,
+    QuestionIdentity,
     identity_from_text,
     tenant_question_scope,
 )
 from app.services.research.models import ResearchContext, ResearchNeed
-from app.services.research.question_graph import QuestionEvidenceGraph
+from app.services.research.question_graph import (
+    QuestionEvidenceGraph,
+    QuestionEvidenceGraphError,
+)
 from app.services.research.question_reuse import (
     gap_source_types,
     lookup_reusable_claims,
@@ -138,8 +142,37 @@ async def resolve_or_create_knowledge_question(
     for neighbour in related:
         if neighbour.relation == "same_as":
             return neighbour.question
-    created = await graph.upsert_question(session, identity, scope)
+    try:
+        created = await graph.upsert_question(session, identity, scope)
+    except QuestionEvidenceGraphError:
+        return await _create_sql_question(session, identity, scope)
     return await _ensure_sql_question(session, created)
+
+
+async def _create_sql_question(
+    session: AsyncSession,
+    identity: QuestionIdentity,
+    scope: KnowledgeQuestionScope,
+) -> KnowledgeQuestion:
+    colliding = await match_canonical_question(session, identity.display_text, scope)
+    if colliding is not None:
+        return colliding
+    session.add(
+        KnowledgeQuestionRow(
+            id=uuid4().hex,
+            identity_key=identity.identity_key,
+            normalized_text=identity.normalized_text,
+            display_text=identity.display_text,
+            namespace=scope.namespace,
+            visibility=scope.visibility,
+            customer_id=scope.customer_id,
+        )
+    )
+    await session.flush()
+    stored = await match_canonical_question(session, identity.display_text, scope)
+    if stored is None:
+        raise RuntimeError("KnowledgeQuestion SQL persist failed")
+    return stored
 
 
 async def _ensure_sql_question(

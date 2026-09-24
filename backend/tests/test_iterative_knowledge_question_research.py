@@ -49,7 +49,6 @@ from tests.test_research_assessment import RecordingAssessor, _fixed_draft
 from tests.test_research_execution import RecordingSource, _created_attempt, _need, _router
 from tests.test_research_loop import ScriptedPlanner, SequenceAssessor, _follow_up
 
-
 ROOT_QUESTION = "What is the published rate?"
 FOLLOW_UP_QUESTION = "Which source states the published rate?"
 
