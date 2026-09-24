@@ -1669,11 +1669,6 @@ class DocumentVersionRecord(Base):
 
     __tablename__ = "document_versions"
     __table_args__ = (
-        UniqueConstraint(
-            "document_id",
-            "content_hash",
-            name="uq_document_versions_content_hash",
-        ),
         Index(
             "uq_document_versions_current",
             "document_id",

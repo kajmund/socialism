@@ -78,11 +78,6 @@ def upgrade() -> None:
             ["document_id"], ["canonical_documents.id"], ondelete="CASCADE"
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "document_id",
-            "content_hash",
-            name="uq_document_versions_content_hash",
-        ),
     )
     op.create_index("ix_document_versions_document_id", "document_versions", ["document_id"])
     op.create_index("ix_document_versions_content_hash", "document_versions", ["content_hash"])

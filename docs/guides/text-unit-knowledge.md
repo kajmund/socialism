@@ -29,7 +29,7 @@ Microsoft GraphRAG inspired the primitives (`Document`, `TextUnit`, later `Entit
 Uploaded documents now ingest as `CanonicalDocument` → `DocumentVersion` → `DocumentSection` → `TextUnit`.
 
 - `CanonicalDocument` is stable source identity: `(customer_id, source_type, canonical_uri)`.
-- `DocumentVersion` is an immutable content snapshot. `content_hash` decides reuse vs a new version. Provider `version` is metadata only.
+- `DocumentVersion` is an immutable temporal occurrence. Reuse only when the incoming `content_hash` already matches the current version. A historical hash that returns creates a new version row. Provider `version` is metadata only.
 - Structure-aware segmentation prefers markup headings, numbered titles, and short all-caps display lines.
 - If no structure is found: extracted block boundaries, then paragraphs, then sentence-safe size splits.
 - Size-based splitting happens only inside a section.
@@ -41,7 +41,7 @@ Uploaded documents now ingest as `CanonicalDocument` → `DocumentVersion` → `
 
 Tables: `canonical_documents`, `document_versions`, `document_sections`, `text_units`, `document_knowledge_item_text_units`.
 
-A version is immutable after persist. Same source + same `content_hash` reuses the current `DocumentVersion` and skips new TextUnits and embeddings. Changed content supersedes the current version and inserts a new snapshot. Historical versions and their TextUnits stay queryable. `get_current_document_version(document_id)` is `superseded_at IS NULL`; at most one current version exists per document.
+A version is immutable after persist, including its system-time interval. Same source + same `content_hash` reuses the current `DocumentVersion` only when that version is still current, and then skips new TextUnits and embeddings. Any other ingest — new hash or a historical hash that returns — supersedes the current version and inserts a new snapshot. The same content may recur; the same temporal version may not. Historical versions and their TextUnits stay queryable. `get_current_document_version(document_id)` is `superseded_at IS NULL`; at most one current version exists per document.
 
 Valid time (`valid_from` / `valid_to`) and system time (`ingested_at` / `superseded_at`) live on `DocumentVersion`. TextUnits keep valid-time fields for later claim-level temporality. A future frozen EvidenceSet can store `document_version_ids` + `text_unit_ids` and reproduce the exact snapshot.
 
@@ -57,7 +57,7 @@ resolve (source_type, canonical_uri)
       → same Section / TextUnit persist + embeddings
 ```
 
-Same content hash reuses the existing document id and current version. A new hash keeps the same canonical document and adds a superseded historical version.
+Same content hash reuses the existing document id and current version when that version is still current. A new hash, or a historical hash that returns, keeps the same canonical document and adds a new occurrence.
 
 ## Next phases
 
@@ -67,7 +67,7 @@ Use Jev as a cheap passage gate: which TextUnits are likely to contain revisitab
 
 ### Phase 3 — lagen.nu as a document provider
 
-Resolve a stable source identity (for example NJA 2005 s. 142). Reuse the existing canonical document and current version when the content hash matches; otherwise fetch → ingest → new `DocumentVersion` → segment → embed. Legal extraction produces claims that point at TextUnits. Do not keep a parallel `LegalResearchResult.raw_text` as the long-term source representation.
+Resolve a stable source identity (for example NJA 2005 s. 142). Reuse the existing canonical document and current version when that version's content hash matches; otherwise fetch → ingest → new `DocumentVersion` occurrence → segment → embed. Legal extraction produces claims that point at TextUnits. Do not keep a parallel `LegalResearchResult.raw_text` as the long-term source representation.
 
 ### Phase 4 — research against ingested knowledge
 

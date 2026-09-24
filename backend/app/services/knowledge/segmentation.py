@@ -89,10 +89,7 @@ class DocumentSegmenter:
             },
         )
         version = DocumentVersion(
-            id=make_document_version_id(
-                document_id=document.document_id,
-                content_hash=digest,
-            ),
+            id=make_document_version_id(),
             document_id=document.document_id,
             content_hash=digest,
             mime_type=document.mime_type,
