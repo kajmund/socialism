@@ -27,11 +27,16 @@ vectors.
 
 ```text
 ResearchNeed
-  → resolve/match KnowledgeQuestion
-  → ResearchRouter / providers run with fresh evidence
-  → idempotent upsert Question + ANSWERED_BY (fresh retrieval only)
-  → wave-level evidence quality, then the configured ResearchAssessor / completeness
+  → resolve/create canonical KnowledgeQuestion
+  → reuse fresh grounded Claims (excerpt hits stay candidates)
+  → retrieve only remaining source_type gaps
+  → persist Claims + ANSWERED_BY
+  → assess / completeness
+  → follow-up KnowledgeQuestion + idempotent parent/child lineage
+  → freeze EvidenceSet.grounded_refs
 ```
+
+`KnowledgeQuestion` is the reusable identity. `ResearchNeed` is the execution unit for remaining gaps. Follow-ups reuse `identity_key`; they do not create a new node per wave. `knowledge_question_lineage` stores `generated_from` plus optional claim/event triggers. `QuestionRelationResolver` is reserved for later same_as/broader/narrower matching.
 
 Executing research does not inject persistent graph candidates into a new EvidenceSet. This prevents old, broad, or truncated passages from accumulating beside fresh provider results. The graph remains the durable Question→Passage history and is available to explicit read-only expert-chat reuse. A future execution reuse gate must validate relevance and freshness before it can be enabled.
 

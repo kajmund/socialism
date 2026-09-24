@@ -9,13 +9,20 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import (
+    KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
     KnowledgeClaimTextUnit,
+    KnowledgeEntityRecord,
+    KnowledgeRelationshipRecord,
     Kund,
     TextUnitRecord,
 )
 from app.llm.legal_research import LegalDomainExtractionError
-from app.services.knowledge.claims import supporting_text_unit_ids_for_claim
+from app.services.knowledge.claims import (
+    ANSWERED_BY,
+    claims_answering_question_key,
+    supporting_text_unit_ids_for_claim,
+)
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.claim_grounding import ground_legal_claims
 from app.services.lagen_nu.models import SearchResults
@@ -49,6 +56,7 @@ def _unit(unit_id: str, text: str, *, ordinal: int = 0) -> TextUnitRecord:
         id=unit_id,
         document_version_id="ver-a",
         document_id="doc-a",
+        customer_id=1,
         section_id="s1",
         ordinal=ordinal,
         text=text,
@@ -153,4 +161,22 @@ async def test_research_persists_claims_on_interpreted_text_units():
         links = list((await session.execute(select(KnowledgeClaimTextUnit))).scalars().all())
         assert links
         assert {link.relation for link in links} == {"SUPPORTED_BY"}
+        answers = list((await session.execute(select(KnowledgeClaimAnswer))).scalars().all())
+        assert answers
+        assert {row.relation for row in answers} == {ANSWERED_BY}
+        assert {row.research_need_id for row in answers} == {evidence[0].research_need_id}
+        assert {row.source_type for row in answers} == {"swedish_case_law"}
+        reused = await claims_answering_question_key(
+            session,
+            customer_id=7,
+            question_key=evidence[0].metadata["answered_by_question_key"],
+        )
+        assert {claim.id for claim in reused} == set(claim_ids)
+        assert all(claim.supporting_text_unit_ids for claim in reused)
+        entities = list((await session.execute(select(KnowledgeEntityRecord))).scalars().all())
+        assert {row.entity_type for row in entities} >= {"legal.source", "legal.issue"}
+        graph_edges = list(
+            (await session.execute(select(KnowledgeRelationshipRecord))).scalars().all()
+        )
+        assert {row.relation for row in graph_edges} >= {"ABOUT", "SUPPORTED_BY"}
     await engine.dispose()
