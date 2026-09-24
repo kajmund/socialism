@@ -67,7 +67,14 @@ Section-neighbour grouping is in place. Next: use Jev as a cheap passage gate so
 
 ### Phase 3 — lagen.nu as a document provider
 
-Resolve a stable source identity (for example NJA 2005 s. 142). Reuse the existing canonical document and current version when that version's content hash matches; otherwise fetch → ingest → new `DocumentVersion` occurrence → segment → embed. Legal extraction produces claims that point at TextUnits. Do not keep a parallel `LegalResearchResult.raw_text` as the long-term source representation.
+`ingest_lagen_nu_document` maps a fetched `LagenNuDocument` onto `ingest_extracted_source`. The adapter lives in `app/services/lagen_nu/`; the knowledge core stays domain-neutral.
+
+- `source_type` is `lagen_nu`.
+- Canonical identity is the fragment-free `https://lagen.nu/…` URI. Pinpoint fragments stay on evidence locators, not on `CanonicalDocument`.
+- `content_hash` is SHA-256 of the document plaintext.
+- Same current hash reuses the current `DocumentVersion` and skips embeddings.
+- A new hash, or a historical hash that returns, supersedes and inserts a new occurrence.
+- Research still caches `RawSource` / `LegalResearchResult` for retrieval. Legal claim extraction and replacing `LegalResearchResult.raw_text` as the long-term source representation are still later.
 
 ### Phase 4 — research against ingested knowledge
 
