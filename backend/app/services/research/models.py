@@ -74,6 +74,7 @@ class ResearchNeed:
     original_question: str = ""
     normalization_reason: str = ""
     already_normalized: bool = False
+    knowledge_question_id: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "requested_by", list(self.requested_by))

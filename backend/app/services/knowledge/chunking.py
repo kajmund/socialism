@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.services.knowledge.extractors import ExtractedDocument
 from app.services.knowledge.models import KnowledgeChunk, KnowledgeDocument
+from app.services.knowledge.scope import SCOPE_CUSTOMER
 from app.services.knowledge.segmentation import (
     DEFAULT_MAX_CHARS,
     DEFAULT_TARGET_CHARS,
@@ -12,7 +13,6 @@ from app.services.knowledge.segmentation import (
 from app.services.knowledge.units import (
     SegmentedDocument,
     TextUnit,
-    hash_text,
     make_text_unit_id,
 )
 
@@ -75,15 +75,17 @@ class KnowledgeChunker:
 
 
 def text_unit_to_chunk(unit: TextUnit, document: KnowledgeDocument) -> KnowledgeChunk:
-    customer_id = document.scope.customer_id
-    if customer_id is None:
+    tenant = document.scope.tenant
+    if tenant.scope_type == SCOPE_CUSTOMER and tenant.customer_id is None:
         raise ValueError("text_unit_to_chunk requires document.scope.customer_id")
     metadata: dict[str, object] = {
         "document_id": document.document_id,
         "document_version_id": unit.document_version_id,
         "provider": document.provider,
         "version": document.version,
-        "customer_id": customer_id,
+        "scope_type": tenant.scope_type,
+        "scope_key": tenant.scope_key,
+        "customer_id": tenant.customer_id,
         "case_id": document.scope.case_id,
         "module": document.scope.module,
         "locator": unit.locator,
@@ -100,7 +102,8 @@ def text_unit_to_chunk(unit: TextUnit, document: KnowledgeDocument) -> Knowledge
         document_id=document.document_id,
         chunk_id=unit.id,
         text=unit.text,
-        customer_id=customer_id,
+        customer_id=tenant.customer_id,
+        scope_type=tenant.scope_type,
         case_id=document.scope.case_id,
         module=document.scope.module,
         title=document.title,

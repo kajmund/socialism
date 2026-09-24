@@ -8,6 +8,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
 
+from app.services.knowledge.scope import (
+    SCOPE_SHARED,
+    KnowledgeTenantScope,
+    customer_scope,
+    require_persist_scope,
+    shared_scope,
+)
 from app.services.research.models import ResearchError, ResearchNeed
 
 KnowledgeVisibility = Literal["public", "tenant"]
@@ -51,6 +58,12 @@ class KnowledgeQuestionScope:
         if self.visibility == "public":
             return PUBLIC_NAMESPACE
         return f"tenant:{self.customer_id}"
+
+    @property
+    def tenant(self) -> KnowledgeTenantScope:
+        if self.visibility == "public":
+            return shared_scope()
+        return customer_scope(self.customer_id)
 
 
 @dataclass(frozen=True)
@@ -156,7 +169,18 @@ def public_question_scope() -> KnowledgeQuestionScope:
 
 def lookup_scopes(customer_id: int) -> tuple[KnowledgeQuestionScope, ...]:
     """Tenant namespace plus public. Never another customer."""
+    require_persist_scope(customer_id=customer_id)
     return (tenant_question_scope(customer_id), public_question_scope())
+
+
+def question_scope_from_tenant(scope: KnowledgeTenantScope) -> KnowledgeQuestionScope:
+    if scope.scope_type == SCOPE_SHARED:
+        return public_question_scope()
+    return tenant_question_scope(scope.customer_id)
+
+
+def tenant_from_question_scope(scope: KnowledgeQuestionScope) -> KnowledgeTenantScope:
+    return scope.tenant
 
 
 def evidence_visibility(metadata: dict[str, object] | None) -> KnowledgeVisibility:
