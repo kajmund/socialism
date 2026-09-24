@@ -98,11 +98,11 @@ The lagen.nu adapter projects explicit interpretation fields onto that graph aft
 
 ### Phase 5 — temporal graph
 
-Claims and relationships carry valid time (`valid_from` / `valid_to`) and system time (`created_at` / `superseded_at`). Persist emits `CLAIM_ADDED` / `EDGE_ADDED`. `supersede_knowledge_claim` closes both clocks, optionally points at a successor, and emits `CLAIM_SUPERSEDED`. Events are append-only (`knowledge_graph_events`). Reuse ignores superseded claims. Frozen EvidenceSets still need `graph_revision_at_freeze` in the revalidation increment.
+Claims and relationships carry valid time (`valid_from` / `valid_to`) and system time (`created_at` / `superseded_at`). Persist emits `CLAIM_ADDED` / `EDGE_ADDED`. `supersede_knowledge_claim` closes both clocks, optionally points at a successor, and emits `CLAIM_SUPERSEDED`. Events are append-only (`knowledge_graph_events`). Reuse ignores superseded claims. Frozen EvidenceSets record `graph_revision_at_freeze` for the revalidation increment.
 
 ### Phase 6 — revalidation
 
-Impact lookup over the graph neighbourhood, then Jev as an impact gate. Frozen EvidenceSets get a separate `RevalidationState`. Do not mutate frozen snapshots.
+A graph event (`CLAIM_ADDED`, `EDGE_ADDED`, `CLAIM_SUPERSEDED`) looks up affected `KnowledgeQuestion` keys and frozen EvidenceSets via claim answers, claim ids, and TextUnit ids. Jev answers `material_change` (noul ≥ 0.5 → `impacted`, else `clear`). Results live on `evidence_set_revalidations`. The frozen snapshot is not rewritten. Freeze stores `graph_revision_at_freeze`. Jev failure is loud and does not invent `clear`.
 
 ## Design constraints
 

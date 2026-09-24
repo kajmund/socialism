@@ -531,7 +531,9 @@ async def freeze_evidence_set(session: AsyncSession, evidence_set_id: str) -> Ev
     evidence_set = await get_evidence_set(session, evidence_set_id)
     _assert_building(evidence_set)
     evidence_set.status = "frozen"
-    evidence_set.frozen_at = utc_now()
+    now = utc_now()
+    evidence_set.frozen_at = now
+    evidence_set.graph_revision_at_freeze = now
     await session.flush()
     return evidence_set
 
@@ -557,7 +559,7 @@ async def claim_freeze_evidence_set(
             EvidenceSet.id == evidence_set_id,
             EvidenceSet.status == "building",
         )
-        .values(status="frozen", frozen_at=now)
+        .values(status="frozen", frozen_at=now, graph_revision_at_freeze=now)
     )
     if result.rowcount != 1:
         return None
