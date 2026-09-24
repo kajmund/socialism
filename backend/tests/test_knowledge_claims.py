@@ -93,6 +93,7 @@ async def test_persist_claim_writes_supported_by_links(session: AsyncSession):
         DocumentVersionRecord(
             id="ver-a",
             document_id="doc-a",
+            customer_id=1,
             content_hash="hash",
             mime_type="text/plain",
             extra={},
@@ -103,6 +104,7 @@ async def test_persist_claim_writes_supported_by_links(session: AsyncSession):
             id="tu-hold",
             document_version_id="ver-a",
             document_id="doc-a",
+            customer_id=1,
             section_id=None,
             ordinal=0,
             text="The court held that the clause was not adjusted.",

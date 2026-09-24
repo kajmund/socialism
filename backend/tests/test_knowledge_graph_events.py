@@ -65,6 +65,7 @@ async def _document(session: AsyncSession) -> None:
         DocumentVersionRecord(
             id="ver-a",
             document_id="doc-a",
+            customer_id=1,
             content_hash="hash",
             mime_type="text/plain",
             extra={},
@@ -75,6 +76,7 @@ async def _document(session: AsyncSession) -> None:
             id="tu-hold",
             document_version_id="ver-a",
             document_id="doc-a",
+            customer_id=1,
             section_id=None,
             ordinal=0,
             text="The court held X.",
