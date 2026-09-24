@@ -301,15 +301,22 @@ def _source(
     source_type: str = "swedish_law",
     selector: LagenNuPassageSelector | None = None,
     interpreter=None,
+    session: AsyncSession | None = None,
+    embeddings: FakeEmbeddingProvider | None = None,
+    vector_store: MemoryKnowledgeVectorStore | None = None,
 ) -> LagenNuResearchSource:
     return LagenNuResearchSource(
         source_type=source_type,
         client=client,
         selector=selector or PassthroughLagenNuSelector(),
         interpreter=interpreter or FakeLegalInterpreter(),
-        session=_TEXT_UNIT_DEPS["session"],
-        embeddings=_TEXT_UNIT_DEPS["embeddings"],
-        vector_store=_TEXT_UNIT_DEPS["vector_store"],
+        session=session if session is not None else _TEXT_UNIT_DEPS.get("session"),
+        embeddings=embeddings
+        or _TEXT_UNIT_DEPS.get("embeddings")
+        or FakeEmbeddingProvider(),
+        vector_store=vector_store
+        or _TEXT_UNIT_DEPS.get("vector_store")
+        or MemoryKnowledgeVectorStore(),
     )
 
 
