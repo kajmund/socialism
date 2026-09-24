@@ -19,40 +19,32 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column("knowledge_claims", sa.Column("valid_from", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("knowledge_claims", sa.Column("valid_to", sa.DateTime(timezone=True), nullable=True))
-    op.add_column(
-        "knowledge_claims",
-        sa.Column("superseded_at", sa.DateTime(timezone=True), nullable=True),
-    )
-    op.add_column("knowledge_claims", sa.Column("successor_id", sa.String(length=64), nullable=True))
-    op.create_index("ix_knowledge_claims_superseded_at", "knowledge_claims", ["superseded_at"])
-    op.create_index("ix_knowledge_claims_successor_id", "knowledge_claims", ["successor_id"])
-    op.create_foreign_key(
-        "fk_knowledge_claims_successor_id",
-        "knowledge_claims",
-        "knowledge_claims",
-        ["successor_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-    op.add_column(
-        "knowledge_relationships",
-        sa.Column("valid_from", sa.DateTime(timezone=True), nullable=True),
-    )
-    op.add_column(
-        "knowledge_relationships",
-        sa.Column("valid_to", sa.DateTime(timezone=True), nullable=True),
-    )
-    op.add_column(
-        "knowledge_relationships",
-        sa.Column("superseded_at", sa.DateTime(timezone=True), nullable=True),
-    )
-    op.create_index(
-        "ix_knowledge_relationships_superseded_at",
-        "knowledge_relationships",
-        ["superseded_at"],
-    )
+    with op.batch_alter_table("knowledge_claims") as batch:
+        batch.add_column(sa.Column("valid_from", sa.DateTime(timezone=True), nullable=True))
+        batch.add_column(sa.Column("valid_to", sa.DateTime(timezone=True), nullable=True))
+        batch.add_column(
+            sa.Column("superseded_at", sa.DateTime(timezone=True), nullable=True)
+        )
+        batch.add_column(sa.Column("successor_id", sa.String(length=64), nullable=True))
+        batch.create_index("ix_knowledge_claims_superseded_at", ["superseded_at"])
+        batch.create_index("ix_knowledge_claims_successor_id", ["successor_id"])
+        batch.create_foreign_key(
+            "fk_knowledge_claims_successor_id",
+            "knowledge_claims",
+            ["successor_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
+    with op.batch_alter_table("knowledge_relationships") as batch:
+        batch.add_column(sa.Column("valid_from", sa.DateTime(timezone=True), nullable=True))
+        batch.add_column(sa.Column("valid_to", sa.DateTime(timezone=True), nullable=True))
+        batch.add_column(
+            sa.Column("superseded_at", sa.DateTime(timezone=True), nullable=True)
+        )
+        batch.create_index(
+            "ix_knowledge_relationships_superseded_at",
+            ["superseded_at"],
+        )
     op.create_table(
         "knowledge_graph_events",
         sa.Column("id", sa.String(length=64), nullable=False),
@@ -86,14 +78,16 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("knowledge_graph_events")
-    op.drop_index("ix_knowledge_relationships_superseded_at", table_name="knowledge_relationships")
-    op.drop_column("knowledge_relationships", "superseded_at")
-    op.drop_column("knowledge_relationships", "valid_to")
-    op.drop_column("knowledge_relationships", "valid_from")
-    op.drop_constraint("fk_knowledge_claims_successor_id", "knowledge_claims", type_="foreignkey")
-    op.drop_index("ix_knowledge_claims_successor_id", table_name="knowledge_claims")
-    op.drop_index("ix_knowledge_claims_superseded_at", table_name="knowledge_claims")
-    op.drop_column("knowledge_claims", "successor_id")
-    op.drop_column("knowledge_claims", "superseded_at")
-    op.drop_column("knowledge_claims", "valid_to")
-    op.drop_column("knowledge_claims", "valid_from")
+    with op.batch_alter_table("knowledge_relationships") as batch:
+        batch.drop_index("ix_knowledge_relationships_superseded_at")
+        batch.drop_column("superseded_at")
+        batch.drop_column("valid_to")
+        batch.drop_column("valid_from")
+    with op.batch_alter_table("knowledge_claims") as batch:
+        batch.drop_constraint("fk_knowledge_claims_successor_id", type_="foreignkey")
+        batch.drop_index("ix_knowledge_claims_successor_id")
+        batch.drop_index("ix_knowledge_claims_superseded_at")
+        batch.drop_column("successor_id")
+        batch.drop_column("superseded_at")
+        batch.drop_column("valid_to")
+        batch.drop_column("valid_from")
