@@ -74,11 +74,13 @@ Section-neighbour grouping is in place. Next: use Jev as a cheap passage gate so
 - `content_hash` is SHA-256 of the document plaintext.
 - Same current hash reuses the current `DocumentVersion` and skips embeddings.
 - A new hash, or a historical hash that returns, supersedes and inserts a new occurrence.
-- Research still caches `RawSource` / `LegalResearchResult` for retrieval. Legal claim extraction and replacing `LegalResearchResult.raw_text` as the long-term source representation are still later.
+- Research reads those TextUnits. MCP `get_document` runs only when the customer has no current version. Pinpoint stays on evidence locators.
+- `LegalResearchResult.raw_text` is the retrieved TextUnit corpus, not a parallel RawSource cache of MCP text.
+- Legal claim extraction is still later.
 
 ### Phase 4 — research against ingested knowledge
 
-`ResearchNeed` → existing questions / claims / TextUnits → embedding candidates → Jev relevance → fetch new documents only when needed → freeze `EvidenceSet` from grounded TextUnits and claims.
+lagen.nu research now goes `ResearchNeed` → resolve/search → ingest if needed → current TextUnits → interpreter. Next: embedding candidates + Jev relevance across already ingested units, then freeze `EvidenceSet` from grounded TextUnits and claims.
 
 ### Phase 5 — temporal graph
 

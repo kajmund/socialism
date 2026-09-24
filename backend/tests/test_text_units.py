@@ -190,6 +190,25 @@ def test_markdown_headings_create_nested_sections():
     assert all(unit.locator for unit in segmented.text_units)
 
 
+def test_repeated_heading_titles_keep_unique_section_ids():
+    extracted = _extracted(
+        ExtractedBlock(text="# Kapitalbeloppet", locator="line:1", metadata={"heading_level": 1}),
+        ExtractedBlock(text="Första beloppet.", locator="line:3"),
+        ExtractedBlock(text="# Kapitalbeloppet", locator="line:5", metadata={"heading_level": 1}),
+        ExtractedBlock(text="Andra beloppet.", locator="line:7"),
+    )
+    segmented = DocumentSegmenter().segment(extracted, _document())
+    assert [section.title for section in segmented.sections] == [
+        "Kapitalbeloppet",
+        "Kapitalbeloppet",
+    ]
+    assert segmented.sections[0].id != segmented.sections[1].id
+    first = [unit for unit in segmented.text_units if unit.section_id == segmented.sections[0].id]
+    second = [unit for unit in segmented.text_units if unit.section_id == segmented.sections[1].id]
+    assert any("Första beloppet" in unit.text for unit in first)
+    assert any("Andra beloppet" in unit.text for unit in second)
+
+
 def test_size_split_stays_inside_section():
     long_body = "The obligation is detailed. " * 80
     extracted = _extracted(

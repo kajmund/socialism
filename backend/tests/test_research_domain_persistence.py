@@ -26,6 +26,7 @@ from app.services.execution import (
     create_run,
     list_evidence_items,
 )
+from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.legal_research_result import (
     CaseLawAnalysis,
     LegalCitation,
@@ -36,6 +37,7 @@ from app.services.legal_research_result import (
 from app.services.research.assessment import EvidenceReviewGroup
 from app.services.research.execution import assessable_from_item
 from app.services.research.models import research_evidence
+from tests.knowledge_fakes import FakeEmbeddingProvider
 
 
 @pytest.mark.asyncio
@@ -97,13 +99,15 @@ async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses
             evidence_set = await create_evidence_set(
                 session, run_id=run.id, created_from_attempt_id=attempt.id
             )
-            context = replace(_context(), attempt_id=attempt.id)
+            context = replace(_context(customer_id=customer.id), attempt_id=attempt.id)
             source = LagenNuResearchSource(
                 source_type="swedish_case_law",
                 client=client,
                 selector=PassthroughLagenNuSelector(),
                 interpreter=interpreter,
-                reuse_session=session,
+                session=session,
+                embeddings=FakeEmbeddingProvider(),
+                vector_store=MemoryKnowledgeVectorStore(),
             )
             for index, question in enumerate(
                 (

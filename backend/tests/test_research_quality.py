@@ -22,6 +22,7 @@ from app.services.execution import (
     list_evidence_quality,
     persist_evidence_quality,
 )
+from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.models import SearchResults
 from app.services.lagen_nu.registration import (
     LAGEN_NU_PROVIDER_ID,
@@ -56,6 +57,7 @@ from app.services.research.quality import (
     quality_model_identity_key,
 )
 from app.services.research.registry import standard_capability_descriptors
+from tests.knowledge_fakes import FakeEmbeddingProvider
 from tests.test_lagen_nu_provider import FakeLagenNuClient, _document, _hit, _source
 from tests.test_research import _context
 from tests.test_research_execution import RecordingSource, _created_attempt, _need, _router
@@ -213,13 +215,20 @@ async def test_explicit_trusted_descriptor_overrides_transport_warnings():
     }
 
 
-async def test_lagen_nu_is_a_trusted_primary_source_aggregator():
+async def test_lagen_nu_is_a_trusted_primary_source_aggregator(db: AsyncSession):
+    db.add(Kund(id=7, name="quality", slug="quality", available_modules=["dd"]))
+    await db.flush()
     client = FakeLagenNuClient(
         search=SearchResults(query="jämkning", total=1, results=(_hit(),)),
         documents={"https://lagen.nu/1915:218#P36": _document()},
     )
     need = _need_row()
-    evidence = await _source(client).research(need, _context())
+    evidence = await _source(
+        client,
+        session=db,
+        embeddings=FakeEmbeddingProvider(),
+        vector_store=MemoryKnowledgeVectorStore(),
+    ).research(need, _context())
     assert [item.status for item in evidence] == ["found"]
     item = evidence[0]
     drafts = await assess_evidence_quality(
@@ -420,7 +429,12 @@ async def test_loop_persists_lagen_nu_quality_and_keeps_evidence(db: AsyncSessio
     )
     registry = ResearchSourceRegistry()
     registry.register(
-        _source(client),
+        _source(
+            client,
+            session=db,
+            embeddings=FakeEmbeddingProvider(),
+            vector_store=MemoryKnowledgeVectorStore(),
+        ),
         descriptor=lagen_nu_descriptor("swedish_law"),
     )
     result = await execute_attempt_research(

@@ -147,15 +147,23 @@ def build_standard_research_router(session: AsyncSession) -> ResearchRouter:
         return _router_factory(session)
     if _vector_store_factory is None:
         raise ResearchCompositionError(_UNCONFIGURED_VECTOR_STORE)
+    vector_store = _vector_store_factory()
+    embeddings = OpenAIEmbeddingProvider.from_settings()
     registry = build_knowledge_registry(
         session,
-        vector_store=_vector_store_factory(),
-        embeddings=OpenAIEmbeddingProvider.from_settings(),
+        vector_store=vector_store,
+        embeddings=embeddings,
     )
     provider = registry.get(SUPABASE_PROVIDER_ID)
     selector = _lagen_nu_selector_factory() if _lagen_nu_selector_factory is not None else None
     return ResearchRouter(
-        build_research_registry(provider, lagen_nu_selector=selector, reuse_session=session)
+        build_research_registry(
+            provider,
+            lagen_nu_selector=selector,
+            reuse_session=session,
+            embeddings=embeddings,
+            vector_store=vector_store,
+        )
     )
 
 

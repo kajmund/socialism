@@ -222,7 +222,8 @@ class DocumentSegmenter:
         leaves: Sequence[_Leaf],
     ) -> DocumentSection:
         parent_path = parent.metadata.get("path") if parent is not None else ""
-        path = f"{parent_path}/{title or f'{section_type}:{ordinal}'}"
+        # Ordinal is part of the path so repeated titles in one version stay unique.
+        path = f"{parent_path}/{ordinal}:{title or section_type}"
         pages = [leaf.page for leaf in leaves if leaf.page is not None]
         return DocumentSection(
             id=make_section_id(

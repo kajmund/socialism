@@ -30,7 +30,9 @@ from app.services.execution.service import (
     create_run,
     list_evidence_items,
 )
+from app.services.knowledge.embeddings import OpenAIEmbeddingProvider
 from app.services.knowledge.models import KnowledgeScope
+from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.question_validation import (
     MIXED_MD_AVTL_QUESTION,
     LegalNeedNormalizer,
@@ -147,6 +149,8 @@ async def evaluate(
                     else None
                 )
                 await session.commit()
+            embeddings = OpenAIEmbeddingProvider.from_settings()
+            vector_store = MemoryKnowledgeVectorStore()
             normalizer = LegalNeedNormalizer(validator) if validator is not None else None
             if normalizer is not None:
                 mixed_check = await prepare_need_for_retrieval(
@@ -194,12 +198,16 @@ async def evaluate(
                     retrieval_questions.extend(child.question for child in runnable)
                     found = []
                     for child in runnable:
-                        provider = LagenNuResearchSource(
-                            source_type=source_type,
-                            interpreter=LlmLegalInterpreter(session_factory=factory),
-                            selector=LlmLagenNuSelector(session_factory=factory),
-                        )
-                        found.extend(await provider.research(child, context))
+                        async with factory() as research_session:
+                            provider = LagenNuResearchSource(
+                                source_type=source_type,
+                                interpreter=LlmLegalInterpreter(session_factory=factory),
+                                selector=LlmLagenNuSelector(session_factory=factory),
+                                session=research_session,
+                                embeddings=embeddings,
+                                vector_store=vector_store,
+                            )
+                            found.extend(await provider.research(child, context))
                 else:
                     blocked = forbidden_retrieval_questions([need.question])
                     if blocked:
