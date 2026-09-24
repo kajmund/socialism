@@ -29,6 +29,7 @@ from app.services.lagen_nu.models import (
     ResolvedCitations,
     SearchResults,
 )
+from app.services.lagen_nu.passage_router import KeepAllPassageRouter
 from app.services.lagen_nu.registration import (
     LAGEN_NU_ADAPTER,
     LAGEN_NU_PROVIDER_ID,
@@ -304,6 +305,7 @@ def _source(
     session: AsyncSession | None = None,
     embeddings: FakeEmbeddingProvider | None = None,
     vector_store: MemoryKnowledgeVectorStore | None = None,
+    passage_router=None,
 ) -> LagenNuResearchSource:
     return LagenNuResearchSource(
         source_type=source_type,
@@ -317,6 +319,7 @@ def _source(
         vector_store=vector_store
         or _TEXT_UNIT_DEPS.get("vector_store")
         or MemoryKnowledgeVectorStore(),
+        passage_router=passage_router or KeepAllPassageRouter(),
     )
 
 

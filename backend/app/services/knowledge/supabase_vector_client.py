@@ -44,9 +44,7 @@ class SupabaseStorageVectorClient(VectorBucketClient):
         await self.upsert(records_list)
         new_keys = {_record_key(record) for record in records_list}
         stale_keys = [
-            key
-            for key in await self._list_keys_for_document(document_id)
-            if key not in new_keys
+            key for key in await self._list_keys_for_document(document_id) if key not in new_keys
         ]
         for offset in range(0, len(stale_keys), _BATCH_SIZE):
             await self._index.delete(stale_keys[offset : offset + _BATCH_SIZE])
@@ -66,6 +64,26 @@ class SupabaseStorageVectorClient(VectorBucketClient):
             return_metadata=True,
         )
         return [_record_from_match(match) for match in response.vectors]
+
+    async def get(
+        self,
+        *,
+        document_id: str,
+        chunk_ids: Sequence[str],
+    ) -> Sequence[VectorBucketRecord]:
+        keys = [_record_key_for(document_id, chunk_id) for chunk_id in chunk_ids]
+        records: list[VectorBucketRecord] = []
+        for offset in range(0, len(keys), _BATCH_SIZE):
+            batch = keys[offset : offset + _BATCH_SIZE]
+            if not batch:
+                continue
+            response = await self._index.get(
+                *batch,
+                return_data=True,
+                return_metadata=True,
+            )
+            records.extend(_record_from_match(match) for match in response.vectors)
+        return records
 
     async def delete(self, document_id: str) -> None:
         keys = await self._list_keys_for_document(document_id)
@@ -186,7 +204,11 @@ def _vector_object(record: VectorBucketRecord) -> VectorObject:
 
 
 def _record_key(record: VectorBucketRecord) -> str:
-    identity = f"{record.document_id}\0{record.chunk_id}".encode()
+    return _record_key_for(record.document_id, record.chunk_id)
+
+
+def _record_key_for(document_id: str, chunk_id: str) -> str:
+    identity = f"{document_id}\0{chunk_id}".encode()
     return hashlib.sha256(identity).hexdigest()
 
 
@@ -218,16 +240,19 @@ def _record_metadata(record: VectorBucketRecord) -> dict[str, str | bool | float
 def _record_from_match(match: Any) -> VectorBucketRecord:
     metadata = dict(match.metadata or {})
     distance = match.distance
+    data = getattr(match, "data", None)
+    embedding = list(data.float32) if data is not None and getattr(data, "float32", None) else []
     return VectorBucketRecord(
         document_id=str(metadata["document_id"]),
         chunk_id=str(metadata["chunk_id"]),
-        text=str(metadata["text"]),
-        title=str(metadata["title"]),
+        text=str(metadata.get("text") or ""),
+        title=str(metadata.get("title") or ""),
         score=None if distance is None else 1.0 - float(distance),
         locator=_string_or_none(metadata.get("locator")),
         provider=_string_or_none(metadata.get("provider")),
         version=_string_or_none(metadata.get("version")),
         external_id=_string_or_none(metadata.get("external_id")),
+        embedding=embedding,
         metadata=metadata,
     )
 

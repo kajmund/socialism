@@ -27,6 +27,7 @@ from app.services.execution import (
     list_evidence_items,
 )
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
+from app.services.lagen_nu.passage_router import KeepAllPassageRouter
 from app.services.legal_research_result import (
     CaseLawAnalysis,
     LegalCitation,
@@ -108,6 +109,7 @@ async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses
                 session=session,
                 embeddings=FakeEmbeddingProvider(),
                 vector_store=MemoryKnowledgeVectorStore(),
+                passage_router=KeepAllPassageRouter(),
             )
             for index, question in enumerate(
                 (

@@ -13,6 +13,7 @@ from app.database.base import Base
 from app.database.models import Kund
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.mcp_client import OfficialLagenNuMcpClient, parse_document
+from app.services.lagen_nu.passage_router import KeepAllPassageRouter
 from app.services.lagen_nu.question_validation import (
     COMMERCIAL_AVTL_QUESTION,
     MIXED_MD_AVTL_QUESTION,
@@ -169,6 +170,7 @@ async def test_official_transport_resolve_fetch_interpret_actual_nja_path():
                 session=session,
                 embeddings=FakeEmbeddingProvider(),
                 vector_store=MemoryKnowledgeVectorStore(),
+                passage_router=KeepAllPassageRouter(),
             )
             evidence = await provider.research(
                 _need(

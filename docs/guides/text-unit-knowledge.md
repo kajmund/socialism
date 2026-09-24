@@ -28,7 +28,7 @@ Microsoft GraphRAG inspired the primitives (`Document`, `TextUnit`, later `Entit
 
 Uploaded documents now ingest as `CanonicalDocument` → `DocumentVersion` → `DocumentSection` → `TextUnit`.
 
-- `CanonicalDocument` is stable source identity: `(customer_id, source_type, canonical_uri)`.
+- `CanonicalDocument` is stable source identity: `(scope_key, source_type, canonical_uri)` where `scope_key` is `shared` or `customer:{id}`. Customer copies never dedupe into shared or another tenant. See [knowledge-tenant-scope.md](knowledge-tenant-scope.md).
 - `DocumentVersion` is an immutable temporal occurrence. Reuse only when the incoming `content_hash` already matches the current version. A historical hash that returns creates a new version row. Provider `version` is metadata only.
 - Structure-aware segmentation prefers markup headings, numbered titles, and short all-caps display lines.
 - If no structure is found: extracted block boundaries, then paragraphs, then sentence-safe size splits.
@@ -78,17 +78,53 @@ Section-neighbour grouping is in place. Next: use Jev as a cheap passage gate so
 - `LegalResearchResult.raw_text` is the retrieved TextUnit corpus, not a parallel RawSource cache of MCP text.
 - Legal claim extraction is still later.
 
-### Phase 4 — research against ingested knowledge
+### Phase 4 — passage routing in front of LegalInterpreter
 
-lagen.nu research now goes `ResearchNeed` → resolve/search → ingest if needed → current TextUnits → interpreter. Next: embedding candidates + Jev relevance across already ingested units, then freeze `EvidenceSet` from grounded TextUnits and claims.
+lagen.nu research ranks current TextUnits in-process (question embed + ingest vectors, cosine), Jev `relevant_to_question` keep/drops the top-K seeds, then expands same-section neighbours (`+/-1`). Neighbours are added after Jev so low-score context is not dropped. `LegalInterpreter` sees the expanded set, clipped to a deterministic char budget. Empty keep is `not_found` / `irrelevant_relation`. Jev or embedding failure is `selection_failed`. Production does not send the whole judgment. Next: freeze `EvidenceSet` from grounded TextUnits and claims.
+
+### Phase 4b — claims on TextUnits
+
+A `KnowledgeClaim` is an assertion. Support is `SUPPORTED_BY` one or more TextUnits (`knowledge_claims` + `knowledge_claim_text_units`). The knowledge core does not interpret predicate strings. The lagen.nu adapter projects `legal_claims` after interpret and grounds each citation quote to the interpreted units. A quote that is not in those units is `citation_grounding_failed`.
+
+`ResearchNeed` → `ANSWERED_BY` → Claim (`knowledge_claim_answers`, keyed by `question_key` + `source_type`) so reuse can find grounded answers instead of only evidence excerpts.
+
+Runtime needs canonicalize to `KnowledgeQuestion` before live retrieval (identity_key = normalized `question_key`). Fresh grounded claims close their source type. Excerpt-only graph hits stay candidates and do not skip providers. Remaining source types are gaps and are the only natures retrieved. Stale claims are gaps.
+
+### Phase 4c — entities and relationships
+
+The knowledge core stores named `Entity` nodes and typed `Relationship` edges. Core relations are closed: `ABOUT`, `SUPPORTED_BY`, `CONTRADICTS`, `PART_OF`, `SAME_AS`. Adapters add namespaced relations (`legal.cites`, `legal.applies`, `legal.decided_by`). Node kinds are `entity`, `claim`, `text_unit`, and `document`. Predicate and entity_type strings stay opaque in the core.
+
+The lagen.nu adapter projects explicit interpretation fields onto that graph after claims are grounded: source / court / issue / provision entities, `ABOUT` from claims, `SUPPORTED_BY` onto TextUnits, `SAME_AS` for an identifier alias, and the legal edges above. No prose inference.
 
 ### Phase 5 — temporal graph
 
-Claims and relationships carry valid time and system time. Graph mutations emit events (`DOCUMENT_ADDED`, `DOCUMENT_VERSION_ADDED`, `TEXT_UNIT_ADDED`, `CLAIM_ADDED`, `EDGE_ADDED`, …). Frozen EvidenceSets record `document_version_ids`, `text_unit_ids`, and `graph_revision_at_freeze`.
+Claims and relationships carry valid time (`valid_from` / `valid_to`) and system time (`created_at` / `superseded_at`). Persist emits `CLAIM_ADDED` / `EDGE_ADDED`. `supersede_knowledge_claim` closes both clocks, optionally points at a successor, and emits `CLAIM_SUPERSEDED`. Events are append-only (`knowledge_graph_events`). Reuse ignores superseded claims. Frozen EvidenceSets record `graph_revision_at_freeze` for the revalidation increment.
 
 ### Phase 6 — revalidation
 
-Impact lookup over the graph neighbourhood, then Jev as an impact gate. Frozen EvidenceSets get a separate `RevalidationState`. Do not mutate frozen snapshots.
+A graph event (`CLAIM_ADDED`, `EDGE_ADDED`, `CLAIM_SUPERSEDED`) looks up affected `KnowledgeQuestion` keys and frozen EvidenceSets via claim answers, claim ids, and TextUnit ids. Jev answers `material_change` against configurable bands (`REVALIDATION_IMPACT_THRESHOLD` default 0.75 → `impacted`, `REVALIDATION_CLEAR_THRESHOLD` default 0.25 → `clear`, between → `revalidation_required`). Results live on `evidence_set_revalidations`. The frozen snapshot is not rewritten. Freeze stores `graph_revision_at_freeze`. Jev error or invalid noul is `unknown`, never `clear`. No Jev call when no frozen EvidenceSet is touched.
+
+### Phase 7 — iterative KnowledgeQuestion-driven research
+
+Research is a question DAG. `KnowledgeQuestion` is the reusable identity. `ResearchNeed` is an execution request for remaining gaps. Several runtime needs may point at the same question.
+
+```text
+Root question
+  → resolve/create canonical KnowledgeQuestion
+  → load existing fresh grounded Claims
+  → retrieve only remaining source_type gaps
+  → persist Claims + Entities + Relationships
+  → assess / completeness
+  → follow-up → child KnowledgeQuestion + lineage
+  → repeat until complete or a loop guard
+  → freeze EvidenceSet
+```
+
+Follow-ups are child `KnowledgeQuestion` nodes with idempotent `knowledge_question_lineage` edges (`generated_from` parent, optional `trigger_claim_id` / `trigger_graph_event_id`, `why_needed`). Same `identity_key` does not create a new node. A cycle or a fresh answered child does not start live retrieval.
+
+Resolution before retrieval: exact `identity_key`, existing tenant question, fresh grounded claims, remaining source-type gaps, then providers. `QuestionRelationResolver` is the later same_as/broader/narrower seam. This phase does not add GraphRAG communities or fuzzy clustering.
+
+Frozen `EvidenceSet.grounded_refs` snapshots `knowledge_question_ids`, `knowledge_claim_ids`, `document_version_ids`, and `text_unit_ids` beside `graph_revision_at_freeze`. The snapshot stays immutable.
 
 ## Design constraints
 
