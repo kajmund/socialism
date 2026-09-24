@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.embeddings import EmbeddingProvider
-from app.services.knowledge.extractors import DefaultTextExtractor, PLAIN_TEXT_MIME, TextExtractor
+from app.services.knowledge.extractors import PLAIN_TEXT_MIME, DefaultTextExtractor, TextExtractor
 from app.services.knowledge.ingest import KnowledgeIngestResult
 from app.services.knowledge.models import KnowledgeDocument, KnowledgeScope
 from app.services.knowledge.units import hash_text
