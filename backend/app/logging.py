@@ -7,7 +7,9 @@ import copy
 import json
 import logging
 import queue
+import re
 import sys
+import time
 import traceback
 from datetime import UTC, datetime
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
@@ -15,6 +17,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 from app.config import settings
+from app.observability.context import context_fields
 from app.observability.events import EVENT_PAYLOAD_ATTR
 from app.observability.sanitize import sanitize_event_payload
 
@@ -22,6 +25,10 @@ FILE_HANDLER_NAME = "opinionssimulator.rotating"
 LOGSTASH_HANDLER_NAME = "opinionssimulator.logstash"
 LOG_FILE_NAME = "app.log"
 _UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access")
+# Access lines are high volume and stall the single HTTP drain when Logstash is behind.
+_REMOTE_SKIP_LOGGERS = frozenset({"uvicorn.access"})
+_DROP_REPORT_INTERVAL_SECONDS = 15.0
+_ACCESS_TOKEN_RE = re.compile(r"(access_token=)[^&\s\"']+")
 _logstash_listener: QueueListener | None = None
 _RESERVED_DOCUMENT_KEYS = frozenset({"@timestamp", "message", "log", "process"})
 
@@ -39,7 +46,7 @@ def log_document_from_record(record: logging.LogRecord) -> dict[str, object]:
     """Shared local/remote document. Structured extras survive as real fields."""
     payload: dict[str, object] = {
         "@timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
-        "message": record.getMessage(),
+        "message": _redact_message(record.getMessage()),
         "log": {"level": record.levelname.lower(), "logger": record.name},
         "service": settings.log_service.strip(),
         "environment": settings.log_environment.strip(),
@@ -51,6 +58,8 @@ def log_document_from_record(record: logging.LogRecord) -> dict[str, object]:
             if key in _RESERVED_DOCUMENT_KEYS:
                 continue
             payload[key] = value
+    stamped = getattr(record, "log_context_fields", None)
+    _fill_missing_fields(payload, context_fields() if stamped is None else stamped)
     if record.exc_info:
         exc_type, exc_value, _ = record.exc_info
         payload["error"] = {
@@ -68,6 +77,43 @@ class LocalQueueHandler(QueueHandler):
         return copy.copy(record)
 
 
+class RemoteDrainFilter(logging.Filter):
+    """Keep chatty access logs on the console and rotating file only."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.name not in _REMOTE_SKIP_LOGGERS
+
+
+def _redact_message(message: str) -> str:
+    return _ACCESS_TOKEN_RE.sub(r"\1redacted", message)
+
+
+def _fill_missing_fields(payload: dict[str, object], context: dict[str, object]) -> None:
+    """Add correlation ids without overwriting fields already on the record."""
+    for key, value in context.items():
+        if key in _RESERVED_DOCUMENT_KEYS:
+            continue
+        current = payload.get(key)
+        if key not in payload:
+            payload[key] = value
+        elif isinstance(current, dict) and isinstance(value, dict):
+            for nested_key, nested_value in value.items():
+                current.setdefault(nested_key, nested_value)
+
+
+class LogContextFilter(logging.Filter):
+    """Copy the caller's correlation ids onto the record before it is queued.
+
+    The Logstash listener formats documents on another thread, where the
+    emitting task's contextvars are no longer visible.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if getattr(record, "log_context_fields", None) is None:
+            record.log_context_fields = context_fields()
+        return True
+
+
 class LogstashHTTPHandler(logging.Handler):
     """Send one structured JSON document to the authenticated Logstash input."""
 
@@ -79,6 +125,8 @@ class LogstashHTTPHandler(logging.Handler):
         token = base64.b64encode(credentials.encode()).decode("ascii")
         self.url = settings.logstash_url.strip()
         self.authorization = f"Basic {token}"
+        self._dropped_unreported = 0
+        self._last_drop_report = 0.0
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
@@ -102,12 +150,21 @@ class LogstashHTTPHandler(logging.Handler):
     def handleError(self, record: logging.LogRecord) -> None:
         # Default handleError reprints the originating record. Access logs can
         # include JWTs in the URL, so keep the drop explicit without the payload.
+        # A stalled Logstash otherwise prints one line per event.
+        now = time.monotonic()
+        if now - self._last_drop_report < _DROP_REPORT_INTERVAL_SECONDS:
+            self._dropped_unreported += 1
+            return
+        suppressed = self._dropped_unreported
+        self._dropped_unreported = 0
+        self._last_drop_report = now
         exc = sys.exc_info()[1]
         kind = type(exc).__name__ if exc is not None else "error"
         detail = str(exc) if exc is not None else ""
+        extra = f" ({suppressed} similar drops suppressed)" if suppressed else ""
         sys.stderr.write(
             f"Logstash drain dropped a {record.levelname} record from "
-            f"{record.name} ({kind}: {detail})\n"
+            f"{record.name} ({kind}: {detail}){extra}\n"
         )
 
 
@@ -215,6 +272,8 @@ def _attach_logstash_handler() -> None:
     queue_handler = LocalQueueHandler(records)
     queue_handler.set_name(LOGSTASH_HANDLER_NAME)
     queue_handler.setLevel(settings.log_level)
+    queue_handler.addFilter(LogContextFilter())
+    queue_handler.addFilter(RemoteDrainFilter())
     _attach_handler(queue_handler)
     _logstash_listener = QueueListener(
         records,

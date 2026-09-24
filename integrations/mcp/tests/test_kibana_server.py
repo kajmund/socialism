@@ -55,12 +55,17 @@ class KibanaTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(request.url.params["allow_partial_search_results"], "false")
 
     async def test_identifiers_are_not_query_syntax(self):
-        for name, key, field in [("get_trace", "trace_id", "trace.id"), ("get_run_logs", "run_id", "run_id.keyword"), ("get_research_events", "attempt_id", "attempt_id.keyword")]:
+        for name, key, field in [("get_trace", "trace_id", "trace.id.keyword"), ("get_run_logs", "run_id", "run.id.keyword"), ("get_research_events", "attempt_id", "attempt.id.keyword")]:
             with self.subTest(name=name):
                 identifier = 'x" OR *:*'
                 result = await self.invoke(name, {key: identifier})
                 body = json.loads(self.requests[-1].content)
                 self.assertIn({"term": {field: identifier}}, body["query"]["bool"]["filter"])
+                if name == "get_research_events":
+                    self.assertIn(
+                        {"query_string": {"query": "event.dataset.keyword:socialism.research"}},
+                        body["query"]["bool"]["filter"],
+                    )
                 self.assertEqual(result["time_range"]["start"], "now-7d")
                 self.assertEqual(body["sort"], [{"@timestamp": "asc"}])
 

@@ -19,10 +19,10 @@ class Settings:
     api_key: str
     index: str
     timestamp_field: str = "@timestamp"
-    trace_field: str = "trace.id"
-    run_field: str = "run_id.keyword"
-    attempt_field: str = "attempt_id.keyword"
-    research_filter: str = "*"
+    trace_field: str = "trace.id.keyword"
+    run_field: str = "run.id.keyword"
+    attempt_field: str = "attempt.id.keyword"
+    research_filter: str = "event.dataset.keyword:socialism.research"
     lookback: str = "now-7d"
     max_results: int = 1000
     bucket_limit: int = 100
@@ -50,10 +50,12 @@ class Settings:
         return cls(
             url=os.environ[names[0]].rstrip("/"), api_key=os.environ[names[1]], index=os.environ[names[2]],
             timestamp_field=os.environ.get("KIBANA_TIMESTAMP_FIELD", "@timestamp"),
-            trace_field=os.environ.get("KIBANA_TRACE_FIELD", "trace.id"),
-            run_field=os.environ.get("KIBANA_RUN_FIELD", "run_id.keyword"),
-            attempt_field=os.environ.get("KIBANA_ATTEMPT_FIELD", "attempt_id.keyword"),
-            research_filter=os.environ.get("KIBANA_RESEARCH_FILTER", "*"),
+            trace_field=os.environ.get("KIBANA_TRACE_FIELD", "trace.id.keyword"),
+            run_field=os.environ.get("KIBANA_RUN_FIELD", "run.id.keyword"),
+            attempt_field=os.environ.get("KIBANA_ATTEMPT_FIELD", "attempt.id.keyword"),
+            research_filter=os.environ.get(
+                "KIBANA_RESEARCH_FILTER", "event.dataset.keyword:socialism.research"
+            ),
             lookback=os.environ.get("KIBANA_LOOKBACK", "now-7d"),
             max_results=int(os.environ.get("KIBANA_MAX_RESULTS", "1000")),
             bucket_limit=int(os.environ.get("KIBANA_BUCKET_LIMIT", "100")),

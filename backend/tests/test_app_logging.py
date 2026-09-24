@@ -12,9 +12,11 @@ from pydantic import SecretStr
 from app.config import settings
 from app.logging import (
     LogstashHTTPHandler,
+    RemoteDrainFilter,
     configure_logging,
     detach_file_logging,
     detach_logstash_logging,
+    log_document_from_record,
     log_file_path,
 )
 from app.observability.context import log_context
@@ -140,6 +142,52 @@ def test_logstash_handler_timeout_does_not_print_record_message(monkeypatch, cap
     assert "access_token" not in err
 
 
+def test_logstash_handler_suppresses_repeated_drop_lines(monkeypatch, capsys):
+    monkeypatch.setattr("app.logging.settings.logstash_url", "https://logs.example.test")
+    monkeypatch.setattr("app.logging.settings.logstash_username", "socialism")
+    monkeypatch.setattr("app.logging.settings.logstash_password", SecretStr("secret"))
+
+    def fake_urlopen(_request, *, timeout):
+        del timeout
+        raise TimeoutError("The read operation timed out")
+
+    monkeypatch.setattr("app.logging.urlopen", fake_urlopen)
+    handler = LogstashHTTPHandler()
+    record = logging.LogRecord(
+        "app.tests.remote", logging.INFO, __file__, 1, "queued", (), None
+    )
+    handler.emit(record)
+    handler.emit(record)
+    err = capsys.readouterr().err
+    assert err.count("Logstash drain dropped") == 1
+
+
+def test_remote_drain_skips_uvicorn_access_logs():
+    record = logging.LogRecord(
+        "uvicorn.access", logging.INFO, __file__, 1, "GET /me", (), None
+    )
+    assert RemoteDrainFilter().filter(record) is False
+    app_record = logging.LogRecord(
+        "app.tests.remote", logging.INFO, __file__, 1, "kept", (), None
+    )
+    assert RemoteDrainFilter().filter(app_record) is True
+
+
+def test_log_document_redacts_access_token():
+    record = logging.LogRecord(
+        "uvicorn.error",
+        logging.INFO,
+        __file__,
+        1,
+        "WebSocket /ws/jobs?access_token=secret-token [accepted]",
+        (),
+        None,
+    )
+    document = log_document_from_record(record)
+    assert document["message"] == "WebSocket /ws/jobs?access_token=redacted [accepted]"
+    assert "secret-token" not in str(document)
+
+
 def test_logstash_handler_includes_structured_event_fields(monkeypatch):
     monkeypatch.setattr("app.logging.settings.logstash_url", "https://logs.example.test")
     monkeypatch.setattr("app.logging.settings.logstash_username", "socialism")
@@ -188,6 +236,80 @@ def test_logstash_handler_includes_structured_event_fields(monkeypatch):
     assert payload["run"]["id"] == "run-1"
     assert payload["attempt"]["id"] == "att-1"
     assert payload["research"]["module"] == "dd"
+    assert payload["trace"]["id"]
+
+
+def test_plain_log_includes_bound_context(monkeypatch):
+    monkeypatch.setattr("app.logging.settings.logstash_url", "https://logs.example.test")
+    monkeypatch.setattr("app.logging.settings.logstash_username", "socialism")
+    monkeypatch.setattr("app.logging.settings.logstash_password", SecretStr("secret"))
+    sent = {}
+
+    class Response:
+        status = 204
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+    def fake_urlopen(request, *, timeout):
+        sent["payload"] = loads(request.data)
+        return Response()
+
+    monkeypatch.setattr("app.logging.urlopen", fake_urlopen)
+    handler = LogstashHTTPHandler()
+    record = logging.LogRecord(
+        "app.tests.remote", logging.INFO, __file__, 1, "vanlig rad", (), None
+    )
+    with log_context(run_id="run-1", attempt_id="att-1", ensure_trace_id=True):
+        handler.emit(record)
+
+    payload = sent["payload"]
+    assert payload["message"] == "vanlig rad"
+    assert "event" not in payload
+    assert payload["run"]["id"] == "run-1"
+    assert payload["attempt"]["id"] == "att-1"
+    assert payload["trace"]["id"]
+
+
+def test_queued_plain_log_keeps_context_across_listener_thread(monkeypatch):
+    monkeypatch.setattr("app.logging.settings.log_dir", "")
+    monkeypatch.setattr("app.logging.settings.logstash_url", "https://logs.example.test")
+    monkeypatch.setattr("app.logging.settings.logstash_username", "socialism")
+    monkeypatch.setattr("app.logging.settings.logstash_password", SecretStr("secret"))
+    monkeypatch.setattr("app.logging.settings.logstash_queue_size", 10)
+    sent = {}
+    delivered = threading.Event()
+
+    class Response:
+        status = 204
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+    def fake_urlopen(request, *, timeout):
+        sent["payload"] = loads(request.data)
+        delivered.set()
+        return Response()
+
+    monkeypatch.setattr("app.logging.urlopen", fake_urlopen)
+    try:
+        configure_logging()
+        with log_context(run_id="run-9", attempt_id="att-9", ensure_trace_id=True):
+            logging.getLogger("app.tests.remote").info("köad rad")
+        assert delivered.wait(timeout=1)
+    finally:
+        detach_logstash_logging()
+
+    payload = sent["payload"]
+    assert payload["message"] == "köad rad"
+    assert payload["run"]["id"] == "run-9"
+    assert payload["attempt"]["id"] == "att-9"
     assert payload["trace"]["id"]
 
 
