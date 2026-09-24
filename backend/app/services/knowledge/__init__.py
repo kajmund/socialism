@@ -20,6 +20,14 @@ from app.services.knowledge.embeddings import (
     EmbeddingSpec,
     OpenAIEmbeddingProvider,
 )
+from app.services.knowledge.entities import (
+    KnowledgeEntity,
+    KnowledgeEntityError,
+    knowledge_entity,
+    knowledge_entity_id,
+    persist_knowledge_entities,
+    persist_knowledge_entity,
+)
 from app.services.knowledge.extractors import (
     DefaultTextExtractor,
     ExtractedBlock,
@@ -55,6 +63,20 @@ from app.services.knowledge.registry import (
     KnowledgeProviderRegistry,
     build_knowledge_registry,
 )
+from app.services.knowledge.relationships import (
+    ABOUT,
+    CONTRADICTS,
+    CORE_RELATIONS,
+    PART_OF,
+    SAME_AS,
+    KnowledgeRelationship,
+    KnowledgeRelationshipError,
+    knowledge_relationship,
+    persist_knowledge_relationship,
+    persist_knowledge_relationships,
+    relationships_touching,
+    require_relation,
+)
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
 from app.services.knowledge.units import (
@@ -76,7 +98,12 @@ from app.services.knowledge.vector_store import (
 )
 
 __all__ = [
+    "ABOUT",
     "ANSWERED_BY",
+    "CONTRADICTS",
+    "CORE_RELATIONS",
+    "PART_OF",
+    "SAME_AS",
     "SUPABASE_PROVIDER_ID",
     "SUPPORTED_BY",
     "CanonicalDocument",
@@ -96,6 +123,8 @@ __all__ = [
     "KnowledgeClaimAnswerHit",
     "KnowledgeClaimError",
     "KnowledgeDocument",
+    "KnowledgeEntity",
+    "KnowledgeEntityError",
     "KnowledgeError",
     "KnowledgeHit",
     "KnowledgeIngestResult",
@@ -105,6 +134,8 @@ __all__ = [
     "KnowledgeProviderNotFoundError",
     "KnowledgeProviderRegistry",
     "KnowledgeQuery",
+    "KnowledgeRelationship",
+    "KnowledgeRelationshipError",
     "KnowledgeScope",
     "KnowledgeScopeRequiredError",
     "KnowledgeVectorStore",
@@ -126,13 +157,22 @@ __all__ = [
     "get_canonical_document_by_identity",
     "get_current_document_version",
     "ingest_extracted_source",
+    "knowledge_entity",
+    "knowledge_entity_id",
+    "knowledge_relationship",
     "list_document_versions",
     "make_document_version_id",
     "make_section_id",
     "make_text_unit_id",
     "persist_knowledge_claim",
     "persist_knowledge_claims",
+    "persist_knowledge_entities",
+    "persist_knowledge_entity",
+    "persist_knowledge_relationship",
+    "persist_knowledge_relationships",
     "persist_segmented_document",
+    "relationships_touching",
+    "require_relation",
     "supporting_text_unit_ids_for_quote",
     "text_unit_to_chunk",
 ]

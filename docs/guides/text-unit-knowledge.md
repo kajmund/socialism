@@ -90,6 +90,12 @@ A `KnowledgeClaim` is an assertion. Support is `SUPPORTED_BY` one or more TextUn
 
 Runtime needs canonicalize to `KnowledgeQuestion` before live retrieval (identity_key = normalized `question_key`). Fresh grounded claims close their source type. Excerpt-only graph hits stay candidates and do not skip providers. Remaining source types are gaps and are the only natures retrieved. Stale claims are gaps.
 
+### Phase 4c — entities and relationships
+
+The knowledge core stores named `Entity` nodes and typed `Relationship` edges. Core relations are closed: `ABOUT`, `SUPPORTED_BY`, `CONTRADICTS`, `PART_OF`, `SAME_AS`. Adapters add namespaced relations (`legal.cites`, `legal.applies`, `legal.decided_by`). Node kinds are `entity`, `claim`, `text_unit`, and `document`. Predicate and entity_type strings stay opaque in the core.
+
+The lagen.nu adapter projects explicit interpretation fields onto that graph after claims are grounded: source / court / issue / provision entities, `ABOUT` from claims, `SUPPORTED_BY` onto TextUnits, `SAME_AS` for an identifier alias, and the legal edges above. No prose inference.
+
 ### Phase 5 — temporal graph
 
 Claims and relationships carry valid time and system time. Graph mutations emit events (`DOCUMENT_ADDED`, `DOCUMENT_VERSION_ADDED`, `TEXT_UNIT_ADDED`, `CLAIM_ADDED`, `EDGE_ADDED`, …). Frozen EvidenceSets record `document_version_ids`, `text_unit_ids`, and `graph_revision_at_freeze`.
