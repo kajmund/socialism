@@ -19,13 +19,13 @@ from app.services.knowledge.persistence import (
     get_canonical_document_by_identity,
     persist_segmented_document,
 )
+from app.services.knowledge.scope import KnowledgeTenantScope, require_persist_scope
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 
 
 async def ingest_extracted_source(
     session: AsyncSession,
     *,
-    customer_id: int,
     extracted: ExtractedDocument,
     document: KnowledgeDocument,
     source_type: str,
@@ -33,10 +33,15 @@ async def ingest_extracted_source(
     content_hash: str,
     embeddings: EmbeddingProvider,
     vector_store: KnowledgeVectorStore,
+    customer_id: int | None = None,
+    scope: KnowledgeTenantScope | None = None,
     source_object_id: str | None = None,
     chunker: KnowledgeChunker | None = None,
 ) -> KnowledgeIngestResult:
     """Segment, persist, and index TextUnits for any citable source."""
+    resolved = require_persist_scope(scope=scope, customer_id=customer_id)
+    if document.scope.tenant != resolved:
+        raise ValueError("ingest document scope does not match persist scope")
     if extracted.status != "ok" or not any(block.text.strip() for block in extracted.blocks):
         return KnowledgeIngestResult(
             document_id=document.document_id,
@@ -49,7 +54,7 @@ async def ingest_extracted_source(
 
     existing = await get_canonical_document_by_identity(
         session,
-        customer_id=customer_id,
+        scope=resolved,
         source_type=source_type,
         canonical_uri=canonical_uri,
     )
@@ -78,7 +83,7 @@ async def ingest_extracted_source(
 
     persisted = await persist_segmented_document(
         session,
-        customer_id=customer_id,
+        scope=resolved,
         source_object_id=source_object_id,
         segmented=segmented,
     )

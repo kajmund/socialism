@@ -96,6 +96,7 @@ async def _seed_claim(
             DocumentVersionRecord(
                 id=f"ver-{doc_id}",
                 document_id=doc_id,
+                customer_id=customer_id,
                 content_hash=f"hash-{doc_id}",
                 mime_type="text/plain",
                 extra={},
@@ -106,6 +107,7 @@ async def _seed_claim(
                 id=f"tu-{doc_id}",
                 document_version_id=f"ver-{doc_id}",
                 document_id=doc_id,
+                customer_id=customer_id,
                 section_id=None,
                 ordinal=0,
                 text=unit_text,
