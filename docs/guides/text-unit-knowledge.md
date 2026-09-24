@@ -35,7 +35,7 @@ Uploaded documents now ingest as `CanonicalDocument` → `DocumentVersion` → `
 - Size-based splitting happens only inside a section.
 - Section and TextUnit IDs are scoped to `document_version_id`. Same passage in the same version keeps the same ID.
 - Embeddings are generated from TextUnit text. `KnowledgeChunk` is the vector-store projection of a TextUnit (`chunk_id == text_unit_id`).
-- Q&A generation reads neighbouring TextUnits, not a separate 16k-char block batch.
+- Q&A generation reads neighbouring TextUnits in the same section. Size packing stays inside a section and no longer spans the whole document.
 - `DocumentKnowledgeItem` keeps exact quotes and PDF anchors, and adds `supporting_text_unit_ids`.
 - Core knowledge modules stay domain-neutral. Swedish law, medicine, and economics belong in adapters.
 
@@ -63,7 +63,7 @@ Same content hash reuses the existing document id and current version when that 
 
 ### Phase 2 — Q&A routing
 
-Use Jev as a cheap passage gate: which TextUnits are likely to contain revisitable facts? Group only those neighbours before LLM Q&A. Keep exact-quote grounding.
+Section-neighbour grouping is in place. Next: use Jev as a cheap passage gate so only TextUnits likely to contain revisitable facts are sent to LLM Q&A. Keep exact-quote grounding.
 
 ### Phase 3 — lagen.nu as a document provider
 
