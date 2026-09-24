@@ -53,6 +53,9 @@ class FollowUpNeedDraft:
     original_question: str = ""
     normalization_reason: str = ""
     already_normalized: bool = False
+    generated_from_question_id: str = ""
+    trigger_claim_id: str = ""
+    trigger_graph_event_id: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "source_types", list(self.source_types))
@@ -85,6 +88,10 @@ class RuntimeResearchNeed:
     original_question: str = ""
     normalization_reason: str = ""
     already_normalized: bool = False
+    knowledge_question_id: str = ""
+    generated_from_question_id: str = ""
+    trigger_claim_id: str = ""
+    trigger_graph_event_id: str = ""
 
     def __post_init__(self) -> None:
         if self.origin not in RESEARCH_NEED_ORIGINS:
@@ -112,6 +119,7 @@ class RuntimeResearchNeed:
             original_question=self.original_question,
             normalization_reason=self.normalization_reason,
             already_normalized=self.already_normalized,
+            knowledge_question_id=self.knowledge_question_id,
         )
 
 
@@ -163,6 +171,7 @@ def runtime_needs_from_plan(
             original_question=need.original_question,
             normalization_reason=need.normalization_reason,
             already_normalized=need.already_normalized,
+            knowledge_question_id=need.knowledge_question_id,
         )
         for need in plan.needs
     ]
@@ -302,6 +311,9 @@ def validate_follow_up_drafts(
                 original_question=draft.original_question,
                 normalization_reason=draft.normalization_reason,
                 already_normalized=draft.already_normalized,
+                generated_from_question_id=draft.generated_from_question_id,
+                trigger_claim_id=draft.trigger_claim_id,
+                trigger_graph_event_id=draft.trigger_graph_event_id,
             )
         )
     return accepted
