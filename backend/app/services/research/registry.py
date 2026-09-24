@@ -9,12 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.provider import KnowledgeProvider
 from app.services.knowledge.vector_store import KnowledgeVectorStore
+from app.services.lagen_nu.passage_router import JevPassageRouter
 from app.services.lagen_nu.registration import (
     LAGEN_NU_ADAPTER,
     LAGEN_NU_EVIDENCE_NATURES,
     lagen_nu_capability_descriptors,
 )
-from app.services.lagen_nu.passage_router import JevPassageRouter
 from app.services.lagen_nu.research_source import LagenNuResearchSource
 from app.services.lagen_nu.selection import LagenNuPassageSelector
 from app.services.research.knowledge_source import KnowledgeResearchSource

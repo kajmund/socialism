@@ -11,8 +11,8 @@ from app.database.base import Base
 from app.database.models import CanonicalDocumentRecord, Kund, TextUnitRecord
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.models import ResolvedCitations, SearchResults
-from app.services.lagen_nu.registration import LAGEN_NU_PROVIDER_ID
 from app.services.lagen_nu.passage_router import KeepAllPassageRouter
+from app.services.lagen_nu.registration import LAGEN_NU_PROVIDER_ID
 from app.services.lagen_nu.research_source import LagenNuResearchSource
 from app.services.lagen_nu.text_unit_research import LagenNuResearchKnowledgeError
 from tests.knowledge_fakes import FakeEmbeddingProvider
