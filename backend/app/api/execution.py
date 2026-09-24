@@ -215,6 +215,11 @@ def _runtime_need_out(row: ResearchRuntimeNeed) -> RuntimeResearchNeedOut:
         source_completeness_pass=row.source_completeness_pass,
         source_gap=row.source_gap or "",
         question_key=row.question_key,
+        generated_from_need_id=row.generated_from_need_id,
+        original_need_id=row.original_need_id,
+        original_question=row.original_question,
+        normalization_reason=row.normalization_reason,
+        already_normalized=bool(row.already_normalized),
     )
 
 

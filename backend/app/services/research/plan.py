@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from app.services.research.models import (
@@ -35,7 +36,8 @@ def validate_research_plan(plan: ResearchPlan) -> ResearchPlan:
             raise InvalidResearchPlanError(f"ResearchNeed {need_id} question is required")
         source_types = _require_source_types(need.source_types, need_id=need_id)
         validated.append(
-            ResearchNeed(
+            replace(
+                need,
                 id=need_id,
                 question=question,
                 why_needed=need.why_needed,
@@ -52,6 +54,11 @@ def validate_research_plan(plan: ResearchPlan) -> ResearchPlan:
                     field="capabilities",
                     need_id=need_id,
                 ),
+                generated_from=str(getattr(need, "generated_from", "") or ""),
+                original_need_id=str(getattr(need, "original_need_id", "") or ""),
+                original_question=str(getattr(need, "original_question", "") or ""),
+                normalization_reason=str(getattr(need, "normalization_reason", "") or ""),
+                already_normalized=bool(getattr(need, "already_normalized", False)),
             )
         )
     return ResearchPlan(needs=validated)
@@ -59,20 +66,32 @@ def validate_research_plan(plan: ResearchPlan) -> ResearchPlan:
 
 def research_plan_to_snapshot(plan: ResearchPlan) -> dict[str, Any]:
     return {
-        "needs": [
-            {
-                "id": need.id,
-                "question": need.question,
-                "why_needed": need.why_needed,
-                "requested_by": list(need.requested_by),
-                "source_types": list(need.source_types),
-                "domains": list(need.domains),
-                "modalities": list(need.modalities),
-                "capabilities": list(need.capabilities),
-            }
-            for need in plan.needs
-        ]
+        "needs": [_need_snapshot(need) for need in plan.needs]
     }
+
+
+def _need_snapshot(need: ResearchNeed) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "id": need.id,
+        "question": need.question,
+        "why_needed": need.why_needed,
+        "requested_by": list(need.requested_by),
+        "source_types": list(need.source_types),
+        "domains": list(need.domains),
+        "modalities": list(need.modalities),
+        "capabilities": list(need.capabilities),
+    }
+    if need.generated_from:
+        payload["generated_from"] = need.generated_from
+    if need.original_need_id:
+        payload["original_need_id"] = need.original_need_id
+    if need.original_question:
+        payload["original_question"] = need.original_question
+    if need.normalization_reason:
+        payload["normalization_reason"] = need.normalization_reason
+    if need.already_normalized:
+        payload["already_normalized"] = True
+    return payload
 
 
 def research_plan_from_snapshot(raw: object) -> ResearchPlan:
@@ -115,6 +134,11 @@ def research_plan_from_snapshot(raw: object) -> ResearchPlan:
                     field="capabilities",
                     need_id=need_id,
                 ),
+                generated_from=str(item.get("generated_from") or ""),
+                original_need_id=str(item.get("original_need_id") or ""),
+                original_question=str(item.get("original_question") or ""),
+                normalization_reason=str(item.get("normalization_reason") or ""),
+                already_normalized=bool(item.get("already_normalized") or False),
             )
         )
     return validate_research_plan(ResearchPlan(needs=needs))

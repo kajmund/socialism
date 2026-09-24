@@ -51,6 +51,10 @@ from app.services.lagen_nu.selection import (
     SelectableHit,
     resolve_passage_selector,
 )
+from app.services.lagen_nu.question_validation import (
+    LegalQuestionValidator,
+    is_legal_research_need,
+)
 from app.services.lagen_nu.uris import compose_canonical_uri
 from app.services.legal_research_result import LegalResearchResult, LegalSourceIdentity
 from app.services.research.evidence_identity import canonical_source_identity
@@ -512,6 +516,7 @@ class LagenNuResearchSource:
         selector: LagenNuPassageSelector | None = None,
         interpreter: LegalInterpreter | None = None,
         reuse_session: AsyncSession | None = None,
+        question_validator: LegalQuestionValidator | None = None,
     ) -> None:
         if source_type not in LAGEN_NU_EVIDENCE_NATURES:
             raise ValueError(f"{source_type} is not implemented by the official lagen.nu adapter")
@@ -521,6 +526,7 @@ class LagenNuResearchSource:
         self._selector = selector
         self._interpreter = interpreter or LlmLegalInterpreter()
         self._reuse_session = reuse_session
+        self._question_validator = question_validator
         self._owned_client: OfficialLagenNuMcpClient | None = None
 
     def _require_selector(self) -> LagenNuPassageSelector:
@@ -691,6 +697,18 @@ class LagenNuResearchSource:
     ) -> list[ResearchEvidence]:
         # Public corpus: never send ResearchContext.scope to lagen.nu.
         budget = _CallBudget(MAX_MCP_TOOL_CALLS)
+        if (
+            self._question_validator is not None
+            and not need.already_normalized
+            and is_legal_research_need(need.source_types)
+        ):
+            verdict = await self._question_validator.validate(
+                question=need.question,
+                why_needed=need.why_needed,
+                source_types=need.source_types,
+            )
+            if verdict.action != "keep":
+                return [self._not_found(need, budget, reason="question_incoherent")]
         source = mcp_source_for_nature(self.source_type)
         try:
             if self.source_type == "swedish_case_law":

@@ -69,6 +69,11 @@ class ResearchNeed:
     domains: list[str] = field(default_factory=list)
     modalities: list[str] = field(default_factory=list)
     capabilities: list[str] = field(default_factory=list)
+    generated_from: str = ""
+    original_need_id: str = ""
+    original_question: str = ""
+    normalization_reason: str = ""
+    already_normalized: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "requested_by", list(self.requested_by))

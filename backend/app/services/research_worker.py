@@ -10,10 +10,16 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
+from app.llm.legal_question_validator import build_llm_legal_question_validator
 from app.llm.research_assessment import build_llm_research_assessor
 from app.llm.research_completeness import build_llm_research_completeness_reviewer
 from app.llm.research_followup import build_llm_follow_up_planner
 from app.llm.research_planner import build_llm_research_planner
+from app.services.lagen_nu.question_validation import (
+    LegalFollowUpPlannerAdapter,
+    LegalNeedNormalizer,
+    LegalResearchPlannerAdapter,
+)
 from app.services import jobs as jobs_service
 from app.services.execution.errors import ExecutionStatusError
 from app.services.execution.service import get_attempt, get_run, new_id, set_attempt_snapshots
@@ -32,6 +38,7 @@ from app.services.research.composition import (
     resolve_completeness_reviewer,
     resolve_follow_up_planner,
     resolve_research_assessor,
+    resolve_research_need_normalizer,
     resolve_research_planner,
 )
 from app.services.research.execution import execute_attempt_research, fail_incomplete_research
@@ -334,6 +341,7 @@ async def _execute_claimed_research(
             assessor=bound["assessor"],
             planner=bound["planner"],
             completeness_reviewer=bound["completeness_reviewer"],
+            need_normalizer=bound.get("need_normalizer"),
             question_graph=build_standard_question_graph(),
             session_factory=factory,
             lease_lost=lease_lost,
@@ -401,11 +409,13 @@ async def bind_research_components(
             session, customer_id=customer_id, module=module
         )
     planner = resolve_follow_up_planner()
+    built_follow_up = planner is None
     if planner is None:
         planner = await build_llm_follow_up_planner(
             session, customer_id=customer_id, module=module
         )
     research_planner = resolve_research_planner()
+    built_initial = research_planner is None and require_planner
     if research_planner is None and require_planner:
         research_planner = await build_llm_research_planner(
             session, customer_id=customer_id, module=module
@@ -415,9 +425,22 @@ async def bind_research_components(
         completeness_reviewer = await build_llm_research_completeness_reviewer(
             session, customer_id=customer_id, module=module
         )
+    need_normalizer = resolve_research_need_normalizer()
+    if need_normalizer is None and (built_follow_up or built_initial):
+        validator = await build_llm_legal_question_validator(
+            session, customer_id=customer_id, module=module
+        )
+        need_normalizer = LegalNeedNormalizer(validator)
+        if built_initial and research_planner is not None:
+            research_planner = LegalResearchPlannerAdapter(
+                research_planner, need_normalizer
+            )
+        if built_follow_up:
+            planner = LegalFollowUpPlannerAdapter(planner, need_normalizer)
     return {
         "research_planner": research_planner,
         "assessor": assessor,
         "planner": planner,
         "completeness_reviewer": completeness_reviewer,
+        "need_normalizer": need_normalizer,
     }

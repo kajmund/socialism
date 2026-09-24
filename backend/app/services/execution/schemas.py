@@ -103,6 +103,11 @@ class RuntimeResearchNeedOut(BaseModel):
     source_completeness_pass: int | None = None
     source_gap: str
     question_key: str
+    generated_from_need_id: str | None = None
+    original_need_id: str | None = None
+    original_question: str | None = None
+    normalization_reason: str | None = None
+    already_normalized: bool = False
 
 
 class ResearchAssessmentOut(BaseModel):

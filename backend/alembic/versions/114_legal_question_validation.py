@@ -1,7 +1,7 @@
-"""Add lagen.nu hit and excerpt selector prompts.
+"""Legal ResearchNeed validation lineage and prompts.
 
-Revision ID: 110_lagen_nu_selector_prompts
-Revises: 109_canonical_evidence
+Revision ID: 114_legal_question_validation
+Revises: 113_llm_selection_mode
 """
 
 from __future__ import annotations
@@ -14,16 +14,14 @@ from alembic import op
 from app.services.prompt_catalog import PROMPT_FIELDS
 from app.services.prompt_defaults import modules_for_prompt_key
 
-revision: str = "110_lagen_nu_selector_prompts"
-down_revision: Union[str, Sequence[str], None] = "109_canonical_evidence"
+revision: str = "114_legal_question_validation"
+down_revision: Union[str, Sequence[str], None] = "113_llm_selection_mode"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 _NEW_KEYS = (
-    "research.lagen_nu.select.system",
-    "research.lagen_nu.select.user",
-    "research.lagen_nu.excerpt.system",
-    "research.lagen_nu.excerpt.user",
+    "research.lagen_nu.question_validate.system",
+    "research.lagen_nu.question_validate.user",
 )
 
 
@@ -32,6 +30,27 @@ def _field(key: str) -> dict:
 
 
 def upgrade() -> None:
+    op.add_column(
+        "research_runtime_needs",
+        sa.Column("generated_from_need_id", sa.String(length=64), nullable=True),
+    )
+    op.add_column(
+        "research_runtime_needs",
+        sa.Column("original_need_id", sa.String(length=64), nullable=True),
+    )
+    op.add_column(
+        "research_runtime_needs",
+        sa.Column("original_question", sa.Text(), nullable=True),
+    )
+    op.add_column(
+        "research_runtime_needs",
+        sa.Column("normalization_reason", sa.Text(), nullable=True),
+    )
+    op.add_column(
+        "research_runtime_needs",
+        sa.Column("already_normalized", sa.Boolean(), nullable=False, server_default="0"),
+    )
+
     conn = op.get_bind()
     for key in _NEW_KEYS:
         exists = conn.execute(
@@ -84,3 +103,8 @@ def downgrade() -> None:
         conn.execute(
             sa.text("DELETE FROM prompt_fields WHERE id = :id").bindparams(id=field_id[0])
         )
+    op.drop_column("research_runtime_needs", "already_normalized")
+    op.drop_column("research_runtime_needs", "normalization_reason")
+    op.drop_column("research_runtime_needs", "original_question")
+    op.drop_column("research_runtime_needs", "original_need_id")
+    op.drop_column("research_runtime_needs", "generated_from_need_id")
