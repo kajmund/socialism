@@ -23,8 +23,8 @@ from app.database.models import (
     KnowledgeQuestionRow,
     ResearchRuntimeNeed,
 )
-from app.services.research.followup import RuntimeResearchNeed
 from app.services.knowledge.scope import persist_scope_fields
+from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.knowledge_question import (
     KnowledgeQuestion,
     KnowledgeQuestionError,

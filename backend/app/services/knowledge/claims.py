@@ -414,9 +414,12 @@ async def _assert_claim_grounding_scope(
             raise KnowledgeClaimError(str(exc)) from exc
         if unit_scope.scope_type == SCOPE_CUSTOMER and claim.scope != unit_scope:
             raise KnowledgeClaimError("customer claim cannot ground in another tenant TextUnit")
-        if claim.scope.scope_type == SCOPE_CUSTOMER and unit_scope.scope_type == SCOPE_CUSTOMER:
-            if not visible_to(owned=unit_scope, reader_customer_id=claim.scope.customer_id):
-                raise KnowledgeClaimError("customer claim cannot ground in another tenant TextUnit")
+        if (
+            claim.scope.scope_type == SCOPE_CUSTOMER
+            and unit_scope.scope_type == SCOPE_CUSTOMER
+            and not visible_to(owned=unit_scope, reader_customer_id=claim.scope.customer_id)
+        ):
+            raise KnowledgeClaimError("customer claim cannot ground in another tenant TextUnit")
 
 
 async def supporting_text_unit_ids_for_claim(

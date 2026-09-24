@@ -55,16 +55,6 @@ from app.services.knowledge.models import (
     KnowledgeScope,
     KnowledgeScopeRequiredError,
 )
-from app.services.knowledge.scope import (
-    SCOPE_CUSTOMER,
-    SCOPE_SHARED,
-    KnowledgeScopeError,
-    KnowledgeTenantScope,
-    customer_scope,
-    require_persist_scope,
-    shared_scope,
-    visible_to,
-)
 from app.services.knowledge.persistence import (
     get_canonical_document_by_identity,
     get_current_document_version,
@@ -107,6 +97,16 @@ from app.services.knowledge.revalidation import (
     classify_revalidation_state,
     revalidate_after_event,
 )
+from app.services.knowledge.scope import (
+    SCOPE_CUSTOMER,
+    SCOPE_SHARED,
+    KnowledgeScopeError,
+    KnowledgeTenantScope,
+    customer_scope,
+    require_persist_scope,
+    shared_scope,
+    visible_to,
+)
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
 from app.services.knowledge.units import (
@@ -142,6 +142,8 @@ __all__ = [
     "REVALIDATION_REQUIRED",
     "REVALIDATION_UNKNOWN",
     "SAME_AS",
+    "SCOPE_CUSTOMER",
+    "SCOPE_SHARED",
     "SUPABASE_PROVIDER_ID",
     "SUPPORTED_BY",
     "CanonicalDocument",
@@ -179,8 +181,6 @@ __all__ = [
     "KnowledgeScopeError",
     "KnowledgeScopeRequiredError",
     "KnowledgeTenantScope",
-    "SCOPE_CUSTOMER",
-    "SCOPE_SHARED",
     "KnowledgeVectorStore",
     "KnowledgeVectorStoreError",
     "MemoryKnowledgeVectorStore",
@@ -196,10 +196,10 @@ __all__ = [
     "VectorBucketClient",
     "answer_research_need",
     "build_knowledge_registry",
-    "customer_scope",
     "claim_answers_for_question_key",
     "claims_answering_question_key",
     "classify_revalidation_state",
+    "customer_scope",
     "expand_text_unit_context",
     "get_canonical_document_by_identity",
     "get_current_document_version",
@@ -220,12 +220,13 @@ __all__ = [
     "persist_knowledge_relationships",
     "persist_segmented_document",
     "record_graph_event",
-    "require_persist_scope",
-    "shared_scope",
     "relationships_touching",
+    "require_persist_scope",
     "require_relation",
     "revalidate_after_event",
+    "shared_scope",
     "supersede_knowledge_claim",
     "supporting_text_unit_ids_for_quote",
     "text_unit_to_chunk",
+    "visible_to",
 ]

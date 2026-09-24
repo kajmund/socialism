@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import KnowledgeEntityRecord
 from app.services.knowledge.scope import (
     SCOPE_CUSTOMER,
+    KnowledgeScopeError,
     KnowledgeTenantScope,
     persist_scope_fields,
     require_persist_scope,
@@ -69,7 +70,10 @@ def knowledge_entity(
     display = name.strip()
     if not display:
         raise KnowledgeEntityError("entity name is required")
-    resolved = require_persist_scope(scope=scope, customer_id=customer_id)
+    try:
+        resolved = require_persist_scope(scope=scope, customer_id=customer_id)
+    except KnowledgeScopeError as exc:
+        raise KnowledgeEntityError(str(exc)) from exc
     return KnowledgeEntity(
         id=knowledge_entity_id(
             scope=resolved,

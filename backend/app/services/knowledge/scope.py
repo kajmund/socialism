@@ -83,9 +83,14 @@ def require_persist_scope(
 ) -> KnowledgeTenantScope:
     """Resolve a write scope. ``customer_id`` alone means customer. Never infer shared."""
     if scope is not None:
-        if customer_id is not None and scope.scope_type == SCOPE_CUSTOMER:
-            if scope.customer_id != int(customer_id):
-                raise KnowledgeScopeError("customer_id does not match persist scope")
+        if not isinstance(scope, KnowledgeTenantScope):
+            raise KnowledgeScopeError("persist scope must be a KnowledgeTenantScope")
+        if (
+            customer_id is not None
+            and scope.scope_type == SCOPE_CUSTOMER
+            and scope.customer_id != int(customer_id)
+        ):
+            raise KnowledgeScopeError("customer_id does not match persist scope")
         if customer_id is not None and scope.scope_type == SCOPE_SHARED:
             raise KnowledgeScopeError("shared scope cannot carry customer_id")
         if scope_type is not None and scope.scope_type != scope_type:
@@ -193,27 +198,30 @@ def assert_relationship_scopes(
     relation: str,
 ) -> None:
     """Private attributes/edges stay tenant-scoped. SAME_AS cannot merge scopes."""
+    if from_scope is not None and to_scope is not None:
+        if (
+            from_scope.scope_type == SCOPE_CUSTOMER
+            and to_scope.scope_type == SCOPE_CUSTOMER
+            and from_scope.customer_id != to_scope.customer_id
+        ):
+            raise KnowledgeScopeError("cannot link two customer scopes")
+        if relation == "SAME_AS":
+            assert_same_scope(from_scope, to_scope, action="SAME_AS")
     for endpoint in (from_scope, to_scope):
         if endpoint is None:
             continue
         assert_not_promoted(source=endpoint, target=edge)
-        if endpoint.scope_type == SCOPE_CUSTOMER and edge.scope_type == SCOPE_CUSTOMER:
-            if endpoint.customer_id != edge.customer_id:
-                raise KnowledgeScopeError("relationship customer does not match endpoint")
-    if from_scope is None or to_scope is None:
-        return
-    if (
-        from_scope.scope_type == SCOPE_CUSTOMER
-        and to_scope.scope_type == SCOPE_CUSTOMER
-        and from_scope.customer_id != to_scope.customer_id
-    ):
-        raise KnowledgeScopeError("cannot link two customer scopes")
-    if relation == "SAME_AS":
-        assert_same_scope(from_scope, to_scope, action="SAME_AS")
-    if edge.scope_type == SCOPE_SHARED and (
-        from_scope.scope_type != SCOPE_SHARED or to_scope.scope_type != SCOPE_SHARED
-    ):
-        raise KnowledgeScopeError("shared relationships may only connect shared nodes")
+        if (
+            endpoint.scope_type == SCOPE_CUSTOMER
+            and edge.scope_type == SCOPE_CUSTOMER
+            and endpoint.customer_id != edge.customer_id
+        ):
+            raise KnowledgeScopeError("relationship customer does not match endpoint")
+    if edge.scope_type == SCOPE_SHARED:
+        if from_scope is not None and from_scope.scope_type != SCOPE_SHARED:
+            raise KnowledgeScopeError("shared relationships may only connect shared nodes")
+        if to_scope is not None and to_scope.scope_type != SCOPE_SHARED:
+            raise KnowledgeScopeError("shared relationships may only connect shared nodes")
 
 
 def visible_to_customer_clause(
