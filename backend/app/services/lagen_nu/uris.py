@@ -29,6 +29,22 @@ def canonical_lagen_nu_uri(value: object) -> str | None:
     return text
 
 
+def canonical_lagen_nu_document_uri(value: object) -> str | None:
+    """Document identity URI without a pinpoint fragment.
+
+    Evidence items may keep `#pinpoint` via `compose_canonical_uri`.
+    CanonicalDocument identity must not.
+    """
+    uri = canonical_lagen_nu_uri(value)
+    if uri is None:
+        return None
+    document_uri = uri.split("#", 1)[0]
+    path = document_uri[len(_CANONICAL_PREFIX) :]
+    if not path or path.startswith(("/", "?")):
+        return None
+    return document_uri
+
+
 def compose_canonical_uri(uri: str, pinpoint: str | None) -> str:
     if pinpoint and "#" not in uri:
         return f"{uri}#{pinpoint}"
