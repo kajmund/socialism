@@ -10,6 +10,7 @@ import hashlib
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from sqlalchemy import delete, select
@@ -19,6 +20,7 @@ from app.database.models import (
     KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
     KnowledgeClaimTextUnit,
+    KnowledgeQuestionRow,
 )
 
 SUPPORTED_BY = "SUPPORTED_BY"
@@ -43,6 +45,16 @@ class KnowledgeClaim:
     predicate: str
     value: dict[str, object]
     supporting_text_unit_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class KnowledgeClaimAnswerHit:
+    """Reuse row: claim plus the evidence nature it answered."""
+
+    claim: KnowledgeClaim
+    source_type: str
+    knowledge_question_id: str | None
+    created_at: datetime | None
 
 
 def knowledge_claim_id(
@@ -137,14 +149,23 @@ async def answer_research_need(
     research_need_id: str,
     question_key: str,
     claim_ids: Sequence[str],
+    source_type: str,
+    knowledge_question_id: str | None = None,
 ) -> None:
     """ResearchNeed → ANSWERED_BY → Claim. Reuse looks up question_key."""
     if not research_need_id.strip():
         raise KnowledgeClaimError("research_need_id is required")
     if not question_key.strip():
         raise KnowledgeClaimError("question_key is required")
+    if not source_type.strip():
+        raise KnowledgeClaimError("source_type is required")
     if not claim_ids:
         raise KnowledgeClaimError("ANSWERED_BY requires at least one claim")
+    question_id = knowledge_question_id or await _tenant_knowledge_question_id(
+        session,
+        question_key=question_key,
+        customer_id=await _claim_customer_id(session, claim_ids[0]),
+    )
     existing = {
         row[0]
         for row in (
@@ -164,19 +185,21 @@ async def answer_research_need(
                 claim_id=claim_id,
                 research_need_id=research_need_id,
                 question_key=question_key,
+                source_type=source_type,
+                knowledge_question_id=question_id,
                 relation=ANSWERED_BY,
             )
         )
     await session.flush()
 
 
-async def claims_answering_question_key(
+async def claim_answers_for_question_key(
     session: AsyncSession,
     *,
     customer_id: int,
     question_key: str,
-) -> list[KnowledgeClaim]:
-    """Reuse: claims that already answer this question key for the tenant."""
+) -> list[KnowledgeClaimAnswerHit]:
+    """Reuse: grounded claims that already answer this question key."""
     rows = (
         await session.execute(
             select(KnowledgeClaimRecord, KnowledgeClaimAnswer)
@@ -193,24 +216,82 @@ async def claims_answering_question_key(
         )
     ).all()
     seen: set[str] = set()
-    claims: list[KnowledgeClaim] = []
-    for record, _answer in rows:
+    hits: list[KnowledgeClaimAnswerHit] = []
+    for record, answer in rows:
         if record.id in seen:
             continue
+        if not answer.source_type.strip():
+            raise KnowledgeClaimError(
+                f"ANSWERED_BY row for claim {record.id} is missing source_type"
+            )
         seen.add(record.id)
         support = await supporting_text_unit_ids_for_claim(session, record.id)
-        claims.append(
-            KnowledgeClaim(
-                id=record.id,
-                customer_id=record.customer_id,
-                document_id=record.document_id,
-                document_version_id=record.document_version_id,
-                predicate=record.predicate,
-                value=record.value,
-                supporting_text_unit_ids=tuple(support),
+        if not support:
+            raise KnowledgeClaimError(f"claim {record.id} has no SUPPORTED_BY TextUnits")
+        hits.append(
+            KnowledgeClaimAnswerHit(
+                claim=KnowledgeClaim(
+                    id=record.id,
+                    customer_id=record.customer_id,
+                    document_id=record.document_id,
+                    document_version_id=record.document_version_id,
+                    predicate=record.predicate,
+                    value=record.value,
+                    supporting_text_unit_ids=tuple(support),
+                ),
+                source_type=answer.source_type,
+                knowledge_question_id=answer.knowledge_question_id,
+                created_at=record.created_at,
             )
         )
-    return claims
+    return hits
+
+
+async def claims_answering_question_key(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    question_key: str,
+) -> list[KnowledgeClaim]:
+    """Reuse: claims that already answer this question key for the tenant."""
+    return [
+        hit.claim
+        for hit in await claim_answers_for_question_key(
+            session,
+            customer_id=customer_id,
+            question_key=question_key,
+        )
+    ]
+
+
+async def _tenant_knowledge_question_id(
+    session: AsyncSession,
+    *,
+    question_key: str,
+    customer_id: int,
+) -> str | None:
+    row = (
+        await session.execute(
+            select(KnowledgeQuestionRow.id).where(
+                KnowledgeQuestionRow.identity_key == question_key,
+                KnowledgeQuestionRow.customer_id == customer_id,
+            )
+        )
+    ).scalar_one_or_none()
+    return row
+
+
+async def _claim_customer_id(session: AsyncSession, claim_id: str) -> int:
+    customer_id = (
+        await session.execute(
+            select(KnowledgeClaimRecord.customer_id).where(
+                KnowledgeClaimRecord.id == claim_id
+            )
+        )
+    ).scalar_one_or_none()
+    if customer_id is None:
+        raise KnowledgeClaimError(f"claim {claim_id} is missing")
+    return customer_id
 
 
 async def supporting_text_unit_ids_for_claim(

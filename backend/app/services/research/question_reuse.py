@@ -1,6 +1,7 @@
 """Read-through and write-back for persistent Question → Evidence links.
 
-Reuse is candidate retrieval. Local sufficiency still decides. Graph
+Runtime needs canonicalize to KnowledgeQuestion first. Fresh grounded
+claims close their source type. Excerpt hits stay candidates. Graph
 outage must not fail the Attempt or invent a sufficient outcome.
 """
 
@@ -8,13 +9,24 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database.models import DomainResearchResultRecord
+from app.database.models import (
+    CanonicalDocumentRecord,
+    DomainResearchResultRecord,
+    TextUnitRecord,
+)
+from app.services.knowledge.claims import (
+    KnowledgeClaimAnswerHit,
+    KnowledgeClaimError,
+    claim_answers_for_question_key,
+)
 from app.services.legal_research_result import LegalResearchResult
 from app.services.research.evidence_identity import (
     evidence_passage_id,
@@ -27,6 +39,7 @@ from app.services.research.knowledge_question import (
     identity_from_text,
     lookup_scopes,
     public_question_scope,
+    research_question_key,
     stable_evidence_ref,
     tenant_question_scope,
 )
@@ -99,18 +112,85 @@ def reuse_lineage(
     }
 
 
+def classify_claim_freshness(
+    *,
+    observed_at: datetime | None,
+    stored: Freshness | None = None,
+    now: datetime | None = None,
+    max_age_seconds: int | None = None,
+) -> Freshness:
+    """Grounded claims stay reusable until marked stale or aged out."""
+    if stored == "stale":
+        return "stale"
+    if max_age_seconds is None:
+        return "fresh"
+    return classify_freshness(
+        observed_at=observed_at,
+        retrieved_at=observed_at,
+        stored=stored,
+        now=now,
+        max_age_seconds=max_age_seconds,
+    )
+
+
+def is_claim_backed(item: ResearchEvidence) -> bool:
+    raw = item.metadata.get("knowledge_claim_ids")
+    return isinstance(raw, list) and any(
+        isinstance(claim_id, str) and claim_id.strip() for claim_id in raw
+    )
+
+
+def _reuse_freshness(item: ResearchEvidence) -> Freshness | None:
+    raw = item.metadata.get("reuse")
+    if not isinstance(raw, dict):
+        return None
+    freshness = raw.get("freshness")
+    if freshness in {"fresh", "stale", "unknown"}:
+        return freshness
+    return None
+
+
+def covered_source_types(reused: Sequence[ResearchEvidence]) -> set[str]:
+    """Source types already answered by fresh grounded claims."""
+    covered: set[str] = set()
+    for item in reused:
+        if item.status != "found":
+            continue
+        if _reuse_freshness(item) != "fresh":
+            continue
+        if not is_claim_backed(item):
+            continue
+        if item.source_type:
+            covered.add(item.source_type)
+    return covered
+
+
+def gap_source_types(
+    need: ResearchNeed,
+    reused: Sequence[ResearchEvidence],
+) -> list[str]:
+    covered = covered_source_types(reused)
+    return [item for item in need.source_types if item not in covered]
+
+
+def research_need_for_gaps(
+    need: ResearchNeed,
+    gaps: Sequence[str],
+) -> ResearchNeed:
+    return replace(need, source_types=list(gaps))
+
+
 def should_skip_providers(
     need: ResearchNeed,
     reused: Sequence[ResearchEvidence],
 ) -> bool:
-    """v1 never skips live retrieval.
+    """Skip live retrieval when fresh claims cover every requested source type.
 
-    Graph hits are candidates. Production local assessment can be an LLM
-    and now also sees evidence quality. A programmatic "found = sufficient"
-    check must not become a parallel truth that under-researches.
+    Excerpt-only reuse stays a candidate. It does not close a gap.
     """
-    del need, reused
-    return False
+    if not need.source_types:
+        return False
+    return not gap_source_types(need, reused)
 
 
 def merge_reused_with_provider(
@@ -376,9 +456,10 @@ async def safe_lookup_reusable_evidence(
     max_age_seconds: int | None = None,
     exclude_attempt_id: str | None = None,
 ) -> list[ResearchEvidence]:
-    """Graph outage → empty candidates. Never a false success."""
+    """Graph outage drops excerpt candidates. Claim lookup is independent."""
+    excerpts: list[ResearchEvidence] = []
     try:
-        return await lookup_reusable_evidence(
+        excerpts = await lookup_reusable_evidence(
             session,
             graph=graph,
             need=need,
@@ -390,7 +471,177 @@ async def safe_lookup_reusable_evidence(
         )
     except (QuestionEvidenceGraphError, SQLAlchemyError):
         await session.rollback()
-        return []
+    claims: list[ResearchEvidence] = []
+    if context.scope.customer_id is not None:
+        try:
+            claims = await lookup_reusable_claims(
+                session,
+                need=need,
+                context=context,
+                now=now,
+                max_age_seconds=max_age_seconds,
+            )
+        except SQLAlchemyError:
+            await session.rollback()
+    return _merge_reuse_candidates(excerpts, claims)
+
+
+async def canonicalize_research_need(
+    session: AsyncSession,
+    *,
+    graph: QuestionEvidenceGraph,
+    need: ResearchNeed,
+    context: ResearchContext,
+) -> KnowledgeQuestion:
+    """Match or create the tenant KnowledgeQuestion before live retrieval."""
+    customer_id = context.scope.customer_id
+    if customer_id is None:
+        raise QuestionEvidenceGraphError("KnowledgeQuestion canonicalize requires customer_id")
+    return await graph.upsert_question(
+        session,
+        identity_from_text(need.question),
+        tenant_question_scope(customer_id),
+    )
+
+
+async def safe_canonicalize_research_need(
+    session: AsyncSession,
+    *,
+    graph: QuestionEvidenceGraph,
+    need: ResearchNeed,
+    context: ResearchContext,
+) -> KnowledgeQuestion | None:
+    """Graph outage → no canonical row. Retrieval still runs."""
+    try:
+        return await canonicalize_research_need(
+            session,
+            graph=graph,
+            need=need,
+            context=context,
+        )
+    except (QuestionEvidenceGraphError, SQLAlchemyError):
+        await session.rollback()
+        return None
+
+
+async def lookup_reusable_claims(
+    session: AsyncSession,
+    *,
+    need: ResearchNeed,
+    context: ResearchContext,
+    now: datetime | None = None,
+    max_age_seconds: int | None = None,
+) -> list[ResearchEvidence]:
+    """KnowledgeQuestion answers: Claim → SUPPORTED_BY → TextUnit."""
+    customer_id = context.scope.customer_id
+    if customer_id is None:
+        raise KnowledgeClaimError("claim reuse requires customer_id")
+    age = (
+        settings.research_knowledge_freshness_max_age_seconds
+        if max_age_seconds is None
+        else max_age_seconds
+    )
+    hits = await claim_answers_for_question_key(
+        session,
+        customer_id=customer_id,
+        question_key=research_question_key(need.question),
+    )
+    reused: list[ResearchEvidence] = []
+    for hit in hits:
+        if not _matches_need_source(hit.source_type, need):
+            continue
+        reused.append(
+            await _claim_hit_to_evidence(
+                session,
+                need=need,
+                hit=hit,
+                freshness=classify_claim_freshness(
+                    observed_at=hit.created_at,
+                    now=now,
+                    max_age_seconds=age,
+                ),
+            )
+        )
+    return reused
+
+
+async def _claim_hit_to_evidence(
+    session: AsyncSession,
+    *,
+    need: ResearchNeed,
+    hit: KnowledgeClaimAnswerHit,
+    freshness: Freshness,
+) -> ResearchEvidence:
+    document = await session.get(CanonicalDocumentRecord, hit.claim.document_id)
+    if document is None:
+        raise KnowledgeClaimError(
+            f"claim {hit.claim.id} document {hit.claim.document_id} is missing"
+        )
+    units = await _supporting_units(session, hit.claim.supporting_text_unit_ids)
+    excerpt = "\n\n".join(unit.text for unit in units)
+    evidence_ref = hit.claim.id
+    return research_evidence(
+        research_need_id=need.id,
+        source_type=hit.source_type,
+        status="found",
+        title=document.title,
+        excerpt=excerpt,
+        locator=",".join(hit.claim.supporting_text_unit_ids),
+        source_id=hit.claim.document_id,
+        source_url=document.canonical_uri,
+        provider="knowledge_claim",
+        retrieved_at=hit.created_at,
+        metadata={
+            "knowledge_claim_ids": [hit.claim.id],
+            "supporting_text_unit_ids": list(hit.claim.supporting_text_unit_ids),
+            "document_version_id": hit.claim.document_version_id,
+            "answered_by_question_key": research_question_key(need.question),
+            "reuse": reuse_lineage(
+                origin=REUSE_ORIGIN_PERSISTENT,
+                knowledge_question_id=hit.knowledge_question_id,
+                evidence_ref=evidence_ref,
+                freshness=freshness,
+            ),
+        },
+    )
+
+
+async def _supporting_units(
+    session: AsyncSession,
+    unit_ids: Sequence[str],
+) -> list[TextUnitRecord]:
+    if not unit_ids:
+        raise KnowledgeClaimError("claim reuse requires SUPPORTED_BY TextUnits")
+    rows = list(
+        (
+            await session.execute(
+                select(TextUnitRecord).where(TextUnitRecord.id.in_(list(unit_ids)))
+            )
+        ).scalars()
+    )
+    by_id = {row.id: row for row in rows}
+    missing = [unit_id for unit_id in unit_ids if unit_id not in by_id]
+    if missing:
+        raise KnowledgeClaimError(
+            f"claim SUPPORTED_BY TextUnits are missing: {', '.join(missing)}"
+        )
+    return [by_id[unit_id] for unit_id in unit_ids]
+
+
+def _merge_reuse_candidates(
+    excerpts: Sequence[ResearchEvidence],
+    claims: Sequence[ResearchEvidence],
+) -> list[ResearchEvidence]:
+    seen: set[str] = set()
+    merged: list[ResearchEvidence] = []
+    for item in [*claims, *excerpts]:
+        ref = _item_evidence_ref(item)
+        key = ref or item.evidence_id
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(item)
+    return merged
 
 
 def evidence_to_link(

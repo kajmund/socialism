@@ -172,9 +172,13 @@ from app.services.research.question_graph import (
     QuestionEvidenceGraph,
 )
 from app.services.research.question_reuse import (
+    gap_source_types,
     merge_reused_with_provider,
+    research_need_for_gaps,
+    safe_canonicalize_research_need,
     safe_lookup_reusable_evidence,
     safe_upsert_persisted_evidence,
+    should_skip_providers,
 )
 from app.services.research.registry import standard_capability_descriptors
 from app.services.research.router import ResearchRouter
@@ -330,8 +334,15 @@ async def _candidates_then_providers(
     question_graph: QuestionEvidenceGraph,
     attempt_id: str,
 ) -> list[ResearchEvidence]:
-    """Read persisted candidates first; assessment still decides completeness."""
+    """Canonicalize the question, reuse fresh claims, retrieve only gaps."""
     async with factory() as reuse_session:
+        await safe_canonicalize_research_need(
+            reuse_session,
+            graph=question_graph,
+            need=need,
+            context=context,
+        )
+        await reuse_session.commit()
         reused = await safe_lookup_reusable_evidence(
             reuse_session,
             graph=question_graph,
@@ -340,9 +351,12 @@ async def _candidates_then_providers(
             exclude_attempt_id=None,
         )
     reused = [item for item in reused if item.metadata.get("reuse", {}).get("freshness") == "fresh"]
+    if should_skip_providers(need, reused):
+        return reused
+    remaining = gap_source_types(need, reused)
     provider = await _retrieve_need(
         factory=factory,
-        need=need,
+        need=research_need_for_gaps(need, remaining),
         context=context,
         router=router,
         router_factory=router_factory,
