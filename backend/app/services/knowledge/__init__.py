@@ -1,6 +1,6 @@
 """Knowledge layer: read API plus ingest. Isolated from panel / research-router / MCP."""
 
-from app.services.knowledge.chunking import KnowledgeChunker
+from app.services.knowledge.chunking import KnowledgeChunker, text_unit_to_chunk
 from app.services.knowledge.embeddings import (
     EmbeddingProvider,
     EmbeddingSpec,
@@ -13,6 +13,15 @@ from app.services.knowledge.extractors import (
     TextExtractor,
 )
 from app.services.knowledge.ingest import KnowledgeIngestResult, KnowledgeIngestService
+from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
+from app.services.knowledge.units import (
+    CanonicalDocument,
+    DocumentSection,
+    SegmentedDocument,
+    TextUnit,
+    make_section_id,
+    make_text_unit_id,
+)
 from app.services.knowledge.models import (
     EmbeddedKnowledgeChunk,
     EmbeddedKnowledgeQuery,
@@ -45,7 +54,10 @@ from app.services.knowledge.vector_store import (
 
 __all__ = [
     "SUPABASE_PROVIDER_ID",
+    "CanonicalDocument",
     "DefaultTextExtractor",
+    "DocumentSection",
+    "DocumentSegmenter",
     "EmbeddedKnowledgeChunk",
     "EmbeddedKnowledgeQuery",
     "EmbeddingProvider",
@@ -66,6 +78,12 @@ __all__ = [
     "KnowledgeQuery",
     "KnowledgeScope",
     "KnowledgeScopeRequiredError",
+    "SegmentedDocument",
+    "TextUnit",
+    "expand_text_unit_context",
+    "make_section_id",
+    "make_text_unit_id",
+    "text_unit_to_chunk",
     "KnowledgeVectorStore",
     "KnowledgeVectorStoreError",
     "MemoryKnowledgeVectorStore",

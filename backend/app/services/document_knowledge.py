@@ -9,7 +9,7 @@ import secrets
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Literal
+from typing import Literal, Protocol
 
 import pdfplumber
 from openai import APITimeoutError
@@ -22,6 +22,7 @@ from app.config import settings
 from app.database.models import (
     DocumentKnowledgeAnchor,
     DocumentKnowledgeItem,
+    DocumentKnowledgeItemTextUnit,
     DocumentKnowledgeRevision,
     Job,
     KnowledgeDocumentRecord,
@@ -39,8 +40,9 @@ from app.services.knowledge import (
     OpenAIEmbeddingProvider,
     SupabaseKnowledgeProvider,
 )
-from app.services.knowledge.extractors import ExtractedBlock
+from app.services.knowledge.persistence import current_text_units, persist_segmented_document
 from app.services.knowledge.supabase_provider import supabase_external_id
+from app.services.knowledge.units import TextUnit
 from app.services.object_storage import KIND_UNDERLAG
 from app.services.prompt_store import render_prompt, require_active_prompts
 from app.services.research.composition import require_knowledge_vector_store
@@ -131,6 +133,10 @@ def serialize_document_knowledge_item(item: DocumentKnowledgeItem) -> dict:
         "question": item.question,
         "content": item.content,
         "retrieval_queries": list(item.retrieval_queries or []),
+        "supporting_text_unit_ids": [
+            link.text_unit_id
+            for link in sorted(item.text_unit_links, key=lambda row: row.ordinal)
+        ],
         "anchors": [
             {
                 "id": anchor.id,
@@ -162,7 +168,10 @@ async def list_document_knowledge(
 ) -> list[DocumentKnowledgeItem]:
     stmt = (
         select(DocumentKnowledgeItem)
-        .options(selectinload(DocumentKnowledgeItem.anchors))
+        .options(
+            selectinload(DocumentKnowledgeItem.anchors),
+            selectinload(DocumentKnowledgeItem.text_unit_links),
+        )
         .where(DocumentKnowledgeItem.source_object_id == source_object_id)
     )
     if not include_archived:
@@ -179,7 +188,10 @@ async def get_document_knowledge_item(
 ) -> DocumentKnowledgeItem | None:
     stmt = (
         select(DocumentKnowledgeItem)
-        .options(selectinload(DocumentKnowledgeItem.anchors))
+        .options(
+            selectinload(DocumentKnowledgeItem.anchors),
+            selectinload(DocumentKnowledgeItem.text_unit_links),
+        )
         .where(
             DocumentKnowledgeItem.id == item_id,
             DocumentKnowledgeItem.source_object_id == source_object_id,
@@ -214,6 +226,7 @@ async def create_manual_document_knowledge(
     )
     session.add(item)
     _replace_anchors(item, body.anchors)
+    await _replace_text_unit_links(session, item, list(body.supporting_text_unit_ids))
     await session.flush()
     session.add(_revision_row(item, changed_by_user_id=user_id))
     await _sync_item_vector(session, source=source, item=item)
@@ -241,6 +254,7 @@ async def update_document_knowledge(
     await session.flush()
     item.anchors.clear()
     _replace_anchors(item, body.anchors)
+    await _replace_text_unit_links(session, item, list(body.supporting_text_unit_ids))
     await session.flush()
     session.add(_revision_row(item, changed_by_user_id=user_id))
     await _sync_item_vector(session, source=source, item=item)
@@ -357,7 +371,7 @@ async def _run_document_ingest_job(
             **dict(raw_record.extra or {}),
             "content_hash": result.content_hash,
         }
-        if result.status != "indexed" or result.extracted is None:
+        if result.status != "indexed" or result.extracted is None or result.segmented is None:
             source.knowledge_status = result.status
             source.knowledge_error = result.message
             await session.commit()
@@ -370,9 +384,15 @@ async def _run_document_ingest_job(
                 "items_created": 0,
             }
 
-        # The raw vector document already exists outside this transaction. Persist
-        # its version and extracted text before the optional LLM enrichment so a
-        # later generation failure cannot leave an untracked vector document.
+        await persist_segmented_document(
+            session,
+            customer_id=source.customer_id,
+            source_object_id=source.id,
+            segmented=result.segmented,
+        )
+        # Vectors and TextUnits already exist outside this transaction. Persist
+        # them before optional LLM enrichment so a later generation failure
+        # cannot leave an untracked index.
         await session.commit()
 
         prompts = await require_active_prompts(
@@ -383,13 +403,13 @@ async def _run_document_ingest_job(
         )
         data, _content_type = await read_stored_bytes(source)
         generation = await generate_document_knowledge(
-            blocks=result.extracted.blocks,
+            units=result.segmented.text_units,
             prompts=prompts,
         )
         accepted = await asyncio.to_thread(
             _accepted_generated_items,
             generation.items,
-            blocks=result.extracted.blocks,
+            units=result.segmented.text_units,
             pdf_bytes=data if source.content_type == "application/pdf" else None,
         )
         # A transient enrichment failure must not discard earlier generated
@@ -424,10 +444,10 @@ async def _run_document_ingest_job(
 
 async def generate_document_knowledge(
     *,
-    blocks: Sequence[ExtractedBlock],
+    units: Sequence[TextUnit],
     prompts: dict[str, str],
 ) -> DocumentKnowledgeGenerationResult:
-    batches = _source_batches(blocks)
+    batches = _text_unit_batches(units)
     semaphore = asyncio.Semaphore(3)
 
     async def generate(
@@ -490,16 +510,18 @@ async def generate_document_knowledge(
     )
 
 
-def _source_batches(blocks: Sequence[ExtractedBlock]) -> list[str]:
+def _text_unit_batches(units: Sequence[TextUnit]) -> list[str]:
     batches: list[str] = []
     current: list[str] = []
     size = 0
-    for block in blocks:
-        text = block.text.strip()
-        locator = (block.locator or "unknown").strip()
+    for unit in units:
+        text = unit.text.strip()
         if not text:
             continue
-        rendered = f'<source locator="{locator}">\n{text}\n</source>'
+        rendered = (
+            f'<text_unit id="{unit.id}" locator="{(unit.locator or "unknown").strip()}">\n'
+            f"{text}\n</text_unit>"
+        )
         if current and size + len(rendered) > _BATCH_CHARS:
             batches.append("\n\n".join(current))
             current = []
@@ -508,28 +530,63 @@ def _source_batches(blocks: Sequence[ExtractedBlock]) -> list[str]:
             current.append(rendered)
             size += len(rendered)
             continue
-        for offset in range(0, len(text), _BATCH_CHARS - 200):
-            part = text[offset : offset + _BATCH_CHARS - 200]
-            batches.append(f'<source locator="{locator}">\n{part}\n</source>')
+        if current:
+            batches.append("\n\n".join(current))
+            current = []
+            size = 0
+        batches.append(rendered)
     if current:
         batches.append("\n\n".join(current))
     return batches
 
 
+@dataclass(frozen=True)
+class AcceptedGeneratedItem:
+    item: GeneratedDocumentKnowledge
+    rects: list[dict[str, float]]
+    text_unit_ids: list[str]
+
+
+class _Passage(Protocol):
+    id: str
+    locator: str | None
+    text: str
+
+
+def supporting_text_unit_ids(
+    *,
+    locator: str | None,
+    exact_quote: str | None,
+    units: Sequence[_Passage],
+) -> list[str]:
+    quote = _normalized(exact_quote or "")
+    matches = [unit for unit in units if quote and quote in _normalized(unit.text)]
+    if locator:
+        located = [unit for unit in matches if unit.locator == locator]
+        if located:
+            matches = located
+        elif not matches:
+            matches = [unit for unit in units if unit.locator == locator]
+    return [unit.id for unit in matches]
+
+
 def _accepted_generated_items(
     generated: Sequence[GeneratedDocumentKnowledge],
     *,
-    blocks: Sequence[ExtractedBlock],
+    units: Sequence[TextUnit],
     pdf_bytes: bytes | None,
-) -> list[tuple[GeneratedDocumentKnowledge, list[dict[str, float]]]]:
-    by_locator = {block.locator: block.text for block in blocks if block.locator}
+) -> list[AcceptedGeneratedItem]:
     seen: set[tuple[str, str]] = set()
-    out: list[tuple[GeneratedDocumentKnowledge, list[dict[str, float]]]] = []
+    out: list[AcceptedGeneratedItem] = []
     pdf = pdfplumber.open(BytesIO(pdf_bytes)) if pdf_bytes is not None else None
     try:
         for item in generated:
-            source_text = by_locator.get(item.locator)
-            if source_text is None or _normalized(item.exact_quote) not in _normalized(source_text):
+            unit_ids = supporting_text_unit_ids(
+                locator=item.locator,
+                exact_quote=item.exact_quote,
+                units=units,
+            )
+            if not unit_ids:
                 continue
             key = (_normalized(item.title), _normalized(item.content))
             if key in seen:
@@ -541,7 +598,7 @@ def _accepted_generated_items(
                 if pdf is not None and page_number is not None
                 else []
             )
-            out.append((item, rects))
+            out.append(AcceptedGeneratedItem(item=item, rects=rects, text_unit_ids=unit_ids))
     finally:
         if pdf is not None:
             pdf.close()
@@ -691,10 +748,12 @@ async def _persist_generated_items(
     session: AsyncSession,
     *,
     source: StoredObject,
-    items: Sequence[tuple[GeneratedDocumentKnowledge, list[dict[str, float]]]],
+    items: Sequence[AcceptedGeneratedItem],
 ) -> list[DocumentKnowledgeItem]:
     rows: list[DocumentKnowledgeItem] = []
-    for generated, rects in items:
+    for accepted in items:
+        generated = accepted.item
+        rects = accepted.rects
         item = DocumentKnowledgeItem(
             id=secrets.token_hex(16),
             source_object_id=source.id,
@@ -729,6 +788,8 @@ async def _persist_generated_items(
                 created_at=utcnow(),
             )
         )
+        await session.flush()
+        await _replace_text_unit_links(session, item, accepted.text_unit_ids)
         await session.flush()
         session.add(_revision_row(item, changed_by_user_id=None))
         rows.append(item)
@@ -871,6 +932,40 @@ def _embedding_text(item: DocumentKnowledgeItem) -> str:
     return "\n".join(part for part in parts if part.strip())
 
 
+async def _replace_text_unit_links(
+    session: AsyncSession,
+    item: DocumentKnowledgeItem,
+    unit_ids: Sequence[str],
+) -> None:
+    ids = [unit_id for unit_id in unit_ids if unit_id]
+    if not ids:
+        units = await current_text_units(session, item.source_object_id)
+        anchor = item.anchors[0] if item.anchors else None
+        ids = supporting_text_unit_ids(
+            locator=anchor.locator if anchor else None,
+            exact_quote=anchor.exact_text if anchor else None,
+            units=units,
+        )
+    for link in list(item.text_unit_links):
+        await session.delete(link)
+    await session.flush()
+    item.text_unit_links.clear()
+    seen: set[str] = set()
+    ordinal = 0
+    for unit_id in ids:
+        if unit_id in seen:
+            continue
+        seen.add(unit_id)
+        item.text_unit_links.append(
+            DocumentKnowledgeItemTextUnit(
+                item_id=item.id,
+                text_unit_id=unit_id,
+                ordinal=ordinal,
+            )
+        )
+        ordinal += 1
+
+
 def _replace_anchors(
     item: DocumentKnowledgeItem,
     anchors: Iterable[DocumentKnowledgeAnchorWrite],
@@ -910,6 +1005,10 @@ def _revision_row(
             "question": item.question,
             "content": item.content,
             "retrieval_queries": list(item.retrieval_queries or []),
+            "supporting_text_unit_ids": [
+                link.text_unit_id
+                for link in sorted(item.text_unit_links, key=lambda row: row.ordinal)
+            ],
             "anchors": [
                 {
                     "anchor_type": anchor.anchor_type,

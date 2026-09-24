@@ -3,7 +3,13 @@ from __future__ import annotations
 from sqlalchemy import func, select
 
 from app.config import settings
-from app.database.models import DocumentKnowledgeItem, DocumentKnowledgeRevision, Job, StoredObject
+from app.database.models import (
+    DocumentKnowledgeItem,
+    DocumentKnowledgeRevision,
+    Job,
+    StoredObject,
+    TextUnitRecord,
+)
 from app.llm import set_structured_completer
 from app.services import jobs as jobs_service
 from app.services.document_knowledge import (
@@ -11,8 +17,8 @@ from app.services.document_knowledge import (
     GeneratedDocumentKnowledgeBatch,
     generate_document_knowledge,
 )
-from app.services.knowledge.extractors import ExtractedBlock
 from app.services.knowledge.models import KnowledgeQuery, KnowledgeScope
+from app.services.knowledge.units import TextUnit, hash_text
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.research.composition import set_knowledge_vector_store_factory
@@ -193,6 +199,20 @@ async def test_document_ingest_generates_anchored_items_and_case_knowledge(
             )
             assert len(rows) == 1
             assert rows[0].origin == "generated"
+            units = list(
+                (
+                    await session.execute(
+                        select(TextUnitRecord).where(
+                            TextUnitRecord.document_id == source.id,
+                            TextUnitRecord.superseded_at.is_(None),
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert units
+            assert any("Avtalet galler" in unit.text for unit in units)
 
             provider = SupabaseKnowledgeProvider(
                 session,
@@ -216,7 +236,10 @@ async def test_document_ingest_generates_anchored_items_and_case_knowledge(
         item = listed.json()[0]
         assert item["kind"] == "qa"
         assert item["anchors"][0]["locator"] == "page:1"
+        assert item["anchors"][0]["exact_text"] == "Avtalet galler fran 1 januari 2027."
         assert item["anchors"][0]["rects"]
+        assert item["supporting_text_unit_ids"]
+        assert len(item["supporting_text_unit_ids"]) >= 1
     finally:
         set_structured_completer(None)
         set_knowledge_vector_store_factory(None)
@@ -287,9 +310,25 @@ async def test_document_knowledge_generation_keeps_successful_batches(
         structured,
     )
     result = await generate_document_knowledge(
-        blocks=[
-            ExtractedBlock(text="FAIL_BATCH " + "x" * 9_000, locator="page:1"),
-            ExtractedBlock(text="SUCCESS_BATCH " + "y" * 9_000, locator="page:2"),
+        units=[
+            TextUnit(
+                id="unit-fail",
+                document_id="doc-a",
+                section_id="sec-1",
+                ordinal=0,
+                text="FAIL_BATCH " + "x" * 9_000,
+                content_hash=hash_text("FAIL_BATCH"),
+                locator="page:1",
+            ),
+            TextUnit(
+                id="unit-ok",
+                document_id="doc-a",
+                section_id="sec-2",
+                ordinal=0,
+                text="SUCCESS_BATCH " + "y" * 9_000,
+                content_hash=hash_text("SUCCESS_BATCH"),
+                locator="page:2",
+            ),
         ],
         prompts={
             "document_knowledge.ingest.system": "system",

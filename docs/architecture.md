@@ -68,6 +68,9 @@ flowchart LR
 | **ExecutionRun** | Generic work/investigation container (product name: Run). Table `execution_runs`. Not a legal case and not a simulation körning. |
 | **ExecutionAttempt** | One concrete execution of an ExecutionRun (product: Attempt), with immutable snapshots once started. Table `execution_attempts`. |
 | **EvidenceSet** | Building, frozen, or failed knowledge snapshot reused by Attempts in the same ExecutionRun. |
+| **CanonicalDocument** | Citable source identity (upload, later lagen.nu / APIs). Deduplicated on source identity. |
+| **DocumentSection** | Hierarchical structural region inside a document. |
+| **TextUnit** | Canonical passage. Embeddings, Q&A, and later claims/research ground here. |
 | **PersonaMessage** | Chat turns — library chat (`run_id` null) or run-scoped interview |
 | **Job** | Background work: `population_generate`, `run_simulate`, `report_generate` |
 | **Report** | Hybrid HTML report over one or more run attempts |

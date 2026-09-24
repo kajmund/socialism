@@ -7,19 +7,22 @@ Uploaded underlag now have a mutable, document-scoped knowledge layer. Its purpo
 ```text
 StoredObject upload
   -> document_ingest Job
-  -> existing KnowledgeIngestService
-       extraction -> raw case-scoped chunks -> Supabase vector index
-  -> neutral structured generation from extracted source blocks
-  -> exact-quote validation and PDF rectangle anchoring
-  -> DocumentKnowledgeItem + anchors + immutable revision snapshot
+    -> KnowledgeIngestService
+         extraction -> Section/TextUnit segmentation -> TextUnit embeddings
+  -> persist CanonicalDocument + Sections + TextUnits
+  -> Q&A generation from neighbouring TextUnits
+  -> exact-quote validation, TextUnit grounding, and PDF rectangle anchoring
+  -> DocumentKnowledgeItem + anchors + supporting_text_unit_ids + revision snapshot
   -> fact/Q&A item vectors in the same case-scoped index
 ```
+
+See [text-unit-knowledge.md](text-unit-knowledge.md) for the shared Document → Section → TextUnit model.
 
 The upload returns immediately. `StoredObject.knowledge_status`, `knowledge_error`, and `knowledge_job_id` provide durable state for leaving and reopening the picker. PDF files without a usable text layer end in `needs_ocr`; this phase deliberately has no OCR fallback and no tool calls. Generated Q&A is an isolated enrichment stage: raw text/chunks remain usable when one or more model batches fail, successful batches are saved, and the durable status becomes `partial` so the failure stays visible.
 
 ## Data model
 
-- `DocumentKnowledgeItem` is a mutable presentation record with `kind` (`fact`, `qa`, `bookmark`, `note`), `origin` (`generated`, `manual`), status, and revision number.
+- `DocumentKnowledgeItem` is a mutable presentation record with `kind` (`fact`, `qa`, `bookmark`, `note`), `origin` (`generated`, `manual`), status, and revision number. Semantic provenance is `supporting_text_unit_ids`; exact quotes and PDF anchors remain for UI highlight.
 - `DocumentKnowledgeAnchor` links an item to exact source text and a generic anchor type (`text`, `image`, `chart`, `table`). Text anchors may include normalized page rectangles for visual highlighting. Image/chart/table anchors are future seams, not active extraction paths.
 - `DocumentKnowledgeRevision` is an append-only snapshot written on create, edit, archive, and re-ingest review transitions.
 - `KnowledgeDocumentRecord.source_object_id` ties both the raw document vector and item vectors back to the uploaded object for scoped cleanup.
