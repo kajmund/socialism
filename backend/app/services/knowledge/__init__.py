@@ -88,11 +88,13 @@ from app.services.knowledge.relationships import (
     require_relation,
 )
 from app.services.knowledge.revalidation import (
-    IMPACT_THRESHOLD,
     REVALIDATION_CLEAR,
     REVALIDATION_IMPACTED,
+    REVALIDATION_REQUIRED,
+    REVALIDATION_UNKNOWN,
     RevalidationDecision,
     RevalidationError,
+    classify_revalidation_state,
     revalidate_after_event,
 )
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
@@ -124,10 +126,11 @@ __all__ = [
     "CORE_RELATIONS",
     "EDGE_ADDED",
     "GRAPH_EVENT_TYPES",
-    "IMPACT_THRESHOLD",
     "PART_OF",
     "REVALIDATION_CLEAR",
     "REVALIDATION_IMPACTED",
+    "REVALIDATION_REQUIRED",
+    "REVALIDATION_UNKNOWN",
     "SAME_AS",
     "SUPABASE_PROVIDER_ID",
     "SUPPORTED_BY",
@@ -181,6 +184,7 @@ __all__ = [
     "build_knowledge_registry",
     "claim_answers_for_question_key",
     "claims_answering_question_key",
+    "classify_revalidation_state",
     "expand_text_unit_context",
     "get_canonical_document_by_identity",
     "get_current_document_version",
