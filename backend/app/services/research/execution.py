@@ -99,7 +99,10 @@ from app.services.research.completeness import (
     question_fingerprint,
     sanitize_completeness_draft,
 )
-from app.services.research.composition import standard_available_source_types
+from app.services.research.composition import (
+    resolve_injected_research_router,
+    standard_available_source_types,
+)
 from app.services.research.fast_controller import (
     research_jev_available,
     research_jev_mode,
@@ -320,13 +323,21 @@ async def _retrieve_need(
     router: ResearchRouter | None,
     router_factory: ResearchRouterFactory | None,
 ) -> list[ResearchEvidence]:
+    if router is not None:
+        return await router.execute_need(need, context)
     if router_factory is not None:
         async with factory() as retrieve_session:
             worker_router = router_factory(retrieve_session)
             return await worker_router.execute_need(need, context)
-    if router is None:
-        raise ResearchExecutionError("ResearchRouter is required")
-    return await router.execute_need(need, context)
+    raise ResearchExecutionError("ResearchRouter is required")
+
+
+def _fresh_reused_evidence(items: list[ResearchEvidence]) -> list[ResearchEvidence]:
+    return [
+        item
+        for item in items
+        if item.metadata.get("reuse", {}).get("freshness") == "fresh"
+    ]
 
 
 async def _candidates_then_providers(
@@ -336,26 +347,10 @@ async def _candidates_then_providers(
     context: ResearchContext,
     router: ResearchRouter | None,
     router_factory: ResearchRouterFactory | None,
-    question_graph: QuestionEvidenceGraph,
-    attempt_id: str,
+    reused: list[ResearchEvidence],
 ) -> list[ResearchEvidence]:
-    """Canonicalize the question, reuse fresh claims, retrieve only gaps."""
-    async with factory() as reuse_session:
-        await safe_canonicalize_research_need(
-            reuse_session,
-            graph=question_graph,
-            need=need,
-            context=context,
-        )
-        await reuse_session.commit()
-        reused = await safe_lookup_reusable_evidence(
-            reuse_session,
-            graph=question_graph,
-            need=need,
-            context=context,
-            exclude_attempt_id=None,
-        )
-    reused = [item for item in reused if item.metadata.get("reuse", {}).get("freshness") == "fresh"]
+    """Retrieve only source types not already closed by fresh grounded claims."""
+    reused = _fresh_reused_evidence(reused)
     if should_skip_providers(need, reused):
         return reused
     remaining = gap_source_types(need, reused)
@@ -390,6 +385,24 @@ async def _execute_one_need(
                 await emit_need_running(claim_session, execution=row)
             await claim_session.commit()
             await progress.publish_committed()
+            # Keep canonicalize/reuse on this locked session. A second
+            # session commit races SQLite StaticPool savepoints used by
+            # the other worker's progress events.
+            if not need.knowledge_question_id:
+                await safe_canonicalize_research_need(
+                    claim_session,
+                    graph=question_graph,
+                    need=need,
+                    context=context,
+                )
+                await claim_session.commit()
+            reused = await safe_lookup_reusable_evidence(
+                claim_session,
+                graph=question_graph,
+                need=need,
+                context=context,
+                exclude_attempt_id=None,
+            )
         if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
             return
 
@@ -401,8 +414,7 @@ async def _execute_one_need(
                 context=context,
                 router=router,
                 router_factory=router_factory,
-                question_graph=question_graph,
-                attempt_id=attempt_id,
+                reused=reused,
             )
     except BaseException as exc:
         if isinstance(exc, asyncio.CancelledError):
@@ -1579,6 +1591,11 @@ async def execute_attempt_research(
     Assessor/follow-up/model/parsing/worker failure marks both Attempt and
     EvidenceSet failed without freezing.
     """
+    if router is None:
+        injected = resolve_injected_research_router(session)
+        if injected is not None:
+            router = injected
+            router_factory = None
     if router is None and router_factory is None:
         raise ResearchExecutionError("ResearchRouter is required")
 
