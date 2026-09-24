@@ -26,8 +26,8 @@ from app.services.knowledge.provider import SUPABASE_PROVIDER_ID, KnowledgeVecto
 class TextUnitEmbeddingReader(Protocol):
     """Read ingest embeddings by document + TextUnit ID.
 
-    This is not a case-scoped vector search. lagen.nu ranks current
-    TextUnits in-process and must reuse the vectors written at ingest.
+    This is not a case-scoped vector search. Callers that rank current
+    TextUnits in-process must reuse the vectors written at ingest.
     """
 
     async def get_text_unit_embeddings(
