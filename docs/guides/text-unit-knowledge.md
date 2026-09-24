@@ -102,7 +102,7 @@ Claims and relationships carry valid time (`valid_from` / `valid_to`) and system
 
 ### Phase 6 — revalidation
 
-A graph event (`CLAIM_ADDED`, `EDGE_ADDED`, `CLAIM_SUPERSEDED`) looks up affected `KnowledgeQuestion` keys and frozen EvidenceSets via claim answers, claim ids, and TextUnit ids. Jev answers `material_change` (noul ≥ 0.5 → `impacted`, else `clear`). Results live on `evidence_set_revalidations`. The frozen snapshot is not rewritten. Freeze stores `graph_revision_at_freeze`. Jev failure is loud and does not invent `clear`.
+A graph event (`CLAIM_ADDED`, `EDGE_ADDED`, `CLAIM_SUPERSEDED`) looks up affected `KnowledgeQuestion` keys and frozen EvidenceSets via claim answers, claim ids, and TextUnit ids. Jev answers `material_change` against configurable bands (`REVALIDATION_IMPACT_THRESHOLD` default 0.75 → `impacted`, `REVALIDATION_CLEAR_THRESHOLD` default 0.25 → `clear`, between → `revalidation_required`). Results live on `evidence_set_revalidations`. The frozen snapshot is not rewritten. Freeze stores `graph_revision_at_freeze`. Jev error or invalid noul is `unknown`, never `clear`. No Jev call when no frozen EvidenceSet is touched.
 
 ## Design constraints
 

@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.database.base import Base
 from app.database.models import (
     CanonicalDocumentRecord,
@@ -36,7 +37,10 @@ from app.services.knowledge.events import CLAIM_ADDED, list_graph_events
 from app.services.knowledge.revalidation import (
     REVALIDATION_CLEAR,
     REVALIDATION_IMPACTED,
+    REVALIDATION_REQUIRED,
+    REVALIDATION_UNKNOWN,
     RevalidationError,
+    classify_revalidation_state,
     revalidate_after_event,
 )
 from app.services.research import research_evidence
@@ -67,6 +71,59 @@ class _FailingJev:
     async def ask(self, *, state, questions, model, timeout_seconds):
         del state, questions, model, timeout_seconds
         raise JevClientError("jev down", category="transport")
+
+
+class _InvalidJev:
+    def __init__(self, answers: dict) -> None:
+        self.answers = answers
+        self.calls = 0
+
+    async def ask(self, *, state, questions, model, timeout_seconds):
+        del state, questions, model, timeout_seconds
+        self.calls += 1
+        return JevSystemOneResult(
+            answers=self.answers,
+            model="jev-test",
+            latency_ms=1.0,
+            input_chars=1,
+            usage=JevUsage(),
+            raw={},
+        )
+
+
+DEFAULT_BANDS = {"impact_threshold": 0.75, "clear_threshold": 0.25}
+
+
+@pytest.mark.parametrize(
+    ("noul", "expected"),
+    [
+        (0.75, REVALIDATION_IMPACTED),
+        (1.0, REVALIDATION_IMPACTED),
+        (0.749999, REVALIDATION_REQUIRED),
+        (0.5, REVALIDATION_REQUIRED),
+        (0.250001, REVALIDATION_REQUIRED),
+        (0.25, REVALIDATION_CLEAR),
+        (0.0, REVALIDATION_CLEAR),
+        (float("nan"), REVALIDATION_UNKNOWN),
+        (-0.01, REVALIDATION_UNKNOWN),
+        (1.01, REVALIDATION_UNKNOWN),
+    ],
+)
+def test_revalidation_bands_use_conservative_thresholds(noul, expected):
+    assert classify_revalidation_state(noul, **DEFAULT_BANDS) == expected
+
+
+def test_custom_thresholds_move_the_uncertain_band():
+    assert (
+        classify_revalidation_state(0.6, impact_threshold=0.9, clear_threshold=0.1)
+        == REVALIDATION_REQUIRED
+    )
+    assert (
+        classify_revalidation_state(0.6, impact_threshold=0.55, clear_threshold=0.2)
+        == REVALIDATION_IMPACTED
+    )
+    with pytest.raises(RevalidationError, match="below"):
+        classify_revalidation_state(0.5, impact_threshold=0.25, clear_threshold=0.25)
 
 
 @pytest.fixture
@@ -248,13 +305,104 @@ async def test_low_impact_is_clear_and_unrelated_claim_skips_jev(db):
 
 
 @pytest.mark.asyncio
-async def test_jev_failure_does_not_invent_clear(db):
+@pytest.mark.parametrize(
+    ("noul", "expected"),
+    [
+        (0.75, REVALIDATION_IMPACTED),
+        (0.25, REVALIDATION_CLEAR),
+    ],
+)
+async def test_exact_threshold_scores_use_closed_bands(db, noul, expected):
     kund, _frozen = await _setup_frozen_set(db)
     await _new_claim(db, kund.id)
     events = await list_graph_events(db, customer_id=kund.id, node_kind="claim")
     added = next(event for event in events if event.event_type == CLAIM_ADDED)
-    with pytest.raises(JevClientError):
-        await revalidate_after_event(db, added.id, jev=_FailingJev())
-    assert list((await db.execute(select(EvidenceSetRevalidation))).scalars().all()) == []
+    decisions = await revalidate_after_event(db, added.id, jev=_ImpactJev(noul))
+    assert [item.state for item in decisions] == [expected]
+    assert decisions[0].impact_noul == noul
+
+
+@pytest.mark.asyncio
+async def test_configured_thresholds_are_used(db):
+    kund, _frozen = await _setup_frozen_set(db)
+    await _new_claim(db, kund.id)
+    events = await list_graph_events(db, customer_id=kund.id, node_kind="claim")
+    added = next(event for event in events if event.event_type == CLAIM_ADDED)
+    previous = (
+        settings.revalidation_impact_threshold,
+        settings.revalidation_clear_threshold,
+    )
+    settings.revalidation_impact_threshold = 0.9
+    settings.revalidation_clear_threshold = 0.1
+    try:
+        decisions = await revalidate_after_event(db, added.id, jev=_ImpactJev(0.8))
+    finally:
+        (
+            settings.revalidation_impact_threshold,
+            settings.revalidation_clear_threshold,
+        ) = previous
+    assert [item.state for item in decisions] == [REVALIDATION_REQUIRED]
+
+
+@pytest.mark.asyncio
+async def test_uncertain_band_requires_revalidation(db):
+    kund, frozen = await _setup_frozen_set(db)
+    await _new_claim(db, kund.id)
+    events = await list_graph_events(db, customer_id=kund.id, node_kind="claim")
+    added = next(event for event in events if event.event_type == CLAIM_ADDED)
+    before = list((await db.execute(select(EvidenceSetItem))).scalars().all())
+    decisions = await revalidate_after_event(db, added.id, jev=_ImpactJev(0.5))
+    after = list((await db.execute(select(EvidenceSetItem))).scalars().all())
+    rows = list((await db.execute(select(EvidenceSetRevalidation))).scalars().all())
+    assert [item.state for item in decisions] == [REVALIDATION_REQUIRED]
+    assert decisions[0].impact_noul == 0.5
+    assert [row.state for row in rows] == [REVALIDATION_REQUIRED]
+    assert (await get_evidence_set(db, frozen.id)).status == "frozen"
+    assert [item.excerpt for item in before] == [item.excerpt for item in after]
+
+
+@pytest.mark.asyncio
+async def test_jev_failure_is_unknown_never_clear(db):
+    kund, frozen = await _setup_frozen_set(db)
+    await _new_claim(db, kund.id)
+    events = await list_graph_events(db, customer_id=kund.id, node_kind="claim")
+    added = next(event for event in events if event.event_type == CLAIM_ADDED)
+    before = list((await db.execute(select(EvidenceSetItem))).scalars().all())
+    decisions = await revalidate_after_event(db, added.id, jev=_FailingJev())
+    after = list((await db.execute(select(EvidenceSetItem))).scalars().all())
+    rows = list((await db.execute(select(EvidenceSetRevalidation))).scalars().all())
+    assert [item.state for item in decisions] == [REVALIDATION_UNKNOWN]
+    assert decisions[0].impact_noul is None
+    assert [row.state for row in rows] == [REVALIDATION_UNKNOWN]
+    assert REVALIDATION_CLEAR not in {row.state for row in rows}
+    assert (await get_evidence_set(db, frozen.id)).status == "frozen"
+    assert [item.excerpt for item in before] == [item.excerpt for item in after]
     with pytest.raises(RevalidationError, match="missing"):
         await revalidate_after_event(db, "missing-event", jev=_ImpactJev(0.9))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "answers",
+    [
+        {},
+        {"material_change": {}},
+        {"material_change": {"noul": "nope"}},
+        {"material_change": {"noul": 1.5}},
+        {"material_change": {"noul": float("nan")}},
+    ],
+)
+async def test_invalid_jev_response_is_unknown_never_clear(db, answers):
+    kund, frozen = await _setup_frozen_set(db)
+    await _new_claim(db, kund.id)
+    events = await list_graph_events(db, customer_id=kund.id, node_kind="claim")
+    added = next(event for event in events if event.event_type == CLAIM_ADDED)
+    gate = _InvalidJev(answers)
+    decisions = await revalidate_after_event(db, added.id, jev=gate)
+    rows = list((await db.execute(select(EvidenceSetRevalidation))).scalars().all())
+    assert gate.calls == 1
+    assert [item.state for item in decisions] == [REVALIDATION_UNKNOWN]
+    assert decisions[0].impact_noul is None
+    assert [row.state for row in rows] == [REVALIDATION_UNKNOWN]
+    assert REVALIDATION_CLEAR not in {item.state for item in decisions}
+    assert (await get_evidence_set(db, frozen.id)).status == "frozen"

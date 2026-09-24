@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -22,7 +23,7 @@ from app.database.models import (
     KnowledgeQuestionRow,
     KnowledgeRelationshipRecord,
 )
-from app.jev.system import JevSystemOne, parse_noul
+from app.jev.system import JevClientError, JevSystemOne, parse_noul
 from app.services.knowledge.events import (
     CLAIM_ADDED,
     CLAIM_SUPERSEDED,
@@ -32,10 +33,17 @@ from app.services.knowledge.events import (
 
 REVALIDATION_CLEAR = "clear"
 REVALIDATION_IMPACTED = "impacted"
-REVALIDATION_STATES = frozenset({REVALIDATION_CLEAR, REVALIDATION_IMPACTED})
-RevalidationState = Literal["clear", "impacted"]
-
-IMPACT_THRESHOLD = 0.5
+REVALIDATION_REQUIRED = "revalidation_required"
+REVALIDATION_UNKNOWN = "unknown"
+REVALIDATION_STATES = frozenset(
+    {
+        REVALIDATION_CLEAR,
+        REVALIDATION_IMPACTED,
+        REVALIDATION_REQUIRED,
+        REVALIDATION_UNKNOWN,
+    }
+)
+RevalidationState = Literal["clear", "impacted", "revalidation_required", "unknown"]
 _IMPACT_QUESTION = {
     "type": "noul",
     "instructions": (
@@ -46,7 +54,7 @@ _IMPACT_QUESTION = {
 
 
 class RevalidationError(RuntimeError):
-    """Impact lookup or the Jev gate failed. Do not invent a clear state."""
+    """Impact lookup failed. Jev errors become unknown, never clear."""
 
 
 @dataclass(frozen=True)
@@ -61,7 +69,7 @@ class RevalidationDecision:
     evidence_set_id: str
     graph_event_id: str
     state: RevalidationState
-    impact_noul: float
+    impact_noul: float | None
     question_key: str | None
     knowledge_question_id: str | None
 
@@ -136,6 +144,26 @@ async def affected_frozen_evidence_sets(
     return affected
 
 
+def classify_revalidation_state(
+    noul: float,
+    *,
+    impact_threshold: float,
+    clear_threshold: float,
+) -> RevalidationState:
+    """Map a valid noul onto conservative bands. Invalid scores are unknown."""
+    if clear_threshold >= impact_threshold:
+        raise RevalidationError(
+            "revalidation_clear_threshold must be below revalidation_impact_threshold"
+        )
+    if not math.isfinite(noul) or noul < 0.0 or noul > 1.0:
+        return REVALIDATION_UNKNOWN
+    if noul >= impact_threshold:
+        return REVALIDATION_IMPACTED
+    if noul <= clear_threshold:
+        return REVALIDATION_CLEAR
+    return REVALIDATION_REQUIRED
+
+
 async def revalidate_after_event(
     session: AsyncSession,
     event: KnowledgeGraphEventRecord | str,
@@ -161,10 +189,18 @@ async def revalidate_after_event(
         return []
     question_id = await _knowledge_question_id(session, impact.question_keys, event.customer_id)
     question_key = impact.question_keys[0] if impact.question_keys else None
-    noul = await _impact_noul(jev, event=event, impact=impact, evidence_sets=sets)
-    state: RevalidationState = (
-        REVALIDATION_IMPACTED if noul >= IMPACT_THRESHOLD else REVALIDATION_CLEAR
-    )
+    try:
+        noul: float | None = await _impact_noul(
+            jev, event=event, impact=impact, evidence_sets=sets
+        )
+        state = classify_revalidation_state(
+            noul,
+            impact_threshold=settings.revalidation_impact_threshold,
+            clear_threshold=settings.revalidation_clear_threshold,
+        )
+    except JevClientError:
+        noul = None
+        state = REVALIDATION_UNKNOWN
     decisions: list[RevalidationDecision] = []
     for evidence_set in sets:
         row = await _persist_revalidation(
@@ -282,7 +318,7 @@ async def _persist_revalidation(
     question_key: str | None,
     knowledge_question_id: str | None,
     state: RevalidationState,
-    impact_noul: float,
+    impact_noul: float | None,
 ) -> EvidenceSetRevalidation:
     existing = (
         await session.execute(
