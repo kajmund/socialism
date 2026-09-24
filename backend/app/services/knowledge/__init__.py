@@ -13,6 +13,7 @@ from app.services.knowledge.claims import (
     claims_answering_question_key,
     persist_knowledge_claim,
     persist_knowledge_claims,
+    supersede_knowledge_claim,
     supporting_text_unit_ids_for_quote,
 )
 from app.services.knowledge.embeddings import (
@@ -27,6 +28,15 @@ from app.services.knowledge.entities import (
     knowledge_entity_id,
     persist_knowledge_entities,
     persist_knowledge_entity,
+)
+from app.services.knowledge.events import (
+    CLAIM_ADDED,
+    CLAIM_SUPERSEDED,
+    EDGE_ADDED,
+    GRAPH_EVENT_TYPES,
+    KnowledgeGraphEvent,
+    list_graph_events,
+    record_graph_event,
 )
 from app.services.knowledge.extractors import (
     DefaultTextExtractor,
@@ -100,8 +110,12 @@ from app.services.knowledge.vector_store import (
 __all__ = [
     "ABOUT",
     "ANSWERED_BY",
+    "CLAIM_ADDED",
+    "CLAIM_SUPERSEDED",
     "CONTRADICTS",
     "CORE_RELATIONS",
+    "EDGE_ADDED",
+    "GRAPH_EVENT_TYPES",
     "PART_OF",
     "SAME_AS",
     "SUPABASE_PROVIDER_ID",
@@ -126,6 +140,7 @@ __all__ = [
     "KnowledgeEntity",
     "KnowledgeEntityError",
     "KnowledgeError",
+    "KnowledgeGraphEvent",
     "KnowledgeHit",
     "KnowledgeIngestResult",
     "KnowledgeIngestService",
@@ -161,6 +176,7 @@ __all__ = [
     "knowledge_entity_id",
     "knowledge_relationship",
     "list_document_versions",
+    "list_graph_events",
     "make_document_version_id",
     "make_section_id",
     "make_text_unit_id",
@@ -171,8 +187,10 @@ __all__ = [
     "persist_knowledge_relationship",
     "persist_knowledge_relationships",
     "persist_segmented_document",
+    "record_graph_event",
     "relationships_touching",
     "require_relation",
+    "supersede_knowledge_claim",
     "supporting_text_unit_ids_for_quote",
     "text_unit_to_chunk",
 ]

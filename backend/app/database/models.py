@@ -1834,6 +1834,7 @@ class KnowledgeClaimRecord(Base):
     __table_args__ = (
         Index("ix_knowledge_claims_document_version", "document_version_id"),
         Index("ix_knowledge_claims_document_predicate", "document_id", "predicate"),
+        Index("ix_knowledge_claims_superseded_at", "superseded_at"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -1854,10 +1855,18 @@ class KnowledgeClaimRecord(Base):
     )
     predicate: Mapped[str] = mapped_column(String(128), nullable=False)
     value: Mapped[dict] = mapped_column(JSON, nullable=False)
+    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
+    )
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    successor_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_claims.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     text_unit_links: Mapped[list["KnowledgeClaimTextUnit"]] = relationship(
@@ -1974,6 +1983,7 @@ class KnowledgeRelationshipRecord(Base):
         Index("ix_knowledge_relationships_from", "from_kind", "from_id"),
         Index("ix_knowledge_relationships_to", "to_kind", "to_id"),
         Index("ix_knowledge_relationships_relation", "relation"),
+        Index("ix_knowledge_relationships_superseded_at", "superseded_at"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -1988,6 +1998,37 @@ class KnowledgeRelationshipRecord(Base):
     to_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     to_id: Mapped[str] = mapped_column(String(64), nullable=False)
     extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class KnowledgeGraphEventRecord(Base):
+    """Append-only graph mutation. Do not update or delete history."""
+
+    __tablename__ = "knowledge_graph_events"
+    __table_args__ = (
+        Index("ix_knowledge_graph_events_customer_created", "customer_id", "created_at"),
+        Index("ix_knowledge_graph_events_type", "event_type"),
+        Index("ix_knowledge_graph_events_node", "node_kind", "node_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    node_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    node_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    related_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

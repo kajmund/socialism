@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import KnowledgeRelationshipRecord
 from app.services.knowledge.claims import SUPPORTED_BY
+from app.services.knowledge.events import EDGE_ADDED, record_graph_event, utc_now
 
 ABOUT = "ABOUT"
 CONTRADICTS = "CONTRADICTS"
@@ -114,6 +115,7 @@ async def persist_knowledge_relationship(
 ) -> KnowledgeRelationshipRecord:
     row = await session.get(KnowledgeRelationshipRecord, edge.id)
     if row is None:
+        now = utc_now()
         row = KnowledgeRelationshipRecord(
             id=edge.id,
             customer_id=edge.customer_id,
@@ -123,10 +125,30 @@ async def persist_knowledge_relationship(
             to_kind=edge.to_kind,
             to_id=edge.to_id,
             extra=edge.extra,
+            valid_from=now,
+            created_at=now,
         )
         session.add(row)
         await session.flush()
+        await record_graph_event(
+            session,
+            customer_id=edge.customer_id,
+            event_type=EDGE_ADDED,
+            node_kind="relationship",
+            node_id=edge.id,
+            related_id=edge.to_id,
+            payload={
+                "relation": edge.relation,
+                "from_kind": edge.from_kind,
+                "from_id": edge.from_id,
+                "to_kind": edge.to_kind,
+                "to_id": edge.to_id,
+            },
+            created_at=now,
+        )
         return row
+    if row.superseded_at is not None:
+        raise KnowledgeRelationshipError(f"relationship {edge.id} is superseded")
     row.extra = edge.extra
     await session.flush()
     return row
@@ -144,6 +166,7 @@ async def relationships_touching(
             select(KnowledgeRelationshipRecord)
             .where(
                 KnowledgeRelationshipRecord.customer_id == customer_id,
+                KnowledgeRelationshipRecord.superseded_at.is_(None),
                 or_(
                     (
                         (KnowledgeRelationshipRecord.from_kind == kind)
