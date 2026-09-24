@@ -50,7 +50,11 @@ from app.services.lagen_nu.selection import (
     set_passage_selector_factory,
     verify_excerpt_span,
 )
-from app.services.lagen_nu.uris import canonical_lagen_nu_uri, compose_canonical_uri
+from app.services.lagen_nu.uris import (
+    canonical_lagen_nu_document_uri,
+    canonical_lagen_nu_uri,
+    compose_canonical_uri,
+)
 from app.services.research import (
     KnowledgeProviderCapabilityRegistry,
     KnowledgeResearchSource,
@@ -375,6 +379,9 @@ def test_canonical_uri_rewrites_ferenda_and_rejects_foreign_hosts():
     assert canonical_lagen_nu_uri("https://example.com/1915:218") is None
     assert compose_canonical_uri("https://lagen.nu/1915:218", "P36") == (
         "https://lagen.nu/1915:218#P36"
+    )
+    assert canonical_lagen_nu_document_uri("https://ferenda.lagen.nu/1915:218#P36") == (
+        "https://lagen.nu/1915:218"
     )
 
 
