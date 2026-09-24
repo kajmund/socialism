@@ -23,9 +23,11 @@ from app.database.models import (
     KnowledgeQuestionRow,
     ResearchRuntimeNeed,
 )
+from app.services.knowledge.scope import persist_scope_fields
 from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.knowledge_question import (
     KnowledgeQuestion,
+    KnowledgeQuestionError,
     KnowledgeQuestionScope,
     QuestionIdentity,
     identity_from_text,
@@ -117,6 +119,10 @@ async def match_canonical_question(
     ).scalar_one_or_none()
     if row is None:
         return None
+    if row.scope_key != scope.tenant.scope_key:
+        raise KnowledgeQuestionError(
+            "canonical question reuse crossed a knowledge tenant boundary"
+        )
     return question_from_row(row)
 
 
@@ -165,7 +171,7 @@ async def _create_sql_question(
             display_text=identity.display_text,
             namespace=scope.namespace,
             visibility=scope.visibility,
-            customer_id=scope.customer_id,
+            **persist_scope_fields(scope.tenant),
         )
     )
     await session.flush()
@@ -195,10 +201,10 @@ async def _ensure_sql_question(
             display_text=question.display_text,
             namespace=question.scope.namespace,
             visibility=question.scope.visibility,
-            customer_id=question.scope.customer_id,
             embedding_model=question.embedding_model,
             embedding_version=question.embedding_version,
             embedding_dimension=question.embedding_dimension,
+            **persist_scope_fields(question.scope.tenant),
         )
     )
     await session.flush()
