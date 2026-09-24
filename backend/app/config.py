@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     jev_confidence_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
     jev_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
     jev_state_char_budget: int = Field(default=8000, ge=256, le=32_000)
+    # Frozen EvidenceSet revalidation. False clear is worse than extra review.
+    revalidation_impact_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
+    revalidation_clear_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
     # Document-understanding batches are bounded separately from the global LLM
     # settings. They contain at most 20 short items and should never inherit a
     # very large global completion budget.
@@ -219,6 +222,14 @@ class Settings(BaseSettings):
         if name not in _LOG_LEVELS:
             raise ValueError(f"LOG_LEVEL must be one of {sorted(_LOG_LEVELS)}")
         return name
+
+    @model_validator(mode="after")
+    def require_revalidation_band_order(self) -> Self:
+        if self.revalidation_clear_threshold >= self.revalidation_impact_threshold:
+            raise ValueError(
+                "REVALIDATION_CLEAR_THRESHOLD must be below REVALIDATION_IMPACT_THRESHOLD"
+            )
+        return self
 
     @model_validator(mode="after")
     def require_complete_logstash_config(self) -> Self:

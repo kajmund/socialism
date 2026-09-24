@@ -65,6 +65,7 @@ def _unit(
         id=unit_id,
         document_version_id=document_version_id,
         document_id=document_id,
+        customer_id=1,
         section_id=section_id,
         ordinal=ordinal,
         text=text,
