@@ -25,8 +25,10 @@ from app.llm.legal_research import (
     LegalInterpreter,
     LlmLegalInterpreter,
 )
+from app.services.knowledge.claims import persist_knowledge_claims
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.vector_store import KnowledgeVectorStore
+from app.services.lagen_nu.claim_grounding import ground_legal_claims
 from app.services.lagen_nu.display import (
     display_source_title,
     is_legal_front_matter,
@@ -1130,6 +1132,21 @@ class LagenNuResearchSource:
         analysis = legal_result.case_law or legal_result.preparatory_work or legal_result.statute
         assert analysis is not None
         excerpt = analysis.citations[0].quote[:MAX_EVIDENCE_CHARS]
+        customer_id = context.scope.customer_id
+        if customer_id is None or self._session is None:
+            raise LagenNuResearchKnowledgeError(
+                "lagen.nu research requires session and customer_id to persist claims"
+            )
+        grounded_claims = ground_legal_claims(
+            legal_result,
+            routed.units,
+            customer_id=customer_id,
+            research_need_id=need.id,
+            result_id=cached[0]
+            if cached is not None
+            else f"{units[0].document_version_id}:{need.id}",
+        )
+        await persist_knowledge_claims(self._session, grounded_claims)
         return research_evidence(
             research_need_id=need.id,
             source_type=self.source_type,
@@ -1173,6 +1190,7 @@ class LagenNuResearchSource:
                 passage_router=routed.router,
                 passage_jev_clipped=routed.jev_clipped,
                 passage_interpreter_clipped=routed.interpreter_clipped,
+                knowledge_claim_ids=[claim.id for claim in grounded_claims],
             ),
         )
 

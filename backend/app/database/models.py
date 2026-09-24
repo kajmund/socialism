@@ -12,6 +12,8 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+)
+from sqlalchemy import (
     text as sql_text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -1822,6 +1824,72 @@ class DocumentKnowledgeItemTextUnit(Base):
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     item: Mapped[DocumentKnowledgeItem] = relationship(back_populates="text_unit_links")
+    text_unit: Mapped[TextUnitRecord] = relationship()
+
+
+class KnowledgeClaimRecord(Base):
+    """Assertion grounded in TextUnits. Predicate meaning belongs to adapters."""
+
+    __tablename__ = "knowledge_claims"
+    __table_args__ = (
+        Index("ix_knowledge_claims_document_version", "document_version_id"),
+        Index("ix_knowledge_claims_document_predicate", "document_id", "predicate"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("canonical_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    document_version_id: Mapped[str] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    predicate: Mapped[str] = mapped_column(String(128), nullable=False)
+    value: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    text_unit_links: Mapped[list["KnowledgeClaimTextUnit"]] = relationship(
+        back_populates="claim",
+        cascade="all, delete-orphan",
+        order_by="KnowledgeClaimTextUnit.ordinal",
+    )
+
+
+class KnowledgeClaimTextUnit(Base):
+    """Claim SUPPORTED_BY one or more TextUnits."""
+
+    __tablename__ = "knowledge_claim_text_units"
+    __table_args__ = (
+        UniqueConstraint("claim_id", "text_unit_id", name="uq_knowledge_claim_text_unit"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    claim_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_claims.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    text_unit_id: Mapped[str] = mapped_column(
+        ForeignKey("text_units.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    relation: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    claim: Mapped[KnowledgeClaimRecord] = relationship(back_populates="text_unit_links")
     text_unit: Mapped[TextUnitRecord] = relationship()
 
 
