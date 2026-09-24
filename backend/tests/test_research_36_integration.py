@@ -20,6 +20,7 @@ from app.services.lagen_nu.question_validation import (
     canonical_legal_question_verdicts,
     forbidden_retrieval_questions,
 )
+from app.services.lagen_nu.passage_router import KeepAllPassageRouter
 from app.services.lagen_nu.research_source import MAX_DOCUMENT_CHARS, LagenNuResearchSource
 from app.services.legal_research_result import LegalResearchResult
 from app.services.research_domain_results import legal_claims
@@ -169,6 +170,7 @@ async def test_official_transport_resolve_fetch_interpret_actual_nja_path():
                 session=session,
                 embeddings=FakeEmbeddingProvider(),
                 vector_store=MemoryKnowledgeVectorStore(),
+                passage_router=KeepAllPassageRouter(),
             )
             evidence = await provider.research(
                 _need(
