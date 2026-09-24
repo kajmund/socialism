@@ -337,3 +337,48 @@ A narrow Kibana query for selection_failed, citation_grounding_failed and
 domain_schema_invalid returned no records in the preceding 30 minutes. This does
 not prove an end-to-end research run succeeded: standalone diagnostics are not
 necessarily indexed as normal runtime events.
+
+## Repeatable assessment-scope regression (2026-09-24)
+
+`backend/scripts/evaluate_research_assessment_scope.py` evaluates six scenarios
+against the same two public court analyses: open positive, open negative, mixed,
+one explicitly requested example, at least two distinct cases, and an exhaustive
+inventory. Default two repetitions expose variance. The oracle treats the open
+question as requesting supported examples; it does not permit an unqualified claim
+that the list is exhaustive. Explicit count and exhaustive controls prevent a
+change from simply weakening every sufficiency decision.
+
+The evaluator accepts only a passing public case-grounding report with the exact
+two canonical sources. It refetches them through the official MCP client, checks
+complete-text hashes, validates citations and reruns the majority-grounding checks.
+It uses active customer/module assessment prompts and the configured LLM without
+the Jev gate, to isolate the authoritative assessor. It does not retrieve existing
+attempt questions or write attempt data. Model failures are recorded; partial
+reports cannot pass. A nonzero exit status is expected until all scenarios pass.
+
+From `backend`, after the case-grounding evaluation:
+
+```sh
+PYTHONPATH=. .venv/bin/python scripts/evaluate_research_assessment_scope.py \
+  --customer-id CUSTOMER_ID --module dd \
+  --case-report /tmp/legal-case-grounding-evaluation.json \
+  --output /tmp/assessment-scope-baseline.json --repeats 2
+```
+
+The baseline passed 8/12 assessments. Both repetitions failed open_positive and
+open_mixed by adding an exhaustive-search requirement. All four other scenarios
+passed twice; supporting case IDs were correct in all 12. Per-assessment durations
+were 0.71–1.26 seconds, excluding source fetch and setup. This measures only the
+isolated assessor, not an end-to-end speedup or general legal accuracy. The
+underlying two-case oracle does not verify every free-text factor or claim.
+
+Additional diagnostic candidates did not reliably resolve the issue: moving
+analysis fields before verdict fields, adding structured scope/criteria in the
+same response, and classifying scope in a separate call before evidence. The
+separate classifier itself varied on identical questions, so these results do not
+establish that irrelevant evidence caused the change in scope interpretation.
+None of these candidates were installed in runtime code or active prompts.
+
+Validation: 18 evaluator/oracle tests passed; Ruff passed. Tests reject wrong
+verdicts, irrelevant supporting IDs, sufficient decisions with unresolved gaps,
+changed/truncated text, duplicate sources and failed input reports.
