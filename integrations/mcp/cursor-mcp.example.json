@@ -40,7 +40,11 @@
       "env": {
         "ELASTICSEARCH_URL": "https://your-elasticsearch-host:9200",
         "ELASTICSEARCH_INDEX": "logs-socialism-*",
-        "ELASTICSEARCH_API_KEY": "your-encoded-read-only-api-key"
+        "ELASTICSEARCH_API_KEY": "your-encoded-read-only-api-key",
+        "KIBANA_TRACE_FIELD": "trace.id.keyword",
+        "KIBANA_RUN_FIELD": "run.id.keyword",
+        "KIBANA_ATTEMPT_FIELD": "attempt.id.keyword",
+        "KIBANA_RESEARCH_FILTER": "event.dataset.keyword:socialism.research"
       }
     }
   }

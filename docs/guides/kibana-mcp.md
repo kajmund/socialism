@@ -12,17 +12,17 @@ Ange följande miljövariabler via klientens hemlighetshantering eller processmi
 | `ELASTICSEARCH_API_KEY` | Krävs. Elasticsearch API-nyckelns **encoded**-värde, utan `ApiKey `-prefix. |
 | `ELASTICSEARCH_INDEX` | Krävs. Index, indexmönster eller datastream, exempelvis `logs-socialism-*`. Kibana data view-ID fungerar inte. |
 | `KIBANA_TIMESTAMP_FIELD` | `@timestamp` |
-| `KIBANA_TRACE_FIELD` | `trace.id` |
-| `KIBANA_RUN_FIELD` | `run_id.keyword` |
-| `KIBANA_ATTEMPT_FIELD` | `attempt_id.keyword` |
-| `KIBANA_RESEARCH_FILTER` | `*`. Lägg till Lucene-filter om attempt-fältet även används för andra loggtyper. |
+| `KIBANA_TRACE_FIELD` | `trace.id.keyword` |
+| `KIBANA_RUN_FIELD` | `run.id.keyword` |
+| `KIBANA_ATTEMPT_FIELD` | `attempt.id.keyword` |
+| `KIBANA_RESEARCH_FILTER` | `event.dataset.keyword:socialism.research`. Begränsar `get_research_events` till research-event, eftersom vanliga loggar i samma attempt också bär `attempt.id`. |
 | `KIBANA_LOOKBACK` | `now-7d`. Nedre tidsgräns för ID-uppslag och aggregering. |
 | `KIBANA_MAX_RESULTS` | `1000`, högst 10000. |
 | `KIBANA_BUCKET_LIMIT` | `100`, högst 1000. |
 
 API-nyckeln ska endast ha indexbehörigheten `read` för avsedda loggindex. Använd en separat nyckel per åtkomstbehov. Verktygen skickar loggarnas `_source` till MCP-klienten; använd endast index vars innehåll klienten får läsa. Loggtext är opålitlig data och ska inte behandlas som instruktioner.
 
-Kontrollera fältnamnen mot indexets mapping. ID-fälten behöver vara exakta, sökbara keyword-fält. Om `run_id` redan är keyword används `KIBANA_RUN_FIELD=run_id`, utan `.keyword`. Standardvärdena är konfigurationsval, inte verifierade mot en produktionsmiljö. Research-event måste redan vara indexerade med attempt-ID; servern hämtar inget från applikationsdatabasen.
+Backendens loggdokument använder ECS-objekten `trace.id`, `run.id` och `attempt.id`. I `socialism-logs-*` är de dynamiskt mappade som text med keyword-multifält. ID-uppslag använder keyword-fälten, eftersom `term` ska träffa det oanalyserade värdet. Research-event måste redan vara indexerade med attempt-ID; servern hämtar inget från applikationsdatabasen.
 
 ```sh
 cd integrations/mcp
