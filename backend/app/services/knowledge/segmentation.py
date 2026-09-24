@@ -68,6 +68,7 @@ class DocumentSegmenter:
         content_hash: str | None = None,
         source_type: str | None = None,
         canonical_uri: str | None = None,
+        document_version_id: str | None = None,
     ) -> SegmentedDocument:
         digest = content_hash or hash_text(
             "\n\n".join(block.text for block in extracted.blocks)
@@ -89,7 +90,7 @@ class DocumentSegmenter:
             },
         )
         version = DocumentVersion(
-            id=make_document_version_id(),
+            id=document_version_id or make_document_version_id(),
             document_id=document.document_id,
             content_hash=digest,
             mime_type=document.mime_type,
