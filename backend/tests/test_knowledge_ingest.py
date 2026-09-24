@@ -16,7 +16,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import KnowledgeDocumentRecord, Kund
-from app.services.knowledge.chunking import KnowledgeChunker, hash_text, make_chunk_id
+from app.services.knowledge.chunking import KnowledgeChunker, make_chunk_id
 from app.services.knowledge.embeddings import EmbeddingSpec, OpenAIEmbeddingProvider
 from app.services.knowledge.extractors import DOCX_MIME, MARKDOWN_MIME, DefaultTextExtractor
 from app.services.knowledge.ingest import KnowledgeIngestService
@@ -33,6 +33,7 @@ from app.services.knowledge.supabase_provider import (
     SupabaseKnowledgeProvider,
     supabase_external_id,
 )
+from app.services.knowledge.units import hash_text
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.object_storage import put_object
 from tests.knowledge_fakes import FakeEmbeddingProvider

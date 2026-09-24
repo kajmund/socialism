@@ -13,6 +13,7 @@ from app.services.knowledge.claims import (
     claims_answering_question_key,
     persist_knowledge_claim,
     persist_knowledge_claims,
+    supersede_knowledge_claim,
     supporting_text_unit_ids_for_quote,
 )
 from app.services.knowledge.embeddings import (
@@ -27,6 +28,15 @@ from app.services.knowledge.entities import (
     knowledge_entity_id,
     persist_knowledge_entities,
     persist_knowledge_entity,
+)
+from app.services.knowledge.events import (
+    CLAIM_ADDED,
+    CLAIM_SUPERSEDED,
+    EDGE_ADDED,
+    GRAPH_EVENT_TYPES,
+    KnowledgeGraphEvent,
+    list_graph_events,
+    record_graph_event,
 )
 from app.services.knowledge.extractors import (
     DefaultTextExtractor,
@@ -77,6 +87,26 @@ from app.services.knowledge.relationships import (
     relationships_touching,
     require_relation,
 )
+from app.services.knowledge.revalidation import (
+    REVALIDATION_CLEAR,
+    REVALIDATION_IMPACTED,
+    REVALIDATION_REQUIRED,
+    REVALIDATION_UNKNOWN,
+    RevalidationDecision,
+    RevalidationError,
+    classify_revalidation_state,
+    revalidate_after_event,
+)
+from app.services.knowledge.scope import (
+    SCOPE_CUSTOMER,
+    SCOPE_SHARED,
+    KnowledgeScopeError,
+    KnowledgeTenantScope,
+    customer_scope,
+    require_persist_scope,
+    shared_scope,
+    visible_to,
+)
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
 from app.services.knowledge.units import (
@@ -100,10 +130,20 @@ from app.services.knowledge.vector_store import (
 __all__ = [
     "ABOUT",
     "ANSWERED_BY",
+    "CLAIM_ADDED",
+    "CLAIM_SUPERSEDED",
     "CONTRADICTS",
     "CORE_RELATIONS",
+    "EDGE_ADDED",
+    "GRAPH_EVENT_TYPES",
     "PART_OF",
+    "REVALIDATION_CLEAR",
+    "REVALIDATION_IMPACTED",
+    "REVALIDATION_REQUIRED",
+    "REVALIDATION_UNKNOWN",
     "SAME_AS",
+    "SCOPE_CUSTOMER",
+    "SCOPE_SHARED",
     "SUPABASE_PROVIDER_ID",
     "SUPPORTED_BY",
     "CanonicalDocument",
@@ -126,6 +166,7 @@ __all__ = [
     "KnowledgeEntity",
     "KnowledgeEntityError",
     "KnowledgeError",
+    "KnowledgeGraphEvent",
     "KnowledgeHit",
     "KnowledgeIngestResult",
     "KnowledgeIngestService",
@@ -137,11 +178,15 @@ __all__ = [
     "KnowledgeRelationship",
     "KnowledgeRelationshipError",
     "KnowledgeScope",
+    "KnowledgeScopeError",
     "KnowledgeScopeRequiredError",
+    "KnowledgeTenantScope",
     "KnowledgeVectorStore",
     "KnowledgeVectorStoreError",
     "MemoryKnowledgeVectorStore",
     "OpenAIEmbeddingProvider",
+    "RevalidationDecision",
+    "RevalidationError",
     "SegmentedDocument",
     "SupabaseKnowledgeProvider",
     "SupabaseVectorBucketStore",
@@ -153,6 +198,8 @@ __all__ = [
     "build_knowledge_registry",
     "claim_answers_for_question_key",
     "claims_answering_question_key",
+    "classify_revalidation_state",
+    "customer_scope",
     "expand_text_unit_context",
     "get_canonical_document_by_identity",
     "get_current_document_version",
@@ -161,6 +208,7 @@ __all__ = [
     "knowledge_entity_id",
     "knowledge_relationship",
     "list_document_versions",
+    "list_graph_events",
     "make_document_version_id",
     "make_section_id",
     "make_text_unit_id",
@@ -171,8 +219,14 @@ __all__ = [
     "persist_knowledge_relationship",
     "persist_knowledge_relationships",
     "persist_segmented_document",
+    "record_graph_event",
     "relationships_touching",
+    "require_persist_scope",
     "require_relation",
+    "revalidate_after_event",
+    "shared_scope",
+    "supersede_knowledge_claim",
     "supporting_text_unit_ids_for_quote",
     "text_unit_to_chunk",
+    "visible_to",
 ]

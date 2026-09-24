@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from app.services.knowledge.scope import (
+    SCOPE_CUSTOMER,
+    KnowledgeScopeError,
+    KnowledgeTenantScope,
+    object_scope,
+    visible_to,
+)
+
 
 class KnowledgeScopeRequiredError(ValueError):
     """Private/customer knowledge requires a kund tenant boundary."""
@@ -11,18 +19,26 @@ class KnowledgeScopeRequiredError(ValueError):
 
 @dataclass(frozen=True)
 class KnowledgeScope:
-    """Tenant-scoped knowledge access. customer_id is the required boundary.
+    """Reader or persist scope. Retrieval still requires a customer reader.
 
-    case_id and module only narrow further. Global domain_knowledge is a
-    later, explicit namespace — not customer_id=None.
+    Persist may use ``scope_type='shared'`` with ``customer_id=None``.
+    case_id and module only narrow further. Shared knowledge is explicit.
     """
 
     customer_id: int | None = None
     case_id: str | None = None
     module: str | None = None
+    scope_type: str = SCOPE_CUSTOMER
 
     def __post_init__(self) -> None:
-        require_scope(self)
+        try:
+            object_scope(self.scope_type, self.customer_id)
+        except KnowledgeScopeError as exc:
+            raise KnowledgeScopeRequiredError(str(exc)) from exc
+
+    @property
+    def tenant(self) -> KnowledgeTenantScope:
+        return object_scope(self.scope_type, self.customer_id)
 
 
 @dataclass(frozen=True)
@@ -72,7 +88,7 @@ class KnowledgeChunk:
     document_id: str
     chunk_id: str
     text: str
-    customer_id: int
+    customer_id: int | None
     case_id: str | None
     module: str | None
     title: str
@@ -80,7 +96,11 @@ class KnowledgeChunk:
     provider: str | None = None
     version: str | None = None
     content_hash: str | None = None
+    scope_type: str = SCOPE_CUSTOMER
     metadata: dict[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object_scope(self.scope_type, self.customer_id)
 
 
 @dataclass(frozen=True)
@@ -104,7 +124,8 @@ class EmbeddedKnowledgeQuery:
 
 
 def require_scope(scope: KnowledgeScope) -> None:
-    if scope.customer_id is None:
+    """Reader scope: retrieval is always as a customer. Shared is not a reader."""
+    if scope.scope_type != SCOPE_CUSTOMER or scope.customer_id is None:
         raise KnowledgeScopeRequiredError(
             "Knowledge retrieval requires customer_id; module or case alone is not a tenant"
         )
@@ -112,16 +133,23 @@ def require_scope(scope: KnowledgeScope) -> None:
 
 def scope_of(
     *,
-    customer_id: int,
+    customer_id: int | None,
     case_id: str | None,
     module: str | None,
+    scope_type: str = SCOPE_CUSTOMER,
 ) -> KnowledgeScope:
-    return KnowledgeScope(customer_id=customer_id, case_id=case_id, module=module)
+    return KnowledgeScope(
+        customer_id=customer_id,
+        case_id=case_id,
+        module=module,
+        scope_type=scope_type,
+    )
 
 
 def scope_allows(*, owned: KnowledgeScope, requested: KnowledgeScope) -> bool:
-    """Fail closed: kund is required; other set fields must match the record."""
-    if requested.customer_id is None or owned.customer_id != requested.customer_id:
+    """Fail closed: reader kund is required; shared records are visible to every customer."""
+    require_scope(requested)
+    if not visible_to(owned=owned.tenant, reader_customer_id=requested.customer_id):
         return False
     return _field_allows(owned.case_id, requested.case_id) and _field_allows(
         owned.module, requested.module
