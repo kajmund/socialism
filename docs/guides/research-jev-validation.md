@@ -305,3 +305,35 @@ result and record the Jev timeout as an error with no short circuit. The metadat
 extension remains local with the legal-attribution work; the independent timeout
 regressions are suitable for PR #297. Open PR review confirmed #296 and #297 remain
 open; no merges were performed.
+
+## Review-scope experiment and rollback (2026-09-24)
+
+The current local research/legal suite passed 450 tests with nine opt-in tests
+skipped before the scope experiment. PR #297's independent timeout regressions
+were published as aebb095; its CI run 35887993840 completed successfully.
+
+A public-case assessment diagnostic correctly excluded NJA 2010 s. 467 as proof
+of adjustment under section 36, but also rejected the supporting NJA 1999 s. 408
+case while demanding an exhaustive inventory. A separate configurable scope
+instruction was tried twice, including an explicit exhaustive-list control. Both
+live probes still returned insufficient evidence in every scenario and continued
+to invent an exhaustive requirement. Passing unit tests did not establish that
+this instruction worked. The experimental review_scope prompt and its consumers
+were therefore removed, and the local database was restored from experimental
+revision 121 to revision 120. This remains an unresolved assessment-quality issue.
+
+The rollback exposed an actual migration defect: eight prompt migrations used
+`prompt_overrides.field_id` instead of `prompt_overrides.prompt_field_id`.
+Migrations 110 and 114–120 now use the real column name. Eight regression cases
+exercise upgrade, customer overrides, downgrade and re-upgrade against the ORM's
+actual prompt table schemas with foreign keys enabled. They verify preservation
+of unrelated defaults/overrides and removal of revision 114's lineage columns.
+All eight passed; Ruff and whitespace checks passed. The local PostgreSQL rollback
+also succeeded and Alembic reports revision 120 as head. Other revisions were
+round-trip tested only in an isolated SQLite database, not downgraded on the
+running development database.
+
+A narrow Kibana query for selection_failed, citation_grounding_failed and
+domain_schema_invalid returned no records in the preceding 30 minutes. This does
+not prove an end-to-end research run succeeded: standalone diagnostics are not
+necessarily indexed as normal runtime events.
