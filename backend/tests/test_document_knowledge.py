@@ -17,6 +17,7 @@ from app.services import jobs as jobs_service
 from app.services.document_knowledge import (
     GeneratedDocumentKnowledge,
     GeneratedDocumentKnowledgeBatch,
+    _text_unit_batches,
     generate_document_knowledge,
 )
 from app.services.knowledge.models import KnowledgeQuery, KnowledgeScope
@@ -364,6 +365,86 @@ async def test_document_knowledge_generation_keeps_successful_batches(
         settings.document_knowledge_llm_timeout_seconds,
     )
     assert captured_options == [expected_options, expected_options]
+
+
+def test_qa_batches_keep_neighbouring_units_inside_one_section():
+    parties = [
+        TextUnit(
+            id="p1",
+            document_version_id="ver-a",
+            document_id="doc-a",
+            section_id="sec-parties",
+            ordinal=0,
+            text="Acme AB is the seller.",
+            content_hash=hash_text("Acme AB is the seller."),
+            locator="page:1",
+        ),
+        TextUnit(
+            id="p2",
+            document_version_id="ver-a",
+            document_id="doc-a",
+            section_id="sec-parties",
+            ordinal=1,
+            text="Beta AB is the buyer.",
+            content_hash=hash_text("Beta AB is the buyer."),
+            locator="page:1",
+        ),
+    ]
+    price = TextUnit(
+        id="price",
+        document_version_id="ver-a",
+        document_id="doc-a",
+        section_id="sec-price",
+        ordinal=0,
+        text="The price is 100 SEK.",
+        content_hash=hash_text("The price is 100 SEK."),
+        locator="page:2",
+    )
+    batches = _text_unit_batches([*parties, price])
+    assert len(batches) == 2
+    assert "Acme AB" in batches[0] and "Beta AB" in batches[0]
+    assert "100 SEK" not in batches[0]
+    assert "100 SEK" in batches[1]
+    assert "Acme AB" not in batches[1]
+
+
+def test_qa_batches_split_oversized_section_without_mixing_others():
+    long_first = TextUnit(
+        id="long-1",
+        document_version_id="ver-a",
+        document_id="doc-a",
+        section_id="sec-scope",
+        ordinal=0,
+        text="SCOPE_A " + "x" * 12_000,
+        content_hash=hash_text("SCOPE_A"),
+        locator="page:1",
+    )
+    long_second = TextUnit(
+        id="long-2",
+        document_version_id="ver-a",
+        document_id="doc-a",
+        section_id="sec-scope",
+        ordinal=1,
+        text="SCOPE_B " + "y" * 12_000,
+        content_hash=hash_text("SCOPE_B"),
+        locator="page:2",
+    )
+    other = TextUnit(
+        id="other",
+        document_version_id="ver-a",
+        document_id="doc-a",
+        section_id="sec-other",
+        ordinal=0,
+        text="OTHER_CLAUSE",
+        content_hash=hash_text("OTHER_CLAUSE"),
+        locator="page:3",
+    )
+    batches = _text_unit_batches([long_first, long_second, other])
+    assert len(batches) == 3
+    assert "SCOPE_A" in batches[0] and "SCOPE_B" not in batches[0]
+    assert "SCOPE_B" in batches[1] and "SCOPE_A" not in batches[1]
+    assert "OTHER_CLAUSE" in batches[2]
+    assert "SCOPE_A" not in batches[2] and "SCOPE_B" not in batches[2]
 
 
 async def test_document_ingest_timeout_is_partial_not_failed(
