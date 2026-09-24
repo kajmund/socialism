@@ -96,7 +96,7 @@ def downgrade() -> None:
         if field_id is None:
             continue
         conn.execute(
-            sa.text("DELETE FROM prompt_overrides WHERE field_id = :id").bindparams(
+            sa.text("DELETE FROM prompt_overrides WHERE prompt_field_id = :id").bindparams(
                 id=field_id[0]
             )
         )
