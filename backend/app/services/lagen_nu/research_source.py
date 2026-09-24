@@ -1152,6 +1152,7 @@ class LagenNuResearchSource:
             research_need_id=need.id,
             question_key=research_question_key(need.question),
             claim_ids=[claim.id for claim in grounded_claims],
+            source_type=self.source_type,
         )
         return research_evidence(
             research_need_id=need.id,

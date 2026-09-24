@@ -11,7 +11,13 @@ from sqlalchemy.pool import StaticPool
 
 from app.config import settings
 from app.database.base import Base
-from app.database.models import Kund
+from app.database.models import (
+    CanonicalDocumentRecord,
+    DocumentVersionRecord,
+    KnowledgeClaimRecord,
+    Kund,
+    TextUnitRecord,
+)
 from app.services.execution import (
     create_attempt,
     create_run,
@@ -19,6 +25,12 @@ from app.services.execution import (
     list_evidence_items,
     list_need_executions,
     list_runtime_needs,
+)
+from app.services.knowledge.claims import (
+    KnowledgeClaim,
+    answer_research_need,
+    knowledge_claim_id,
+    persist_knowledge_claim,
 )
 from app.services.research import (
     ResearchNeed,
@@ -45,6 +57,7 @@ from app.services.research.knowledge_question import (
     identity_from_text,
     knowledge_question_identity_key,
     public_question_scope,
+    research_question_key,
     stable_evidence_ref,
     tenant_question_scope,
 )
@@ -57,6 +70,7 @@ from app.services.research.question_graph_memory import InMemoryQuestionEvidence
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_reuse import (
     classify_freshness,
+    gap_source_types,
     should_skip_providers,
     upsert_persisted_evidence,
 )
@@ -187,17 +201,46 @@ def test_evidence_visibility_is_public_only_when_provenance_says_so():
     assert evidence_visibility({}) == "tenant"
 
 
-def test_v1_reuse_gate_never_skips_providers():
+def _claim_backed(
+    *,
+    source_type: str = "case_knowledge",
+    freshness: str = "fresh",
+    claim_id: str = "claim-1",
+):
+    return research_evidence(
+        research_need_id="research_1",
+        source_type=source_type,
+        status="found",
+        excerpt="HD ansåg X",
+        metadata={
+            "knowledge_claim_ids": [claim_id],
+            "reuse": {
+                "origin": "persistent_knowledge",
+                "freshness": freshness,
+                "evidence_ref": claim_id,
+            },
+        },
+    )
+
+
+def test_reuse_gate_skips_only_when_fresh_claims_cover_the_need():
     need = _need("research_1", "case_knowledge")
-    fresh = research_evidence(
+    excerpt = research_evidence(
         research_need_id="research_1",
         source_type="case_knowledge",
         status="found",
         excerpt="current",
         metadata={"reuse": {"origin": "persistent_knowledge", "freshness": "fresh"}},
     )
-    assert should_skip_providers(need, [fresh]) is False
+    claim = _claim_backed()
+    stale = _claim_backed(freshness="stale")
+    assert should_skip_providers(need, [excerpt]) is False
     assert should_skip_providers(need, []) is False
+    assert should_skip_providers(need, [stale]) is False
+    assert should_skip_providers(need, [claim]) is True
+    multi = _need("research_1", "case_knowledge", "swedish_law")
+    assert should_skip_providers(multi, [claim]) is False
+    assert gap_source_types(multi, [claim]) == ["swedish_law"]
 
 
 def test_freshness_unknown_when_max_age_is_absent():
@@ -769,3 +812,185 @@ async def test_failed_graph_write_does_not_fail_ready_attempt(db):
     assert result.status == "ready"
     assert source.calls == 1
     assert items[0].status == "found"
+
+
+class _CanonicalizeProbeSource(RecordingSource):
+    def __init__(self, graph: InMemoryQuestionEvidenceGraph) -> None:
+        super().__init__("case_knowledge")
+        self.graph = graph
+        self.questions_at_call = 0
+
+    async def research(self, need: ResearchNeed, context):
+        self.questions_at_call = len(self.graph.questions())
+        return await super().research(need, context)
+
+
+async def _seed_claim_answer(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    question: str,
+    source_type: str,
+    unit_text: str = "HD ansåg att villkoret inte jämkas.",
+    created_at: datetime | None = None,
+) -> str:
+    session.add(
+        CanonicalDocumentRecord(
+            id="doc-claim",
+            customer_id=customer_id,
+            source_type="upload",
+            canonical_uri="doc://claim",
+            title="NJA 2005 s. 142",
+            extra={},
+        )
+    )
+    session.add(
+        DocumentVersionRecord(
+            id="ver-claim",
+            document_id="doc-claim",
+            content_hash="hash-claim",
+            mime_type="text/plain",
+            extra={},
+        )
+    )
+    session.add(
+        TextUnitRecord(
+            id="tu-claim",
+            document_version_id="ver-claim",
+            document_id="doc-claim",
+            section_id=None,
+            ordinal=0,
+            text=unit_text,
+            content_hash="tu-claim",
+        )
+    )
+    await session.flush()
+    value: dict[str, object] = {"value": False}
+    claim = KnowledgeClaim(
+        id=knowledge_claim_id(
+            document_version_id="ver-claim",
+            predicate="legal.adjustment_granted",
+            value=value,
+        ),
+        customer_id=customer_id,
+        document_id="doc-claim",
+        document_version_id="ver-claim",
+        predicate="legal.adjustment_granted",
+        value=value,
+        supporting_text_unit_ids=("tu-claim",),
+    )
+    await persist_knowledge_claim(session, claim)
+    await answer_research_need(
+        session,
+        research_need_id="prior-need",
+        question_key=research_question_key(question),
+        claim_ids=[claim.id],
+        source_type=source_type,
+    )
+    if created_at is not None:
+        row = await session.get(KnowledgeClaimRecord, claim.id)
+        assert row is not None
+        row.created_at = created_at
+    await session.flush()
+    return claim.id
+
+
+@pytest.mark.asyncio
+async def test_canonicalize_matches_knowledge_question_before_retrieve(db):
+    session, _factory = db
+    graph = InMemoryQuestionEvidenceGraph()
+    customer, _run, attempt = await _created_attempt(session, slug="canon-co")
+    source = _CanonicalizeProbeSource(graph)
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=_router(source)[0],
+        question_graph=graph,
+    )
+    assert result.status == "ready"
+    assert source.questions_at_call == 1
+    identity = identity_from_text("Vad gäller skattesatsen?")
+    matched = await graph.match_question(
+        session, identity, tenant_question_scope(customer.id)
+    )
+    assert matched is not None
+    assert matched.identity_key == identity.identity_key
+
+
+@pytest.mark.asyncio
+async def test_fresh_claims_skip_providers_and_leave_source_gaps(db):
+    session, _factory = db
+    graph = InMemoryQuestionEvidenceGraph()
+    customer, run, first = await _created_attempt(session, slug="claim-reuse")
+    await _seed_claim_answer(
+        session,
+        customer_id=customer.id,
+        question="  VAD   gäller skattesatsen?  ",
+        source_type="case_knowledge",
+    )
+    await session.commit()
+    covered = RecordingSource("case_knowledge", excerpt="should not run")
+    result = await execute_attempt_research(
+        session,
+        attempt_id=first.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=_router(covered)[0],
+        question_graph=graph,
+    )
+    items = await list_evidence_items(session, result.evidence_set_id)
+    assert covered.calls == 0
+    assert [item.excerpt for item in items] == ["HD ansåg att villkoret inte jämkas."]
+    assert items[0].provenance["knowledge_claim_ids"]
+    assert items[0].provenance["reuse"]["origin"] == "persistent_knowledge"
+
+    second = await create_attempt(
+        session,
+        run_id=run.id,
+        attempt_type="generic_panel",
+        configuration_snapshot={"model": "config-a"},
+        input_snapshot={"question": "Vad gäller skattesatsen?"},
+    )
+    law = RecordingSource("swedish_law", excerpt="SFS live")
+    gap_result = await execute_attempt_research(
+        session,
+        attempt_id=second.id,
+        research_plan=ResearchPlan(
+            needs=[_need("research_1", "case_knowledge", "swedish_law")]
+        ),
+        router=_router(covered, law)[0],
+        question_graph=graph,
+    )
+    gap_items = await list_evidence_items(session, gap_result.evidence_set_id)
+    assert covered.calls == 0
+    assert law.calls == 1
+    excerpts = {item.excerpt for item in gap_items}
+    assert "HD ansåg att villkoret inte jämkas." in excerpts
+    assert "SFS live" in excerpts
+
+
+@pytest.mark.asyncio
+async def test_stale_claims_still_call_providers(db, monkeypatch):
+    monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 1)
+    session, _factory = db
+    graph = InMemoryQuestionEvidenceGraph()
+    customer, _run, attempt = await _created_attempt(session, slug="stale-claim")
+    await _seed_claim_answer(
+        session,
+        customer_id=customer.id,
+        question="Vad gäller skattesatsen?",
+        source_type="case_knowledge",
+        created_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    await session.commit()
+    live = RecordingSource("case_knowledge", excerpt="live retrieval")
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=_router(live)[0],
+        question_graph=graph,
+    )
+    items = await list_evidence_items(session, result.evidence_set_id)
+    assert live.calls == 1
+    assert "live retrieval" in {item.excerpt for item in items}

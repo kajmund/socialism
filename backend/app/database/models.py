@@ -1904,6 +1904,7 @@ class KnowledgeClaimAnswer(Base):
             name="uq_knowledge_claim_answer_need",
         ),
         Index("ix_knowledge_claim_answers_question_key", "question_key"),
+        Index("ix_knowledge_claim_answers_source_type", "source_type"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -1914,6 +1915,12 @@ class KnowledgeClaimAnswer(Base):
     )
     research_need_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     question_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    knowledge_question_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     relation: Mapped[str] = mapped_column(String(32), nullable=False)
 
     claim: Mapped[KnowledgeClaimRecord] = relationship()

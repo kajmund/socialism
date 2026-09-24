@@ -86,7 +86,9 @@ lagen.nu research ranks current TextUnits in-process (question embed + ingest ve
 
 A `KnowledgeClaim` is an assertion. Support is `SUPPORTED_BY` one or more TextUnits (`knowledge_claims` + `knowledge_claim_text_units`). The knowledge core does not interpret predicate strings. The lagen.nu adapter projects `legal_claims` after interpret and grounds each citation quote to the interpreted units. A quote that is not in those units is `citation_grounding_failed`.
 
-`ResearchNeed` → `ANSWERED_BY` → Claim (`knowledge_claim_answers`, keyed by `question_key`) so reuse can find grounded answers instead of only evidence excerpts. Next: canonicalize runtime needs to `KnowledgeQuestion` and only research gaps.
+`ResearchNeed` → `ANSWERED_BY` → Claim (`knowledge_claim_answers`, keyed by `question_key` + `source_type`) so reuse can find grounded answers instead of only evidence excerpts.
+
+Runtime needs canonicalize to `KnowledgeQuestion` before live retrieval (identity_key = normalized `question_key`). Fresh grounded claims close their source type. Excerpt-only graph hits stay candidates and do not skip providers. Remaining source types are gaps and are the only natures retrieved. Stale claims are gaps.
 
 ### Phase 5 — temporal graph
 

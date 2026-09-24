@@ -15,9 +15,12 @@ from app.database.models import (
     Kund,
     TextUnitRecord,
 )
-from app.services.knowledge.claims import ANSWERED_BY, claims_answering_question_key
 from app.llm.legal_research import LegalDomainExtractionError
-from app.services.knowledge.claims import supporting_text_unit_ids_for_claim
+from app.services.knowledge.claims import (
+    ANSWERED_BY,
+    claims_answering_question_key,
+    supporting_text_unit_ids_for_claim,
+)
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.claim_grounding import ground_legal_claims
 from app.services.lagen_nu.models import SearchResults
@@ -159,6 +162,7 @@ async def test_research_persists_claims_on_interpreted_text_units():
         assert answers
         assert {row.relation for row in answers} == {ANSWERED_BY}
         assert {row.research_need_id for row in answers} == {evidence[0].research_need_id}
+        assert {row.source_type for row in answers} == {"swedish_case_law"}
         reused = await claims_answering_question_key(
             session,
             customer_id=7,
