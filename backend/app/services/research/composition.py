@@ -122,6 +122,13 @@ def require_knowledge_vector_store() -> KnowledgeVectorStore:
     return _vector_store_factory()
 
 
+def resolve_injected_research_router(session: AsyncSession) -> ResearchRouter | None:
+    """Test-injected router, or None so production keeps per-need sessions."""
+    if _router_factory is None:
+        return None
+    return _router_factory(session)
+
+
 def require_research_router_ready() -> None:
     """Fail closed if the standard router cannot be built.
 
