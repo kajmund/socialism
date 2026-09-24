@@ -24,6 +24,7 @@ class CompactResearchState:
     evidence_count: int
     clipped_evidence_count: int
     source_types: tuple[str, ...]
+    input_truncated: bool = False
 
 
 def compact_research_state(
@@ -37,7 +38,8 @@ def compact_research_state(
     max_evidence_items: int,
     max_state_chars: int,
 ) -> CompactResearchState:
-    items = sorted(evidence, key=lambda row: row.evidence_id)
+    # Preserve the caller's relevance ranking when clipping evidence.
+    items = list(evidence)
     clipped_count = max(0, len(items) - max_evidence_items)
     kept = items[:max_evidence_items]
     gap_ids = list(known_gaps) if known_gaps is not None else _programmatic_gaps(plan, evidence)
@@ -60,6 +62,7 @@ def compact_research_state(
             for row in runtime_needs
         ]
     encoded = _encode(payload)
+    input_truncated = clipped_count > 0 or len(encoded) > max_state_chars
     if len(encoded) > max_state_chars:
         payload = _shrink_to_budget(payload, max_state_chars)
         encoded = _encode(payload)
@@ -72,6 +75,7 @@ def compact_research_state(
         evidence_count=len(items),
         clipped_evidence_count=clipped_count,
         source_types=source_types,
+        input_truncated=input_truncated,
     )
 
 
@@ -112,7 +116,7 @@ def _need_row(need: ResearchNeed, evidence: Sequence[AssessableEvidence]) -> dic
         "why_needed": need.why_needed,
         "source_types": list(need.source_types),
         "found_evidence_count": len(found),
-        "status": "supported" if found else "unsupported",
+        "status": "retrieved" if found else "not_retrieved",
     }
 
 
@@ -121,6 +125,7 @@ def _evidence_row(item: AssessableEvidence) -> dict[str, Any]:
     row: dict[str, Any] = {
         "evidence_id": item.evidence_id,
         "research_need_id": item.research_need_id,
+        "research_need_ids": list(item.research_need_ids),
         "source_type": item.source_type,
         "status": item.status,
         "title": item.title,
@@ -152,6 +157,17 @@ def _programmatic_gaps(
 
 def _shrink_to_budget(payload: dict[str, Any], max_state_chars: int) -> dict[str, Any]:
     shrunk = dict(payload)
+    # Remove duplicated context before sacrificing the actual source excerpts.
+    shrunk["objective"] = str(shrunk.get("objective") or "")[:400]
+    shrunk["needs"] = [
+        {key: value for key, value in row.items() if key != "why_needed"}
+        for row in shrunk.get("needs", [])
+    ]
+    if "runtime_needs" in shrunk:
+        shrunk["runtime_needs"] = [
+            {key: value for key, value in row.items() if key not in {"question", "source_types"}}
+            for row in shrunk["runtime_needs"]
+        ]
     evidence = list(shrunk.get("evidence") or [])
     while evidence and len(_encode(shrunk)) > max_state_chars:
         evidence.pop()

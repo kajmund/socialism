@@ -165,7 +165,7 @@ class Settings(BaseSettings):
     # Jev is a research control primitive, not chat-LLM routing.
     research_jev_enabled: bool = False
     research_jev_mode: Literal["shadow", "active"] = "shadow"
-    research_jev_model: str = "jev-1.12"
+    research_jev_model: str = ""
     research_jev_sufficient_threshold: float = Field(default=0.9, ge=0.5, le=1.0)
     research_jev_incomplete_threshold: float = Field(default=0.85, ge=0.5, le=1.0)
     research_jev_confidence_threshold: float = Field(default=0.8, ge=0.5, le=1.0)
