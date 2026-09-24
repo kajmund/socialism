@@ -19,7 +19,9 @@ class FakeIndex:
         self.deleted_batches = []
         self.events = []
         self.query_kwargs = None
+        self.get_kwargs = None
         self.list_pages = []
+        self.get_vectors = []
 
     async def put(self, vectors):
         self.put_batches.append(vectors)
@@ -42,6 +44,10 @@ class FakeIndex:
                 )
             ]
         )
+
+    async def get(self, *keys, **kwargs):
+        self.get_kwargs = {"keys": keys, **kwargs}
+        return SimpleNamespace(vectors=list(self.get_vectors))
 
     async def list(self, **_kwargs):
         return self.list_pages.pop(0)
@@ -73,6 +79,31 @@ async def test_live_client_upserts_in_bounded_batches():
     assert first.data.float32 == [0.1, 0.2, 0.3]
     assert first.metadata["document_id"] == "doc-1"
     assert "nested" not in first.metadata
+
+
+async def test_live_client_gets_vectors_by_document_and_chunk_id():
+    index = FakeIndex()
+    index.get_vectors = [
+        VectorMatch(
+            key="ignored",
+            data=VectorData(float32=[0.4, 0.5, 0.6]),
+            metadata={
+                "document_id": "doc-1",
+                "chunk_id": "chunk-1",
+                "text": "Ett underlag",
+                "title": "Titel",
+                "document_version_id": "ver-1",
+            },
+        )
+    ]
+    client = SupabaseStorageVectorClient(index)
+    records = await client.get(document_id="doc-1", chunk_ids=["chunk-1"])
+    assert index.get_kwargs is not None
+    assert index.get_kwargs["return_data"] is True
+    assert index.get_kwargs["return_metadata"] is True
+    assert records[0].embedding == [0.4, 0.5, 0.6]
+    assert records[0].chunk_id == "chunk-1"
+    assert records[0].metadata["document_version_id"] == "ver-1"
 
 
 async def test_live_client_queries_with_scope_filters_and_normalizes_score():
