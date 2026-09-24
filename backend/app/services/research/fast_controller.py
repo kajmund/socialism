@@ -212,6 +212,8 @@ class ResearchFastController:
         )
         started = time.perf_counter()
         try:
+            if state.input_chars > settings.research_jev_max_state_chars:
+                raise JevClientError("Research state exceeds Jev input budget", category="invalid_request")
             result = await self.client.ask(
                 state=state.payload,
                 questions=questions,
@@ -276,12 +278,15 @@ def _decision_from_result(
         incomplete_threshold=settings.research_jev_incomplete_threshold,
         confidence_threshold=settings.research_jev_confidence_threshold,
     )
-    would_short_circuit = outcome == "sufficient"
+    would_short_circuit = outcome == "sufficient" and not state.input_truncated
     fallback_used = False
     fallback_reason = None
     if mode == "shadow":
         fallback_used = True
         fallback_reason = "shadow_mode"
+    elif state.input_truncated:
+        fallback_used = True
+        fallback_reason = "input_truncated"
     elif outcome == "uncertain":
         fallback_used = True
         fallback_reason = "uncertain"
