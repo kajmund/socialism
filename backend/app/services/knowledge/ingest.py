@@ -51,6 +51,8 @@ class KnowledgeIngestService:
         *,
         document_id: str,
         scope: KnowledgeScope,
+        source_type: str | None = None,
+        canonical_uri: str | None = None,
     ) -> KnowledgeIngestResult:
         require_scope(scope)
         document = await self._provider.get_document(document_id, scope)
@@ -71,7 +73,13 @@ class KnowledgeIngestService:
                 extracted=extracted,
             )
 
-        segmented = self._chunker.segment(extracted, document, content_hash=content_hash)
+        segmented = self._chunker.segment(
+            extracted,
+            document,
+            content_hash=content_hash,
+            source_type=source_type,
+            canonical_uri=canonical_uri,
+        )
         chunks = [text_unit_to_chunk(unit, document) for unit in segmented.text_units]
         if not chunks:
             return _result(

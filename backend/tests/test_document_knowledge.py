@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 
 from app.config import settings
 from app.database.models import (
+    CanonicalDocumentRecord,
     DocumentKnowledgeItem,
     DocumentKnowledgeRevision,
     Job,
@@ -213,6 +214,10 @@ async def test_document_ingest_generates_anchored_items_and_case_knowledge(
             )
             assert units
             assert any("Avtalet galler" in unit.text for unit in units)
+            canonical = await session.get(CanonicalDocumentRecord, source.id)
+            assert canonical is not None
+            assert canonical.source_type == "uploaded_file"
+            assert canonical.canonical_uri == f"stored-object:{source.id}"
 
             provider = SupabaseKnowledgeProvider(
                 session,

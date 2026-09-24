@@ -34,6 +34,8 @@ class KnowledgeDocument:
     mime_type: str
     scope: KnowledgeScope
     version: str | None = None
+    source_type: str | None = None
+    canonical_uri: str | None = None
     metadata: dict[str, object] = field(default_factory=dict)
 
 

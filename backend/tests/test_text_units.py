@@ -16,12 +16,19 @@ from app.services.document_knowledge import (
     _accepted_generated_items,
     supporting_text_unit_ids,
 )
+from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.chunking import KnowledgeChunker, make_chunk_id
 from app.services.knowledge.extractors import ExtractedBlock, ExtractedDocument
 from app.services.knowledge.models import KnowledgeDocument, KnowledgeScope
-from app.services.knowledge.persistence import current_text_units, persist_segmented_document
+from app.services.knowledge.persistence import (
+    current_text_units,
+    get_canonical_document_by_identity,
+    persist_segmented_document,
+)
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
 from app.services.knowledge.units import TextUnit, hash_text, make_text_unit_id
+from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
+from tests.knowledge_fakes import FakeEmbeddingProvider
 
 KNOWLEDGE_CORE = (
     Path(__file__).resolve().parents[1]
@@ -291,6 +298,98 @@ async def test_persist_keeps_stable_ids_and_supersedes_removed_units(session: As
     document = await session.get(CanonicalDocumentRecord, "doc-a")
     assert document is not None
     assert document.source_type == "uploaded_file"
+
+
+async def test_extracted_source_reuses_canonical_identity(session: AsyncSession):
+    kund = Kund(name="acme", slug="acme", available_modules=["dd"])
+    session.add(kund)
+    await session.flush()
+    extracted = _extracted(
+        ExtractedBlock(text="Shared public source passage.", locator="page:1", metadata={"page": 1})
+    )
+    store = MemoryKnowledgeVectorStore()
+    embeddings = FakeEmbeddingProvider()
+    first = await ingest_extracted_source(
+        session,
+        customer_id=kund.id,
+        extracted=extracted,
+        document=_document(document_id="fetch-1", version="v1"),
+        source_type="public_document",
+        canonical_uri="https://example.test/sources/alpha",
+        content_hash="hash-alpha",
+        embeddings=embeddings,
+        vector_store=store,
+    )
+    second = await ingest_extracted_source(
+        session,
+        customer_id=kund.id,
+        extracted=extracted,
+        document=_document(document_id="fetch-2", version="v1"),
+        source_type="public_document",
+        canonical_uri="https://example.test/sources/alpha",
+        content_hash="hash-alpha",
+        embeddings=embeddings,
+        vector_store=store,
+    )
+    await session.flush()
+    assert first.document_id == "fetch-1"
+    assert second.document_id == "fetch-1"
+    assert first.status == "indexed"
+    assert second.status == "indexed"
+    row = await get_canonical_document_by_identity(
+        session,
+        customer_id=kund.id,
+        source_type="public_document",
+        canonical_uri="https://example.test/sources/alpha",
+    )
+    assert row is not None
+    assert row.id == "fetch-1"
+    assert row.source_type == "public_document"
+    assert {item.chunk.document_id for item in store.chunks} == {"fetch-1"}
+    assert len(embeddings.calls) == 1
+
+
+async def test_extracted_source_new_version_supersedes_text_units(session: AsyncSession):
+    kund = Kund(name="acme", slug="acme", available_modules=["dd"])
+    session.add(kund)
+    await session.flush()
+    store = MemoryKnowledgeVectorStore()
+    embeddings = FakeEmbeddingProvider()
+    first = await ingest_extracted_source(
+        session,
+        customer_id=kund.id,
+        extracted=_extracted(
+            ExtractedBlock(text="Original public passage.", locator="page:1", metadata={"page": 1})
+        ),
+        document=_document(document_id="fetch-1", version="v1"),
+        source_type="public_document",
+        canonical_uri="https://example.test/sources/beta",
+        content_hash="hash-old",
+        embeddings=embeddings,
+        vector_store=store,
+    )
+    second = await ingest_extracted_source(
+        session,
+        customer_id=kund.id,
+        extracted=_extracted(
+            ExtractedBlock(text="Revised public passage.", locator="page:1", metadata={"page": 1})
+        ),
+        document=_document(document_id="fetch-9", version="v2"),
+        source_type="public_document",
+        canonical_uri="https://example.test/sources/beta",
+        content_hash="hash-new",
+        embeddings=embeddings,
+        vector_store=store,
+    )
+    await session.flush()
+    assert first.document_id == second.document_id == "fetch-1"
+    current = await current_text_units(session, "fetch-1")
+    assert len(current) == 1
+    assert current[0].text == "Revised public passage."
+    removed = await session.get(TextUnitRecord, first.segmented.text_units[0].id)
+    assert removed is not None
+    assert removed.superseded_at is not None
+    assert {item.chunk.text for item in store.chunks} == {"Revised public passage."}
 
 
 def test_core_knowledge_modules_have_no_legal_domain_logic():

@@ -364,6 +364,8 @@ async def _run_document_ingest_job(
                 case_id=source.id,
                 module=source.module,
             ),
+            source_type="uploaded_file",
+            canonical_uri=f"stored-object:{source.id}",
         )
         source.extraction_status = _extraction_status(result.status)
         source.extracted_text = _extracted_text(result.extracted)
