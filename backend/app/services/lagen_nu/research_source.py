@@ -25,7 +25,7 @@ from app.llm.legal_research import (
     LegalInterpreter,
     LlmLegalInterpreter,
 )
-from app.services.knowledge.claims import persist_knowledge_claims
+from app.services.knowledge.claims import answer_research_need, persist_knowledge_claims
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.claim_grounding import ground_legal_claims
@@ -1147,6 +1147,12 @@ class LagenNuResearchSource:
             else f"{units[0].document_version_id}:{need.id}",
         )
         await persist_knowledge_claims(self._session, grounded_claims)
+        await answer_research_need(
+            self._session,
+            research_need_id=need.id,
+            question_key=research_question_key(need.question),
+            claim_ids=[claim.id for claim in grounded_claims],
+        )
         return research_evidence(
             research_need_id=need.id,
             source_type=self.source_type,
@@ -1191,6 +1197,7 @@ class LagenNuResearchSource:
                 passage_jev_clipped=routed.jev_clipped,
                 passage_interpreter_clipped=routed.interpreter_clipped,
                 knowledge_claim_ids=[claim.id for claim in grounded_claims],
+                answered_by_question_key=research_question_key(need.question),
             ),
         )
 

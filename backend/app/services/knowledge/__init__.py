@@ -3,9 +3,12 @@
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.chunking import KnowledgeChunker, text_unit_to_chunk
 from app.services.knowledge.claims import (
+    ANSWERED_BY,
     SUPPORTED_BY,
     KnowledgeClaim,
     KnowledgeClaimError,
+    answer_research_need,
+    claims_answering_question_key,
     persist_knowledge_claim,
     persist_knowledge_claims,
     supporting_text_unit_ids_for_quote,
@@ -71,6 +74,7 @@ from app.services.knowledge.vector_store import (
 )
 
 __all__ = [
+    "ANSWERED_BY",
     "SUPABASE_PROVIDER_ID",
     "SUPPORTED_BY",
     "CanonicalDocument",
@@ -111,7 +115,9 @@ __all__ = [
     "TextUnit",
     "TextUnitEmbeddingReader",
     "VectorBucketClient",
+    "answer_research_need",
     "build_knowledge_registry",
+    "claims_answering_question_key",
     "expand_text_unit_context",
     "get_canonical_document_by_identity",
     "get_current_document_version",

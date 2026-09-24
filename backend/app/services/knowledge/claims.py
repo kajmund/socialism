@@ -15,9 +15,14 @@ from typing import Protocol
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import KnowledgeClaimRecord, KnowledgeClaimTextUnit
+from app.database.models import (
+    KnowledgeClaimAnswer,
+    KnowledgeClaimRecord,
+    KnowledgeClaimTextUnit,
+)
 
 SUPPORTED_BY = "SUPPORTED_BY"
+ANSWERED_BY = "ANSWERED_BY"
 
 
 class KnowledgeClaimError(RuntimeError):
@@ -124,6 +129,88 @@ async def persist_knowledge_claim(
         )
     await session.flush()
     return row
+
+
+async def answer_research_need(
+    session: AsyncSession,
+    *,
+    research_need_id: str,
+    question_key: str,
+    claim_ids: Sequence[str],
+) -> None:
+    """ResearchNeed → ANSWERED_BY → Claim. Reuse looks up question_key."""
+    if not research_need_id.strip():
+        raise KnowledgeClaimError("research_need_id is required")
+    if not question_key.strip():
+        raise KnowledgeClaimError("question_key is required")
+    if not claim_ids:
+        raise KnowledgeClaimError("ANSWERED_BY requires at least one claim")
+    existing = {
+        row[0]
+        for row in (
+            await session.execute(
+                select(KnowledgeClaimAnswer.claim_id).where(
+                    KnowledgeClaimAnswer.research_need_id == research_need_id,
+                    KnowledgeClaimAnswer.claim_id.in_(list(claim_ids)),
+                )
+            )
+        ).all()
+    }
+    for claim_id in claim_ids:
+        if claim_id in existing:
+            continue
+        session.add(
+            KnowledgeClaimAnswer(
+                claim_id=claim_id,
+                research_need_id=research_need_id,
+                question_key=question_key,
+                relation=ANSWERED_BY,
+            )
+        )
+    await session.flush()
+
+
+async def claims_answering_question_key(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    question_key: str,
+) -> list[KnowledgeClaim]:
+    """Reuse: claims that already answer this question key for the tenant."""
+    rows = (
+        await session.execute(
+            select(KnowledgeClaimRecord, KnowledgeClaimAnswer)
+            .join(
+                KnowledgeClaimAnswer,
+                KnowledgeClaimAnswer.claim_id == KnowledgeClaimRecord.id,
+            )
+            .where(
+                KnowledgeClaimRecord.customer_id == customer_id,
+                KnowledgeClaimAnswer.question_key == question_key,
+                KnowledgeClaimAnswer.relation == ANSWERED_BY,
+            )
+            .order_by(KnowledgeClaimRecord.predicate, KnowledgeClaimRecord.id)
+        )
+    ).all()
+    seen: set[str] = set()
+    claims: list[KnowledgeClaim] = []
+    for record, _answer in rows:
+        if record.id in seen:
+            continue
+        seen.add(record.id)
+        support = await supporting_text_unit_ids_for_claim(session, record.id)
+        claims.append(
+            KnowledgeClaim(
+                id=record.id,
+                customer_id=record.customer_id,
+                document_id=record.document_id,
+                document_version_id=record.document_version_id,
+                predicate=record.predicate,
+                value=record.value,
+                supporting_text_unit_ids=tuple(support),
+            )
+        )
+    return claims
 
 
 async def supporting_text_unit_ids_for_claim(

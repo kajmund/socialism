@@ -1893,6 +1893,32 @@ class KnowledgeClaimTextUnit(Base):
     text_unit: Mapped[TextUnitRecord] = relationship()
 
 
+class KnowledgeClaimAnswer(Base):
+    """ResearchNeed → ANSWERED_BY → KnowledgeClaim."""
+
+    __tablename__ = "knowledge_claim_answers"
+    __table_args__ = (
+        UniqueConstraint(
+            "claim_id",
+            "research_need_id",
+            name="uq_knowledge_claim_answer_need",
+        ),
+        Index("ix_knowledge_claim_answers_question_key", "question_key"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    claim_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_claims.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    research_need_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    question_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    relation: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    claim: Mapped[KnowledgeClaimRecord] = relationship()
+
+
 class ExecutionRun(Base):
     """Generic work/investigation container (product: Run).
 
