@@ -56,6 +56,7 @@ def _unit(unit_id: str, text: str, *, ordinal: int = 0) -> TextUnitRecord:
         id=unit_id,
         document_version_id="ver-a",
         document_id="doc-a",
+        customer_id=1,
         section_id="s1",
         ordinal=ordinal,
         text=text,
