@@ -29,7 +29,7 @@ from app.services.document_knowledge import (
     supporting_text_unit_ids,
 )
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
-from app.services.knowledge.chunking import KnowledgeChunker, make_chunk_id
+from app.services.knowledge.chunking import KnowledgeChunker, make_chunk_id, text_unit_to_chunk
 from app.services.knowledge.extractors import ExtractedBlock, ExtractedDocument
 from app.services.knowledge.models import KnowledgeDocument, KnowledgeScope
 from app.services.knowledge.persistence import (
@@ -235,9 +235,11 @@ def test_chunk_projection_keeps_text_unit_provenance():
     extracted = _extracted(
         ExtractedBlock(text="Page one parties.", locator="page:1", metadata={"page": 1})
     )
+    document = _document()
     chunker = KnowledgeChunker(target_chars=80, overlap_chars=0)
-    chunks = chunker.chunk(extracted, _document())
-    units = chunker.segment(extracted, _document()).text_units
+    segmented = chunker.segment(extracted, document)
+    chunks = [text_unit_to_chunk(unit, document) for unit in segmented.text_units]
+    units = segmented.text_units
     assert len(chunks) == 1
     assert chunks[0].chunk_id == units[0].id
     assert chunks[0].locator == "page:1"

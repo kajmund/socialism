@@ -46,6 +46,7 @@ class KnowledgeChunker:
         content_hash: str | None = None,
         source_type: str | None = None,
         canonical_uri: str | None = None,
+        document_version_id: str | None = None,
     ) -> SegmentedDocument:
         return self._segmenter.segment(
             extracted,
@@ -53,16 +54,23 @@ class KnowledgeChunker:
             content_hash=content_hash,
             source_type=source_type,
             canonical_uri=canonical_uri,
+            document_version_id=document_version_id,
         )
 
     def chunk(
         self,
         extracted: ExtractedDocument,
         document: KnowledgeDocument,
+        *,
+        document_version_id: str | None = None,
     ) -> list[KnowledgeChunk]:
         return [
             text_unit_to_chunk(unit, document)
-            for unit in self.segment(extracted, document).text_units
+            for unit in self.segment(
+                extracted,
+                document,
+                document_version_id=document_version_id,
+            ).text_units
         ]
 
 
