@@ -727,6 +727,7 @@ async def test_current_document_version_is_unique(session: AsyncSession):
         DocumentVersionRecord(
             id="ver-1",
             document_id="doc-a",
+            customer_id=kund.id,
             content_hash="hash-1",
             mime_type="text/plain",
             extra={},
@@ -737,6 +738,7 @@ async def test_current_document_version_is_unique(session: AsyncSession):
         DocumentVersionRecord(
             id="ver-2",
             document_id="doc-a",
+            customer_id=kund.id,
             content_hash="hash-2",
             mime_type="text/plain",
             extra={},
