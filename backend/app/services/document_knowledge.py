@@ -14,9 +14,10 @@ from typing import Literal, Protocol
 import pdfplumber
 from openai import APITimeoutError
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.config import settings
 from app.database.models import (
@@ -946,10 +947,14 @@ async def _replace_text_unit_links(
             exact_quote=anchor.exact_text if anchor else None,
             units=units,
         )
-    for link in list(item.text_unit_links):
-        await session.delete(link)
-    await session.flush()
-    item.text_unit_links.clear()
+    if item.id:
+        await session.execute(
+            delete(DocumentKnowledgeItemTextUnit).where(
+                DocumentKnowledgeItemTextUnit.item_id == item.id
+            )
+        )
+        await session.flush()
+    set_committed_value(item, "text_unit_links", [])
     seen: set[str] = set()
     ordinal = 0
     for unit_id in ids:
