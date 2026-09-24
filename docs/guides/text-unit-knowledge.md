@@ -28,7 +28,7 @@ Microsoft GraphRAG inspired the primitives (`Document`, `TextUnit`, later `Entit
 
 Uploaded documents now ingest as `CanonicalDocument` → `DocumentVersion` → `DocumentSection` → `TextUnit`.
 
-- `CanonicalDocument` is stable source identity: `(customer_id, source_type, canonical_uri)`.
+- `CanonicalDocument` is stable source identity: `(scope_key, source_type, canonical_uri)` where `scope_key` is `shared` or `customer:{id}`. Customer copies never dedupe into shared or another tenant. See [knowledge-tenant-scope.md](knowledge-tenant-scope.md).
 - `DocumentVersion` is an immutable temporal occurrence. Reuse only when the incoming `content_hash` already matches the current version. A historical hash that returns creates a new version row. Provider `version` is metadata only.
 - Structure-aware segmentation prefers markup headings, numbered titles, and short all-caps display lines.
 - If no structure is found: extracted block boundaries, then paragraphs, then sentence-safe size splits.
