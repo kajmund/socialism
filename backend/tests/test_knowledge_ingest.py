@@ -473,12 +473,11 @@ async def test_same_document_version_text_reuses_chunk_id():
         "text/plain",
     )
     chunker = KnowledgeChunker(target_chars=80, overlap_chars=0)
-    first = chunker.chunk(extracted, document)
-    second = chunker.chunk(extracted, document)
+    first = chunker.chunk(extracted, document, document_version_id="ver-3")
+    second = chunker.chunk(extracted, document, document_version_id="ver-3")
     assert [chunk.chunk_id for chunk in first] == [chunk.chunk_id for chunk in second]
     assert first[0].chunk_id == make_chunk_id(
-        document_id="doc-a",
-        version="3",
+        document_version_id=first[0].metadata["document_version_id"],
         locator=first[0].locator,
         content_hash=first[0].content_hash or "",
     )

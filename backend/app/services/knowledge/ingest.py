@@ -6,11 +6,12 @@ import hashlib
 from dataclasses import dataclass
 from typing import Literal
 
-from app.services.knowledge.chunking import KnowledgeChunker
+from app.services.knowledge.chunking import KnowledgeChunker, text_unit_to_chunk
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.extractors import DefaultTextExtractor, ExtractedDocument, TextExtractor
 from app.services.knowledge.models import EmbeddedKnowledgeChunk, KnowledgeScope, require_scope
 from app.services.knowledge.provider import KnowledgeNotFoundError, KnowledgeProvider
+from app.services.knowledge.units import SegmentedDocument
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 
 IngestStatus = Literal["indexed", "empty", "unsupported", "needs_ocr", "failed"]
@@ -22,8 +23,11 @@ class KnowledgeIngestResult:
     status: IngestStatus
     chunks_indexed: int
     content_hash: str | None = None
+    document_version_id: str | None = None
+    reused_version: bool = False
     message: str | None = None
     extracted: ExtractedDocument | None = None
+    segmented: SegmentedDocument | None = None
 
 
 class KnowledgeIngestService:
@@ -49,6 +53,8 @@ class KnowledgeIngestService:
         *,
         document_id: str,
         scope: KnowledgeScope,
+        source_type: str | None = None,
+        canonical_uri: str | None = None,
     ) -> KnowledgeIngestResult:
         require_scope(scope)
         document = await self._provider.get_document(document_id, scope)
@@ -69,12 +75,25 @@ class KnowledgeIngestService:
                 extracted=extracted,
             )
 
-        chunks = self._chunker.chunk(extracted, document)
+        segmented = self._chunker.segment(
+            extracted,
+            document,
+            content_hash=content_hash,
+            source_type=source_type,
+            canonical_uri=canonical_uri,
+        )
+        chunks = [text_unit_to_chunk(unit, document) for unit in segmented.text_units]
         if not chunks:
-            return _result(document_id, "empty", content_hash, extracted=extracted)
+            return _result(
+                document_id,
+                "empty",
+                content_hash,
+                extracted=extracted,
+                segmented=segmented,
+            )
 
         try:
-            vectors = await self._embeddings.embed([chunk.text for chunk in chunks])
+            vectors = await self._embeddings.embed([unit.text for unit in segmented.text_units])
         except Exception as exc:  # noqa: BLE001 — keep the previous index searchable
             return _result(
                 document_id,
@@ -82,6 +101,7 @@ class KnowledgeIngestService:
                 content_hash,
                 message=str(exc),
                 extracted=extracted,
+                segmented=segmented,
             )
 
         if len(vectors) != len(chunks):
@@ -93,6 +113,7 @@ class KnowledgeIngestService:
                     f"EmbeddingProvider returned {len(vectors)} vectors for {len(chunks)} chunks"
                 ),
                 extracted=extracted,
+                segmented=segmented,
             )
 
         embedded = [
@@ -105,7 +126,9 @@ class KnowledgeIngestService:
             status="indexed",
             chunks_indexed=len(embedded),
             content_hash=content_hash,
+            document_version_id=segmented.version.id,
             extracted=extracted,
+            segmented=segmented,
         )
 
 
@@ -124,12 +147,15 @@ def _result(
     *,
     message: str | None = None,
     extracted: ExtractedDocument | None = None,
+    segmented: SegmentedDocument | None = None,
 ) -> KnowledgeIngestResult:
     return KnowledgeIngestResult(
         document_id=document_id,
         status=status,
         chunks_indexed=0,
         content_hash=content_hash,
+        document_version_id=segmented.version.id if segmented is not None else None,
         message=message,
         extracted=extracted,
+        segmented=segmented,
     )

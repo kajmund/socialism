@@ -91,7 +91,12 @@ def _plaintext_blocks(text: str) -> list[ExtractedBlock]:
         start = line_no
         end = start + block_text.count("\n")
         locator = f"line:{start}" if end == start else f"line:{start}-{end}"
-        blocks.append(ExtractedBlock(text=block_text, locator=locator, metadata={}))
+        metadata: dict[str, object] = {}
+        heading = re.fullmatch(r"(#{1,6})\s+\S.*", block_text)
+        if heading:
+            metadata["heading_level"] = len(heading.group(1))
+            metadata["kind"] = "heading"
+        blocks.append(ExtractedBlock(text=block_text, locator=locator, metadata=metadata))
         line_no = end + 2
     return blocks
 
@@ -129,8 +134,12 @@ def _extract_docx(content: bytes) -> ExtractedDocument:
         return ExtractedDocument(blocks=[], status="failed", message=str(exc))
     paragraphs = _html_blocks(html)
     blocks = [
-        ExtractedBlock(text=text, locator=f"paragraph:{index}", metadata={"paragraph": index})
-        for index, text in enumerate(paragraphs, start=1)
+        ExtractedBlock(
+            text=text,
+            locator=f"paragraph:{index}",
+            metadata={"paragraph": index, **meta},
+        )
+        for index, (text, meta) in enumerate(paragraphs, start=1)
     ]
     if not blocks:
         return ExtractedDocument(blocks=[], status="empty")
@@ -138,18 +147,21 @@ def _extract_docx(content: bytes) -> ExtractedDocument:
 
 
 class _HtmlBlockParser(HTMLParser):
+    _HEADING_LEVELS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5, "h6": 6}
     _BLOCK_TAGS = frozenset({"p", "h1", "h2", "h3", "h4", "h5", "h6", "li"})
 
     def __init__(self) -> None:
         super().__init__()
-        self.blocks: list[str] = []
+        self.blocks: list[tuple[str, dict[str, object]]] = []
         self._buf: list[str] = []
         self._depth = 0
+        self._tag: str | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag in self._BLOCK_TAGS:
             if self._depth == 0:
                 self._buf = []
+                self._tag = tag
             self._depth += 1
 
     def handle_endtag(self, tag: str) -> None:
@@ -159,15 +171,21 @@ class _HtmlBlockParser(HTMLParser):
         if self._depth == 0:
             text = "".join(self._buf).strip()
             if text:
-                self.blocks.append(text)
+                metadata: dict[str, object] = {}
+                level = self._HEADING_LEVELS.get(self._tag or "")
+                if level is not None:
+                    metadata["heading_level"] = level
+                    metadata["kind"] = "heading"
+                self.blocks.append((text, metadata))
             self._buf = []
+            self._tag = None
 
     def handle_data(self, data: str) -> None:
         if self._depth:
             self._buf.append(data)
 
 
-def _html_blocks(html: str) -> list[str]:
+def _html_blocks(html: str) -> list[tuple[str, dict[str, object]]]:
     parser = _HtmlBlockParser()
     parser.feed(html)
     parser.close()
@@ -175,4 +193,4 @@ def _html_blocks(html: str) -> list[str]:
         return parser.blocks
     stripped = re.sub(r"<[^>]+>", " ", html)
     text = re.sub(r"\s+", " ", stripped).strip()
-    return [text] if text else []
+    return [(text, {})] if text else []
