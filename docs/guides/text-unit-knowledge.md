@@ -82,6 +82,10 @@ Section-neighbour grouping is in place. Next: use Jev as a cheap passage gate so
 
 lagen.nu research ranks current TextUnits in-process (question embed + ingest vectors, cosine), Jev `relevant_to_question` keep/drops the top-K seeds, then expands same-section neighbours (`+/-1`). Neighbours are added after Jev so low-score context is not dropped. `LegalInterpreter` sees the expanded set, clipped to a deterministic char budget. Empty keep is `not_found` / `irrelevant_relation`. Jev or embedding failure is `selection_failed`. Production does not send the whole judgment. Next: freeze `EvidenceSet` from grounded TextUnits and claims.
 
+### Phase 4b — claims on TextUnits
+
+A `KnowledgeClaim` is an assertion. Support is `SUPPORTED_BY` one or more TextUnits (`knowledge_claims` + `knowledge_claim_text_units`). The knowledge core does not interpret predicate strings. The lagen.nu adapter projects `legal_claims` after interpret and grounds each citation quote to the interpreted units. A quote that is not in those units is `citation_grounding_failed`. Next: `ResearchNeed` → `ANSWERED_BY` → Claim.
+
 ### Phase 5 — temporal graph
 
 Claims and relationships carry valid time and system time. Graph mutations emit events (`DOCUMENT_ADDED`, `DOCUMENT_VERSION_ADDED`, `TEXT_UNIT_ADDED`, `CLAIM_ADDED`, `EDGE_ADDED`, …). Frozen EvidenceSets record `document_version_ids`, `text_unit_ids`, and `graph_revision_at_freeze`.

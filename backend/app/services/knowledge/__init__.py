@@ -2,6 +2,14 @@
 
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.chunking import KnowledgeChunker, text_unit_to_chunk
+from app.services.knowledge.claims import (
+    SUPPORTED_BY,
+    KnowledgeClaim,
+    KnowledgeClaimError,
+    persist_knowledge_claim,
+    persist_knowledge_claims,
+    supporting_text_unit_ids_for_quote,
+)
 from app.services.knowledge.embeddings import (
     EmbeddingProvider,
     EmbeddingSpec,
@@ -64,6 +72,7 @@ from app.services.knowledge.vector_store import (
 
 __all__ = [
     "SUPABASE_PROVIDER_ID",
+    "SUPPORTED_BY",
     "CanonicalDocument",
     "DefaultTextExtractor",
     "DocumentSection",
@@ -77,6 +86,8 @@ __all__ = [
     "ExtractedDocument",
     "KnowledgeChunk",
     "KnowledgeChunker",
+    "KnowledgeClaim",
+    "KnowledgeClaimError",
     "KnowledgeDocument",
     "KnowledgeError",
     "KnowledgeHit",
@@ -109,6 +120,9 @@ __all__ = [
     "make_document_version_id",
     "make_section_id",
     "make_text_unit_id",
+    "persist_knowledge_claim",
+    "persist_knowledge_claims",
     "persist_segmented_document",
+    "supporting_text_unit_ids_for_quote",
     "text_unit_to_chunk",
 ]
