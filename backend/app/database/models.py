@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text as sql_text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -1551,6 +1552,11 @@ class DocumentKnowledgeItem(Base):
         cascade="all, delete-orphan",
         order_by="DocumentKnowledgeRevision.revision",
     )
+    text_unit_links: Mapped[list["DocumentKnowledgeItemTextUnit"]] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+        order_by="DocumentKnowledgeItemTextUnit.ordinal",
+    )
 
 
 class DocumentKnowledgeAnchor(Base):
@@ -1613,6 +1619,210 @@ class DocumentKnowledgeRevision(Base):
     )
 
     item: Mapped[DocumentKnowledgeItem] = relationship(back_populates="revisions")
+
+
+class CanonicalDocumentRecord(Base):
+    """Stable source identity. Version-specific content lives on DocumentVersion."""
+
+    __tablename__ = "canonical_documents"
+    __table_args__ = (
+        UniqueConstraint(
+            "customer_id",
+            "source_type",
+            "canonical_uri",
+            name="uq_canonical_documents_source_identity",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    source_object_id: Mapped[str | None] = mapped_column(
+        ForeignKey("stored_objects.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    canonical_uri: Mapped[str] = mapped_column(String(1024), nullable=False)
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    domain: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    jurisdiction: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    versions: Mapped[list["DocumentVersionRecord"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="DocumentVersionRecord.ingested_at",
+    )
+
+
+class DocumentVersionRecord(Base):
+    """Immutable content snapshot. Supersede; do not overwrite."""
+
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        Index(
+            "uq_document_versions_current",
+            "document_id",
+            unique=True,
+            sqlite_where=sql_text("superseded_at IS NULL"),
+            postgresql_where=sql_text("superseded_at IS NULL"),
+        ),
+        Index("ix_document_versions_content_hash", "content_hash"),
+        Index("ix_document_versions_superseded_at", "superseded_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("canonical_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ingested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    document: Mapped[CanonicalDocumentRecord] = relationship(back_populates="versions")
+    sections: Mapped[list["DocumentSectionRecord"]] = relationship(
+        back_populates="document_version",
+        cascade="all, delete-orphan",
+        order_by="DocumentSectionRecord.ordinal",
+    )
+    text_units: Mapped[list["TextUnitRecord"]] = relationship(
+        back_populates="document_version",
+        cascade="all, delete-orphan",
+        order_by="TextUnitRecord.ordinal",
+    )
+
+
+class DocumentSectionRecord(Base):
+    """Hierarchical structural region inside a document version."""
+
+    __tablename__ = "document_sections"
+    __table_args__ = (
+        Index("ix_document_sections_document_ordinal", "document_id", "ordinal"),
+        Index(
+            "ix_document_sections_version_ordinal",
+            "document_version_id",
+            "ordinal",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_version_id: Mapped[str] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("canonical_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    parent_section_id: Mapped[str | None] = mapped_column(
+        ForeignKey("document_sections.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    type: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    document_version: Mapped[DocumentVersionRecord] = relationship(back_populates="sections")
+    text_units: Mapped[list["TextUnitRecord"]] = relationship(back_populates="section")
+
+
+class TextUnitRecord(Base):
+    """Canonical passage. Claims, Q&A, and research ground here."""
+
+    __tablename__ = "text_units"
+    __table_args__ = (
+        Index("ix_text_units_document_ordinal", "document_id", "ordinal"),
+        Index("ix_text_units_version_ordinal", "document_version_id", "ordinal"),
+        Index("ix_text_units_content_hash", "content_hash"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_version_id: Mapped[str] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("canonical_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    section_id: Mapped[str | None] = mapped_column(
+        ForeignKey("document_sections.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    locator: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    char_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    char_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ingested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    embedding_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    document_version: Mapped[DocumentVersionRecord] = relationship(back_populates="text_units")
+    section: Mapped[DocumentSectionRecord | None] = relationship(back_populates="text_units")
+
+
+class DocumentKnowledgeItemTextUnit(Base):
+    """Q&A / fact SUPPORTED_BY one or more TextUnits."""
+
+    __tablename__ = "document_knowledge_item_text_units"
+    __table_args__ = (
+        UniqueConstraint("item_id", "text_unit_id", name="uq_document_knowledge_item_text_unit"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    item_id: Mapped[str] = mapped_column(
+        ForeignKey("document_knowledge_items.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    text_unit_id: Mapped[str] = mapped_column(
+        ForeignKey("text_units.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    item: Mapped[DocumentKnowledgeItem] = relationship(back_populates="text_unit_links")
+    text_unit: Mapped[TextUnitRecord] = relationship()
 
 
 class ExecutionRun(Base):

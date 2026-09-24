@@ -104,6 +104,17 @@ class DocumentKnowledgeItemWrite(BaseModel):
     question: str | None = Field(default=None, max_length=4000)
     content: str | None = Field(default=None, max_length=12000)
     anchors: list[DocumentKnowledgeAnchorWrite] = Field(min_length=1, max_length=20)
+    supporting_text_unit_ids: list[str] = Field(default_factory=list, max_length=40)
+
+    @field_validator("supporting_text_unit_ids")
+    @classmethod
+    def clean_text_unit_ids(cls, value: list[str]) -> list[str]:
+        out: list[str] = []
+        for raw in value:
+            unit_id = str(raw or "").strip()
+            if unit_id and unit_id not in out:
+                out.append(unit_id[:64])
+        return out
 
     @field_validator("title", "question", "content")
     @classmethod
@@ -133,6 +144,7 @@ class DocumentKnowledgeItemUpdate(BaseModel):
     question: str | None = Field(default=None, max_length=4000)
     content: str | None = Field(default=None, max_length=12000)
     anchors: list[DocumentKnowledgeAnchorWrite] = Field(min_length=1, max_length=20)
+    supporting_text_unit_ids: list[str] = Field(default_factory=list, max_length=40)
 
     @model_validator(mode="after")
     def validate_shape(self):
@@ -150,6 +162,7 @@ class DocumentKnowledgeItemOut(BaseModel):
     question: str | None = None
     content: str | None = None
     retrieval_queries: list[str] = Field(default_factory=list)
+    supporting_text_unit_ids: list[str] = Field(default_factory=list)
     anchors: list[DocumentKnowledgeAnchorOut] = Field(default_factory=list)
     revision: int
     created_by_user_id: str | None = None

@@ -49,6 +49,7 @@ export type DocumentKnowledgeItem = {
   question: string | null
   content: string | null
   retrieval_queries: string[]
+  supporting_text_unit_ids?: string[]
   anchors: DocumentKnowledgeAnchor[]
   revision: number
   created_by_user_id: string | null
@@ -63,6 +64,7 @@ export type DocumentKnowledgeWrite = {
   question?: string | null
   content?: string | null
   anchors: DocumentKnowledgeAnchor[]
+  supporting_text_unit_ids?: string[]
 }
 
 export type UnderlagFile = {
