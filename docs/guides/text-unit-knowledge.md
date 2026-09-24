@@ -80,7 +80,7 @@ Section-neighbour grouping is in place. Next: use Jev as a cheap passage gate so
 
 ### Phase 4 — passage routing in front of LegalInterpreter
 
-lagen.nu research ranks current TextUnits in-process (embed + cosine), expands same-section neighbours, then Jev `relevant_to_question` keep/drops. `LegalInterpreter` sees only the kept passages. Empty keep is `not_found` / `irrelevant_relation`. Jev or embedding failure is `selection_failed`. Production does not send the whole judgment. Next: freeze `EvidenceSet` from grounded TextUnits and claims.
+lagen.nu research ranks current TextUnits in-process (question embed + ingest vectors, cosine), Jev `relevant_to_question` keep/drops the top-K seeds, then expands same-section neighbours (`+/-1`). Neighbours are added after Jev so low-score context is not dropped. `LegalInterpreter` sees the expanded set, clipped to a deterministic char budget. Empty keep is `not_found` / `irrelevant_relation`. Jev or embedding failure is `selection_failed`. Production does not send the whole judgment. Next: freeze `EvidenceSet` from grounded TextUnits and claims.
 
 ### Phase 5 — temporal graph
 

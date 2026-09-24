@@ -1,5 +1,6 @@
 """Knowledge layer: read API plus ingest. Isolated from panel / research-router / MCP."""
 
+from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.chunking import KnowledgeChunker, text_unit_to_chunk
 from app.services.knowledge.embeddings import (
     EmbeddingProvider,
@@ -12,25 +13,7 @@ from app.services.knowledge.extractors import (
     ExtractedDocument,
     TextExtractor,
 )
-from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.ingest import KnowledgeIngestResult, KnowledgeIngestService
-from app.services.knowledge.persistence import (
-    get_canonical_document_by_identity,
-    get_current_document_version,
-    list_document_versions,
-    persist_segmented_document,
-)
-from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
-from app.services.knowledge.units import (
-    CanonicalDocument,
-    DocumentSection,
-    DocumentVersion,
-    SegmentedDocument,
-    TextUnit,
-    make_document_version_id,
-    make_section_id,
-    make_text_unit_id,
-)
 from app.services.knowledge.models import (
     EmbeddedKnowledgeChunk,
     EmbeddedKnowledgeQuery,
@@ -40,6 +23,12 @@ from app.services.knowledge.models import (
     KnowledgeQuery,
     KnowledgeScope,
     KnowledgeScopeRequiredError,
+)
+from app.services.knowledge.persistence import (
+    get_canonical_document_by_identity,
+    get_current_document_version,
+    list_document_versions,
+    persist_segmented_document,
 )
 from app.services.knowledge.provider import (
     SUPABASE_PROVIDER_ID,
@@ -53,11 +42,23 @@ from app.services.knowledge.registry import (
     KnowledgeProviderRegistry,
     build_knowledge_registry,
 )
+from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
+from app.services.knowledge.units import (
+    CanonicalDocument,
+    DocumentSection,
+    DocumentVersion,
+    SegmentedDocument,
+    TextUnit,
+    make_document_version_id,
+    make_section_id,
+    make_text_unit_id,
+)
 from app.services.knowledge.vector_store import (
     KnowledgeVectorStore,
     MemoryKnowledgeVectorStore,
     SupabaseVectorBucketStore,
+    TextUnitEmbeddingReader,
     VectorBucketClient,
 )
 
@@ -88,8 +89,18 @@ __all__ = [
     "KnowledgeQuery",
     "KnowledgeScope",
     "KnowledgeScopeRequiredError",
+    "KnowledgeVectorStore",
+    "KnowledgeVectorStoreError",
+    "MemoryKnowledgeVectorStore",
+    "OpenAIEmbeddingProvider",
     "SegmentedDocument",
+    "SupabaseKnowledgeProvider",
+    "SupabaseVectorBucketStore",
+    "TextExtractor",
     "TextUnit",
+    "TextUnitEmbeddingReader",
+    "VectorBucketClient",
+    "build_knowledge_registry",
     "expand_text_unit_context",
     "get_canonical_document_by_identity",
     "get_current_document_version",
@@ -100,13 +111,4 @@ __all__ = [
     "make_text_unit_id",
     "persist_segmented_document",
     "text_unit_to_chunk",
-    "KnowledgeVectorStore",
-    "KnowledgeVectorStoreError",
-    "MemoryKnowledgeVectorStore",
-    "OpenAIEmbeddingProvider",
-    "SupabaseKnowledgeProvider",
-    "SupabaseVectorBucketStore",
-    "TextExtractor",
-    "VectorBucketClient",
-    "build_knowledge_registry",
 ]

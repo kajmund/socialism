@@ -66,7 +66,6 @@ from app.services.lagen_nu.text_unit_research import (
     current_lagen_nu_units,
     document_identity_uri,
     ingest_and_load_text_units,
-    join_text_units,
     require_lagen_nu_research_knowledge,
 )
 from app.services.lagen_nu.uris import compose_canonical_uri
@@ -902,9 +901,7 @@ class LagenNuResearchSource:
             try:
                 canonical_uri = document_identity_uri(uri)
             except LagenNuResearchKnowledgeError as exc:
-                found.append(
-                    self._failure(need, budget, "unsupported_source_shape", uri, str(exc))
-                )
+                found.append(self._failure(need, budget, "unsupported_source_shape", uri, str(exc)))
                 continue
             target_key = canonical_uri if pinpoint is None else f"{canonical_uri}#{pinpoint}"
             if target_key in seen:
@@ -994,9 +991,7 @@ class LagenNuResearchSource:
                     )
                 )
             except LagenNuResearchKnowledgeError as exc:
-                found.append(
-                    self._failure(need, budget, "fetch_failed", canonical_uri, str(exc))
-                )
+                found.append(self._failure(need, budget, "fetch_failed", canonical_uri, str(exc)))
             except PassageRoutingError as exc:
                 found.append(
                     self._failure(
@@ -1025,15 +1020,16 @@ class LagenNuResearchSource:
         reused_units: bool = False,
     ) -> ResearchEvidence:
         hit = candidate.hit
-        if self._embeddings is None:
+        if self._embeddings is None or self._vector_store is None:
             raise LagenNuResearchKnowledgeError(
-                "lagen.nu research requires embeddings for passage routing"
+                "lagen.nu research requires embeddings and stored TextUnit vectors"
             )
         try:
             routed = await self._require_passage_router().route(
                 question=need.question,
                 units=units,
                 embeddings=self._embeddings,
+                stored=self._vector_store,
             )
         except PassageRoutingError as exc:
             if exc.category == "irrelevant_relation":
@@ -1060,11 +1056,12 @@ class LagenNuResearchSource:
                         reused_text_units=reused_units,
                         canonical_document_id=units[0].document_id,
                         document_version_id=units[0].document_version_id,
+                        passage_candidate_ids=list(exc.seed_ids),
                         detail=str(exc),
                     ),
                 )
             raise
-        raw_document = join_text_units(routed.units).strip()
+        raw_document = routed.interpreter_text.strip()
         if not raw_document:
             raise LegalDomainExtractionError(
                 "retrieved document has no text", category="unsupported_source_shape"
@@ -1094,13 +1091,14 @@ class LagenNuResearchSource:
                     title=title,
                     canonical_uri=source_uri,
                     identifier=hit.identifier,
-                    publisher_url=(
-                        document.publisher_source_url if document is not None else None
-                    ),
+                    publisher_url=(document.publisher_source_url if document is not None else None),
                 ),
                 question=need.question,
                 raw_text=raw_document,
-                truncated=bool(document.truncated) if document is not None else False,
+                truncated=(
+                    (bool(document.truncated) if document is not None else False)
+                    or routed.interpreter_clipped
+                ),
                 context=context,
             )
         )
@@ -1169,9 +1167,12 @@ class LagenNuResearchSource:
                 reused_text_units=reused_units,
                 canonical_document_id=units[0].document_id,
                 document_version_id=units[0].document_version_id,
-                text_unit_ids=[unit.id for unit in routed.units],
+                text_unit_ids=list(routed.expanded_ids),
                 passage_candidate_ids=list(routed.candidate_ids),
+                passage_kept_ids=list(routed.kept_ids),
                 passage_router=routed.router,
+                passage_jev_clipped=routed.jev_clipped,
+                passage_interpreter_clipped=routed.interpreter_clipped,
             ),
         )
 
