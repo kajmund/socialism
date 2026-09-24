@@ -26,7 +26,10 @@
     "completeness": "complete",
     "source_reuse": {"synthetic_positive_case": {"max_document_fetches": 1, "group_count": 1}},
     "expert_claim_ids": ["positive", "negative", "commercial", "consumer", "contract_type", "preparatory"],
-    "expert_context_markers": ["adjusted the liability cap", "declined adjustment", "negotiated allocation of risk", "consumer's weaker position", "insurance", "special consumer protections interact"]
+    "expert_context_markers": ["adjusted the liability cap", "declined adjustment", "negotiated allocation of risk", "consumer's weaker position", "insurance", "special consumer protections interact"],
+    "blocked_retrieval_questions": [
+      "Vilka avgöranden från Marknadsdomstolen eller Konsumentombudsmannen finns där avtalsvillkor i konsumentförhållanden har lämnats utan avseende eller jämkats med stöd av 36 § avtalslagen?"
+    ]
   },
   "artifacts": {
     "plan_topics": ["adjusted_term_types", "positive_cases", "negative_cases", "commercial_factors", "consumer_factors", "contract_type_differences", "preparatory_and_consumer_specific_rules"],
@@ -71,6 +74,15 @@
     "expert_context": {
       "claim_ids": ["positive", "negative", "commercial", "consumer", "contract_type", "preparatory"],
       "text": "The positive case adjusted the liability cap after negotiated allocation of risk. The negative case declined adjustment in insurance despite the consumer's weaker position. Preparatory material explains that special consumer protections interact with the general clause."
-    }
+    },
+    "retrieval_questions": [
+      "Vilka typer av avtalsvillkor har faktiskt jämkats med stöd av 36 § avtalslagen i svensk rättspraxis?",
+      "Vilka HD- eller hovrättsavgöranden har faktiskt beviljat jämkning enligt 36 § avtalslagen, och av vilka skäl?",
+      "Vilka svenska rättsfall visar när jämkning enligt 36 § avtalslagen har nekats eller frågan lösts genom avtalstolkning?",
+      "Vilka faktorer väger tyngst vid oskälighetsbedömningen enligt 36 § avtalslagen i kommersiella avtal?",
+      "Vilka konsumentskyddshänsyn har varit avgörande i rättsfall om 36 § avtalslagen och konsumentavtal?",
+      "Hur skiljer sig bedömningen enligt 36 § avtalslagen mellan olika avtalstyper enligt svensk rättspraxis?",
+      "Vilket syfte och vilka bedömningsfaktorer för 36 § avtalslagen framgår av förarbetena?"
+    ]
   }
 }

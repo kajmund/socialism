@@ -1264,6 +1264,11 @@ def runtime_need_from_row(row: ResearchRuntimeNeed) -> RuntimeResearchNeed:
         source_completeness_pass=row.source_completeness_pass,
         source_gap=row.source_gap or "",
         question_key=row.question_key,
+        generated_from=row.generated_from_need_id or "",
+        original_need_id=row.original_need_id or "",
+        original_question=row.original_question or "",
+        normalization_reason=row.normalization_reason or "",
+        already_normalized=bool(row.already_normalized),
     )
 
 
@@ -1334,6 +1339,11 @@ async def persist_runtime_needs(
                 source_completeness_pass=need.source_completeness_pass,
                 source_gap=need.source_gap,
                 question_key=need.question_key,
+                generated_from_need_id=need.generated_from or None,
+                original_need_id=need.original_need_id or None,
+                original_question=need.original_question or None,
+                normalization_reason=need.normalization_reason or None,
+                already_normalized=need.already_normalized,
             )
         )
     await session.flush()

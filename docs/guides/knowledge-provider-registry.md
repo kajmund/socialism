@@ -18,6 +18,8 @@ ResearchNeed
   ↓ ResearchEvidence (provider, source type, locator, ids, url, score)
 ```
 
+Legal ResearchNeeds are validated in the legal planner adapter before this hop. A question that mixes institution and rule (for example Marknadsdomstolen/KO + 36 § AvtL) is rewritten or split there. The generic router stays domain-neutral. The lagen.nu adapter can still refuse an unmarked incoherent question without calling MCP.
+
 Routing stays programmatic. An LLM is not used to select providers. Embeddings are not used to select providers in v1; `rank_provider_candidates` is the seam for later semantic ranking over an already-filtered set.
 
 ## Migration from the source-type registry

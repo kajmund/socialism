@@ -425,6 +425,7 @@ async def run_expertgranskning_with_research(
             assessor=components["assessor"],
             follow_up_planner=components["planner"],
             completeness_reviewer=components["completeness_reviewer"],
+            need_normalizer=components.get("need_normalizer"),
         )
         result = await execute_research_question_dag(
             factory,

@@ -48,6 +48,11 @@ class FollowUpNeedDraft:
     parent_research_need_id: str | None = None
     source_gap: str = ""
     proposed_id: str = ""
+    generated_from: str = ""
+    original_need_id: str = ""
+    original_question: str = ""
+    normalization_reason: str = ""
+    already_normalized: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "source_types", list(self.source_types))
@@ -75,6 +80,11 @@ class RuntimeResearchNeed:
     source_completeness_pass: int | None = None
     source_gap: str = ""
     question_key: str = ""
+    generated_from: str = ""
+    original_need_id: str = ""
+    original_question: str = ""
+    normalization_reason: str = ""
+    already_normalized: bool = False
 
     def __post_init__(self) -> None:
         if self.origin not in RESEARCH_NEED_ORIGINS:
@@ -97,6 +107,11 @@ class RuntimeResearchNeed:
             domains=list(self.domains),
             modalities=list(self.modalities),
             capabilities=list(self.capabilities),
+            generated_from=self.generated_from,
+            original_need_id=self.original_need_id,
+            original_question=self.original_question,
+            normalization_reason=self.normalization_reason,
+            already_normalized=self.already_normalized,
         )
 
 
@@ -143,6 +158,11 @@ def runtime_needs_from_plan(
             capabilities=list(need.capabilities),
             origin="initial",
             wave_number=wave_number,
+            generated_from=need.generated_from,
+            original_need_id=need.original_need_id,
+            original_question=need.original_question,
+            normalization_reason=need.normalization_reason,
+            already_normalized=need.already_normalized,
         )
         for need in plan.needs
     ]
@@ -244,6 +264,11 @@ def validate_follow_up_drafts(
                             domains=list(draft.domains),
                             modalities=list(draft.modalities),
                             capabilities=list(draft.capabilities),
+                            generated_from=draft.generated_from,
+                            original_need_id=draft.original_need_id,
+                            original_question=draft.original_question,
+                            normalization_reason=draft.normalization_reason,
+                            already_normalized=draft.already_normalized,
                         )
                     ]
                 )
@@ -272,6 +297,11 @@ def validate_follow_up_drafts(
                 source_completeness_pass=source_completeness_pass,
                 source_gap=source_gap,
                 question_key=key,
+                generated_from=draft.generated_from,
+                original_need_id=draft.original_need_id,
+                original_question=draft.original_question,
+                normalization_reason=draft.normalization_reason,
+                already_normalized=draft.already_normalized,
             )
         )
     return accepted

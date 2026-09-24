@@ -8,6 +8,13 @@ import pytest
 from pydantic import ValidationError
 
 from app.services.lagen_nu.mcp_client import OfficialLagenNuMcpClient, parse_document
+from app.services.lagen_nu.question_validation import (
+    COMMERCIAL_AVTL_QUESTION,
+    MIXED_MD_AVTL_QUESTION,
+    ScriptedLegalQuestionValidator,
+    canonical_legal_question_verdicts,
+    forbidden_retrieval_questions,
+)
 from app.services.lagen_nu.research_source import MAX_DOCUMENT_CHARS, LagenNuResearchSource
 from app.services.legal_research_result import LegalResearchResult
 from app.services.research_domain_results import legal_claims
@@ -151,6 +158,45 @@ async def test_official_transport_resolve_fetch_interpret_actual_nja_path():
     assert evidence[0].status == "found"
     assert evidence[0].legal_result.case_law.adjustment_granted is False
     assert evidence[0].excerpt == NJA_QUOTE
+
+
+def test_36_eval_topics_do_not_send_mixed_md_avtl_to_retrieval():
+    topic_questions = [
+        COMMERCIAL_AVTL_QUESTION,
+        "Vilka konsumentskyddshänsyn har varit avgörande i rättsfall om 36 § avtalslagen och konsumentavtal?",
+        "Vilka HD- eller hovrättsavgöranden har faktiskt beviljat jämkning enligt 36 § avtalslagen, och av vilka skäl?",
+    ]
+    assert forbidden_retrieval_questions(topic_questions) == []
+    assert forbidden_retrieval_questions([*topic_questions, MIXED_MD_AVTL_QUESTION]) == [
+        MIXED_MD_AVTL_QUESTION
+    ]
+
+
+@pytest.mark.asyncio
+async def test_mixed_md_avtl_question_is_rejected_before_document_retrieval():
+    calls = []
+
+    async def handler(request):
+        payload = json.loads(request.content)
+        calls.append(payload.get("method") or payload.get("params", {}).get("name"))
+        raise AssertionError(f"must not retrieve mixed question: {payload}")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        client = OfficialLagenNuMcpClient(http=http)
+        provider = LagenNuResearchSource(
+            source_type="swedish_case_law",
+            client=client,
+            question_validator=ScriptedLegalQuestionValidator(
+                canonical_legal_question_verdicts()
+            ),
+        )
+        evidence = await provider.research(
+            _need("swedish_case_law", question=MIXED_MD_AVTL_QUESTION),
+            _context(),
+        )
+    assert calls == []
+    assert evidence[0].status == "not_found"
+    assert evidence[0].metadata["failure_category"] == "question_incoherent"
 
 
 def test_sou_source_is_ocr_and_truncation_is_preserved():
