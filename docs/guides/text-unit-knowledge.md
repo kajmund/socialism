@@ -78,9 +78,9 @@ Section-neighbour grouping is in place. Next: use Jev as a cheap passage gate so
 - `LegalResearchResult.raw_text` is the retrieved TextUnit corpus, not a parallel RawSource cache of MCP text.
 - Legal claim extraction is still later.
 
-### Phase 4 — research against ingested knowledge
+### Phase 4 — passage routing in front of LegalInterpreter
 
-lagen.nu research now goes `ResearchNeed` → resolve/search → ingest if needed → current TextUnits → interpreter. Next: embedding candidates + Jev relevance across already ingested units, then freeze `EvidenceSet` from grounded TextUnits and claims.
+lagen.nu research ranks current TextUnits in-process (embed + cosine), expands same-section neighbours, then Jev `relevant_to_question` keep/drops. `LegalInterpreter` sees only the kept passages. Empty keep is `not_found` / `irrelevant_relation`. Jev or embedding failure is `selection_failed`. Production does not send the whole judgment. Next: freeze `EvidenceSet` from grounded TextUnits and claims.
 
 ### Phase 5 — temporal graph
 

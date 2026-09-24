@@ -14,6 +14,7 @@ from app.services.lagen_nu.registration import (
     LAGEN_NU_EVIDENCE_NATURES,
     lagen_nu_capability_descriptors,
 )
+from app.services.lagen_nu.passage_router import JevPassageRouter
 from app.services.lagen_nu.research_source import LagenNuResearchSource
 from app.services.lagen_nu.selection import LagenNuPassageSelector
 from app.services.research.knowledge_source import KnowledgeResearchSource
@@ -242,6 +243,7 @@ def _compose_lagen_nu_source(
             session=session,
             embeddings=embeddings,
             vector_store=vector_store,
+            passage_router=JevPassageRouter(),
         ),
         descriptor,
     )

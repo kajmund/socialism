@@ -49,6 +49,11 @@ from app.services.lagen_nu.registration import (
     LAGEN_NU_PUBLICATION_NOTE,
     mcp_source_for_nature,
 )
+from app.services.lagen_nu.passage_router import (
+    JevPassageRouter,
+    LagenNuPassageRouter,
+    PassageRoutingError,
+)
 from app.services.lagen_nu.selection import (
     HitDecision,
     LagenNuPassageSelector,
@@ -528,6 +533,7 @@ class LagenNuResearchSource:
         embeddings: EmbeddingProvider | None = None,
         vector_store: KnowledgeVectorStore | None = None,
         question_validator: LegalQuestionValidator | None = None,
+        passage_router: LagenNuPassageRouter | None = None,
     ) -> None:
         if source_type not in LAGEN_NU_EVIDENCE_NATURES:
             raise ValueError(f"{source_type} is not implemented by the official lagen.nu adapter")
@@ -540,10 +546,16 @@ class LagenNuResearchSource:
         self._embeddings = embeddings
         self._vector_store = vector_store
         self._question_validator = question_validator
+        self._passage_router = passage_router
         self._owned_client: OfficialLagenNuMcpClient | None = None
 
     def _require_selector(self) -> LagenNuPassageSelector:
         return resolve_passage_selector(self._selector)
+
+    def _require_passage_router(self) -> LagenNuPassageRouter:
+        if self._passage_router is not None:
+            return self._passage_router
+        return JevPassageRouter()
 
     def _mcp(self) -> LagenNuMcpClient:
         if self._client is not None:
@@ -985,6 +997,17 @@ class LagenNuResearchSource:
                 found.append(
                     self._failure(need, budget, "fetch_failed", canonical_uri, str(exc))
                 )
+            except PassageRoutingError as exc:
+                found.append(
+                    self._failure(
+                        need,
+                        budget,
+                        exc.category,
+                        canonical_uri,
+                        str(exc),
+                        fetch_success=True,
+                    )
+                )
         return found
 
     async def _from_document(
@@ -1002,7 +1025,46 @@ class LagenNuResearchSource:
         reused_units: bool = False,
     ) -> ResearchEvidence:
         hit = candidate.hit
-        raw_document = join_text_units(units).strip()
+        if self._embeddings is None:
+            raise LagenNuResearchKnowledgeError(
+                "lagen.nu research requires embeddings for passage routing"
+            )
+        try:
+            routed = await self._require_passage_router().route(
+                question=need.question,
+                units=units,
+                embeddings=self._embeddings,
+            )
+        except PassageRoutingError as exc:
+            if exc.category == "irrelevant_relation":
+                source_uri = compose_canonical_uri(canonical_uri, pinpoint)
+                title = display_source_title(
+                    uri=source_uri,
+                    identifier=hit.identifier,
+                    title=(document.title if document is not None else None) or hit.title,
+                )
+                return research_evidence(
+                    research_need_id=need.id,
+                    source_type=self.source_type,
+                    status="not_found",
+                    title=title,
+                    source_id=source_uri,
+                    source_url=source_uri,
+                    provider=self.provider_id,
+                    metadata=self._provenance(
+                        budget,
+                        reason="passage_router_empty",
+                        failure_category="irrelevant_relation",
+                        fetch_success=True,
+                        canonical_uri=source_uri,
+                        reused_text_units=reused_units,
+                        canonical_document_id=units[0].document_id,
+                        document_version_id=units[0].document_version_id,
+                        detail=str(exc),
+                    ),
+                )
+            raise
+        raw_document = join_text_units(routed.units).strip()
         if not raw_document:
             raise LegalDomainExtractionError(
                 "retrieved document has no text", category="unsupported_source_shape"
@@ -1107,7 +1169,9 @@ class LagenNuResearchSource:
                 reused_text_units=reused_units,
                 canonical_document_id=units[0].document_id,
                 document_version_id=units[0].document_version_id,
-                text_unit_ids=[unit.id for unit in units],
+                text_unit_ids=[unit.id for unit in routed.units],
+                passage_candidate_ids=list(routed.candidate_ids),
+                passage_router=routed.router,
             ),
         )
 
