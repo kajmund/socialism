@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -11,9 +12,9 @@ def hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def make_document_version_id(*, document_id: str, content_hash: str) -> str:
-    payload = f"{document_id}\0{content_hash}".encode()
-    return hashlib.sha256(payload).hexdigest()
+def make_document_version_id() -> str:
+    """Unique per temporal occurrence. Same content may recur; the id may not."""
+    return uuid.uuid4().hex
 
 
 def make_section_id(*, document_version_id: str, path: str) -> str:

@@ -38,6 +38,7 @@ from app.services.knowledge.persistence import (
     get_current_document_version,
     list_document_versions,
     persist_segmented_document,
+    text_units_for_version,
 )
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
 from app.services.knowledge.units import (
@@ -116,7 +117,7 @@ async def session():
 
 def test_text_unit_id_is_stable_for_same_passage():
     digest = hash_text("same passage")
-    version_id = make_document_version_id(document_id="doc-a", content_hash="doc-hash")
+    version_id = "ver-a"
     first = make_text_unit_id(
         document_version_id=version_id,
         locator="page:1",
@@ -136,7 +137,7 @@ def test_text_unit_id_is_stable_for_same_passage():
 
 
 def test_changed_passage_changes_text_unit_id():
-    version_id = make_document_version_id(document_id="doc-a", content_hash="doc-hash")
+    version_id = "ver-a"
     first = make_text_unit_id(
         document_version_id=version_id,
         locator="page:1",
@@ -153,16 +154,20 @@ def test_changed_passage_changes_text_unit_id():
 def test_new_document_version_changes_text_unit_id():
     digest = hash_text("same passage")
     first = make_text_unit_id(
-        document_version_id=make_document_version_id(document_id="doc-a", content_hash="hash-1"),
+        document_version_id="ver-1",
         locator="page:1",
         content_hash=digest,
     )
     second = make_text_unit_id(
-        document_version_id=make_document_version_id(document_id="doc-a", content_hash="hash-2"),
+        document_version_id="ver-2",
         locator="page:1",
         content_hash=digest,
     )
     assert first != second
+
+
+def test_document_version_id_is_unique_per_occurrence():
+    assert make_document_version_id() != make_document_version_id()
 
 
 def test_markdown_headings_create_nested_sections():
@@ -378,6 +383,76 @@ async def test_persist_changed_content_creates_immutable_version(session: AsyncS
     assert historical is not None
     assert historical.document_version_id == persisted_first.version.id
     assert historical.text == "First passage about parties."
+
+
+async def test_recurring_hash_creates_new_version_occurrence(session: AsyncSession):
+    kund = Kund(name="acme", slug="acme", available_modules=["dd"])
+    session.add(kund)
+    await session.flush()
+
+    async def persist(text: str, content_hash: str):
+        segmented = DocumentSegmenter().segment(
+            _extracted(ExtractedBlock(text=text, locator="page:1", metadata={"page": 1})),
+            _document(),
+            content_hash=content_hash,
+        )
+        return await persist_segmented_document(
+            session,
+            customer_id=kund.id,
+            source_object_id=None,
+            segmented=segmented,
+        ), segmented
+
+    first, first_segmented = await persist("Passage A.", "hash-A")
+    second, _second_segmented = await persist("Passage B.", "hash-B")
+    first_after_b = await session.get(DocumentVersionRecord, first.version.id)
+    assert first_after_b is not None
+    first_superseded_at = first_after_b.superseded_at
+    assert first_superseded_at is not None
+    third, third_segmented = await persist("Passage A.", "hash-A")
+    await session.flush()
+
+    documents = list((await session.execute(select(CanonicalDocumentRecord))).scalars().all())
+    versions = await list_document_versions(session, "doc-a")
+    current = await get_current_document_version(session, "doc-a")
+    first_again = await session.get(DocumentVersionRecord, first.version.id)
+    second_after = await session.get(DocumentVersionRecord, second.version.id)
+    first_units = await text_units_for_version(session, first.version.id)
+    third_units = await text_units_for_version(session, third.version.id)
+    historical = await session.get(TextUnitRecord, first_segmented.text_units[0].id)
+
+    assert len(documents) == 1
+    assert len(versions) == 3
+    assert first.reused_current is False
+    assert second.reused_current is False
+    assert third.reused_current is False
+    assert first.version.id != third.version.id
+    assert first_again is not None
+    assert second_after is not None
+    assert first_again.superseded_at == first_superseded_at
+    assert first_again.content_hash == "hash-A"
+    assert second_after.content_hash == "hash-B"
+    assert second_after.superseded_at is not None
+    assert current is not None
+    assert current.id == third.version.id
+    assert current.content_hash == "hash-A"
+    assert current.superseded_at is None
+    assert first_again.superseded_at == second_after.ingested_at
+    assert second_after.superseded_at == third.version.ingested_at
+    assert [row.content_hash for row in versions] == ["hash-A", "hash-B", "hash-A"]
+    assert [row.id for row in versions] == [
+        first.version.id,
+        second.version.id,
+        third.version.id,
+    ]
+    assert {row.id for row in first_units} == {unit.id for unit in first_segmented.text_units}
+    assert {row.id for row in third_units} == {unit.id for unit in third_segmented.text_units}
+    assert {row.id for row in first_units}.isdisjoint({row.id for row in third_units})
+    assert historical is not None
+    assert historical.document_version_id == first.version.id
+    assert historical.text == "Passage A."
+    assert all(row.document_version_id == third.version.id for row in third_units)
+    assert all(row.text == "Passage A." for row in third_units)
 
 
 async def test_extracted_source_reuses_canonical_identity(session: AsyncSession):

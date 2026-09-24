@@ -69,7 +69,7 @@ flowchart LR
 | **ExecutionAttempt** | One concrete execution of an ExecutionRun (product: Attempt), with immutable snapshots once started. Table `execution_attempts`. |
 | **EvidenceSet** | Building, frozen, or failed knowledge snapshot reused by Attempts in the same ExecutionRun. |
 | **CanonicalDocument** | Stable source identity (upload, later lagen.nu / APIs). Deduplicated on `(customer_id, source_type, canonical_uri)`. |
-| **DocumentVersion** | Immutable content snapshot of a CanonicalDocument. New hash creates a new version; same hash reuses. |
+| **DocumentVersion** | Immutable temporal occurrence of a CanonicalDocument. Reuse only the current version when the hash matches; a recurring historical hash creates a new row. |
 | **DocumentSection** | Hierarchical structural region inside a DocumentVersion. |
 | **TextUnit** | Canonical passage belonging to one DocumentVersion. Embeddings, Q&A, and later claims/research ground here. |
 | **PersonaMessage** | Chat turns — library chat (`run_id` null) or run-scoped interview |

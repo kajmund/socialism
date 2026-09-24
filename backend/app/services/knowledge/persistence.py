@@ -63,18 +63,6 @@ async def list_document_versions(
     return list((await session.execute(stmt)).scalars().all())
 
 
-async def get_document_version_by_content_hash(
-    session: AsyncSession,
-    document_id: str,
-    content_hash: str,
-) -> DocumentVersionRecord | None:
-    stmt = select(DocumentVersionRecord).where(
-        DocumentVersionRecord.document_id == document_id,
-        DocumentVersionRecord.content_hash == content_hash,
-    )
-    return (await session.execute(stmt)).scalar_one_or_none()
-
-
 async def persist_segmented_document(
     session: AsyncSession,
     *,
@@ -114,30 +102,13 @@ async def persist_segmented_document(
         )
         session.add(row)
         await session.flush()
-    existing_version = await get_document_version_by_content_hash(
-        session,
-        row.id,
-        version.content_hash,
-    )
-    if existing_version is not None:
-        if existing_version.superseded_at is not None:
-            current = await get_current_document_version(session, row.id)
-            if current is not None and current.id != existing_version.id:
-                current.superseded_at = now
-            existing_version.superseded_at = None
-            await session.flush()
-            return PersistedDocumentGraph(
-                document=row,
-                version=existing_version,
-                reused_current=False,
-            )
+    current = await get_current_document_version(session, row.id)
+    if current is not None and current.content_hash == version.content_hash:
         return PersistedDocumentGraph(
             document=row,
-            version=existing_version,
+            version=current,
             reused_current=True,
         )
-
-    current = await get_current_document_version(session, row.id)
     if current is not None:
         current.superseded_at = now
         await session.flush()
@@ -185,6 +156,28 @@ async def text_units_for_version(
         .order_by(TextUnitRecord.ordinal.asc(), TextUnitRecord.id.asc())
     )
     return list((await session.execute(stmt)).scalars().all())
+
+
+def text_unit_from_record(row: TextUnitRecord) -> TextUnit:
+    return TextUnit(
+        id=row.id,
+        document_version_id=row.document_version_id,
+        document_id=row.document_id,
+        section_id=row.section_id,
+        ordinal=row.ordinal,
+        text=row.text,
+        content_hash=row.content_hash,
+        locator=row.locator,
+        page_start=row.page_start,
+        page_end=row.page_end,
+        char_start=row.char_start,
+        char_end=row.char_end,
+        valid_from=row.valid_from,
+        valid_to=row.valid_to,
+        ingested_at=row.ingested_at,
+        embedding_id=row.embedding_id,
+        metadata=dict(row.extra or {}),
+    )
 
 
 async def _insert_sections(

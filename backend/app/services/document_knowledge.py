@@ -41,7 +41,11 @@ from app.services.knowledge import (
     OpenAIEmbeddingProvider,
     SupabaseKnowledgeProvider,
 )
-from app.services.knowledge.persistence import current_text_units, persist_segmented_document
+from app.services.knowledge.persistence import (
+    current_text_units,
+    persist_segmented_document,
+    text_unit_from_record,
+)
 from app.services.knowledge.supabase_provider import supabase_external_id
 from app.services.knowledge.units import TextUnit
 from app.services.object_storage import KIND_UNDERLAG
@@ -387,7 +391,7 @@ async def _run_document_ingest_job(
                 "items_created": 0,
             }
 
-        await persist_segmented_document(
+        persisted = await persist_segmented_document(
             session,
             customer_id=source.customer_id,
             source_object_id=source.id,
@@ -397,6 +401,10 @@ async def _run_document_ingest_job(
         # them before optional LLM enrichment so a later generation failure
         # cannot leave an untracked index.
         await session.commit()
+        units = [
+            text_unit_from_record(row)
+            for row in await current_text_units(session, persisted.document.id)
+        ]
 
         prompts = await require_active_prompts(
             session,
@@ -406,13 +414,13 @@ async def _run_document_ingest_job(
         )
         data, _content_type = await read_stored_bytes(source)
         generation = await generate_document_knowledge(
-            units=result.segmented.text_units,
+            units=units,
             prompts=prompts,
         )
         accepted = await asyncio.to_thread(
             _accepted_generated_items,
             generation.items,
-            units=result.segmented.text_units,
+            units=units,
             pdf_bytes=data if source.content_type == "application/pdf" else None,
         )
         # A transient enrichment failure must not discard earlier generated
