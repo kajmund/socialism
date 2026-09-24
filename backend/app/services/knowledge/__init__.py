@@ -87,6 +87,14 @@ from app.services.knowledge.relationships import (
     relationships_touching,
     require_relation,
 )
+from app.services.knowledge.revalidation import (
+    IMPACT_THRESHOLD,
+    REVALIDATION_CLEAR,
+    REVALIDATION_IMPACTED,
+    RevalidationDecision,
+    RevalidationError,
+    revalidate_after_event,
+)
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
 from app.services.knowledge.units import (
@@ -116,7 +124,10 @@ __all__ = [
     "CORE_RELATIONS",
     "EDGE_ADDED",
     "GRAPH_EVENT_TYPES",
+    "IMPACT_THRESHOLD",
     "PART_OF",
+    "REVALIDATION_CLEAR",
+    "REVALIDATION_IMPACTED",
     "SAME_AS",
     "SUPABASE_PROVIDER_ID",
     "SUPPORTED_BY",
@@ -157,6 +168,8 @@ __all__ = [
     "KnowledgeVectorStoreError",
     "MemoryKnowledgeVectorStore",
     "OpenAIEmbeddingProvider",
+    "RevalidationDecision",
+    "RevalidationError",
     "SegmentedDocument",
     "SupabaseKnowledgeProvider",
     "SupabaseVectorBucketStore",
@@ -190,6 +203,7 @@ __all__ = [
     "record_graph_event",
     "relationships_touching",
     "require_relation",
+    "revalidate_after_event",
     "supersede_knowledge_claim",
     "supporting_text_unit_ids_for_quote",
     "text_unit_to_chunk",

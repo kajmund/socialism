@@ -2100,12 +2100,61 @@ class EvidenceSet(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    graph_revision_at_freeze: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     run: Mapped[ExecutionRun] = relationship(back_populates="evidence_sets")
     items: Mapped[list["EvidenceSetItem"]] = relationship(
         back_populates="evidence_set",
         cascade="all, delete-orphan",
     )
+    revalidations: Mapped[list["EvidenceSetRevalidation"]] = relationship(
+        back_populates="evidence_set",
+        cascade="all, delete-orphan",
+    )
+
+
+class EvidenceSetRevalidation(Base):
+    """Impact review of a frozen snapshot. The snapshot itself is immutable."""
+
+    __tablename__ = "evidence_set_revalidations"
+    __table_args__ = (
+        UniqueConstraint(
+            "evidence_set_id",
+            "graph_event_id",
+            name="uq_evidence_set_revalidation_event",
+        ),
+        Index("ix_evidence_set_revalidations_state", "state"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    evidence_set_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_sets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    graph_event_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_graph_events.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    question_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    knowledge_question_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    impact_noul: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    evidence_set: Mapped[EvidenceSet] = relationship(back_populates="revalidations")
 
 
 class ExecutionAttempt(Base):
