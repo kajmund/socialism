@@ -64,16 +64,22 @@ class DocumentSegmenter:
         document: KnowledgeDocument,
         *,
         content_hash: str | None = None,
-        source_type: str = "uploaded_file",
+        source_type: str | None = None,
         canonical_uri: str | None = None,
     ) -> SegmentedDocument:
         digest = content_hash or hash_text(
             "\n\n".join(block.text for block in extracted.blocks)
         )
+        resolved_type = source_type or document.source_type or "uploaded_file"
+        resolved_uri = (
+            canonical_uri
+            or document.canonical_uri
+            or f"{document.provider}:{document.external_id}"
+        )
         canonical = CanonicalDocument(
             id=document.document_id,
-            source_type=source_type,
-            canonical_uri=canonical_uri or f"{document.provider}:{document.external_id}",
+            source_type=resolved_type,
+            canonical_uri=resolved_uri,
             title=document.title,
             content_hash=digest,
             mime_type=document.mime_type,

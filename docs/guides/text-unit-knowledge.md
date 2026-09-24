@@ -40,6 +40,16 @@ Tables: `canonical_documents`, `document_sections`, `text_units`, `document_know
 
 Temporal fields present from the start: `valid_from` / `valid_to` (valid time) and `ingested_at` / `superseded_at` (system time). Re-ingest supersedes removed units instead of deleting them.
 
+External providers do not go through `StoredObject`. After they have bytes and a stable source identity they call `ingest_extracted_source`:
+
+```text
+resolve (source_type, canonical_uri)
+  → ingest_extracted_source(extracted, source_type, canonical_uri)
+      → same Section / TextUnit persist + embeddings
+```
+
+Same content hash reuses the existing document id and skips re-embedding. A new hash keeps the same canonical document and supersedes old TextUnits.
+
 ## Next phases
 
 ### Phase 2 — Q&A routing

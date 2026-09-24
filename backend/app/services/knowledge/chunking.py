@@ -44,8 +44,16 @@ class KnowledgeChunker:
         document: KnowledgeDocument,
         *,
         content_hash: str | None = None,
+        source_type: str | None = None,
+        canonical_uri: str | None = None,
     ) -> SegmentedDocument:
-        return self._segmenter.segment(extracted, document, content_hash=content_hash)
+        return self._segmenter.segment(
+            extracted,
+            document,
+            content_hash=content_hash,
+            source_type=source_type,
+            canonical_uri=canonical_uri,
+        )
 
     def chunk(
         self,

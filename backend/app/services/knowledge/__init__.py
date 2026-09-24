@@ -12,7 +12,12 @@ from app.services.knowledge.extractors import (
     ExtractedDocument,
     TextExtractor,
 )
+from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.ingest import KnowledgeIngestResult, KnowledgeIngestService
+from app.services.knowledge.persistence import (
+    get_canonical_document_by_identity,
+    persist_segmented_document,
+)
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
 from app.services.knowledge.units import (
     CanonicalDocument,
@@ -81,8 +86,11 @@ __all__ = [
     "SegmentedDocument",
     "TextUnit",
     "expand_text_unit_context",
+    "get_canonical_document_by_identity",
+    "ingest_extracted_source",
     "make_section_id",
     "make_text_unit_id",
+    "persist_segmented_document",
     "text_unit_to_chunk",
     "KnowledgeVectorStore",
     "KnowledgeVectorStoreError",

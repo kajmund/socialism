@@ -16,6 +16,22 @@ from app.serializers import utcnow
 from app.services.knowledge.units import CanonicalDocument, DocumentSection, SegmentedDocument, TextUnit
 
 
+async def get_canonical_document_by_identity(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    source_type: str,
+    canonical_uri: str,
+) -> CanonicalDocumentRecord | None:
+    stmt = select(CanonicalDocumentRecord).where(
+        CanonicalDocumentRecord.customer_id == customer_id,
+        CanonicalDocumentRecord.source_type == source_type,
+        CanonicalDocumentRecord.canonical_uri == canonical_uri,
+        CanonicalDocumentRecord.superseded_at.is_(None),
+    )
+    return (await session.execute(stmt)).scalar_one_or_none()
+
+
 async def persist_segmented_document(
     session: AsyncSession,
     *,
@@ -26,6 +42,19 @@ async def persist_segmented_document(
     now = utcnow()
     document = segmented.document
     row = await session.get(CanonicalDocumentRecord, document.id)
+    if row is None:
+        existing = await get_canonical_document_by_identity(
+            session,
+            customer_id=customer_id,
+            source_type=document.source_type,
+            canonical_uri=document.canonical_uri,
+        )
+        if existing is not None and existing.id != document.id:
+            raise ValueError(
+                "Canonical source identity already exists as "
+                f"{existing.id}; resolve that document_id before persist"
+            )
+        row = existing
     if row is None:
         row = CanonicalDocumentRecord(
             id=document.id,
