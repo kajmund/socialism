@@ -21,6 +21,11 @@ from app.services.knowledge.models import (
     scope_of,
 )
 from app.services.knowledge.provider import SUPABASE_PROVIDER_ID, KnowledgeVectorStoreError
+from app.services.knowledge.scope import (
+    SCOPE_CUSTOMER,
+    KnowledgeScopeError,
+    object_scope,
+)
 
 
 class TextUnitEmbeddingReader(Protocol):
@@ -118,13 +123,15 @@ def scope_filters(
 
 def record_in_scope(record: VectorBucketRecord, scope: KnowledgeScope) -> bool:
     meta = record.metadata
-    customer_id = _optional_int(meta.get("customer_id"))
-    if customer_id is None:
+    try:
+        owned_tenant = _scope_from_metadata(meta)
+    except KnowledgeScopeError:
         return False
     owned = scope_of(
-        customer_id=customer_id,
+        customer_id=owned_tenant.customer_id,
         case_id=_optional_str(meta.get("case_id")),
         module=_optional_str(meta.get("module")),
+        scope_type=owned_tenant.scope_type,
     )
     return scope_allows(owned=owned, requested=scope)
 
@@ -134,8 +141,19 @@ def chunk_in_scope(chunk: KnowledgeChunk, scope: KnowledgeScope) -> bool:
         customer_id=chunk.customer_id,
         case_id=chunk.case_id,
         module=chunk.module,
+        scope_type=chunk.scope_type,
     )
     return scope_allows(owned=owned, requested=scope)
+
+
+def _scope_from_metadata(meta: Mapping[str, Any]) -> object:
+    raw_type = meta.get("scope_type")
+    customer_id = _optional_int(meta.get("customer_id"))
+    if raw_type in (None, ""):
+        if customer_id is None:
+            raise KnowledgeScopeError("embedding metadata is missing knowledge scope")
+        return object_scope(SCOPE_CUSTOMER, customer_id)
+    return object_scope(str(raw_type), customer_id)
 
 
 def _optional_int(value: object) -> int | None:
@@ -229,6 +247,7 @@ def chunk_to_record(
         **chunk.metadata,
         "document_id": chunk.document_id,
         "chunk_id": chunk.chunk_id,
+        "scope_type": chunk.scope_type,
         "customer_id": chunk.customer_id,
         "case_id": chunk.case_id,
         "module": chunk.module,

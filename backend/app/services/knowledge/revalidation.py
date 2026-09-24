@@ -30,6 +30,11 @@ from app.services.knowledge.events import (
     EDGE_ADDED,
     utc_now,
 )
+from app.services.knowledge.scope import (
+    SCOPE_CUSTOMER,
+    KnowledgeScopeError,
+    scope_from_row,
+)
 
 REVALIDATION_CLEAR = "clear"
 REVALIDATION_IMPACTED = "impacted"
@@ -115,21 +120,23 @@ async def graph_impact_from_event(
 async def affected_frozen_evidence_sets(
     session: AsyncSession,
     *,
-    customer_id: int,
+    customer_id: int | None,
     impact: GraphImpact,
 ) -> list[EvidenceSet]:
     if not impact.question_keys and not impact.claim_ids and not impact.text_unit_ids:
         return []
-    rows = (
-        await session.execute(
-            select(EvidenceSet)
-            .join(ExecutionRun, ExecutionRun.id == EvidenceSet.run_id)
-            .where(
-                ExecutionRun.customer_id == customer_id,
-                EvidenceSet.status == "frozen",
-            )
+    query = (
+        select(EvidenceSet)
+        .join(ExecutionRun, ExecutionRun.id == EvidenceSet.run_id)
+        .where(EvidenceSet.status == "frozen")
+    )
+    if customer_id is not None:
+        query = query.where(ExecutionRun.customer_id == customer_id)
+    else:
+        raise KnowledgeScopeError(
+            "revalidation of customer graph events requires customer_id"
         )
-    ).scalars().all()
+    rows = (await session.execute(query)).scalars().all()
     affected: list[EvidenceSet] = []
     for evidence_set in rows:
         items = (
@@ -180,14 +187,19 @@ async def revalidate_after_event(
         raise RevalidationError("graph event is missing")
     event = row
     impact = await graph_impact_from_event(session, event)
+    event_scope = scope_from_row(event)
+    if event_scope.scope_type == SCOPE_CUSTOMER and event_scope.customer_id is None:
+        raise KnowledgeScopeError("customer graph event is missing customer_id")
     sets = await affected_frozen_evidence_sets(
         session,
-        customer_id=event.customer_id,
+        customer_id=event_scope.customer_id,
         impact=impact,
     )
     if not sets:
         return []
-    question_id = await _knowledge_question_id(session, impact.question_keys, event.customer_id)
+    question_id = await _knowledge_question_id(
+        session, impact.question_keys, event_scope
+    )
     question_key = impact.question_keys[0] if impact.question_keys else None
     try:
         noul: float | None = await _impact_noul(
@@ -272,7 +284,7 @@ async def _text_units_for_claims(
 async def _knowledge_question_id(
     session: AsyncSession,
     question_keys: Sequence[str],
-    customer_id: int,
+    scope: object,
 ) -> str | None:
     if not question_keys:
         return None
@@ -280,7 +292,7 @@ async def _knowledge_question_id(
         await session.execute(
             select(KnowledgeQuestionRow.id).where(
                 KnowledgeQuestionRow.identity_key == question_keys[0],
-                KnowledgeQuestionRow.customer_id == customer_id,
+                KnowledgeQuestionRow.scope_key == scope.scope_key,
             )
         )
     ).scalar_one_or_none()
