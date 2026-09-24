@@ -19,47 +19,35 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "knowledge_claim_answers",
-        sa.Column("source_type", sa.String(length=64), nullable=False),
-    )
-    op.add_column(
-        "knowledge_claim_answers",
-        sa.Column("knowledge_question_id", sa.String(length=64), nullable=True),
-    )
-    op.create_index(
-        "ix_knowledge_claim_answers_source_type",
-        "knowledge_claim_answers",
-        ["source_type"],
-    )
-    op.create_index(
-        "ix_knowledge_claim_answers_knowledge_question_id",
-        "knowledge_claim_answers",
-        ["knowledge_question_id"],
-    )
-    op.create_foreign_key(
-        "fk_knowledge_claim_answers_knowledge_question_id",
-        "knowledge_claim_answers",
-        "knowledge_questions",
-        ["knowledge_question_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
+    with op.batch_alter_table("knowledge_claim_answers") as batch:
+        batch.add_column(sa.Column("source_type", sa.String(length=64), nullable=False))
+        batch.add_column(
+            sa.Column("knowledge_question_id", sa.String(length=64), nullable=True)
+        )
+        batch.create_index(
+            "ix_knowledge_claim_answers_source_type",
+            ["source_type"],
+        )
+        batch.create_index(
+            "ix_knowledge_claim_answers_knowledge_question_id",
+            ["knowledge_question_id"],
+        )
+        batch.create_foreign_key(
+            "fk_knowledge_claim_answers_knowledge_question_id",
+            "knowledge_questions",
+            ["knowledge_question_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "fk_knowledge_claim_answers_knowledge_question_id",
-        "knowledge_claim_answers",
-        type_="foreignkey",
-    )
-    op.drop_index(
-        "ix_knowledge_claim_answers_knowledge_question_id",
-        table_name="knowledge_claim_answers",
-    )
-    op.drop_index(
-        "ix_knowledge_claim_answers_source_type",
-        table_name="knowledge_claim_answers",
-    )
-    op.drop_column("knowledge_claim_answers", "knowledge_question_id")
-    op.drop_column("knowledge_claim_answers", "source_type")
+    with op.batch_alter_table("knowledge_claim_answers") as batch:
+        batch.drop_constraint(
+            "fk_knowledge_claim_answers_knowledge_question_id",
+            type_="foreignkey",
+        )
+        batch.drop_index("ix_knowledge_claim_answers_knowledge_question_id")
+        batch.drop_index("ix_knowledge_claim_answers_source_type")
+        batch.drop_column("knowledge_question_id")
+        batch.drop_column("source_type")
