@@ -15,6 +15,13 @@ from app.database.models import (
     TextUnitRecord,
 )
 from app.serializers import utcnow
+from app.services.knowledge.scope import (
+    KnowledgeTenantScope,
+    persist_scope_fields,
+    require_persist_scope,
+    scope_from_row,
+    visible_to,
+)
 from app.services.knowledge.units import DocumentSection, SegmentedDocument, TextUnit
 
 
@@ -28,16 +35,47 @@ class PersistedDocumentGraph:
 async def get_canonical_document_by_identity(
     session: AsyncSession,
     *,
-    customer_id: int,
     source_type: str,
     canonical_uri: str,
+    customer_id: int | None = None,
+    scope: KnowledgeTenantScope | None = None,
 ) -> CanonicalDocumentRecord | None:
+    resolved = require_persist_scope(scope=scope, customer_id=customer_id)
     stmt = select(CanonicalDocumentRecord).where(
-        CanonicalDocumentRecord.customer_id == customer_id,
+        CanonicalDocumentRecord.scope_key == resolved.scope_key,
         CanonicalDocumentRecord.source_type == source_type,
         CanonicalDocumentRecord.canonical_uri == canonical_uri,
     )
     return (await session.execute(stmt)).scalar_one_or_none()
+
+
+async def get_readable_canonical_document_by_identity(
+    session: AsyncSession,
+    *,
+    reader_customer_id: int,
+    source_type: str,
+    canonical_uri: str,
+) -> CanonicalDocumentRecord | None:
+    """Customer copy wins. Otherwise shared. Never another customer."""
+    owned = await get_canonical_document_by_identity(
+        session,
+        customer_id=reader_customer_id,
+        source_type=source_type,
+        canonical_uri=canonical_uri,
+    )
+    if owned is not None:
+        return owned
+    shared = await get_canonical_document_by_identity(
+        session,
+        scope=require_persist_scope(scope_type="shared"),
+        source_type=source_type,
+        canonical_uri=canonical_uri,
+    )
+    if shared is None:
+        return None
+    if not visible_to(owned=scope_from_row(shared), reader_customer_id=reader_customer_id):
+        raise RuntimeError("shared canonical document was not readable")
+    return shared
 
 
 async def get_current_document_version(
@@ -66,18 +104,24 @@ async def list_document_versions(
 async def persist_segmented_document(
     session: AsyncSession,
     *,
-    customer_id: int,
     segmented: SegmentedDocument,
+    customer_id: int | None = None,
+    scope: KnowledgeTenantScope | None = None,
     source_object_id: str | None = None,
 ) -> PersistedDocumentGraph:
     now = utcnow()
     document = segmented.document
     version = segmented.version
+    resolved = require_persist_scope(scope=scope, customer_id=customer_id)
     row = await session.get(CanonicalDocumentRecord, document.id)
+    if row is not None and scope_from_row(row) != resolved:
+        raise ValueError(
+            f"Canonical document {document.id} already exists in a different knowledge scope"
+        )
     if row is None:
         existing = await get_canonical_document_by_identity(
             session,
-            customer_id=customer_id,
+            scope=resolved,
             source_type=document.source_type,
             canonical_uri=document.canonical_uri,
         )
@@ -90,7 +134,6 @@ async def persist_segmented_document(
     if row is None:
         row = CanonicalDocumentRecord(
             id=document.id,
-            customer_id=customer_id,
             source_object_id=source_object_id,
             source_type=document.source_type,
             canonical_uri=document.canonical_uri,
@@ -99,6 +142,7 @@ async def persist_segmented_document(
             jurisdiction=document.jurisdiction,
             created_at=now,
             extra=dict(document.metadata),
+            **persist_scope_fields(resolved),
         )
         session.add(row)
         await session.flush()
@@ -128,11 +172,12 @@ async def persist_segmented_document(
         ingested_at=now,
         superseded_at=None,
         extra=dict(version.metadata),
+        **persist_scope_fields(resolved),
     )
     session.add(version_row)
     await session.flush()
-    await _insert_sections(session, version_row, segmented.sections)
-    await _insert_text_units(session, version_row, segmented.text_units, now)
+    await _insert_sections(session, version_row, segmented.sections, resolved)
+    await _insert_text_units(session, version_row, segmented.text_units, now, resolved)
     return PersistedDocumentGraph(document=row, version=version_row, reused_current=False)
 
 
@@ -192,7 +237,9 @@ async def _insert_sections(
     session: AsyncSession,
     version: DocumentVersionRecord,
     sections: Sequence[DocumentSection],
+    scope: KnowledgeTenantScope,
 ) -> None:
+    fields = persist_scope_fields(scope)
     for section in sections:
         session.add(
             DocumentSectionRecord(
@@ -206,6 +253,7 @@ async def _insert_sections(
                 page_start=section.page_start,
                 page_end=section.page_end,
                 extra=dict(section.metadata),
+                **fields,
             )
         )
     await session.flush()
@@ -216,7 +264,9 @@ async def _insert_text_units(
     version: DocumentVersionRecord,
     units: Sequence[TextUnit],
     now,
+    scope: KnowledgeTenantScope,
 ) -> None:
+    fields = persist_scope_fields(scope)
     for unit in units:
         session.add(
             TextUnitRecord(
@@ -237,6 +287,7 @@ async def _insert_text_units(
                 ingested_at=now,
                 embedding_id=unit.embedding_id or unit.id,
                 extra=dict(unit.metadata),
+                **fields,
             )
         )
     await session.flush()

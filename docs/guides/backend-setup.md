@@ -41,6 +41,8 @@ cp .env.example .env
 | `JEV_CONFIDENCE_THRESHOLD` | no | `0.6` | Below this, Auto uses the prompt/default fallback config |
 | `JEV_TIMEOUT_SECONDS` | no | `3` | Jev HTTP timeout |
 | `JEV_STATE_CHAR_BUDGET` | no | `8000` | Max message text sent to Jev |
+| `REVALIDATION_IMPACT_THRESHOLD` | no | `0.75` | Jev `material_change` noul at or above this marks a frozen EvidenceSet `impacted` |
+| `REVALIDATION_CLEAR_THRESHOLD` | no | `0.25` | Jev `material_change` noul at or below this marks `clear`; the band between is `revalidation_required`. Must stay below the impact threshold |
 | `RESEARCH_JEV_ENABLED` | no | `false` | Jev research control layer. Also requires `TYPESAFE_API_KEY` |
 | `RESEARCH_JEV_MODE` | no | `shadow` | `shadow` compares Jev to the current LLM; `active` may skip assessor/completeness LLM |
 | `RESEARCH_JEV_MODEL` | no | `JEV_MODEL` | Optional System One model override for research control |
