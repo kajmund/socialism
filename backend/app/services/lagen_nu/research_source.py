@@ -27,12 +27,15 @@ from app.llm.legal_research import (
 )
 from app.services.knowledge.claims import answer_research_need, persist_knowledge_claims
 from app.services.knowledge.embeddings import EmbeddingProvider
+from app.services.knowledge.entities import persist_knowledge_entities
+from app.services.knowledge.relationships import persist_knowledge_relationships
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.claim_grounding import ground_legal_claims
 from app.services.lagen_nu.display import (
     display_source_title,
     is_legal_front_matter,
 )
+from app.services.lagen_nu.legal_graph import ground_legal_graph
 from app.services.lagen_nu.mcp_client import (
     LagenNuMcpClient,
     OfficialLagenNuMcpClient,
@@ -1147,6 +1150,14 @@ class LagenNuResearchSource:
             else f"{units[0].document_version_id}:{need.id}",
         )
         await persist_knowledge_claims(self._session, grounded_claims)
+        graph_entities, graph_edges = ground_legal_graph(
+            legal_result,
+            grounded_claims,
+            customer_id=customer_id,
+            document_id=units[0].document_id,
+        )
+        await persist_knowledge_entities(self._session, graph_entities)
+        await persist_knowledge_relationships(self._session, graph_edges)
         await answer_research_need(
             self._session,
             research_need_id=need.id,

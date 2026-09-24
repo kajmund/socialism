@@ -1926,6 +1926,75 @@ class KnowledgeClaimAnswer(Base):
     claim: Mapped[KnowledgeClaimRecord] = relationship()
 
 
+class KnowledgeEntityRecord(Base):
+    """Named graph node. Type meaning belongs to adapters."""
+
+    __tablename__ = "knowledge_entities"
+    __table_args__ = (
+        UniqueConstraint(
+            "customer_id",
+            "entity_type",
+            "entity_key",
+            name="uq_knowledge_entities_identity",
+        ),
+        Index("ix_knowledge_entities_type", "entity_type"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    entity_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    entity_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    name: Mapped[str] = mapped_column(String(512), nullable=False)
+    extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class KnowledgeRelationshipRecord(Base):
+    """Typed edge between claim, entity, TextUnit, or document nodes."""
+
+    __tablename__ = "knowledge_relationships"
+    __table_args__ = (
+        UniqueConstraint(
+            "customer_id",
+            "relation",
+            "from_kind",
+            "from_id",
+            "to_kind",
+            "to_id",
+            name="uq_knowledge_relationships_edge",
+        ),
+        Index("ix_knowledge_relationships_from", "from_kind", "from_id"),
+        Index("ix_knowledge_relationships_to", "to_kind", "to_id"),
+        Index("ix_knowledge_relationships_relation", "relation"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    relation: Mapped[str] = mapped_column(String(64), nullable=False)
+    from_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    from_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    to_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    to_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
 class ExecutionRun(Base):
     """Generic work/investigation container (product: Run).
 
