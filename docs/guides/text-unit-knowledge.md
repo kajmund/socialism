@@ -98,7 +98,7 @@ The lagen.nu adapter projects explicit interpretation fields onto that graph aft
 
 ### Phase 5 — temporal graph
 
-Claims and relationships carry valid time and system time. Graph mutations emit events (`DOCUMENT_ADDED`, `DOCUMENT_VERSION_ADDED`, `TEXT_UNIT_ADDED`, `CLAIM_ADDED`, `EDGE_ADDED`, …). Frozen EvidenceSets record `document_version_ids`, `text_unit_ids`, and `graph_revision_at_freeze`.
+Claims and relationships carry valid time (`valid_from` / `valid_to`) and system time (`created_at` / `superseded_at`). Persist emits `CLAIM_ADDED` / `EDGE_ADDED`. `supersede_knowledge_claim` closes both clocks, optionally points at a successor, and emits `CLAIM_SUPERSEDED`. Events are append-only (`knowledge_graph_events`). Reuse ignores superseded claims. Frozen EvidenceSets still need `graph_revision_at_freeze` in the revalidation increment.
 
 ### Phase 6 — revalidation
 

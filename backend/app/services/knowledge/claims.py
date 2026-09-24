@@ -22,6 +22,12 @@ from app.database.models import (
     KnowledgeClaimTextUnit,
     KnowledgeQuestionRow,
 )
+from app.services.knowledge.events import (
+    CLAIM_ADDED,
+    CLAIM_SUPERSEDED,
+    record_graph_event,
+    utc_now,
+)
 
 SUPPORTED_BY = "SUPPORTED_BY"
 ANSWERED_BY = "ANSWERED_BY"
@@ -116,7 +122,10 @@ async def persist_knowledge_claim(
     if not claim.supporting_text_unit_ids:
         raise KnowledgeClaimError(f"claim {claim.id} has no SUPPORTED_BY TextUnits")
     row = await session.get(KnowledgeClaimRecord, claim.id)
+    if row is not None and row.superseded_at is not None:
+        raise KnowledgeClaimError(f"claim {claim.id} is superseded")
     if row is None:
+        now = utc_now()
         row = KnowledgeClaimRecord(
             id=claim.id,
             customer_id=claim.customer_id,
@@ -124,9 +133,20 @@ async def persist_knowledge_claim(
             document_version_id=claim.document_version_id,
             predicate=claim.predicate,
             value=claim.value,
+            valid_from=now,
+            created_at=now,
         )
         session.add(row)
         await session.flush()
+        await record_graph_event(
+            session,
+            customer_id=claim.customer_id,
+            event_type=CLAIM_ADDED,
+            node_kind="claim",
+            node_id=claim.id,
+            payload={"predicate": claim.predicate},
+            created_at=now,
+        )
     await session.execute(
         delete(KnowledgeClaimTextUnit).where(KnowledgeClaimTextUnit.claim_id == claim.id)
     )
@@ -140,6 +160,44 @@ async def persist_knowledge_claim(
             )
         )
     await session.flush()
+    return row
+
+
+async def supersede_knowledge_claim(
+    session: AsyncSession,
+    claim_id: str,
+    *,
+    successor: KnowledgeClaim | None = None,
+    at: datetime | None = None,
+    valid_to: datetime | None = None,
+) -> KnowledgeClaimRecord:
+    """Close valid/system time on a claim. History stays queryable."""
+    row = await session.get(KnowledgeClaimRecord, claim_id)
+    if row is None:
+        raise KnowledgeClaimError(f"claim {claim_id} is missing")
+    if row.superseded_at is not None:
+        raise KnowledgeClaimError(f"claim {claim_id} is already superseded")
+    stamp = at or utc_now()
+    successor_id = None
+    if successor is not None:
+        stored = await persist_knowledge_claim(session, successor)
+        successor_id = stored.id
+        if successor_id == claim_id:
+            raise KnowledgeClaimError("a claim cannot supersede itself")
+    row.superseded_at = stamp
+    row.valid_to = valid_to or stamp
+    row.successor_id = successor_id
+    await session.flush()
+    await record_graph_event(
+        session,
+        customer_id=row.customer_id,
+        event_type=CLAIM_SUPERSEDED,
+        node_kind="claim",
+        node_id=claim_id,
+        related_id=successor_id,
+        payload={"successor_id": successor_id} if successor_id else {},
+        created_at=stamp,
+    )
     return row
 
 
@@ -209,6 +267,7 @@ async def claim_answers_for_question_key(
             )
             .where(
                 KnowledgeClaimRecord.customer_id == customer_id,
+                KnowledgeClaimRecord.superseded_at.is_(None),
                 KnowledgeClaimAnswer.question_key == question_key,
                 KnowledgeClaimAnswer.relation == ANSWERED_BY,
             )
