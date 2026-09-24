@@ -152,8 +152,16 @@ async def text_units_for_version(
 ) -> list[TextUnitRecord]:
     stmt = (
         select(TextUnitRecord)
+        .outerjoin(
+            DocumentSectionRecord,
+            TextUnitRecord.section_id == DocumentSectionRecord.id,
+        )
         .where(TextUnitRecord.document_version_id == document_version_id)
-        .order_by(TextUnitRecord.ordinal.asc(), TextUnitRecord.id.asc())
+        .order_by(
+            DocumentSectionRecord.ordinal.asc().nullsfirst(),
+            TextUnitRecord.ordinal.asc(),
+            TextUnitRecord.id.asc(),
+        )
     )
     return list((await session.execute(stmt)).scalars().all())
 

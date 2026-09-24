@@ -387,6 +387,34 @@ async def test_persist_changed_content_creates_immutable_version(session: AsyncS
     assert historical.text == "First passage about parties."
 
 
+async def test_current_text_units_follow_section_then_unit_order(session: AsyncSession):
+    kund = Kund(name="acme", slug="acme", available_modules=["dd"])
+    session.add(kund)
+    await session.flush()
+    segmented = DocumentSegmenter().segment(
+        _extracted(
+            ExtractedBlock(text="# Parties", locator="line:1", metadata={"heading_level": 1}),
+            ExtractedBlock(text="Acme AB.", locator="line:3"),
+            ExtractedBlock(text="# Price", locator="line:5", metadata={"heading_level": 1}),
+            ExtractedBlock(text="100 SEK.", locator="line:7"),
+        ),
+        _document(),
+        content_hash="hash-order",
+    )
+    await persist_segmented_document(
+        session,
+        customer_id=kund.id,
+        source_object_id=None,
+        segmented=segmented,
+    )
+    await session.flush()
+    rows = await current_text_units(session, "doc-a")
+    assert [row.id for row in rows] == [unit.id for unit in segmented.text_units]
+    assert [row.section_id for row in rows] == [unit.section_id for unit in segmented.text_units]
+    assert any("Acme AB" in row.text for row in rows)
+    assert any("100 SEK" in row.text for row in rows)
+
+
 async def test_recurring_hash_creates_new_version_occurrence(session: AsyncSession):
     kund = Kund(name="acme", slug="acme", available_modules=["dd"])
     session.add(kund)

@@ -523,16 +523,34 @@ async def generate_document_knowledge(
 
 def _text_unit_batches(units: Sequence[TextUnit]) -> list[str]:
     batches: list[str] = []
+    for group in _neighbouring_section_groups(units):
+        batches.extend(_pack_rendered_units(group))
+    return batches
+
+
+def _neighbouring_section_groups(units: Sequence[TextUnit]) -> list[list[TextUnit]]:
+    grouped: dict[str, list[TextUnit]] = {}
+    order: list[str] = []
+    for unit in units:
+        if not unit.text.strip():
+            continue
+        key = unit.section_id or unit.id
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        grouped[key].append(unit)
+    return [
+        sorted(grouped[key], key=lambda item: (item.ordinal, item.id))
+        for key in order
+    ]
+
+
+def _pack_rendered_units(units: Sequence[TextUnit]) -> list[str]:
+    batches: list[str] = []
     current: list[str] = []
     size = 0
     for unit in units:
-        text = unit.text.strip()
-        if not text:
-            continue
-        rendered = (
-            f'<text_unit id="{unit.id}" locator="{(unit.locator or "unknown").strip()}">\n'
-            f"{text}\n</text_unit>"
-        )
+        rendered = _render_text_unit(unit)
         if current and size + len(rendered) > _BATCH_CHARS:
             batches.append("\n\n".join(current))
             current = []
@@ -549,6 +567,13 @@ def _text_unit_batches(units: Sequence[TextUnit]) -> list[str]:
     if current:
         batches.append("\n\n".join(current))
     return batches
+
+
+def _render_text_unit(unit: TextUnit) -> str:
+    return (
+        f'<text_unit id="{unit.id}" locator="{(unit.locator or "unknown").strip()}">\n'
+        f"{unit.text.strip()}\n</text_unit>"
+    )
 
 
 @dataclass(frozen=True)
