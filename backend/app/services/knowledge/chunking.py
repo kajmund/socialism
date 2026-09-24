@@ -72,6 +72,7 @@ def text_unit_to_chunk(unit: TextUnit, document: KnowledgeDocument) -> Knowledge
         raise ValueError("text_unit_to_chunk requires document.scope.customer_id")
     metadata: dict[str, object] = {
         "document_id": document.document_id,
+        "document_version_id": unit.document_version_id,
         "provider": document.provider,
         "version": document.version,
         "customer_id": customer_id,

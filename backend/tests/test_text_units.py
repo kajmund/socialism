@@ -6,11 +6,23 @@ import ast
 from pathlib import Path
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import CanonicalDocumentRecord, Kund, TextUnitRecord
+
+from app.database.models import (
+    CanonicalDocumentRecord,
+    DocumentKnowledgeItem,
+    DocumentKnowledgeItemTextUnit,
+    DocumentKnowledgeRevision,
+    DocumentVersionRecord,
+    Kund,
+    StoredObject,
+    TextUnitRecord,
+)
 from app.services.document_knowledge import (
     GeneratedDocumentKnowledge,
     _accepted_generated_items,
@@ -23,10 +35,17 @@ from app.services.knowledge.models import KnowledgeDocument, KnowledgeScope
 from app.services.knowledge.persistence import (
     current_text_units,
     get_canonical_document_by_identity,
+    get_current_document_version,
+    list_document_versions,
     persist_segmented_document,
 )
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
-from app.services.knowledge.units import TextUnit, hash_text, make_text_unit_id
+from app.services.knowledge.units import (
+    TextUnit,
+    hash_text,
+    make_document_version_id,
+    make_text_unit_id,
+)
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from tests.knowledge_fakes import FakeEmbeddingProvider
 
@@ -69,6 +88,7 @@ def _extracted(*blocks: ExtractedBlock) -> ExtractedDocument:
 def _unit(*, unit_id: str, text: str, locator: str, section_id: str = "sec-1") -> TextUnit:
     return TextUnit(
         id=unit_id,
+        document_version_id="ver-a",
         document_id="doc-a",
         section_id=section_id,
         ordinal=0,
@@ -96,39 +116,51 @@ async def session():
 
 def test_text_unit_id_is_stable_for_same_passage():
     digest = hash_text("same passage")
+    version_id = make_document_version_id(document_id="doc-a", content_hash="doc-hash")
     first = make_text_unit_id(
-        document_id="doc-a",
-        version="3",
+        document_version_id=version_id,
         locator="page:1",
         content_hash=digest,
     )
     second = make_text_unit_id(
-        document_id="doc-a",
-        version="3",
+        document_version_id=version_id,
         locator="page:1",
         content_hash=digest,
     )
     assert first == second
     assert first == make_chunk_id(
-        document_id="doc-a",
-        version="3",
+        document_version_id=version_id,
         locator="page:1",
         content_hash=digest,
     )
 
 
 def test_changed_passage_changes_text_unit_id():
+    version_id = make_document_version_id(document_id="doc-a", content_hash="doc-hash")
     first = make_text_unit_id(
-        document_id="doc-a",
-        version="1",
+        document_version_id=version_id,
         locator="page:1",
         content_hash=hash_text("alpha"),
     )
     second = make_text_unit_id(
-        document_id="doc-a",
-        version="1",
+        document_version_id=version_id,
         locator="page:1",
         content_hash=hash_text("beta"),
+    )
+    assert first != second
+
+
+def test_new_document_version_changes_text_unit_id():
+    digest = hash_text("same passage")
+    first = make_text_unit_id(
+        document_version_id=make_document_version_id(document_id="doc-a", content_hash="hash-1"),
+        locator="page:1",
+        content_hash=digest,
+    )
+    second = make_text_unit_id(
+        document_version_id=make_document_version_id(document_id="doc-a", content_hash="hash-2"),
+        locator="page:1",
+        content_hash=digest,
     )
     assert first != second
 
@@ -149,6 +181,7 @@ def test_markdown_headings_create_nested_sections():
     assert any("Acme AB" in unit.text for unit in parties)
     assert any("100 SEK" in unit.text for unit in price)
     assert all(unit.document_id == "doc-a" for unit in segmented.text_units)
+    assert all(unit.document_version_id == segmented.version.id for unit in segmented.text_units)
     assert all(unit.locator for unit in segmented.text_units)
 
 
@@ -245,6 +278,7 @@ def test_context_expansion_stays_in_section():
     units = [
         TextUnit(
             id=f"u{index}",
+            document_version_id="ver-a",
             document_id="doc-a",
             section_id="a" if index < 3 else "b",
             ordinal=index if index < 3 else index - 3,
@@ -258,46 +292,92 @@ def test_context_expansion_stays_in_section():
     assert all(unit.section_id == "a" for unit in expanded)
 
 
-async def test_persist_keeps_stable_ids_and_supersedes_removed_units(session: AsyncSession):
+async def test_persist_reuses_same_content_version(session: AsyncSession):
     kund = Kund(name="acme", slug="acme", available_modules=["dd"])
     session.add(kund)
     await session.flush()
     extracted = _extracted(
-        ExtractedBlock(text="First passage about parties.", locator="page:1", metadata={"page": 1}),
-        ExtractedBlock(text="Second passage about price.", locator="page:2", metadata={"page": 2}),
+        ExtractedBlock(text="Shared public source passage.", locator="page:1", metadata={"page": 1})
     )
-    first = DocumentSegmenter().segment(extracted, _document())
-    await persist_segmented_document(
+    first = DocumentSegmenter().segment(extracted, _document(), content_hash="hash-alpha")
+    second = DocumentSegmenter().segment(extracted, _document(), content_hash="hash-alpha")
+    persisted_first = await persist_segmented_document(
         session,
         customer_id=kund.id,
         source_object_id=None,
         segmented=first,
     )
+    persisted_second = await persist_segmented_document(
+        session,
+        customer_id=kund.id,
+        source_object_id=None,
+        segmented=second,
+    )
     await session.flush()
-    stored = await current_text_units(session, "doc-a")
-    assert {row.id for row in stored} == {unit.id for unit in first.text_units}
+    assert persisted_first.reused_current is False
+    assert persisted_second.reused_current is True
+    assert persisted_first.version.id == persisted_second.version.id
+    documents = list((await session.execute(select(CanonicalDocumentRecord))).scalars().all())
+    versions = await list_document_versions(session, "doc-a")
+    units = list((await session.execute(select(TextUnitRecord))).scalars().all())
+    assert len(documents) == 1
+    assert len(versions) == 1
+    assert {row.id for row in units} == {unit.id for unit in first.text_units}
 
+
+async def test_persist_changed_content_creates_immutable_version(session: AsyncSession):
+    kund = Kund(name="acme", slug="acme", available_modules=["dd"])
+    session.add(kund)
+    await session.flush()
+    first = DocumentSegmenter().segment(
+        _extracted(
+            ExtractedBlock(text="First passage about parties.", locator="page:1", metadata={"page": 1}),
+            ExtractedBlock(text="Second passage about price.", locator="page:2", metadata={"page": 2}),
+        ),
+        _document(),
+        content_hash="hash-old",
+    )
+    persisted_first = await persist_segmented_document(
+        session,
+        customer_id=kund.id,
+        source_object_id=None,
+        segmented=first,
+    )
     changed = DocumentSegmenter().segment(
         _extracted(ExtractedBlock(text="Only price remains.", locator="page:2", metadata={"page": 2})),
         _document(),
+        content_hash="hash-new",
     )
-    await persist_segmented_document(
+    persisted_second = await persist_segmented_document(
         session,
         customer_id=kund.id,
         source_object_id=None,
         segmented=changed,
     )
     await session.flush()
-    current = await current_text_units(session, "doc-a")
-    assert {row.id for row in current} == {unit.id for unit in changed.text_units}
-    removed = (
-        await session.get(TextUnitRecord, next(unit.id for unit in first.text_units if "parties" in unit.text))
+    documents = list((await session.execute(select(CanonicalDocumentRecord))).scalars().all())
+    versions = await list_document_versions(session, "doc-a")
+    current = await get_current_document_version(session, "doc-a")
+    current_units = await current_text_units(session, "doc-a")
+    historical = await session.get(
+        TextUnitRecord,
+        next(unit.id for unit in first.text_units if "parties" in unit.text),
     )
-    assert removed is not None
-    assert removed.superseded_at is not None
-    document = await session.get(CanonicalDocumentRecord, "doc-a")
-    assert document is not None
-    assert document.source_type == "uploaded_file"
+    first_version = await session.get(DocumentVersionRecord, persisted_first.version.id)
+    assert len(documents) == 1
+    assert len(versions) == 2
+    assert first_version is not None
+    assert first_version.superseded_at is not None
+    assert first_version.content_hash == "hash-old"
+    assert current is not None
+    assert current.id == persisted_second.version.id
+    assert current.content_hash == "hash-new"
+    assert current.superseded_at is None
+    assert {row.id for row in current_units} == {unit.id for unit in changed.text_units}
+    assert all(row.document_version_id == current.id for row in current_units)
+    assert historical is not None
+    assert historical.document_version_id == persisted_first.version.id
+    assert historical.text == "First passage about parties."
 
 
 async def test_extracted_source_reuses_canonical_identity(session: AsyncSession):
@@ -346,10 +426,16 @@ async def test_extracted_source_reuses_canonical_identity(session: AsyncSession)
     assert row.id == "fetch-1"
     assert row.source_type == "public_document"
     assert {item.chunk.document_id for item in store.chunks} == {"fetch-1"}
+    assert first.document_version_id == second.document_version_id
+    assert second.reused_version is True
+    versions = await list_document_versions(session, "fetch-1")
+    units = list((await session.execute(select(TextUnitRecord))).scalars().all())
+    assert len(versions) == 1
+    assert len(units) == 1
     assert len(embeddings.calls) == 1
 
 
-async def test_extracted_source_new_version_supersedes_text_units(session: AsyncSession):
+async def test_extracted_source_new_version_keeps_historical_units(session: AsyncSession):
     kund = Kund(name="acme", slug="acme", available_modules=["dd"])
     session.add(kund)
     await session.flush()
@@ -383,13 +469,157 @@ async def test_extracted_source_new_version_supersedes_text_units(session: Async
     )
     await session.flush()
     assert first.document_id == second.document_id == "fetch-1"
-    current = await current_text_units(session, "fetch-1")
-    assert len(current) == 1
-    assert current[0].text == "Revised public passage."
-    removed = await session.get(TextUnitRecord, first.segmented.text_units[0].id)
-    assert removed is not None
-    assert removed.superseded_at is not None
+    assert first.document_version_id != second.document_version_id
+    versions = await list_document_versions(session, "fetch-1")
+    current = await get_current_document_version(session, "fetch-1")
+    current_units = await current_text_units(session, "fetch-1")
+    historical = await session.get(TextUnitRecord, first.segmented.text_units[0].id)
+    old_version = await session.get(DocumentVersionRecord, first.document_version_id)
+    assert len(versions) == 2
+    assert current is not None
+    assert current.id == second.document_version_id
+    assert current.content_hash == "hash-new"
+    assert current.superseded_at is None
+    assert old_version is not None
+    assert old_version.superseded_at is not None
+    assert old_version.content_hash == "hash-old"
+    assert len(current_units) == 1
+    assert current_units[0].text == "Revised public passage."
+    assert current_units[0].document_version_id == second.document_version_id
+    assert historical is not None
+    assert historical.document_version_id == first.document_version_id
+    assert historical.text == "Original public passage."
     assert {item.chunk.text for item in store.chunks} == {"Revised public passage."}
+    assert len(embeddings.calls) == 2
+
+
+async def test_qa_revision_keeps_historical_text_unit_after_new_version(session: AsyncSession):
+    kund = Kund(name="acme", slug="acme", available_modules=["dd"])
+    session.add(kund)
+    await session.flush()
+    source = StoredObject(
+        id="src-a",
+        customer_id=kund.id,
+        module="dd",
+        kind="underlag",
+        bucket="underlag",
+        object_key="src-a.txt",
+        filename="src-a.txt",
+        content_type="text/plain",
+        size_bytes=12,
+    )
+    session.add(source)
+    await session.flush()
+    first = DocumentSegmenter().segment(
+        _extracted(ExtractedBlock(text="Price is 100 SEK.", locator="page:1", metadata={"page": 1})),
+        _document(document_id=source.id),
+        content_hash="hash-old",
+    )
+    persisted_first = await persist_segmented_document(
+        session,
+        customer_id=kund.id,
+        source_object_id=source.id,
+        segmented=first,
+    )
+    unit_id = first.text_units[0].id
+    item = DocumentKnowledgeItem(
+        id="qa-1",
+        source_object_id=source.id,
+        customer_id=kund.id,
+        kind="qa",
+        origin="manual",
+        status="active",
+        title="Price",
+        question="What is the price?",
+        content="100 SEK.",
+        retrieval_queries=[],
+        revision=1,
+    )
+    session.add(item)
+    await session.flush()
+    session.add(DocumentKnowledgeItemTextUnit(item_id=item.id, text_unit_id=unit_id, ordinal=0))
+    session.add(
+        DocumentKnowledgeRevision(
+            item_id=item.id,
+            revision=1,
+            snapshot={"supporting_text_unit_ids": [unit_id], "content": "100 SEK."},
+        )
+    )
+    await session.flush()
+
+    second = DocumentSegmenter().segment(
+        _extracted(ExtractedBlock(text="Price is 140 SEK.", locator="page:1", metadata={"page": 1})),
+        _document(document_id=source.id),
+        content_hash="hash-new",
+    )
+    persisted_second = await persist_segmented_document(
+        session,
+        customer_id=kund.id,
+        source_object_id=source.id,
+        segmented=second,
+    )
+    await session.flush()
+
+    revision = (
+        await session.execute(
+            select(DocumentKnowledgeRevision).where(DocumentKnowledgeRevision.item_id == item.id)
+        )
+    ).scalar_one()
+    linked = (
+        await session.execute(
+            select(DocumentKnowledgeItemTextUnit).where(
+                DocumentKnowledgeItemTextUnit.item_id == item.id
+            )
+        )
+    ).scalar_one()
+    historical = await session.get(TextUnitRecord, unit_id)
+    current = await get_current_document_version(session, source.id)
+    assert revision.snapshot["supporting_text_unit_ids"] == [unit_id]
+    assert linked.text_unit_id == unit_id
+    assert historical is not None
+    assert historical.document_version_id == persisted_first.version.id
+    assert historical.text == "Price is 100 SEK."
+    assert current is not None
+    assert current.id == persisted_second.version.id
+    assert current.content_hash == "hash-new"
+
+
+async def test_current_document_version_is_unique(session: AsyncSession):
+    kund = Kund(name="acme", slug="acme", available_modules=["dd"])
+    session.add(kund)
+    await session.flush()
+    session.add(
+        CanonicalDocumentRecord(
+            id="doc-a",
+            customer_id=kund.id,
+            source_type="uploaded_file",
+            canonical_uri="stored-object:doc-a",
+            title="Agreement",
+            extra={},
+        )
+    )
+    await session.flush()
+    session.add(
+        DocumentVersionRecord(
+            id="ver-1",
+            document_id="doc-a",
+            content_hash="hash-1",
+            mime_type="text/plain",
+            extra={},
+        )
+    )
+    await session.flush()
+    session.add(
+        DocumentVersionRecord(
+            id="ver-2",
+            document_id="doc-a",
+            content_hash="hash-2",
+            mime_type="text/plain",
+            extra={},
+        )
+    )
+    with pytest.raises(IntegrityError):
+        await session.flush()
 
 
 def test_core_knowledge_modules_have_no_legal_domain_logic():

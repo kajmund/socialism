@@ -7,6 +7,7 @@ from app.database.models import (
     CanonicalDocumentRecord,
     DocumentKnowledgeItem,
     DocumentKnowledgeRevision,
+    DocumentVersionRecord,
     Job,
     StoredObject,
     TextUnitRecord,
@@ -203,10 +204,7 @@ async def test_document_ingest_generates_anchored_items_and_case_knowledge(
             units = list(
                 (
                     await session.execute(
-                        select(TextUnitRecord).where(
-                            TextUnitRecord.document_id == source.id,
-                            TextUnitRecord.superseded_at.is_(None),
-                        )
+                        select(TextUnitRecord).where(TextUnitRecord.document_id == source.id)
                     )
                 )
                 .scalars()
@@ -218,6 +216,20 @@ async def test_document_ingest_generates_anchored_items_and_case_knowledge(
             assert canonical is not None
             assert canonical.source_type == "uploaded_file"
             assert canonical.canonical_uri == f"stored-object:{source.id}"
+            versions = list(
+                (
+                    await session.execute(
+                        select(DocumentVersionRecord).where(
+                            DocumentVersionRecord.document_id == source.id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(versions) == 1
+            assert versions[0].superseded_at is None
+            assert all(unit.document_version_id == versions[0].id for unit in units)
 
             provider = SupabaseKnowledgeProvider(
                 session,
@@ -318,6 +330,7 @@ async def test_document_knowledge_generation_keeps_successful_batches(
         units=[
             TextUnit(
                 id="unit-fail",
+                document_version_id="ver-a",
                 document_id="doc-a",
                 section_id="sec-1",
                 ordinal=0,
@@ -327,6 +340,7 @@ async def test_document_knowledge_generation_keeps_successful_batches(
             ),
             TextUnit(
                 id="unit-ok",
+                document_version_id="ver-a",
                 document_id="doc-a",
                 section_id="sec-2",
                 ordinal=0,

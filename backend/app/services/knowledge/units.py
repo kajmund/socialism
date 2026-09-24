@@ -1,4 +1,4 @@
-"""Canonical Document → Section → TextUnit. Domain-neutral knowledge atoms."""
+"""Canonical Document → DocumentVersion → Section → TextUnit. Domain-neutral."""
 
 from __future__ import annotations
 
@@ -11,40 +11,48 @@ def hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def make_section_id(
-    *,
-    document_id: str,
-    version: str | None,
-    path: str,
-) -> str:
-    payload = f"{document_id}\0{version or ''}\0{path}".encode()
+def make_document_version_id(*, document_id: str, content_hash: str) -> str:
+    payload = f"{document_id}\0{content_hash}".encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def make_section_id(*, document_version_id: str, path: str) -> str:
+    payload = f"{document_version_id}\0{path}".encode()
     return hashlib.sha256(payload).hexdigest()
 
 
 def make_text_unit_id(
     *,
-    document_id: str,
-    version: str | None,
+    document_version_id: str,
     locator: str | None,
     content_hash: str,
 ) -> str:
-    payload = f"{document_id}\0{version or ''}\0{locator or ''}\0{content_hash}".encode()
+    payload = f"{document_version_id}\0{locator or ''}\0{content_hash}".encode()
     return hashlib.sha256(payload).hexdigest()
 
 
 @dataclass(frozen=True)
 class CanonicalDocument:
-    """A citable source. Deduplicate on (source_type, canonical_uri, version)."""
+    """Stable source identity. Deduplicate on (source_type, canonical_uri)."""
 
     id: str
     source_type: str
     canonical_uri: str
     title: str
+    domain: str | None = None
+    jurisdiction: str | None = None
+    metadata: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class DocumentVersion:
+    """Immutable content snapshot of a CanonicalDocument."""
+
+    id: str
+    document_id: str
     content_hash: str
     mime_type: str
     version: str | None = None
-    domain: str | None = None
-    jurisdiction: str | None = None
     valid_from: datetime | None = None
     valid_to: datetime | None = None
     ingested_at: datetime | None = None
@@ -54,9 +62,10 @@ class CanonicalDocument:
 
 @dataclass(frozen=True)
 class DocumentSection:
-    """Hierarchical structural region inside a CanonicalDocument."""
+    """Hierarchical structural region inside a DocumentVersion."""
 
     id: str
+    document_version_id: str
     document_id: str
     parent_section_id: str | None
     ordinal: int
@@ -72,6 +81,7 @@ class TextUnit:
     """Canonical passage. Everything the system reasons from grounds here."""
 
     id: str
+    document_version_id: str
     document_id: str
     section_id: str | None
     ordinal: int
@@ -92,5 +102,6 @@ class TextUnit:
 @dataclass(frozen=True)
 class SegmentedDocument:
     document: CanonicalDocument
+    version: DocumentVersion
     sections: tuple[DocumentSection, ...]
     text_units: tuple[TextUnit, ...]

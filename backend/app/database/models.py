@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text as sql_text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -1621,7 +1622,7 @@ class DocumentKnowledgeRevision(Base):
 
 
 class CanonicalDocumentRecord(Base):
-    """Citable source identity shared by uploads and later external providers."""
+    """Stable source identity. Version-specific content lives on DocumentVersion."""
 
     __tablename__ = "canonical_documents"
     __table_args__ = (
@@ -1647,11 +1648,52 @@ class CanonicalDocumentRecord(Base):
     source_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     canonical_uri: Mapped[str] = mapped_column(String(1024), nullable=False)
     title: Mapped[str] = mapped_column(String(512), nullable=False)
-    version: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
     domain: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     jurisdiction: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    versions: Mapped[list["DocumentVersionRecord"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="DocumentVersionRecord.ingested_at",
+    )
+
+
+class DocumentVersionRecord(Base):
+    """Immutable content snapshot. Supersede; do not overwrite."""
+
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id",
+            "content_hash",
+            name="uq_document_versions_content_hash",
+        ),
+        Index(
+            "uq_document_versions_current",
+            "document_id",
+            unique=True,
+            sqlite_where=sql_text("superseded_at IS NULL"),
+            postgresql_where=sql_text("superseded_at IS NULL"),
+        ),
+        Index("ix_document_versions_content_hash", "content_hash"),
+        Index("ix_document_versions_superseded_at", "superseded_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("canonical_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
     valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ingested_at: Mapped[datetime] = mapped_column(
@@ -1662,27 +1704,38 @@ class CanonicalDocumentRecord(Base):
     superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
+    document: Mapped[CanonicalDocumentRecord] = relationship(back_populates="versions")
     sections: Mapped[list["DocumentSectionRecord"]] = relationship(
-        back_populates="document",
+        back_populates="document_version",
         cascade="all, delete-orphan",
         order_by="DocumentSectionRecord.ordinal",
     )
     text_units: Mapped[list["TextUnitRecord"]] = relationship(
-        back_populates="document",
+        back_populates="document_version",
         cascade="all, delete-orphan",
         order_by="TextUnitRecord.ordinal",
     )
 
 
 class DocumentSectionRecord(Base):
-    """Hierarchical structural region inside a canonical document."""
+    """Hierarchical structural region inside a document version."""
 
     __tablename__ = "document_sections"
     __table_args__ = (
         Index("ix_document_sections_document_ordinal", "document_id", "ordinal"),
+        Index(
+            "ix_document_sections_version_ordinal",
+            "document_version_id",
+            "ordinal",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_version_id: Mapped[str] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     document_id: Mapped[str] = mapped_column(
         ForeignKey("canonical_documents.id", ondelete="CASCADE"),
         nullable=False,
@@ -1699,9 +1752,8 @@ class DocumentSectionRecord(Base):
     page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
     page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    document: Mapped[CanonicalDocumentRecord] = relationship(back_populates="sections")
+    document_version: Mapped[DocumentVersionRecord] = relationship(back_populates="sections")
     text_units: Mapped[list["TextUnitRecord"]] = relationship(back_populates="section")
 
 
@@ -1711,10 +1763,16 @@ class TextUnitRecord(Base):
     __tablename__ = "text_units"
     __table_args__ = (
         Index("ix_text_units_document_ordinal", "document_id", "ordinal"),
+        Index("ix_text_units_version_ordinal", "document_version_id", "ordinal"),
         Index("ix_text_units_content_hash", "content_hash"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_version_id: Mapped[str] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     document_id: Mapped[str] = mapped_column(
         ForeignKey("canonical_documents.id", ondelete="CASCADE"),
         nullable=False,
@@ -1740,15 +1798,10 @@ class TextUnitRecord(Base):
         server_default=func.now(),
         nullable=False,
     )
-    superseded_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        index=True,
-    )
     embedding_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
-    document: Mapped[CanonicalDocumentRecord] = relationship(back_populates="text_units")
+    document_version: Mapped[DocumentVersionRecord] = relationship(back_populates="text_units")
     section: Mapped[DocumentSectionRecord | None] = relationship(back_populates="text_units")
 
 

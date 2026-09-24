@@ -9,7 +9,7 @@ StoredObject upload
   -> document_ingest Job
     -> KnowledgeIngestService
          extraction -> Section/TextUnit segmentation -> TextUnit embeddings
-  -> persist CanonicalDocument + Sections + TextUnits
+  -> persist CanonicalDocument + DocumentVersion + Sections + TextUnits
   -> Q&A generation from neighbouring TextUnits
   -> exact-quote validation, TextUnit grounding, and PDF rectangle anchoring
   -> DocumentKnowledgeItem + anchors + supporting_text_unit_ids + revision snapshot

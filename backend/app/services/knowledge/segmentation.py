@@ -18,9 +18,11 @@ from app.services.knowledge.splitting import split_structured
 from app.services.knowledge.units import (
     CanonicalDocument,
     DocumentSection,
+    DocumentVersion,
     SegmentedDocument,
     TextUnit,
     hash_text,
+    make_document_version_id,
     make_section_id,
     make_text_unit_id,
 )
@@ -81,18 +83,26 @@ class DocumentSegmenter:
             source_type=resolved_type,
             canonical_uri=resolved_uri,
             title=document.title,
-            content_hash=digest,
-            mime_type=document.mime_type,
-            version=document.version,
             metadata={
                 "provider": document.provider,
                 "external_id": document.external_id,
             },
         )
+        version = DocumentVersion(
+            id=make_document_version_id(
+                document_id=document.document_id,
+                content_hash=digest,
+            ),
+            document_id=document.document_id,
+            content_hash=digest,
+            mime_type=document.mime_type,
+            version=document.version,
+        )
         leaves = _leaves(extracted.blocks)
-        sections, units = self._build(canonical, leaves)
+        sections, units = self._build(canonical, version, leaves)
         return SegmentedDocument(
             document=canonical,
+            version=version,
             sections=tuple(sections),
             text_units=tuple(units),
         )
@@ -100,17 +110,19 @@ class DocumentSegmenter:
     def _build(
         self,
         document: CanonicalDocument,
+        version: DocumentVersion,
         leaves: Sequence[_Leaf],
     ) -> tuple[list[DocumentSection], list[TextUnit]]:
         if not leaves:
             return [], []
         if not any(leaf.heading_level is not None for leaf in leaves):
-            return self._from_blocks(document, leaves)
-        return self._from_headings(document, leaves)
+            return self._from_blocks(document, version, leaves)
+        return self._from_headings(document, version, leaves)
 
     def _from_headings(
         self,
         document: CanonicalDocument,
+        version: DocumentVersion,
         leaves: Sequence[_Leaf],
     ) -> tuple[list[DocumentSection], list[TextUnit]]:
         sections: list[DocumentSection] = []
@@ -125,7 +137,7 @@ class DocumentSegmenter:
             if current is None:
                 body = []
                 return
-            units.extend(self._units_for_section(document, current, body))
+            units.extend(self._units_for_section(document, version, current, body))
             body = []
 
         for leaf in leaves:
@@ -133,6 +145,7 @@ class DocumentSegmenter:
                 if current is None:
                     current = self._section(
                         document,
+                        version,
                         parent=None,
                         ordinal=section_ordinal,
                         section_type="preamble",
@@ -148,6 +161,7 @@ class DocumentSegmenter:
             parent = _parent_for_level(open_sections, leaf.heading_level)
             current = self._section(
                 document,
+                version,
                 parent=parent,
                 ordinal=section_ordinal,
                 section_type=f"heading-{leaf.heading_level}",
@@ -167,6 +181,7 @@ class DocumentSegmenter:
     def _from_blocks(
         self,
         document: CanonicalDocument,
+        version: DocumentVersion,
         leaves: Sequence[_Leaf],
     ) -> tuple[list[DocumentSection], list[TextUnit]]:
         groups: list[list[_Leaf]] = []
@@ -186,6 +201,7 @@ class DocumentSegmenter:
         for ordinal, group in enumerate(groups):
             section = self._section(
                 document,
+                version,
                 parent=None,
                 ordinal=ordinal,
                 section_type="block",
@@ -193,12 +209,13 @@ class DocumentSegmenter:
                 leaves=group,
             )
             sections.append(section)
-            units.extend(self._units_for_section(document, section, group))
+            units.extend(self._units_for_section(document, version, section, group))
         return sections, units
 
     def _section(
         self,
         document: CanonicalDocument,
+        version: DocumentVersion,
         *,
         parent: DocumentSection | None,
         ordinal: int,
@@ -211,10 +228,10 @@ class DocumentSegmenter:
         pages = [leaf.page for leaf in leaves if leaf.page is not None]
         return DocumentSection(
             id=make_section_id(
-                document_id=document.id,
-                version=document.version,
+                document_version_id=version.id,
                 path=path,
             ),
+            document_version_id=version.id,
             document_id=document.id,
             parent_section_id=parent.id if parent is not None else None,
             ordinal=ordinal,
@@ -228,6 +245,7 @@ class DocumentSegmenter:
     def _units_for_section(
         self,
         document: CanonicalDocument,
+        version: DocumentVersion,
         section: DocumentSection,
         leaves: Sequence[_Leaf],
     ) -> list[TextUnit]:
@@ -237,14 +255,14 @@ class DocumentSegmenter:
         for ordinal, (text, locator, pages) in enumerate(pieces):
             digest = hash_text(text)
             unit_id = make_text_unit_id(
-                document_id=document.id,
-                version=document.version,
+                document_version_id=version.id,
                 locator=locator,
                 content_hash=digest,
             )
             units.append(
                 TextUnit(
                     id=unit_id,
+                    document_version_id=version.id,
                     document_id=document.id,
                     section_id=section.id,
                     ordinal=ordinal,

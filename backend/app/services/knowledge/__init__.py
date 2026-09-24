@@ -16,14 +16,18 @@ from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.ingest import KnowledgeIngestResult, KnowledgeIngestService
 from app.services.knowledge.persistence import (
     get_canonical_document_by_identity,
+    get_current_document_version,
+    list_document_versions,
     persist_segmented_document,
 )
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
 from app.services.knowledge.units import (
     CanonicalDocument,
     DocumentSection,
+    DocumentVersion,
     SegmentedDocument,
     TextUnit,
+    make_document_version_id,
     make_section_id,
     make_text_unit_id,
 )
@@ -63,6 +67,7 @@ __all__ = [
     "DefaultTextExtractor",
     "DocumentSection",
     "DocumentSegmenter",
+    "DocumentVersion",
     "EmbeddedKnowledgeChunk",
     "EmbeddedKnowledgeQuery",
     "EmbeddingProvider",
@@ -87,7 +92,10 @@ __all__ = [
     "TextUnit",
     "expand_text_unit_context",
     "get_canonical_document_by_identity",
+    "get_current_document_version",
     "ingest_extracted_source",
+    "list_document_versions",
+    "make_document_version_id",
     "make_section_id",
     "make_text_unit_id",
     "persist_segmented_document",
