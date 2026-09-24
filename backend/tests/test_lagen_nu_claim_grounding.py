@@ -9,11 +9,13 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import (
+    KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
     KnowledgeClaimTextUnit,
     Kund,
     TextUnitRecord,
 )
+from app.services.knowledge.claims import ANSWERED_BY, claims_answering_question_key
 from app.llm.legal_research import LegalDomainExtractionError
 from app.services.knowledge.claims import supporting_text_unit_ids_for_claim
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
@@ -153,4 +155,15 @@ async def test_research_persists_claims_on_interpreted_text_units():
         links = list((await session.execute(select(KnowledgeClaimTextUnit))).scalars().all())
         assert links
         assert {link.relation for link in links} == {"SUPPORTED_BY"}
+        answers = list((await session.execute(select(KnowledgeClaimAnswer))).scalars().all())
+        assert answers
+        assert {row.relation for row in answers} == {ANSWERED_BY}
+        assert {row.research_need_id for row in answers} == {evidence[0].research_need_id}
+        reused = await claims_answering_question_key(
+            session,
+            customer_id=7,
+            question_key=evidence[0].metadata["answered_by_question_key"],
+        )
+        assert {claim.id for claim in reused} == set(claim_ids)
+        assert all(claim.supporting_text_unit_ids for claim in reused)
     await engine.dispose()
