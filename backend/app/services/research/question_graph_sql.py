@@ -13,9 +13,11 @@ from app.database.models import (
     KnowledgeQuestionEvidenceLink,
     KnowledgeQuestionRow,
 )
+from app.services.knowledge.scope import persist_scope_fields
 from app.services.research.knowledge_question import (
     ExactQuestionIdentityMatcher,
     KnowledgeQuestion,
+    KnowledgeQuestionError,
     KnowledgeQuestionScope,
     QuestionIdentity,
     QuestionIdentityMatcher,
@@ -49,6 +51,10 @@ class SqlQuestionEvidenceGraph:
         )
         row = result.scalar_one_or_none()
         if row is not None:
+            if row.scope_key != scope.tenant.scope_key:
+                raise KnowledgeQuestionError(
+                    "canonical question reuse crossed a knowledge tenant boundary"
+                )
             return _question_from_row(row)
         namespace_result = await session.execute(
             select(KnowledgeQuestionRow).where(
@@ -89,7 +95,7 @@ class SqlQuestionEvidenceGraph:
             display_text=identity.display_text,
             namespace=scope.namespace,
             visibility=scope.visibility,
-            customer_id=scope.customer_id,
+            **persist_scope_fields(scope.tenant),
         )
         session.add(row)
         await session.flush()
