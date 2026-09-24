@@ -409,12 +409,10 @@ async def test_current_text_units_follow_section_then_unit_order(session: AsyncS
     )
     await session.flush()
     rows = await current_text_units(session, "doc-a")
-    parties = [row for row in rows if row.section_id == segmented.sections[0].id]
-    price = [row for row in rows if row.section_id == segmented.sections[1].id]
-    assert parties and price
-    assert rows == parties + price
-    assert any("Acme AB" in row.text for row in parties)
-    assert any("100 SEK" in row.text for row in price)
+    assert [row.id for row in rows] == [unit.id for unit in segmented.text_units]
+    assert [row.section_id for row in rows] == [unit.section_id for unit in segmented.text_units]
+    assert any("Acme AB" in row.text for row in rows)
+    assert any("100 SEK" in row.text for row in rows)
 
 
 async def test_recurring_hash_creates_new_version_occurrence(session: AsyncSession):
