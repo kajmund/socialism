@@ -123,7 +123,9 @@ async def _index_document(
     return row
 
 
-def _scope(*, customer_id: int, case_id: str | None = "case-1", module: str | None = "dd") -> KnowledgeScope:
+def _scope(
+    *, customer_id: int, case_id: str | None = "case-1", module: str | None = "dd"
+) -> KnowledgeScope:
     return KnowledgeScope(customer_id=customer_id, case_id=case_id, module=module)
 
 
@@ -136,6 +138,7 @@ def _chunk(
     module: str | None = "dd",
     title: str = "Brief",
     chunk_id: str = "c1",
+    metadata: dict[str, object] | None = None,
 ) -> KnowledgeChunk:
     return KnowledgeChunk(
         document_id=document_id,
@@ -149,6 +152,7 @@ def _chunk(
         provider=SUPABASE_PROVIDER_ID,
         version="1",
         content_hash="hash-1",
+        metadata=metadata or {},
     )
 
 
@@ -259,6 +263,19 @@ class FakeVectorBucketClient:
             )
         return matched[:limit]
 
+    async def get(
+        self,
+        *,
+        document_id: str,
+        chunk_ids: Sequence[str],
+    ) -> Sequence[VectorBucketRecord]:
+        wanted = set(chunk_ids)
+        return [
+            record
+            for record in self.records
+            if record.document_id == document_id and record.chunk_id in wanted
+        ]
+
     async def delete(self, document_id: str) -> None:
         self.records = [record for record in self.records if record.document_id != document_id]
 
@@ -316,7 +333,11 @@ async def test_correct_customer_case_scope_succeeds(session: AsyncSession):
     await put_object("acme", "dd/files/brief.pdf", b"ok", "application/pdf")
     store = MemoryKnowledgeVectorStore()
     await store.upsert_chunks(
-        [_embedded(_chunk(document_id="doc-brief", text="kommunens skattesats", customer_id=kund.id))]
+        [
+            _embedded(
+                _chunk(document_id="doc-brief", text="kommunens skattesats", customer_id=kund.id)
+            )
+        ]
     )
     provider = _provider(session, store)
     scope = _scope(customer_id=kund.id, case_id="case-1")
@@ -340,7 +361,11 @@ async def test_wrong_customer_and_case_scope_fails_closed(session: AsyncSession)
 
     store = MemoryKnowledgeVectorStore()
     await store.upsert_chunks(
-        [_embedded(_chunk(document_id="doc-brief", text="kommunens skattesats", customer_id=owner.id))]
+        [
+            _embedded(
+                _chunk(document_id="doc-brief", text="kommunens skattesats", customer_id=owner.id)
+            )
+        ]
     )
     provider = _provider(session, store, fetch_object=tracking_get)
     wrong_customer = _scope(customer_id=other.id, case_id="case-1")
@@ -370,7 +395,11 @@ async def test_vector_search_returns_normalized_knowledge_hit(session: AsyncSess
     await _index_document(session, customer_id=kund.id)
     store = MemoryKnowledgeVectorStore()
     await store.upsert_chunks(
-        [_embedded(_chunk(document_id="doc-brief", text="vindkraft i kommunen", customer_id=kund.id))]
+        [
+            _embedded(
+                _chunk(document_id="doc-brief", text="vindkraft i kommunen", customer_id=kund.id)
+            )
+        ]
     )
     provider = _provider(session, store)
     hits = await provider.search(
@@ -416,6 +445,63 @@ async def test_vector_metadata_filtering_enforces_scope():
     assert all(isinstance(hit, KnowledgeHit) for hit in hits)
     foreign = _chunk(document_id="doc-b", text="x", customer_id=2, case_id="case-b")
     assert not chunk_in_scope(foreign, KnowledgeScope(customer_id=1, case_id="case-a"))
+
+
+async def test_text_unit_embedding_read_is_not_case_scoped():
+    store = MemoryKnowledgeVectorStore()
+    chunk = _chunk(
+        document_id="doc-lagen",
+        text="jämkning enligt 36 §",
+        customer_id=7,
+        case_id=None,
+        chunk_id="unit-1",
+        metadata={"document_version_id": "ver-1", "text_unit_id": "unit-1"},
+    )
+    await store.upsert_chunks([_embedded(chunk)])
+    vectors = await store.get_text_unit_embeddings(
+        document_id="doc-lagen",
+        document_version_id="ver-1",
+        text_unit_ids=["unit-1"],
+    )
+    assert list(vectors) == ["unit-1"]
+    assert vectors["unit-1"] == fake_embed_text("jämkning enligt 36 §")
+
+
+async def test_supabase_embedding_read_returns_stored_vectors_by_id():
+    client = FakeVectorBucketClient()
+    store = SupabaseVectorBucketStore(client)
+    chunk = _chunk(
+        document_id="doc-lagen",
+        text="jämkning enligt 36 §",
+        customer_id=7,
+        case_id="some-case",
+        chunk_id="unit-1",
+        metadata={"document_version_id": "ver-1", "text_unit_id": "unit-1"},
+    )
+    await store.upsert_chunks([_embedded(chunk)])
+    vectors = await store.get_text_unit_embeddings(
+        document_id="doc-lagen",
+        document_version_id="ver-1",
+        text_unit_ids=["unit-1"],
+    )
+    assert vectors["unit-1"] == fake_embed_text("jämkning enligt 36 §")
+    scoped = await store.search(
+        await _embedded_query(
+            "jämkning",
+            KnowledgeScope(customer_id=7, case_id="other-case"),
+        )
+    )
+    assert scoped == []
+
+
+async def test_missing_text_unit_embedding_fails_loud():
+    store = MemoryKnowledgeVectorStore()
+    with pytest.raises(KnowledgeVectorStoreError, match="missing ingest embeddings"):
+        await store.get_text_unit_embeddings(
+            document_id="doc-lagen",
+            document_version_id="ver-1",
+            text_unit_ids=["missing"],
+        )
 
 
 async def test_supabase_vector_bucket_store_normalizes_and_filters():
@@ -479,7 +565,12 @@ def test_provider_api_is_read_only():
     }
     assert public == {"search", "get_document", "fetch_content"}
     protocol_source = inspect.getsource(KnowledgeProvider)
-    for banned in ("async def upload", "async def delete", "async def overwrite", "async def ingest"):
+    for banned in (
+        "async def upload",
+        "async def delete",
+        "async def overwrite",
+        "async def ingest",
+    ):
         assert banned not in protocol_source
     assert "async def search" in protocol_source
     assert "async def get_document" in protocol_source
@@ -689,9 +780,7 @@ def test_embedded_query_rejects_empty_vector():
 
 async def test_search_rejects_dimension_mismatch():
     store = MemoryKnowledgeVectorStore()
-    await store.upsert_chunks(
-        [_embedded(_chunk(document_id="doc-a", text="skola", customer_id=1))]
-    )
+    await store.upsert_chunks([_embedded(_chunk(document_id="doc-a", text="skola", customer_id=1))])
     with pytest.raises(KnowledgeVectorStoreError, match="dimension"):
         await store.search(
             EmbeddedKnowledgeQuery(
@@ -703,11 +792,7 @@ async def test_search_rejects_dimension_mismatch():
 
 def test_vector_store_does_not_create_embeddings():
     source = (
-        Path(__file__).resolve().parents[1]
-        / "app"
-        / "services"
-        / "knowledge"
-        / "vector_store.py"
+        Path(__file__).resolve().parents[1] / "app" / "services" / "knowledge" / "vector_store.py"
     ).read_text(encoding="utf-8")
     assert "EmbeddingProvider" not in source
     assert "embed(" not in source

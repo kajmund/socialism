@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.provider import KnowledgeProvider
 from app.services.knowledge.vector_store import KnowledgeVectorStore
+from app.services.lagen_nu.passage_router import JevPassageRouter
 from app.services.lagen_nu.registration import (
     LAGEN_NU_ADAPTER,
     LAGEN_NU_EVIDENCE_NATURES,
@@ -242,6 +243,7 @@ def _compose_lagen_nu_source(
             session=session,
             embeddings=embeddings,
             vector_store=vector_store,
+            passage_router=JevPassageRouter(),
         ),
         descriptor,
     )

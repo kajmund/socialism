@@ -20,17 +20,25 @@ from app.database.models import (
     ResearchRuntimeNeed,
     TextUnitRecord,
 )
+from app.jev.system import HttpJevSystemOne, JevSystemOne
 from app.llm.legal_research import (
     LegalDomainExtractionError,
     LegalInterpreter,
     LlmLegalInterpreter,
 )
+from app.services.knowledge.claims import answer_research_need, persist_knowledge_claims
 from app.services.knowledge.embeddings import EmbeddingProvider
+from app.services.knowledge.entities import persist_knowledge_entities
+from app.services.knowledge.events import list_graph_events
+from app.services.knowledge.relationships import persist_knowledge_relationships
+from app.services.knowledge.revalidation import revalidate_after_event
 from app.services.knowledge.vector_store import KnowledgeVectorStore
+from app.services.lagen_nu.claim_grounding import ground_legal_claims
 from app.services.lagen_nu.display import (
     display_source_title,
     is_legal_front_matter,
 )
+from app.services.lagen_nu.legal_graph import ground_legal_graph
 from app.services.lagen_nu.mcp_client import (
     LagenNuMcpClient,
     OfficialLagenNuMcpClient,
@@ -38,6 +46,11 @@ from app.services.lagen_nu.mcp_client import (
     OfficialLagenNuMcpNotFoundError,
 )
 from app.services.lagen_nu.models import LagenNuDocument, LagenNuSearchHit
+from app.services.lagen_nu.passage_router import (
+    JevPassageRouter,
+    LagenNuPassageRouter,
+    PassageRoutingError,
+)
 from app.services.lagen_nu.question_validation import (
     LegalQuestionValidator,
     is_legal_research_need,
@@ -61,7 +74,6 @@ from app.services.lagen_nu.text_unit_research import (
     current_lagen_nu_units,
     document_identity_uri,
     ingest_and_load_text_units,
-    join_text_units,
     require_lagen_nu_research_knowledge,
 )
 from app.services.lagen_nu.uris import compose_canonical_uri
@@ -528,6 +540,8 @@ class LagenNuResearchSource:
         embeddings: EmbeddingProvider | None = None,
         vector_store: KnowledgeVectorStore | None = None,
         question_validator: LegalQuestionValidator | None = None,
+        passage_router: LagenNuPassageRouter | None = None,
+        impact_gate: JevSystemOne | None = None,
     ) -> None:
         if source_type not in LAGEN_NU_EVIDENCE_NATURES:
             raise ValueError(f"{source_type} is not implemented by the official lagen.nu adapter")
@@ -540,10 +554,44 @@ class LagenNuResearchSource:
         self._embeddings = embeddings
         self._vector_store = vector_store
         self._question_validator = question_validator
+        self._passage_router = passage_router
+        self._impact_gate = impact_gate
         self._owned_client: OfficialLagenNuMcpClient | None = None
 
     def _require_selector(self) -> LagenNuPassageSelector:
         return resolve_passage_selector(self._selector)
+
+    def _require_passage_router(self) -> LagenNuPassageRouter:
+        if self._passage_router is not None:
+            return self._passage_router
+        return JevPassageRouter()
+
+    def _require_impact_gate(self) -> JevSystemOne:
+        return self._impact_gate or HttpJevSystemOne()
+
+    async def _revalidate_persisted_graph(
+        self,
+        *,
+        customer_id: int,
+        claim_ids: list[str],
+        relationship_ids: list[str],
+    ) -> None:
+        if self._session is None:
+            return
+        gate = self._require_impact_gate()
+        for node_kind, node_ids in (
+            ("claim", claim_ids),
+            ("relationship", relationship_ids),
+        ):
+            for node_id in node_ids:
+                events = await list_graph_events(
+                    self._session,
+                    customer_id=customer_id,
+                    node_kind=node_kind,
+                    node_id=node_id,
+                )
+                for event in events:
+                    await revalidate_after_event(self._session, event.id, jev=gate)
 
     def _mcp(self) -> LagenNuMcpClient:
         if self._client is not None:
@@ -890,9 +938,7 @@ class LagenNuResearchSource:
             try:
                 canonical_uri = document_identity_uri(uri)
             except LagenNuResearchKnowledgeError as exc:
-                found.append(
-                    self._failure(need, budget, "unsupported_source_shape", uri, str(exc))
-                )
+                found.append(self._failure(need, budget, "unsupported_source_shape", uri, str(exc)))
                 continue
             target_key = canonical_uri if pinpoint is None else f"{canonical_uri}#{pinpoint}"
             if target_key in seen:
@@ -982,8 +1028,17 @@ class LagenNuResearchSource:
                     )
                 )
             except LagenNuResearchKnowledgeError as exc:
+                found.append(self._failure(need, budget, "fetch_failed", canonical_uri, str(exc)))
+            except PassageRoutingError as exc:
                 found.append(
-                    self._failure(need, budget, "fetch_failed", canonical_uri, str(exc))
+                    self._failure(
+                        need,
+                        budget,
+                        exc.category,
+                        canonical_uri,
+                        str(exc),
+                        fetch_success=True,
+                    )
                 )
         return found
 
@@ -1002,7 +1057,48 @@ class LagenNuResearchSource:
         reused_units: bool = False,
     ) -> ResearchEvidence:
         hit = candidate.hit
-        raw_document = join_text_units(units).strip()
+        if self._embeddings is None or self._vector_store is None:
+            raise LagenNuResearchKnowledgeError(
+                "lagen.nu research requires embeddings and stored TextUnit vectors"
+            )
+        try:
+            routed = await self._require_passage_router().route(
+                question=need.question,
+                units=units,
+                embeddings=self._embeddings,
+                stored=self._vector_store,
+            )
+        except PassageRoutingError as exc:
+            if exc.category == "irrelevant_relation":
+                source_uri = compose_canonical_uri(canonical_uri, pinpoint)
+                title = display_source_title(
+                    uri=source_uri,
+                    identifier=hit.identifier,
+                    title=(document.title if document is not None else None) or hit.title,
+                )
+                return research_evidence(
+                    research_need_id=need.id,
+                    source_type=self.source_type,
+                    status="not_found",
+                    title=title,
+                    source_id=source_uri,
+                    source_url=source_uri,
+                    provider=self.provider_id,
+                    metadata=self._provenance(
+                        budget,
+                        reason="passage_router_empty",
+                        failure_category="irrelevant_relation",
+                        fetch_success=True,
+                        canonical_uri=source_uri,
+                        reused_text_units=reused_units,
+                        canonical_document_id=units[0].document_id,
+                        document_version_id=units[0].document_version_id,
+                        passage_candidate_ids=list(exc.seed_ids),
+                        detail=str(exc),
+                    ),
+                )
+            raise
+        raw_document = routed.interpreter_text.strip()
         if not raw_document:
             raise LegalDomainExtractionError(
                 "retrieved document has no text", category="unsupported_source_shape"
@@ -1032,13 +1128,14 @@ class LagenNuResearchSource:
                     title=title,
                     canonical_uri=source_uri,
                     identifier=hit.identifier,
-                    publisher_url=(
-                        document.publisher_source_url if document is not None else None
-                    ),
+                    publisher_url=(document.publisher_source_url if document is not None else None),
                 ),
                 question=need.question,
                 raw_text=raw_document,
-                truncated=bool(document.truncated) if document is not None else False,
+                truncated=(
+                    (bool(document.truncated) if document is not None else False)
+                    or routed.interpreter_clipped
+                ),
                 context=context,
             )
         )
@@ -1070,6 +1167,41 @@ class LagenNuResearchSource:
         analysis = legal_result.case_law or legal_result.preparatory_work or legal_result.statute
         assert analysis is not None
         excerpt = analysis.citations[0].quote[:MAX_EVIDENCE_CHARS]
+        customer_id = context.scope.customer_id
+        if customer_id is None or self._session is None:
+            raise LagenNuResearchKnowledgeError(
+                "lagen.nu research requires session and customer_id to persist claims"
+            )
+        grounded_claims = ground_legal_claims(
+            legal_result,
+            routed.units,
+            customer_id=customer_id,
+            research_need_id=need.id,
+            result_id=cached[0]
+            if cached is not None
+            else f"{units[0].document_version_id}:{need.id}",
+        )
+        await persist_knowledge_claims(self._session, grounded_claims)
+        graph_entities, graph_edges = ground_legal_graph(
+            legal_result,
+            grounded_claims,
+            customer_id=customer_id,
+            document_id=units[0].document_id,
+        )
+        await persist_knowledge_entities(self._session, graph_entities)
+        await persist_knowledge_relationships(self._session, graph_edges)
+        await answer_research_need(
+            self._session,
+            research_need_id=need.id,
+            question_key=research_question_key(need.question),
+            claim_ids=[claim.id for claim in grounded_claims],
+            source_type=self.source_type,
+        )
+        await self._revalidate_persisted_graph(
+            customer_id=customer_id,
+            claim_ids=[claim.id for claim in grounded_claims],
+            relationship_ids=[edge.id for edge in graph_edges],
+        )
         return research_evidence(
             research_need_id=need.id,
             source_type=self.source_type,
@@ -1107,7 +1239,14 @@ class LagenNuResearchSource:
                 reused_text_units=reused_units,
                 canonical_document_id=units[0].document_id,
                 document_version_id=units[0].document_version_id,
-                text_unit_ids=[unit.id for unit in units],
+                text_unit_ids=list(routed.expanded_ids),
+                passage_candidate_ids=list(routed.candidate_ids),
+                passage_kept_ids=list(routed.kept_ids),
+                passage_router=routed.router,
+                passage_jev_clipped=routed.jev_clipped,
+                passage_interpreter_clipped=routed.interpreter_clipped,
+                knowledge_claim_ids=[claim.id for claim in grounded_claims],
+                answered_by_question_key=research_question_key(need.question),
             ),
         )
 

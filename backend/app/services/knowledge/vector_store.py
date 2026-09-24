@@ -21,9 +21,30 @@ from app.services.knowledge.models import (
     scope_of,
 )
 from app.services.knowledge.provider import SUPABASE_PROVIDER_ID, KnowledgeVectorStoreError
+from app.services.knowledge.scope import (
+    SCOPE_CUSTOMER,
+    KnowledgeScopeError,
+    object_scope,
+)
 
 
-class KnowledgeVectorStore(Protocol):
+class TextUnitEmbeddingReader(Protocol):
+    """Read ingest embeddings by document + TextUnit ID.
+
+    This is not a case-scoped vector search. Callers that rank current
+    TextUnits in-process must reuse the vectors written at ingest.
+    """
+
+    async def get_text_unit_embeddings(
+        self,
+        *,
+        document_id: str,
+        document_version_id: str,
+        text_unit_ids: Sequence[str],
+    ) -> dict[str, list[float]]: ...
+
+
+class KnowledgeVectorStore(TextUnitEmbeddingReader, Protocol):
     async def upsert_chunks(self, chunks: Sequence[EmbeddedKnowledgeChunk]) -> None: ...
 
     async def replace_document_chunks(
@@ -73,6 +94,13 @@ class VectorBucketClient(Protocol):
         limit: int,
     ) -> Sequence[VectorBucketRecord]: ...
 
+    async def get(
+        self,
+        *,
+        document_id: str,
+        chunk_ids: Sequence[str],
+    ) -> Sequence[VectorBucketRecord]: ...
+
     async def delete(self, document_id: str) -> None: ...
 
 
@@ -88,22 +116,22 @@ def scope_filters(
         merged["module"] = scope.module
     for key, value in (filters or {}).items():
         if key in {"customer_id", "case_id", "module"}:
-            raise KnowledgeVectorStoreError(
-                f"KnowledgeQuery filter cannot override scope: {key}"
-            )
+            raise KnowledgeVectorStoreError(f"KnowledgeQuery filter cannot override scope: {key}")
         merged[key] = value
     return merged
 
 
 def record_in_scope(record: VectorBucketRecord, scope: KnowledgeScope) -> bool:
     meta = record.metadata
-    customer_id = _optional_int(meta.get("customer_id"))
-    if customer_id is None:
+    try:
+        owned_tenant = _scope_from_metadata(meta)
+    except KnowledgeScopeError:
         return False
     owned = scope_of(
-        customer_id=customer_id,
+        customer_id=owned_tenant.customer_id,
         case_id=_optional_str(meta.get("case_id")),
         module=_optional_str(meta.get("module")),
+        scope_type=owned_tenant.scope_type,
     )
     return scope_allows(owned=owned, requested=scope)
 
@@ -113,8 +141,19 @@ def chunk_in_scope(chunk: KnowledgeChunk, scope: KnowledgeScope) -> bool:
         customer_id=chunk.customer_id,
         case_id=chunk.case_id,
         module=chunk.module,
+        scope_type=chunk.scope_type,
     )
     return scope_allows(owned=owned, requested=scope)
+
+
+def _scope_from_metadata(meta: Mapping[str, Any]) -> object:
+    raw_type = meta.get("scope_type")
+    customer_id = _optional_int(meta.get("customer_id"))
+    if raw_type in (None, ""):
+        if customer_id is None:
+            raise KnowledgeScopeError("embedding metadata is missing knowledge scope")
+        return object_scope(SCOPE_CUSTOMER, customer_id)
+    return object_scope(str(raw_type), customer_id)
 
 
 def _optional_int(value: object) -> int | None:
@@ -131,6 +170,32 @@ def _optional_str(value: object) -> str | None:
     if isinstance(value, str):
         return value
     return None
+
+
+def embeddings_for_text_units(
+    items: Sequence[tuple[str, str | None, Sequence[float]]],
+    *,
+    document_version_id: str,
+    text_unit_ids: Sequence[str],
+) -> dict[str, list[float]]:
+    """Map TextUnit IDs to stored vectors. Missing IDs fail loud."""
+    wanted = list(dict.fromkeys(text_unit_ids))
+    found: dict[str, list[float]] = {}
+    for chunk_id, version_id, embedding in items:
+        if chunk_id not in wanted:
+            continue
+        if version_id is not None and version_id != document_version_id:
+            continue
+        if not embedding:
+            raise KnowledgeVectorStoreError(f"stored embedding missing for TextUnit {chunk_id}")
+        found[chunk_id] = list(embedding)
+    missing = [unit_id for unit_id in wanted if unit_id not in found]
+    if missing:
+        raise KnowledgeVectorStoreError(
+            "missing ingest embeddings for TextUnits "
+            f"{missing} in document_version {document_version_id}"
+        )
+    return {unit_id: found[unit_id] for unit_id in wanted}
 
 
 def cosine_score(left: Sequence[float], right: Sequence[float]) -> float:
@@ -182,6 +247,7 @@ def chunk_to_record(
         **chunk.metadata,
         "document_id": chunk.document_id,
         "chunk_id": chunk.chunk_id,
+        "scope_type": chunk.scope_type,
         "customer_id": chunk.customer_id,
         "case_id": chunk.case_id,
         "module": chunk.module,
@@ -242,10 +308,7 @@ class MemoryKnowledgeVectorStore:
             chunk = item.chunk
             if not chunk_in_scope(chunk, query.query.scope):
                 continue
-            if any(
-                chunk.metadata.get(key) != value
-                for key, value in query.query.filters.items()
-            ):
+            if any(chunk.metadata.get(key) != value for key, value in query.query.filters.items()):
                 continue
             score = cosine_score(query.embedding, item.embedding)
             if score <= 0:
@@ -256,6 +319,27 @@ class MemoryKnowledgeVectorStore:
 
     async def delete_document(self, document_id: str) -> None:
         self._chunks = [item for item in self._chunks if item.chunk.document_id != document_id]
+
+    async def get_text_unit_embeddings(
+        self,
+        *,
+        document_id: str,
+        document_version_id: str,
+        text_unit_ids: Sequence[str],
+    ) -> dict[str, list[float]]:
+        rows: list[tuple[str, str | None, Sequence[float]]] = []
+        for item in self._chunks:
+            chunk = item.chunk
+            if chunk.document_id != document_id:
+                continue
+            version = chunk.metadata.get("document_version_id")
+            version_id = version if isinstance(version, str) else None
+            rows.append((chunk.chunk_id, version_id, item.embedding))
+        return embeddings_for_text_units(
+            rows,
+            document_version_id=document_version_id,
+            text_unit_ids=text_unit_ids,
+        )
 
 
 class SupabaseVectorBucketStore:
@@ -300,3 +384,30 @@ class SupabaseVectorBucketStore:
 
     async def delete_document(self, document_id: str) -> None:
         await self._client.delete(document_id)
+
+    async def get_text_unit_embeddings(
+        self,
+        *,
+        document_id: str,
+        document_version_id: str,
+        text_unit_ids: Sequence[str],
+    ) -> dict[str, list[float]]:
+        wanted = list(dict.fromkeys(text_unit_ids))
+        try:
+            records = await self._client.get(document_id=document_id, chunk_ids=wanted)
+        except KnowledgeVectorStoreError:
+            raise
+        except Exception as exc:
+            raise KnowledgeVectorStoreError(f"Vector Bucket get failed: {exc}") from exc
+        rows: list[tuple[str, str | None, Sequence[float]]] = []
+        for record in records:
+            if record.document_id != document_id:
+                continue
+            version = record.metadata.get("document_version_id")
+            version_id = version if isinstance(version, str) else None
+            rows.append((record.chunk_id, version_id, record.embedding))
+        return embeddings_for_text_units(
+            rows,
+            document_version_id=document_version_id,
+            text_unit_ids=wanted,
+        )
