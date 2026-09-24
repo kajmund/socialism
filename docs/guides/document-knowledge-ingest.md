@@ -10,7 +10,7 @@ StoredObject upload
     -> KnowledgeIngestService
          extraction -> Section/TextUnit segmentation -> TextUnit embeddings
   -> persist CanonicalDocument + DocumentVersion + Sections + TextUnits
-  -> Q&A generation from neighbouring TextUnits
+  -> Q&A generation from neighbouring TextUnits in the same section
   -> exact-quote validation, TextUnit grounding, and PDF rectangle anchoring
   -> DocumentKnowledgeItem + anchors + supporting_text_unit_ids + revision snapshot
   -> fact/Q&A item vectors in the same case-scoped index
