@@ -39,8 +39,8 @@ async def ingest_extracted_source(
     chunker: KnowledgeChunker | None = None,
 ) -> KnowledgeIngestResult:
     """Segment, persist, and index TextUnits for any citable source."""
-    resolved = require_persist_scope(scope=scope, customer_id=customer_id)
-    if document.scope.tenant != resolved:
+    persist_scope = require_persist_scope(scope=scope, customer_id=customer_id)
+    if document.scope.tenant != persist_scope:
         raise ValueError("ingest document scope does not match persist scope")
     if extracted.status != "ok" or not any(block.text.strip() for block in extracted.blocks):
         return KnowledgeIngestResult(
@@ -54,25 +54,25 @@ async def ingest_extracted_source(
 
     existing = await get_canonical_document_by_identity(
         session,
-        scope=resolved,
+        scope=persist_scope,
         source_type=source_type,
         canonical_uri=canonical_uri,
     )
-    resolved = document
+    resolved_document = document
     if existing is not None:
-        resolved = replace(document, document_id=existing.id)
+        resolved_document = replace(document, document_id=existing.id)
 
     splitter = chunker or KnowledgeChunker()
     segmented = splitter.segment(
         extracted,
-        resolved,
+        resolved_document,
         content_hash=content_hash,
         source_type=source_type,
         canonical_uri=canonical_uri,
     )
     if not segmented.text_units:
         return KnowledgeIngestResult(
-            document_id=resolved.document_id,
+            document_id=resolved_document.document_id,
             status="empty",
             chunks_indexed=0,
             content_hash=content_hash,
@@ -83,13 +83,13 @@ async def ingest_extracted_source(
 
     persisted = await persist_segmented_document(
         session,
-        scope=resolved,
+        scope=persist_scope,
         source_object_id=source_object_id,
         segmented=segmented,
     )
     if persisted.reused_current:
         return KnowledgeIngestResult(
-            document_id=resolved.document_id,
+            document_id=resolved_document.document_id,
             status="indexed",
             chunks_indexed=len(segmented.text_units),
             content_hash=content_hash,
@@ -105,16 +105,16 @@ async def ingest_extracted_source(
             f"EmbeddingProvider returned {len(vectors)} vectors for "
             f"{len(segmented.text_units)} text units"
         )
-    chunks = [text_unit_to_chunk(unit, resolved) for unit in segmented.text_units]
+    chunks = [text_unit_to_chunk(unit, resolved_document) for unit in segmented.text_units]
     await vector_store.replace_document_chunks(
-        resolved.document_id,
+        resolved_document.document_id,
         [
             EmbeddedKnowledgeChunk(chunk=chunk, embedding=vector)
             for chunk, vector in zip(chunks, vectors, strict=True)
         ],
     )
     return KnowledgeIngestResult(
-        document_id=resolved.document_id,
+        document_id=resolved_document.document_id,
         status="indexed",
         chunks_indexed=len(chunks),
         content_hash=content_hash,

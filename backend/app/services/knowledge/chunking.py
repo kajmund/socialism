@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.services.knowledge.extractors import ExtractedDocument
 from app.services.knowledge.models import KnowledgeChunk, KnowledgeDocument
+from app.services.knowledge.scope import SCOPE_CUSTOMER
 from app.services.knowledge.segmentation import (
     DEFAULT_MAX_CHARS,
     DEFAULT_TARGET_CHARS,
@@ -12,7 +13,6 @@ from app.services.knowledge.segmentation import (
 from app.services.knowledge.units import (
     SegmentedDocument,
     TextUnit,
-    hash_text,
     make_text_unit_id,
 )
 

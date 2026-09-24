@@ -65,7 +65,6 @@ from app.services.knowledge.relationships import (
     relationships_touching,
 )
 from app.services.knowledge.revalidation import (
-    GraphImpact,
     affected_frozen_evidence_sets,
     graph_impact_from_event,
 )
@@ -570,7 +569,7 @@ async def test_semantic_and_entity_resolution_cannot_merge_tenants(
     await persist_knowledge_entity(session, first)
     await persist_knowledge_entity(session, second)
     assert first.id != second.id
-    with pytest.raises(KnowledgeRelationshipError, match="SAME_AS"):
+    with pytest.raises(KnowledgeRelationshipError, match="cannot link two customer scopes|SAME_AS"):
         await persist_knowledge_relationship(
             session,
             knowledge_relationship(
