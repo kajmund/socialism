@@ -68,7 +68,7 @@ flowchart LR
 | **ExecutionRun** | Generic work/investigation container (product name: Run). Table `execution_runs`. Not a legal case and not a simulation körning. |
 | **ExecutionAttempt** | One concrete execution of an ExecutionRun (product: Attempt), with immutable snapshots once started. Table `execution_attempts`. |
 | **EvidenceSet** | Building, frozen, or failed knowledge snapshot reused by Attempts in the same ExecutionRun. |
-| **CanonicalDocument** | Stable source identity (upload, later lagen.nu / APIs). Deduplicated on `(customer_id, source_type, canonical_uri)`. |
+| **CanonicalDocument** | Stable source identity (upload, lagen.nu via adapter, later APIs). Deduplicated on `(customer_id, source_type, canonical_uri)`. |
 | **DocumentVersion** | Immutable temporal occurrence of a CanonicalDocument. Reuse only the current version when the hash matches; a recurring historical hash creates a new row. |
 | **DocumentSection** | Hierarchical structural region inside a DocumentVersion. |
 | **TextUnit** | Canonical passage belonging to one DocumentVersion. Embeddings, Q&A, and later claims/research ground here. |
@@ -200,6 +200,7 @@ Fail fast on missing required config.
 
 ## Related docs
 
+- [TextUnit knowledge](guides/text-unit-knowledge.md)
 - [Durable research execution](guides/research-durable-execution.md)
 - [Runs: interviews, branches, quality](guides/runs-interviews-and-quality.md)
 - [CI](guides/ci.md)
