@@ -171,6 +171,11 @@ from app.services.research.question_graph import (
     DisabledQuestionEvidenceGraph,
     QuestionEvidenceGraph,
 )
+from app.services.research.question_iteration import (
+    attach_freeze_grounded_refs,
+    bind_runtime_needs_to_questions,
+    prepare_iterative_follow_ups,
+)
 from app.services.research.question_reuse import (
     gap_source_types,
     merge_reused_with_provider,
@@ -804,6 +809,12 @@ async def _freeze_ready_attempt(
     if frozen is None:
         evidence_set = await get_evidence_set(session, evidence_set_id)
         if evidence_set.status == "frozen" and attempt.status == "researching":
+            if not evidence_set.grounded_refs:
+                await attach_freeze_grounded_refs(
+                    session,
+                    evidence_set_id=evidence_set_id,
+                    attempt_id=attempt_id,
+                )
             ready = await mark_ready(session, attempt_id)
             await emit_research_frozen_ready(
                 session,
@@ -821,6 +832,11 @@ async def _freeze_ready_attempt(
         raise ResearchExecutionError(
             f"Attempt {attempt_id} cannot become ready from status={attempt.status}"
         )
+    await attach_freeze_grounded_refs(
+        session,
+        evidence_set_id=evidence_set_id,
+        attempt_id=attempt_id,
+    )
     ready = await mark_ready(session, attempt_id)
     await emit_research_frozen_ready(
         session,
@@ -844,6 +860,8 @@ async def _plan_and_persist_follow_ups(
     router: ResearchRouter | None,
     case_id: str | None,
     need_normalizer: ResearchNeedNormalizer | None,
+    question_graph: QuestionEvidenceGraph,
+    context: ResearchContext,
 ) -> list[RuntimeResearchNeed] | str:
     previous = [runtime_need_from_row(row) for row in await list_runtime_needs(session, attempt.id)]
     if len(previous) >= max_needs:
@@ -873,10 +891,23 @@ async def _plan_and_persist_follow_ups(
         assessment_pass=assessment.assessment_pass,
         allowed_source_types=allowed_source_types,
     )
+    accepted = await prepare_iterative_follow_ups(
+        session,
+        graph=question_graph,
+        context=context,
+        accepted=accepted,
+        previous=previous,
+    )
     accepted = take_needs_within_budget(accepted, current_count=len(previous), max_needs=max_needs)
     if not accepted:
         return "no_novel_followups" if len(previous) < max_needs else "max_needs"
     stored = await persist_runtime_needs(session, attempt_id=attempt.id, needs=accepted)
+    await bind_runtime_needs_to_questions(
+        session,
+        graph=question_graph,
+        context=context,
+        attempt_id=attempt.id,
+    )
     accepted_ids = {need.research_need_id for need in accepted}
     seeded = await seed_need_executions(
         session,
@@ -986,6 +1017,8 @@ async def _plan_and_persist_global_needs(
     router: ResearchRouter | None,
     case_id: str | None,
     need_normalizer: ResearchNeedNormalizer | None,
+    question_graph: QuestionEvidenceGraph,
+    context: ResearchContext,
 ) -> list[RuntimeResearchNeed] | str:
     previous = [runtime_need_from_row(row) for row in await list_runtime_needs(session, attempt.id)]
     if len(previous) >= max_needs:
@@ -1005,6 +1038,13 @@ async def _plan_and_persist_global_needs(
         id_prefix="global",
         allowed_source_types=allowed_source_types,
     )
+    accepted = await prepare_iterative_follow_ups(
+        session,
+        graph=question_graph,
+        context=context,
+        accepted=accepted,
+        previous=previous,
+    )
     accepted = take_needs_within_budget(accepted, current_count=len(previous), max_needs=max_needs)
     if not accepted:
         if has_capability_unavailable_gap(
@@ -1013,6 +1053,12 @@ async def _plan_and_persist_global_needs(
             return "capability_unavailable"
         return "no_novel_followups" if len(previous) < max_needs else "max_needs"
     stored = await persist_runtime_needs(session, attempt_id=attempt.id, needs=accepted)
+    await bind_runtime_needs_to_questions(
+        session,
+        graph=question_graph,
+        context=context,
+        attempt_id=attempt.id,
+    )
     accepted_ids = {need.research_need_id for need in accepted}
     seeded = await seed_need_executions(
         session,
@@ -1208,6 +1254,8 @@ async def _run_research_loop(
                         router=router,
                         case_id=context.scope.case_id,
                         need_normalizer=need_normalizer,
+                        question_graph=question_graph,
+                        context=context,
                     )
                     if isinstance(planned, str):
                         await set_research_loop_state(
@@ -1266,6 +1314,8 @@ async def _run_research_loop(
                     router=router,
                     case_id=context.scope.case_id,
                     need_normalizer=need_normalizer,
+                    question_graph=question_graph,
+                    context=context,
                 )
                 if isinstance(planned, str):
                     await set_research_loop_state(
@@ -1422,6 +1472,8 @@ async def _ensure_research_inventory(
     attempt: ExecutionAttempt,
     run: ExecutionRun,
     plan: ResearchPlan,
+    question_graph: QuestionEvidenceGraph,
+    context: ResearchContext,
 ) -> str:
     evidence_set_id = attempt.evidence_set_id
     if evidence_set_id is None:
@@ -1446,6 +1498,12 @@ async def _ensure_research_inventory(
         session,
         attempt_id=attempt.id,
         needs=runtime_needs_from_plan(plan),
+    )
+    await bind_runtime_needs_to_questions(
+        session,
+        graph=question_graph,
+        context=context,
+        attempt_id=attempt.id,
     )
     seeded = await seed_need_executions(
         session,
@@ -1586,14 +1644,16 @@ async def execute_attempt_research(
                         session, attempt_id=attempt.id, objective=objective
                     )
                 await emit_initial_plan_accepted(session, attempt_id=attempt.id, plan=plan)
+            context = replace(research_context_from_run(run), attempt_id=attempt_id)
             evidence_set_id = await _ensure_research_inventory(
                 session,
                 attempt=attempt,
                 run=run,
                 plan=plan,
+                question_graph=bound_graph,
+                context=context,
             )
             start_wave = attempt.research_wave if resume else INITIAL_RESEARCH_WAVE
-            context = replace(research_context_from_run(run), attempt_id=attempt_id)
             factory = session_factory or _session_factory(session)
             await session.commit()
             await progress.publish_committed()

@@ -2104,6 +2104,7 @@ class EvidenceSet(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    grounded_refs: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     run: Mapped[ExecutionRun] = relationship(back_populates="evidence_sets")
     items: Mapped[list["EvidenceSetItem"]] = relationship(
@@ -2346,6 +2347,24 @@ class ResearchRuntimeNeed(Base):
     normalization_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     already_normalized: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
+    )
+    knowledge_question_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    generated_from_question_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    trigger_claim_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_claims.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    trigger_graph_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_graph_events.id", ondelete="SET NULL"),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -2737,6 +2756,46 @@ class KnowledgeQuestionRow(Base):
     answers: Mapped[list["KnowledgeQuestionEvidenceLink"]] = relationship(
         back_populates="question",
         cascade="all, delete-orphan",
+    )
+
+
+class KnowledgeQuestionLineage(Base):
+    """Idempotent parent → child edge on the KnowledgeQuestion DAG."""
+
+    __tablename__ = "knowledge_question_lineage"
+    __table_args__ = (
+        UniqueConstraint(
+            "parent_question_id",
+            "child_question_id",
+            name="uq_knowledge_question_lineage_edge",
+        ),
+        Index("ix_knowledge_question_lineage_child", "child_question_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    parent_question_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    child_question_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    trigger_claim_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_claims.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    trigger_graph_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_graph_events.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    why_needed: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
 
 

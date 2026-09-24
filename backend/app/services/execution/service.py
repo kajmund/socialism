@@ -1271,6 +1271,10 @@ def runtime_need_from_row(row: ResearchRuntimeNeed) -> RuntimeResearchNeed:
         original_question=row.original_question or "",
         normalization_reason=row.normalization_reason or "",
         already_normalized=bool(row.already_normalized),
+        knowledge_question_id=row.knowledge_question_id or "",
+        generated_from_question_id=row.generated_from_question_id or "",
+        trigger_claim_id=row.trigger_claim_id or "",
+        trigger_graph_event_id=row.trigger_graph_event_id or "",
     )
 
 
@@ -1346,6 +1350,10 @@ async def persist_runtime_needs(
                 original_question=need.original_question or None,
                 normalization_reason=need.normalization_reason or None,
                 already_normalized=need.already_normalized,
+                knowledge_question_id=need.knowledge_question_id or None,
+                generated_from_question_id=need.generated_from_question_id or None,
+                trigger_claim_id=need.trigger_claim_id or None,
+                trigger_graph_event_id=need.trigger_graph_event_id or None,
             )
         )
     await session.flush()
