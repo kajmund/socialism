@@ -38,6 +38,11 @@ from app.services.lagen_nu.mcp_client import (
     OfficialLagenNuMcpNotFoundError,
 )
 from app.services.lagen_nu.models import LagenNuDocument, LagenNuSearchHit
+from app.services.lagen_nu.passage_router import (
+    JevPassageRouter,
+    LagenNuPassageRouter,
+    PassageRoutingError,
+)
 from app.services.lagen_nu.question_validation import (
     LegalQuestionValidator,
     is_legal_research_need,
@@ -48,11 +53,6 @@ from app.services.lagen_nu.registration import (
     LAGEN_NU_PROVIDER_ID,
     LAGEN_NU_PUBLICATION_NOTE,
     mcp_source_for_nature,
-)
-from app.services.lagen_nu.passage_router import (
-    JevPassageRouter,
-    LagenNuPassageRouter,
-    PassageRoutingError,
 )
 from app.services.lagen_nu.selection import (
     HitDecision,

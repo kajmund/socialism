@@ -173,7 +173,7 @@ async def test_rank_prefers_token_overlap():
         units,
         FakeEmbeddingProvider(),
     )
-    assert [unit.id for _score, unit in ranked][0] == "reason"
+    assert next(unit.id for _score, unit in ranked) == "reason"
 
 
 def test_expand_keeps_same_section_neighbors_only():

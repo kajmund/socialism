@@ -13,6 +13,7 @@ from app.database.base import Base
 from app.database.models import Kund
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.mcp_client import OfficialLagenNuMcpClient, parse_document
+from app.services.lagen_nu.passage_router import KeepAllPassageRouter
 from app.services.lagen_nu.question_validation import (
     COMMERCIAL_AVTL_QUESTION,
     MIXED_MD_AVTL_QUESTION,
@@ -20,7 +21,6 @@ from app.services.lagen_nu.question_validation import (
     canonical_legal_question_verdicts,
     forbidden_retrieval_questions,
 )
-from app.services.lagen_nu.passage_router import KeepAllPassageRouter
 from app.services.lagen_nu.research_source import MAX_DOCUMENT_CHARS, LagenNuResearchSource
 from app.services.legal_research_result import LegalResearchResult
 from app.services.research_domain_results import legal_claims
