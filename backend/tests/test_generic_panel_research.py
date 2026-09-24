@@ -46,9 +46,22 @@ from app.services.research import InvalidResearchPlanError
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _assert_single_linear_head(script: ScriptDirectory, *, through: str) -> None:
+    heads = script.get_heads()
+    assert len(heads) == 1, f"multiple alembic heads: {heads}"
+    current = heads[0]
+    seen: set[str] = set()
+    while current != through:
+        assert current not in seen, f"cycle at {current}"
+        seen.add(current)
+        down = script.get_revision(current).down_revision
+        assert isinstance(down, str), f"branched revision {current}: {down!r}"
+        current = down
+
+
 def test_researchplan_migrations_are_linear_after_word_head():
     script = ScriptDirectory.from_config(Config(str(_BACKEND_ROOT / "alembic.ini")))
-    assert script.get_heads() == ["115_canonical_text_units"]
+    _assert_single_linear_head(script, through="115_canonical_text_units")
     assert script.get_revision("115_canonical_text_units").down_revision == "114_legal_question_validation"
     assert script.get_revision("114_legal_question_validation").down_revision == "113_llm_selection_mode"
     assert script.get_revision("113_llm_selection_mode").down_revision == "112_llm_configurations"
