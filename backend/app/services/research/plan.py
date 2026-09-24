@@ -59,6 +59,7 @@ def validate_research_plan(plan: ResearchPlan) -> ResearchPlan:
                 original_question=str(getattr(need, "original_question", "") or ""),
                 normalization_reason=str(getattr(need, "normalization_reason", "") or ""),
                 already_normalized=bool(getattr(need, "already_normalized", False)),
+                knowledge_question_id=str(getattr(need, "knowledge_question_id", "") or ""),
             )
         )
     return ResearchPlan(needs=validated)
@@ -91,6 +92,8 @@ def _need_snapshot(need: ResearchNeed) -> dict[str, Any]:
         payload["normalization_reason"] = need.normalization_reason
     if need.already_normalized:
         payload["already_normalized"] = True
+    if need.knowledge_question_id:
+        payload["knowledge_question_id"] = need.knowledge_question_id
     return payload
 
 
@@ -139,6 +142,7 @@ def research_plan_from_snapshot(raw: object) -> ResearchPlan:
                 original_question=str(item.get("original_question") or ""),
                 normalization_reason=str(item.get("normalization_reason") or ""),
                 already_normalized=bool(item.get("already_normalized") or False),
+                knowledge_question_id=str(item.get("knowledge_question_id") or ""),
             )
         )
     return validate_research_plan(ResearchPlan(needs=needs))
