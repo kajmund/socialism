@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -20,6 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from app.database.base import Base
+from app.database.knowledge_scope import bind_scoped_mapper
 
 
 class Kund(Base):
@@ -1629,17 +1631,25 @@ class CanonicalDocumentRecord(Base):
     __tablename__ = "canonical_documents"
     __table_args__ = (
         UniqueConstraint(
-            "customer_id",
+            "scope_key",
             "source_type",
             "canonical_uri",
-            name="uq_canonical_documents_source_identity",
+            name="uq_canonical_documents_scope_identity",
+        ),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_canonical_documents_knowledge_scope",
         ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    customer_id: Mapped[int] = mapped_column(
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("kunder.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     source_object_id: Mapped[str | None] = mapped_column(
@@ -1680,9 +1690,22 @@ class DocumentVersionRecord(Base):
         ),
         Index("ix_document_versions_content_hash", "content_hash"),
         Index("ix_document_versions_superseded_at", "superseded_at"),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_document_versions_knowledge_scope",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     document_id: Mapped[str] = mapped_column(
         ForeignKey("canonical_documents.id", ondelete="CASCADE"),
         nullable=False,
@@ -1725,9 +1748,22 @@ class DocumentSectionRecord(Base):
             "document_version_id",
             "ordinal",
         ),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_document_sections_knowledge_scope",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     document_version_id: Mapped[str] = mapped_column(
         ForeignKey("document_versions.id", ondelete="CASCADE"),
         nullable=False,
@@ -1762,9 +1798,22 @@ class TextUnitRecord(Base):
         Index("ix_text_units_document_ordinal", "document_id", "ordinal"),
         Index("ix_text_units_version_ordinal", "document_version_id", "ordinal"),
         Index("ix_text_units_content_hash", "content_hash"),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_text_units_knowledge_scope",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     document_version_id: Mapped[str] = mapped_column(
         ForeignKey("document_versions.id", ondelete="CASCADE"),
         nullable=False,
@@ -1835,12 +1884,20 @@ class KnowledgeClaimRecord(Base):
         Index("ix_knowledge_claims_document_version", "document_version_id"),
         Index("ix_knowledge_claims_document_predicate", "document_id", "predicate"),
         Index("ix_knowledge_claims_superseded_at", "superseded_at"),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_knowledge_claims_knowledge_scope",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    customer_id: Mapped[int] = mapped_column(
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("kunder.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     document_id: Mapped[str] = mapped_column(
@@ -1914,9 +1971,22 @@ class KnowledgeClaimAnswer(Base):
         ),
         Index("ix_knowledge_claim_answers_question_key", "question_key"),
         Index("ix_knowledge_claim_answers_source_type", "source_type"),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_knowledge_claim_answers_knowledge_scope",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     claim_id: Mapped[str] = mapped_column(
         ForeignKey("knowledge_claims.id", ondelete="CASCADE"),
         nullable=False,
@@ -1941,18 +2011,26 @@ class KnowledgeEntityRecord(Base):
     __tablename__ = "knowledge_entities"
     __table_args__ = (
         UniqueConstraint(
-            "customer_id",
+            "scope_key",
             "entity_type",
             "entity_key",
-            name="uq_knowledge_entities_identity",
+            name="uq_knowledge_entities_scope_identity",
         ),
         Index("ix_knowledge_entities_type", "entity_type"),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_knowledge_entities_knowledge_scope",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    customer_id: Mapped[int] = mapped_column(
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("kunder.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     entity_type: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -1972,24 +2050,32 @@ class KnowledgeRelationshipRecord(Base):
     __tablename__ = "knowledge_relationships"
     __table_args__ = (
         UniqueConstraint(
-            "customer_id",
+            "scope_key",
             "relation",
             "from_kind",
             "from_id",
             "to_kind",
             "to_id",
-            name="uq_knowledge_relationships_edge",
+            name="uq_knowledge_relationships_scope_edge",
         ),
         Index("ix_knowledge_relationships_from", "from_kind", "from_id"),
         Index("ix_knowledge_relationships_to", "to_kind", "to_id"),
         Index("ix_knowledge_relationships_relation", "relation"),
         Index("ix_knowledge_relationships_superseded_at", "superseded_at"),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_knowledge_relationships_knowledge_scope",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    customer_id: Mapped[int] = mapped_column(
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("kunder.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     relation: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -2014,14 +2100,23 @@ class KnowledgeGraphEventRecord(Base):
     __tablename__ = "knowledge_graph_events"
     __table_args__ = (
         Index("ix_knowledge_graph_events_customer_created", "customer_id", "created_at"),
+        Index("ix_knowledge_graph_events_scope_created", "scope_key", "created_at"),
         Index("ix_knowledge_graph_events_type", "event_type"),
         Index("ix_knowledge_graph_events_node", "node_kind", "node_id"),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_knowledge_graph_events_knowledge_scope",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    customer_id: Mapped[int] = mapped_column(
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("kunder.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -2104,6 +2199,7 @@ class EvidenceSet(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    grounded_refs: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     run: Mapped[ExecutionRun] = relationship(back_populates="evidence_sets")
     items: Mapped[list["EvidenceSetItem"]] = relationship(
@@ -2346,6 +2442,24 @@ class ResearchRuntimeNeed(Base):
     normalization_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     already_normalized: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
+    )
+    knowledge_question_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    generated_from_question_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    trigger_claim_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_claims.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    trigger_graph_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_graph_events.id", ondelete="SET NULL"),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -2706,6 +2820,12 @@ class KnowledgeQuestionRow(Base):
             "identity_key",
             name="uq_knowledge_questions_namespace_identity",
         ),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_knowledge_questions_knowledge_scope",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -2714,6 +2834,8 @@ class KnowledgeQuestionRow(Base):
     display_text: Mapped[str] = mapped_column(Text, nullable=False)
     namespace: Mapped[str] = mapped_column(String(64), nullable=False)
     visibility: Mapped[str] = mapped_column(String(16), nullable=False)
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("kunder.id", ondelete="RESTRICT"),
         nullable=True,
@@ -2737,6 +2859,46 @@ class KnowledgeQuestionRow(Base):
     answers: Mapped[list["KnowledgeQuestionEvidenceLink"]] = relationship(
         back_populates="question",
         cascade="all, delete-orphan",
+    )
+
+
+class KnowledgeQuestionLineage(Base):
+    """Idempotent parent → child edge on the KnowledgeQuestion DAG."""
+
+    __tablename__ = "knowledge_question_lineage"
+    __table_args__ = (
+        UniqueConstraint(
+            "parent_question_id",
+            "child_question_id",
+            name="uq_knowledge_question_lineage_edge",
+        ),
+        Index("ix_knowledge_question_lineage_child", "child_question_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    parent_question_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    child_question_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    trigger_claim_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_claims.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    trigger_graph_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_graph_events.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    why_needed: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
 
 
@@ -3104,3 +3266,22 @@ class ActorContextProposal(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+def _register_knowledge_scope_listeners() -> None:
+    for model in (
+        CanonicalDocumentRecord,
+        DocumentVersionRecord,
+        DocumentSectionRecord,
+        TextUnitRecord,
+        KnowledgeClaimRecord,
+        KnowledgeClaimAnswer,
+        KnowledgeEntityRecord,
+        KnowledgeRelationshipRecord,
+        KnowledgeGraphEventRecord,
+        KnowledgeQuestionRow,
+    ):
+        bind_scoped_mapper(model)
+
+
+_register_knowledge_scope_listeners()

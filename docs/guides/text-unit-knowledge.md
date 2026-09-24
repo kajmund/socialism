@@ -28,7 +28,7 @@ Microsoft GraphRAG inspired the primitives (`Document`, `TextUnit`, later `Entit
 
 Uploaded documents now ingest as `CanonicalDocument` → `DocumentVersion` → `DocumentSection` → `TextUnit`.
 
-- `CanonicalDocument` is stable source identity: `(customer_id, source_type, canonical_uri)`.
+- `CanonicalDocument` is stable source identity: `(scope_key, source_type, canonical_uri)` where `scope_key` is `shared` or `customer:{id}`. Customer copies never dedupe into shared or another tenant. See [knowledge-tenant-scope.md](knowledge-tenant-scope.md).
 - `DocumentVersion` is an immutable temporal occurrence. Reuse only when the incoming `content_hash` already matches the current version. A historical hash that returns creates a new version row. Provider `version` is metadata only.
 - Structure-aware segmentation prefers markup headings, numbered titles, and short all-caps display lines.
 - If no structure is found: extracted block boundaries, then paragraphs, then sentence-safe size splits.
@@ -103,6 +103,28 @@ Claims and relationships carry valid time (`valid_from` / `valid_to`) and system
 ### Phase 6 — revalidation
 
 A graph event (`CLAIM_ADDED`, `EDGE_ADDED`, `CLAIM_SUPERSEDED`) looks up affected `KnowledgeQuestion` keys and frozen EvidenceSets via claim answers, claim ids, and TextUnit ids. Jev answers `material_change` against configurable bands (`REVALIDATION_IMPACT_THRESHOLD` default 0.75 → `impacted`, `REVALIDATION_CLEAR_THRESHOLD` default 0.25 → `clear`, between → `revalidation_required`). Results live on `evidence_set_revalidations`. The frozen snapshot is not rewritten. Freeze stores `graph_revision_at_freeze`. Jev error or invalid noul is `unknown`, never `clear`. No Jev call when no frozen EvidenceSet is touched.
+
+### Phase 7 — iterative KnowledgeQuestion-driven research
+
+Research is a question DAG. `KnowledgeQuestion` is the reusable identity. `ResearchNeed` is an execution request for remaining gaps. Several runtime needs may point at the same question.
+
+```text
+Root question
+  → resolve/create canonical KnowledgeQuestion
+  → load existing fresh grounded Claims
+  → retrieve only remaining source_type gaps
+  → persist Claims + Entities + Relationships
+  → assess / completeness
+  → follow-up → child KnowledgeQuestion + lineage
+  → repeat until complete or a loop guard
+  → freeze EvidenceSet
+```
+
+Follow-ups are child `KnowledgeQuestion` nodes with idempotent `knowledge_question_lineage` edges (`generated_from` parent, optional `trigger_claim_id` / `trigger_graph_event_id`, `why_needed`). Same `identity_key` does not create a new node. A cycle or a fresh answered child does not start live retrieval.
+
+Resolution before retrieval: exact `identity_key`, existing tenant question, fresh grounded claims, remaining source-type gaps, then providers. `QuestionRelationResolver` is the later same_as/broader/narrower seam. This phase does not add GraphRAG communities or fuzzy clustering.
+
+Frozen `EvidenceSet.grounded_refs` snapshots `knowledge_question_ids`, `knowledge_claim_ids`, `document_version_ids`, and `text_unit_ids` beside `graph_revision_at_freeze`. The snapshot stays immutable.
 
 ## Design constraints
 

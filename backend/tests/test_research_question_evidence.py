@@ -848,6 +848,7 @@ async def _seed_claim_answer(
         DocumentVersionRecord(
             id="ver-claim",
             document_id="doc-claim",
+            customer_id=customer_id,
             content_hash="hash-claim",
             mime_type="text/plain",
             extra={},
@@ -858,6 +859,7 @@ async def _seed_claim_answer(
             id="tu-claim",
             document_version_id="ver-claim",
             document_id="doc-claim",
+            customer_id=customer_id,
             section_id=None,
             ordinal=0,
             text=unit_text,
