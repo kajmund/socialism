@@ -23,6 +23,7 @@ from app.database.models import (
     ResearchAssessment,
     ResearchCompletenessPass,
     ResearchEvidenceQuality,
+    ResearchNeedExecution,
     ResearchProgressEvent,
     ResearchQuestion,
     ResearchQuestionDependency,
@@ -829,6 +830,65 @@ def _domain_result_analysis(result: object) -> str | None:
     return explanation[:1000]
 
 
+def _overview_sources(
+    items: list[EvidenceSetItem],
+    *,
+    domain_by_id: dict[str, object],
+    need_ids_by_item: dict[str, set[str]],
+) -> list[ResearchSourceOut]:
+    sources: list[ResearchSourceOut] = []
+    for item in items:
+        domain = domain_by_id.get(item.domain_result_id) if item.domain_result_id else None
+        sources.append(
+            ResearchSourceOut(
+                derived=bool((item.provenance or {}).get("derived")),
+                failure_category=(item.provenance or {}).get("failure_category"),
+                id=item.id,
+                passage_id=item.passage_id,
+                domain_result_id=item.domain_result_id,
+                raw_source_id=domain.raw_source_id if domain is not None else None,
+                analysis=_domain_result_analysis(domain.result) if domain is not None else None,
+                research_need_ids=sorted(need_ids_by_item[item.id]),
+                status=item.status,
+                title=item.title,
+                excerpt=(item.excerpt[:1000] if item.excerpt else None),
+                locator=item.locator,
+                source_url=item.source_url,
+                source_type=item.source_type,
+                provider=item.provider,
+            )
+        )
+    return sources
+
+
+def _overview_source_count(items: list[EvidenceSetItem]) -> int:
+    return len(
+        {
+            (
+                item.provider,
+                canonical_source_identity(item.source_id, item.source_url) or item.id,
+            )
+            for item in items
+        }
+    )
+
+
+def _items_for_need(
+    items_by_set: dict[str, list[EvidenceSetItem]],
+    need_ids_by_item: dict[str, set[str]],
+    *,
+    evidence_set_id: str | None,
+    research_need_id: str,
+) -> list[EvidenceSetItem]:
+    if not evidence_set_id:
+        return []
+    return [
+        item
+        for item in items_by_set.get(evidence_set_id, [])
+        if research_need_id in need_ids_by_item.get(item.id, set())
+    ]
+
+
 def _need_assessment_out(raw: object) -> ResearchNeedAssessmentOut | None:
     if not raw:
         return None
@@ -924,6 +984,8 @@ async def get_attempt_research_overview(
     )
     child_by_id = {child.id: child for child in children}
     evidence_set_ids = [child.evidence_set_id for child in children if child.evidence_set_id]
+    if attempt.evidence_set_id and attempt.evidence_set_id not in evidence_set_ids:
+        evidence_set_ids.append(attempt.evidence_set_id)
     evidence_items = (
         list(
             (
@@ -1075,43 +1137,105 @@ async def get_attempt_research_overview(
                     id=assigned.expert_id,
                     name=expert_names.get(assigned.expert_id, assigned.expert_id),
                 ),
-                sources=[
-                    ResearchSourceOut(
-                        derived=bool((item.provenance or {}).get("derived")),
-                        failure_category=(item.provenance or {}).get("failure_category"),
-                        id=item.id,
-                        passage_id=item.passage_id,
-                        domain_result_id=item.domain_result_id,
-                        raw_source_id=(
-                            domain_by_id[item.domain_result_id].raw_source_id
-                            if item.domain_result_id in domain_by_id
-                            else None
-                        ),
-                        analysis=(
-                            _domain_result_analysis(domain_by_id[item.domain_result_id].result)
-                            if item.domain_result_id in domain_by_id
-                            else None
-                        ),
-                        research_need_ids=sorted(need_ids_by_item[item.id]),
-                        status=item.status,
-                        title=item.title,
-                        excerpt=(item.excerpt[:1000] if item.excerpt else None),
-                        locator=item.locator,
-                        source_url=item.source_url,
-                        source_type=item.source_type,
-                        provider=item.provider,
-                    )
-                    for item in items
-                ],
-                source_count=len(
-                    {
-                        (
-                            item.provider,
-                            canonical_source_identity(item.source_id, item.source_url) or item.id,
-                        )
-                        for item in items
-                    }
+                sources=_overview_sources(
+                    items, domain_by_id=domain_by_id, need_ids_by_item=need_ids_by_item
                 ),
+                source_count=_overview_source_count(items),
+                need_assessment=_need_assessment_out(need_assessment),
+            )
+        )
+    represented_need_ids = {
+        row.runtime_need_id for row, _question, _specific in question_rows if row.runtime_need_id
+    }
+    specific_by_child = {
+        row.execution_attempt_id: specific_text
+        for row, _question, specific_text in question_rows
+        if row.execution_attempt_id
+    }
+    need_attempt_ids = list(dict.fromkeys([attempt_id, *child_ids]))
+    runtime_needs = list(
+        (
+            await session.execute(
+                select(ResearchRuntimeNeed)
+                .where(ResearchRuntimeNeed.attempt_id.in_(need_attempt_ids))
+                .order_by(
+                    ResearchRuntimeNeed.wave_number,
+                    ResearchRuntimeNeed.created_at,
+                    ResearchRuntimeNeed.research_need_id,
+                )
+            )
+        ).scalars()
+    )
+    need_executions = list(
+        (
+            await session.execute(
+                select(ResearchNeedExecution).where(
+                    ResearchNeedExecution.attempt_id.in_(need_attempt_ids)
+                )
+            )
+        ).scalars()
+    )
+    execution_by_need = {(row.attempt_id, row.research_need_id): row for row in need_executions}
+    evidence_set_by_attempt = {
+        child.id: child.evidence_set_id for child in children if child.evidence_set_id
+    }
+    if attempt.evidence_set_id:
+        evidence_set_by_attempt[attempt.id] = attempt.evidence_set_id
+    for need in runtime_needs:
+        if need.research_need_id in represented_need_ids:
+            continue
+        execution = execution_by_need.get((need.attempt_id, need.research_need_id))
+        raw_status = execution.status if execution is not None else "pending"
+        if raw_status not in {"running", "completed", "failed"}:
+            raw_status = "pending"
+        need_items = _items_for_need(
+            items_by_set,
+            need_ids_by_item,
+            evidence_set_id=evidence_set_by_attempt.get(need.attempt_id),
+            research_need_id=need.research_need_id,
+        )
+        owner = child_by_id.get(need.attempt_id)
+        assessment = assessment_by_attempt.get(need.attempt_id)
+        need_assessment = (
+            next(
+                (
+                    item
+                    for item in (assessment.need_assessments or [])
+                    if item.get("research_need_id") == need.research_need_id
+                ),
+                None,
+            )
+            if assessment
+            else None
+        )
+        questions.append(
+            ResearchQuestionOverviewOut(
+                id=f"runtime-need:{need.attempt_id}:{need.research_need_id}",
+                question=need.question,
+                specific_question=specific_by_child.get(need.attempt_id, need.question),
+                why_needed=need.why_needed,
+                status=_research_question_display_status(
+                    raw_status=raw_status,
+                    items=need_items,
+                    need_sufficient=(
+                        need_assessment.get("sufficient") if need_assessment else None
+                    ),
+                ),
+                raw_status=raw_status,
+                outcome_reason=None,
+                origin=need.origin,
+                depth=need.wave_number,
+                child_attempt_id=None if owner is None else owner.id,
+                child_attempt_status=None if owner is None else owner.status,
+                dependency_ids=[],
+                raised_by=[],
+                assigned_to=None,
+                sources=_overview_sources(
+                    need_items,
+                    domain_by_id=domain_by_id,
+                    need_ids_by_item=need_ids_by_item,
+                ),
+                source_count=_overview_source_count(need_items),
                 need_assessment=_need_assessment_out(need_assessment),
             )
         )

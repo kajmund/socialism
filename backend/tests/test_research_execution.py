@@ -16,6 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.database.base import Base
 from app.database.models import EvidenceSet, ExecutionAttempt, Kund
 from app.services.execution import (
@@ -55,6 +56,7 @@ from app.services.research import (
 )
 from app.services.research.models import research_evidence as build_evidence
 from app.services.research.plan import research_plan_to_snapshot
+from app.services.research.progress import list_research_progress_events
 
 EXECUTION_PY = (
     Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "execution.py"
@@ -201,6 +203,15 @@ class RecordingSource:
 class RaisingRouter:
     async def execute_need(self, need: ResearchNeed, context: ResearchContext):
         raise RuntimeError("router exploded")
+
+    def available_source_types(self) -> tuple[str, ...]:
+        return ()
+
+
+class HangingRouter:
+    async def execute_need(self, need: ResearchNeed, context: ResearchContext):
+        del need, context
+        await asyncio.sleep(30)
 
     def available_source_types(self) -> tuple[str, ...]:
         return ()
@@ -397,6 +408,31 @@ async def test_fatal_orchestration_marks_attempt_and_set_failed(db):
     assert reloaded.status == "failed"
     assert evidence_set.status == "failed"
     assert evidence_set.frozen_at is None
+
+
+@pytest.mark.asyncio
+async def test_need_deadline_fails_the_need_and_the_attempt(db, monkeypatch):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="deadline-co")
+    monkeypatch.setattr(settings, "research_need_timeout_seconds", 0.05)
+    with pytest.raises(ResearchExecutionError, match="research failed"):
+        await execute_attempt_research(
+            session,
+            attempt_id=attempt.id,
+            research_plan=ResearchPlan(needs=[_need("research_5", "case_knowledge")]),
+            router=HangingRouter(),  # type: ignore[arg-type]
+        )
+    reloaded = await get_attempt(session, attempt.id)
+    evidence_set = await get_evidence_set(session, reloaded.evidence_set_id)
+    executions = await list_need_executions(session, attempt.id)
+    events = await list_research_progress_events(session, attempt.id)
+    assert reloaded.status == "failed"
+    assert evidence_set.status == "failed"
+    assert [row.status for row in executions] == ["failed"]
+    failed = [event for event in events if event.event_type == "need_failed"]
+    assert len(failed) == 1
+    assert failed[0].payload["research_need_id"] == "research_5"
+    assert failed[0].payload["reason"] == "research need exceeded the execution deadline"
 
 
 @pytest.mark.asyncio
