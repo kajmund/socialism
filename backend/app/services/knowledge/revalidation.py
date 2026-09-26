@@ -125,30 +125,24 @@ async def affected_frozen_evidence_sets(
 ) -> list[EvidenceSet]:
     if not impact.question_keys and not impact.claim_ids and not impact.text_unit_ids:
         return []
-    query = (
-        select(EvidenceSet)
+    if customer_id is None:
+        raise KnowledgeScopeError("revalidation of customer graph events requires customer_id")
+    # Selecting EvidenceSetItem entities triggers select-in loads of passages,
+    # full domain results, raw documents and claims. Only provenance is needed.
+    rows = await session.execute(
+        select(EvidenceSet, EvidenceSetItem.provenance)
         .join(ExecutionRun, ExecutionRun.id == EvidenceSet.run_id)
-        .where(EvidenceSet.status == "frozen")
-    )
-    if customer_id is not None:
-        query = query.where(ExecutionRun.customer_id == customer_id)
-    else:
-        raise KnowledgeScopeError(
-            "revalidation of customer graph events requires customer_id"
+        .join(EvidenceSetItem, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
+        .where(
+            EvidenceSet.status == "frozen",
+            ExecutionRun.customer_id == customer_id,
         )
-    rows = (await session.execute(query)).scalars().all()
-    affected: list[EvidenceSet] = []
-    for evidence_set in rows:
-        items = (
-            await session.execute(
-                select(EvidenceSetItem).where(
-                    EvidenceSetItem.evidence_set_id == evidence_set.id
-                )
-            )
-        ).scalars().all()
-        if any(_item_touches_impact(item, impact) for item in items):
-            affected.append(evidence_set)
-    return affected
+    )
+    affected: dict[str, EvidenceSet] = {}
+    for evidence_set, provenance in rows:
+        if evidence_set.id not in affected and _provenance_touches_impact(provenance, impact):
+            affected[evidence_set.id] = evidence_set
+    return list(affected.values())
 
 
 def classify_revalidation_state(
@@ -197,14 +191,10 @@ async def revalidate_after_event(
     )
     if not sets:
         return []
-    question_id = await _knowledge_question_id(
-        session, impact.question_keys, event_scope
-    )
+    question_id = await _knowledge_question_id(session, impact.question_keys, event_scope)
     question_key = impact.question_keys[0] if impact.question_keys else None
     try:
-        noul: float | None = await _impact_noul(
-            jev, event=event, impact=impact, evidence_sets=sets
-        )
+        noul: float | None = await _impact_noul(jev, event=event, impact=impact, evidence_sets=sets)
         state = classify_revalidation_state(
             noul,
             impact_threshold=settings.revalidation_impact_threshold,
@@ -237,8 +227,8 @@ async def revalidate_after_event(
     return decisions
 
 
-def _item_touches_impact(item: EvidenceSetItem, impact: GraphImpact) -> bool:
-    provenance = item.provenance if isinstance(item.provenance, dict) else {}
+def _provenance_touches_impact(provenance: object, impact: GraphImpact) -> bool:
+    provenance = provenance if isinstance(provenance, dict) else {}
     key = provenance.get("answered_by_question_key")
     if isinstance(key, str) and key in impact.question_keys:
         return True

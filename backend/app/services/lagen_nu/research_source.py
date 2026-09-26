@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import time
 from dataclasses import dataclass, replace
 from typing import Literal
 
@@ -579,6 +580,12 @@ class LagenNuResearchSource:
         if self._session is None:
             return
         gate = self._require_impact_gate()
+        started = time.monotonic()
+        logger.info(
+            "graph_revalidation_started customer_id=%s claims=%s relationships=%s",
+            customer_id, len(claim_ids), len(relationship_ids),
+        )
+        event_count = 0
         for node_kind, node_ids in (
             ("claim", claim_ids),
             ("relationship", relationship_ids),
@@ -592,6 +599,11 @@ class LagenNuResearchSource:
                 )
                 for event in events:
                     await revalidate_after_event(self._session, event.id, jev=gate)
+                    event_count += 1
+        logger.info(
+            "graph_revalidation_completed customer_id=%s events=%s elapsed_seconds=%.3f",
+            customer_id, event_count, time.monotonic() - started,
+        )
 
     def _mcp(self) -> LagenNuMcpClient:
         if self._client is not None:

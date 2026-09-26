@@ -409,3 +409,62 @@ async def test_invalid_jev_response_is_unknown_never_clear(db, answers):
     assert [row.state for row in rows] == [REVALIDATION_UNKNOWN]
     assert REVALIDATION_CLEAR not in {item.state for item in decisions}
     assert (await get_evidence_set(db, frozen.id)).status == "frozen"
+
+
+@pytest.mark.parametrize("extra_sets", [0, 12])
+async def test_impact_lookup_uses_one_projection_query_and_preserves_customer_boundary(
+    db, extra_sets
+):
+    from sqlalchemy import event
+
+    from app.services.knowledge.revalidation import GraphImpact, affected_frozen_evidence_sets
+
+    kund, frozen = await _setup_frozen_set(db)
+    other = Kund(name="Other", slug="other-impact", available_modules=["dd"])
+    db.add(other)
+    await db.flush()
+    other_run = await create_run(db, customer_id=other.id, module="dd", title="Other", context={})
+    expected = {frozen.id}
+    for i in range(extra_sets + 2):
+        cross_customer = i == extra_sets
+        building = i == extra_sets + 1
+        target = await create_evidence_set(
+            db, run_id=other_run.id if cross_customer else frozen.run_id
+        )
+        await add_evidence_items(
+            db,
+            evidence_set_id=target.id,
+            items=[
+                research_evidence(
+                    research_need_id="need-1",
+                    source_type="swedish_case_law",
+                    status="found",
+                    excerpt=f"Evidence {i}",
+                    metadata={"text_unit_ids": ["tu-hold"]},
+                )
+            ],
+        )
+        if not building:
+            await freeze_evidence_set(db, target.id)
+        if not cross_customer and not building:
+            expected.add(target.id)
+    await db.flush()
+    statements = []
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    engine = db.bind.sync_engine
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        affected = await affected_frozen_evidence_sets(
+            db,
+            customer_id=kund.id,
+            impact=GraphImpact(question_keys=(), claim_ids=(), text_unit_ids=("tu-hold",)),
+        )
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+    assert {row.id for row in affected} == expected
+    assert len(statements) == 1, f"Impact scan issued {len(statements)} SQL statements"
+    assert "raw_sources" not in statements[0]
+    assert "domain_research_results" not in statements[0]
