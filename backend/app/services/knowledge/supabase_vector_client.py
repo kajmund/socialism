@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from storage3 import AsyncStorageClient
-from storage3.types import VectorData, VectorObject
+from storage3.types import MetadataConfiguration, VectorData, VectorObject
 
 from app.config import Settings
 from app.services.knowledge.provider import KnowledgeVectorStoreError
@@ -16,6 +17,10 @@ from app.services.knowledge.vector_store import VectorBucketClient, VectorBucket
 
 _BATCH_SIZE = 500
 _LIST_PAGE_SIZE = 100
+# Content must remain retrievable without consuming the 2 KiB filter budget.
+_NON_FILTERABLE_KEYS = ("text", "title", "locator", "section_title", "external_id")
+_FILTERABLE_METADATA_LIMIT = 2048
+_TOTAL_METADATA_LIMIT = 40 * 1024
 
 
 @dataclass(frozen=True)
@@ -112,6 +117,8 @@ class SupabaseStorageVectorClient(VectorBucketClient):
 
 
 def _vector_filter(filters: Mapping[str, Any]) -> dict[str, Any] | None:
+    if any(key in _NON_FILTERABLE_KEYS for key in filters):
+        raise KnowledgeVectorStoreError("Content metadata cannot be used as a vector filter")
     conditions = [{key: value} for key, value in filters.items()]
     if not conditions:
         return None
@@ -172,6 +179,7 @@ async def _ensure_index(bucket: Any, settings: Settings) -> None:
             dimension=settings.embedding_dimension,
             distance_metric=settings.supabase_vector_distance_metric,
             data_type="float32",
+            metadata=MetadataConfiguration(nonFilterableMetadataKeys=list(_NON_FILTERABLE_KEYS)),
         )
         response = await bucket.get_index(settings.supabase_vector_index)
     if response is None:
@@ -192,6 +200,16 @@ async def _ensure_index(bucket: Any, settings: Settings) -> None:
     if index.data_type != "float32":
         raise KnowledgeVectorStoreError(
             f"Supabase vector index data type {index.data_type!r} is not 'float32'"
+        )
+
+    configuration = index.metadata
+    actual = set(configuration.non_filterable_metadata_keys or []) if configuration else set()
+    if actual != set(_NON_FILTERABLE_KEYS):
+        raise KnowledgeVectorStoreError(
+            "Supabase vector index metadata configuration is incompatible. "
+            "Create a new index with non-filterable keys "
+            f"{list(_NON_FILTERABLE_KEYS)}, copy/reindex existing vectors, and set "
+            "SUPABASE_VECTOR_INDEX to the new index. Do not delete the existing index."
         )
 
 
@@ -234,6 +252,21 @@ def _record_metadata(record: VectorBucketRecord) -> dict[str, str | bool | float
     ):
         if value is not None:
             metadata[key] = value
+    filterable = {key: value for key, value in metadata.items() if key not in _NON_FILTERABLE_KEYS}
+    for label, values, limit in (
+        ("filterable", filterable, _FILTERABLE_METADATA_LIMIT),
+        ("total", metadata, _TOTAL_METADATA_LIMIT),
+    ):
+        size = len(
+            json.dumps(values, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode(
+                "utf-8"
+            )
+        )
+        if size > limit:
+            # Never discard scope or source content to make an oversized record fit.
+            raise KnowledgeVectorStoreError(
+                f"Vector {record.chunk_id}: {label} metadata is {size} bytes; limit is {limit}"
+            )
     return metadata
 
 

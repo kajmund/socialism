@@ -1,7 +1,9 @@
+import json
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
-from storage3.types import VectorData, VectorMatch
+from storage3.types import MetadataConfiguration, VectorData, VectorMatch
 
 from app.config import settings
 from app.services.knowledge import supabase_vector_client as module
@@ -199,6 +201,7 @@ class FakeBucket:
                 dimension=kwargs["dimension"],
                 distance_metric=kwargs["distance_metric"],
                 data_type=kwargs["data_type"],
+                metadata=kwargs["metadata"],
             )
         )
 
@@ -213,6 +216,9 @@ async def test_ensure_index_creates_expected_supabase_index():
                 "dimension": settings.embedding_dimension,
                 "distance_metric": settings.supabase_vector_distance_metric,
                 "data_type": "float32",
+                "metadata": MetadataConfiguration(
+                    nonFilterableMetadataKeys=list(module._NON_FILTERABLE_KEYS)
+                ),
             },
         )
     ]
@@ -280,3 +286,76 @@ async def test_vector_runtime_uses_product_project_credentials(monkeypatch):
         "index_name": "documents-openai",
     }
     assert runtime.client._index is index
+
+
+@pytest.mark.parametrize("keys", [[], ["text"], [*module._NON_FILTERABLE_KEYS, "customer_id"]])
+async def test_index_rejects_missing_content_configuration_or_unfilterable_scope(keys):
+    bucket = FakeBucket(
+        SimpleNamespace(
+            dimension=settings.embedding_dimension,
+            distance_metric=settings.supabase_vector_distance_metric,
+            data_type="float32",
+            metadata=MetadataConfiguration(nonFilterableMetadataKeys=keys),
+        )
+    )
+    with pytest.raises(KnowledgeVectorStoreError, match="metadata configuration"):
+        await _ensure_index(bucket, settings)
+
+
+async def test_long_unicode_content_roundtrips_without_using_filter_budget():
+    index = FakeIndex()
+    record = replace(
+        _record(),
+        text="Rättsfall åäö. " * 800,
+        title="Rubrik " * 150,
+        metadata={
+            "customer_id": 7,
+            "scope_type": "customer",
+            "scope_key": "customer:7",
+            "case_id": "case-1",
+            "module": "dd",
+            "section_title": "Förarbeten " * 150,
+        },
+    )
+    client = SupabaseStorageVectorClient(index)
+    await client.upsert([record])
+    stored = index.put_batches[0][0]
+    filterable = {k: v for k, v in stored.metadata.items() if k not in module._NON_FILTERABLE_KEYS}
+    assert len(json.dumps(filterable, ensure_ascii=False).encode()) < 2048
+    for key in ("customer_id", "scope_type", "scope_key", "case_id", "module"):
+        assert filterable[key] == record.metadata[key]
+    index.get_vectors = [VectorMatch(key=stored.key, metadata=stored.metadata, data=stored.data)]
+    fetched = (await client.get(document_id=record.document_id, chunk_ids=[record.chunk_id]))[0]
+    assert fetched.text == record.text
+    assert fetched.title == record.title
+    assert fetched.metadata["section_title"] == record.metadata["section_title"]
+    from app.services.knowledge.models import KnowledgeScope
+    from app.services.knowledge.vector_store import record_in_scope
+
+    assert record_in_scope(fetched, KnowledgeScope(customer_id=7, case_id="case-1", module="dd"))
+    assert not record_in_scope(
+        fetched, KnowledgeScope(customer_id=8, case_id="case-1", module="dd")
+    )
+
+
+@pytest.mark.parametrize(
+    "record,label",
+    [
+        (replace(_record(), metadata={"customer_id": 7, "custom": "å" * 1100}), "filterable"),
+        (replace(_record(), text="å" * 21000), "total"),
+    ],
+)
+async def test_oversized_metadata_fails_before_any_write_or_delete(record, label):
+    index = FakeIndex()
+    with pytest.raises(KnowledgeVectorStoreError, match=label + " metadata"):
+        await SupabaseStorageVectorClient(index).replace("doc-1", [_record(), record])
+    assert index.events == []
+
+
+async def test_content_filter_is_rejected_before_query():
+    index = FakeIndex()
+    with pytest.raises(KnowledgeVectorStoreError, match="Content metadata"):
+        await SupabaseStorageVectorClient(index).query(
+            vector=[1.0], filters={"title": "x"}, limit=1
+        )
+    assert index.query_kwargs is None
