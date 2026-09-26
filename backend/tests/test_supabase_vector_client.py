@@ -22,6 +22,7 @@ class FakeIndex:
         self.events = []
         self.query_kwargs = None
         self.get_kwargs = None
+        self.get_batches = []
         self.list_pages = []
         self.get_vectors = []
 
@@ -48,6 +49,7 @@ class FakeIndex:
         )
 
     async def get(self, *keys, **kwargs):
+        self.get_batches.append(keys)
         self.get_kwargs = {"keys": keys, **kwargs}
         return SimpleNamespace(vectors=list(self.get_vectors))
 
@@ -106,6 +108,13 @@ async def test_live_client_gets_vectors_by_document_and_chunk_id():
     assert records[0].embedding == [0.4, 0.5, 0.6]
     assert records[0].chunk_id == "chunk-1"
     assert records[0].metadata["document_version_id"] == "ver-1"
+
+
+async def test_live_client_gets_at_most_100_keys_per_request():
+    index = FakeIndex()
+    client = SupabaseStorageVectorClient(index)
+    await client.get(document_id="doc-1", chunk_ids=[f"chunk-{number}" for number in range(101)])
+    assert [len(batch) for batch in index.get_batches] == [100, 1]
 
 
 async def test_live_client_queries_with_scope_filters_and_normalizes_score():

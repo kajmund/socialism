@@ -96,6 +96,7 @@ from app.services.knowledge.revalidation import (
     RevalidationError,
     classify_revalidation_state,
     revalidate_after_event,
+    revalidate_after_events,
 )
 from app.services.knowledge.scope import (
     SCOPE_CUSTOMER,
@@ -224,6 +225,7 @@ __all__ = [
     "require_persist_scope",
     "require_relation",
     "revalidate_after_event",
+    "revalidate_after_events",
     "shared_scope",
     "supersede_knowledge_claim",
     "supporting_text_unit_ids_for_quote",

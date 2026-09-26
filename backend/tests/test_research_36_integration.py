@@ -1,5 +1,6 @@
 """Real source-path tests. Recorded official documents plus opt-in live network/model tests."""
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -12,7 +13,11 @@ from sqlalchemy.pool import StaticPool
 from app.database.base import Base
 from app.database.models import Kund
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
-from app.services.lagen_nu.mcp_client import OfficialLagenNuMcpClient, parse_document
+from app.services.lagen_nu.mcp_client import (
+    OfficialLagenNuMcpClient,
+    OfficialLagenNuMcpError,
+    parse_document,
+)
 from app.services.lagen_nu.passage_router import KeepAllPassageRouter
 from app.services.lagen_nu.question_validation import (
     COMMERCIAL_AVTL_QUESTION,
@@ -320,6 +325,28 @@ async def test_live_model_nja_and_sou(request, tmp_path):
                     assert result.truncated
         finally:
             await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_mcp_deadline_closes_the_owned_client():
+    async def handler(_request):
+        await asyncio.sleep(1)
+        return httpx.Response(200, text="late")
+
+    client = OfficialLagenNuMcpClient(
+        url="https://lagen.nu/mcp",
+        timeout_seconds=0.05,
+    )
+    slow = httpx.AsyncClient(transport=httpx.MockTransport(handler), timeout=None)
+    client._http = slow
+    try:
+        with pytest.raises(OfficialLagenNuMcpError, match="timed out"):
+            await client.initialize()
+    finally:
+        if not slow.is_closed:
+            await slow.aclose()
+    assert slow.is_closed
+    assert client._http is None
 
 
 def test_outcome_is_projected_from_authoritative_statement_not_duplicate_model_fields():
