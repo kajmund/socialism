@@ -328,7 +328,9 @@ async def _retrieve_need(
     if router_factory is not None:
         async with factory() as retrieve_session:
             worker_router = router_factory(retrieve_session)
-            return await worker_router.execute_need(need, context)
+            evidence = await worker_router.execute_need(need, context)
+            await retrieve_session.commit()
+            return evidence
     raise ResearchExecutionError("ResearchRouter is required")
 
 
@@ -479,21 +481,52 @@ async def _run_need_executions(
 
     async def worker(execution_id: str, need_id: str) -> None:
         need = needs_by_id[need_id]
-        await _execute_one_need(
-            factory=factory,
-            persist_lock=persist_lock,
-            retrieve_slots=retrieve_slots,
-            execution_id=execution_id,
-            need=need,
-            context=context,
-            evidence_set_id=evidence_set_id,
-            router=router,
-            router_factory=router_factory,
-            question_graph=question_graph,
-            attempt_id=attempt_id,
-        )
+        try:
+            await asyncio.wait_for(
+                _execute_one_need(
+                    factory=factory,
+                    persist_lock=persist_lock,
+                    retrieve_slots=retrieve_slots,
+                    execution_id=execution_id,
+                    need=need,
+                    context=context,
+                    evidence_set_id=evidence_set_id,
+                    router=router,
+                    router_factory=router_factory,
+                    question_graph=question_graph,
+                    attempt_id=attempt_id,
+                ),
+                timeout=settings.research_need_timeout_seconds,
+            )
+        except TimeoutError:
+            logger.warning(
+                "research_need_deadline_exceeded attempt_id=%s research_need_id=%s timeout_seconds=%s",
+                attempt_id,
+                need_id,
+                settings.research_need_timeout_seconds,
+            )
+            await _fail_timed_out_need(factory, execution_id)
 
     await asyncio.gather(*(worker(execution_id, need_id) for execution_id, need_id in pending))
+
+
+async def _fail_timed_out_need(
+    factory: async_sessionmaker[AsyncSession],
+    execution_id: str,
+) -> None:
+    """Mark one need failed so the Attempt barrier can run. Do not leave it running."""
+    async with factory() as session:
+        with ProgressTracker() as progress:
+            failed = await fail_need_execution(session, execution_id)
+            if failed.status != "failed":
+                return
+            await emit_need_failed(
+                session,
+                execution=failed,
+                reason="research need exceeded the execution deadline",
+            )
+            await session.commit()
+            await progress.publish_committed()
 
 
 async def _emit_seeded_runtime_needs(

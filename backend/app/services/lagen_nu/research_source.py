@@ -32,7 +32,7 @@ from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.entities import persist_knowledge_entities
 from app.services.knowledge.events import list_graph_events
 from app.services.knowledge.relationships import persist_knowledge_relationships
-from app.services.knowledge.revalidation import revalidate_after_event
+from app.services.knowledge.revalidation import revalidate_after_events
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.claim_grounding import ground_legal_claims
 from app.services.lagen_nu.display import (
@@ -529,6 +529,17 @@ def _hit_with_pinpoint(hit: LagenNuSearchHit, pinpoint: str) -> LagenNuSearchHit
     return hit
 
 
+async def _release_db_connection(session: AsyncSession) -> None:
+    """Return the checked-out connection before a slow external call."""
+    if session.in_transaction():
+        await session.commit()
+
+
+async def _rollback_open_session(session: AsyncSession | None) -> None:
+    if session is not None and session.in_transaction():
+        await session.rollback()
+
+
 class LagenNuResearchSource:
     def __init__(
         self,
@@ -585,7 +596,7 @@ class LagenNuResearchSource:
             "graph_revalidation_started customer_id=%s claims=%s relationships=%s",
             customer_id, len(claim_ids), len(relationship_ids),
         )
-        event_count = 0
+        event_ids: list[str] = []
         for node_kind, node_ids in (
             ("claim", claim_ids),
             ("relationship", relationship_ids),
@@ -597,12 +608,11 @@ class LagenNuResearchSource:
                     node_kind=node_kind,
                     node_id=node_id,
                 )
-                for event in events:
-                    await revalidate_after_event(self._session, event.id, jev=gate)
-                    event_count += 1
+                event_ids.extend(event.id for event in events)
+        await revalidate_after_events(self._session, event_ids, jev=gate)
         logger.info(
             "graph_revalidation_completed customer_id=%s events=%s elapsed_seconds=%.3f",
-            customer_id, event_count, time.monotonic() - started,
+            customer_id, len(event_ids), time.monotonic() - started,
         )
 
     def _mcp(self) -> LagenNuMcpClient:
@@ -670,6 +680,9 @@ class LagenNuResearchSource:
     ) -> list[ResearchEvidence]:
         try:
             return await self._research(need, context)
+        except Exception:
+            await _rollback_open_session(self._session)
+            raise
         finally:
             await self._aclose_owned_client()
 
@@ -970,6 +983,7 @@ class LagenNuResearchSource:
                         self.provider_id,
                         canonical_uri,
                     )
+                    await _release_db_connection(session)
                     document = await budget.call(
                         "get_document",
                         self._mcp().get_document(
@@ -1209,6 +1223,10 @@ class LagenNuResearchSource:
             claim_ids=[claim.id for claim in grounded_claims],
             source_type=self.source_type,
         )
+        # Shared entity keys are visible to every concurrent need. Commit
+        # before revalidation so those rows are not locked for the rest of
+        # this need.
+        await _release_db_connection(self._session)
         await self._revalidate_persisted_graph(
             customer_id=customer_id,
             claim_ids=[claim.id for claim in grounded_claims],

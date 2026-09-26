@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any, Protocol
 
@@ -330,21 +331,44 @@ class OfficialLagenNuMcpClient:
             await self.initialize()
             self._initialized = True
 
+    async def _drop_connection(self) -> None:
+        """Close a hung socket. A peer FIN left unread stays in CLOSE_WAIT."""
+        self._initialized = False
+        self._session_id = None
+        http = self._http
+        if not self._owns_http:
+            return
+        self._http = None
+        if http is not None:
+            await http.aclose()
+
     async def _post(self, payload: dict[str, Any]) -> str:
         if self._http is None:
             raise OfficialLagenNuMcpError("lagen.nu MCP client is closed")
         try:
-            response = await self._http.post(self._url, headers=self._headers(), json=payload)
+            response = await asyncio.wait_for(
+                self._http.post(self._url, headers=self._headers(), json=payload),
+                timeout=self._timeout,
+            )
+        except TimeoutError as exc:
+            await self._drop_connection()
+            raise OfficialLagenNuMcpError("lagen.nu MCP timed out") from exc
         except httpx.TimeoutException as exc:
+            await self._drop_connection()
             raise OfficialLagenNuMcpError("lagen.nu MCP timed out") from exc
         except httpx.HTTPError as exc:
             raise OfficialLagenNuMcpError("lagen.nu MCP unreachable") from exc
-        session = response.headers.get("mcp-session-id") or response.headers.get("Mcp-Session-Id")
-        if session:
-            self._session_id = session
-        if response.status_code >= 400:
-            raise OfficialLagenNuMcpError(f"lagen.nu MCP HTTP {response.status_code}")
-        return response.text
+        try:
+            session = response.headers.get("mcp-session-id") or response.headers.get(
+                "Mcp-Session-Id"
+            )
+            if session:
+                self._session_id = session
+            if response.status_code >= 400:
+                raise OfficialLagenNuMcpError(f"lagen.nu MCP HTTP {response.status_code}")
+            return response.text
+        finally:
+            await response.aclose()
 
     async def initialize(self) -> None:
         self._rpc_id += 1

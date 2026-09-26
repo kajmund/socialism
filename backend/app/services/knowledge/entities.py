@@ -6,6 +6,7 @@ import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import KnowledgeEntityRecord
@@ -101,18 +102,34 @@ async def persist_knowledge_entity(
     entity: KnowledgeEntity,
 ) -> KnowledgeEntityRecord:
     row = await session.get(KnowledgeEntityRecord, entity.id)
-    if row is None:
-        row = KnowledgeEntityRecord(
-            id=entity.id,
-            entity_type=entity.entity_type,
-            entity_key=entity.key,
-            name=entity.name,
-            extra=entity.extra,
-            **persist_scope_fields(entity.scope),
-        )
-        session.add(row)
-        await session.flush()
-        return row
+    if row is not None:
+        return await _update_entity(session, row, entity)
+    row = KnowledgeEntityRecord(
+        id=entity.id,
+        entity_type=entity.entity_type,
+        entity_key=entity.key,
+        name=entity.name,
+        extra=entity.extra,
+        **persist_scope_fields(entity.scope),
+    )
+    try:
+        async with session.begin_nested():
+            session.add(row)
+            await session.flush()
+    except IntegrityError:
+        # Another need inserted this shared identity and committed while we waited.
+        winner = await session.get(KnowledgeEntityRecord, entity.id)
+        if winner is None:
+            raise
+        return await _update_entity(session, winner, entity)
+    return row
+
+
+async def _update_entity(
+    session: AsyncSession,
+    row: KnowledgeEntityRecord,
+    entity: KnowledgeEntity,
+) -> KnowledgeEntityRecord:
     if scope_from_row(row) != entity.scope:
         raise KnowledgeEntityError(
             f"entity {entity.id} already exists in a different knowledge scope"
