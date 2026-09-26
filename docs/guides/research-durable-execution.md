@@ -92,3 +92,23 @@ Startup no longer marks in-flight research failed.
 
 WebSocket progress (later spec), distributed schedulers, Graphiti, report
 jobs, and explicit cancellation.
+
+## Diagnosing silent graph revalidation
+
+After legal interpretation, graph events trigger impact checks against frozen
+EvidenceSets. An old `idle in transaction` connection does not establish a
+lock wait: compare `query_start` across snapshots and inspect `pg_blocking_pids`.
+Continuously changing queries with no blockers can indicate excessive database
+round trips while the need remains running.
+
+The impact lookup selects EvidenceSet plus item provenance in one customer-scoped
+join. Do not load EvidenceSetItem entities in a loop here: their select-in
+relationships also fetch passages, full domain results, raw sources and claims,
+although impact matching only needs provenance. The regression test checks one
+query as the number of frozen sets grows, excludes other customers and building
+sets, and retains the existing revalidation decisions and immutable snapshots.
+
+Provider logs `graph_revalidation_started` and `graph_revalidation_completed`
+record counts and elapsed time without logging source text. This optimization
+still scans the customer's frozen-item provenance for each event; it does not
+introduce a background revalidation worker or a new timeout policy.
