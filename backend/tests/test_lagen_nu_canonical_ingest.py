@@ -314,3 +314,34 @@ async def test_empty_text_is_empty_status_without_persist(session: AsyncSession)
     assert documents == []
     assert embeddings.calls == []
     assert store.chunks == []
+
+
+async def test_ingest_preserves_section_title_longer_than_512_characters(session):
+    from sqlalchemy import Text
+
+    from app.database.models import DocumentSectionRecord
+
+    title = "Avtalsvillkor och rättsföljder " * 30
+    kund = await _kund(session)
+    result = await ingest_lagen_nu_document(
+        session,
+        customer_id=kund.id,
+        document=_document(
+            uri="https://lagen.nu/prop/1975/76:81",
+            text=f"# {title.strip()}\n\nEtt avtalsvillkor får jämkas.",
+            pinpoint=None,
+        ),
+        embeddings=FakeEmbeddingProvider(),
+        vector_store=MemoryKnowledgeVectorStore(),
+    )
+    await session.flush()
+    sections = (
+        await session.scalars(
+            select(DocumentSectionRecord).where(
+                DocumentSectionRecord.document_id == result.document_id
+            )
+        )
+    ).all()
+    assert any(section.title == title.strip() for section in sections)
+    assert isinstance(DocumentSectionRecord.__table__.c.title.type, Text)
+    assert result.status == "indexed"

@@ -42,3 +42,39 @@ The same Supabase vector bucket is reused. `knowledge_kind=document_chunk` and `
 `GET/POST /underlag/{object_id}/knowledge` and `PUT/DELETE /underlag/{object_id}/knowledge/{item_id}` expose owner-scoped CRUD. The PDF picker renders PDF.js text layers so a browser selection can be converted into exact text plus normalized page rectangles. Selecting an item restores its source highlight and scroll position.
 
 This layer is mutable document understanding, not a frozen `EvidenceSet`. It supports navigation and claims about what the uploaded document contains; it does not currently supply external research evidence.
+
+## Vector metadata and section-title limits
+
+Vector content fields `text`, `title`, `locator`, `section_title`, and
+`external_id` must be configured as **non-filterable** index metadata. All
+other scalar metadata remains filterable, including customer, case, module,
+scope, namespace, and document/TextUnit identity. Full text is returned with
+hits; it must not be truncated to meet the filter budget. Before any batch is
+written, the transport checks compact UTF-8 JSON against a conservative 2,048
+byte filterable budget and 40 KiB total budget. Oversized records fail explicitly
+without removing scope fields or logging source content.
+
+Startup validates the exact non-filterable key set. An incompatible existing
+index requires a new index: these settings cannot be changed in place. Do not
+remove scope fields from the filters or delete the old index to bypass this.
+
+Deployment order:
+
+1. Apply Alembic migrations. `668bd23eb2df` changes `document_sections.title` to
+   `TEXT` while preserving the full title. Downgrade refuses titles over 512
+   characters rather than silently truncating them.
+2. During a controlled pause in vector writes, create a new index with the same
+   dimensions/distance metric and the five non-filterable keys above. Copy all
+   existing vectors and metadata, preserving keys and embeddings, and verify
+   counts, content roundtrips, and scoped queries. Retain the original index.
+   Changing the configured index to an empty one is insufficient: persisted
+   indexed document versions can skip ingestion on subsequent requests.
+3. Set `SUPABASE_VECTOR_INDEX` to the populated new index, start the updated
+   application, and verify customer-scoped searches before resuming research.
+4. Rerun affected research through the normal application flow. Previously
+   failed needs do not become successful merely because storage is repaired.
+
+Regression coverage includes long Unicode passages and headings, preserving
+scope filters, rejecting other-customer hits, and preventing partial writes
+when metadata exceeds the budget. SQLite tests alone do not demonstrate live
+PostgreSQL enforcement or a successful production index migration.
