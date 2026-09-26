@@ -328,7 +328,9 @@ async def _retrieve_need(
     if router_factory is not None:
         async with factory() as retrieve_session:
             worker_router = router_factory(retrieve_session)
-            return await worker_router.execute_need(need, context)
+            evidence = await worker_router.execute_need(need, context)
+            await retrieve_session.commit()
+            return evidence
     raise ResearchExecutionError("ResearchRouter is required")
 
 

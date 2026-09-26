@@ -123,26 +123,10 @@ async def affected_frozen_evidence_sets(
     customer_id: int | None,
     impact: GraphImpact,
 ) -> list[EvidenceSet]:
-    if not impact.question_keys and not impact.claim_ids and not impact.text_unit_ids:
+    if not _impact_has_keys(impact):
         return []
-    if customer_id is None:
-        raise KnowledgeScopeError("revalidation of customer graph events requires customer_id")
-    # Selecting EvidenceSetItem entities triggers select-in loads of passages,
-    # full domain results, raw documents and claims. Only provenance is needed.
-    rows = await session.execute(
-        select(EvidenceSet, EvidenceSetItem.provenance)
-        .join(ExecutionRun, ExecutionRun.id == EvidenceSet.run_id)
-        .join(EvidenceSetItem, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
-        .where(
-            EvidenceSet.status == "frozen",
-            ExecutionRun.customer_id == customer_id,
-        )
-    )
-    affected: dict[str, EvidenceSet] = {}
-    for evidence_set, provenance in rows:
-        if evidence_set.id not in affected and _provenance_touches_impact(provenance, impact):
-            affected[evidence_set.id] = evidence_set
-    return list(affected.values())
+    rows = await _frozen_provenance_rows(session, customer_id)
+    return _sets_touching_impact(rows, impact)
 
 
 def classify_revalidation_state(
@@ -172,59 +156,154 @@ async def revalidate_after_event(
     jev: JevSystemOne,
 ) -> list[RevalidationDecision]:
     """Jev decides whether a graph mutation can change a frozen answer."""
-    row = (
-        event
-        if isinstance(event, KnowledgeGraphEventRecord)
-        else await session.get(KnowledgeGraphEventRecord, event)
-    )
-    if row is None:
-        raise RevalidationError("graph event is missing")
-    event = row
-    impact = await graph_impact_from_event(session, event)
-    event_scope = scope_from_row(event)
-    if event_scope.scope_type == SCOPE_CUSTOMER and event_scope.customer_id is None:
-        raise KnowledgeScopeError("customer graph event is missing customer_id")
-    sets = await affected_frozen_evidence_sets(
-        session,
-        customer_id=event_scope.customer_id,
-        impact=impact,
-    )
-    if not sets:
+    return await revalidate_after_events(session, [event], jev=jev)
+
+
+async def revalidate_after_events(
+    session: AsyncSession,
+    events: Sequence[KnowledgeGraphEventRecord | str],
+    *,
+    jev: JevSystemOne,
+) -> list[RevalidationDecision]:
+    """Match every event against one provenance read, then call Jev without a connection."""
+    if not events:
         return []
-    question_id = await _knowledge_question_id(session, impact.question_keys, event_scope)
-    question_key = impact.question_keys[0] if impact.question_keys else None
-    try:
-        noul: float | None = await _impact_noul(jev, event=event, impact=impact, evidence_sets=sets)
-        state = classify_revalidation_state(
-            noul,
-            impact_threshold=settings.revalidation_impact_threshold,
-            clear_threshold=settings.revalidation_clear_threshold,
+    loaded: list[KnowledgeGraphEventRecord] = []
+    seen: set[str] = set()
+    for event in events:
+        row = (
+            event
+            if isinstance(event, KnowledgeGraphEventRecord)
+            else await session.get(KnowledgeGraphEventRecord, event)
         )
-    except JevClientError:
-        noul = None
-        state = REVALIDATION_UNKNOWN
-    decisions: list[RevalidationDecision] = []
-    for evidence_set in sets:
-        row = await _persist_revalidation(
-            session,
-            evidence_set_id=evidence_set.id,
-            graph_event_id=event.id,
-            question_key=question_key,
-            knowledge_question_id=question_id,
-            state=state,
-            impact_noul=noul,
-        )
-        decisions.append(
-            RevalidationDecision(
-                evidence_set_id=row.evidence_set_id,
-                graph_event_id=row.graph_event_id,
-                state=state,
-                impact_noul=noul,
-                question_key=question_key,
-                knowledge_question_id=question_id,
+        if row is None:
+            raise RevalidationError("graph event is missing")
+        if row.id in seen:
+            continue
+        seen.add(row.id)
+        loaded.append(row)
+    planned: list[_PlannedRevalidation] = []
+    provenance_by_customer: dict[int, Sequence[tuple[EvidenceSet, object]]] = {}
+    for row in loaded:
+        impact = await graph_impact_from_event(session, row)
+        event_scope = scope_from_row(row)
+        if event_scope.scope_type == SCOPE_CUSTOMER and event_scope.customer_id is None:
+            raise KnowledgeScopeError("customer graph event is missing customer_id")
+        if not _impact_has_keys(impact):
+            continue
+        customer_id = event_scope.customer_id
+        if customer_id is None:
+            raise KnowledgeScopeError(
+                "revalidation of customer graph events requires customer_id"
+            )
+        if customer_id not in provenance_by_customer:
+            provenance_by_customer[customer_id] = await _frozen_provenance_rows(
+                session, customer_id
+            )
+        sets = _sets_touching_impact(provenance_by_customer[customer_id], impact)
+        if not sets:
+            continue
+        planned.append(
+            _PlannedRevalidation(
+                event_id=row.id,
+                event_type=row.event_type,
+                node_kind=row.node_kind,
+                node_id=row.node_id,
+                impact=impact,
+                evidence_set_ids=tuple(item.id for item in sets),
+                question_key=impact.question_keys[0] if impact.question_keys else None,
+                knowledge_question_id=await _knowledge_question_id(
+                    session, impact.question_keys, event_scope
+                ),
             )
         )
+    # Provenance is already in memory. The Jev round trip must not keep a connection.
+    await _release_db_connection(session)
+    decisions: list[RevalidationDecision] = []
+    for plan in planned:
+        try:
+            noul: float | None = await _impact_noul(jev, plan=plan)
+            state = classify_revalidation_state(
+                noul,
+                impact_threshold=settings.revalidation_impact_threshold,
+                clear_threshold=settings.revalidation_clear_threshold,
+            )
+        except JevClientError:
+            noul = None
+            state = REVALIDATION_UNKNOWN
+        for evidence_set_id in plan.evidence_set_ids:
+            await _persist_revalidation(
+                session,
+                evidence_set_id=evidence_set_id,
+                graph_event_id=plan.event_id,
+                question_key=plan.question_key,
+                knowledge_question_id=plan.knowledge_question_id,
+                state=state,
+                impact_noul=noul,
+            )
+            decisions.append(
+                RevalidationDecision(
+                    evidence_set_id=evidence_set_id,
+                    graph_event_id=plan.event_id,
+                    state=state,
+                    impact_noul=noul,
+                    question_key=plan.question_key,
+                    knowledge_question_id=plan.knowledge_question_id,
+                )
+            )
+        await _release_db_connection(session)
     return decisions
+
+
+@dataclass(frozen=True)
+class _PlannedRevalidation:
+    event_id: str
+    event_type: str
+    node_kind: str
+    node_id: str
+    impact: GraphImpact
+    evidence_set_ids: tuple[str, ...]
+    question_key: str | None
+    knowledge_question_id: str | None
+
+
+def _impact_has_keys(impact: GraphImpact) -> bool:
+    return bool(impact.question_keys or impact.claim_ids or impact.text_unit_ids)
+
+
+async def _frozen_provenance_rows(
+    session: AsyncSession,
+    customer_id: int | None,
+) -> list[tuple[EvidenceSet, object]]:
+    if customer_id is None:
+        raise KnowledgeScopeError("revalidation of customer graph events requires customer_id")
+    # EvidenceSetItem entities select-in passages, domain results, raw sources and claims.
+    rows = await session.execute(
+        select(EvidenceSet, EvidenceSetItem.provenance)
+        .join(ExecutionRun, ExecutionRun.id == EvidenceSet.run_id)
+        .join(EvidenceSetItem, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
+        .where(
+            EvidenceSet.status == "frozen",
+            ExecutionRun.customer_id == customer_id,
+        )
+    )
+    return list(rows.all())
+
+
+def _sets_touching_impact(
+    rows: Sequence[tuple[EvidenceSet, object]],
+    impact: GraphImpact,
+) -> list[EvidenceSet]:
+    affected: dict[str, EvidenceSet] = {}
+    for evidence_set, provenance in rows:
+        if evidence_set.id not in affected and _provenance_touches_impact(provenance, impact):
+            affected[evidence_set.id] = evidence_set
+    return list(affected.values())
+
+
+async def _release_db_connection(session: AsyncSession) -> None:
+    if session.in_transaction():
+        await session.commit()
 
 
 def _provenance_touches_impact(provenance: object, impact: GraphImpact) -> bool:
@@ -291,19 +370,17 @@ async def _knowledge_question_id(
 async def _impact_noul(
     jev: JevSystemOne,
     *,
-    event: KnowledgeGraphEventRecord,
-    impact: GraphImpact,
-    evidence_sets: Sequence[EvidenceSet],
+    plan: _PlannedRevalidation,
 ) -> float:
     result = await jev.ask(
         state={
-            "event_type": event.event_type,
-            "node_kind": event.node_kind,
-            "node_id": event.node_id,
-            "question_keys": list(impact.question_keys),
-            "claim_ids": list(impact.claim_ids),
-            "text_unit_ids": list(impact.text_unit_ids),
-            "frozen_evidence_set_ids": [row.id for row in evidence_sets],
+            "event_type": plan.event_type,
+            "node_kind": plan.node_kind,
+            "node_id": plan.node_id,
+            "question_keys": list(plan.impact.question_keys),
+            "claim_ids": list(plan.impact.claim_ids),
+            "text_unit_ids": list(plan.impact.text_unit_ids),
+            "frozen_evidence_set_ids": list(plan.evidence_set_ids),
         },
         questions={"material_change": _IMPACT_QUESTION},
         model=settings.jev_model,
