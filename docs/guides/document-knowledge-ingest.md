@@ -42,3 +42,43 @@ The same Supabase vector bucket is reused. `knowledge_kind=document_chunk` and `
 `GET/POST /underlag/{object_id}/knowledge` and `PUT/DELETE /underlag/{object_id}/knowledge/{item_id}` expose owner-scoped CRUD. The PDF picker renders PDF.js text layers so a browser selection can be converted into exact text plus normalized page rectangles. Selecting an item restores its source highlight and scroll position.
 
 This layer is mutable document understanding, not a frozen `EvidenceSet`. It supports navigation and claims about what the uploaded document contains; it does not currently supply external research evidence.
+
+## Vector metadata and section-title limits
+
+Vector content fields `text`, `title`, `locator`, `section_title`, and
+`external_id` must be configured as **non-filterable** index metadata. All
+other scalar metadata remains filterable, including customer, case, module,
+scope, namespace, and document/TextUnit identity. Full text is returned with
+hits; it must not be truncated to meet the filter budget. Before any batch is
+written, the transport checks compact UTF-8 JSON against a conservative 2,048
+byte filterable budget and 40 KiB total budget. Oversized records fail explicitly
+without removing scope fields or logging source content.
+
+Startup validates the exact non-filterable key set. An incompatible existing
+index requires a new index: these settings cannot be changed in place. Do not
+remove scope fields from the filters or delete the old index to bypass this.
+
+Deployment order:
+
+1. Apply Alembic migrations. `668bd23eb2df` changes `document_sections.title` to
+   `TEXT` while preserving the full title. Downgrade refuses titles over 512
+   characters rather than silently truncating them.
+2. Start with a new, empty index using the same dimensions/distance metric and
+   the five non-filterable keys above. No transfer of old vectors is required
+   for this rollout. Pause research/vector writes while switching indexes.
+3. Set `SUPABASE_VECTOR_INDEX` to the new index and start the updated application.
+   Before reusing previously ingested sources, explicitly arrange fresh ingestion:
+   persisted indexed document versions can otherwise skip ingestion even though
+   the new index is empty. This PR does not reset that SQL state automatically.
+4. Ingest sources again, verify content roundtrips and customer-scoped searches,
+   then rerun affected research through the normal application flow. Previously
+   failed needs do not become successful merely because storage is repaired.
+
+The Alembic schema change is still required even when old vectors are discarded.
+Do not point an active workload at an empty index and assume all previously
+indexed sources will automatically be rebuilt.
+
+Regression coverage includes long Unicode passages and headings, preserving
+scope filters, rejecting other-customer hits, and preventing partial writes
+when metadata exceeds the budget. SQLite tests alone do not demonstrate live
+PostgreSQL enforcement or a successful production index migration.
