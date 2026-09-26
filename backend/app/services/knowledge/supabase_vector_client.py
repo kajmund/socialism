@@ -208,7 +208,7 @@ async def _ensure_index(bucket: Any, settings: Settings) -> None:
         raise KnowledgeVectorStoreError(
             "Supabase vector index metadata configuration is incompatible. "
             "Create a new index with non-filterable keys "
-            f"{list(_NON_FILTERABLE_KEYS)}, copy/reindex existing vectors, and set "
+            f"{list(_NON_FILTERABLE_KEYS)}, arrange fresh source ingestion, and set "
             "SUPABASE_VECTOR_INDEX to the new index. Do not delete the existing index."
         )
 

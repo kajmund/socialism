@@ -63,16 +63,20 @@ Deployment order:
 1. Apply Alembic migrations. `668bd23eb2df` changes `document_sections.title` to
    `TEXT` while preserving the full title. Downgrade refuses titles over 512
    characters rather than silently truncating them.
-2. During a controlled pause in vector writes, create a new index with the same
-   dimensions/distance metric and the five non-filterable keys above. Copy all
-   existing vectors and metadata, preserving keys and embeddings, and verify
-   counts, content roundtrips, and scoped queries. Retain the original index.
-   Changing the configured index to an empty one is insufficient: persisted
-   indexed document versions can skip ingestion on subsequent requests.
-3. Set `SUPABASE_VECTOR_INDEX` to the populated new index, start the updated
-   application, and verify customer-scoped searches before resuming research.
-4. Rerun affected research through the normal application flow. Previously
+2. Start with a new, empty index using the same dimensions/distance metric and
+   the five non-filterable keys above. No transfer of old vectors is required
+   for this rollout. Pause research/vector writes while switching indexes.
+3. Set `SUPABASE_VECTOR_INDEX` to the new index and start the updated application.
+   Before reusing previously ingested sources, explicitly arrange fresh ingestion:
+   persisted indexed document versions can otherwise skip ingestion even though
+   the new index is empty. This PR does not reset that SQL state automatically.
+4. Ingest sources again, verify content roundtrips and customer-scoped searches,
+   then rerun affected research through the normal application flow. Previously
    failed needs do not become successful merely because storage is repaired.
+
+The Alembic schema change is still required even when old vectors are discarded.
+Do not point an active workload at an empty index and assume all previously
+indexed sources will automatically be rebuilt.
 
 Regression coverage includes long Unicode passages and headings, preserving
 scope filters, rejecting other-customer hits, and preventing partial writes
