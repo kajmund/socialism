@@ -108,3 +108,16 @@ An `idle in transaction` session whose `query_start` keeps moving, with empty
 `pg_blocking_pids`, is repeated reads rather than a lock wait. Provider logs
 `graph_revalidation_started` and `graph_revalidation_completed` record counts
 and elapsed time without logging source text.
+
+Each ResearchNeed runs under `research_need_timeout_seconds` (default 900).
+When that deadline is missed the need is marked failed, a `need_failed`
+progress event is committed, and the Attempt barrier runs. A failed need
+still fails the Attempt. One provider call that never returns cannot leave
+the Attempt in `researching`.
+
+The research view loads the overview and progress events, then applies
+websocket frames as they are committed. Each overview refresh also reads
+progress events after the sequence already shown, so a missed frame still
+updates questions, evidence and status. The overview includes runtime needs
+that do not yet have a research question, together with evidence already
+committed on their Attempt, while the Attempt is still researching.

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from sqlalchemy import event, select
 
 from app.api.execution import _domain_result_analysis
-from app.database.models import Persona
+from app.database.models import Persona, ResearchNeedExecution, ResearchRuntimeNeed
 from app.services.execution import (
     add_evidence_items,
     attach_evidence_set,
@@ -379,6 +381,117 @@ async def test_overview_keeps_shared_raw_source_domain_results_with_their_needs(
     assert len(attempt_evidence["items"]) == 2
     assert len(attempt_evidence["sources"]) == 1
     assert len(attempt_evidence["sources"][0]["domain_result_ids"]) == 2
+
+
+def _runtime_need(attempt_id: str, need_id: str, question: str) -> ResearchRuntimeNeed:
+    return ResearchRuntimeNeed(
+        id=uuid4().hex,
+        attempt_id=attempt_id,
+        research_need_id=need_id,
+        question=question,
+        why_needed="Källan behövs för frågan.",
+        requested_by=[],
+        source_types=["legal_source"],
+        domains=[],
+        modalities=[],
+        capabilities=[],
+        origin="initial",
+        wave_number=0,
+        source_gap="",
+        question_key=need_id,
+    )
+
+
+async def test_overview_shows_committed_needs_and_evidence_before_ready(client_db):
+    client, factory = client_db
+    run = (
+        await client.post(
+            "/execution/runs",
+            json={
+                "customer_id": TEST_CUSTOMER_ID,
+                "module": "expertgranskning",
+                "title": "Pågående research",
+                "context": {},
+            },
+        )
+    ).json()
+    async with factory() as session:
+        parent = await create_attempt(
+            session,
+            run_id=run["id"],
+            attempt_type="generic_panel",
+            configuration_snapshot={},
+            input_snapshot={},
+        )
+        specific = await create_specific_question(
+            session,
+            run_id=run["id"],
+            text="Vad innebär klausulen?",
+            context={},
+            origin_kind="expertgranskning",
+        )
+        question = await create_general_question(
+            session,
+            attempt_id=parent.id,
+            specific_question_id=specific.id,
+            draft=GeneralQuestionDraft(question="Hur tillämpas klausulen?"),
+        )
+        child = await create_attempt(
+            session,
+            run_id=run["id"],
+            parent_attempt_id=parent.id,
+            attempt_type="research_question",
+            input_snapshot={"research_question_id": question.id},
+        )
+        question.execution_attempt_id = child.id
+        question.status = "running"
+        evidence_set = await create_evidence_set(
+            session, run_id=run["id"], created_from_attempt_id=child.id
+        )
+        await add_evidence_items(
+            session,
+            evidence_set_id=evidence_set.id,
+            items=[
+                research_evidence(
+                    research_need_id="research_3",
+                    source_type="legal_source",
+                    status="found",
+                    title="Avtalslagen 36 §",
+                    excerpt="Oskäligt avtalsvillkor",
+                    source_url="https://lagen.nu/1915:218#P36",
+                    provider="lagen.nu",
+                )
+            ],
+        )
+        await attach_evidence_set(session, attempt_id=child.id, evidence_set_id=evidence_set.id)
+        session.add(_runtime_need(child.id, "research_3", "Vilka rekvisit gäller för 36 §?"))
+        session.add(_runtime_need(child.id, "research_5", "Hur har SOU 1974:83 tolkats?"))
+        session.add(
+            ResearchNeedExecution(
+                id=uuid4().hex,
+                attempt_id=child.id,
+                research_need_id="research_3",
+                status="completed",
+            )
+        )
+        session.add(
+            ResearchNeedExecution(
+                id=uuid4().hex,
+                attempt_id=child.id,
+                research_need_id="research_5",
+                status="running",
+            )
+        )
+        await session.commit()
+
+    body = (await client.get(f"/execution/attempts/{parent.id}/research-overview")).json()
+    by_question = {row["question"]: row for row in body["questions"]}
+    assert body["phase"] == "researching"
+    assert body["attempt_status"] != "ready"
+    assert by_question["Vilka rekvisit gäller för 36 §?"]["source_count"] == 1
+    assert by_question["Vilka rekvisit gäller för 36 §?"]["status"] == "answered"
+    assert by_question["Hur har SOU 1974:83 tolkats?"]["status"] == "running"
+    assert by_question["Hur har SOU 1974:83 tolkats?"]["source_count"] == 0
 
 
 def test_domain_result_analysis_ignores_non_object_relation():
