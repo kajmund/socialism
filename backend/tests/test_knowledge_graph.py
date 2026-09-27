@@ -15,6 +15,7 @@ from app.services.knowledge.entities import (
     persist_knowledge_entities,
     persist_knowledge_entity,
 )
+from app.services.knowledge.events import list_graph_events
 from app.services.knowledge.relationships import (
     ABOUT,
     CONTRADICTS,
@@ -23,6 +24,7 @@ from app.services.knowledge.relationships import (
     SAME_AS,
     KnowledgeRelationshipError,
     knowledge_relationship,
+    persist_knowledge_relationship,
     persist_knowledge_relationships,
     relationships_touching,
     require_relation,
@@ -53,6 +55,83 @@ def test_core_relations_are_closed_and_adapters_must_namespace():
         require_relation("cites")
     with pytest.raises(KnowledgeEntityError, match="empty after normalize"):
         knowledge_entity(customer_id=1, entity_type="topic", key="   ", name="x")
+
+
+async def test_entity_insert_conflict_reuses_the_committed_row(session: AsyncSession):
+    entity = knowledge_entity(
+        customer_id=1,
+        entity_type="legal.source",
+        key="https://lagen.nu/1915:218#P36",
+        name="36 § avtalslagen",
+    )
+    await persist_knowledge_entity(session, entity)
+    await session.commit()
+    original_get = session.get
+    calls = 0
+
+    async def hide_first_read(model, ident, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return None
+        return await original_get(model, ident, **kwargs)
+
+    session.get = hide_first_read
+    stored = await persist_knowledge_entity(session, replace_name(entity))
+    assert stored.id == entity.id
+    assert stored.name == "36 §"
+
+
+async def test_relationship_insert_conflict_reuses_the_committed_row(session: AsyncSession):
+    edge = knowledge_relationship(
+        customer_id=1,
+        relation=ABOUT,
+        from_kind="claim",
+        from_id="claim-1",
+        to_kind="entity",
+        to_id="entity-1",
+    )
+    await persist_knowledge_relationship(session, edge)
+    await session.commit()
+    original_get = session.get
+    hidden = False
+
+    async def hide_first_edge_read(model, ident, **kwargs):
+        nonlocal hidden
+        if ident == edge.id and not hidden:
+            hidden = True
+            return None
+        return await original_get(model, ident, **kwargs)
+
+    session.get = hide_first_edge_read
+    stored = await persist_knowledge_relationship(
+        session,
+        knowledge_relationship(
+            customer_id=1,
+            relation=ABOUT,
+            from_kind="claim",
+            from_id="claim-1",
+            to_kind="entity",
+            to_id="entity-1",
+            extra={"note": "later"},
+        ),
+    )
+    assert stored.id == edge.id
+    assert stored.extra == {"note": "later"}
+    events = await list_graph_events(
+        session, customer_id=1, node_kind="relationship", node_id=edge.id
+    )
+    assert len(events) == 1
+
+
+def replace_name(entity):
+    return knowledge_entity(
+        customer_id=entity.customer_id,
+        entity_type=entity.entity_type,
+        key=entity.key,
+        name="36 §",
+        extra=entity.extra,
+    )
 
 
 async def test_persist_about_supported_by_and_same_as(session: AsyncSession):

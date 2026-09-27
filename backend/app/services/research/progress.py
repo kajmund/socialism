@@ -523,16 +523,20 @@ async def emit_need_failed(
     session: AsyncSession,
     *,
     execution: ResearchNeedExecution,
+    reason: str | None = None,
 ) -> ResearchProgressEvent:
+    payload: dict[str, Any] = {
+        "research_need_id": execution.research_need_id,
+        "need_execution_id": execution.id,
+    }
+    if reason:
+        payload["reason"] = preview_text(reason)
     return await append_research_progress_event(
         session,
         attempt_id=execution.attempt_id,
         event_type="need_failed",
         idempotency_key=f"need_failed:{execution.research_need_id}",
-        payload={
-            "research_need_id": execution.research_need_id,
-            "need_execution_id": execution.id,
-        },
+        payload=payload,
     )
 
 

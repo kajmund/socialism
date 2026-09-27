@@ -16,6 +16,8 @@ from app.services.knowledge.provider import KnowledgeVectorStoreError
 from app.services.knowledge.vector_store import VectorBucketClient, VectorBucketRecord
 
 _BATCH_SIZE = 500
+# Storage Vector get rejects body/keys above 100. Put uses a separate limit.
+_GET_BATCH_SIZE = 100
 _LIST_PAGE_SIZE = 100
 # Content must remain retrievable without consuming the 2 KiB filter budget.
 _NON_FILTERABLE_KEYS = ("text", "title", "locator", "section_title", "external_id")
@@ -78,8 +80,8 @@ class SupabaseStorageVectorClient(VectorBucketClient):
     ) -> Sequence[VectorBucketRecord]:
         keys = [_record_key_for(document_id, chunk_id) for chunk_id in chunk_ids]
         records: list[VectorBucketRecord] = []
-        for offset in range(0, len(keys), _BATCH_SIZE):
-            batch = keys[offset : offset + _BATCH_SIZE]
+        for offset in range(0, len(keys), _GET_BATCH_SIZE):
+            batch = keys[offset : offset + _GET_BATCH_SIZE]
             if not batch:
                 continue
             response = await self._index.get(

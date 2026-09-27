@@ -159,6 +159,8 @@ class Settings(BaseSettings):
     persona_generate_concurrency: int = Field(default=8, ge=1, le=32)
     # Max concurrent ResearchNeed executions under one Attempt.
     research_need_concurrency: int = Field(default=8, ge=1, le=32)
+    # One ResearchNeed may not block the Attempt barrier without a bound.
+    research_need_timeout_seconds: float = Field(default=900.0, gt=0)
     # Follow-up waves after the initial ResearchNeed wave (wave 0).
     research_max_follow_up_waves: int = Field(default=2, ge=0, le=8)
     # Initial + derived ResearchNeeds allowed on one Attempt.

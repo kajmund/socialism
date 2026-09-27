@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund, TextUnitRecord
+from app.services.knowledge.canonical_ingest import index_missing_persisted_documents
 from app.services.knowledge.persistence import (
     current_text_units,
     get_canonical_document_by_identity,
@@ -185,6 +186,65 @@ async def test_ingest_reuses_current_version_on_same_hash(session: AsyncSession)
     assert versions[0].content_hash == hash_text(AVTALSLAGEN_TEXT)
     assert len(units) == first.chunks_indexed
     assert len(embeddings.calls) == 1
+
+
+async def test_reused_version_writes_vectors_when_index_lacks_them(session: AsyncSession):
+    kund = await _kund(session)
+    populated = MemoryKnowledgeVectorStore()
+    embeddings = FakeEmbeddingProvider()
+    first = await ingest_lagen_nu_document(
+        session,
+        customer_id=kund.id,
+        document=_document(),
+        embeddings=embeddings,
+        vector_store=populated,
+    )
+    empty = MemoryKnowledgeVectorStore()
+    second = await ingest_lagen_nu_document(
+        session,
+        customer_id=kund.id,
+        document=_document(),
+        embeddings=embeddings,
+        vector_store=empty,
+    )
+    await session.flush()
+    versions = await list_document_versions(session, first.document_id)
+    assert second.reused_version is True
+    assert second.document_version_id == first.document_version_id
+    assert len(versions) == 1
+    assert len(embeddings.calls) == 2
+    assert {item.chunk.document_id for item in empty.chunks} == {first.document_id}
+    assert len(empty.chunks) == first.chunks_indexed
+
+
+async def test_index_missing_persisted_documents_fills_empty_index(session: AsyncSession):
+    kund = await _kund(session)
+    populated = MemoryKnowledgeVectorStore()
+    embeddings = FakeEmbeddingProvider()
+    await ingest_lagen_nu_document(
+        session,
+        customer_id=kund.id,
+        document=_document(),
+        embeddings=embeddings,
+        vector_store=populated,
+    )
+    written, present = await index_missing_persisted_documents(
+        session,
+        embeddings=embeddings,
+        vector_store=populated,
+    )
+    assert (written, present) == (0, 1)
+    assert len(embeddings.calls) == 1
+
+    empty = MemoryKnowledgeVectorStore()
+    written, present = await index_missing_persisted_documents(
+        session,
+        embeddings=embeddings,
+        vector_store=empty,
+    )
+    assert (written, present) == (1, 0)
+    assert len(embeddings.calls) == 2
+    assert len(empty.chunks) == len(populated.chunks)
 
 
 async def test_ingest_new_version_on_content_change(session: AsyncSession):

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -39,9 +39,12 @@ from app.services.knowledge.revalidation import (
     REVALIDATION_IMPACTED,
     REVALIDATION_REQUIRED,
     REVALIDATION_UNKNOWN,
+    GraphImpact,
     RevalidationError,
+    affected_frozen_evidence_sets,
     classify_revalidation_state,
     revalidate_after_event,
+    revalidate_after_events,
 )
 from app.services.research import research_evidence
 from app.services.research.knowledge_question import research_question_key
@@ -415,10 +418,6 @@ async def test_invalid_jev_response_is_unknown_never_clear(db, answers):
 async def test_impact_lookup_uses_one_projection_query_and_preserves_customer_boundary(
     db, extra_sets
 ):
-    from sqlalchemy import event
-
-    from app.services.knowledge.revalidation import GraphImpact, affected_frozen_evidence_sets
-
     kund, frozen = await _setup_frozen_set(db)
     other = Kund(name="Other", slug="other-impact", available_modules=["dd"])
     db.add(other)
@@ -468,3 +467,69 @@ async def test_impact_lookup_uses_one_projection_query_and_preserves_customer_bo
     assert len(statements) == 1, f"Impact scan issued {len(statements)} SQL statements"
     assert "raw_sources" not in statements[0]
     assert "domain_research_results" not in statements[0]
+
+
+@pytest.mark.asyncio
+async def test_several_events_share_one_provenance_read_and_release_the_connection(db):
+    kund, frozen = await _setup_frozen_set(db)
+    first = await _new_claim(db, kund.id)
+    second_value: dict[str, object] = {"value": True}
+    second = KnowledgeClaim(
+        id=knowledge_claim_id(
+            document_version_id="ver-a",
+            predicate="legal.other_holding",
+            value=second_value,
+        ),
+        customer_id=kund.id,
+        document_id="doc-a",
+        document_version_id="ver-a",
+        predicate="legal.other_holding",
+        value=second_value,
+        supporting_text_unit_ids=("tu-hold",),
+    )
+    await persist_knowledge_claim(db, second)
+    await answer_research_need(
+        db,
+        research_need_id="need-3",
+        question_key=research_question_key(QUESTION),
+        claim_ids=[second.id],
+        source_type="swedish_case_law",
+    )
+    event_ids = []
+    for claim_id in (first, second.id):
+        rows = await list_graph_events(db, customer_id=kund.id, node_kind="claim", node_id=claim_id)
+        event_ids.append(next(row.id for row in rows if row.event_type == CLAIM_ADDED))
+    statements: list[str] = []
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    class _WatchJev(_ImpactJev):
+        def __init__(self):
+            super().__init__(0.81)
+            self.open_transactions: list[bool] = []
+
+        async def ask(self, *, state, questions, model, timeout_seconds):
+            self.open_transactions.append(db.in_transaction())
+            return await super().ask(
+                state=state,
+                questions=questions,
+                model=model,
+                timeout_seconds=timeout_seconds,
+            )
+
+    gate = _WatchJev()
+    engine = db.bind.sync_engine
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        decisions = await revalidate_after_events(db, event_ids, jev=gate)
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+    provenance_reads = [sql for sql in statements if "evidence_set_items" in sql]
+    assert len(provenance_reads) == 1
+    assert "raw_sources" not in provenance_reads[0]
+    assert "domain_research_results" not in provenance_reads[0]
+    assert gate.calls == 2
+    assert gate.open_transactions == [False, False]
+    assert {item.evidence_set_id for item in decisions} == {frozen.id}
+    assert len(decisions) == 2
