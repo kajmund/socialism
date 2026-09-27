@@ -219,6 +219,7 @@ async def reply_as_persona(
     user_image_sha256: str | None = None,
     tools: list[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    evidence_tool_handler: ResearchToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
 ) -> str:
@@ -245,6 +246,7 @@ async def reply_as_persona(
             messages,
             allowed_tools=frozenset(allowed),
             research_tool_handler=research_tool_handler,
+            evidence_tool_handler=evidence_tool_handler,
             consult_tool_handler=consult_tool_handler,
             actor_tool_handler=actor_tool_handler,
             prompt_key=_chat_prompt_key(mode),
@@ -269,6 +271,7 @@ async def stream_reply_as_persona(
     tools: list[str] | None = None,
     user_image_sha256: str | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    evidence_tool_handler: ResearchToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
 ) -> AsyncIterator[str]:
@@ -295,6 +298,7 @@ async def stream_reply_as_persona(
             messages,
             allowed_tools=frozenset(allowed),
             research_tool_handler=research_tool_handler,
+            evidence_tool_handler=evidence_tool_handler,
             consult_tool_handler=consult_tool_handler,
             actor_tool_handler=actor_tool_handler,
             prompt_key=_chat_prompt_key(mode),

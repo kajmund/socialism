@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -16,13 +17,16 @@ from app.database.models import (
     ResearchQuestionDependency,
     ResearchQuestionExpert,
 )
-from app.services.execution.service import get_attempt
+from app.services.execution.service import get_attempt, reopen_failed_research_attempt
 from app.services.research.progress import ProgressTracker, emit_question_status
 from app.services.research.question_domain import (
     GeneralQuestionDraft,
     add_question_dependency,
     create_general_question,
 )
+from app.services.research.question_tree import reopen_failed_question_nodes
+
+logger = logging.getLogger(__name__)
 
 
 class ResearchQuestionExecutionError(RuntimeError):
@@ -93,13 +97,18 @@ async def requeue_interrupted_research_questions(
     *,
     attempt_id: str,
 ) -> int:
-    """Reset questions left `running` when a worker died mid-wave."""
+    """Reset questions left running or failed so a resumed job can continue.
+
+    A failed question keeps its child Attempt. That Attempt, its EvidenceSet,
+    and needs that were fail-closed go back to in progress instead of starting
+    over.
+    """
     questions = list(
         (
             await session.execute(
                 select(ResearchQuestion).where(
                     ResearchQuestion.attempt_id == attempt_id,
-                    ResearchQuestion.status == "running",
+                    ResearchQuestion.status.in_(("running", "failed")),
                 )
             )
         ).scalars()
@@ -107,6 +116,11 @@ async def requeue_interrupted_research_questions(
     for question in questions:
         question.status = "pending"
         question.outcome_reason = None
+        if question.execution_attempt_id is not None:
+            await reopen_failed_research_attempt(session, question.execution_attempt_id)
+            await reopen_failed_question_nodes(
+                session, attempt_id=question.execution_attempt_id
+            )
     return len(questions)
 
 
@@ -159,7 +173,12 @@ async def execute_research_question_dag(
                             f"research question disappeared during execution: {question.id}"
                         )
                     if isinstance(outcome, BaseException):
-                        reason = (str(outcome) or outcome.__class__.__name__)[:2000]
+                        logger.error(
+                            "research question %s failed",
+                            question.id,
+                            exc_info=outcome,
+                        )
+                        reason = _execution_failure_reason(outcome)
                         row.status = "failed"
                         row.outcome_reason = reason
                         await emit_question_status(
@@ -271,6 +290,19 @@ def _as_executable(state: _QuestionState, attempt_id: str) -> ExecutableResearch
     )
 
 
+def _execution_failure_reason(outcome: BaseException) -> str:
+    parts: list[str] = []
+    current: BaseException | None = outcome
+    while current is not None and len(parts) < 4:
+        text = str(current).strip() or type(current).__name__
+        if text == type(current).__name__:
+            parts.append(text)
+        else:
+            parts.append(f"{type(current).__name__}: {text}")
+        current = current.__cause__
+    return " | ".join(parts)[:2000]
+
+
 async def _run_wave(
     worker: QuestionResearchWorker,
     questions: Sequence[ExecutableResearchQuestion],
@@ -334,7 +366,7 @@ async def _persist_follow_ups(
 def _terminal_result(
     attempt_id: str,
     states: dict[str, _QuestionState],
-    dependencies: dict[str, set[str]],
+    _dependencies: dict[str, set[str]],
     waves: int,
 ) -> QuestionDagExecutionResult:
     if not states:
@@ -358,18 +390,10 @@ def _terminal_result(
             unassigned,
             waves,
         )
-    failed_ids = {
-        question_id for question_id, state in states.items() if state.row.status == "failed"
-    }
-    blocked_by_failure = [
-        question_id
-        for question_id, required in dependencies.items()
-        if required & failed_ids and states[question_id].row.status != "completed"
-    ]
-    if failed_ids or blocked_by_failure:
+    if any(state.row.status == "failed" for state in states.values()):
         return QuestionDagExecutionResult(
             attempt_id,
-            "completed_with_gaps",
+            "failed",
             completed,
             failed,
             blocked,

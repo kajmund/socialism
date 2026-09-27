@@ -112,6 +112,7 @@ async def test_live_token_for_expert_uses_server_built_prompt(
         "search_duckduckgo",
         "search_wiki",
         "start_research",
+        "lookup_frozen_evidence",
         "get_actor_context",
         "propose_actor_context_update",
     }

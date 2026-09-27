@@ -2253,6 +2253,88 @@ class EvidenceSetRevalidation(Base):
     evidence_set: Mapped[EvidenceSet] = relationship(back_populates="revalidations")
 
 
+class GraphRevalidationWork(Base):
+    """Durable downstream revalidation of committed graph events.
+
+    Retrieval commits this row with the claims and edges, then continues.
+    A lease lets a restarted process retry abandoned work. The idempotency
+    key is the semantic input: tenant, document version, node ids, and the
+    evaluator definition. Research completion does not wait on this row.
+    """
+
+    __tablename__ = "graph_revalidation_work"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_graph_revalidation_work_key"),
+        Index("ix_graph_revalidation_work_status_lease", "status", "lease_expires_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    document_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    document_version_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    claim_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    relationship_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    worker_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    events_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    events_skipped: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    events_evaluated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class JevEvaluationArtifactRecord(Base):
+    """Successful content-addressed JEV evaluation. Failures are not stored.
+
+    ``evaluation_key`` already includes the security scope. The column is still
+    part of the unique constraint so a lookup cannot cross tenants.
+    """
+
+    __tablename__ = "jev_evaluation_artifacts"
+    __table_args__ = (
+        UniqueConstraint(
+            "security_scope",
+            "evaluation_key",
+            name="uq_jev_evaluation_scope_key",
+        ),
+        Index("ix_jev_evaluation_artifacts_evaluator", "evaluator_id", "evaluator_version"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    security_scope: Mapped[str] = mapped_column(String(64), nullable=False)
+    evaluation_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    evaluator_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    evaluator_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    model_provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    result: Mapped[dict] = mapped_column(JSON, nullable=False)
+    signals: Mapped[dict] = mapped_column(JSON, nullable=False)
+    input_provenance: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
 class ExecutionAttempt(Base):
     """One concrete execution of an ExecutionRun (product: Attempt)."""
 
@@ -2329,6 +2411,10 @@ class ExecutionAttempt(Base):
     )
     research_progress_events: Mapped[list["ResearchProgressEvent"]] = relationship(
         back_populates="attempt",
+    )
+    research_question_nodes: Mapped[list["ResearchQuestionNode"]] = relationship(
+        back_populates="attempt",
+        foreign_keys="ResearchQuestionNode.attempt_id",
     )
 
 
@@ -2470,6 +2556,187 @@ class ResearchRuntimeNeed(Base):
     attempt: Mapped[ExecutionAttempt] = relationship(back_populates="runtime_needs")
 
 
+class ResearchQuestionNode(Base):
+    """One durable node in an Attempt's recursive research question tree."""
+
+    __tablename__ = "research_question_nodes"
+    __table_args__ = (
+        Index("ix_research_question_nodes_attempt_parent", "attempt_id", "parent_question_id"),
+        Index(
+            "uq_research_question_nodes_root",
+            "attempt_id",
+            unique=True,
+            sqlite_where=sql_text("parent_question_id IS NULL"),
+            postgresql_where=sql_text("parent_question_id IS NULL"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("execution_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    parent_question_id: Mapped[str | None] = mapped_column(
+        ForeignKey("research_question_nodes.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    knowledge_question_id: Mapped[str | None] = mapped_column(
+        ForeignKey("knowledge_questions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    current_answer_id: Mapped[str | None] = mapped_column(
+        ForeignKey(
+            "research_question_answers.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_research_question_nodes_current_answer",
+        ),
+        nullable=True,
+        index=True,
+    )
+    research_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    depth: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_from: Mapped[str] = mapped_column(String(32), nullable=False)
+    phase: Mapped[str] = mapped_column(String(32), nullable=False, default="created")
+    atomicity: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    atomicity_noul: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    researchability: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    researchability_noul: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    decomposability: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    decomposability_noul: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    decomposition_result: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    execution_override: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    execution_override_reason: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    synthesis_readiness_noul: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    completeness: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    completeness_noul: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    attempt: Mapped[ExecutionAttempt] = relationship(
+        back_populates="research_question_nodes",
+        foreign_keys=[attempt_id],
+    )
+    parent: Mapped["ResearchQuestionNode | None"] = relationship(
+        remote_side=[id],
+        foreign_keys=[parent_question_id],
+    )
+    answers: Mapped[list["ResearchQuestionAnswer"]] = relationship(
+        back_populates="question_node",
+        foreign_keys="ResearchQuestionAnswer.question_node_id",
+    )
+    current_answer: Mapped["ResearchQuestionAnswer | None"] = relationship(
+        foreign_keys=[current_answer_id],
+        post_update=True,
+    )
+
+
+class ResearchQuestionAnswer(Base):
+    """Immutable material representation of one question node's answer."""
+
+    __tablename__ = "research_question_answers"
+    __table_args__ = (
+        UniqueConstraint(
+            "question_node_id",
+            "version",
+            name="uq_research_question_answers_node_version",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    question_node_id: Mapped[str] = mapped_column(
+        ForeignKey("research_question_nodes.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    supersedes_answer_id: Mapped[str | None] = mapped_column(
+        ForeignKey("research_question_answers.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    answer_text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    question_node: Mapped[ResearchQuestionNode] = relationship(
+        back_populates="answers",
+        foreign_keys=[question_node_id],
+    )
+
+
+class ResearchAnswerChildLink(Base):
+    """Exact child-answer versions used to synthesize one parent answer."""
+
+    __tablename__ = "research_answer_child_links"
+    __table_args__ = (
+        UniqueConstraint(
+            "answer_id",
+            "child_answer_id",
+            name="uq_research_answer_child_links_pair",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    answer_id: Mapped[str] = mapped_column(
+        ForeignKey("research_question_answers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    child_answer_id: Mapped[str] = mapped_column(
+        ForeignKey("research_question_answers.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
+
+class ResearchAnswerEvidenceLink(Base):
+    """Leaf-answer provenance pointing at persisted evidence, never a copied closure."""
+
+    __tablename__ = "research_answer_evidence_links"
+    __table_args__ = (
+        UniqueConstraint(
+            "answer_id",
+            "evidence_set_item_id",
+            name="uq_research_answer_evidence_links_item",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    answer_id: Mapped[str] = mapped_column(
+        ForeignKey("research_question_answers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    evidence_set_item_id: Mapped[str] = mapped_column(
+        ForeignKey("evidence_set_items.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    claim_id: Mapped[str | None] = mapped_column(
+        ForeignKey("research_claims.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    passage_id: Mapped[str | None] = mapped_column(
+        ForeignKey("evidence_passages.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+
 class EvidenceSource(Base):
     """One canonical provider document, shared by all questions and attempts."""
 
@@ -2499,7 +2766,7 @@ class EvidencePassage(Base):
         ForeignKey("evidence_sources.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     source_ref: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    locator: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    locator: Mapped[str | None] = mapped_column(Text, nullable=True)
     excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     provenance: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -2620,7 +2887,7 @@ class EvidenceSetItem(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     title: Mapped[str | None] = mapped_column(String(512), nullable=True)
     excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
-    locator: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    locator: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -2929,7 +3196,7 @@ class KnowledgeQuestionEvidenceLink(Base):
     relation: Mapped[str] = mapped_column(String(32), nullable=False, default="ANSWERED_BY")
     title: Mapped[str | None] = mapped_column(String(512), nullable=True)
     excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
-    locator: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    locator: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     source_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -3177,7 +3444,7 @@ class ResearchProgressEvent(Base):
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
     payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(256), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

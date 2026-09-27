@@ -12,6 +12,10 @@ from app.database.models import Job, Kund, Persona
 from app.llm import set_tools_completer
 from app.services import jobs as jobs_service
 from app.services.dd.company_mcp import complete_text_with_company_tools
+from app.services.expert_chat_research_tool import (
+    reply_without_unbacked_research_start,
+    research_job_was_queued,
+)
 from app.services.expert_tools import default_expert_tools
 from app.services.persona_chat import research_tool_handler_for_chat
 
@@ -252,3 +256,159 @@ async def test_native_research_tool_dispatches_without_company_tools():
 
     assert reply == "Researchjobbet är köat."
     assert handled == [{"question": "Vilka rekvisit gäller?"}]
+
+
+def test_reply_claims_research_only_when_a_job_was_queued():
+    assert (
+        reply_without_unbacked_research_start("Ska jag starta research?", queued=False)
+        == "Ska jag starta research?"
+    )
+    assert (
+        reply_without_unbacked_research_start(
+            "Vill du att jag startar research?",
+            queued=False,
+        )
+        == "Vill du att jag startar research?"
+    )
+    refused = reply_without_unbacked_research_start(
+        "Jag har startat research.",
+        queued=False,
+    )
+    assert refused.startswith("Research startades inte")
+    assert (
+        reply_without_unbacked_research_start(
+            "Klausulen kräver skriftlig uppsägning. Jag har startat research.",
+            queued=False,
+        )
+        == "Klausulen kräver skriftlig uppsägning."
+    )
+    assert (
+        reply_without_unbacked_research_start("Researchjobbet är köat.", queued=True)
+        == "Researchjobbet är köat."
+    )
+    assert research_job_was_queued(
+        [
+            {
+                "role": "tool",
+                "name": "start_research",
+                "content": (
+                    "Researchjobbet är köat i bakgrunden med id job-1. "
+                    "Resultatet finns inte ännu."
+                ),
+            }
+        ]
+    )
+    assert research_job_was_queued(
+        [
+            {
+                "role": "tool",
+                "name": "start_research",
+                "content": "Researchjobbet är redan köat: job-1",
+            }
+        ]
+    )
+    assert not research_job_was_queued(
+        [
+            {
+                "role": "tool",
+                "name": "start_research",
+                "content": "Research startades inte. Du måste först fråga användaren.",
+            }
+        ]
+    )
+
+
+async def test_visible_reply_cannot_claim_research_without_a_queued_job():
+    async def complete(_messages, tools=None):
+        return SimpleNamespace(content="Jag har startat research.", tool_calls=None)
+
+    async def handle(_arguments):
+        raise AssertionError("start_research should not be called")
+
+    set_tools_completer(complete)
+    try:
+        reply = await complete_text_with_company_tools(
+            [{"role": "user", "content": "Ja"}],
+            allowed_tools=frozenset({"start_research"}),
+            research_tool_handler=handle,
+        )
+    finally:
+        set_tools_completer(None)
+
+    assert reply.startswith("Research startades inte")
+    assert "har startat" not in reply.casefold()
+
+
+async def test_claimed_start_after_confirmation_queues_a_job(session):
+    db, expert, _factory = session
+    scheduled: list[str] = []
+    jobs_service.set_schedule_hook(scheduled.append)
+    handler = research_tool_handler_for_chat(
+        db,
+        persona=expert,
+        history=[
+            ("user", "Vad innebär klausul 2?", None),
+            ("assistant", "Vill du att jag startar research?", None),
+        ],
+        user_message="Ja",
+    )
+    calls = 0
+
+    async def complete(_messages, tools=None):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return SimpleNamespace(content="Jag har startat research.", tool_calls=None)
+        return SimpleNamespace(content="Researchjobbet är köat.", tool_calls=None)
+
+    set_tools_completer(complete)
+    try:
+        reply = await complete_text_with_company_tools(
+            [
+                {"role": "user", "content": "Vad innebär klausul 2?"},
+                {"role": "assistant", "content": "Vill du att jag startar research?"},
+                {"role": "user", "content": "Ja"},
+            ],
+            allowed_tools=frozenset({"start_research"}),
+            research_tool_handler=handler,
+        )
+    finally:
+        set_tools_completer(None)
+
+    job = (await db.execute(select(Job))).scalar_one()
+    assert job.kind == "expert_chat_research"
+    assert job.request["question"] == "Vad innebär klausul 2?"
+    assert scheduled == [job.id]
+    assert "startades inte" not in reply
+
+
+async def test_claimed_start_without_confirmation_does_not_queue(session):
+    db, expert, _factory = session
+    handler = research_tool_handler_for_chat(
+        db,
+        persona=expert,
+        history=[],
+        user_message="Vad innebär klausul 2?",
+    )
+    calls = 0
+
+    async def complete(_messages, tools=None):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return SimpleNamespace(content="Jag har startat research.", tool_calls=None)
+        return SimpleNamespace(content="Okej.", tool_calls=None)
+
+    set_tools_completer(complete)
+    try:
+        reply = await complete_text_with_company_tools(
+            [{"role": "user", "content": "Vad innebär klausul 2?"}],
+            allowed_tools=frozenset({"start_research"}),
+            research_tool_handler=handler,
+        )
+    finally:
+        set_tools_completer(None)
+
+    assert reply == "Okej."
+    jobs = list((await db.execute(select(Job))).scalars())
+    assert jobs == []

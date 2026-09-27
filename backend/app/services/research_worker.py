@@ -7,22 +7,29 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
+from app.database.models import ResearchQuestionNode
 from app.llm.legal_question_validator import build_llm_legal_question_validator
 from app.llm.research_assessment import build_llm_research_assessor
 from app.llm.research_completeness import build_llm_research_completeness_reviewer
 from app.llm.research_followup import build_llm_follow_up_planner
 from app.llm.research_planner import build_llm_research_planner
+from app.llm.research_question_tree import build_llm_question_tree_generator
+from app.services import jobs as jobs_service
+from app.services.execution.errors import ExecutionStatusError
+from app.services.execution.service import get_attempt, get_run, new_id, set_attempt_snapshots
+from app.services.knowledge.revalidation_work import (
+    run_due_graph_revalidations,
+    set_graph_revalidation_scheduling,
+)
 from app.services.lagen_nu.question_validation import (
     LegalFollowUpPlannerAdapter,
     LegalNeedNormalizer,
     LegalResearchPlannerAdapter,
 )
-from app.services import jobs as jobs_service
-from app.services.execution.errors import ExecutionStatusError
-from app.services.execution.service import get_attempt, get_run, new_id, set_attempt_snapshots
 from app.services.research.claims import (
     claim_research_lease,
     enqueue_research_claim,
@@ -49,6 +56,9 @@ from app.services.research.planner import (
     require_research_objective,
     research_objective_to_snapshot,
 )
+from app.services.research.question_tree import QuestionTreeLimits, RecursiveQuestionTree
+from app.services.research.question_tree_controller import JevQuestionTreeController
+from app.services.research.registry import production_registered_source_types
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +117,7 @@ def reset_research_worker() -> None:
     _accepting_work = True
     set_research_session_factory(None)
     set_research_schedule_hook(None)
+    set_graph_revalidation_scheduling(False)
 
 
 async def accept_attempt_research(
@@ -211,13 +222,12 @@ async def run_research_claim(attempt_id: str) -> None:
             await heartbeat
         except asyncio.CancelledError:
             pass
-        if lease_lost.is_set() or lease_token is None:
-            return
-        async with factory() as session:
-            await release_research_lease(
-                session, attempt_id, lease_token=lease_token
-            )
-            await session.commit()
+        if not lease_lost.is_set() and lease_token is not None:
+            async with factory() as session:
+                await release_research_lease(
+                    session, attempt_id, lease_token=lease_token
+                )
+                await session.commit()
 
 
 async def run_due_research_claims() -> int:
@@ -239,6 +249,7 @@ async def research_reclaim_loop(*, stop: asyncio.Event) -> None:
     while not stop.is_set():
         try:
             await run_due_research_claims()
+            await run_due_graph_revalidations()
         except Exception:
             logger.exception("Research reclaim loop failed")
         try:
@@ -252,6 +263,7 @@ async def research_reclaim_loop(*, stop: asyncio.Event) -> None:
 def start_research_reclaim_loop() -> asyncio.Event:
     global _loop_task, _accepting_work
     _accepting_work = True
+    set_graph_revalidation_scheduling(True)
     stop = asyncio.Event()
 
     async def _run() -> None:
@@ -264,6 +276,7 @@ def start_research_reclaim_loop() -> asyncio.Event:
 async def stop_research_reclaim_loop(stop: asyncio.Event) -> None:
     global _loop_task, _accepting_work
     _accepting_work = False
+    set_graph_revalidation_scheduling(False)
     stop.set()
     task = _loop_task
     _loop_task = None
@@ -345,6 +358,7 @@ async def _execute_claimed_research(
             question_graph=build_standard_question_graph(),
             session_factory=factory,
             lease_lost=lease_lost,
+            question_tree=bound.get("question_tree"),
         )
 
 
@@ -377,11 +391,18 @@ async def _bind_claimed_research(
             objective=require_research_objective(str(raw_objective)),
             context=dict(context),
         )
+    has_question_tree = (
+        await session.execute(
+            select(ResearchQuestionNode.id)
+            .where(ResearchQuestionNode.attempt_id == attempt_id)
+            .limit(1)
+        )
+    ).scalar_one_or_none() is not None
     components = await bind_research_components(
         session,
         customer_id=run.customer_id,
         module=run.module,
-        require_planner=plan is None,
+        require_planner=plan is None or has_question_tree,
     )
     return {
         "plan": plan,
@@ -437,10 +458,26 @@ async def bind_research_components(
             )
         if built_follow_up:
             planner = LegalFollowUpPlannerAdapter(planner, need_normalizer)
+    question_tree = None
+    if require_planner and built_initial:
+        generator = await build_llm_question_tree_generator(
+            session, customer_id=customer_id, module=module
+        )
+        question_tree = RecursiveQuestionTree(
+            controller=JevQuestionTreeController(),
+            generator=generator,
+            limits=QuestionTreeLimits(
+                max_depth=settings.research_max_question_depth,
+                max_children=settings.research_max_children_per_question,
+                max_questions=settings.research_max_questions_per_attempt,
+            ),
+            source_types=production_registered_source_types(),
+        )
     return {
         "research_planner": research_planner,
         "assessor": assessor,
         "planner": planner,
         "completeness_reviewer": completeness_reviewer,
         "need_normalizer": need_normalizer,
+        "question_tree": question_tree,
     }

@@ -20,14 +20,18 @@ from app.database.models import (
     ExecutionRun,
     KnowledgeQuestionRow,
     Persona,
+    ResearchAnswerChildLink,
+    ResearchAnswerEvidenceLink,
     ResearchAssessment,
     ResearchCompletenessPass,
     ResearchEvidenceQuality,
     ResearchNeedExecution,
     ResearchProgressEvent,
     ResearchQuestion,
+    ResearchQuestionAnswer,
     ResearchQuestionDependency,
     ResearchQuestionExpert,
+    ResearchQuestionNode,
     ResearchRuntimeNeed,
     SpecificQuestion,
     UserAccount,
@@ -73,6 +77,8 @@ from app.services.execution.schemas import (
     ResearchOverviewOut,
     ResearchProgressEventListOut,
     ResearchProgressEventOut,
+    ResearchQuestionNodeAnswerOut,
+    ResearchQuestionNodeOverviewOut,
     ResearchQuestionOverviewOut,
     ResearchSourceOut,
     RuntimeResearchNeedOut,
@@ -97,6 +103,7 @@ from app.services.execution.service import (
     list_runtime_needs,
     list_runtime_needs_for_attempts,
 )
+from app.services.lagen_nu.display import substantive_citation_quote
 from app.services.panel.attempt_execution import (
     GENERIC_PANEL_ATTEMPT_TYPE,
     PanelAttemptError,
@@ -316,7 +323,10 @@ def _item_out(
         source_type=item.source_type,
         status=item.status,
         title=item.title,
-        excerpt=item.excerpt,
+        excerpt=_evidence_excerpt(
+            item.excerpt,
+            item.domain_result.result if item.domain_result else None,
+        ),
         locator=item.locator,
         source_id=item.source_id,
         source_url=item.source_url,
@@ -818,6 +828,36 @@ async def get_attempt_progress_events(
     )
 
 
+def _citation_quotes(result: object) -> list[str]:
+    if not isinstance(result, dict):
+        return []
+    quotes: list[str] = []
+    for key in ("preparatory_work", "statute", "case_law"):
+        analysis = result.get(key)
+        if not isinstance(analysis, dict):
+            continue
+        citations = analysis.get("citations")
+        if not isinstance(citations, list):
+            continue
+        for citation in citations:
+            if not isinstance(citation, dict):
+                continue
+            quote = citation.get("quote")
+            if isinstance(quote, str) and quote.strip():
+                quotes.append(quote.strip())
+    return quotes
+
+
+def _evidence_excerpt(
+    stored: str | None, result: object | None, *, limit: int = 1000
+) -> str | None:
+    chosen = substantive_citation_quote(_citation_quotes(result))
+    text = chosen or stored
+    if not text:
+        return None
+    return text[:limit]
+
+
 def _domain_result_analysis(result: object) -> str | None:
     if not isinstance(result, dict):
         return None
@@ -851,7 +891,9 @@ def _overview_sources(
                 research_need_ids=sorted(need_ids_by_item[item.id]),
                 status=item.status,
                 title=item.title,
-                excerpt=(item.excerpt[:1000] if item.excerpt else None),
+                excerpt=_evidence_excerpt(
+                    item.excerpt, domain.result if domain is not None else None
+                ),
                 locator=item.locator,
                 source_url=item.source_url,
                 source_type=item.source_type,
@@ -1005,9 +1047,7 @@ async def get_attempt_research_overview(
         if evidence_set_ids
         else []
     )
-    domain_result_ids = [
-        item.domain_result_id for item in evidence_items if item.domain_result_id
-    ]
+    domain_result_ids = [item.domain_result_id for item in evidence_items if item.domain_result_id]
     domain_rows = (
         (
             await session.execute(
@@ -1239,18 +1279,143 @@ async def get_attempt_research_overview(
                 need_assessment=_need_assessment_out(need_assessment),
             )
         )
-    status_counts = {
-        status: sum(question.status == status for question in questions)
-        for status in (
-            "answered",
-            "running",
-            "waiting",
-            "insufficient",
-            "unanswered",
-            "failed",
-            "blocked",
+    tree_attempt_ids = list(dict.fromkeys([attempt_id, *child_ids]))
+    tree_nodes = list(
+        (
+            await session.execute(
+                select(ResearchQuestionNode)
+                .where(ResearchQuestionNode.attempt_id.in_(tree_attempt_ids))
+                .order_by(
+                    ResearchQuestionNode.attempt_id,
+                    ResearchQuestionNode.depth,
+                    ResearchQuestionNode.created_at,
+                    ResearchQuestionNode.id,
+                )
+            )
+        ).scalars()
+    )
+    answer_ids = [node.current_answer_id for node in tree_nodes if node.current_answer_id]
+    tree_answers = (
+        list(
+            (
+                await session.execute(
+                    select(ResearchQuestionAnswer).where(ResearchQuestionAnswer.id.in_(answer_ids))
+                )
+            ).scalars()
         )
-    }
+        if answer_ids
+        else []
+    )
+    answer_by_id = {answer.id: answer for answer in tree_answers}
+    child_answer_links = (
+        list(
+            (
+                await session.execute(
+                    select(ResearchAnswerChildLink).where(
+                        ResearchAnswerChildLink.answer_id.in_(answer_ids)
+                    )
+                )
+            ).scalars()
+        )
+        if answer_ids
+        else []
+    )
+    evidence_answer_links = (
+        list(
+            (
+                await session.execute(
+                    select(ResearchAnswerEvidenceLink).where(
+                        ResearchAnswerEvidenceLink.answer_id.in_(answer_ids)
+                    )
+                )
+            ).scalars()
+        )
+        if answer_ids
+        else []
+    )
+    child_ids_by_answer: dict[str, list[str]] = {}
+    for link in child_answer_links:
+        child_ids_by_answer.setdefault(link.answer_id, []).append(link.child_answer_id)
+    evidence_ids_by_answer: dict[str, list[str]] = {}
+    for link in evidence_answer_links:
+        evidence_ids_by_answer.setdefault(link.answer_id, []).append(link.evidence_set_item_id)
+    evidence_by_id = {item.id: item for item in evidence_items}
+    question_nodes: list[ResearchQuestionNodeOverviewOut] = []
+    for node in tree_nodes:
+        answer = answer_by_id.get(node.current_answer_id or "")
+        linked_item_ids = evidence_ids_by_answer.get(answer.id, []) if answer else []
+        linked_items = [
+            evidence_by_id[item_id] for item_id in linked_item_ids if item_id in evidence_by_id
+        ]
+        # Found evidence is visible before synthesis. The answer link is the
+        # later provenance subset, not the only time sources may be shown.
+        need_items = (
+            _items_for_need(
+                items_by_set,
+                need_ids_by_item,
+                evidence_set_id=evidence_set_by_attempt.get(node.attempt_id),
+                research_need_id=node.research_need_id,
+            )
+            if node.research_need_id
+            else []
+        )
+        linked_ids = {item.id for item in linked_items}
+        seen_item_ids: set[str] = set()
+        visible_items: list[EvidenceSetItem] = []
+        for item in (*need_items, *linked_items):
+            if item.id in seen_item_ids:
+                continue
+            if item.id not in linked_ids and item.status != "found":
+                continue
+            seen_item_ids.add(item.id)
+            visible_items.append(item)
+        question_nodes.append(
+            ResearchQuestionNodeOverviewOut(
+                id=node.id,
+                attempt_id=node.attempt_id,
+                parent_question_id=node.parent_question_id,
+                question=node.question,
+                depth=node.depth,
+                created_from=node.created_from,
+                phase=node.phase,
+                atomicity=node.atomicity,
+                researchability=node.researchability,
+                decomposability=node.decomposability,
+                completeness=node.completeness,
+                research_need_id=node.research_need_id,
+                current_answer=(
+                    None
+                    if answer is None
+                    else ResearchQuestionNodeAnswerOut(
+                        id=answer.id,
+                        version=answer.version,
+                        status=answer.status,
+                        text=answer.answer_text,
+                        child_answer_ids=child_ids_by_answer.get(answer.id, []),
+                        evidence_item_ids=evidence_ids_by_answer.get(answer.id, []),
+                    )
+                ),
+                sources=_overview_sources(
+                    visible_items,
+                    domain_by_id=domain_by_id,
+                    need_ids_by_item=need_ids_by_item,
+                ),
+            )
+        )
+    attempt_terminal = attempt.status in {"ready", "completed", "failed"}
+    if question_nodes:
+        node_statuses = [
+            _research_node_display_status(node, attempt_terminal=attempt_terminal)
+            for node in question_nodes
+        ]
+        status_counts = {
+            status: node_statuses.count(status) for status in _OVERVIEW_DISPLAY_STATUSES
+        }
+    else:
+        status_counts = {
+            status: sum(question.status == status for question in questions)
+            for status in _OVERVIEW_DISPLAY_STATUSES
+        }
     latest_sequence = int(
         (
             await session.execute(
@@ -1261,32 +1426,97 @@ async def get_attempt_research_overview(
         ).scalar_one()
         or 0
     )
-    active = status_counts["running"] + status_counts["waiting"]
-    gaps = (
-        status_counts["insufficient"]
-        + status_counts["unanswered"]
-        + status_counts["failed"]
-        + status_counts["blocked"]
+    total_questions = len(question_nodes) if question_nodes else len(questions)
+    phase = research_overview_phase(
+        total=total_questions,
+        counts=status_counts,
+        attempt_status=attempt.status,
     )
-    if not questions and attempt.status in {"ready", "running", "completed"}:
-        phase = "not_needed"
-    else:
-        phase = (
-            "researching"
-            if active or not questions
-            else "completed_with_gaps"
-            if gaps
-            else "completed"
-        )
     return ResearchOverviewOut(
         run_id=attempt.run_id,
         attempt_id=attempt.id,
         attempt_status=attempt.status,
         phase=phase,
         latest_sequence=latest_sequence,
-        counts=ResearchOverviewCountsOut(total=len(questions), **status_counts),
+        counts=ResearchOverviewCountsOut(total=total_questions, **status_counts),
         questions=questions,
+        question_nodes=question_nodes,
     )
+
+
+_OVERVIEW_DISPLAY_STATUSES = (
+    "answered",
+    "answered_with_gaps",
+    "running",
+    "waiting",
+    "unresolved",
+    "not_required",
+    "insufficient",
+    "unanswered",
+    "failed",
+    "blocked",
+)
+_RUNNING_NODE_PHASES = frozenset(
+    {
+        "assessing_atomicity",
+        "decomposing",
+        "researching",
+        "synthesizing",
+        "assessing_completeness",
+    }
+)
+
+
+def research_overview_phase(
+    *,
+    total: int,
+    counts: dict[str, int],
+    attempt_status: str,
+) -> str:
+    """Zero grounded answers is not a successful research just because Luckor is empty."""
+    if not total and attempt_status in {"ready", "running", "completed"}:
+        return "not_needed"
+    active = counts.get("running", 0) + counts.get("waiting", 0)
+    incomplete = (
+        counts.get("answered_with_gaps", 0)
+        + counts.get("unresolved", 0)
+        + counts.get("insufficient", 0)
+        + counts.get("unanswered", 0)
+        + counts.get("failed", 0)
+        + counts.get("blocked", 0)
+    )
+    if active or not total:
+        return "researching"
+    if incomplete:
+        return "completed_with_gaps"
+    return "completed"
+
+
+def _research_node_display_status(
+    node: ResearchQuestionNodeOverviewOut,
+    *,
+    attempt_terminal: bool,
+) -> str:
+    if node.phase == "failed":
+        return "failed"
+    if node.phase == "not_required":
+        return "not_required"
+    answer = node.current_answer
+    if answer is not None:
+        if answer.status == "answered_with_gaps" or node.completeness == "answered_with_gaps":
+            return "answered_with_gaps"
+        if (
+            answer.status == "insufficient_evidence"
+            or node.completeness == "insufficient"
+            or node.phase == "evidence_incomplete"
+        ):
+            return "unresolved"
+        return "answered"
+    if attempt_terminal or node.phase in {"unresolved", "evidence_incomplete"}:
+        return "unresolved"
+    if node.phase in _RUNNING_NODE_PHASES:
+        return "running"
+    return "waiting"
 
 
 def _research_question_display_status(

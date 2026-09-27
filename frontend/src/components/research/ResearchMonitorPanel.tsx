@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom"
 import { ResearchEventLog } from "@/components/research/ResearchEventLog"
 import { ResearchQuestionCard } from "@/components/research/ResearchQuestionCard"
+import { ResearchQuestionTree } from "@/components/research/ResearchQuestionTree"
 import { useResearchMonitor } from "@/components/research/useResearchMonitor"
 import { Card, CardContent } from "@/components/ui/card"
 import { useLocale } from "@/i18n"
@@ -15,13 +16,23 @@ export function ResearchMonitorPanel({ attemptId, compact = false, href }: Props
   if (live.error || !live.overview) return <div className="empty-state" role="alert">{t("execution.researchMonitor.loadError")}</div>
 
   const { overview } = live
+  const { counts } = overview
   const isRunning = overview.phase === "researching"
   const hasGaps = overview.phase === "completed_with_gaps"
   const notNeeded = overview.phase === "not_needed"
-  const gaps = overview.counts.insufficient + overview.counts.unanswered + overview.counts.failed + overview.counts.blocked
   const title = isRunning ? t("execution.researchMonitor.researchingTitle") : notNeeded ? t("execution.researchMonitor.notNeededTitle") : hasGaps ? t("execution.researchMonitor.gapsTitle") : t("execution.researchMonitor.completedTitle")
   const body = isRunning ? t("execution.researchMonitor.researchingBody") : notNeeded ? t("execution.researchMonitor.notNeededBody") : hasGaps ? t("execution.researchMonitor.gapsBody") : t("execution.researchMonitor.completedBody")
-  const percent = overview.counts.total === 0 ? 0 : Math.round(((overview.counts.answered + gaps) / overview.counts.total) * 100)
+  const settled = counts.answered + counts.answered_with_gaps + counts.unresolved + counts.not_required + counts.failed
+  const percent = counts.total === 0 ? 0 : Math.round((settled / counts.total) * 100)
+  const summary = t("execution.researchMonitor.summary", {
+    answered: counts.answered,
+    answeredWithGaps: counts.answered_with_gaps,
+    unresolved: counts.unresolved,
+    notRequired: counts.not_required,
+    failed: counts.failed,
+    running: counts.running,
+    waiting: counts.waiting,
+  })
 
   if (compact) {
     return (
@@ -34,7 +45,7 @@ export function ResearchMonitorPanel({ attemptId, compact = false, href }: Props
                 <h3 className="font-semibold">{title}</h3>
               </div>
               <p className="text-sm leading-6 text-muted-foreground">{body}</p>
-              {!notNeeded ? <p className="mt-2 text-sm font-medium">{t("execution.researchMonitor.summary", { answered: overview.counts.answered, total: overview.counts.total, running: overview.counts.running, waiting: overview.counts.waiting })}</p> : null}
+              {!notNeeded ? <p className="mt-2 text-sm font-medium">{summary}</p> : null}
             </div>
             {href ? <Link className="text-sm font-medium text-db-gold-500 hover:underline" to={href}>{t("execution.researchMonitor.open")}</Link> : null}
           </div>
@@ -44,10 +55,11 @@ export function ResearchMonitorPanel({ attemptId, compact = false, href }: Props
   }
 
   const stats = [
-    ["answered", overview.counts.answered, "execution.researchMonitor.counts.answered"],
-    ["running", overview.counts.running, "execution.researchMonitor.counts.running"],
-    ["waiting", overview.counts.waiting, "execution.researchMonitor.counts.waiting"],
-    ["gaps", gaps, "execution.researchMonitor.counts.gaps"],
+    ["answered", counts.answered, "execution.researchMonitor.counts.answered"],
+    ["answeredWithGaps", counts.answered_with_gaps, "execution.researchMonitor.counts.answeredWithGaps"],
+    ["unresolved", counts.unresolved, "execution.researchMonitor.counts.unresolved"],
+    ["notRequired", counts.not_required, "execution.researchMonitor.counts.notRequired"],
+    ["failed", counts.failed, "execution.researchMonitor.counts.failed"],
   ] as const
 
   return (
@@ -66,7 +78,7 @@ export function ResearchMonitorPanel({ attemptId, compact = false, href }: Props
             <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-muted-foreground">{t("execution.researchMonitor.persisted")}</span>
           </div>
           {!notNeeded ? <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-db-gold-500 transition-[width] duration-500" style={{ width: `${percent}%` }} /></div> : null}
-          {!notNeeded ? <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {!notNeeded ? <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {stats.map(([key, value, label]) => <div key={key} className="rounded-lg border border-white/10 bg-black/10 p-3"><div className="text-2xl font-medium">{value}</div><div className="text-xs text-muted-foreground">{t(label)}</div></div>)}
           </div> : null}
         </CardContent>
@@ -76,7 +88,7 @@ export function ResearchMonitorPanel({ attemptId, compact = false, href }: Props
       </div>
       <section>
         <h2 className="mb-3 text-lg font-medium">{t("execution.researchMonitor.questionsTitle")}</h2>
-        {overview.questions.length === 0 ? <div className="empty-state">{t(notNeeded ? "execution.researchMonitor.questionsNotNeeded" : "execution.researchMonitor.questionsEmpty")}</div> : <div className="space-y-3">{overview.questions.map((question) => <ResearchQuestionCard key={question.id} question={question} />)}</div>}
+        {(overview.question_nodes?.length ?? 0) > 0 ? <ResearchQuestionTree nodes={overview.question_nodes ?? []} events={live.events} /> : overview.questions.length === 0 ? <div className="empty-state">{t(notNeeded ? "execution.researchMonitor.questionsNotNeeded" : "execution.researchMonitor.questionsEmpty")}</div> : <div className="space-y-3">{overview.questions.map((question) => <ResearchQuestionCard key={question.id} question={question} />)}</div>}
       </section>
       <ResearchEventLog events={live.events} />
     </div>

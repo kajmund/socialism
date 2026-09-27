@@ -52,6 +52,7 @@ from app.services.legal_research_result import (
     LegalSourceIdentity,
     StatuteAnalysis,
 )
+from app.services.research.canonical_evidence import canonical_passage_keys
 from app.services.research.models import research_evidence
 
 EXECUTION_ROOT = Path(__file__).resolve().parents[1] / "app" / "services" / "execution"
@@ -136,9 +137,7 @@ async def _acceptance_setup(session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_acceptance_clone_reuses_frozen_evidence_without_mutating_source(session):
-    customer_a, run, frozen, items, attempt_a, first, second = await _acceptance_setup(
-        session
-    )
+    customer_a, run, frozen, items, attempt_a, first, second = await _acceptance_setup(session)
     source_before = {
         "id": attempt_a.id,
         "status": attempt_a.status,
@@ -200,13 +199,9 @@ async def test_acceptance_clone_reuses_frozen_evidence_without_mutating_source(s
             attempt_type="generic_panel",
             evidence_set_id=frozen.id,
         )
-    other_attempt = await create_attempt(
-        session, run_id=other_run.id, attempt_type="generic_panel"
-    )
+    other_attempt = await create_attempt(session, run_id=other_run.id, attempt_type="generic_panel")
     with pytest.raises(ExecutionScopeError):
-        await attach_evidence_set(
-            session, attempt_id=other_attempt.id, evidence_set_id=frozen.id
-        )
+        await attach_evidence_set(session, attempt_id=other_attempt.id, evidence_set_id=frozen.id)
 
     stored = await list_evidence_items(session, frozen.id)
     assert len(stored) == 2
@@ -234,9 +229,7 @@ async def test_acceptance_clone_reuses_frozen_evidence_without_mutating_source(s
 @pytest.mark.asyncio
 async def test_missing_and_wrong_scope_fail_closed(session):
     with pytest.raises(ExecutionNotFoundError):
-        await create_run(
-            session, customer_id=999, module="dd", title="Saknas"
-        )
+        await create_run(session, customer_id=999, module="dd", title="Saknas")
     with pytest.raises(ExecutionNotFoundError):
         await get_run(session, "missing-run")
     with pytest.raises(ExecutionNotFoundError):
@@ -247,13 +240,9 @@ async def test_missing_and_wrong_scope_fail_closed(session):
     customer = await _customer(session, "scope-co")
     run = await create_run(session, customer_id=customer.id, module="dd", title="R")
     other = await create_run(session, customer_id=customer.id, module="dd", title="R2")
-    attempt = await create_attempt(
-        session, run_id=run.id, attempt_type="generic_panel"
-    )
+    attempt = await create_attempt(session, run_id=run.id, attempt_type="generic_panel")
     with pytest.raises(ExecutionScopeError):
-        await create_evidence_set(
-            session, run_id=other.id, created_from_attempt_id=attempt.id
-        )
+        await create_evidence_set(session, run_id=other.id, created_from_attempt_id=attempt.id)
 
 
 @pytest.mark.asyncio
@@ -301,9 +290,7 @@ async def test_attempt_status_and_snapshot_immutability(session):
             session, attempt_id=attempt.id, configuration_snapshot={"prompt": "v3"}
         )
     with pytest.raises(ExecutionImmutableError):
-        await attach_evidence_set(
-            session, attempt_id=attempt.id, evidence_set_id=building.id
-        )
+        await attach_evidence_set(session, attempt_id=attempt.id, evidence_set_id=building.id)
 
     reloaded = await get_attempt(session, attempt.id)
     assert reloaded.configuration_snapshot == {"prompt": "v2"}
@@ -428,9 +415,7 @@ async def test_clone_rejects_non_cloneable_status(session, start_status):
 
 @pytest.mark.asyncio
 async def test_clone_without_config_copies_source_exactly(session):
-    _customer_a, _run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(
-        session
-    )
+    _customer_a, _run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(session)
     clone = await clone_attempt(session, attempt_a.id)
     assert clone.configuration_snapshot == attempt_a.configuration_snapshot
     assert clone.input_snapshot == attempt_a.input_snapshot
@@ -444,12 +429,8 @@ async def test_clone_without_config_copies_source_exactly(session):
 
 @pytest.mark.asyncio
 async def test_clone_replaces_configuration_without_merge(session):
-    _customer_a, _run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(
-        session
-    )
-    clone = await clone_attempt(
-        session, attempt_a.id, configuration_snapshot={"model": "config-b"}
-    )
+    _customer_a, _run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(session)
+    clone = await clone_attempt(session, attempt_a.id, configuration_snapshot={"model": "config-b"})
     assert clone.configuration_snapshot == {"model": "config-b"}
     assert attempt_a.configuration_snapshot == {"model": "config-a", "temperature": 0.1}
     reloaded = await get_attempt(session, attempt_a.id)
@@ -459,9 +440,7 @@ async def test_clone_replaces_configuration_without_merge(session):
 
 @pytest.mark.asyncio
 async def test_clone_twice_creates_distinct_children_sharing_evidence(session):
-    _customer_a, run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(
-        session
-    )
+    _customer_a, run, frozen, _items, attempt_a, _first, _second = await _acceptance_setup(session)
     first = await clone_attempt(session, attempt_a.id)
     second = await clone_attempt(session, attempt_a.id)
     assert first.id != second.id
@@ -543,9 +522,7 @@ async def test_clone_does_not_copy_result_and_locks_snapshots(session):
     assert source_result is not None
     assert source_result.id == stored.id
     with pytest.raises(ExecutionImmutableError):
-        await set_attempt_snapshots(
-            session, attempt_id=clone.id, configuration_snapshot={"k": 9}
-        )
+        await set_attempt_snapshots(session, attempt_id=clone.id, configuration_snapshot={"k": 9})
     assert clone.evidence_set_id == frozen.id
 
 
@@ -596,9 +573,7 @@ async def test_add_evidence_items_skips_existing_original_evidence_id(session):
         session, evidence_set_id=evidence_set.id, items=[first, first]
     )
     assert len(stored) == 1
-    again = await add_evidence_items(
-        session, evidence_set_id=evidence_set.id, items=[first]
-    )
+    again = await add_evidence_items(session, evidence_set_id=evidence_set.id, items=[first])
     assert again == []
     items = await list_evidence_items(session, evidence_set.id)
     assert len(items) == 1
@@ -627,9 +602,15 @@ async def test_legal_analysis_is_stored_separately_for_each_research_need(sessio
             raw_text=raw_text,
         )
         return research_evidence(
-            research_need_id=need_id, source_type="swedish_law", status="found",
-            title=source.title, excerpt="En fordran preskriberas tio år efter tillkomsten.",
-            locator="P2", source_id=uri, source_url=uri, provider="lagen_nu",
+            research_need_id=need_id,
+            source_type="swedish_law",
+            status="found",
+            title=source.title,
+            excerpt="En fordran preskriberas tio år efter tillkomsten.",
+            locator="P2",
+            source_id=uri,
+            source_url=uri,
+            provider="lagen_nu",
             legal_result=result,
         )
 
@@ -643,9 +624,155 @@ async def test_legal_analysis_is_stored_separately_for_each_research_need(sessio
 
     assert len(stored) == 2
     assert stored[0].passage_id != stored[1].passage_id
-    assert {row.research_need_id: row.domain_result.result["relation"]["relation"]
-            for row in stored} == {"need-1": "supports", "need-2": "limits"}
+    assert {
+        row.research_need_id: row.domain_result.result["relation"]["relation"] for row in stored
+    } == {"need-1": "supports", "need-2": "limits"}
     assert all("legal_result" not in row.provenance for row in stored)
+
+
+def _canonical_evidence(
+    *,
+    need: str,
+    provider: str,
+    units: list[str],
+    excerpt: str,
+    source_id: str,
+    locator: str,
+    claim_id: str | None = None,
+    version: str = "ver-1",
+):
+    metadata: dict[str, object] = {"document_version_id": version}
+    if provider == "knowledge_claim":
+        metadata["supporting_text_unit_ids"] = units
+        metadata["knowledge_claim_ids"] = [claim_id or "claim"]
+        metadata["reuse"] = {
+            "origin": "persistent_knowledge",
+            "evidence_ref": claim_id or "claim",
+        }
+    else:
+        metadata["text_unit_ids"] = units
+    return research_evidence(
+        research_need_id=need,
+        source_type="swedish_law",
+        status="found",
+        title="Avtalslagen",
+        excerpt=excerpt,
+        locator=locator,
+        source_id=source_id,
+        provider=provider,
+        metadata=metadata,
+    )
+
+
+def _passage_keys(rows) -> list[tuple[str, str]]:
+    return [key for row in rows for key in canonical_passage_keys(row.provenance)]
+
+
+@pytest.mark.asyncio
+async def test_evidence_set_stores_one_row_per_canonical_passage(session):
+    customer = await _customer(session, "canonical-dedup")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    evidence_set = await create_evidence_set(session, run_id=run.id)
+    await add_evidence_items(
+        session,
+        evidence_set_id=evidence_set.id,
+        items=[
+            _canonical_evidence(
+                need="need-reuse",
+                provider="knowledge_claim",
+                units=["passage-1"],
+                excerpt="återanvänd passage",
+                source_id="doc-1",
+                locator="passage-1",
+                claim_id="claim-a",
+            ),
+            _canonical_evidence(
+                need="need-live",
+                provider="lagen_nu",
+                units=["passage-1"],
+                excerpt="ny hämtning av samma passage",
+                source_id="https://lagen.nu/1915:218",
+                locator="36 §",
+            ),
+            _canonical_evidence(
+                need="need-live",
+                provider="lagen_nu",
+                units=["passage-2"],
+                excerpt="ett annat stycke i samma källa",
+                source_id="https://lagen.nu/1915:218",
+                locator="37 §",
+            ),
+        ],
+    )
+    await add_evidence_items(
+        session,
+        evidence_set_id=evidence_set.id,
+        items=[
+            _canonical_evidence(
+                need="need-later",
+                provider="lagen_nu",
+                units=["passage-1"],
+                excerpt="samma passage via ett senare behov",
+                source_id="https://lagen.nu/1915:218#P36",
+                locator="36 § andra meningen",
+            )
+        ],
+    )
+    rows = await list_evidence_items(session, evidence_set.id)
+    keys = _passage_keys(rows)
+
+    assert len(rows) == 2
+    assert keys == [("ver-1", "passage-1"), ("ver-1", "passage-2")]
+    assert len(keys) == len(set(keys))
+    kept = next(
+        row for row in rows if ("ver-1", "passage-1") in canonical_passage_keys(row.provenance)
+    )
+    paths = {entry["path"] for entry in kept.provenance["discovered_via"]}
+    assert {"knowledge_reuse", "claim", "provider_retrieval"} <= paths
+    assert {link.research_need_id for link in kept.need_links} == {
+        "need-reuse",
+        "need-live",
+        "need-later",
+    }
+
+
+@pytest.mark.asyncio
+async def test_partial_canonical_overlap_does_not_repeat_a_passage(session):
+    customer = await _customer(session, "canonical-partial")
+    run = await create_run(session, customer_id=customer.id, module="dd", title="R")
+    evidence_set = await create_evidence_set(session, run_id=run.id)
+    await add_evidence_items(
+        session,
+        evidence_set_id=evidence_set.id,
+        items=[
+            _canonical_evidence(
+                need="need-1",
+                provider="knowledge_claim",
+                units=["passage-1", "passage-2"],
+                excerpt="två stycken",
+                source_id="doc-1",
+                locator="passage-1,passage-2",
+                claim_id="claim-a",
+            ),
+            _canonical_evidence(
+                need="need-2",
+                provider="lagen_nu",
+                units=["passage-2", "passage-3"],
+                excerpt="överlapp plus ett nytt stycke",
+                source_id="https://lagen.nu/1915:218",
+                locator="2-3 §§",
+            ),
+        ],
+    )
+    rows = await list_evidence_items(session, evidence_set.id)
+    keys = _passage_keys(rows)
+
+    assert sorted(keys) == [
+        ("ver-1", "passage-1"),
+        ("ver-1", "passage-2"),
+        ("ver-1", "passage-3"),
+    ]
+    assert len(keys) == len(set(keys))
 
 
 def test_execution_package_has_no_panel_word_or_api_imports():

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Protocol
 
-from app.database.models import TextUnitRecord
 from app.llm.legal_research import LegalDomainExtractionError
 from app.services.knowledge.claims import (
     KnowledgeClaim,
@@ -16,9 +16,16 @@ from app.services.legal_research_result import LegalResearchResult
 from app.services.research_domain_results import legal_claims
 
 
+class ClaimGroundingUnit(Protocol):
+    id: str
+    text: str
+    document_id: str
+    document_version_id: str
+
+
 def ground_legal_claims(
     result: LegalResearchResult,
-    units: Sequence[TextUnitRecord],
+    units: Sequence[ClaimGroundingUnit],
     *,
     customer_id: int,
     research_need_id: str,

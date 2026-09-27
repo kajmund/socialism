@@ -24,6 +24,7 @@ from app.database.models import (
     ResearchCompletenessPass,
     ResearchNeedExecution,
     ResearchProgressEvent,
+    ResearchQuestionNode,
     ResearchRuntimeNeed,
 )
 from app.realtime.research_progress_broadcast import research_progress_broadcast
@@ -33,8 +34,24 @@ from app.services.research.planner import ResearchObjective
 logger = logging.getLogger(__name__)
 
 PREVIEW_LIMIT = 160
+PROGRESS_IDEMPOTENCY_KEY_MAX = 256
 
 ResearchProgressEventType = Literal[
+    "question_created",
+    "question_atomicity_started",
+    "question_atomicity_completed",
+    "question_decomposition_started",
+    "question_decomposed",
+    "question_tree_max_depth_reached",
+    "question_tree_shape",
+    "question_research_started",
+    "knowledge_reuse_started",
+    "knowledge_reuse_completed",
+    "answer_synthesis_started",
+    "answer_synthesized",
+    "question_completeness_started",
+    "question_completeness_completed",
+    "question_gap_detected",
     "question_running",
     "question_completed",
     "question_failed",
@@ -58,6 +75,21 @@ ResearchProgressEventType = Literal[
 ]
 
 RESEARCH_PROGRESS_EVENT_TYPES: tuple[ResearchProgressEventType, ...] = (
+    "question_created",
+    "question_atomicity_started",
+    "question_atomicity_completed",
+    "question_decomposition_started",
+    "question_decomposed",
+    "question_tree_max_depth_reached",
+    "question_tree_shape",
+    "question_research_started",
+    "knowledge_reuse_started",
+    "knowledge_reuse_completed",
+    "answer_synthesis_started",
+    "answer_synthesized",
+    "question_completeness_started",
+    "question_completeness_completed",
+    "question_gap_detected",
     "question_running",
     "question_completed",
     "question_failed",
@@ -481,6 +513,7 @@ async def emit_need_queued(
         payload={
             "research_need_id": execution.research_need_id,
             "need_execution_id": execution.id,
+            **await _tree_context(session, execution.attempt_id, execution.research_need_id),
         },
     )
 
@@ -498,6 +531,7 @@ async def emit_need_running(
         payload={
             "research_need_id": execution.research_need_id,
             "need_execution_id": execution.id,
+            **await _tree_context(session, execution.attempt_id, execution.research_need_id),
         },
     )
 
@@ -506,6 +540,7 @@ async def emit_need_completed(
     session: AsyncSession,
     *,
     execution: ResearchNeedExecution,
+    duration_ms: float | None = None,
 ) -> ResearchProgressEvent:
     return await append_research_progress_event(
         session,
@@ -515,6 +550,8 @@ async def emit_need_completed(
         payload={
             "research_need_id": execution.research_need_id,
             "need_execution_id": execution.id,
+            "duration_ms": duration_ms,
+            **await _tree_context(session, execution.attempt_id, execution.research_need_id),
         },
     )
 
@@ -528,6 +565,7 @@ async def emit_need_failed(
     payload: dict[str, Any] = {
         "research_need_id": execution.research_need_id,
         "need_execution_id": execution.id,
+        **await _tree_context(session, execution.attempt_id, execution.research_need_id),
     }
     if reason:
         payload["reason"] = preview_text(reason)
@@ -568,8 +606,33 @@ async def emit_evidence_item(
             "source_type": item.source_type,
             "provider": item.provider,
             "status": item.status,
+            **await _tree_context(session, attempt_id, item.research_need_id),
         },
     )
+
+
+async def _tree_context(
+    session: AsyncSession,
+    attempt_id: str,
+    research_need_id: str | None,
+) -> dict[str, Any]:
+    if not research_need_id:
+        return {}
+    node = (
+        await session.execute(
+            select(ResearchQuestionNode).where(
+                ResearchQuestionNode.attempt_id == attempt_id,
+                ResearchQuestionNode.research_need_id == research_need_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if node is None:
+        return {}
+    return {
+        "question_id": node.id,
+        "parent_question_id": node.parent_question_id,
+        "depth": node.depth,
+    }
 
 
 async def emit_assessment_persisted(

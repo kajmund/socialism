@@ -34,6 +34,8 @@ from app.api import (
 )
 from app.config import settings
 from app.database.session import engine
+from app.jev.system import aclose_jev_http_client, open_jev_http_client
+from app.llm.lagen_nu_selector import LlmLagenNuSelector
 from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
@@ -44,7 +46,6 @@ from app.services.kund_store import ensure_default_kunder
 from app.services.llm_runtime_settings import load_runtime_settings
 from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
-from app.llm.lagen_nu_selector import LlmLagenNuSelector
 from app.services.research.composition import (
     set_knowledge_vector_store_factory,
     set_lagen_nu_selector_factory,
@@ -99,6 +100,7 @@ async def lifespan(_app: FastAPI):
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None
     set_lagen_nu_selector_factory(LlmLagenNuSelector)
+    open_jev_http_client()
     if settings.research_worker_loop_enabled:
         vector_runtime = await start_supabase_vector_runtime(settings)
         vector_store = SupabaseVectorBucketStore(vector_runtime.client)
@@ -122,6 +124,7 @@ async def lifespan(_app: FastAPI):
         try:
             close_default_expert_memory()
         finally:
+            await aclose_jev_http_client()
             await engine.dispose()
 
 
