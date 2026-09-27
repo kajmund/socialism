@@ -25,7 +25,7 @@ Experten sparas på den kund ditt konto tillhör. Samma experter syns i SME-chat
 
 - **Bolag** — sök bolag, slå upp ett bolag, validera organisationsnummer.
 - **Sök** — webbsökning (DuckDuckGo) och Wikipedia.
-- **Research** — starta en researchkörning från expertchatten efter att du bekräftat. Word startar inte research.
+- **Research** — slå upp fryst evidens när du ställt en fråga, och starta en researchkörning från expertchatten efter att du bekräftat. En hälsning gör inget evidensuppslag. Word startar inte research.
 - **Kollegor** — fråga en annan expert när frågan ligger utanför den egna kompetensen. Kollegan svarar också i sin egen chatt.
 
 **Alla verktyg** markerar eller avmarkerar allt. En expert utan verktyg svarar bara utifrån sin profil.

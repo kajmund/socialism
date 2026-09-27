@@ -18,7 +18,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.config import settings
 from app.database.base import Base
-from app.database.models import EvidenceSet, ExecutionAttempt, Kund
+from app.database.models import EvidencePassage, EvidenceSet, ExecutionAttempt, Kund
 from app.services.execution import (
     ExecutionFrozenError,
     ExecutionStatusError,
@@ -1191,6 +1191,47 @@ async def test_same_passage_across_needs_is_stored_once_with_both_links(db):
         "research_1",
         "research_2",
     }
+
+
+@pytest.mark.asyncio
+async def test_claim_reuse_locator_longer_than_512_is_stored(db):
+    session, _factory = db
+    _customer_row, _run, attempt = await _created_attempt(session, slug="long-locator")
+    unit_ids = [f"{index:064x}" for index in range(12)]
+    locator = ",".join(unit_ids)
+    assert len(locator) > 512
+
+    class LongLocatorSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: ResearchNeed, context: ResearchContext):
+            return [
+                research_evidence(
+                    research_need_id=need.id,
+                    source_type="case_knowledge",
+                    status="found",
+                    title="Reused claim",
+                    excerpt="same subject, many supporting units",
+                    locator=locator,
+                    source_id="doc-claim",
+                    provider="knowledge_claim",
+                )
+            ]
+
+    router, _ = _router(LongLocatorSource())
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=router,
+    )
+    items = await list_evidence_items(session, result.evidence_set_id)
+    passage = await session.get(EvidencePassage, items[0].passage_id)
+    assert result.status == "ready"
+    assert items[0].locator == locator
+    assert passage is not None
+    assert passage.locator == locator
 
 
 @pytest.mark.asyncio

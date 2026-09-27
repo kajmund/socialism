@@ -57,6 +57,7 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 - **Async by default in request-path code.** Don't run blocking I/O on the event loop. Tempfile + small synchronous file reads are OK (they're fast); network calls must be async.
 - **Use `async def` for all route handlers** and any I/O service function.
 - **Validate at boundaries only.** HTTP input is validated by Pydantic models. External API responses are validated when parsed. Internal callers are trusted.
+- **Maintainability gate.** Pytest runs `scripts/check_maintainability.py` on `app/` and `tests/`. A new module stays at or under 800 lines. A new function stays within 15 locals, 50 statements, 12 branches, and cyclomatic complexity 10. Code already over a limit is pinned in `maintainability_baseline.json` and may shrink, not grow. Do not add a key or raise a number there to let new code through. Put the new behavior in another module or a smaller function.
 
 ## Configuration
 

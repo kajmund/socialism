@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 _TOKEN = re.compile(r"[0-9A-Za-zÅÄÖåäö]+")
 _HTML_TAG = re.compile(r"<[^>]+>")
@@ -52,6 +53,10 @@ _SUMMARY_HEADING = re.compile(
 
 MIN_BODY_CHARS = 80
 WINDOW_CHARS = 1600
+_PROVISION_HEADING = re.compile(
+    r"^(?:[#*_`\s]*)\d{1,3}\s*§(?:\s*[a-z])?(?:[#*_`\s]*)$",
+    re.IGNORECASE,
+)
 
 
 def _plain(value: str) -> str:
@@ -136,6 +141,22 @@ def display_source_title(
     if citation and descriptive and not _citation_already_in(citation, descriptive):
         return f"{citation} — {descriptive}"
     return descriptive or citation or title
+
+
+def is_provision_heading(text: str | None) -> bool:
+    """A paragraph that is only a section marker, such as ``**36§**``."""
+    if not text or not text.strip():
+        return False
+    return _PROVISION_HEADING.fullmatch(_compact(text)) is not None
+
+
+def substantive_citation_quote(quotes: Sequence[str]) -> str:
+    """Skip a heading-only citation when a later citation has body text."""
+    cleaned = [quote.strip() for quote in quotes if quote and quote.strip()]
+    for quote in cleaned:
+        if not is_provision_heading(quote) and not is_legal_front_matter(quote):
+            return quote
+    return cleaned[0] if cleaned else ""
 
 
 def is_legal_front_matter(text: str | None, *, title: str | None = None) -> bool:
@@ -284,9 +305,7 @@ def relevant_legal_excerpt(
     if not body:
         body = _plain(text)
     paragraphs = [part.strip() for part in re.split(r"\n\s*\n", body) if part.strip()]
-    usable = [
-        part for part in paragraphs if not is_legal_front_matter(part, title=title)
-    ]
+    usable = [part for part in paragraphs if not is_legal_front_matter(part, title=title)]
     pool = usable or paragraphs
     if terms and pool:
         ranked = sorted(pool, key=lambda part: (-_term_overlap(terms, part), len(part)))

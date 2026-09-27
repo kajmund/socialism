@@ -28,6 +28,15 @@ from app.services.knowledge.claims import (
     claim_answers_for_question_key,
 )
 from app.services.legal_research_result import LegalResearchResult
+from app.services.research.canonical_evidence import (
+    CanonicalDedupResult,
+    canonical_passage_keys,
+    dedupe_canonical_evidence,
+    discovery_records,
+    log_canonical_dedup,
+    merge_discovery,
+    replace_evidence_metadata,
+)
 from app.services.research.evidence_identity import (
     evidence_passage_id,
     evidence_source_id,
@@ -193,21 +202,97 @@ def should_skip_providers(
     return not gap_source_types(need, reused)
 
 
+def collapse_canonical_evidence(items: Sequence[ResearchEvidence]) -> list[ResearchEvidence]:
+    """One row per canonical passage. Logs how many copies the collapse removed."""
+    result = dedupe_canonical_evidence(items)
+    _log_dedup(result, scope="need")
+    return list(result.evidence)
+
+
 def merge_reused_with_provider(
     reused: Sequence[ResearchEvidence],
     provider: Sequence[ResearchEvidence],
 ) -> list[ResearchEvidence]:
-    """Keep unused candidates and prefer a live found hit for the same ref."""
+    """Collapse the same canonical passage across reuse and live retrieval.
+
+    A reused item with no canonical passage id still yields to a live hit
+    that carries the same evidence ref. The live hit keeps that reuse path
+    in ``discovered_via``.
+    """
     annotated = annotate_fresh_retrieval(provider)
+    folded = _fold_matching_refs(reused, annotated)
+    result = dedupe_canonical_evidence(folded)
+    knowledge_candidates = sum(1 for item in reused if item.status == "found")
+    new_candidates = sum(1 for item in annotated if item.status == "found")
+    _log_dedup(
+        result,
+        scope="need",
+        knowledge_candidates=knowledge_candidates,
+        new_candidates=new_candidates,
+        duplicates_removed=knowledge_candidates + new_candidates - result.unique_evidence,
+    )
+    return list(result.evidence)
+
+
+def _log_dedup(
+    result: CanonicalDedupResult,
+    *,
+    scope: str,
+    knowledge_candidates: int | None = None,
+    new_candidates: int | None = None,
+    duplicates_removed: int | None = None,
+) -> None:
+    log_canonical_dedup(
+        scope=scope,
+        knowledge_candidates=(
+            result.knowledge_candidates if knowledge_candidates is None else knowledge_candidates
+        ),
+        new_candidates=result.new_candidates if new_candidates is None else new_candidates,
+        duplicates_removed=(
+            result.duplicates_removed if duplicates_removed is None else duplicates_removed
+        ),
+        unique_evidence=result.unique_evidence,
+        unique_passages=result.unique_passages,
+    )
+
+
+def _fold_matching_refs(
+    reused: Sequence[ResearchEvidence],
+    provider: Sequence[ResearchEvidence],
+) -> list[ResearchEvidence]:
     found_refs = {
         ref
-        for item in annotated
+        for item in provider
         if item.status == "found"
         for ref in [_item_evidence_ref(item)]
         if ref is not None
     }
-    kept = [item for item in reused if _item_evidence_ref(item) not in found_refs]
-    return [*kept, *annotated]
+    provider_items = list(provider)
+    kept: list[ResearchEvidence] = []
+    for item in reused:
+        ref = _item_evidence_ref(item)
+        if ref is None or ref not in found_refs or canonical_passage_keys(item.metadata):
+            kept.append(item)
+            continue
+        records = discovery_records(
+            item.metadata,
+            research_need_id=item.research_need_id,
+            provider=item.provider,
+        )
+        for index, candidate in enumerate(provider_items):
+            if candidate.status != "found" or _item_evidence_ref(candidate) != ref:
+                continue
+            metadata = dict(candidate.metadata)
+            metadata["discovered_via"] = merge_discovery(
+                discovery_records(
+                    candidate.metadata,
+                    research_need_id=candidate.research_need_id,
+                    provider=candidate.provider,
+                ),
+                records,
+            )
+            provider_items[index] = replace_evidence_metadata(candidate, metadata)
+    return [*kept, *provider_items]
 
 
 def _item_evidence_ref(item: ResearchEvidence) -> str | None:
@@ -622,9 +707,7 @@ async def _supporting_units(
     by_id = {row.id: row for row in rows}
     missing = [unit_id for unit_id in unit_ids if unit_id not in by_id]
     if missing:
-        raise KnowledgeClaimError(
-            f"claim SUPPORTED_BY TextUnits are missing: {', '.join(missing)}"
-        )
+        raise KnowledgeClaimError(f"claim SUPPORTED_BY TextUnits are missing: {', '.join(missing)}")
     return [by_id[unit_id] for unit_id in unit_ids]
 
 

@@ -34,6 +34,7 @@ const TOOL_LABEL: Record<ExpertToolId, MessageKey> = {
   search_duckduckgo: "experts.tools.search_duckduckgo",
   search_wiki: "experts.tools.search_wiki",
   start_research: "experts.tools.start_research",
+  lookup_frozen_evidence: "experts.tools.lookup_frozen_evidence",
   ask_expert: "experts.tools.ask_expert",
   get_actor_context: "profile.get_actor_context",
   propose_actor_context_update: "profile.propose_actor_context_update",

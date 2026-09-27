@@ -1,5 +1,21 @@
 # Manual update log
 
+## 2026-09-27
+
+* **Research**: Sammanfattningen skiljer besvarade frågor, svar med luckor, frågor som inte blev färdigundersökta, frågor som inte behövde undersökas och tekniska fel. En research utan svar visar inte längre noll luckor.
+* **Research**: Hittad evidens visas på frågan direkt, innan svaret är skrivet.
+* **Research**: Varje fråga har en kort händelselista. Etiketten lämnar **Söker evidens** när evidens har hittats, även om sökningen inte är helt klar.
+* **Research**: En överordnad fråga kan bli besvarad innan varje underfråga är färdig. **Ej färdigundersökt** och **Behövde inte undersökas vidare** betyder att researchen inte behövde grenen. Bara **Tekniskt misslyckad** är ett systemfel.
+
+## 2026-09-26
+
+* **Research**: Researchvyn visar nu hur en bred fråga delas upp i ett träd av avgränsade underfrågor. Bara de yttersta frågorna söker källor. Sammansatta svar byggs från barnsvaren, kunskapsluckor markeras och ett svar kan följas ned till konkret passage och originalkälla medan researchen pågår.
+
+## 2026-09-25
+
+* **Expertchatten**: En hälsning söker inte längre i kunskapslagret. Verktyget **Slå upp fryst evidens** läser bara fryst evidens när en fråga ställs. Ny research kräver fortfarande din bekräftelse.
+* **Expertchatten**: Experten kan bara säga att research har startat när ett bakgrundsjobb faktiskt har köats. Har du redan bekräftat och experten skriver att research startat, köas jobbet även om verktygsanropet saknades.
+
 ## 2026-09-21
 
 * **LLM**: Under **Verktyg** → **LLM** skapar du namngivna konfigurationer (modell, temperatur, roll och capabilities). En av dem är default. Under **Konfigurationer** kan varje prompt använda default, en fast konfiguration eller Auto. Auto klassificerar uppgiften och matchar mot roll och capabilities.

@@ -3,23 +3,21 @@ from app.services.lagen_nu.display import (
     citation_from_lagen_nu_uri,
     display_source_title,
     is_legal_front_matter,
+    is_provision_heading,
     relevant_legal_excerpt,
     selector_passage_text,
+    substantive_citation_quote,
 )
 
 
 def test_citation_from_proposition_and_sfs_uris():
     assert citation_from_lagen_nu_uri("https://lagen.nu/prop/1975:6") == "Prop. 1975:6"
     assert (
-        citation_from_lagen_nu_uri("https://lagen.nu/prop/1975/76:81#a38-2")
-        == "Prop. 1975/76:81"
+        citation_from_lagen_nu_uri("https://lagen.nu/prop/1975/76:81#a38-2") == "Prop. 1975/76:81"
     )
     assert citation_from_lagen_nu_uri("https://lagen.nu/sou/2014:22") == "SOU 2014:22"
     assert citation_from_lagen_nu_uri("https://lagen.nu/1999:1078#K2P4") == "SFS 1999:1078"
-    assert (
-        citation_from_lagen_nu_uri("https://lagen.nu/dom/nja/2014s877")
-        == "NJA 2014 s. 877"
-    )
+    assert citation_from_lagen_nu_uri("https://lagen.nu/dom/nja/2014s877") == "NJA 2014 s. 877"
 
 
 def test_proposition_title_uses_citation_not_cover_page():
@@ -108,6 +106,17 @@ def test_huvudsakligt_innehall_is_front_matter():
     )
     assert "36 § avtalslagen" in excerpt
     assert "Huvudsakligt innehåll" not in excerpt
+
+
+def test_heading_only_citation_is_not_the_evidence_excerpt():
+    body = (
+        "Vite i penningar eller annat, som är bestämmelse i avtal, "
+        "får jämkas om villkoret är otillbörligt med hänsyn till "
+        "avtalets övriga innehåll och omständigheterna i övrigt."
+    )
+    assert is_provision_heading("**36§**")
+    assert not is_provision_heading(f"**36 §** {body}")
+    assert substantive_citation_quote(["**36§**", body]) == body
 
 
 def test_selector_passage_text_windows_around_the_provision():

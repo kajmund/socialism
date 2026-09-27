@@ -62,6 +62,16 @@ class Settings(BaseSettings):
     jev_confidence_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
     jev_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
     jev_state_char_budget: int = Field(default=8000, ge=256, le=32_000)
+    # Outbound System One cap. Separate from per-workload pools below.
+    jev_max_concurrency: int = Field(default=4, ge=1, le=32)
+    jev_max_connections: int = Field(default=20, ge=1, le=100)
+    jev_max_keepalive_connections: int = Field(default=10, ge=1, le=50)
+    # Independent graph-revalidation candidates. Does not replace the JEV cap.
+    # Background HTTP is further capped so one JEV slot stays available for
+    # foreground research when JEV_MAX_CONCURRENCY is greater than 1.
+    graph_revalidation_max_concurrency: int = Field(default=4, ge=1, le=32)
+    graph_revalidation_lease_seconds: int = Field(default=30, ge=5, le=3600)
+    graph_revalidation_max_attempts: int = Field(default=3, ge=1, le=10)
     # Frozen EvidenceSet revalidation. False clear is worse than extra review.
     revalidation_impact_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
     revalidation_clear_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
@@ -179,6 +189,13 @@ class Settings(BaseSettings):
     research_jev_concurrency: int = Field(default=8, ge=1, le=32)
     research_jev_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     research_jev_evidence_screen_enabled: bool = True
+    research_question_atomicity_threshold: float = Field(default=0.8, ge=0.5, le=1.0)
+    research_question_decomposition_threshold: float = Field(default=0.8, ge=0.5, le=1.0)
+    research_question_readiness_threshold: float = Field(default=0.8, ge=0.5, le=1.0)
+    research_question_completeness_threshold: float = Field(default=0.8, ge=0.5, le=1.0)
+    research_max_question_depth: int = Field(default=10, ge=0, le=16)
+    research_max_children_per_question: int = Field(default=4, ge=1, le=12)
+    research_max_questions_per_attempt: int = Field(default=24, ge=1, le=128)
     # Bounded Question → Evidence graph read-through before provider retrieval.
     research_knowledge_lookup_limit: int = Field(default=10, ge=1, le=32)
     research_question_semantic_match_threshold: float = Field(

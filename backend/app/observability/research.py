@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, Self
 
 from app.observability.events import EVENT_DATASET_RESEARCH, log_event
 
@@ -44,6 +44,37 @@ class ResearchObsStats:
     started_at: float = field(default_factory=time.perf_counter)
     jev_call_count: int = 0
     jev_total_latency_ms: float = 0.0
+    jev_evaluation_requested: int = 0
+    jev_evaluation_executed: int = 0
+    jev_evaluation_reused: int = 0
+    jev_evaluation_singleflight_join: int = 0
+    jev_evaluation_failed: int = 0
+    jev_queue_wait_ms: float = 0.0
+    jev_cache_lookup_ms: float = 0.0
+    jev_singleflight_wait_ms: float = 0.0
+    jev_http_ms: float = 0.0
+    jev_parse_ms: float = 0.0
+    jev_persistence_ms: float = 0.0
+    jev_evaluation_ms: float = 0.0
+    graph_revalidation_candidates: int = 0
+    graph_revalidation_skipped: int = 0
+    graph_revalidation_jev_required: int = 0
+    graph_revalidation_completed: int = 0
+    graph_revalidation_total_ms: float = 0.0
+    graph_revalidation_lookup_ms: float = 0.0
+    graph_revalidation_jev_ms: float = 0.0
+    graph_revalidation_persistence_ms: float = 0.0
+    provider_queue_wait_ms: float = 0.0
+    provider_fetch_ms: float = 0.0
+    provider_parse_ms: float = 0.0
+    provider_ingest_ms: float = 0.0
+    provider_graph_revalidation_ms: float = 0.0
+    provider_graph_revalidation_enqueue_ms: float = 0.0
+    provider_persist_ms: float = 0.0
+    provider_total_ms: float = 0.0
+    db_connection_checkout_ms: float = 0.0
+    db_connection_checkout_total_ms: float = 0.0
+    db_connection_checkout_count: int = 0
     assessor_llm_calls: int = 0
     completeness_llm_calls: int = 0
     assessor_llm_skipped: int = 0
@@ -52,6 +83,17 @@ class ResearchObsStats:
     evidence_count: int = 0
     provider_calls: int | None = None
     retrieval_calls: int | None = None
+    question_step_counts: dict[str, int] = field(default_factory=dict)
+    question_step_duration_ms: dict[str, float] = field(default_factory=dict)
+    question_step_models: dict[str, set[str]] = field(default_factory=dict)
+    decomposition_exhausted_total: int = 0
+    decomposition_exhausted_redundancy_total: int = 0
+    research_fallback_started_total: int = 0
+    research_fallback_sufficient_total: int = 0
+    research_fallback_insufficient_total: int = 0
+    research_fallback_failed_total: int = 0
+    unresolved_required_question_count: int = 0
+    not_required_question_count: int = 0
 
 
 _stats: ContextVar[ResearchObsStats | None] = ContextVar(
@@ -82,11 +124,171 @@ def research_obs_scope() -> Iterator[ResearchObsStats]:
 
 
 def record_jev_call(latency_ms: float) -> None:
+    """Outbound JEV call. Prefer ``record_jev_evaluation(executed=1)`` for new code."""
     stats = _stats.get()
     if stats is None:
         return
     stats.jev_call_count += 1
     stats.jev_total_latency_ms += latency_ms
+
+
+def record_jev_evaluation(
+    *,
+    requested: int = 0,
+    executed: int = 0,
+    reused: int = 0,
+    singleflight_join: int = 0,
+    failed: int = 0,
+    queue_wait_ms: float = 0.0,
+    cache_lookup_ms: float = 0.0,
+    singleflight_wait_ms: float = 0.0,
+    http_ms: float = 0.0,
+    parse_ms: float = 0.0,
+    persistence_ms: float = 0.0,
+    total_ms: float = 0.0,
+) -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.jev_evaluation_requested += requested
+    stats.jev_evaluation_executed += executed
+    stats.jev_evaluation_reused += reused
+    stats.jev_evaluation_singleflight_join += singleflight_join
+    stats.jev_evaluation_failed += failed
+    stats.jev_queue_wait_ms += queue_wait_ms
+    stats.jev_cache_lookup_ms += cache_lookup_ms
+    stats.jev_singleflight_wait_ms += singleflight_wait_ms
+    stats.jev_http_ms += http_ms
+    stats.jev_parse_ms += parse_ms
+    stats.jev_persistence_ms += persistence_ms
+    stats.jev_evaluation_ms += total_ms
+    if executed:
+        stats.jev_call_count += executed
+        stats.jev_total_latency_ms += http_ms
+
+
+def record_graph_revalidation(
+    *,
+    candidates: int = 0,
+    skipped: int = 0,
+    jev_required: int = 0,
+    completed: int = 0,
+    total_ms: float = 0.0,
+    lookup_ms: float = 0.0,
+    jev_ms: float = 0.0,
+    persistence_ms: float = 0.0,
+) -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.graph_revalidation_candidates += candidates
+    stats.graph_revalidation_skipped += skipped
+    stats.graph_revalidation_jev_required += jev_required
+    stats.graph_revalidation_completed += completed
+    stats.graph_revalidation_total_ms += total_ms
+    stats.graph_revalidation_lookup_ms += lookup_ms
+    stats.graph_revalidation_jev_ms += jev_ms
+    stats.graph_revalidation_persistence_ms += persistence_ms
+
+
+_PROVIDER_PHASE_FIELDS = {
+    "queue_wait": "provider_queue_wait_ms",
+    "fetch": "provider_fetch_ms",
+    "parse": "provider_parse_ms",
+    "ingest": "provider_ingest_ms",
+    "graph_revalidation": "provider_graph_revalidation_ms",
+    "graph_revalidation_enqueue": "provider_graph_revalidation_enqueue_ms",
+    "persist": "provider_persist_ms",
+    "total": "provider_total_ms",
+}
+
+
+def record_db_connection_checkout(duration_ms: float) -> None:
+    """Longest checkout in this attempt, plus the sum. No-op outside research."""
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.db_connection_checkout_count += 1
+    stats.db_connection_checkout_total_ms += duration_ms
+    stats.db_connection_checkout_ms = max(stats.db_connection_checkout_ms, duration_ms)
+
+
+def record_provider_phase(name: str, duration_ms: float) -> None:
+    field = _PROVIDER_PHASE_FIELDS.get(name)
+    if field is None:
+        raise ValueError(f"unknown provider phase: {name}")
+    stats = _stats.get()
+    if stats is None:
+        return
+    setattr(stats, field, getattr(stats, field) + duration_ms)
+    record_question_step(f"provider_{name}", duration_ms=duration_ms)
+
+
+class ProviderPhase:
+    """Accumulate one provider phase, including time spent awaiting I/O."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self._started = 0.0
+
+    def __enter__(self) -> Self:
+        self._started = time.perf_counter()
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        record_provider_phase(self.name, (time.perf_counter() - self._started) * 1000)
+
+
+def record_decomposition_exhausted(*, redundancy: bool) -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.decomposition_exhausted_total += 1
+    if redundancy:
+        stats.decomposition_exhausted_redundancy_total += 1
+
+
+def record_research_fallback(
+    outcome: Literal["started", "sufficient", "insufficient", "failed"],
+) -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    if outcome == "started":
+        stats.research_fallback_started_total += 1
+    elif outcome == "sufficient":
+        stats.research_fallback_sufficient_total += 1
+    elif outcome == "insufficient":
+        stats.research_fallback_insufficient_total += 1
+    else:
+        stats.research_fallback_failed_total += 1
+
+
+def record_question_outcome_counts(*, unresolved_required: int, not_required: int) -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.unresolved_required_question_count = unresolved_required
+    stats.not_required_question_count = not_required
+
+
+def record_question_step(
+    step: str,
+    *,
+    duration_ms: float,
+    model_provider: str = "",
+    model: str = "",
+) -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.question_step_counts[step] = stats.question_step_counts.get(step, 0) + 1
+    stats.question_step_duration_ms[step] = (
+        stats.question_step_duration_ms.get(step, 0.0) + duration_ms
+    )
+    identity = ":".join(part for part in (model_provider, model) if part)
+    if identity:
+        stats.question_step_models.setdefault(step, set()).add(identity)
 
 
 def record_assessor_llm(*, skipped: bool) -> None:
@@ -358,12 +560,59 @@ def emit_research_execution_summary(
         "llm_call_count": stats.assessor_llm_calls + stats.completeness_llm_calls,
         "jev_call_count": stats.jev_call_count,
         "jev_total_latency_ms": stats.jev_total_latency_ms,
+        "jev_evaluation_requested_total": stats.jev_evaluation_requested,
+        "jev_evaluation_executed_total": stats.jev_evaluation_executed,
+        "jev_evaluation_reused_total": stats.jev_evaluation_reused,
+        "jev_evaluation_singleflight_join_total": stats.jev_evaluation_singleflight_join,
+        "jev_evaluation_failed_total": stats.jev_evaluation_failed,
+        "jev_queue_wait_ms": stats.jev_queue_wait_ms,
+        "jev_cache_lookup_ms": stats.jev_cache_lookup_ms,
+        "jev_singleflight_wait_ms": stats.jev_singleflight_wait_ms,
+        "jev_http_ms": stats.jev_http_ms,
+        "jev_parse_ms": stats.jev_parse_ms,
+        "jev_persistence_ms": stats.jev_persistence_ms,
+        "jev_evaluation_ms": stats.jev_evaluation_ms,
+        "graph_revalidation_candidate_total": stats.graph_revalidation_candidates,
+        "graph_revalidation_skipped_processed_total": stats.graph_revalidation_skipped,
+        "graph_revalidation_jev_required_total": stats.graph_revalidation_jev_required,
+        "graph_revalidation_completed_total": stats.graph_revalidation_completed,
+        "graph_revalidation_total_ms": stats.graph_revalidation_total_ms,
+        "graph_revalidation_lookup_ms": stats.graph_revalidation_lookup_ms,
+        "graph_revalidation_jev_ms": stats.graph_revalidation_jev_ms,
+        "graph_revalidation_persistence_ms": stats.graph_revalidation_persistence_ms,
+        "provider_queue_wait_ms": stats.provider_queue_wait_ms,
+        "provider_fetch_ms": stats.provider_fetch_ms,
+        "provider_parse_ms": stats.provider_parse_ms,
+        "provider_ingest_ms": stats.provider_ingest_ms,
+        "provider_graph_revalidation_ms": stats.provider_graph_revalidation_ms,
+        "provider_graph_revalidation_enqueue_ms": stats.provider_graph_revalidation_enqueue_ms,
+        "provider_persist_ms": stats.provider_persist_ms,
+        "provider_total_ms": stats.provider_total_ms,
+        "db_connection_checkout_ms": stats.db_connection_checkout_ms,
+        "db_connection_checkout_total_ms": stats.db_connection_checkout_total_ms,
+        "db_connection_checkout_count": stats.db_connection_checkout_count,
         "assessor_llm_skipped": stats.assessor_llm_skipped,
         "completeness_llm_skipped": stats.completeness_llm_skipped,
         "follow_up_waves_avoided": stats.follow_up_waves_avoided,
         "evidence_count": stats.evidence_count,
         "final_status": final_status,
         "jev_mode": mode,
+        "decomposition_exhausted_total": stats.decomposition_exhausted_total,
+        "decomposition_exhausted_redundancy_total": stats.decomposition_exhausted_redundancy_total,
+        "research_fallback_started_total": stats.research_fallback_started_total,
+        "research_fallback_sufficient_total": stats.research_fallback_sufficient_total,
+        "research_fallback_insufficient_total": stats.research_fallback_insufficient_total,
+        "research_fallback_failed_total": stats.research_fallback_failed_total,
+        "unresolved_required_question_count": stats.unresolved_required_question_count,
+        "not_required_question_count": stats.not_required_question_count,
+        "question_steps": {
+            step: {
+                "count": count,
+                "duration_ms": stats.question_step_duration_ms.get(step, 0.0),
+                "models": sorted(stats.question_step_models.get(step, set())),
+            }
+            for step, count in stats.question_step_counts.items()
+        },
     }
     if stats.provider_calls is not None:
         research["provider_calls"] = stats.provider_calls

@@ -41,6 +41,12 @@ cp .env.example .env
 | `JEV_CONFIDENCE_THRESHOLD` | no | `0.6` | Below this, Auto uses the prompt/default fallback config |
 | `JEV_TIMEOUT_SECONDS` | no | `3` | Jev HTTP timeout |
 | `JEV_STATE_CHAR_BUDGET` | no | `8000` | Max message text sent to Jev |
+| `JEV_MAX_CONCURRENCY` | no | `4` | Outbound System One cap, shared by every evaluation pool |
+| `JEV_MAX_CONNECTIONS` | no | `20` | Connections on the process-wide Jev HTTP client |
+| `JEV_MAX_KEEPALIVE_CONNECTIONS` | no | `10` | Idle keepalive connections on that client |
+| `GRAPH_REVALIDATION_MAX_CONCURRENCY` | no | `4` | Independent graph-revalidation candidates. Background HTTP also leaves one `JEV_MAX_CONCURRENCY` slot for foreground research when that cap is above 1 |
+| `GRAPH_REVALIDATION_LEASE_SECONDS` | no | `30` | Lease for one graph-revalidation worker. Expired running rows are retried |
+| `GRAPH_REVALIDATION_MAX_ATTEMPTS` | no | `3` | Attempts before a graph-revalidation row stays failed |
 | `REVALIDATION_IMPACT_THRESHOLD` | no | `0.75` | Jev `material_change` noul at or above this marks a frozen EvidenceSet `impacted` |
 | `REVALIDATION_CLEAR_THRESHOLD` | no | `0.25` | Jev `material_change` noul at or below this marks `clear`; the band between is `revalidation_required`. Must stay below the impact threshold |
 | `RESEARCH_JEV_ENABLED` | no | `false` | Jev research control layer. Also requires `TYPESAFE_API_KEY` |

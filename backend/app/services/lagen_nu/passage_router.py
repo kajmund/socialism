@@ -13,7 +13,13 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from app.config import settings
-from app.database.models import TextUnitRecord
+from app.jev.evaluation import (
+    EVALUATION_POLICY_V1,
+    EVALUATOR_PASSAGE_RELEVANCE,
+    EVALUATOR_VERSION_V1,
+    threshold_config,
+)
+from app.jev.service import evaluate_system_one
 from app.jev.system import (
     HttpJevSystemOne,
     JevClientError,
@@ -57,9 +63,49 @@ class PassageRoutingError(Exception):
         self.seed_ids = seed_ids
 
 
+class PassageView(Protocol):
+    """Fields the router reads. Callers may pass an ORM row or a frozen copy."""
+
+    id: str
+    document_id: str
+    document_version_id: str
+    section_id: str | None
+    ordinal: int
+    text: str
+    content_hash: str
+
+
+@dataclass(frozen=True)
+class PassageUnit:
+    """Immutable passage input. Compute must not keep a TextUnit row."""
+
+    id: str
+    document_id: str
+    document_version_id: str
+    section_id: str | None
+    ordinal: int
+    text: str
+    content_hash: str
+
+
+def freeze_passages(units: Sequence[PassageView]) -> tuple[PassageUnit, ...]:
+    return tuple(
+        PassageUnit(
+            id=unit.id,
+            document_id=unit.document_id,
+            document_version_id=unit.document_version_id,
+            section_id=unit.section_id,
+            ordinal=unit.ordinal,
+            text=unit.text,
+            content_hash=unit.content_hash,
+        )
+        for unit in units
+    )
+
+
 @dataclass(frozen=True)
 class RoutedPassages:
-    units: list[TextUnitRecord]
+    units: list[PassageUnit]
     interpreter_text: str
     candidate_ids: tuple[str, ...]
     kept_ids: tuple[str, ...]
@@ -74,7 +120,7 @@ class LagenNuPassageRouter(Protocol):
         self,
         *,
         question: str,
-        units: Sequence[TextUnitRecord],
+        units: Sequence[PassageView],
         embeddings: EmbeddingProvider,
         stored: TextUnitEmbeddingReader,
     ) -> RoutedPassages: ...
@@ -87,15 +133,16 @@ class KeepAllPassageRouter:
         self,
         *,
         question: str,
-        units: Sequence[TextUnitRecord],
+        units: Sequence[PassageView],
         embeddings: EmbeddingProvider,
         stored: TextUnitEmbeddingReader,
     ) -> RoutedPassages:
         del question, embeddings, stored
-        ids = tuple(unit.id for unit in units)
-        text = "\n\n".join(unit.text for unit in units)
+        frozen = list(freeze_passages(units))
+        ids = tuple(unit.id for unit in frozen)
+        text = "\n\n".join(unit.text for unit in frozen)
         return RoutedPassages(
-            units=list(units),
+            units=frozen,
             interpreter_text=text,
             candidate_ids=ids,
             kept_ids=ids,
@@ -140,11 +187,12 @@ class JevPassageRouter:
         self,
         *,
         question: str,
-        units: Sequence[TextUnitRecord],
+        units: Sequence[PassageView],
         embeddings: EmbeddingProvider,
         stored: TextUnitEmbeddingReader,
     ) -> RoutedPassages:
-        if not units:
+        frozen = freeze_passages(units)
+        if not frozen:
             raise PassageRoutingError(
                 "no current TextUnits to route",
                 category="unsupported_source_shape",
@@ -152,7 +200,7 @@ class JevPassageRouter:
         seed_ids: tuple[str, ...] = ()
         jev_clipped = False
         try:
-            ranked = await rank_text_units(question, units, embeddings, stored)
+            ranked = await rank_text_units(question, frozen, embeddings, stored)
             seeds = [unit for _score, unit in ranked[: self._top_k]]
             seed_ids = tuple(unit.id for unit in seeds)
             kept_ids, jev_clipped = await self._keep_ids(question, seeds)
@@ -177,10 +225,10 @@ class JevPassageRouter:
                 seed_ids=seed_ids,
             )
         keep = set(kept_ids)
-        kept_seeds = [unit for unit in units if unit.id in keep]
+        kept_seeds = [unit for unit in frozen if unit.id in keep]
         expanded = expand_selected_neighbors(
             kept_seeds,
-            units,
+            frozen,
             adjacent=self._adjacent,
         )
         interpreter_text, interpreter_clipped = clip_text_to_budget(
@@ -208,7 +256,7 @@ class JevPassageRouter:
     async def _keep_ids(
         self,
         question: str,
-        seeds: Sequence[TextUnitRecord],
+        seeds: Sequence[PassageUnit],
     ) -> tuple[list[str], bool]:
         questions = {
             f"relevant_{index}": {
@@ -236,11 +284,18 @@ class JevPassageRouter:
                 self._jev_char_budget,
                 [unit.id for unit in seeds],
             )
-        result = await self._jev.ask(
+        result = await evaluate_system_one(
+            self._jev,
+            evaluator_id=EVALUATOR_PASSAGE_RELEVANCE,
+            evaluator_version=EVALUATOR_VERSION_V1,
             state={"question": question, "passages": passages},
             questions=questions,
             model=settings.jev_model,
             timeout_seconds=settings.jev_timeout_seconds,
+            required_signals=tuple(questions),
+            policy_version=EVALUATION_POLICY_V1,
+            content_hashes={unit.id: unit.content_hash for unit in seeds},
+            model_config=threshold_config(keep_threshold=self._keep_threshold),
         )
         kept: list[str] = []
         for index, unit in enumerate(seeds):
@@ -252,13 +307,14 @@ class JevPassageRouter:
 
 async def rank_text_units(
     question: str,
-    units: Sequence[TextUnitRecord],
+    units: Sequence[PassageView],
     embeddings: EmbeddingProvider,
     stored: TextUnitEmbeddingReader,
-) -> list[tuple[float, TextUnitRecord]]:
+) -> list[tuple[float, PassageUnit]]:
     """Cosine-rank current units with ingest embeddings. Embed the question only."""
-    document_ids = {unit.document_id for unit in units}
-    version_ids = {unit.document_version_id for unit in units}
+    frozen = freeze_passages(units)
+    document_ids = {unit.document_id for unit in frozen}
+    version_ids = {unit.document_version_id for unit in frozen}
     if len(document_ids) != 1 or len(version_ids) != 1:
         raise PassageRoutingError(
             "passage ranking requires one current document_version",
@@ -273,25 +329,27 @@ async def rank_text_units(
     stored_vectors = await stored.get_text_unit_embeddings(
         document_id=next(iter(document_ids)),
         document_version_id=next(iter(version_ids)),
-        text_unit_ids=[unit.id for unit in units],
+        text_unit_ids=[unit.id for unit in frozen],
     )
-    scored = [(cosine_score(query_vectors[0], stored_vectors[unit.id]), unit) for unit in units]
+    scored = [(cosine_score(query_vectors[0], stored_vectors[unit.id]), unit) for unit in frozen]
     scored.sort(key=lambda item: (-item[0], item[1].ordinal, item[1].id))
     return scored
 
 
 def expand_selected_neighbors(
-    selected: Sequence[TextUnitRecord],
-    units: Sequence[TextUnitRecord],
+    selected: Sequence[PassageView],
+    units: Sequence[PassageView],
     *,
     adjacent: int = PASSAGE_NEIGHBOR_SPAN,
-) -> list[TextUnitRecord]:
+) -> list[PassageUnit]:
     """Same-section neighbours of the kept seeds. Preserves document order."""
+    frozen_selected = freeze_passages(selected)
+    frozen_units = freeze_passages(units)
     if adjacent < 0:
         raise ValueError("adjacent must be >= 0")
-    chosen: dict[str, TextUnitRecord] = {}
-    for unit in selected:
-        same = [item for item in units if item.section_id == unit.section_id]
+    chosen: dict[str, PassageUnit] = {}
+    for unit in frozen_selected:
+        same = [item for item in frozen_units if item.section_id == unit.section_id]
         same.sort(key=lambda item: (item.ordinal, item.id))
         index = next((i for i, item in enumerate(same) if item.id == unit.id), None)
         if index is None:
@@ -301,7 +359,7 @@ def expand_selected_neighbors(
         end = min(len(same), index + adjacent + 1)
         for item in same[start:end]:
             chosen[item.id] = item
-    order = {unit.id: i for i, unit in enumerate(units)}
+    order = {unit.id: i for i, unit in enumerate(frozen_units)}
     return sorted(chosen.values(), key=lambda item: order.get(item.id, len(order)))
 
 

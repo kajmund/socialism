@@ -34,6 +34,7 @@ from app.services.research.question_execution import (
     QuestionResearchOutcome,
 )
 from app.services.research.question_graph import QuestionEvidenceGraph
+from app.services.research.question_tree import RecursiveQuestionTree
 
 
 class AttemptResearchQuestionWorker:
@@ -52,6 +53,7 @@ class AttemptResearchQuestionWorker:
         question_graph: QuestionEvidenceGraph | None = None,
         research_concurrency: int | None = None,
         need_normalizer: ResearchNeedNormalizer | None = None,
+        question_tree: RecursiveQuestionTree | None = None,
     ) -> None:
         self._factory = session_factory
         self._router_factory = router_factory
@@ -63,6 +65,7 @@ class AttemptResearchQuestionWorker:
         self._question_graph = question_graph or build_standard_question_graph()
         self._research_concurrency = research_concurrency
         self._need_normalizer = need_normalizer
+        self._question_tree = question_tree
 
     async def research_question(
         self, question: ExecutableResearchQuestion
@@ -92,6 +95,7 @@ class AttemptResearchQuestionWorker:
                 session_factory=self._factory,
                 concurrency=self._research_concurrency,
                 need_normalizer=self._need_normalizer,
+                question_tree=self._question_tree,
             )
         if result.status != "ready":
             raise RuntimeError(

@@ -41,10 +41,12 @@ ResearchNeed
 Executing research does not inject persistent graph candidates into a new EvidenceSet. This prevents old, broad, or truncated passages from accumulating beside fresh provider results. The graph remains the durable Question→Passage history and is available to explicit read-only expert-chat reuse. A future execution reuse gate must validate relevance and freshness before it can be enabled.
 
 Library expert chat is intentionally different from an executing research
-Attempt: it performs read-only semantic question matching and may answer from
-matching frozen evidence without starting research. If that evidence does not
-answer the user's question, the existing explicit confirmation flow is still
-required before the expert can create a background research job.
+Attempt. It does not look up evidence for greetings or small talk. When the
+user asks a question, the expert may call `lookup_frozen_evidence`, which
+reads frozen Question→Evidence links only and does not search claims or start
+research. If that evidence does not answer the question, the existing explicit
+confirmation flow is still required before the expert can create a background
+research job.
 
 ## Scope
 
@@ -105,6 +107,8 @@ Graph lookup or write failure falls back to normal provider retrieval / keeps al
 ```
 
 Retries upsert the same `(question, passage_id)` edge. EvidenceSet writes upsert `(evidence_set, passage_id)` and add need links instead of copying the passage. Edges store `source_attempt_id` so the current Attempt cannot reuse its own in-flight writes; a later Attempt can.
+
+Knowledge reuse and provider retrieval do not share that hashed passage id: a claim locator is the supporting text-unit list, while a live hit uses the provider pinpoint. Membership is therefore also unique on `document_version_id` + text-unit id. The same canonical passage is stored once, whether it arrived from reuse, a new retrieval, another claim, or another need. `provenance.discovered_via` keeps every path (`knowledge_reuse`, `claim`, `provider_retrieval`). A different passage from the same source, or a different source for the same conclusion, stays in the set. Each collapse logs `research.evidence.canonical_dedup` with `knowledge_candidates`, `new_candidates`, `duplicates_removed`, `unique_evidence`, and `unique_passages`.
 
 When a question child Attempt is ready, its found frozen EvidenceSet items are
 also linked directly to the high-level canonical `KnowledgeQuestion`. One
