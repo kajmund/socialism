@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Callable, Sequence
+from contextlib import nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 
@@ -18,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
+from app.database.knowledge_scope import customer_scope_key
 from app.database.models import (
     EvidenceSet,
     EvidenceSetItem,
@@ -27,14 +30,18 @@ from app.database.models import (
     ResearchCompletenessPass,
     ResearchEvidenceQuality,
     ResearchNeedExecution,
+    ResearchQuestionNode,
     ResearchRuntimeNeed,
 )
+from app.jev.service import jev_evaluation_binding
 from app.observability.context import bind_log_context, reset_log_context
 from app.observability.research import (
     ResearchObsStats,
     bind_research_stats,
     current_research_stats,
     emit_research_execution_summary,
+    record_provider_phase,
+    record_question_step,
     reset_research_stats,
 )
 from app.services.execution.errors import ExecutionStatusError
@@ -180,6 +187,7 @@ from app.services.research.question_iteration import (
     prepare_iterative_follow_ups,
 )
 from app.services.research.question_reuse import (
+    collapse_canonical_evidence,
     gap_source_types,
     merge_reused_with_provider,
     research_need_for_gaps,
@@ -187,6 +195,13 @@ from app.services.research.question_reuse import (
     safe_lookup_reusable_evidence,
     safe_upsert_persisted_evidence,
     should_skip_providers,
+)
+from app.services.research.question_tree import (
+    RecursiveQuestionTree,
+    drain_question_tree_metrics,
+    emit_question_event,
+    fail_transient_question_nodes,
+    settle_stranded_question_nodes,
 )
 from app.services.research.registry import standard_capability_descriptors
 from app.services.research.router import ResearchRouter
@@ -277,6 +292,20 @@ def _raise_if_write_fenced() -> None:
         raise asyncio.CancelledError
 
 
+async def _fail_unclaimed_question_nodes(session: AsyncSession, *, attempt_id: str) -> None:
+    """Expansion can fail before the Attempt is claimed. Close in-flight nodes."""
+    try:
+        await session.rollback()
+        factory = _session_factory(session)
+        async with factory() as fail_session:
+            with ProgressTracker() as progress:
+                await fail_transient_question_nodes(fail_session, attempt_id=attempt_id)
+                await fail_session.commit()
+                await progress.publish_committed()
+    except Exception:
+        logger.exception("failed to mark transient question nodes for attempt %s", attempt_id)
+
+
 async def fail_incomplete_research(
     session: AsyncSession,
     *,
@@ -298,6 +327,7 @@ async def fail_incomplete_research(
         for row in failed_needs:
             if row.status == "failed":
                 await emit_need_failed(session, execution=row)
+        await fail_transient_question_nodes(session, attempt_id=attempt_id)
         attempt = await get_attempt(session, attempt_id)
         if attempt.status in {"created", "researching"}:
             await fail_attempt(session, attempt_id)
@@ -335,11 +365,7 @@ async def _retrieve_need(
 
 
 def _fresh_reused_evidence(items: list[ResearchEvidence]) -> list[ResearchEvidence]:
-    return [
-        item
-        for item in items
-        if item.metadata.get("reuse", {}).get("freshness") == "fresh"
-    ]
+    return [item for item in items if item.metadata.get("reuse", {}).get("freshness") == "fresh"]
 
 
 async def _candidates_then_providers(
@@ -354,7 +380,7 @@ async def _candidates_then_providers(
     """Retrieve only source types not already closed by fresh grounded claims."""
     reused = _fresh_reused_evidence(reused)
     if should_skip_providers(need, reused):
-        return reused
+        return collapse_canonical_evidence(reused)
     remaining = gap_source_types(need, reused)
     provider = await _retrieve_need(
         factory=factory,
@@ -385,6 +411,29 @@ async def _execute_one_need(
             row = await claim_need_execution_running(claim_session, execution_id)
             if row.status == "running":
                 await emit_need_running(claim_session, execution=row)
+            tree_node = (
+                await claim_session.execute(
+                    select(ResearchQuestionNode).where(
+                        ResearchQuestionNode.attempt_id == attempt_id,
+                        ResearchQuestionNode.research_need_id == need.id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if tree_node is not None:
+                tree_node.phase = "researching"
+                await emit_question_event(
+                    claim_session,
+                    tree_node,
+                    "question_research_started",
+                    suffix="started",
+                    need_execution_id=execution_id,
+                )
+                await emit_question_event(
+                    claim_session,
+                    tree_node,
+                    "knowledge_reuse_started",
+                    suffix="started",
+                )
             await claim_session.commit()
             await progress.publish_committed()
             # Keep canonicalize/reuse on this locked session. A second
@@ -398,6 +447,7 @@ async def _execute_one_need(
                     context=context,
                 )
                 await claim_session.commit()
+            reuse_started = time.perf_counter()
             reused = await safe_lookup_reusable_evidence(
                 claim_session,
                 graph=question_graph,
@@ -405,11 +455,31 @@ async def _execute_one_need(
                 context=context,
                 exclude_attempt_id=None,
             )
+            if tree_node is not None:
+                reuse_duration_ms = (time.perf_counter() - reuse_started) * 1000
+                record_question_step(
+                    "knowledge_reuse",
+                    duration_ms=reuse_duration_ms,
+                )
+                with ProgressTracker() as reuse_progress:
+                    await emit_question_event(
+                        claim_session,
+                        tree_node,
+                        "knowledge_reuse_completed",
+                        suffix="completed",
+                        reused_count=len(reused),
+                        duration_ms=reuse_duration_ms,
+                    )
+                    await claim_session.commit()
+                    await reuse_progress.publish_committed()
         if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
             return
 
     try:
+        retrieval_started = time.perf_counter()
+        queued_at = retrieval_started
         async with retrieve_slots:
+            record_provider_phase("queue_wait", (time.perf_counter() - queued_at) * 1000)
             evidence = await _candidates_then_providers(
                 factory=factory,
                 need=need,
@@ -435,7 +505,9 @@ async def _execute_one_need(
         with ProgressTracker() as progress:
             row = await get_need_execution(persist_session, execution_id)
             if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
+                record_provider_phase("total", (time.perf_counter() - retrieval_started) * 1000)
                 return
+            persist_started = time.perf_counter()
             stored = await add_evidence_items(
                 persist_session,
                 evidence_set_id=evidence_set_id,
@@ -444,9 +516,21 @@ async def _execute_one_need(
             for item in stored:
                 await emit_evidence_item(persist_session, attempt_id=row.attempt_id, item=item)
             completed = await complete_need_execution(persist_session, execution_id)
-            await emit_need_completed(persist_session, execution=completed)
+            retrieval_duration_ms = (time.perf_counter() - retrieval_started) * 1000
+            if tree_node is not None:
+                record_question_step(
+                    "provider_retrieval",
+                    duration_ms=retrieval_duration_ms,
+                )
+            await emit_need_completed(
+                persist_session,
+                execution=completed,
+                duration_ms=retrieval_duration_ms,
+            )
             await persist_session.commit()
             await progress.publish_committed()
+            record_provider_phase("persist", (time.perf_counter() - persist_started) * 1000)
+            record_provider_phase("total", (time.perf_counter() - retrieval_started) * 1000)
 
     async with persist_lock, factory() as graph_session:
         _raise_if_write_fenced()
@@ -752,6 +836,23 @@ def _quality_by_item(
     return {draft.evidence_set_item_id: draft for draft in drafts}
 
 
+async def _security_scope_for_attempt(
+    session: AsyncSession, attempt: ExecutionAttempt
+) -> str | None:
+    customer_id = await session.scalar(
+        select(ExecutionRun.customer_id).where(ExecutionRun.id == attempt.run_id)
+    )
+    if customer_id is None:
+        return None
+    return customer_scope_key(int(customer_id))
+
+
+def _jev_binding(session: AsyncSession, security_scope: str | None):
+    if security_scope is None:
+        return nullcontext()
+    return jev_evaluation_binding(session, security_scope)
+
+
 async def _assess_persisted_evidence(
     session: AsyncSession,
     *,
@@ -771,8 +872,10 @@ async def _assess_persisted_evidence(
     items = await list_evidence_items(session, evidence_set_id)
     quality_map = _quality_by_item(quality or [])
     evidence = [assessable_from_item(item, quality=quality_map.get(item.id)) for item in items]
+    scope = await _security_scope_for_attempt(session, attempt)
     try:
-        draft = await assessor.assess(plan, evidence)
+        with _jev_binding(session, scope):
+            draft = await assessor.assess(plan, evidence)
     except ResearchAssessmentError:
         raise
     except Exception as exc:
@@ -801,9 +904,10 @@ async def _assess_persisted_evidence(
             )
         )
         evidence = [assessable_from_item(item, quality=quality_map.get(item.id)) for item in items]
-        draft = sanitize_assessment_draft(
-            await assessor.assess(plan, evidence), plan=plan, evidence=evidence
-        )
+        with _jev_binding(session, scope):
+            draft = sanitize_assessment_draft(
+                await assessor.assess(plan, evidence), plan=plan, evidence=evidence
+            )
     assessment = await persist_research_assessment(
         session,
         attempt_id=attempt.id,
@@ -850,6 +954,7 @@ async def _freeze_ready_attempt(
     attempt = await get_attempt(session, attempt_id)
     if attempt.status == "ready":
         return
+    await settle_stranded_question_nodes(session, attempt_id=attempt_id)
     frozen = await claim_freeze_evidence_set(session, evidence_set_id)
     if frozen is None:
         evidence_set = await get_evidence_set(session, evidence_set_id)
@@ -1019,16 +1124,18 @@ async def _review_and_persist_completeness(
     ]
     draft = assessment_draft_from_row(assessment)
     allowed_source_types = _executable_source_types(router, case_id=case_id)
+    scope = await _security_scope_for_attempt(session, attempt)
     try:
-        reviewed = await reviewer.review(
-            objective=objective,
-            plan=snapshot_plan,
-            runtime_needs=runtime_needs,
-            assessment=draft,
-            assessments=history,
-            evidence=evidence,
-            available_source_types=allowed_source_types,
-        )
+        with _jev_binding(session, scope):
+            reviewed = await reviewer.review(
+                objective=objective,
+                plan=snapshot_plan,
+                runtime_needs=runtime_needs,
+                assessment=draft,
+                assessments=history,
+                evidence=evidence,
+                available_source_types=allowed_source_types,
+            )
     except ResearchCompletenessError:
         raise
     except Exception as exc:
@@ -1149,6 +1256,7 @@ async def _run_research_loop(
     max_completeness_passes: int,
     start_wave: int | None = None,
     need_normalizer: ResearchNeedNormalizer | None = None,
+    question_tree: RecursiveQuestionTree | None = None,
 ) -> None:
     wave = INITIAL_RESEARCH_WAVE if start_wave is None else start_wave
     while True:
@@ -1210,6 +1318,60 @@ async def _run_research_loop(
                 )
                 await barrier_session.commit()
                 await progress.publish_committed()
+
+                if question_tree is not None:
+                    gap_plan = await question_tree.synthesize_wave(
+                        barrier_session,
+                        attempt_id=attempt_id,
+                        evidence_set_id=evidence_set_id,
+                    )
+                    if gap_plan.needs and wave < max_follow_up_waves:
+                        follow_up_wave = wave + 1
+                        runtime_needs = runtime_needs_from_plan(
+                            gap_plan, wave_number=follow_up_wave
+                        )
+                        await persist_runtime_needs(
+                            barrier_session,
+                            attempt_id=attempt_id,
+                            needs=runtime_needs,
+                        )
+                        seeded = await seed_need_executions(
+                            barrier_session,
+                            attempt_id=attempt_id,
+                            need_ids=[need.id for need in gap_plan.needs],
+                        )
+                        for need in runtime_needs:
+                            await emit_runtime_need_created(
+                                barrier_session,
+                                attempt_id=attempt_id,
+                                need=need,
+                            )
+                        for execution in seeded:
+                            if execution.research_need_id in {need.id for need in gap_plan.needs}:
+                                await emit_need_queued(barrier_session, execution=execution)
+                        await set_research_loop_state(
+                            barrier_session,
+                            attempt_id,
+                            research_wave=follow_up_wave,
+                            stop_reason=None,
+                        )
+                        await barrier_session.commit()
+                        await progress.publish_committed()
+                        wave = follow_up_wave
+                        continue
+                    await set_research_loop_state(
+                        barrier_session,
+                        attempt_id,
+                        research_wave=wave,
+                        stop_reason=("max_iterations" if gap_plan.needs else "sufficient"),
+                    )
+                    await _freeze_ready_attempt(
+                        barrier_session,
+                        attempt_id=attempt_id,
+                        evidence_set_id=evidence_set_id,
+                    )
+                    await progress.publish_committed()
+                    return
 
                 if assessment.result == "sufficient":
                     existing_passes = await list_research_completeness_passes(
@@ -1610,6 +1772,7 @@ async def execute_attempt_research(
     max_completeness_passes: int | None = None,
     lease_lost: asyncio.Event | None = None,
     need_normalizer: ResearchNeedNormalizer | None = None,
+    question_tree: RecursiveQuestionTree | None = None,
 ) -> AttemptResearchResult:
     """Plan if needed, then run ResearchNeeds in bounded waves and freeze.
 
@@ -1659,6 +1822,21 @@ async def execute_attempt_research(
         )
     else:
         objective = await _resolve_research_objective(attempt, research_objective)
+        if question_tree is not None and research_plan is None:
+            if objective is None:
+                raise ResearchExecutionError(
+                    "Recursive question research requires a research objective"
+                )
+            try:
+                research_plan = await question_tree.prepare_leaf_plan(
+                    session,
+                    attempt_id=attempt_id,
+                    root_question=objective.objective,
+                )
+            except Exception:
+                logger.exception("question tree expansion failed for attempt %s", attempt_id)
+                await _fail_unclaimed_question_nodes(session, attempt_id=attempt_id)
+                raise
         plan = await _resolve_initial_plan(
             session,
             attempt=attempt,
@@ -1676,6 +1854,8 @@ async def execute_attempt_research(
     fence_token = _write_fence.set(lease_lost)
     log_token = _bind_attempt_log_context(attempt, run, research_objective)
     stats_token = bind_research_stats(ResearchObsStats())
+    if question_tree is not None:
+        drain_question_tree_metrics(question_tree)
     final_status = "unknown"
     total_waves = attempt.research_wave
     try:
@@ -1730,6 +1910,7 @@ async def execute_attempt_research(
             max_completeness_passes=completeness_limit,
             start_wave=start_wave,
             need_normalizer=need_normalizer,
+            question_tree=question_tree,
         )
         async with factory() as final_session:
             finished = await get_attempt(final_session, attempt_id)
@@ -1829,14 +2010,10 @@ def _bind_attempt_log_context(
     snapshot = attempt.input_snapshot if isinstance(attempt.input_snapshot, dict) else {}
     context = {}
     if attempt.research_objective_snapshot is not None:
-        context = research_objective_from_snapshot(
-            attempt.research_objective_snapshot
-        ).context
+        context = research_objective_from_snapshot(attempt.research_objective_snapshot).context
     elif research_objective is not None:
         context = research_objective.context
-    question_id = context.get("research_question_id") or snapshot.get(
-        "research_question_id"
-    )
+    question_id = context.get("research_question_id") or snapshot.get("research_question_id")
     child_id = attempt.id if attempt.attempt_type == "research_question" else None
     return bind_log_context(
         run_id=attempt.run_id,

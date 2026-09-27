@@ -4,6 +4,7 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
+from app.database.checkout import register_connection_checkout
 from app.database.sqlite import (
     async_engine_kwargs,
     is_sqlite_url,
@@ -28,6 +29,7 @@ engine = create_async_engine(
     **async_engine_kwargs(settings.database_url, echo=False),
 )
 register_sqlite_pragmas(engine, settings.database_url)
+register_connection_checkout(engine)
 
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 

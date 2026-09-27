@@ -785,7 +785,8 @@ Return JSON with field anekdot.""",
             "kort vilken fråga som ska undersökas. Anropa verktyget först i ett senare "
             "svar när användaren uttryckligen har bekräftat. Skicka en fristående, "
             "generell och researchbar fråga som argumentet question. Verktyget köar "
-            "arbetet; påstå inte att resultatet redan finns."
+            "arbetet. Påstå att research har startat bara om verktygets svar säger "
+            "att jobbet är köat. Påstå inte att resultatet redan finns."
         ),
         (
             "You have the start_research tool for queueing background research. NEVER "
@@ -793,7 +794,33 @@ Return JSON with field anekdot.""",
             "the user whether research should be started and briefly state the question "
             "to investigate. Call the tool only in a later response after the user has "
             "explicitly confirmed. Pass a standalone, general, researchable question in "
-            "the question argument. The tool only queues work; do not claim results exist."
+            "the question argument. The tool only queues work. Say that research has "
+            "started only when the tool result says the job is queued. Do not claim "
+            "results exist."
+        ),
+    ),
+    _f(
+        "chat.expert.evidence_tool",
+        "chat",
+        "Expertchatt — slå upp fryst evidens",
+        "Expert chat — look up frozen evidence",
+        "Instruktion för verktyget lookup_frozen_evidence.",
+        "Instruction for the lookup_frozen_evidence tool.",
+        (
+            "Du har verktyget lookup_frozen_evidence. Dess enda ansvar är att läsa "
+            "fryst researchevidens som kan besvara en fråga användaren redan ställt. "
+            "Anropa det bara då. Anropa det inte för hälsningar, småprat, tack eller "
+            "bekräftelser, och inte för att starta ny research. Skicka den ställda "
+            "frågan som argumentet question. Om verktyget inte hittar evidens ska du "
+            "säga det; fyll inte luckan med antaganden."
+        ),
+        (
+            "You have the lookup_frozen_evidence tool. Its only responsibility is to "
+            "read frozen research evidence that may answer a question the user already "
+            "asked. Call it only then. Do not call it for greetings, small talk, thanks, "
+            "or confirmations, and do not use it to start new research. Pass the asked "
+            "question as the question argument. If the tool finds no evidence, say so; "
+            "do not fill the gap with assumptions."
         ),
     ),
     _f(
@@ -3091,6 +3118,131 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "The previous response was invalid JSON. Return one complete JSON object that "
             "matches the required schema. No markdown and no extra text."
         ),
+    ),
+    _f(
+        "research.decomposition.system",
+        "research",
+        "Research — frågedekomposition",
+        "Research — question decomposition",
+        "Formulera atomära barnfrågor. Hämta inte evidens och besvara inte frågorna.",
+        "Formulate atomic child questions. Do not retrieve evidence or answer them.",
+        (
+            "Skapa den minsta mängd barnfrågor vars grundade svar räcker för att "
+            "syntetisera ett robust svar på föräldern. Varje barn ska vara ett "
+            "självständigt och strikt smalare kunskapsbehov. Dela inte efter dokument, "
+            "enskilda källor, exempel, evidensobjekt eller grammatiska konjunktioner, "
+            "och dela inte en kartläggning där flera objekt faller under samma kriterium. "
+            "Dela inte samma kunskapsdimension i positiva och negativa utfall. Ett ensamt "
+            "barn är bara giltigt när det är ett separat och strikt smalare kunskapsbehov, "
+            "inte en omformulering. Föredra få starka barn framför många små."
+        ),
+        (
+            "Create the smallest set of child questions whose grounded answers are "
+            "sufficient to synthesize a robust answer to the parent. Each child must "
+            "be an independently researchable and strictly narrower knowledge need. "
+            "Do not split by "
+            "document, individual source, example, evidence object, or grammatical "
+            "conjunction, and do not split a mapping whose objects fall under one "
+            "criterion. Do not split one knowledge dimension into positive and negative "
+            "outcomes. A single child is valid only when it is a separate and strictly "
+            "narrower knowledge need, not a reformulation. Prefer a few strong children "
+            "over many small ones."
+        ),
+    ),
+    _f(
+        "research.decomposition.user",
+        "research",
+        "Research — frågedekomposition (användare)",
+        "Research — question decomposition (user)",
+        "Platshållare: {question}.",
+        "Placeholders: {question}.",
+        "Skapa barnfrågor för:\n\n{question}",
+        "Create child questions for:\n\n{question}",
+    ),
+    _f(
+        "research.gap_questions.system",
+        "research",
+        "Research — luckfrågor",
+        "Research — gap questions",
+        "Formulera frågor från en identifierad kunskapslucka.",
+        "Formulate questions from an identified knowledge gap.",
+        (
+            "Formulera få nya frågor som fyller den materiella lucka som controllern "
+            "identifierat. Besvara inte frågorna och upprepa inte befintliga frågor."
+        ),
+        (
+            "Formulate a few new questions that close the material gap identified by "
+            "the controller. Do not answer or repeat existing questions."
+        ),
+    ),
+    _f(
+        "research.gap_questions.user",
+        "research",
+        "Research — luckfrågor (användare)",
+        "Research — gap questions (user)",
+        "Platshållare: {question} {answer} {child_answers_json} {gap_noul_json}.",
+        "Placeholders: {question} {answer} {child_answers_json} {gap_noul_json}.",
+        (
+            "Föräldrafråga: {question}\n\nAktuellt svar: {answer}\n\n"
+            "Barnsvar: {child_answers_json}\n\nGap-signaler: {gap_noul_json}"
+        ),
+        (
+            "Parent question: {question}\n\nCurrent answer: {answer}\n\n"
+            "Child answers: {child_answers_json}\n\nGap signals: {gap_noul_json}"
+        ),
+    ),
+    _f(
+        "research.leaf_answer.system",
+        "research",
+        "Research — grundat lövsvar",
+        "Research — grounded leaf answer",
+        "Skriv ett kort svar enbart från evidensen.",
+        "Write a concise answer from evidence only.",
+        (
+            "Svara kort på den atomära frågan med endast given evidens. Markera "
+            "status answered, answered_with_gaps eller insufficient_evidence."
+        ),
+        (
+            "Answer the atomic question concisely using only supplied evidence. "
+            "Set status to answered, answered_with_gaps, or insufficient_evidence."
+        ),
+    ),
+    _f(
+        "research.leaf_answer.user",
+        "research",
+        "Research — grundat lövsvar (användare)",
+        "Research — grounded leaf answer (user)",
+        "Platshållare: {question} {evidence_json}.",
+        "Placeholders: {question} {evidence_json}.",
+        "Fråga: {question}\n\nEvidens: {evidence_json}",
+        "Question: {question}\n\nEvidence: {evidence_json}",
+    ),
+    _f(
+        "research.parent_synthesis.system",
+        "research",
+        "Research — syntes av föräldrasvar",
+        "Research — parent answer synthesis",
+        "Syntetisera ett kort svar enbart från grundade barnsvar.",
+        "Synthesize a concise answer from grounded child answers only.",
+        (
+            "Besvara föräldrafrågan enbart från givna barnsvar. Hitta inte på fakta. "
+            "Markera status answered, answered_with_gaps eller insufficient_evidence."
+        ),
+        (
+            "Answer the parent question using only supplied child answers. Do not "
+            "invent facts. Set status to answered, answered_with_gaps, or "
+            "insufficient_evidence."
+        ),
+    ),
+    _f(
+        "research.parent_synthesis.user",
+        "research",
+        "Research — syntes av föräldrasvar (användare)",
+        "Research — parent answer synthesis (user)",
+        "Platshållare: {question} {child_answers_json}.",
+        "Placeholders: {question} {child_answers_json}.",
+        "Föräldrafråga: {question}\n\nBarnsvar: {child_answers_json}",
+        "Parent question: {question}\n\nChild answers: {child_answers_json}",
     ),
     _f(
         "research.assessment.system",

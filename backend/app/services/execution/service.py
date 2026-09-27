@@ -68,6 +68,16 @@ from app.services.research.assessment import (
     ResearchAssessmentDraft,
     need_assessment_to_json,
 )
+from app.services.research.canonical_evidence import (
+    canonical_passage_keys,
+    discovery_records,
+    is_knowledge_reuse,
+    log_canonical_dedup,
+    merge_discovery,
+    narrow_locator,
+    narrow_passage_ids,
+    union_passage_fields,
+)
 from app.services.research.completeness import (
     COMPLETENESS_RESULTS,
     INITIAL_COMPLETENESS_PASS,
@@ -327,6 +337,84 @@ def _dedupe_snapshots(
     return unique
 
 
+async def _canonical_passage_owners(
+    session: AsyncSession,
+    evidence_set_id: str,
+) -> dict[tuple[str, str], EvidenceSetItem]:
+    rows = (
+        await session.scalars(
+            select(EvidenceSetItem).where(
+                EvidenceSetItem.evidence_set_id == evidence_set_id,
+                EvidenceSetItem.status == "found",
+            )
+        )
+    ).all()
+    owners: dict[tuple[str, str], EvidenceSetItem] = {}
+    for row in rows:
+        provenance = row.provenance if isinstance(row.provenance, dict) else {}
+        for key in canonical_passage_keys(provenance):
+            owners.setdefault(key, row)
+    return owners
+
+
+async def _link_item_need(
+    session: AsyncSession,
+    item: EvidenceSetItem,
+    research_need_id: str | None,
+) -> bool:
+    if research_need_id is None:
+        return False
+    link = await session.get(EvidenceSetItemNeed, (item.id, research_need_id))
+    if link is not None:
+        return False
+    session.add(
+        EvidenceSetItemNeed(
+            evidence_set_item_id=item.id,
+            research_need_id=research_need_id,
+        )
+    )
+    return True
+
+
+async def _grant_passage_discovery(
+    session: AsyncSession,
+    owners: dict[tuple[str, str], EvidenceSetItem],
+    taken: tuple[tuple[str, str], ...],
+    records: list[dict[str, str]],
+    research_need_id: str | None,
+    stored: list[EvidenceSetItem],
+) -> None:
+    seen: set[str] = set()
+    for key in taken:
+        row = owners[key]
+        if row.id in seen:
+            continue
+        seen.add(row.id)
+        provenance = dict(row.provenance or {})
+        provenance["discovered_via"] = merge_discovery(provenance.get("discovered_via"), records)
+        row.provenance = provenance
+        if await _link_item_need(session, row, research_need_id) and row not in stored:
+            stored.append(row)
+
+
+async def _absorb_existing_passage(
+    session: AsyncSession,
+    row: EvidenceSetItem,
+    provenance: dict[str, object],
+    records: list[dict[str, str]],
+    research_need_id: str | None,
+    owners: dict[tuple[str, str], EvidenceSetItem],
+    stored: list[EvidenceSetItem],
+) -> None:
+    current = union_passage_fields(dict(row.provenance or {}), provenance)
+    current["discovered_via"] = merge_discovery(current.get("discovered_via"), records)
+    row.provenance = current
+    for key in canonical_passage_keys(current):
+        owners.setdefault(key, row)
+    if await _link_item_need(session, row, research_need_id) and row not in stored:
+        stored.append(row)
+
+
 async def add_evidence_items(
     session: AsyncSession,
     *,
@@ -343,9 +431,53 @@ async def add_evidence_items(
     if not snapshots:
         return stored
     ordinals = _allocate_ordinals(snapshots, await _used_ordinals(session, evidence_set.id))
+    owners = await _canonical_passage_owners(session, evidence_set.id)
+    knowledge_candidates = 0
+    new_candidates = 0
+    duplicates_removed = 0
+    unique_evidence = 0
+    saw_canonical = False
     for snapshot, ordinal in zip(snapshots, ordinals, strict=True):
         provenance = require_json_object(snapshot.provenance, field="provenance")
         provenance.pop("legal_result", None)
+        item_locator = snapshot.locator
+        claim_keys: tuple[tuple[str, str], ...] = ()
+        records: list[dict[str, str]] = []
+        if snapshot.status == "found":
+            passage_keys = canonical_passage_keys(provenance)
+            if passage_keys:
+                saw_canonical = True
+                if is_knowledge_reuse(provenance, snapshot.provider):
+                    knowledge_candidates += 1
+                else:
+                    new_candidates += 1
+                records = discovery_records(
+                    provenance,
+                    research_need_id=snapshot.research_need_id or "",
+                    provider=snapshot.provider,
+                )
+                provenance["discovered_via"] = merge_discovery(
+                    provenance.get("discovered_via"), records
+                )
+                fresh = tuple(key for key in passage_keys if key not in owners)
+                taken = tuple(key for key in passage_keys if key in owners)
+                if taken:
+                    await _grant_passage_discovery(
+                        session,
+                        owners,
+                        taken,
+                        records,
+                        snapshot.research_need_id,
+                        stored,
+                    )
+                if not fresh:
+                    duplicates_removed += 1
+                    continue
+                claim_keys = fresh
+                if taken:
+                    provenance = narrow_passage_ids(provenance, fresh)
+                    provenance["discovered_via"] = records
+                    item_locator = narrow_locator(snapshot.locator, passage_keys, fresh)
         if snapshot.status == "error":
             existing_errors = (
                 await session.scalars(
@@ -380,7 +512,7 @@ async def add_evidence_items(
             passage_id = evidence_passage_id(
                 source_key=source_key,
                 source_id=snapshot.source_id,
-                locator=snapshot.locator,
+                locator=item_locator,
                 content_hash=content_hash,
             )
             source = await session.get(EvidenceSource, source_key)
@@ -460,7 +592,7 @@ async def add_evidence_items(
                         id=passage_id,
                         source_id=source_key,
                         source_ref=snapshot.source_id,
-                        locator=snapshot.locator,
+                        locator=item_locator,
                         excerpt=snapshot.excerpt,
                         content_hash=content_hash,
                         provenance=provenance,
@@ -476,22 +608,20 @@ async def add_evidence_items(
                 )
             ).scalar_one_or_none()
             if existing is not None:
-                linked = False
-                if snapshot.research_need_id is not None:
-                    link = await session.get(
-                        EvidenceSetItemNeed,
-                        (existing.id, snapshot.research_need_id),
+                if claim_keys:
+                    await _absorb_existing_passage(
+                        session,
+                        existing,
+                        provenance,
+                        records,
+                        snapshot.research_need_id,
+                        owners,
+                        stored,
                     )
-                    if link is None:
-                        session.add(
-                            EvidenceSetItemNeed(
-                                evidence_set_item_id=existing.id,
-                                research_need_id=snapshot.research_need_id,
-                            )
-                        )
-                        linked = True
-                if linked and existing not in stored:
-                    stored.append(existing)
+                    duplicates_removed += 1
+                elif await _link_item_need(session, existing, snapshot.research_need_id):
+                    if existing not in stored:
+                        stored.append(existing)
                 continue
         row = EvidenceSetItem(
             id=new_id(),
@@ -505,7 +635,7 @@ async def add_evidence_items(
             status=_require_non_empty(snapshot.status, field="status"),
             title=snapshot.title,
             excerpt=snapshot.excerpt,
-            locator=snapshot.locator,
+            locator=item_locator,
             source_id=snapshot.source_id,
             source_url=snapshot.source_url,
             provider=snapshot.provider,
@@ -515,6 +645,10 @@ async def add_evidence_items(
             content_hash=content_hash,
         )
         session.add(row)
+        for key in claim_keys:
+            owners.setdefault(key, row)
+        if claim_keys:
+            unique_evidence += 1
         if snapshot.research_need_id is not None:
             row.need_links.append(
                 EvidenceSetItemNeed(
@@ -524,6 +658,15 @@ async def add_evidence_items(
             )
         stored.append(row)
     await session.flush()
+    if saw_canonical:
+        log_canonical_dedup(
+            scope="evidence_set",
+            knowledge_candidates=knowledge_candidates,
+            new_candidates=new_candidates,
+            duplicates_removed=duplicates_removed,
+            unique_evidence=unique_evidence,
+            unique_passages=len(owners),
+        )
     return stored
 
 
@@ -1481,6 +1624,34 @@ async def complete_attempt(session: AsyncSession, attempt_id: str) -> ExecutionA
 
 async def fail_attempt(session: AsyncSession, attempt_id: str) -> ExecutionAttempt:
     return await transition_attempt(session, attempt_id=attempt_id, status="failed")
+
+
+async def reopen_failed_research_attempt(
+    session: AsyncSession, attempt_id: str
+) -> ExecutionAttempt:
+    """Continue a fail-closed research Attempt from its persisted plan.
+
+    ``failed`` is terminal for ordinary transitions. Job resume is the
+    explicit path that puts the same Attempt, EvidenceSet, and unfinished
+    needs back in progress.
+    """
+    attempt = await get_attempt(session, attempt_id)
+    if attempt.status != "failed":
+        return attempt
+    attempt.status = "researching" if attempt.research_plan_snapshot is not None else "created"
+    attempt.completed_at = None
+    if attempt.evidence_set_id is not None:
+        evidence_set = await get_evidence_set(session, attempt.evidence_set_id)
+        if evidence_set.status == "failed":
+            evidence_set.status = "building"
+    for row in await list_need_executions(session, attempt_id):
+        if row.status != "failed":
+            continue
+        row.status = "pending"
+        row.started_at = None
+        row.completed_at = None
+    await session.flush()
+    return attempt
 
 
 async def clone_attempt(

@@ -11,6 +11,7 @@ describe("normalizeExpertTools", () => {
   it("defaults missing tools to the full catalog", () => {
     expect(normalizeExpertTools(null)).toEqual([...DEFAULT_EXPERT_TOOLS])
     expect(DEFAULT_EXPERT_TOOLS).toContain("start_research")
+    expect(DEFAULT_EXPERT_TOOLS).toContain("lookup_frozen_evidence")
     expect(DEFAULT_EXPERT_TOOLS).toContain("ask_expert")
   })
 

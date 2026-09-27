@@ -46,6 +46,7 @@ def test_filter_openai_tools():
 
 def test_panel_chat_tools_drop_research_and_honor_stored_selection():
     assert "start_research" not in panel_chat_tools(None)
+    assert "lookup_frozen_evidence" not in panel_chat_tools(None)
     assert panel_chat_tools(["search_wiki", "start_research"]) == ["search_wiki"]
     assert panel_chat_tools([]) == []
 

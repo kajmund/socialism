@@ -34,9 +34,9 @@ from app.services.actor_profiles import ActorProfileTools
 from app.services.dd.company_mcp import CompanyMcpError
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
-from app.services.expert_chat_evidence import (
-    combine_expert_chat_context,
-    reusable_expert_chat_evidence_context,
+from app.services.expert_chat_evidence_tool import (
+    EVIDENCE_TOOL_NAME,
+    evidence_tool_handler_for_chat,
 )
 from app.services.expert_chat_research_tool import research_tool_handler_for_chat
 from app.services.expert_consult import consult_handler_for_persona
@@ -185,9 +185,11 @@ async def expert_memory_context(
 ) -> str:
     if persona.kind != "expert":
         return ""
+    customer_id = persona.customer_id
+    expert_id = persona_catalog_key(persona)
     hits = await get_expert_memory().search(
-        customer_id=persona.customer_id,
-        expert_id=persona_catalog_key(persona),
+        customer_id=customer_id,
+        expert_id=expert_id,
         query=message,
         image_sha256=image_sha256,
         sources=frozenset(
@@ -230,9 +232,13 @@ async def remember_expert_chat_turn(
 ) -> list[ExpertMemoryOut]:
     if persona.kind != "expert":
         return []
+    customer_id = persona.customer_id
+    expert_id = persona_catalog_key(persona)
+    expert_name = persona.name
+    remembered_persona_id = persona.id
     hits = await get_expert_memory().add_chat_turn(
-        customer_id=persona.customer_id,
-        expert_id=persona_catalog_key(persona),
+        customer_id=customer_id,
+        expert_id=expert_id,
         user_message=message,
         assistant_message=reply,
         source=source,
@@ -242,9 +248,9 @@ async def remember_expert_chat_turn(
     return [
         serialize_memory_hit(
             hit,
-            customer_id=persona.customer_id,
-            expert_name=persona.name,
-            persona_id=persona.id,
+            customer_id=customer_id,
+            expert_name=expert_name,
+            persona_id=remembered_persona_id,
         )
         for hit in hits
     ]
@@ -373,6 +379,7 @@ async def stream_library_chat_turn(
             raise ChatTurnError("Persona not found", status_code=404)
 
         profile = profile_from_dict(persona.profile, persona.name)
+        district = persona.district
         history_rows = await session.execute(
             select(PersonaMessage)
             .where(*library_chat_filter(persona_id, mode))
@@ -380,27 +387,32 @@ async def stream_library_chat_turn(
         )
         history_list = list(history_rows.scalars().all())
         history = _history_triples(history_list)
-        area_block = await area_block_for_name(session, profile.ort or persona.district)
+        area_block = await area_block_for_name(session, profile.ort or district)
         prompts = await require_prompts_for_persona(session, persona)
         try:
             validate_chat_turn_images(history, message, image_sha256)
         except ValueError as exc:
             raise ChatTurnError(str(exc)) from exc
+        await session.refresh(persona)
+        persona_kind = persona.kind
+        persona_customer_id = persona.customer_id
+        chat_tools = resolve_chat_tools(library_chat_tools(persona), kind=persona_kind)
+        with_tools = bool(chat_tools)
         memory_context = await expert_memory_context(
             persona, message, prompts, image_sha256=image_sha256
         )
-        evidence_context = ""
-        if persona.kind == "expert":
-            evidence_context = await reusable_expert_chat_evidence_context(
-                session,
-                customer_id=persona.customer_id,
-                question=message,
+        evidence_tool_handler = None
+        if (
+            persona_kind == "expert"
+            and persona_customer_id is not None
+            and EVIDENCE_TOOL_NAME in chat_tools
+        ):
+            evidence_tool_handler = evidence_tool_handler_for_chat(
+                customer_id=persona_customer_id,
                 prompts=prompts,
             )
-        chat_tools = resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
-        with_tools = _library_chat_uses_tools(persona)
         research_tool_handler = None
-        if persona.kind == "expert" and "start_research" in chat_tools:
+        if persona_kind == "expert" and "start_research" in chat_tools:
             research_tool_handler = research_tool_handler_for_chat(
                 session,
                 persona=persona,
@@ -433,10 +445,10 @@ async def stream_library_chat_turn(
             ActorProfileTools(
                 session,
                 user_id=actor_user_id,
-                customer_id=persona.customer_id,
+                customer_id=persona_customer_id,
                 conversation=f"expert:{persona_id}:{mode}",
             )
-            if actor_user_id and persona.kind == "expert"
+            if actor_user_id and persona_kind == "expert"
             else None
         )
         parts: list[str] = []
@@ -448,11 +460,12 @@ async def stream_library_chat_turn(
                 message,
                 prompts=prompts,
                 area_block=area_block,
-                profile_kind=persona.kind,
+                profile_kind=persona_kind,
                 tools=chat_tools,
-                extra_system=combine_expert_chat_context(memory_context, evidence_context),
+                extra_system=memory_context,
                 user_image_sha256=image_sha256,
                 research_tool_handler=research_tool_handler,
+                evidence_tool_handler=evidence_tool_handler,
                 consult_tool_handler=consult_tool_handler,
                 actor_tool_handler=actor_handler,
             )

@@ -8,8 +8,21 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import Kund, ResearchQuestion, ResearchQuestionExpert
+from app.database.models import (
+    EvidenceSet,
+    ExecutionAttempt,
+    Kund,
+    ResearchNeedExecution,
+    ResearchQuestion,
+    ResearchQuestionExpert,
+    ResearchQuestionNode,
+)
 from app.services.execution import create_attempt, create_run
+from app.services.execution.service import (
+    attach_evidence_set,
+    create_evidence_set,
+    set_attempt_snapshots,
+)
 from app.services.research.question_domain import (
     GeneralQuestionDraft,
     add_question_dependency,
@@ -137,6 +150,144 @@ async def test_requeue_makes_interrupted_running_question_runnable(factory):
     result = await execute_research_question_dag(factory, attempt_id=attempt_id, worker=worker)
     assert result.status == "completed"
     assert worker.calls == ["Vilka rekvisit gäller?"]
+
+
+async def test_requeue_reopens_a_failed_question_and_its_child_attempt(factory):
+    attempt_id, specific_id = await _setup(factory)
+    question_id = await _question(
+        factory,
+        attempt_id=attempt_id,
+        specific_id=specific_id,
+        text="Hur tillämpas klausulen?",
+    )
+    async with factory() as session:
+        parent = await session.get(ExecutionAttempt, attempt_id)
+        assert parent is not None
+        child = await create_attempt(
+            session,
+            run_id=parent.run_id,
+            parent_attempt_id=parent.id,
+            attempt_type="research_question",
+            configuration_snapshot={},
+            input_snapshot={},
+        )
+        evidence = await create_evidence_set(
+            session, run_id=parent.run_id, created_from_attempt_id=child.id
+        )
+        await attach_evidence_set(
+            session, attempt_id=child.id, evidence_set_id=evidence.id
+        )
+        await set_attempt_snapshots(
+            session,
+            attempt_id=child.id,
+            research_plan_snapshot={"needs": [{"id": "open", "question": "Hur?"}]},
+        )
+        child.status = "failed"
+        evidence.status = "failed"
+        session.add(
+            ResearchNeedExecution(
+                id="need-done",
+                attempt_id=child.id,
+                research_need_id="done",
+                status="completed",
+            )
+        )
+        session.add(
+            ResearchNeedExecution(
+                id="need-open",
+                attempt_id=child.id,
+                research_need_id="open",
+                status="failed",
+            )
+        )
+        session.add(
+            ResearchQuestionNode(
+                id="leaf",
+                attempt_id=child.id,
+                question="Hur tillämpas klausulen?",
+                depth=0,
+                created_from="root",
+                phase="failed",
+                research_need_id="open",
+                atomicity="pending",
+            )
+        )
+        session.add(
+            ResearchQuestionNode(
+                id="split",
+                attempt_id=child.id,
+                parent_question_id="leaf",
+                question="Vilken del?",
+                depth=1,
+                created_from="decomposition",
+                phase="failed",
+                atomicity="pending",
+            )
+        )
+        session.add(
+            ResearchQuestionNode(
+                id="stuck",
+                attempt_id=child.id,
+                parent_question_id="leaf",
+                question="Redan olöst",
+                depth=1,
+                created_from="decomposition",
+                phase="unresolved",
+                atomicity="pending",
+            )
+        )
+        row = await session.get(ResearchQuestion, question_id)
+        assert row is not None
+        row.status = "failed"
+        row.outcome_reason = "DataError: value too long"
+        row.execution_attempt_id = child.id
+        await session.commit()
+        child_id = child.id
+        evidence_id = evidence.id
+
+    async with factory() as session:
+        count = await requeue_interrupted_research_questions(session, attempt_id=attempt_id)
+        await session.commit()
+    assert count == 1
+
+    async with factory() as session:
+        question = await session.get(ResearchQuestion, question_id)
+        child = await session.get(ExecutionAttempt, child_id)
+        evidence = await session.get(EvidenceSet, evidence_id)
+        needs = {
+            row.research_need_id: row
+            for row in (
+                await session.execute(
+                    select(ResearchNeedExecution).where(
+                        ResearchNeedExecution.attempt_id == child_id
+                    )
+                )
+            ).scalars()
+        }
+        nodes = {
+            row.id: row
+            for row in (
+                await session.execute(
+                    select(ResearchQuestionNode).where(
+                        ResearchQuestionNode.attempt_id == child_id
+                    )
+                )
+            ).scalars()
+        }
+    assert question is not None and question.status == "pending"
+    assert question.outcome_reason is None
+    assert child is not None and child.status == "researching"
+    assert evidence is not None and evidence.status == "building"
+    assert needs["done"].status == "completed"
+    assert needs["open"].status == "pending"
+    assert nodes["leaf"].phase == "researching"
+    assert nodes["split"].phase == "created"
+    assert nodes["stuck"].phase == "unresolved"
+
+    result = await execute_research_question_dag(
+        factory, attempt_id=attempt_id, worker=RecordingWorker()
+    )
+    assert result.status == "completed"
 
 
 async def test_empty_question_graph_is_not_reported_as_completed_research(factory):
@@ -287,7 +438,7 @@ async def test_worker_failure_is_persisted_without_stopping_independent_question
         text="Vilken praxis finns?",
     )
     result = await execute_research_question_dag(factory, attempt_id=attempt_id, worker=worker)
-    assert result.status == "completed_with_gaps"
+    assert result.status == "failed"
     assert result.completed_count == 1
     assert result.failed_count == 1
     assert set(worker.calls) == {"Vilka rekvisit gäller?", "Vilken praxis finns?"}
@@ -295,7 +446,7 @@ async def test_worker_failure_is_persisted_without_stopping_independent_question
         row = await session.get(ResearchQuestion, question_id)
         assert row is not None
         assert row.status == "failed"
-        assert row.outcome_reason == "provider failed"
+        assert row.outcome_reason == "RuntimeError: provider failed"
 
 
 async def test_failed_dependency_blocks_only_its_dependent_branch(factory):
@@ -323,7 +474,33 @@ async def test_failed_dependency_blocks_only_its_dependent_branch(factory):
     worker = RecordingWorker(failures={"Vilka rekvisit gäller?"})
     result = await execute_research_question_dag(factory, attempt_id=attempt_id, worker=worker)
 
-    assert result.status == "completed_with_gaps"
+    assert result.status == "failed"
     assert result.failed_count == 1
     assert result.blocked_count == 1
     assert worker.calls == ["Vilka rekvisit gäller?"]
+
+
+async def test_execution_failure_keeps_the_causal_exception(factory):
+    attempt_id, specific_id = await _setup(factory)
+    question_id = await _question(
+        factory,
+        attempt_id=attempt_id,
+        specific_id=specific_id,
+        text="Hur tillämpas 36 § avtalslagen?",
+    )
+
+    class CrashingWorker:
+        async def research_question(self, question):
+            try:
+                raise RuntimeError("value too long for type character varying(128)")
+            except RuntimeError as exc:
+                raise RuntimeError("Attempt child research failed") from exc
+
+    result = await execute_research_question_dag(
+        factory, attempt_id=attempt_id, worker=CrashingWorker()
+    )
+    assert result.status == "failed"
+    async with factory() as session:
+        row = await session.get(ResearchQuestion, question_id)
+        assert row is not None
+        assert "value too long for type character varying(128)" in (row.outcome_reason or "")

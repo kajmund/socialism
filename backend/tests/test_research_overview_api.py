@@ -4,8 +4,17 @@ from uuid import uuid4
 
 from sqlalchemy import event, select
 
-from app.api.execution import _domain_result_analysis
-from app.database.models import Persona, ResearchNeedExecution, ResearchRuntimeNeed
+from app.api.execution import (
+    _domain_result_analysis,
+    _research_node_display_status,
+    research_overview_phase,
+)
+from app.database.models import (
+    Persona,
+    ResearchNeedExecution,
+    ResearchQuestionNode,
+    ResearchRuntimeNeed,
+)
 from app.services.execution import (
     add_evidence_items,
     attach_evidence_set,
@@ -15,6 +24,7 @@ from app.services.execution import (
     mark_ready,
     persist_research_assessment,
 )
+from app.services.execution.schemas import ResearchQuestionNodeOverviewOut
 from app.services.research.assessment import ResearchAssessmentDraft, ResearchNeedAssessment
 from app.services.research.models import research_evidence
 from app.services.research.question_domain import (
@@ -226,6 +236,9 @@ async def test_research_overview_aggregates_question_graph_and_sources(client_db
         "answered": 1,
         "running": 0,
         "waiting": 0,
+        "answered_with_gaps": 0,
+        "unresolved": 0,
+        "not_required": 0,
         "insufficient": 0,
         "unanswered": 0,
         "failed": 0,
@@ -492,6 +505,130 @@ async def test_overview_shows_committed_needs_and_evidence_before_ready(client_d
     assert by_question["Vilka rekvisit gäller för 36 §?"]["status"] == "answered"
     assert by_question["Hur har SOU 1974:83 tolkats?"]["status"] == "running"
     assert by_question["Hur har SOU 1974:83 tolkats?"]["source_count"] == 0
+
+
+async def test_question_node_shows_found_evidence_before_an_answer(client_db):
+    client, factory = client_db
+    run = (
+        await client.post(
+            "/execution/runs",
+            json={
+                "customer_id": TEST_CUSTOMER_ID,
+                "module": "expertgranskning",
+                "title": "Trädresearch",
+                "context": {},
+            },
+        )
+    ).json()
+    async with factory() as session:
+        attempt = await create_attempt(
+            session,
+            run_id=run["id"],
+            attempt_type="generic_panel",
+            configuration_snapshot={},
+            input_snapshot={},
+        )
+        evidence_set = await create_evidence_set(
+            session, run_id=run["id"], created_from_attempt_id=attempt.id
+        )
+        await add_evidence_items(
+            session,
+            evidence_set_id=evidence_set.id,
+            items=[
+                research_evidence(
+                    research_need_id="need-found",
+                    source_type="legal_source",
+                    status="found",
+                    title="Avtalslagen 36 §",
+                    excerpt="Oskäligt avtalsvillkor",
+                    source_url="https://lagen.nu/1915:218#P36",
+                    provider="lagen.nu",
+                ),
+                research_evidence(
+                    research_need_id="need-found",
+                    source_type="legal_source",
+                    status="error",
+                    title="Kunde inte hämtas",
+                    provider="lagen.nu",
+                ),
+            ],
+        )
+        await attach_evidence_set(session, attempt_id=attempt.id, evidence_set_id=evidence_set.id)
+        session.add(
+            ResearchQuestionNode(
+                id="node-searching",
+                attempt_id=attempt.id,
+                question="Hur tillämpas 36 §?",
+                depth=0,
+                created_from="root",
+                phase="researching",
+                research_need_id="need-found",
+            )
+        )
+        await session.commit()
+
+    body = (await client.get(f"/execution/attempts/{attempt.id}/research-overview")).json()
+    [node] = body["question_nodes"]
+    assert node["current_answer"] is None
+    assert [source["title"] for source in node["sources"]] == ["Avtalslagen 36 §"]
+    assert node["sources"][0]["excerpt"] == "Oskäligt avtalsvillkor"
+
+
+def _overview_node(**overrides: object) -> ResearchQuestionNodeOverviewOut:
+    payload = {
+        "id": "node",
+        "attempt_id": "attempt",
+        "parent_question_id": None,
+        "question": "fråga",
+        "depth": 0,
+        "created_from": "root",
+        "phase": "unresolved",
+        "atomicity": "pending",
+        "researchability": "not_researchable",
+        "decomposability": "decomposable",
+        "completeness": None,
+        "research_need_id": None,
+        "current_answer": None,
+    }
+    payload.update(overrides)
+    return ResearchQuestionNodeOverviewOut.model_validate(payload)
+
+
+def test_unresolved_required_questions_are_not_a_successful_empty_gap_count():
+    waiting = _overview_node(phase="created")
+    unresolved = _overview_node()
+    skipped = _overview_node(phase="not_required")
+    assert _research_node_display_status(waiting, attempt_terminal=False) == "waiting"
+    assert _research_node_display_status(unresolved, attempt_terminal=False) == "unresolved"
+    assert _research_node_display_status(skipped, attempt_terminal=False) == "not_required"
+    assert _research_node_display_status(waiting, attempt_terminal=True) == "unresolved"
+    counts = {
+        "running": 0,
+        "waiting": 0,
+        "answered": 0,
+        "answered_with_gaps": 0,
+        "unresolved": 3,
+        "not_required": 0,
+        "insufficient": 0,
+        "unanswered": 0,
+        "failed": 0,
+        "blocked": 0,
+    }
+    assert (
+        research_overview_phase(total=3, counts=counts, attempt_status="ready")
+        == "completed_with_gaps"
+    )
+    answered = _overview_node(
+        phase="evidence_incomplete",
+        current_answer={
+            "id": "answer",
+            "version": 1,
+            "status": "insufficient_evidence",
+            "text": "otillräckligt",
+        },
+    )
+    assert _research_node_display_status(answered, attempt_terminal=True) == "unresolved"
+    assert _research_node_display_status(answered, attempt_terminal=True) != "failed"
 
 
 def test_domain_result_analysis_ignores_non_object_relation():

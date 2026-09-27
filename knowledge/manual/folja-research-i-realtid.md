@@ -32,20 +32,27 @@ Indikatorn **Live** betyder att vyn är uppkopplad. Vid **Återansluter** hämta
 
 När research körs ser du:
 
-- **Besvarade**, **Pågående**, **Väntar** och **Luckor** — hur frågorna fördelas.
+- **Besvarade**, **Besvarade med luckor**, **Ej färdigundersökta**, **Behövde inte undersökas vidare** och **Tekniskt misslyckade** — hur frågorna fördelas. En research där inget svar finns visar de obesvarade frågorna, inte noll luckor.
 - En progressrad och fyra steg: **Frågor** → **Evidens** → **Bedömning** → **Expertgranskning**.
 
 ## Läs frågekorten
 
-Under **Generella frågor** finns ett kort per fråga med:
+Under **Generella frågor** växer ett frågeträd fram. En bred fråga kan få
+indragna underfrågor. Frågor som skapats för att fylla en kunskapslucka är
+tydligt märkta.
 
-- Status (t.ex. besvarad, undersöks, otillräcklig evidens, obesvarad).
-- Ansvarig expert och vem som ställde frågan.
-- Beroenden — om frågan väntar på att en annan ska bli klar.
-- Varför frågan behövs och den kontextspecifika formuleringen.
-- Hittade källor och bedömning (fullständighet, stödjande evidens, luckor, motstridigheter).
+Varje kort visar:
 
-Längst ner finns en **teknisk händelselogg** med tidsstämplade händelser — användbar om något verkar ha fastnat.
+- Status. **Besvarad** betyder att frågan har ett grundat svar. **Besvarad med luckor** betyder att svaret finns men evidensen inte räcker hela vägen. **Ej färdigundersökt** betyder att frågan fortfarande behövs och saknar ett grundat svar. **Behövde inte undersökas vidare** betyder att frågan kunde besvaras utan den grenen. **Tekniskt misslyckad** är ett faktiskt fel.
+- En överordnad fråga kan vara besvarad även om en underfråga är ofärdig eller inte behövde undersökas.
+- Frågans aktuella grundade svar när det finns.
+- Om svaret är fullständigt eller har en kvarvarande lucka.
+- Hittad evidens på de yttersta frågorna, redan innan svaret är skrivet.
+- För frågor med underfrågor: vilka barnsvar som svaret bygger på. Följ trädet
+  nedåt för att komma till den konkreta passagen och originalkällan.
+- En kort **händelselista** under frågan: analys, uppdelning, sökning, hittad evidens och svar. Etiketten på frågan följer den senaste händelsen, så den lämnar **Söker evidens** när evidens har hittats.
+
+Längst ner finns en **teknisk händelselogg** med råa händelser — användbar om något verkar ha fastnat.
 
 ## Relaterade guider
 
