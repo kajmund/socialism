@@ -114,6 +114,7 @@ async def test_create_expert_assigns_sampled_name_and_age(client: AsyncClient):
         "search_duckduckgo",
         "search_wiki",
         "start_research",
+        "lookup_frozen_evidence",
         "ask_expert",
         "get_actor_context",
         "propose_actor_context_update",

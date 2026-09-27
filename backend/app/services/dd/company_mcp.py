@@ -51,6 +51,7 @@ _CONSULT_PROMISE_RE = re.compile(
 
 COMPANY_TOOL_NAMES = frozenset({"search_companies", "lookup_company", "validate_orgnr"})
 RESEARCH_TOOL_NAME = "start_research"
+EVIDENCE_TOOL_NAME = "lookup_frozen_evidence"
 CONSULT_TOOL_NAME = "ask_expert"
 ResearchToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
 ConsultToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
@@ -69,6 +70,28 @@ _RESEARCH_TOOL_SPEC: dict[str, Any] = {
                 "question": {
                     "type": "string",
                     "description": "Standalone general research question",
+                }
+            },
+            "required": ["question"],
+        },
+    },
+}
+
+_EVIDENCE_TOOL_SPEC: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": EVIDENCE_TOOL_NAME,
+        "description": (
+            "Read frozen research evidence that may answer one question the user "
+            "already asked. Do not call this for greetings, small talk, or to "
+            "start new research."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "The question the user asked",
                 }
             },
             "required": ["question"],
@@ -168,6 +191,10 @@ def company_tool_specs() -> list[dict[str, Any]]:
 
 def research_tool_spec() -> dict[str, Any]:
     return dict(_RESEARCH_TOOL_SPEC)
+
+
+def evidence_tool_spec() -> dict[str, Any]:
+    return dict(_EVIDENCE_TOOL_SPEC)
 
 
 def consult_tool_spec() -> dict[str, Any]:
@@ -373,6 +400,7 @@ async def run_company_tool_loop(
     with_search: bool = False,
     allowed_tools: frozenset[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    evidence_tool_handler: ResearchToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
     prompt_key: str | None = None,
@@ -391,6 +419,8 @@ async def run_company_tool_loop(
             tools = [*tools, *search_tool_specs()]
         if research_tool_handler is not None:
             tools = [*tools, _RESEARCH_TOOL_SPEC]
+        if evidence_tool_handler is not None:
+            tools = [*tools, _EVIDENCE_TOOL_SPEC]
         if consult_tool_handler is not None:
             tools = [*tools, _CONSULT_TOOL_SPEC]
         if actor_tool_handler is not None:
@@ -414,6 +444,17 @@ async def run_company_tool_loop(
                         leaked,
                         last_user_question(working),
                     )
+                if not tool_calls and research_tool_handler is not None:
+                    # expert_chat_research_tool imports ResearchToolHandler from here.
+                    from app.services.expert_chat_research_tool import (
+                        research_calls_from_start_claim,
+                    )
+
+                    claimed = research_calls_from_start_claim(leaked, working)
+                    tool_calls = [
+                        _fake_tool_call(index + 1, RESEARCH_TOOL_NAME, arguments)
+                        for index, arguments in enumerate(claimed)
+                    ]
                 if tool_calls:
                     working[-1]["tool_calls"] = [
                         {
@@ -451,6 +492,13 @@ async def run_company_tool_loop(
                         tool_text = await research_tool_handler(arguments)
                         parsed = []
                     elif (
+                        allowed
+                        and name == EVIDENCE_TOOL_NAME
+                        and evidence_tool_handler is not None
+                    ):
+                        tool_text = await evidence_tool_handler(arguments)
+                        parsed = []
+                    elif (
                         allowed and name == CONSULT_TOOL_NAME and consult_tool_handler is not None
                     ):
                         tool_text = await consult_tool_handler(arguments)
@@ -483,6 +531,7 @@ async def complete_text_with_company_tools(
     *,
     allowed_tools: frozenset[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    evidence_tool_handler: ResearchToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
     prompt_key: str | None = None,
@@ -498,19 +547,39 @@ async def complete_text_with_company_tools(
         with_search=True,
         allowed_tools=allowed_tools,
         research_tool_handler=research_tool_handler,
+        evidence_tool_handler=evidence_tool_handler,
         consult_tool_handler=consult_tool_handler,
         actor_tool_handler=actor_tool_handler,
         prompt_key=prompt_key,
     )
-    content = visible_assistant_text(working[-1])
+    content = _reply_after_research_guard(working, research_tool_handler)
     if content:
         return content
     reply = await complete_with_tools(working, None, prompt_key=prompt_key)
     working.append(assistant_message_dict(reply))
-    content = visible_assistant_text(working[-1])
+    content = _reply_after_research_guard(working, research_tool_handler)
     if not content:
         raise CompanyMcpError("Company tools produced an empty reply")
     return content
+
+
+def _reply_after_research_guard(
+    working: list[dict[str, Any]],
+    research_tool_handler: ResearchToolHandler | None,
+) -> str:
+    content = visible_assistant_text(working[-1])
+    if research_tool_handler is None:
+        return content
+    # expert_chat_research_tool imports ResearchToolHandler from this module.
+    from app.services.expert_chat_research_tool import (
+        reply_without_unbacked_research_start,
+        research_job_was_queued,
+    )
+
+    return reply_without_unbacked_research_start(
+        content,
+        queued=research_job_was_queued(working),
+    )
 
 
 def _merge_candidates(

@@ -11,11 +11,14 @@ from app.services.actor_profiles import (
 )
 from app.services.dd.company_mcp import (
     COMPANY_TOOL_NAMES,
+    EVIDENCE_TOOL_NAME,
     RESEARCH_TOOL_NAME,
     company_tool_specs,
+    evidence_tool_spec,
     research_tool_spec,
     run_company_tool,
 )
+from app.services.expert_chat_evidence_tool import evidence_tool_handler_for_chat
 from app.services.expert_chat_research_tool import research_tool_handler_for_chat
 from app.services.expert_tools import filter_openai_tools, resolve_expert_tools
 from app.services.oasis_agent_tools import (
@@ -23,6 +26,7 @@ from app.services.oasis_agent_tools import (
     run_search_tool,
     search_tool_specs,
 )
+from app.services.prompt_store import require_prompts_for_persona
 
 
 def live_voice_tool_specs(persona: Persona) -> list[dict[str, Any]]:
@@ -31,6 +35,7 @@ def live_voice_tool_specs(persona: Persona) -> list[dict[str, Any]]:
         *company_tool_specs(),
         *search_tool_specs(),
         research_tool_spec(),
+        evidence_tool_spec(),
         *actor_tool_specs(),
     ]
     return filter_openai_tools(specs, allowed)
@@ -61,6 +66,14 @@ async def run_live_voice_tool(
             customer_id=persona.customer_id,
             conversation=f"expert:{persona.id}:voice:{session_id}",
         )(name, arguments)
+    if name == EVIDENCE_TOOL_NAME:
+        if persona.customer_id is None:
+            raise ValueError("voice_tool_not_allowed")
+        handler = evidence_tool_handler_for_chat(
+            customer_id=persona.customer_id,
+            prompts=await require_prompts_for_persona(session, persona),
+        )
+        return await handler(arguments)
     if name == RESEARCH_TOOL_NAME:
         handler = research_tool_handler_for_chat(
             session,

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import EvidenceSet, ExecutionAttempt
@@ -18,7 +19,11 @@ from app.services.research.models import (
     ResearchEvidence,
     ResearchNeed,
 )
-from app.services.research.question_reuse import safe_lookup_reusable_evidence
+from app.services.research.question_graph import QuestionEvidenceGraphError
+from app.services.research.question_reuse import (
+    lookup_reusable_evidence,
+    safe_lookup_reusable_evidence,
+)
 
 
 def _render_evidence(items: Sequence[ResearchEvidence]) -> str:
@@ -50,23 +55,40 @@ async def reusable_expert_chat_evidence_context(
     customer_id: int,
     question: str,
     prompts: dict[str, str],
+    include_claims: bool = True,
 ) -> str:
-    """Return prompt context from existing Question→Evidence links only.
+    """Return prompt context from frozen evidence for one asked question.
 
     This path never creates a Run, Attempt, question, or provider request.
     Case-scoped evidence is excluded because library chat has no document case.
+    Claim search stays off unless the caller is already holding a question.
     """
-    reused = await safe_lookup_reusable_evidence(
-        session,
-        graph=build_standard_question_graph(),
-        need=ResearchNeed(
-            id="expert_chat_reuse",
-            question=question,
-            why_needed="",
-            source_types=list(RESEARCH_SOURCE_TYPES),
-        ),
-        context=ResearchContext(scope=KnowledgeScope(customer_id=customer_id)),
+    need = ResearchNeed(
+        id="expert_chat_reuse",
+        question=question,
+        why_needed="",
+        source_types=list(RESEARCH_SOURCE_TYPES),
     )
+    context = ResearchContext(scope=KnowledgeScope(customer_id=customer_id))
+    graph = build_standard_question_graph()
+    if include_claims:
+        reused = await safe_lookup_reusable_evidence(
+            session,
+            graph=graph,
+            need=need,
+            context=context,
+        )
+    else:
+        try:
+            reused = await lookup_reusable_evidence(
+                session,
+                graph=graph,
+                need=need,
+                context=context,
+            )
+        except (QuestionEvidenceGraphError, SQLAlchemyError):
+            await session.rollback()
+            return ""
     attempt_ids = {
         str(candidate.metadata.get("source_attempt_id"))
         for candidate in reused

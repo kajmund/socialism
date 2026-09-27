@@ -185,6 +185,7 @@ async def run_expert_chat_research_job(
         follow_up_planner=components["planner"],
         completeness_reviewer=components["completeness_reviewer"],
         need_normalizer=components.get("need_normalizer"),
+        question_tree=components.get("question_tree"),
     )
     result = await execute_research_question_dag(
         factory,

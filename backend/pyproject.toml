@@ -89,3 +89,14 @@ target-version = "py312"
 ignore = [
     "B008",  # FastAPI Depends() / Query() in defaults is idiomatic
 ]
+
+[tool.ruff.lint.pylint]
+max-locals = 15
+max-statements = 50
+max-branches = 12
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.maintainability]
+max-file-lines = 800

@@ -248,6 +248,21 @@ export function getExecutionResult(attemptId: string): Promise<AttemptResult> {
 }
 
 export type ResearchProgressEventType =
+  | "question_created"
+  | "question_atomicity_started"
+  | "question_atomicity_completed"
+  | "question_decomposition_started"
+  | "question_decomposed"
+  | "question_tree_max_depth_reached"
+  | "question_tree_shape"
+  | "question_research_started"
+  | "knowledge_reuse_started"
+  | "knowledge_reuse_completed"
+  | "answer_synthesis_started"
+  | "answer_synthesized"
+  | "question_completeness_started"
+  | "question_completeness_completed"
+  | "question_gap_detected"
   | "question_running"
   | "question_completed"
   | "question_failed"
@@ -341,6 +356,32 @@ export type ResearchOverviewQuestion = {
   need_assessment: ResearchNeedAssessment | null
 }
 
+export type ResearchQuestionNodeAnswer = {
+  id: string
+  version: number
+  status: string
+  text: string
+  child_answer_ids: string[]
+  evidence_item_ids: string[]
+}
+
+export type ResearchOverviewQuestionNode = {
+  id: string
+  attempt_id: string
+  parent_question_id: string | null
+  question: string
+  depth: number
+  created_from: "root" | "decomposition" | "gap" | string
+  phase: string
+  atomicity: string
+  researchability: string
+  decomposability: string
+  completeness: string | null
+  research_need_id: string | null
+  current_answer: ResearchQuestionNodeAnswer | null
+  sources: ResearchOverviewSource[]
+}
+
 export type ResearchOverview = {
   run_id: string
   attempt_id: string
@@ -350,14 +391,18 @@ export type ResearchOverview = {
   counts: {
     total: number
     answered: number
+    answered_with_gaps: number
     running: number
     waiting: number
+    unresolved: number
+    not_required: number
     insufficient: number
     unanswered: number
     failed: number
     blocked: number
   }
   questions: ResearchOverviewQuestion[]
+  question_nodes?: ResearchOverviewQuestionNode[]
 }
 
 export function getResearchOverview(

@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import CanonicalDocumentRecord, Kund, TextUnitRecord
+from app.database.models import (
+    CanonicalDocumentRecord,
+    DocumentVersionRecord,
+    KnowledgeClaimRecord,
+    Kund,
+    TextUnitRecord,
+)
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.models import ResolvedCitations, SearchResults
 from app.services.lagen_nu.passage_router import KeepAllPassageRouter
@@ -91,6 +97,57 @@ async def test_research_ingests_and_grounds_evidence_in_text_units(session: Asyn
     assert documents[0].source_type == LAGEN_NU_PROVIDER_ID
     assert documents[0].canonical_uri == URI
     assert {unit.text for unit in units} == {TEXT}
+
+
+async def test_compute_drops_orm_and_a_changed_version_is_not_persisted(session: AsyncSession):
+    observed: dict[str, object] = {}
+
+    class WatchingInterpreter(FakeLegalInterpreter):
+        async def interpret(self, *, source, question, raw_text, truncated, context):
+            observed["in_transaction"] = session.in_transaction()
+            observed["orm_units"] = [
+                obj
+                for obj in session.sync_session.identity_map.values()
+                if isinstance(obj, TextUnitRecord)
+            ]
+            maker = async_sessionmaker(session.bind, expire_on_commit=False, class_=AsyncSession)
+            async with maker() as other:
+                version = await other.scalar(select(DocumentVersionRecord))
+                unit = await other.scalar(select(TextUnitRecord))
+                assert version is not None and unit is not None
+                version.content_hash = "f" * 64
+                unit.content_hash = "e" * 64
+                await other.commit()
+            return await FakeLegalInterpreter.interpret(
+                self,
+                source=source,
+                question=question,
+                raw_text=raw_text,
+                truncated=truncated,
+                context=context,
+            )
+
+    source = LagenNuResearchSource(
+        source_type="swedish_law",
+        client=_client(),
+        selector=PassthroughLagenNuSelector(),
+        interpreter=WatchingInterpreter(),
+        session=session,
+        embeddings=FakeEmbeddingProvider(),
+        vector_store=MemoryKnowledgeVectorStore(),
+        passage_router=KeepAllPassageRouter(),
+    )
+    evidence = await source.research(
+        _need("swedish_law", question="När får avtalsvillkor jämkas?"),
+        _context(),
+    )
+
+    claims = await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord))
+    assert observed["in_transaction"] is False
+    assert observed["orm_units"] == []
+    assert [item.status for item in evidence] == ["error"]
+    assert "changed during passage interpretation" in str(evidence[0].metadata["detail"])
+    assert claims == 0
 
 
 async def test_second_research_reuses_text_units_without_mcp_fetch(session: AsyncSession):

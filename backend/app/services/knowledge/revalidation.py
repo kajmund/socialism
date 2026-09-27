@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import math
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -18,12 +20,23 @@ from app.database.models import (
     EvidenceSetRevalidation,
     ExecutionRun,
     KnowledgeClaimAnswer,
+    KnowledgeClaimRecord,
     KnowledgeClaimTextUnit,
     KnowledgeGraphEventRecord,
     KnowledgeQuestionRow,
     KnowledgeRelationshipRecord,
+    TextUnitRecord,
 )
-from app.jev.system import JevClientError, JevSystemOne, parse_noul
+from app.jev.evaluation import (
+    EVALUATOR_GRAPH_REVALIDATION,
+    EVALUATOR_GRAPH_REVALIDATION_POLICY,
+    EVALUATOR_GRAPH_REVALIDATION_VERSION,
+    EvaluationRequest,
+    threshold_config,
+)
+from app.jev.service import build_request, evaluate_many
+from app.jev.system import JevSystemOne
+from app.observability.research import record_graph_revalidation
 from app.services.knowledge.events import (
     CLAIM_ADDED,
     CLAIM_SUPERSEDED,
@@ -35,6 +48,8 @@ from app.services.knowledge.scope import (
     KnowledgeScopeError,
     scope_from_row,
 )
+
+logger = logging.getLogger(__name__)
 
 REVALIDATION_CLEAR = "clear"
 REVALIDATION_IMPACTED = "impacted"
@@ -52,7 +67,7 @@ RevalidationState = Literal["clear", "impacted", "revalidation_required", "unkno
 _IMPACT_QUESTION = {
     "type": "noul",
     "instructions": (
-        "True if the new claim or edge can materially change the frozen answer. "
+        "True if this document version can materially change the frozen evidence set. "
         "False if it is redundant, off-topic, or too weak to move the previous conclusion."
     ),
 }
@@ -155,7 +170,7 @@ async def revalidate_after_event(
     *,
     jev: JevSystemOne,
 ) -> list[RevalidationDecision]:
-    """Jev decides whether a graph mutation can change a frozen answer."""
+    """Judge whether a document version can change each frozen evidence set it touches."""
     return await revalidate_after_events(session, [event], jev=jev)
 
 
@@ -165,9 +180,10 @@ async def revalidate_after_events(
     *,
     jev: JevSystemOne,
 ) -> list[RevalidationDecision]:
-    """Match every event against one provenance read, then call Jev without a connection."""
+    """One material_change call per affected evidence set. The connection is released first."""
     if not events:
         return []
+    started = time.perf_counter()
     loaded: list[KnowledgeGraphEventRecord] = []
     seen: set[str] = set()
     for event in events:
@@ -193,9 +209,7 @@ async def revalidate_after_events(
             continue
         customer_id = event_scope.customer_id
         if customer_id is None:
-            raise KnowledgeScopeError(
-                "revalidation of customer graph events requires customer_id"
-            )
+            raise KnowledgeScopeError("revalidation of customer graph events requires customer_id")
         if customer_id not in provenance_by_customer:
             provenance_by_customer[customer_id] = await _frozen_provenance_rows(
                 session, customer_id
@@ -206,65 +220,116 @@ async def revalidate_after_events(
         planned.append(
             _PlannedRevalidation(
                 event_id=row.id,
-                event_type=row.event_type,
-                node_kind=row.node_kind,
-                node_id=row.node_id,
                 impact=impact,
                 evidence_set_ids=tuple(item.id for item in sets),
                 question_key=impact.question_keys[0] if impact.question_keys else None,
                 knowledge_question_id=await _knowledge_question_id(
                     session, impact.question_keys, event_scope
                 ),
+                security_scope=event_scope.scope_key,
             )
         )
-    # Provenance is already in memory. The Jev round trip must not keep a connection.
-    await _release_db_connection(session)
+    # One material_change per (document version, evidence set, validation version).
+    # Provenance is already in memory. JEV must not keep the connection.
+    lookup_started = time.perf_counter()
+    claim_versions, unit_versions = await _version_index(session, planned)
+    judgments = _group_set_judgments(planned, claim_versions, unit_versions)
+    requests = [
+        material_change_request(
+            document_version_id=judgment.document_version_id,
+            evidence_set_id=judgment.evidence_set_id,
+            security_scope=judgment.security_scope,
+        )
+        for judgment in judgments
+    ]
+    lookup_ms = (time.perf_counter() - lookup_started) * 1000
+    jev_started = time.perf_counter()
+    outcomes = await evaluate_many(
+        jev,
+        requests,
+        session=session,
+        timeout_seconds=settings.jev_timeout_seconds,
+        required_signals=("material_change",),
+        pool="graph_revalidation",
+        before_http=lambda: _release_db_connection(session),
+    )
+    jev_ms = (time.perf_counter() - jev_started) * 1000
+    persist_started = time.perf_counter()
     decisions: list[RevalidationDecision] = []
-    for plan in planned:
-        try:
-            noul: float | None = await _impact_noul(jev, plan=plan)
+    skipped = 0
+    for judgment, outcome in zip(judgments, outcomes, strict=True):
+        if outcome.reused:
+            skipped += 1
+            logger.info(
+                "graph_revalidation_skipped_processed document_version_id=%s "
+                "evidence_set_id=%s security_scope=%s evaluation_key=%s",
+                judgment.document_version_id,
+                judgment.evidence_set_id,
+                outcome.artifact.security_scope if outcome.artifact is not None else "",
+                outcome.artifact.evaluation_key if outcome.artifact is not None else "",
+            )
+        if outcome.artifact is None:
+            noul = None
+            state = REVALIDATION_UNKNOWN
+        else:
+            noul = outcome.artifact.signals["material_change"]
             state = classify_revalidation_state(
                 noul,
                 impact_threshold=settings.revalidation_impact_threshold,
                 clear_threshold=settings.revalidation_clear_threshold,
             )
-        except JevClientError:
-            noul = None
-            state = REVALIDATION_UNKNOWN
-        for evidence_set_id in plan.evidence_set_ids:
-            await _persist_revalidation(
-                session,
-                evidence_set_id=evidence_set_id,
-                graph_event_id=plan.event_id,
-                question_key=plan.question_key,
-                knowledge_question_id=plan.knowledge_question_id,
+        await _persist_revalidation(
+            session,
+            evidence_set_id=judgment.evidence_set_id,
+            graph_event_id=judgment.anchor_event_id,
+            question_key=judgment.question_key,
+            knowledge_question_id=judgment.knowledge_question_id,
+            state=state,
+            impact_noul=noul,
+        )
+        decisions.append(
+            RevalidationDecision(
+                evidence_set_id=judgment.evidence_set_id,
+                graph_event_id=judgment.anchor_event_id,
                 state=state,
                 impact_noul=noul,
+                question_key=judgment.question_key,
+                knowledge_question_id=judgment.knowledge_question_id,
             )
-            decisions.append(
-                RevalidationDecision(
-                    evidence_set_id=evidence_set_id,
-                    graph_event_id=plan.event_id,
-                    state=state,
-                    impact_noul=noul,
-                    question_key=plan.question_key,
-                    knowledge_question_id=plan.knowledge_question_id,
-                )
-            )
-        await _release_db_connection(session)
+        )
+    await _release_db_connection(session)
+    persist_ms = (time.perf_counter() - persist_started) * 1000
+    record_graph_revalidation(
+        candidates=len(loaded),
+        skipped=skipped,
+        jev_required=len(judgments) - skipped,
+        completed=len(judgments),
+        total_ms=(time.perf_counter() - started) * 1000,
+        lookup_ms=lookup_ms,
+        jev_ms=jev_ms,
+        persistence_ms=persist_ms,
+    )
     return decisions
 
 
 @dataclass(frozen=True)
 class _PlannedRevalidation:
     event_id: str
-    event_type: str
-    node_kind: str
-    node_id: str
     impact: GraphImpact
     evidence_set_ids: tuple[str, ...]
     question_key: str | None
     knowledge_question_id: str | None
+    security_scope: str
+
+
+@dataclass(frozen=True)
+class _SetJudgment:
+    document_version_id: str
+    evidence_set_id: str
+    anchor_event_id: str
+    question_key: str | None
+    knowledge_question_id: str | None
+    security_scope: str
 
 
 def _impact_has_keys(impact: GraphImpact) -> bool:
@@ -367,26 +432,132 @@ async def _knowledge_question_id(
     ).scalar_one_or_none()
 
 
-async def _impact_noul(
-    jev: JevSystemOne,
-    *,
-    plan: _PlannedRevalidation,
-) -> float:
-    result = await jev.ask(
-        state={
-            "event_type": plan.event_type,
-            "node_kind": plan.node_kind,
-            "node_id": plan.node_id,
-            "question_keys": list(plan.impact.question_keys),
-            "claim_ids": list(plan.impact.claim_ids),
-            "text_unit_ids": list(plan.impact.text_unit_ids),
-            "frozen_evidence_set_ids": list(plan.evidence_set_ids),
-        },
-        questions={"material_change": _IMPACT_QUESTION},
-        model=settings.jev_model,
-        timeout_seconds=settings.jev_timeout_seconds,
+def material_change_validation_version() -> str:
+    """Evaluator definition that may cause a new material_change call."""
+    return "|".join(
+        (
+            EVALUATOR_GRAPH_REVALIDATION,
+            EVALUATOR_GRAPH_REVALIDATION_VERSION,
+            EVALUATOR_GRAPH_REVALIDATION_POLICY,
+            settings.jev_model,
+            f"{settings.revalidation_impact_threshold:.6f}",
+            f"{settings.revalidation_clear_threshold:.6f}",
+        )
     )
-    return parse_noul(result.answers, "material_change")
+
+
+def material_change_state(*, document_version_id: str, evidence_set_id: str) -> dict[str, str]:
+    """The only fields that distinguish one material_change call from another."""
+    return {
+        "document_version_id": document_version_id,
+        "evidence_set_id": evidence_set_id,
+        "validation_version": material_change_validation_version(),
+    }
+
+
+def material_change_request(
+    *,
+    document_version_id: str,
+    evidence_set_id: str,
+    security_scope: str,
+) -> EvaluationRequest:
+    return build_request(
+        evaluator_id=EVALUATOR_GRAPH_REVALIDATION,
+        evaluator_version=EVALUATOR_GRAPH_REVALIDATION_VERSION,
+        model=settings.jev_model,
+        questions={"material_change": _IMPACT_QUESTION},
+        state=material_change_state(
+            document_version_id=document_version_id,
+            evidence_set_id=evidence_set_id,
+        ),
+        security_scope=security_scope,
+        policy_version=EVALUATOR_GRAPH_REVALIDATION_POLICY,
+        model_config=threshold_config(
+            impact_threshold=settings.revalidation_impact_threshold,
+            clear_threshold=settings.revalidation_clear_threshold,
+        ),
+    )
+
+
+async def _version_index(
+    session: AsyncSession,
+    planned: Sequence[_PlannedRevalidation],
+) -> tuple[dict[str, str], dict[str, str]]:
+    claim_ids = sorted({claim_id for plan in planned for claim_id in plan.impact.claim_ids})
+    unit_ids = sorted({unit_id for plan in planned for unit_id in plan.impact.text_unit_ids})
+    claim_versions: dict[str, str] = {}
+    if claim_ids:
+        rows = (
+            await session.execute(
+                select(
+                    KnowledgeClaimRecord.id,
+                    KnowledgeClaimRecord.document_version_id,
+                ).where(KnowledgeClaimRecord.id.in_(claim_ids))
+            )
+        ).all()
+        claim_versions = {row[0]: row[1] for row in rows if row[1]}
+    unit_versions: dict[str, str] = {}
+    if unit_ids:
+        rows = (
+            await session.execute(
+                select(TextUnitRecord.id, TextUnitRecord.document_version_id).where(
+                    TextUnitRecord.id.in_(unit_ids)
+                )
+            )
+        ).all()
+        unit_versions = {row[0]: row[1] for row in rows if row[1]}
+    return claim_versions, unit_versions
+
+
+def _plan_versions(
+    plan: _PlannedRevalidation,
+    claim_versions: dict[str, str],
+    unit_versions: dict[str, str],
+) -> tuple[str, ...]:
+    versions: list[str] = []
+    for claim_id in plan.impact.claim_ids:
+        version_id = claim_versions.get(claim_id)
+        if version_id and version_id not in versions:
+            versions.append(version_id)
+    if not versions:
+        for unit_id in plan.impact.text_unit_ids:
+            version_id = unit_versions.get(unit_id)
+            if version_id and version_id not in versions:
+                versions.append(version_id)
+    if versions:
+        return tuple(versions)
+    return (f"unversioned:{plan.event_id}",)
+
+
+def _group_set_judgments(
+    planned: Sequence[_PlannedRevalidation],
+    claim_versions: dict[str, str],
+    unit_versions: dict[str, str],
+) -> list[_SetJudgment]:
+    grouped: dict[tuple[str, str, str], _SetJudgment] = {}
+    for plan in planned:
+        for version_id in _plan_versions(plan, claim_versions, unit_versions):
+            for evidence_set_id in plan.evidence_set_ids:
+                key = (plan.security_scope, version_id, evidence_set_id)
+                current = grouped.get(key)
+                if current is not None and plan.event_id >= current.anchor_event_id:
+                    continue
+                grouped[key] = _SetJudgment(
+                    document_version_id=version_id,
+                    evidence_set_id=evidence_set_id,
+                    anchor_event_id=plan.event_id,
+                    question_key=plan.question_key,
+                    knowledge_question_id=plan.knowledge_question_id,
+                    security_scope=plan.security_scope,
+                )
+    return sorted(
+        grouped.values(),
+        key=lambda item: (
+            item.security_scope,
+            item.document_version_id,
+            item.evidence_set_id,
+        ),
+    )
 
 
 async def _persist_revalidation(
@@ -408,6 +579,11 @@ async def _persist_revalidation(
         )
     ).scalar_one_or_none()
     if existing is not None:
+        if existing.state == state and existing.impact_noul == impact_noul:
+            return existing
+        existing.state = state
+        existing.impact_noul = impact_noul
+        await session.flush()
         return existing
     row = EvidenceSetRevalidation(
         id=_revalidation_id(evidence_set_id, graph_event_id),

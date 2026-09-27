@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 import pytest
@@ -16,10 +17,14 @@ from app.database.models import (
     DocumentVersionRecord,
     EvidenceSetItem,
     EvidenceSetRevalidation,
+    KnowledgeClaimRecord,
     Kund,
     TextUnitRecord,
 )
+from app.jev.evaluation import evaluation_key
+from app.jev.service import evaluate_many
 from app.jev.system import JevClientError, JevSystemOneResult, JevUsage
+from app.observability.research import research_obs_scope
 from app.services.execution import (
     add_evidence_items,
     create_evidence_set,
@@ -43,6 +48,8 @@ from app.services.knowledge.revalidation import (
     RevalidationError,
     affected_frozen_evidence_sets,
     classify_revalidation_state,
+    material_change_request,
+    material_change_state,
     revalidate_after_event,
     revalidate_after_events,
 )
@@ -221,6 +228,72 @@ async def _setup_frozen_set(session: AsyncSession, *, excerpt: str = "old holdin
     )
     frozen = await freeze_evidence_set(session, evidence_set.id)
     return kund, frozen
+
+
+async def _claim_on_version(
+    session: AsyncSession,
+    customer_id: int,
+    *,
+    version_id: str,
+    document_id: str,
+) -> str:
+    session.add(
+        CanonicalDocumentRecord(
+            id=document_id,
+            customer_id=customer_id,
+            source_type="upload",
+            canonical_uri=f"doc://{document_id}",
+            title=document_id,
+            extra={},
+        )
+    )
+    session.add(
+        DocumentVersionRecord(
+            id=version_id,
+            document_id=document_id,
+            customer_id=customer_id,
+            content_hash=version_id,
+            mime_type="text/plain",
+            extra={},
+        )
+    )
+    unit_id = f"tu-{version_id}"
+    session.add(
+        TextUnitRecord(
+            id=unit_id,
+            document_version_id=version_id,
+            document_id=document_id,
+            customer_id=customer_id,
+            section_id=None,
+            ordinal=0,
+            text="Later holding",
+            content_hash=unit_id,
+        )
+    )
+    await session.flush()
+    value: dict[str, object] = {"value": True}
+    claim = KnowledgeClaim(
+        id=knowledge_claim_id(
+            document_version_id=version_id,
+            predicate="legal.adjustment_granted",
+            value=value,
+        ),
+        customer_id=customer_id,
+        document_id=document_id,
+        document_version_id=version_id,
+        predicate="legal.adjustment_granted",
+        value=value,
+        supporting_text_unit_ids=(unit_id,),
+    )
+    await persist_knowledge_claim(session, claim)
+    await answer_research_need(
+        session,
+        research_need_id=f"need-{version_id}",
+        question_key=research_question_key(QUESTION),
+        claim_ids=[claim.id],
+        source_type="swedish_case_law",
+    )
+    return claim.id
 
 
 async def _new_claim(session: AsyncSession, customer_id: int) -> str:
@@ -508,9 +581,11 @@ async def test_several_events_share_one_provenance_read_and_release_the_connecti
         def __init__(self):
             super().__init__(0.81)
             self.open_transactions: list[bool] = []
+            self.states: list[dict[str, object]] = []
 
         async def ask(self, *, state, questions, model, timeout_seconds):
             self.open_transactions.append(db.in_transaction())
+            self.states.append(dict(state))
             return await super().ask(
                 state=state,
                 questions=questions,
@@ -529,7 +604,173 @@ async def test_several_events_share_one_provenance_read_and_release_the_connecti
     assert len(provenance_reads) == 1
     assert "raw_sources" not in provenance_reads[0]
     assert "domain_research_results" not in provenance_reads[0]
-    assert gate.calls == 2
-    assert gate.open_transactions == [False, False]
+    assert gate.calls == 1
+    assert gate.open_transactions == [False]
+    assert gate.states == [
+        material_change_state(document_version_id="ver-a", evidence_set_id=frozen.id)
+    ]
     assert {item.evidence_set_id for item in decisions} == {frozen.id}
-    assert len(decisions) == 2
+    assert len(decisions) == 1
+
+
+@pytest.mark.asyncio
+async def test_same_version_set_and_validation_version_is_one_material_change_call(db, monkeypatch):
+    kund, _frozen = await _setup_frozen_set(db)
+    claim_id = await _new_claim(db, kund.id)
+    events = await list_graph_events(db, customer_id=kund.id, node_kind="claim")
+    added = next(event for event in events if event.event_type == CLAIM_ADDED)
+    gate = _ImpactJev(0.81)
+    with research_obs_scope() as stats:
+        await revalidate_after_event(db, added.id, jev=gate)
+        await revalidate_after_event(db, added.id, jev=gate)
+        assert gate.calls == 1
+        assert stats.graph_revalidation_skipped == 1
+        assert stats.graph_revalidation_jev_required == 1
+        claim = await db.get(KnowledgeClaimRecord, claim_id)
+        assert claim is not None
+        claim.value = {"value": True}
+        await db.flush()
+        await revalidate_after_event(db, added.id, jev=gate)
+        assert gate.calls == 1
+        assert stats.graph_revalidation_jev_required == 1
+
+        await _claim_on_version(db, kund.id, version_id="ver-b", document_id="doc-b")
+        later = await list_graph_events(db, customer_id=kund.id, node_kind="claim")
+        added_ids = {added.id}
+        second = next(
+            event
+            for event in later
+            if event.event_type == CLAIM_ADDED and event.id not in added_ids
+        )
+        await revalidate_after_event(db, second.id, jev=gate)
+        assert gate.calls == 2
+        assert stats.graph_revalidation_jev_required == 2
+
+        monkeypatch.setattr(
+            "app.services.knowledge.revalidation.EVALUATOR_GRAPH_REVALIDATION_VERSION",
+            "v2",
+        )
+        await revalidate_after_event(db, added.id, jev=gate)
+        assert gate.calls == 3
+        assert stats.graph_revalidation_jev_required == 3
+
+
+@pytest.mark.asyncio
+async def test_each_affected_evidence_set_gets_its_own_material_change_call(db):
+    kund, first = await _setup_frozen_set(db)
+    second_run = await create_run(
+        db,
+        customer_id=kund.id,
+        module="dd",
+        title="Andra",
+        context={"case_id": "case-2"},
+    )
+    second = await create_evidence_set(db, run_id=second_run.id)
+    await add_evidence_items(
+        db,
+        evidence_set_id=second.id,
+        items=[
+            research_evidence(
+                research_need_id="need-other-set",
+                source_type="swedish_case_law",
+                status="found",
+                excerpt="old holding",
+                retrieved_at=datetime(2026, 1, 1, tzinfo=UTC),
+                metadata={
+                    "answered_by_question_key": research_question_key(QUESTION),
+                    "knowledge_claim_ids": ["prior-claim"],
+                    "text_unit_ids": ["tu-hold"],
+                },
+            )
+        ],
+    )
+    second_frozen = await freeze_evidence_set(db, second.id)
+    first_claim = await _new_claim(db, kund.id)
+    second_value: dict[str, object] = {"value": True}
+    other = KnowledgeClaim(
+        id=knowledge_claim_id(
+            document_version_id="ver-a",
+            predicate="legal.other_holding",
+            value=second_value,
+        ),
+        customer_id=kund.id,
+        document_id="doc-a",
+        document_version_id="ver-a",
+        predicate="legal.other_holding",
+        value=second_value,
+        supporting_text_unit_ids=("tu-hold",),
+    )
+    await persist_knowledge_claim(db, other)
+    await answer_research_need(
+        db,
+        research_need_id="need-3",
+        question_key=research_question_key(QUESTION),
+        claim_ids=[other.id],
+        source_type="swedish_case_law",
+    )
+    event_ids = []
+    for claim_id in (first_claim, other.id):
+        rows = await list_graph_events(db, customer_id=kund.id, node_kind="claim", node_id=claim_id)
+        event_ids.append(next(row.id for row in rows if row.event_type == CLAIM_ADDED))
+    gate = _ImpactJev(0.81)
+    decisions = await revalidate_after_events(db, event_ids, jev=gate)
+    assert gate.calls == 2
+    assert {item.evidence_set_id for item in decisions} == {first.id, second_frozen.id}
+
+
+@pytest.mark.asyncio
+async def test_concurrent_material_change_paths_share_one_call():
+    request = material_change_request(
+        document_version_id="ver-a",
+        evidence_set_id="set-a",
+        security_scope="customer:1",
+    )
+    repeated = material_change_request(
+        document_version_id="ver-a",
+        evidence_set_id="set-a",
+        security_scope="customer:1",
+    )
+    other_set = material_change_request(
+        document_version_id="ver-a",
+        evidence_set_id="set-b",
+        security_scope="customer:1",
+    )
+    assert evaluation_key(request) == evaluation_key(repeated)
+    assert evaluation_key(request) != evaluation_key(other_set)
+
+    class _Hold(_ImpactJev):
+        def __init__(self) -> None:
+            super().__init__(0.81)
+            self.started = asyncio.Event()
+            self.release = asyncio.Event()
+
+        async def ask(self, *, state, questions, model, timeout_seconds):
+            self.started.set()
+            await self.release.wait()
+            return await super().ask(
+                state=state,
+                questions=questions,
+                model=model,
+                timeout_seconds=timeout_seconds,
+            )
+
+    client = _Hold()
+
+    async def call():
+        return await evaluate_many(
+            client,
+            [request],
+            session=None,
+            timeout_seconds=5,
+            required_signals=("material_change",),
+            pool="graph_revalidation",
+        )
+
+    leader = asyncio.create_task(call())
+    await client.started.wait()
+    joined = asyncio.create_task(call())
+    for _ in range(20):
+        await asyncio.sleep(0)
+    client.release.set()
+    await asyncio.gather(leader, joined)
+    assert client.calls == 1

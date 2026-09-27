@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.database.base import Base
 from app.database.models import Kund, TextUnitRecord
 from app.jev.system import JevClientError, JevSystemOneResult, JevUsage
@@ -480,7 +481,10 @@ async def test_research_jev_failure_is_error_not_full_document(session: AsyncSes
     assert evidence[0].legal_result is None
 
 
-async def test_production_router_fails_loud_without_typesafe_key(session: AsyncSession):
+async def test_production_router_fails_loud_without_typesafe_key(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(settings, "typesafe_api_key", "")
     client = _client()
     source = LagenNuResearchSource(
         source_type="swedish_case_law",

@@ -3,17 +3,29 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from app.config import settings
+from app.jev.evaluation import (
+    EVALUATION_POLICY_V1,
+    EVALUATOR_EVIDENCE_SCREEN,
+    EVALUATOR_VERSION_V1,
+)
+from app.jev.service import (
+    build_request,
+    current_jev_binding,
+    evaluate_many,
+    evaluate_system_one,
+)
 from app.jev.system import (
     HttpJevSystemOne,
     JevSystemOne,
     parse_noul,
 )
-from app.observability.research import emit_jev_evidence_scored, record_jev_call
+from app.observability.research import emit_jev_evidence_scored
 from app.services.research.assessment import AssessableEvidence
 from app.services.research.fast_controller import (
     JEV_PROVIDER,
@@ -24,6 +36,8 @@ from app.services.research.fast_controller import (
 from app.services.research.fast_state import compact_evidence_item_state
 from app.services.research.models import ResearchPlan
 from app.services.research.planner import ResearchObjective
+
+logger = logging.getLogger(__name__)
 
 EVIDENCE_SCREEN_QUESTIONS: dict[str, Any] = {
     "relevant_to_question": {
@@ -102,6 +116,8 @@ async def screen_evidence(
     if not research_jev_available() or not settings.research_jev_evidence_screen_enabled:
         return []
     system = client or HttpJevSystemOne()
+    if current_jev_binding() is not None:
+        return await _score_bound(system, objective=objective, evidence=evidence)
     slots = asyncio.Semaphore(settings.research_jev_concurrency)
     tasks = [
         asyncio.create_task(
@@ -169,11 +185,17 @@ async def _score_one(
         return cache[cache_key]
     async with slots:
         try:
-            result = await client.ask(
+            result = await evaluate_system_one(
+                client,
+                evaluator_id=EVALUATOR_EVIDENCE_SCREEN,
+                evaluator_version=EVALUATOR_VERSION_V1,
                 state=payload,
                 questions=EVIDENCE_SCREEN_QUESTIONS,
                 model=model,
                 timeout_seconds=settings.research_jev_timeout_seconds,
+                required_signals=tuple(EVIDENCE_SCREEN_QUESTIONS),
+                policy_version=EVALUATION_POLICY_V1,
+                content_hashes={"evidence": item.content_hash},
             )
         except Exception:  # noqa: BLE001 - shadow scores must not fail research
             return None
@@ -204,7 +226,6 @@ async def _score_one(
         cache[cache_key] = scores
         while len(cache) > 256:
             del cache[next(iter(cache))]
-    record_jev_call(scores.latency_ms)
     emit_jev_evidence_scored(
         mode=research_jev_mode(),
         model=research_jev_model(),
@@ -226,3 +247,101 @@ async def _score_one(
         },
     )
     return scores
+
+
+async def _score_bound(
+    client: JevSystemOne,
+    *,
+    objective: str,
+    evidence: Sequence[AssessableEvidence],
+) -> list[EvidenceJevScores]:
+    """Score through the shared store. Lookups stay on one session; HTTP does not."""
+    binding = current_jev_binding()
+    if binding is None:
+        return []
+    model = research_jev_model()
+    prepared: list[tuple[AssessableEvidence, int]] = []
+    requests = []
+    for item in evidence:
+        payload, input_chars, _digest = compact_evidence_item_state(
+            objective=objective,
+            item=item,
+            max_state_chars=settings.research_jev_max_state_chars,
+        )
+        prepared.append((item, input_chars))
+        requests.append(
+            build_request(
+                evaluator_id=EVALUATOR_EVIDENCE_SCREEN,
+                evaluator_version=EVALUATOR_VERSION_V1,
+                model=model,
+                questions=EVIDENCE_SCREEN_QUESTIONS,
+                state=payload,
+                security_scope=binding.security_scope,
+                content_hashes={"evidence": item.content_hash},
+                policy_version=EVALUATION_POLICY_V1,
+            )
+        )
+    outcomes = await evaluate_many(
+        client,
+        requests,
+        session=binding.session,
+        timeout_seconds=settings.research_jev_timeout_seconds,
+        required_signals=tuple(EVIDENCE_SCREEN_QUESTIONS),
+    )
+    scored: list[EvidenceJevScores] = []
+    for (item, input_chars), outcome in zip(prepared, outcomes, strict=True):
+        artifact = outcome.artifact
+        if artifact is None:
+            continue
+        try:
+            answers = dict(artifact.result)
+            latency_ms = 0.0 if outcome.reused else float(
+                artifact.input_provenance.get("http_ms") or 0.0
+            )
+            scores = EvidenceJevScores(
+                evidence_id=item.evidence_id,
+                source_type=item.source_type,
+                content_hash=item.content_hash,
+                relevant_to_question=parse_noul(answers, "relevant_to_question"),
+                directly_supports_answer=parse_noul(answers, "directly_supports_answer"),
+                contradicts_current_evidence=parse_noul(
+                    answers, "contradicts_current_evidence"
+                ),
+                material_new_information=parse_noul(answers, "material_new_information"),
+                likely_duplicate_or_redundant=parse_noul(
+                    answers, "likely_duplicate_or_redundant"
+                ),
+                primary_or_high_authority_for_question=parse_noul(
+                    answers, "primary_or_high_authority_for_question"
+                ),
+                latency_ms=latency_ms,
+            )
+        except Exception:
+            logger.exception(
+                "jev_evidence_screen_score_failed evidence_id=%s",
+                item.evidence_id,
+            )
+            continue
+        emit_jev_evidence_scored(
+            mode=research_jev_mode(),
+            model=model,
+            provider=JEV_PROVIDER,
+            evidence_id=item.evidence_id,
+            source_type=item.source_type,
+            content_hash=item.content_hash,
+            latency_ms=scores.latency_ms,
+            input_chars=input_chars,
+            scores={
+                "relevant_to_question": scores.relevant_to_question,
+                "directly_supports_answer": scores.directly_supports_answer,
+                "contradicts_current_evidence": scores.contradicts_current_evidence,
+                "material_new_information": scores.material_new_information,
+                "likely_duplicate_or_redundant": scores.likely_duplicate_or_redundant,
+                "primary_or_high_authority_for_question": (
+                    scores.primary_or_high_authority_for_question
+                ),
+            },
+        )
+        scored.append(scores)
+    scored.sort(key=lambda row: row.evidence_id)
+    return scored

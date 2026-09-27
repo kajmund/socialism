@@ -47,6 +47,8 @@ class JevSystemOneResult:
     input_chars: int
     usage: JevUsage
     raw: dict[str, Any]
+    http_ms: float = 0.0
+    parse_ms: float = 0.0
 
 
 class JevSystemOne(Protocol):
@@ -142,6 +144,32 @@ def _category_for_status(status_code: int) -> JevErrorCategory:
     return "unknown"
 
 
+_shared_http: httpx.AsyncClient | None = None
+
+
+def open_jev_http_client() -> httpx.AsyncClient:
+    """Long-lived client. Tests inject their own client into HttpJevSystemOne."""
+    global _shared_http
+    if _shared_http is None or _shared_http.is_closed:
+        timeout = settings.jev_timeout_seconds
+        _shared_http = httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout),
+            limits=httpx.Limits(
+                max_connections=settings.jev_max_connections,
+                max_keepalive_connections=settings.jev_max_keepalive_connections,
+            ),
+        )
+    return _shared_http
+
+
+async def aclose_jev_http_client() -> None:
+    global _shared_http
+    client = _shared_http
+    _shared_http = None
+    if client is not None and not client.is_closed:
+        await client.aclose()
+
+
 class HttpJevSystemOne:
     """POST /v1/systemone. One request answers every supplied question."""
 
@@ -164,7 +192,7 @@ class HttpJevSystemOne:
             )
         body = {"model": model, "state": state, "questions": questions}
         input_chars = _state_chars(state)
-        started = time.perf_counter()
+        http_started = time.perf_counter()
         try:
             response = await self._post(body, api_key, timeout_seconds)
         except httpx.TimeoutException as exc:
@@ -177,8 +205,11 @@ class HttpJevSystemOne:
             raise
         except Exception as exc:
             raise JevClientError(str(exc), category="unknown") from exc
-        latency_ms = (time.perf_counter() - started) * 1000
+        http_ms = (time.perf_counter() - http_started) * 1000
+        parse_started = time.perf_counter()
         payload = _parse_payload(response)
+        parse_ms = (time.perf_counter() - parse_started) * 1000
+        latency_ms = http_ms + parse_ms
         answers = payload.get("answers")
         if not isinstance(answers, dict):
             raise JevClientError(
@@ -193,6 +224,8 @@ class HttpJevSystemOne:
             input_chars=input_chars,
             usage=parse_usage(payload),
             raw=payload,
+            http_ms=http_ms,
+            parse_ms=parse_ms,
         )
 
     async def _post(
@@ -204,10 +237,8 @@ class HttpJevSystemOne:
         base = settings.typesafe_base_url.rstrip("/")
         url = f"{base}/v1/systemone"
         headers = _headers(api_key)
-        if self._http is not None:
-            return await self._http.post(url, headers=headers, json=body, timeout=timeout_seconds)
-        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-            return await client.post(url, headers=headers, json=body)
+        client = self._http if self._http is not None else open_jev_http_client()
+        return await client.post(url, headers=headers, json=body, timeout=timeout_seconds)
 
 
 def _parse_payload(response: httpx.Response) -> dict[str, Any]:

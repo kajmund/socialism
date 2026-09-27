@@ -372,11 +372,40 @@ class ResearchQuestionOverviewOut(BaseModel):
     need_assessment: ResearchNeedAssessmentOut | None = None
 
 
+class ResearchQuestionNodeAnswerOut(BaseModel):
+    id: str
+    version: int
+    status: str
+    text: str
+    child_answer_ids: list[str] = Field(default_factory=list)
+    evidence_item_ids: list[str] = Field(default_factory=list)
+
+
+class ResearchQuestionNodeOverviewOut(BaseModel):
+    id: str
+    attempt_id: str
+    parent_question_id: str | None
+    question: str
+    depth: int
+    created_from: str
+    phase: str
+    atomicity: str
+    researchability: str
+    decomposability: str
+    completeness: str | None
+    research_need_id: str | None
+    current_answer: ResearchQuestionNodeAnswerOut | None
+    sources: list[ResearchSourceOut] = Field(default_factory=list)
+
+
 class ResearchOverviewCountsOut(BaseModel):
     total: int
     answered: int
+    answered_with_gaps: int = 0
     running: int
     waiting: int
+    unresolved: int = 0
+    not_required: int = 0
     insufficient: int
     unanswered: int
     failed: int
@@ -391,3 +420,4 @@ class ResearchOverviewOut(BaseModel):
     latest_sequence: int
     counts: ResearchOverviewCountsOut
     questions: list[ResearchQuestionOverviewOut]
+    question_nodes: list[ResearchQuestionNodeOverviewOut] = Field(default_factory=list)

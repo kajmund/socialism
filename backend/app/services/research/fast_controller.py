@@ -8,6 +8,14 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from app.config import settings
+from app.jev.evaluation import (
+    EVALUATION_POLICY_V1,
+    EVALUATOR_RESEARCH_ASSESSMENT,
+    EVALUATOR_RESEARCH_COMPLETENESS,
+    EVALUATOR_VERSION_V1,
+    threshold_config,
+)
+from app.jev.service import evaluate_system_one
 from app.jev.system import (
     HttpJevSystemOne,
     JevClientError,
@@ -30,7 +38,6 @@ from app.observability.research import (
     emit_jev_decision,
     emit_jev_started,
     record_evidence_count,
-    record_jev_call,
 )
 from app.services.research.assessment import AssessableEvidence
 from app.services.research.fast_state import (
@@ -214,11 +221,25 @@ class ResearchFastController:
         try:
             if state.input_chars > settings.research_jev_max_state_chars:
                 raise JevClientError("Research state exceeds Jev input budget", category="invalid_request")
-            result = await self.client.ask(
+            result = await evaluate_system_one(
+                self.client,
+                evaluator_id=(
+                    EVALUATOR_RESEARCH_ASSESSMENT
+                    if gate == "assessment"
+                    else EVALUATOR_RESEARCH_COMPLETENESS
+                ),
+                evaluator_version=EVALUATOR_VERSION_V1,
                 state=state.payload,
                 questions=questions,
                 model=model,
                 timeout_seconds=settings.research_jev_timeout_seconds,
+                required_signals=tuple(questions),
+                policy_version=EVALUATION_POLICY_V1,
+                model_config=threshold_config(
+                    sufficient_threshold=settings.research_jev_sufficient_threshold,
+                    incomplete_threshold=settings.research_jev_incomplete_threshold,
+                    confidence_threshold=settings.research_jev_confidence_threshold,
+                ),
             )
         except Exception as exc:  # noqa: BLE001 - Jev failure must fall back to LLM
             decision = _error_decision(
@@ -228,7 +249,6 @@ class ResearchFastController:
                 state=state,
                 latency_ms=(time.perf_counter() - started) * 1000,
             )
-            record_jev_call(decision.latency_ms)
             _emit_decision(failed_event, decision, outcome="failure")
             return decision
         try:
@@ -241,10 +261,8 @@ class ResearchFastController:
                 state=state,
                 latency_ms=result.latency_ms,
             )
-            record_jev_call(decision.latency_ms)
             _emit_decision(failed_event, decision, outcome="failure")
             return decision
-        record_jev_call(decision.latency_ms)
         _emit_decision(completed_event, decision, outcome="success")
         return decision
 

@@ -5,14 +5,15 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-import time
 from dataclasses import dataclass, replace
 from typing import Literal
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.database.knowledge_scope import customer_scope_key
 from app.database.models import (
+    DocumentVersionRecord,
     DomainResearchResultRecord,
     EvidenceSet,
     EvidenceSetItem,
@@ -21,23 +22,29 @@ from app.database.models import (
     ResearchRuntimeNeed,
     TextUnitRecord,
 )
-from app.jev.system import HttpJevSystemOne, JevSystemOne
+from app.jev.service import jev_evaluation_binding
 from app.llm.legal_research import (
     LegalDomainExtractionError,
     LegalInterpreter,
     LlmLegalInterpreter,
 )
+from app.observability.research import ProviderPhase
 from app.services.knowledge.claims import answer_research_need, persist_knowledge_claims
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.entities import persist_knowledge_entities
-from app.services.knowledge.events import list_graph_events
 from app.services.knowledge.relationships import persist_knowledge_relationships
-from app.services.knowledge.revalidation import revalidate_after_events
+from app.services.knowledge.revalidation_work import (
+    SUCCEEDED,
+    enqueue_graph_revalidation,
+    log_graph_revalidation_queued,
+    schedule_graph_revalidation,
+)
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.claim_grounding import ground_legal_claims
 from app.services.lagen_nu.display import (
     display_source_title,
     is_legal_front_matter,
+    substantive_citation_quote,
 )
 from app.services.lagen_nu.legal_graph import ground_legal_graph
 from app.services.lagen_nu.mcp_client import (
@@ -51,6 +58,8 @@ from app.services.lagen_nu.passage_router import (
     JevPassageRouter,
     LagenNuPassageRouter,
     PassageRoutingError,
+    PassageUnit,
+    freeze_passages,
 )
 from app.services.lagen_nu.question_validation import (
     LegalQuestionValidator,
@@ -540,6 +549,53 @@ async def _rollback_open_session(session: AsyncSession | None) -> None:
         await session.rollback()
 
 
+def _session_maker(session: AsyncSession) -> async_sessionmaker[AsyncSession]:
+    bind = session.bind
+    if not isinstance(bind, AsyncEngine):
+        raise LagenNuResearchKnowledgeError(
+            "lagen.nu research persistence requires an engine-bound session"
+        )
+    return async_sessionmaker(bind, expire_on_commit=False, class_=AsyncSession)
+
+
+async def _document_version_hash(session: AsyncSession, document_version_id: str) -> str:
+    content_hash = await session.scalar(
+        select(DocumentVersionRecord.content_hash).where(
+            DocumentVersionRecord.id == document_version_id
+        )
+    )
+    if not isinstance(content_hash, str) or not content_hash:
+        raise LagenNuResearchKnowledgeError("document version is missing a content hash")
+    return content_hash
+
+
+async def _require_unchanged_passages(
+    session: AsyncSession,
+    *,
+    document_version_id: str,
+    document_version_hash: str,
+    passages: tuple[PassageUnit, ...],
+) -> None:
+    """Refuse to persist claims when the interpreted text changed."""
+    current_hash = await _document_version_hash(session, document_version_id)
+    if current_hash != document_version_hash:
+        raise LagenNuResearchKnowledgeError(
+            "document version changed during passage interpretation"
+        )
+    rows = (
+        await session.execute(
+            select(TextUnitRecord.id, TextUnitRecord.content_hash).where(
+                TextUnitRecord.document_version_id == document_version_id,
+                TextUnitRecord.id.in_([unit.id for unit in passages]),
+            )
+        )
+    ).all()
+    current = {unit_id: content_hash for unit_id, content_hash in rows}
+    expected = {unit.id: unit.content_hash for unit in passages}
+    if current != expected:
+        raise LagenNuResearchKnowledgeError("text units changed during passage interpretation")
+
+
 class LagenNuResearchSource:
     def __init__(
         self,
@@ -553,7 +609,6 @@ class LagenNuResearchSource:
         vector_store: KnowledgeVectorStore | None = None,
         question_validator: LegalQuestionValidator | None = None,
         passage_router: LagenNuPassageRouter | None = None,
-        impact_gate: JevSystemOne | None = None,
     ) -> None:
         if source_type not in LAGEN_NU_EVIDENCE_NATURES:
             raise ValueError(f"{source_type} is not implemented by the official lagen.nu adapter")
@@ -567,7 +622,6 @@ class LagenNuResearchSource:
         self._vector_store = vector_store
         self._question_validator = question_validator
         self._passage_router = passage_router
-        self._impact_gate = impact_gate
         self._owned_client: OfficialLagenNuMcpClient | None = None
 
     def _require_selector(self) -> LagenNuPassageSelector:
@@ -578,43 +632,6 @@ class LagenNuResearchSource:
             return self._passage_router
         return JevPassageRouter()
 
-    def _require_impact_gate(self) -> JevSystemOne:
-        return self._impact_gate or HttpJevSystemOne()
-
-    async def _revalidate_persisted_graph(
-        self,
-        *,
-        customer_id: int,
-        claim_ids: list[str],
-        relationship_ids: list[str],
-    ) -> None:
-        if self._session is None:
-            return
-        gate = self._require_impact_gate()
-        started = time.monotonic()
-        logger.info(
-            "graph_revalidation_started customer_id=%s claims=%s relationships=%s",
-            customer_id, len(claim_ids), len(relationship_ids),
-        )
-        event_ids: list[str] = []
-        for node_kind, node_ids in (
-            ("claim", claim_ids),
-            ("relationship", relationship_ids),
-        ):
-            for node_id in node_ids:
-                events = await list_graph_events(
-                    self._session,
-                    customer_id=customer_id,
-                    node_kind=node_kind,
-                    node_id=node_id,
-                )
-                event_ids.extend(event.id for event in events)
-        await revalidate_after_events(self._session, event_ids, jev=gate)
-        logger.info(
-            "graph_revalidation_completed customer_id=%s events=%s elapsed_seconds=%.3f",
-            customer_id, len(event_ids), time.monotonic() - started,
-        )
-
     def _mcp(self) -> LagenNuMcpClient:
         if self._client is not None:
             return self._client
@@ -623,11 +640,13 @@ class LagenNuResearchSource:
         return self._owned_client
 
     async def _cached_domain_result(
-        self, *, need: ResearchNeed, source_uri: str, raw_text: str
+        self,
+        session: AsyncSession,
+        *,
+        need: ResearchNeed,
+        source_uri: str,
+        raw_text: str,
     ) -> tuple[str, LegalResearchResult] | None:
-        session = self._session
-        if session is None:
-            return None
         source_identity = canonical_source_identity(source_uri, None)
         raw_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
         row = (
@@ -714,10 +733,11 @@ class LagenNuResearchSource:
                 return [self._not_found(need, budget, reason="question_incoherent")]
         source = mcp_source_for_nature(self.source_type)
         try:
-            if self.source_type == "swedish_case_law":
-                candidates = await self._case_law_candidates(need, context, budget, source)
-            else:
-                candidates = await self._document_candidates(need, context, budget, source)
+            with ProviderPhase("fetch"):
+                if self.source_type == "swedish_case_law":
+                    candidates = await self._case_law_candidates(need, context, budget, source)
+                else:
+                    candidates = await self._document_candidates(need, context, budget, source)
         except OfficialLagenNuMcpError as exc:
             return [self._failure(need, budget, exc.category, None, str(exc))]
         ranked = _rank_candidates(need, _merge_candidates(candidates))
@@ -732,7 +752,8 @@ class LagenNuResearchSource:
                 )
             ]
         try:
-            selected = await self._select_candidates(need, context, ranked)
+            with ProviderPhase("parse"):
+                selected = await self._select_candidates(need, context, ranked)
         except LagenNuSelectionError as exc:
             return [self._failure(need, budget, "selection_failed", None, str(exc))]
         if not selected:
@@ -984,19 +1005,20 @@ class LagenNuResearchSource:
                         canonical_uri,
                     )
                     await _release_db_connection(session)
-                    document = await budget.call(
-                        "get_document",
-                        self._mcp().get_document(
-                            canonical_uri,
-                            pinpoint=None,
-                            max_chars=MAX_DOCUMENT_CHARS,
-                        ),
-                        {
-                            "uri": canonical_uri,
-                            "pinpoint": None,
-                            "max_chars": MAX_DOCUMENT_CHARS,
-                        },
-                    )
+                    with ProviderPhase("fetch"):
+                        document = await budget.call(
+                            "get_document",
+                            self._mcp().get_document(
+                                canonical_uri,
+                                pinpoint=None,
+                                max_chars=MAX_DOCUMENT_CHARS,
+                            ),
+                            {
+                                "uri": canonical_uri,
+                                "pinpoint": None,
+                                "max_chars": MAX_DOCUMENT_CHARS,
+                            },
+                        )
                     if document.source and document.source != source:
                         found.append(
                             self._failure(
@@ -1009,13 +1031,14 @@ class LagenNuResearchSource:
                             )
                         )
                         continue
-                    ingest_result, units = await ingest_and_load_text_units(
-                        session,
-                        customer_id=customer_id,
-                        document=document,
-                        embeddings=embeddings,
-                        vector_store=vector_store,
-                    )
+                    with ProviderPhase("ingest"):
+                        ingest_result, units = await ingest_and_load_text_units(
+                            session,
+                            customer_id=customer_id,
+                            document=document,
+                            embeddings=embeddings,
+                            vector_store=vector_store,
+                        )
                     if ingest_result.status != "indexed" or units is None:
                         raise LegalDomainExtractionError(
                             ingest_result.message or "retrieved document has no text",
@@ -1087,13 +1110,39 @@ class LagenNuResearchSource:
             raise LagenNuResearchKnowledgeError(
                 "lagen.nu research requires embeddings and stored TextUnit vectors"
             )
+        passages = freeze_passages(units)
+        if not passages:
+            raise LagenNuResearchKnowledgeError("lagen.nu research has no text units")
+        document_id = passages[0].document_id
+        version_id = passages[0].document_version_id
+        factory: async_sessionmaker[AsyncSession] | None = None
+        version_hash = ""
+        if self._session is not None:
+            version_hash = await _document_version_hash(self._session, version_id)
+            factory = _session_maker(self._session)
+            await _release_db_connection(self._session)
+            await self._session.close()
         try:
-            routed = await self._require_passage_router().route(
-                question=need.question,
-                units=units,
-                embeddings=self._embeddings,
-                stored=self._vector_store,
-            )
+            customer_id_for_route = context.scope.customer_id
+            with ProviderPhase("parse"):
+                if customer_id_for_route is None or factory is None:
+                    routed = await self._require_passage_router().route(
+                        question=need.question,
+                        units=passages,
+                        embeddings=self._embeddings,
+                        stored=self._vector_store,
+                    )
+                else:
+                    async with factory() as jev_session:
+                        with jev_evaluation_binding(
+                            jev_session, customer_scope_key(customer_id_for_route)
+                        ):
+                            routed = await self._require_passage_router().route(
+                                question=need.question,
+                                units=passages,
+                                embeddings=self._embeddings,
+                                stored=self._vector_store,
+                            )
         except PassageRoutingError as exc:
             if exc.category == "irrelevant_relation":
                 source_uri = compose_canonical_uri(canonical_uri, pinpoint)
@@ -1117,8 +1166,8 @@ class LagenNuResearchSource:
                         fetch_success=True,
                         canonical_uri=source_uri,
                         reused_text_units=reused_units,
-                        canonical_document_id=units[0].document_id,
-                        document_version_id=units[0].document_version_id,
+                        canonical_document_id=document_id,
+                        document_version_id=version_id,
                         passage_candidate_ids=list(exc.seed_ids),
                         detail=str(exc),
                     ),
@@ -1142,29 +1191,39 @@ class LagenNuResearchSource:
             "swedish_preparatory_works": "preparatory_work",
             "swedish_law": "statute",
         }[self.source_type]
-        cached = await self._cached_domain_result(
-            need=need, source_uri=source_uri, raw_text=raw_document
-        )
-        legal_result = (
-            cached[1]
-            if cached is not None
-            else await self._interpreter.interpret(
-                source=LegalSourceIdentity(
-                    kind=kind,
-                    title=title,
-                    canonical_uri=source_uri,
-                    identifier=hit.identifier,
-                    publisher_url=(document.publisher_source_url if document is not None else None),
-                ),
-                question=need.question,
-                raw_text=raw_document,
-                truncated=(
-                    (bool(document.truncated) if document is not None else False)
-                    or routed.interpreter_clipped
-                ),
-                context=context,
+        cached = None
+        if factory is not None:
+            async with factory() as read_session:
+                cached = await self._cached_domain_result(
+                    read_session,
+                    need=need,
+                    source_uri=source_uri,
+                    raw_text=raw_document,
+                )
+                await _release_db_connection(read_session)
+        with ProviderPhase("parse"):
+            legal_result = (
+                cached[1]
+                if cached is not None
+                else await self._interpreter.interpret(
+                    source=LegalSourceIdentity(
+                        kind=kind,
+                        title=title,
+                        canonical_uri=source_uri,
+                        identifier=hit.identifier,
+                        publisher_url=(
+                            document.publisher_source_url if document is not None else None
+                        ),
+                    ),
+                    question=need.question,
+                    raw_text=raw_document,
+                    truncated=(
+                        (bool(document.truncated) if document is not None else False)
+                        or routed.interpreter_clipped
+                    ),
+                    context=context,
+                )
             )
-        )
         if cached is None and reused_units:
             logger.info(
                 "domain_result_recomputed_from_text_units provider=%s source=%s",
@@ -1192,46 +1251,63 @@ class LagenNuResearchSource:
             )
         analysis = legal_result.case_law or legal_result.preparatory_work or legal_result.statute
         assert analysis is not None
-        excerpt = analysis.citations[0].quote[:MAX_EVIDENCE_CHARS]
+        excerpt = substantive_citation_quote(citation.quote for citation in analysis.citations)[
+            :MAX_EVIDENCE_CHARS
+        ]
         customer_id = context.scope.customer_id
-        if customer_id is None or self._session is None:
+        if customer_id is None or factory is None:
             raise LagenNuResearchKnowledgeError(
                 "lagen.nu research requires session and customer_id to persist claims"
             )
-        grounded_claims = ground_legal_claims(
-            legal_result,
-            routed.units,
-            customer_id=customer_id,
-            research_need_id=need.id,
-            result_id=cached[0]
-            if cached is not None
-            else f"{units[0].document_version_id}:{need.id}",
-        )
-        await persist_knowledge_claims(self._session, grounded_claims)
-        graph_entities, graph_edges = ground_legal_graph(
-            legal_result,
-            grounded_claims,
-            customer_id=customer_id,
-            document_id=units[0].document_id,
-        )
-        await persist_knowledge_entities(self._session, graph_entities)
-        await persist_knowledge_relationships(self._session, graph_edges)
-        await answer_research_need(
-            self._session,
-            research_need_id=need.id,
-            question_key=research_question_key(need.question),
-            claim_ids=[claim.id for claim in grounded_claims],
-            source_type=self.source_type,
-        )
-        # Shared entity keys are visible to every concurrent need. Commit
-        # before revalidation so those rows are not locked for the rest of
-        # this need.
-        await _release_db_connection(self._session)
-        await self._revalidate_persisted_graph(
-            customer_id=customer_id,
-            claim_ids=[claim.id for claim in grounded_claims],
-            relationship_ids=[edge.id for edge in graph_edges],
-        )
+        async with factory() as persist_session:
+            await _require_unchanged_passages(
+                persist_session,
+                document_version_id=version_id,
+                document_version_hash=version_hash,
+                passages=passages,
+            )
+            grounded_claims = ground_legal_claims(
+                legal_result,
+                routed.units,
+                customer_id=customer_id,
+                research_need_id=need.id,
+                result_id=cached[0] if cached is not None else f"{version_id}:{need.id}",
+            )
+            await persist_knowledge_claims(persist_session, grounded_claims)
+            graph_entities, graph_edges = ground_legal_graph(
+                legal_result,
+                grounded_claims,
+                customer_id=customer_id,
+                document_id=document_id,
+            )
+            with ProviderPhase("ingest"):
+                await persist_knowledge_entities(persist_session, graph_entities)
+                await persist_knowledge_relationships(persist_session, graph_edges)
+                await answer_research_need(
+                    persist_session,
+                    research_need_id=need.id,
+                    question_key=research_question_key(need.question),
+                    claim_ids=[claim.id for claim in grounded_claims],
+                    source_type=self.source_type,
+                )
+            # Shared entity keys are visible to every concurrent need. The work
+            # row commits with them. Retrieval does not wait for JEV.
+            with ProviderPhase("graph_revalidation_enqueue"):
+                work = await enqueue_graph_revalidation(
+                    persist_session,
+                    customer_id=customer_id,
+                    document_id=document_id,
+                    document_version_id=version_id,
+                    claim_ids=[claim.id for claim in grounded_claims],
+                    relationship_ids=[edge.id for edge in graph_edges],
+                )
+            work_id = work.id if work is not None else None
+            await persist_session.commit()
+            if work is not None and work_id is not None:
+                await persist_session.refresh(work)
+                log_graph_revalidation_queued(work)
+                if work.status != SUCCEEDED:
+                    schedule_graph_revalidation(work_id)
         return research_evidence(
             research_need_id=need.id,
             source_type=self.source_type,
@@ -1267,8 +1343,8 @@ class LagenNuResearchSource:
                 domain_extraction_success=True,
                 reused_domain_result_id=cached[0] if cached is not None else None,
                 reused_text_units=reused_units,
-                canonical_document_id=units[0].document_id,
-                document_version_id=units[0].document_version_id,
+                canonical_document_id=document_id,
+                document_version_id=version_id,
                 text_unit_ids=list(routed.expanded_ids),
                 passage_candidate_ids=list(routed.candidate_ids),
                 passage_kept_ids=list(routed.kept_ids),
