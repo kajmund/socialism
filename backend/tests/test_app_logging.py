@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import queue
 import sys
 import threading
 from json import loads
@@ -11,6 +12,7 @@ from pydantic import SecretStr
 
 from app.config import settings
 from app.logging import (
+    LocalQueueHandler,
     LogstashHTTPHandler,
     configure_logging,
     detach_file_logging,
@@ -229,6 +231,31 @@ def test_logstash_handler_includes_exception(monkeypatch):
 
     assert sent["payload"]["error"]["type"] == "RuntimeError"
     assert "RuntimeError: boom" in sent["payload"]["error"]["stack_trace"]
+
+
+def test_full_logstash_queue_drops_without_a_traceback(capsys):
+    handler = LocalQueueHandler(queue.Queue(maxsize=1))
+    logger = logging.getLogger("app.tests.full-queue")
+    logger.handlers = [handler]
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    logger.info("first")
+    logger.info("second")
+    logger.info("third")
+
+    err = capsys.readouterr().err
+    assert "Logging error" not in err
+    assert "Traceback" not in err
+    assert "dropped 1" in err
+    assert handler.queue.qsize() == 1
+
+
+def test_configure_logging_quiets_http_client_access_logs(monkeypatch):
+    monkeypatch.setattr("app.logging.settings.log_dir", "")
+    monkeypatch.setattr("app.logging.settings.logstash_url", "")
+    configure_logging()
+    assert logging.getLogger("httpx").level == logging.WARNING
+    assert logging.getLogger("httpcore").level == logging.WARNING
 
 
 def test_configure_logstash_is_queued_and_idempotent(monkeypatch):
