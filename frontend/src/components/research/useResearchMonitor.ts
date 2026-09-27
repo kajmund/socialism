@@ -54,6 +54,11 @@ export function useResearchMonitor(attemptId: string | null) {
     if (!attemptId) return
     const next = await getResearchOverview(attemptId)
     setOverview(next)
+    if (next.latest_sequence <= sequenceRef.current) return
+    const history = await getResearchProgressEvents(attemptId, sequenceRef.current)
+    setEvents((current) => mergeEvents(current, history.events))
+    const latest = history.events.at(-1)?.sequence
+    if (latest != null) sequenceRef.current = Math.max(sequenceRef.current, latest)
   }, [attemptId])
 
   useEffect(() => {

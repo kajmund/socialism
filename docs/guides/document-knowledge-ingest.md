@@ -67,16 +67,15 @@ Deployment order:
    the five non-filterable keys above. No transfer of old vectors is required
    for this rollout. Pause research/vector writes while switching indexes.
 3. Set `SUPABASE_VECTOR_INDEX` to the new index and start the updated application.
-   Before reusing previously ingested sources, explicitly arrange fresh ingestion:
-   persisted indexed document versions can otherwise skip ingestion even though
-   the new index is empty. This PR does not reset that SQL state automatically.
+   A reused SQL document version still writes its TextUnits when the current
+   index does not already contain them. A saved content hash does not leave the
+   new index empty.
 4. Ingest sources again, verify content roundtrips and customer-scoped searches,
    then rerun affected research through the normal application flow. Previously
    failed needs do not become successful merely because storage is repaired.
+   Sources that are never fetched again stay absent until something ingests them.
 
 The Alembic schema change is still required even when old vectors are discarded.
-Do not point an active workload at an empty index and assume all previously
-indexed sources will automatically be rebuilt.
 
 Regression coverage includes long Unicode passages and headings, preserving
 scope filters, rejecting other-customer hits, and preventing partial writes

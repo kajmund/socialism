@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import (
@@ -145,39 +146,55 @@ async def persist_knowledge_relationship(
 ) -> KnowledgeRelationshipRecord:
     row = await session.get(KnowledgeRelationshipRecord, edge.id)
     await _assert_endpoint_scopes(session, edge)
-    if row is None:
-        now = utc_now()
-        row = KnowledgeRelationshipRecord(
-            id=edge.id,
-            relation=edge.relation,
-            from_kind=edge.from_kind,
-            from_id=edge.from_id,
-            to_kind=edge.to_kind,
-            to_id=edge.to_id,
-            extra=edge.extra,
-            valid_from=now,
-            created_at=now,
-            **persist_scope_fields(edge.scope),
-        )
-        session.add(row)
-        await session.flush()
-        await record_graph_event(
-            session,
-            scope=edge.scope,
-            event_type=EDGE_ADDED,
-            node_kind="relationship",
-            node_id=edge.id,
-            related_id=edge.to_id,
-            payload={
-                "relation": edge.relation,
-                "from_kind": edge.from_kind,
-                "from_id": edge.from_id,
-                "to_kind": edge.to_kind,
-                "to_id": edge.to_id,
-            },
-            created_at=now,
-        )
-        return row
+    if row is not None:
+        return await _update_relationship(session, row, edge)
+    now = utc_now()
+    row = KnowledgeRelationshipRecord(
+        id=edge.id,
+        relation=edge.relation,
+        from_kind=edge.from_kind,
+        from_id=edge.from_id,
+        to_kind=edge.to_kind,
+        to_id=edge.to_id,
+        extra=edge.extra,
+        valid_from=now,
+        created_at=now,
+        **persist_scope_fields(edge.scope),
+    )
+    try:
+        async with session.begin_nested():
+            session.add(row)
+            await session.flush()
+    except IntegrityError:
+        # Another need inserted this shared edge and committed while we waited.
+        winner = await session.get(KnowledgeRelationshipRecord, edge.id)
+        if winner is None:
+            raise
+        return await _update_relationship(session, winner, edge)
+    await record_graph_event(
+        session,
+        scope=edge.scope,
+        event_type=EDGE_ADDED,
+        node_kind="relationship",
+        node_id=edge.id,
+        related_id=edge.to_id,
+        payload={
+            "relation": edge.relation,
+            "from_kind": edge.from_kind,
+            "from_id": edge.from_id,
+            "to_kind": edge.to_kind,
+            "to_id": edge.to_id,
+        },
+        created_at=now,
+    )
+    return row
+
+
+async def _update_relationship(
+    session: AsyncSession,
+    row: KnowledgeRelationshipRecord,
+    edge: KnowledgeRelationship,
+) -> KnowledgeRelationshipRecord:
     if scope_from_row(row) != edge.scope:
         raise KnowledgeRelationshipError(
             f"relationship {edge.id} already exists in a different knowledge scope"
