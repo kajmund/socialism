@@ -8,6 +8,7 @@ import json
 import logging
 import queue
 import sys
+import time
 import traceback
 from datetime import UTC, datetime
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
@@ -24,6 +25,7 @@ LOG_FILE_NAME = "app.log"
 _UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access")
 _logstash_listener: QueueListener | None = None
 _RESERVED_DOCUMENT_KEYS = frozenset({"@timestamp", "message", "log", "process"})
+_DROP_NOTE_INTERVAL_SECONDS = 5.0
 
 
 class StructuredLogFormatter(logging.Formatter):
@@ -62,10 +64,38 @@ def log_document_from_record(record: logging.LogRecord) -> dict[str, object]:
 
 
 class LocalQueueHandler(QueueHandler):
-    """Copy records for the in-process queue without discarding exception data."""
+    """Copy records for the in-process queue without discarding exception data.
+
+    A full queue drops the record. The default handler prints a traceback for
+    every drop, and a research fan-out fills the queue with HTTP client lines.
+    """
+
+    def __init__(self, records: queue.Queue[logging.LogRecord]) -> None:
+        super().__init__(records)
+        self._dropped = 0
+        self._last_drop_note = 0.0
 
     def prepare(self, record: logging.LogRecord) -> logging.LogRecord:
         return copy.copy(record)
+
+    def enqueue(self, record: logging.LogRecord) -> None:
+        try:
+            self.queue.put_nowait(record)
+        except queue.Full:
+            self._note_drop()
+
+    def _note_drop(self) -> None:
+        self._dropped += 1
+        now = time.monotonic()
+        if (
+            self._last_drop_note != 0.0
+            and now - self._last_drop_note < _DROP_NOTE_INTERVAL_SECONDS
+        ):
+            return
+        dropped = self._dropped
+        self._dropped = 0
+        self._last_drop_note = now
+        sys.stderr.write(f"Logstash queue full; dropped {dropped} log records\n")
 
 
 class LogstashHTTPHandler(logging.Handler):
@@ -127,6 +157,10 @@ def configure_logging() -> Path | None:
     path = log_file_path()
     root = logging.getLogger()
     root.setLevel(settings.log_level)
+    # httpx logs every outbound request at INFO. A research fan-out fills the
+    # Logstash queue faster than one drain thread can post the records.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     if path is not None and _file_handler() is None:
         path.parent.mkdir(parents=True, exist_ok=True)
