@@ -31,6 +31,7 @@ from app.services.execution import (
 from app.services.prompt_catalog import default_prompts, render_prompt
 from app.services.research.assessment import (
     AssessableEvidence,
+    ProgrammaticResearchAssessor,
     ResearchAssessmentDraft,
     ResearchAssessmentError,
     ResearchNeedAssessment,
@@ -797,6 +798,36 @@ def test_programmatic_empty_and_found_semantics():
     ok = programmatic_assessment(plan, [found])
     assert ok.result == "sufficient"
     assert evidence_fingerprint([found]) == evidence_fingerprint([found])
+
+
+@pytest.mark.asyncio
+async def test_programmatic_assessor_marks_timeout_need_insufficient():
+    plan = ResearchPlan(needs=[_need("research_1", "swedish_law")])
+    timeout = AssessableEvidence(
+        evidence_id="timeout-1",
+        research_need_id="research_1",
+        source_type="swedish_law",
+        status="error",
+        title=None,
+        excerpt="research need exceeded the execution deadline",
+        locator=None,
+        source_id=None,
+        source_url=None,
+        provider=None,
+        score=None,
+        provenance={
+            "error_type": "TimeoutError",
+            "reason": "need_deadline_exceeded",
+            "timeout_seconds": 0.05,
+        },
+        retrieved_at=datetime(2026, 4, 1, tzinfo=UTC),
+        content_hash="timeout",
+    )
+    draft = await ProgrammaticResearchAssessor().assess(plan, [timeout])
+    assert draft.result == "insufficient"
+    assert draft.need_assessments[0].research_need_id == "research_1"
+    assert draft.need_assessments[0].sufficient is False
+    assert can_assess_programmatically(plan, [timeout]) is True
 
 
 @pytest.mark.asyncio

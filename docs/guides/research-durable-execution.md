@@ -110,10 +110,16 @@ An `idle in transaction` session whose `query_start` keeps moving, with empty
 and elapsed time without logging source text.
 
 Each ResearchNeed runs under `research_need_timeout_seconds` (default 900).
-When that deadline is missed the need is marked failed, a `need_failed`
-progress event is committed, and the Attempt barrier runs. A failed need
-still fails the Attempt. One provider call that never returns cannot leave
-the Attempt in `researching`.
+When that deadline is missed the worker persists one `error` evidence item
+(`metadata.reason=need_deadline_exceeded`) and completes the need — the same
+path as a source-level provider exception: `evidence_error` then
+`need_completed`. The Attempt barrier still fails the Attempt only when a
+need execution is actually `failed` (orchestration or worker exceptions).
+A timeout cannot leave the Attempt in `researching`, and it does not
+fail-close the EvidenceSet. Assessment treats the need as insufficient
+(no found evidence) so follow-up or completeness can retry. If persist
+already committed before the deadline fires (for example during graph
+upsert), the timeout handler writes nothing.
 
 The research view loads the overview and progress events, then applies
 websocket frames as they are committed. Each overview refresh also reads
