@@ -56,6 +56,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 # Grunddata och jobb
 
+* [Använda Verktyg (administratör)](anvanda-verktyg.md) — Flikarna under Verktyg och var du går vidare
 * [Hantera konfigurationer](hantera-konfigurationer.md) — Prompts och grunddata per konfiguration
 * [Hantera kundmoduler](hantera-kundmoduler.md) — Slå på och av produktmoduler per kund
 * [Redigera kundens organisationsuppgifter](redigera-kundens-organisationsuppgifter.md) — Organisation, org.nr och adress per kund
