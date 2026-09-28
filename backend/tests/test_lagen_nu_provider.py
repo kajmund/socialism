@@ -1595,7 +1595,7 @@ def test_adapter_is_programmatic():
     for marker in ("complete_text", "complete_structured", "openai", "chat.completions"):
         assert marker not in source
     assert "resolve_citation" in source
-    assert "get_document" in source
+    assert "fetch_ranked_documents" in source
     assert "select_hits" in source
 
 
