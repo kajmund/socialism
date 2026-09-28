@@ -169,7 +169,7 @@ class JevEvidenceRelevanceAssessor:
         client: JevSystemOne | None = None,
     ) -> None:
         self._inner = inner
-        self._cache = cache or EvidenceScreenCache()
+        self._cache = EvidenceScreenCache() if cache is None else cache
         self._client = client
 
     async def judge(
@@ -204,7 +204,7 @@ def bind_attempt_relevance(
     cache: EvidenceScreenCache | None = None,
 ) -> tuple[EvidenceScreenCache, EvidenceRelevanceAssessor | None]:
     """Share one Attempt cache between screening and Jev relevance."""
-    screen_cache = cache or EvidenceScreenCache()
+    screen_cache = EvidenceScreenCache() if cache is None else cache
     bind = getattr(assessor, "bind_screen_cache", None)
     if callable(bind):
         bind(screen_cache)
