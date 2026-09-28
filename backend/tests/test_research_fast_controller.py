@@ -30,7 +30,11 @@ from app.services.research.assessment import (
     ResearchNeedAssessment,
 )
 from app.services.research.completeness import ResearchCompletenessDraft
-from app.services.research.evidence_screen import order_evidence_for_state, screen_evidence
+from app.services.research.evidence_screen import (
+    EvidenceScreenCache,
+    order_evidence_for_state,
+    screen_evidence,
+)
 from app.services.research.fast_controller import (
     ResearchFastController,
     classify_research_decision,
@@ -629,7 +633,7 @@ async def test_evidence_screen_reuses_only_identical_state_and_model(jev_setting
 
     settings.research_jev_evidence_screen_enabled = True
     client = ScriptedJev(_sufficient_nouls())
-    cache = {}
+    cache = EvidenceScreenCache()
     item = _evidence()
     async def score(objective, evidence):
         return await screen_evidence(objective=objective, evidence=[evidence],
@@ -639,6 +643,8 @@ async def test_evidence_screen_reuses_only_identical_state_and_model(jev_setting
     assert len(client.states) == 1
     await score("changed question", item)
     await score("question", replace(item, excerpt="changed evidence"))
+    assert len(client.states) == 2
+    await score("question", replace(item, content_hash="changed-hash"))
     monkeypatch.setattr(settings, "research_jev_model", "different-model")
     await score("question", item)
     assert len(client.states) == 4
