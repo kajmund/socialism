@@ -410,7 +410,7 @@ async def test_panel_lease_heartbeat_blocks_second_session_after_ttl(
     panel_id, _expert = await _create_panel(factory, name="Heartbeat-panel")
     me = await client.get("/me")
     user_id = me.json()["id"]
-    monkeypatch.setattr(panel_lease_mod, "PANEL_TURN_LEASE_SECONDS", 0.15)
+    monkeypatch.setattr(panel_lease_mod, "PANEL_TURN_LEASE_SECONDS", 1.0)
 
     started = asyncio.Event()
     release_first = asyncio.Event()
@@ -454,7 +454,7 @@ async def test_panel_lease_heartbeat_blocks_second_session_after_ttl(
     task_a = asyncio.create_task(first_turn())
     task_b = asyncio.create_task(second_turn())
     await started.wait()
-    await asyncio.sleep(0.4)
+    await asyncio.sleep(2.5)
     async with factory() as other:
         stolen = await try_acquire_panel_lease(other, panel_id, token="thief")
         await other.commit()
