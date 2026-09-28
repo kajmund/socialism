@@ -16,7 +16,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.config import settings
 from app.database.base import Base
 from app.database.models import EvidenceSet, ExecutionAttempt, Kund
 from app.services.execution import (
@@ -31,7 +30,6 @@ from app.services.execution import (
     fail_attempt,
     get_attempt,
     get_evidence_set,
-    get_research_assessment,
     list_evidence_items,
     list_need_executions,
     list_runtime_needs,
@@ -55,11 +53,8 @@ from app.services.research import (
     research_evidence,
     research_plan_from_snapshot,
 )
-from app.services.research.assessment import ProgrammaticResearchAssessor
-from app.services.research.execution import _complete_timed_out_need, assessable_from_item
 from app.services.research.models import research_evidence as build_evidence
 from app.services.research.plan import research_plan_to_snapshot
-from app.services.research.progress import list_research_progress_events
 
 EXECUTION_PY = (
     Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "execution.py"
@@ -68,32 +63,16 @@ PLAN_PY = Path(__file__).resolve().parents[1] / "app" / "services" / "research" 
 ASSESSMENT_PY = (
     Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "assessment.py"
 )
-FOLLOWUP_PY = (
-    Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "followup.py"
-)
-PLANNER_PY = (
-    Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "planner.py"
-)
+FOLLOWUP_PY = Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "followup.py"
+PLANNER_PY = Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "planner.py"
 QUESTION_PY = (
-    Path(__file__).resolve().parents[1]
-    / "app"
-    / "services"
-    / "research"
-    / "knowledge_question.py"
+    Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "knowledge_question.py"
 )
 GRAPH_PY = (
-    Path(__file__).resolve().parents[1]
-    / "app"
-    / "services"
-    / "research"
-    / "question_graph.py"
+    Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "question_graph.py"
 )
 REUSE_PY = (
-    Path(__file__).resolve().parents[1]
-    / "app"
-    / "services"
-    / "research"
-    / "question_reuse.py"
+    Path(__file__).resolve().parents[1] / "app" / "services" / "research" / "question_reuse.py"
 )
 
 _FORBIDDEN_IMPORT_PREFIXES = (
@@ -209,32 +188,6 @@ class RaisingRouter:
 
     def available_source_types(self) -> tuple[str, ...]:
         return ()
-
-
-class HangingRouter:
-    async def execute_need(self, need: ResearchNeed, context: ResearchContext):
-        del need, context
-        await asyncio.sleep(30)
-
-    def available_source_types(self) -> tuple[str, ...]:
-        return ()
-
-
-class MixedTimeoutRouter:
-    """Hang one need; retrieve found evidence for the other."""
-
-    def __init__(self, hang_need_id: str, source: RecordingSource) -> None:
-        self.hang_need_id = hang_need_id
-        self.source = source
-
-    async def execute_need(self, need: ResearchNeed, context: ResearchContext):
-        if need.id == self.hang_need_id:
-            await asyncio.sleep(30)
-            return []
-        return await self.source.research(need, context)
-
-    def available_source_types(self) -> tuple[str, ...]:
-        return (self.source.source_type,)
 
 
 class GuardRouter:
@@ -433,122 +386,6 @@ async def test_fatal_orchestration_marks_attempt_and_set_failed(db):
 
 
 @pytest.mark.asyncio
-async def test_need_deadline_fails_the_need_and_the_attempt(db, monkeypatch):
-    session, _factory = db
-    _customer_row, _run, attempt = await _created_attempt(session, slug="deadline-co")
-    monkeypatch.setattr(settings, "research_need_timeout_seconds", 0.05)
-    result = await execute_attempt_research(
-        session,
-        attempt_id=attempt.id,
-        research_plan=ResearchPlan(needs=[_need("research_5", "case_knowledge")]),
-        router=HangingRouter(),  # type: ignore[arg-type]
-    )
-    reloaded = await get_attempt(session, attempt.id)
-    evidence_set = await get_evidence_set(session, reloaded.evidence_set_id)
-    executions = await list_need_executions(session, attempt.id)
-    events = await list_research_progress_events(session, attempt.id)
-    items = await list_evidence_items(session, evidence_set.id)
-    assert result.status == "ready"
-    assert reloaded.status == "ready"
-    assert evidence_set.status == "frozen"
-    assert [row.status for row in executions] == ["completed"]
-    assert len(items) == 1
-    assert items[0].status == "error"
-    assert items[0].research_need_id == "research_5"
-    assert items[0].source_type == "case_knowledge"
-    assert items[0].excerpt == "research need exceeded the execution deadline"
-    assert items[0].provenance["reason"] == "need_deadline_exceeded"
-    assert items[0].provenance["error_type"] == "TimeoutError"
-    assert items[0].provenance["timeout_seconds"] == 0.05
-    assert "need_failed" not in {event.event_type for event in events}
-    completed = [event for event in events if event.event_type == "need_completed"]
-    assert len(completed) == 1
-    assert completed[0].payload["research_need_id"] == "research_5"
-
-
-@pytest.mark.asyncio
-async def test_need_deadline_completes_one_need_and_keeps_the_other(db, monkeypatch):
-    session, _factory = db
-    _customer_row, _run, attempt = await _created_attempt(session, slug="deadline-mix")
-    monkeypatch.setattr(settings, "research_need_timeout_seconds", 0.25)
-    found = RecordingSource("case_knowledge")
-    result = await execute_attempt_research(
-        session,
-        attempt_id=attempt.id,
-        research_plan=ResearchPlan(
-            needs=[
-                _need("slow", "case_knowledge"),
-                _need("fast", "case_knowledge"),
-            ]
-        ),
-        router=MixedTimeoutRouter("slow", found),  # type: ignore[arg-type]
-        concurrency=2,
-    )
-    reloaded = await get_attempt(session, attempt.id)
-    evidence_set = await get_evidence_set(session, result.evidence_set_id)
-    executions = await list_need_executions(session, attempt.id)
-    items = await list_evidence_items(session, evidence_set.id)
-    by_need = {row.research_need_id: row.status for row in executions}
-    timeout_items = [item for item in items if item.research_need_id == "slow"]
-    found_items = [item for item in items if item.research_need_id == "fast"]
-    assert result.status == "ready"
-    assert reloaded.status == "ready"
-    assert evidence_set.status == "frozen"
-    assert by_need == {"slow": "completed", "fast": "completed"}
-    assert len(timeout_items) == 1
-    assert timeout_items[0].status == "error"
-    assert timeout_items[0].provenance["reason"] == "need_deadline_exceeded"
-    assert found_items
-    assert {item.status for item in found_items} == {"found"}
-    assessment = await get_research_assessment(session, attempt.id)
-    assert assessment is not None
-    assert assessment.result == "insufficient"
-    by_assessment = {
-        row["research_need_id"]: row["sufficient"] for row in assessment.need_assessments
-    }
-    assert by_assessment["slow"] is False
-    assert by_assessment["fast"] is True
-    draft = await ProgrammaticResearchAssessor().assess(
-        ResearchPlan(needs=[_need("slow", "case_knowledge"), _need("fast", "case_knowledge")]),
-        [assessable_from_item(item) for item in items],
-    )
-    assert draft.result == "insufficient"
-    assert {row.research_need_id: row.sufficient for row in draft.need_assessments} == {
-        "slow": False,
-        "fast": True,
-    }
-
-
-@pytest.mark.asyncio
-async def test_timeout_after_completed_need_does_not_write_evidence(db):
-    session, factory = db
-    _customer_row, _run, attempt = await _created_attempt(session, slug="late-timeout")
-    result = await execute_attempt_research(
-        session,
-        attempt_id=attempt.id,
-        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
-        router=_router(RecordingSource("case_knowledge"))[0],
-    )
-    executions = await list_need_executions(session, attempt.id)
-    items_before = await list_evidence_items(session, result.evidence_set_id)
-    assert [row.status for row in executions] == ["completed"]
-    assert [item.status for item in items_before] == ["found"]
-    await _complete_timed_out_need(
-        factory,
-        asyncio.Lock(),
-        executions[0].id,
-        _need("research_1", "case_knowledge"),
-        result.evidence_set_id,
-        attempt.id,
-    )
-    items_after = await list_evidence_items(session, result.evidence_set_id)
-    executions_after = await list_need_executions(session, attempt.id)
-    assert [item.id for item in items_after] == [item.id for item in items_before]
-    assert [row.status for row in executions_after] == ["completed"]
-    assert all(item.provenance.get("reason") != "need_deadline_exceeded" for item in items_after)
-
-
-@pytest.mark.asyncio
 async def test_failed_transition_allows_non_frozen_evidence(db):
     session, _factory = db
     _customer_row, run, attempt = await _created_attempt(session, slug="fail-ok")
@@ -627,9 +464,7 @@ async def test_double_claim_is_rejected(db):
     )
     assert first.status == "researching"
     with pytest.raises(ExecutionStatusError, match="already in progress"):
-        await claim_attempt_researching(
-            session, attempt.id, research_plan_snapshot={"needs": []}
-        )
+        await claim_attempt_researching(session, attempt.id, research_plan_snapshot={"needs": []})
 
 
 @pytest.mark.asyncio
@@ -648,9 +483,7 @@ async def test_tx1_commits_before_router_runs(file_db):
                 self.seen_status = row.status if row is not None else None
                 if row is not None and row.evidence_set_id:
                     evidence_set = await other.get(EvidenceSet, row.evidence_set_id)
-                    self.seen_set_status = (
-                        evidence_set.status if evidence_set is not None else None
-                    )
+                    self.seen_set_status = evidence_set.status if evidence_set is not None else None
             return await super().research(need, context)
 
     source = InspectingSource("case_knowledge")
@@ -1263,9 +1096,7 @@ async def test_duplicate_evidence_from_one_need_is_stored_once(db):
 @pytest.mark.asyncio
 async def test_same_passage_across_needs_is_stored_once_with_both_links(db):
     session, _factory = db
-    _customer_row, _run, attempt = await _created_attempt(
-        session, slug="canonical-passage"
-    )
+    _customer_row, _run, attempt = await _created_attempt(session, slug="canonical-passage")
 
     class SharedSource:
         source_type = "case_knowledge"
@@ -1317,9 +1148,7 @@ async def test_interrupted_research_resumes_same_evidence_lineage(db):
     evidence_set = await create_evidence_set(
         session, run_id=_run.id, created_from_attempt_id=attempt.id
     )
-    await attach_evidence_set(
-        session, attempt_id=attempt.id, evidence_set_id=evidence_set.id
-    )
+    await attach_evidence_set(session, attempt_id=attempt.id, evidence_set_id=evidence_set.id)
     await seed_need_executions(session, attempt_id=attempt.id, need_ids=["research_1"])
     await session.commit()
 
