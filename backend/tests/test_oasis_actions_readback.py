@@ -8,7 +8,7 @@ from app.services.oasis_profiles import build_user_char, population_action_rules
 from app.services.prompt_catalog import default_prompts
 
 _PROMPTS = default_prompts("sv")
-from app.services.oasis_run import (
+from app.services.oasis_run import (  # noqa: E402
     _created_at_to_sort_key,
     _max_event_time,
     _read_oasis_results,

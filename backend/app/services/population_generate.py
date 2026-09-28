@@ -33,12 +33,9 @@ from app.services.persona_catalog import (
     sample_first_name,
 )
 from app.services.population_fingerprint import (
-    compare_target_vs_achieved,
     compare_target_vs_candidates,
     fingerprint_from_candidates,
     fingerprint_from_dist,
-    infer_slots_from_profile,
-    slots_from_persona,
 )
 from app.services.population_generation_store import (
     StoredGeneration,
@@ -398,7 +395,7 @@ def sample_politik_person_identity(rng: Random | None = None) -> GeneratedPerson
     return stub_persona(recipe, rng)
 
 
-def library_candidate(
+def library_candidate(  # noqa: PLR0917
     persona_id: str,
     name: str,
     age: int,
@@ -692,7 +689,7 @@ async def run_expert_panel_generate(
     )
 
 
-async def run_generate(
+async def run_generate(  # noqa: C901, PLR0912, PLR0915
     body: PopulationGenerateRequest,
     library_personas: dict[str, tuple[str, int, str, str, str]],
     *,

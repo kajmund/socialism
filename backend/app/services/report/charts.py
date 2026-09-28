@@ -27,7 +27,6 @@ from app.services.report.segment_analysis import (
     SegmentArmSummary,
     build_audience_comparisons,
     build_audience_summaries,
-    interview_quote_label,
     interview_respondent_label,
     interview_section_caption,
     theme_display_label,
@@ -1323,7 +1322,7 @@ def render_audience_section(
     return f'<p class="chart-sub">{intro}</p><div class="audience-section">{body}</div>'
 
 
-def prefill_quick_chart_slots(
+def prefill_quick_chart_slots(  # noqa: PLR0913
     metrics: ReportMetrics,
     bundles: list[RunBundle],
     classifications: list[BundleClassification] | None = None,

@@ -367,7 +367,7 @@ async def _candidates_then_providers(
     return merge_reused_with_provider(reused, provider)
 
 
-async def _execute_one_need(
+async def _execute_one_need(  # noqa: PLR0913
     *,
     factory: async_sessionmaker[AsyncSession],
     persist_lock: asyncio.Lock,
@@ -461,7 +461,7 @@ async def _execute_one_need(
         )
 
 
-async def _run_need_executions(
+async def _run_need_executions(  # noqa: PLR0913
     *,
     factory: async_sessionmaker[AsyncSession],
     pending: list[tuple[str, str]],
@@ -781,7 +781,7 @@ def _quality_by_item(
     return {draft.evidence_set_item_id: draft for draft in drafts}
 
 
-async def _assess_persisted_evidence(
+async def _assess_persisted_evidence(  # noqa: PLR0913
     session: AsyncSession,
     *,
     attempt: ExecutionAttempt,
@@ -921,7 +921,7 @@ async def _freeze_ready_attempt(
     await session.commit()
 
 
-async def _plan_and_persist_follow_ups(
+async def _plan_and_persist_follow_ups(  # noqa: PLR0913
     session: AsyncSession,
     *,
     attempt: ExecutionAttempt,
@@ -1006,7 +1006,7 @@ async def _plan_and_persist_follow_ups(
     return accepted
 
 
-async def _review_and_persist_completeness(
+async def _review_and_persist_completeness(  # noqa: PLR0913
     session: AsyncSession,
     *,
     attempt: ExecutionAttempt,
@@ -1081,7 +1081,7 @@ async def _review_and_persist_completeness(
     return completeness
 
 
-async def _plan_and_persist_global_needs(
+async def _plan_and_persist_global_needs(  # noqa: PLR0913
     session: AsyncSession,
     *,
     attempt: ExecutionAttempt,
@@ -1157,7 +1157,7 @@ async def _plan_and_persist_global_needs(
     return accepted
 
 
-async def _run_research_loop(
+async def _run_research_loop(  # noqa: C901, PLR0911, PLR0912, PLR0913, PLR0915
     *,
     factory: async_sessionmaker[AsyncSession],
     attempt_id: str,
@@ -1180,7 +1180,7 @@ async def _run_research_loop(
     need_normalizer: ResearchNeedNormalizer | None = None,
 ) -> None:
     wave = INITIAL_RESEARCH_WAVE if start_wave is None else start_wave
-    while True:
+    while True:  # noqa: PLR1702
         bind_log_context(wave_number=wave)
         async with factory() as wave_session:
             pending = await _pending_need_pairs(wave_session, attempt_id)
@@ -1447,7 +1447,7 @@ def _executable_source_types(
     return filter_source_types_for_scope(types, case_id=case_id, descriptors=descriptors)
 
 
-async def _resolve_initial_plan(
+async def _resolve_initial_plan(  # noqa: PLR0913
     session: AsyncSession,
     *,
     attempt: ExecutionAttempt,
@@ -1617,7 +1617,7 @@ async def _persist_start_snapshots(
     await session.refresh(attempt)
 
 
-async def execute_attempt_research(
+async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
     session: AsyncSession,
     *,
     attempt_id: str,

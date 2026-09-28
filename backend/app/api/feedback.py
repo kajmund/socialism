@@ -27,7 +27,7 @@ router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
 @router.get("", response_model=list[FeedbackItemOut])
-async def list_feedback(
+async def list_feedback(  # noqa: PLR0917
     status: FeedbackStatus | None = Query(default=None),
     kind: FeedbackKind | None = Query(default=None),
     include_archived: bool = Query(default=False),

@@ -26,11 +26,11 @@ from app.services.prompt_catalog import default_prompts
 
 
 @pytest.fixture
-def mock_panel_llm():
+def mock_panel_llm():  # noqa: C901
     counters = {"n": 0}
     seen_tools: list[list[str]] = []
 
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: PLR0911
         counters["n"] += 1
         user = messages[-1]["content"]
         if "JA eller NEJ" in user or "YES or NO" in user:
@@ -282,7 +282,7 @@ def _install_generic_panel_llm(wants_turn):
     """wants_turn(label, raise_index) -> bool. raise_index is 0-based per expert."""
     raise_counts: dict[str, int] = {}
 
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: PLR0911
         user = messages[-1]["content"]
         label = _expert_label_from_messages(messages)
         if "JA eller NEJ" in user or "YES or NO" in user:

@@ -13,7 +13,7 @@ from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.models import ResearchEvidence, research_evidence
 
 
-def derive_parent_answers(
+def derive_parent_answers(  # noqa: C901, PLR0912
     needs: Sequence[RuntimeResearchNeed],
     assessment: ResearchAssessmentDraft,
     evidence: Sequence[AssessableEvidence],

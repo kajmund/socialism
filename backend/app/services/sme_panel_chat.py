@@ -63,7 +63,7 @@ def _message_out(row: SmePanelMessage, persona_name: str | None) -> SmeMessageOu
     )
 
 
-async def run_panel_message(
+async def run_panel_message(  # noqa: PLR0915
     session_factory: async_sessionmaker[AsyncSession],
     *,
     panel_id: int,
@@ -111,7 +111,7 @@ async def run_panel_message(
 
         from app.services.actor_profiles import ActorProfileTools
 
-        async def panel_reply(expert, history, profile, prompts, area_block, memory_context):
+        async def panel_reply(expert, history, profile, prompts, area_block, memory_context):  # noqa: PLR0917
             async with session_factory() as actor_session:
                 return await reply_as_persona(
                     profile,

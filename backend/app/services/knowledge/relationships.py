@@ -92,7 +92,7 @@ def knowledge_relationship_id(
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def knowledge_relationship(
+def knowledge_relationship(  # noqa: PLR0913
     *,
     relation: str,
     from_kind: NodeKind,

@@ -101,7 +101,7 @@ def _bolag_token() -> str:
 
 
 @pytest.fixture
-def ws_client():
+def ws_client():  # noqa: PLR0915
     settings.persona_generator = "stub"
     settings.deepseek_api_key = "test-key-not-real"
     settings.local_auth_jwt_secret = TEST_JWT_SECRET

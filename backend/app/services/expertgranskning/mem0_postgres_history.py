@@ -16,7 +16,7 @@ class PostgresHistoryManager:
         self._connection = psycopg.connect(connection_string)
         self._lock = threading.Lock()
 
-    def add_history(
+    def add_history(  # noqa: PLR0913
         self,
         memory_id: str,
         old_memory: str | None,

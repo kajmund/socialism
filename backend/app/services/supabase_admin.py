@@ -35,7 +35,7 @@ async def invite_user_by_email(email: str) -> dict:
         try:
             body = response.json()
             detail = str(body.get("msg") or body.get("error_description") or body.get("message") or detail)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
         raise SupabaseInviteError(detail, status_code=response.status_code)
     data = response.json()

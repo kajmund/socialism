@@ -158,7 +158,7 @@ def _context(*, customer_id: int = 7, case_id: str | None = "case-1", module: st
     )
 
 
-def _hit(
+def _hit(  # noqa: PLR0913
     *,
     document_id: str = "doc-brief",
     excerpt: str = "kommunens skattesats är 32%",

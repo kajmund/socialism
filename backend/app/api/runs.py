@@ -127,7 +127,7 @@ def _oasis_options_payload(options) -> dict:
     return OasisRunOptions.model_validate(options).model_dump()
 
 
-async def _snapshot_message_bodies(session: AsyncSession, run: Run) -> None:
+async def _snapshot_message_bodies(session: AsyncSession, run: Run) -> None:  # noqa: C901
     """Freeze library Message body + image caption into Injection.text before start."""
 
     def collect_ids(ticks: list[Any]) -> set[str]:
@@ -187,7 +187,7 @@ async def _snapshot_message_bodies(session: AsyncSession, run: Run) -> None:
 
 
 @router.get("", response_model=list[RunSummary])
-async def list_runs(
+async def list_runs(  # noqa: PLR0917
     q: str | None = Query(default=None),
     status: str | None = Query(default=None),
     project_id: int | None = Query(default=None),
@@ -525,7 +525,7 @@ def _validate_interview_variant(
     "/{run_id}/attempts/{attempt_id}/variants/{variant_id}/personas/{persona_id}/interview",
     response_model=list[PersonaMessageOut],
 )
-async def list_run_persona_interview(
+async def list_run_persona_interview(  # noqa: PLR0917
     run_id: int,
     attempt_id: str,
     variant_id: str,
@@ -564,7 +564,7 @@ async def list_run_persona_interview(
     "/{run_id}/attempts/{attempt_id}/variants/{variant_id}/personas/{persona_id}/interview",
     response_model=PersonaChatResponse,
 )
-async def run_persona_interview(
+async def run_persona_interview(  # noqa: PLR0917
     run_id: int,
     attempt_id: str,
     variant_id: str,
@@ -686,7 +686,7 @@ async def run_persona_interview(
     "/{run_id}/attempts/{attempt_id}/variants/{variant_id}/personas/{persona_id}/interview",
     status_code=204,
 )
-async def clear_run_persona_interview(
+async def clear_run_persona_interview(  # noqa: PLR0917
     run_id: int,
     attempt_id: str,
     variant_id: str,
@@ -714,7 +714,7 @@ async def clear_run_persona_interview(
 
 
 @router.get("/{run_id}/taggable-texts", response_model=RunTaggableTextsOut)
-async def get_run_taggable_texts(
+async def get_run_taggable_texts(  # noqa: PLR0917
     run_id: int,
     attempt_id: str = Query(min_length=1),
     variant_id: str = Query(min_length=1),
@@ -843,7 +843,7 @@ async def add_run_anchor_pool_items(
 
 
 @router.get("/{run_id}/logs", response_model=RunLogTailOut)
-async def get_run_log_tail(
+async def get_run_log_tail(  # noqa: PLR0917
     run_id: int,
     attempt: str = Query(min_length=1, max_length=64),
     variant: str = Query(min_length=1, max_length=64),
@@ -881,7 +881,7 @@ async def get_run_log_tail(
 
 
 @router.post("/{run_id}/demo-live-feed", status_code=202)
-async def demo_live_feed(
+async def demo_live_feed(  # noqa: PLR0917
     run_id: int,
     background_tasks: BackgroundTasks,
     variant_id: str = Query(default="a", min_length=1),

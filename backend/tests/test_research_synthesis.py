@@ -89,7 +89,7 @@ def test_unanswered_or_cross_need_or_derived_evidence_cannot_be_used():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("quality_fails", [False, True])
-async def test_synthesis_persists_then_reassesses_parent_in_research_engine(quality_fails):
+async def test_synthesis_persists_then_reassesses_parent_in_research_engine(quality_fails):  # noqa: PLR0915
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
     from sqlalchemy.pool import StaticPool
 

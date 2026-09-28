@@ -138,7 +138,7 @@ async def test_manual_document_knowledge_is_versioned_and_semantically_indexed(
         jobs_service.set_schedule_hook(None)
 
 
-async def test_document_ingest_generates_anchored_items_and_case_knowledge(
+async def test_document_ingest_generates_anchored_items_and_case_knowledge(  # noqa: PLR0915
     user_client,
     client_db,
     monkeypatch,

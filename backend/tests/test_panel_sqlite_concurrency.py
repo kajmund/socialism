@@ -81,7 +81,7 @@ async def test_sqlite_file_uses_wal_and_busy_timeout(file_sessions):
 
 
 @pytest.mark.asyncio
-async def test_panel_llm_pause_allows_auth_read_and_independent_write(file_sessions):
+async def test_panel_llm_pause_allows_auth_read_and_independent_write(file_sessions):  # noqa: C901, PLR0915
     opened = asyncio.Event()
     release = asyncio.Event()
     settings.local_auth_jwt_secret = "test-supabase-jwt-secret-not-real"

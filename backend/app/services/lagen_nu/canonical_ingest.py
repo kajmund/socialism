@@ -49,7 +49,7 @@ def lagen_nu_source_identity(document: LagenNuDocument) -> str:
     return uri
 
 
-async def ingest_lagen_nu_document(
+async def ingest_lagen_nu_document(  # noqa: PLR0913
     session: AsyncSession,
     *,
     document: LagenNuDocument,

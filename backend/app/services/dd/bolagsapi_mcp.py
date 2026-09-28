@@ -109,7 +109,7 @@ def _lookup_fields(text: str, *, today: date | None = None) -> dict[str, Any]:
     }
 
 
-def _merge_candidate(
+def _merge_candidate(  # noqa: PLR0913
     existing: DdCandidateCompany | None,
     *,
     orgnr: str,

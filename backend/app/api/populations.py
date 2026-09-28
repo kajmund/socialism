@@ -328,7 +328,7 @@ async def create_population(
 
 
 @router.put("/{population_id}", response_model=PopulationDetail)
-async def update_population(
+async def update_population(  # noqa: C901, PLR0912
     population_id: int,
     body: PopulationUpdate,
     session: AsyncSession = Depends(get_session),

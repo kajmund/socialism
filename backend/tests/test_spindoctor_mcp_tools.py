@@ -43,7 +43,7 @@ def _variant_payload(persona_id: str) -> dict:
     }
 
 
-from app.services.kund_store import ensure_default_kunder
+from app.services.kund_store import ensure_default_kunder  # noqa: E402
 
 
 async def _seed_interview_report(session: AsyncSession) -> tuple[str, str]:

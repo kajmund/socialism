@@ -125,7 +125,7 @@ window.addEventListener("message", function(ev) {{
     return inject_report_theme(html)
 
 
-def write_expertgranskning_artifacts(
+def write_expertgranskning_artifacts(  # noqa: PLR0913
     *,
     out_dir: Path,
     title: str,

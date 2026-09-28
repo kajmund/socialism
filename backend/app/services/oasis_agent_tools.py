@@ -66,7 +66,7 @@ def population_agent_max_iteration(options: OasisRunOptions) -> int:
     return 1
 
 
-def search_wiki(entity: str) -> str:
+def search_wiki(entity: str) -> str:  # noqa: PLR0911
     """Search Swedish Wikipedia for a named entity and return a short summary.
 
     Args:
@@ -119,7 +119,7 @@ def search_wiki(entity: str) -> str:
             return f"Wikipedia-sökning misslyckades: {e}"
     except WikipediaException as e:
         return f"Wikipedia-sökning misslyckades: {e}"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         # Empty/403 API bodies surface as JSONDecodeError from the wikipedia lib.
         return f"Wikipedia-sökning misslyckades: {e}"
 
@@ -149,7 +149,7 @@ def search_duckduckgo(
         raw = list(
             DDGS().text(q, max_results=max_results, region="se-sv")
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return [{"error": f"duckduckgo search failed: {e}"}]
 
     responses: list[dict[str, Any]] = []

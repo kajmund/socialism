@@ -91,7 +91,7 @@ async def _customer(session: AsyncSession, slug: str) -> Kund:
     return kund
 
 
-async def _index_document(
+async def _index_document(  # noqa: PLR0913
     session: AsyncSession,
     *,
     customer_id: int,
@@ -129,7 +129,7 @@ def _scope(
     return KnowledgeScope(customer_id=customer_id, case_id=case_id, module=module)
 
 
-def _chunk(
+def _chunk(  # noqa: PLR0913
     *,
     document_id: str,
     text: str,

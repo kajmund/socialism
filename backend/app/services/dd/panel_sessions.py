@@ -11,7 +11,6 @@ from app.services.panel.expert_slots import load_expert_slots_from_population
 from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier
 from app.services.panel.structured_scoring import _candidate_brief
 from app.services.panel.schemas import DdPanelSessionCreateRequest, PanelSessionConfig, PanelSessionCreate
-from app.services.panel.sessions import create_panel_session
 
 
 async def create_dd_panel_session_from_campaign(

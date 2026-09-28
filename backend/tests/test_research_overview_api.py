@@ -250,7 +250,7 @@ async def test_research_overview_aggregates_question_graph_and_sources(client_db
     assert waiting_out["blocking_dependency_ids"] == []
 
 
-async def test_overview_keeps_shared_raw_source_domain_results_with_their_needs(client_db):
+async def test_overview_keeps_shared_raw_source_domain_results_with_their_needs(client_db):  # noqa: PLR0915
     from app.database.models import RawSource
     from app.services.legal_research_result import (
         CaseLawAnalysis,

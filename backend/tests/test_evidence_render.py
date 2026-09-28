@@ -15,7 +15,7 @@ from app.services.legal_research_result import (
 )
 
 
-def _item(
+def _item(  # noqa: PLR0913
     *,
     item_id: str,
     ordinal: int,

@@ -25,7 +25,7 @@ from app.services.ssr import ANCHOR_SET_VERSION
 logger = logging.getLogger(__name__)
 
 
-def _ssr_payload(
+def _ssr_payload(  # noqa: PLR0913
     *,
     classifications: list[BundleClassification],
     bundles: list[RunBundle],
@@ -97,7 +97,7 @@ def _ssr_payload(
     }
 
 
-async def generate_report_html(
+async def generate_report_html(  # noqa: PLR0913
     bundles: list[RunBundle],
     *,
     out_dir: Path,

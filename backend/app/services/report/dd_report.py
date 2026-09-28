@@ -614,7 +614,7 @@ def _sources_appendix(scores: list[DdExpertScore], *, locale: ReportLocale) -> s
         if not labels:
             continue
         badge = _source_badge_html(SourceBadge(kind=kind, label=labels[0], detail=""))
-        label_list = ", ".join(escape(l) for l in labels)
+        label_list = ", ".join(escape(l) for l in labels)  # noqa: E741
         items.append(f"<li>{badge} {label_list}</li>")
     return f"""
 <section class="section appendix" id="kallbilaga">

@@ -59,7 +59,7 @@ def _assert_single_linear_head(script: ScriptDirectory, *, through: str) -> None
         current = down
 
 
-def test_researchplan_migrations_are_linear_after_word_head():
+def test_researchplan_migrations_are_linear_after_word_head():  # noqa: PLR0915
     script = ScriptDirectory.from_config(Config(str(_BACKEND_ROOT / "alembic.ini")))
     _assert_single_linear_head(script, through="115_canonical_text_units")
     assert script.get_revision("115_canonical_text_units").down_revision == "114_legal_question_validation"
@@ -162,7 +162,7 @@ def _draft(
     )
 
 
-def _install_research_llm(
+def _install_research_llm(  # noqa: C901
     *,
     expert_needs: dict[str, ExpertResearchNeeds] | ExpertResearchNeeds,
     plan: ModeratorResearchPlan | None = None,
@@ -186,7 +186,7 @@ def _install_research_llm(
     async def _tools(messages, tools=None):
         return SimpleNamespace(content=await _complete(messages), tool_calls=None)
 
-    async def _structured(messages, response_model):
+    async def _structured(messages, response_model):  # noqa: PLR0911
         if captured is not None:
             captured.append((response_model, [dict(item) for item in messages]))
         if response_model is ExpertResearchNeeds:

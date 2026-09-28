@@ -277,7 +277,7 @@ async def test_create_run_and_attempt_are_created(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_research_then_evidence_is_frozen_and_ordered(
+async def test_research_then_evidence_is_frozen_and_ordered(  # noqa: PLR0915
     client: AsyncClient, research_sources
 ):
     found, missing, _router = research_sources

@@ -134,7 +134,7 @@ def _document(
 
 
 class FakeLagenNuClient:
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         search: SearchResults | None = None,
@@ -297,7 +297,7 @@ async def lagen_nu_text_unit_knowledge():
     await engine.dispose()
 
 
-def _source(
+def _source(  # noqa: PLR0913, PLR0917
     client: FakeLagenNuClient,
     source_type: str = "swedish_law",
     selector: LagenNuPassageSelector | None = None,

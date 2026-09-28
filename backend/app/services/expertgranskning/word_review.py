@@ -369,7 +369,7 @@ def heading_in_scope(
     return section.heading_paragraph_index in target
 
 
-async def _llm[T](
+async def _llm[T](  # noqa: PLR0913, PLR0917
     limiter: WordReviewLimiter,
     category: str,
     messages: list[dict[str, str]],
@@ -476,7 +476,7 @@ def _append_unique_assignment(
     assignments.append((slot, question))
 
 
-def accepted_review_questions(
+def accepted_review_questions(  # noqa: C901
     parsed: WordBatchModeration,
     batch: list[WordDocumentParagraph],
     *,
@@ -568,7 +568,7 @@ def _expert_identity(prompts: dict[str, str], slot: PanelExpertSlot) -> str:
     )
 
 
-async def _write_result(
+async def _write_result(  # noqa: PLR0913
     session: AsyncSession,
     *,
     job_id: str,
@@ -687,7 +687,7 @@ async def _review_heading(
     )
 
 
-async def _moderate_batch(
+async def _moderate_batch(  # noqa: PLR0913
     *,
     prompts: dict[str, str],
     slots: list[PanelExpertSlot],
@@ -839,7 +839,7 @@ def resolve_comment_anchor(
     return None
 
 
-async def _comment_question(
+async def _comment_question(  # noqa: PLR0913
     *,
     prompts: dict[str, str],
     slot: PanelExpertSlot,
@@ -998,7 +998,7 @@ async def _consolidate_observations(
     return written, collapsed
 
 
-async def _consolidate_comments(
+async def _consolidate_comments(  # noqa: PLR0913
     *,
     prompts: dict[str, str],
     section: WordDocumentSection,
@@ -1056,7 +1056,7 @@ async def _rewrite_convergence(
     return rewrite_suggestion_or_none(parsed)
 
 
-async def _analyze_batch(
+async def _analyze_batch(  # noqa: C901, PLR0913
     *,
     batch_index: int,
     batch: list[WordDocumentParagraph],
@@ -1239,7 +1239,7 @@ def _observations_from_batch(analysis: WordBatchAnalysis) -> list[WordObservatio
     )
 
 
-async def _analyze_section(
+async def _analyze_section(  # noqa: C901, PLR0912, PLR0913, PLR0915
     *,
     section_index: int,
     section: WordDocumentSection,
@@ -1396,7 +1396,7 @@ async def _analyze_section(
             if len(comment_finalized) == before:
                 break
 
-    try:
+    try:  # noqa: PLR1702
         while pending_tasks:
             done, pending_tasks = await asyncio.wait(
                 pending_tasks, return_when=asyncio.FIRST_COMPLETED
@@ -1437,7 +1437,7 @@ async def _analyze_section(
     )
 
 
-async def _persist_publication_unit(
+async def _persist_publication_unit(  # noqa: PLR0917
     session: AsyncSession,
     job: Job,
     payload: ExpertgranskningWordJobRequest,
@@ -1622,7 +1622,7 @@ def log_word_review_call_summary(
     )
 
 
-async def run_word_paragraph_review(
+async def run_word_paragraph_review(  # noqa: C901, PLR0912, PLR0915
     session: AsyncSession,
     job: Job,
     payload: ExpertgranskningWordJobRequest,
@@ -1699,7 +1699,7 @@ async def run_word_paragraph_review(
             await queue.put(WordSectionDone(stats))
         except asyncio.CancelledError:
             raise
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             await queue.put(WordSectionFailed(section_index, exc))
 
     async def persist_unit(unit: WordPublicationUnit) -> None:

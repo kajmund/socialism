@@ -69,7 +69,7 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-async def record_graph_event(
+async def record_graph_event(  # noqa: PLR0913
     session: AsyncSession,
     *,
     event_type: GraphEventType,

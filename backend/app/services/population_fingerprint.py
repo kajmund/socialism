@@ -203,7 +203,7 @@ def fingerprint_from_dist(dist: dict[str, DistGroup | dict]) -> list[list[int]]:
     return [age, lean, [centrum, middle, ovriga]]
 
 
-def fingerprint_from_slot_rows(
+def fingerprint_from_slot_rows(  # noqa: C901, PLR0912
     slot_rows: list[MemberSlots | dict[str, str | None]],
     dist: dict[str, DistGroup | dict],
 ) -> list[list[int]]:

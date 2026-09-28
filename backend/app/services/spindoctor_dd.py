@@ -129,7 +129,7 @@ def build_dd_spindoctor_context_from_source(
     return build_dd_spindoctor_context_block(source.payload, locale=locale, title=title)
 
 
-def build_dd_spindoctor_context_block(
+def build_dd_spindoctor_context_block(  # noqa: C901, PLR0912
     dd_doc: dict[str, Any],
     *,
     locale: ReportLocale,

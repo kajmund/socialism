@@ -185,7 +185,7 @@ class SqlQuestionEvidenceGraph:
         return link
 
 
-def _apply_link(row: KnowledgeQuestionEvidenceLink, link: QuestionEvidenceLink) -> None:
+def _apply_link(row: KnowledgeQuestionEvidenceLink, link: QuestionEvidenceLink) -> None:  # noqa: C901, PLR0912
     row.relation = link.relation or row.relation
     if link.passage_id is not None:
         row.passage_id = link.passage_id

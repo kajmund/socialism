@@ -185,7 +185,7 @@ async def _close_auth_error(websocket: WebSocket, exc: HTTPException) -> None:
     code = 4401 if exc.status_code == 401 else 4403
     try:
         await websocket.close(code=code)
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
 
@@ -274,7 +274,7 @@ async def jobs_websocket(websocket: WebSocket) -> None:
         try:
             await _send_error(websocket, "WebSocket error")
             await websocket.close(code=1011)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     finally:
         await job_hub.unsubscribe(websocket)
@@ -337,7 +337,7 @@ async def reports_websocket(websocket: WebSocket) -> None:
         try:
             await _send_error(websocket, "WebSocket error")
             await websocket.close(code=1011)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     finally:
         await report_hub.unsubscribe(websocket)
@@ -404,7 +404,7 @@ async def runs_websocket(websocket: WebSocket) -> None:
         try:
             await _send_error(websocket, "WebSocket error")
             await websocket.close(code=1011)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     finally:
         await run_broadcast.unsubscribe(websocket)
@@ -474,7 +474,7 @@ async def research_websocket(websocket: WebSocket) -> None:
         try:
             await _send_error(websocket, "WebSocket error")
             await websocket.close(code=1011)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     finally:
         await research_progress_broadcast.unsubscribe(websocket)
@@ -531,7 +531,7 @@ async def panels_websocket(websocket: WebSocket) -> None:
         try:
             await _send_error(websocket, "WebSocket error")
             await websocket.close(code=1011)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     finally:
         await panel_broadcast.unsubscribe(websocket)
@@ -592,14 +592,14 @@ async def expertgranskning_websocket(websocket: WebSocket) -> None:
         try:
             await _send_error(websocket, "WebSocket error")
             await websocket.close(code=1011)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     finally:
         await expertgranskning_broadcast.unsubscribe(websocket)
 
 
 @router.websocket("/ws/chat")
-async def chat_websocket(websocket: WebSocket) -> None:
+async def chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR0911, PLR0912, PLR0915
     await websocket.accept()
     user = await _authenticate_websocket(websocket)
     if user is None:
@@ -611,7 +611,7 @@ async def chat_websocket(websocket: WebSocket) -> None:
     async def emit_library_event(event: dict) -> None:
         await websocket.send_json(event)
 
-    try:
+    try:  # noqa: PLR1702
         raw = await websocket.receive_json()
         if not isinstance(raw, dict):
             await _send_error(websocket, "Expected JSON object")
@@ -877,14 +877,14 @@ async def chat_websocket(websocket: WebSocket) -> None:
             try:
                 await _send_error(websocket, "WebSocket error")
                 await websocket.close(code=1011)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
     except Exception:
         logger.exception("Chat WebSocket failed")
         try:
             await _send_error(websocket, "WebSocket error")
             await websocket.close(code=1011)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     finally:
         await interview_broadcast.unsubscribe(websocket)

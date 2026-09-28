@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.database.models import Message, Persona, Projekt, Run
 from app.serializers import utcnow

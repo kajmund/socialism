@@ -158,7 +158,7 @@ def oasis_gender_from_kon(kön: str) -> str:
     return "other"
 
 
-def _short_description(
+def _short_description(  # noqa: PLR0913
     *,
     occ: str,
     age: int,

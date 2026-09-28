@@ -140,7 +140,7 @@ def validate_label(row: SsrAnchorSet, label: str) -> None:
         )
 
 
-async def add_pool_item(
+async def add_pool_item(  # noqa: PLR0913
     session: AsyncSession,
     *,
     anchor_set_id: int,
@@ -286,7 +286,7 @@ def _posthoc_ref(message_id: int) -> dict[str, Any]:
     return {"type": "posthoc_interview", "persona_message_id": message_id}
 
 
-async def list_tagger_texts(
+async def list_tagger_texts(  # noqa: C901, PLR0912, PLR0915
     session: AsyncSession,
     *,
     run_id: int,

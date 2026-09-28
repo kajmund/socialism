@@ -366,7 +366,7 @@ def consult_calls_from_promise(text: str, question: str) -> list[Any]:
     return [_fake_tool_call(1, CONSULT_TOOL_NAME, {"question": stripped})]
 
 
-async def run_company_tool_loop(
+async def run_company_tool_loop(  # noqa: C901, PLR0912, PLR0913, PLR0915
     messages: list[dict[str, Any]],
     *,
     max_rounds: int = _MAX_TOOL_ROUNDS,

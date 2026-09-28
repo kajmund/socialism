@@ -234,7 +234,7 @@ def _section_title(section_id: str, *, locale: ConfigurationLanguage) -> str:
     return table.get(section_id, section_id)
 
 
-async def stream_spindoctor_chat_turn(
+async def stream_spindoctor_chat_turn(  # noqa: C901, PLR0912, PLR0915
     session: AsyncSession,
     *,
     report_id: str,

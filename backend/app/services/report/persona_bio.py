@@ -153,7 +153,7 @@ def segment_key_value(bio: dict[str, str], key: str, *, locale: str = "sv") -> s
     return segment_value(bio, key)
 
 
-def persona_profile_line(
+def persona_profile_line(  # noqa: C901
     bio: dict[str, str],
     *,
     locale: str = "sv",
