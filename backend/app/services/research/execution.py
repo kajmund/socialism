@@ -125,6 +125,7 @@ from app.services.research.models import (
     ResearchEvidence,
     ResearchNeed,
     ResearchPlan,
+    research_evidence,
 )
 from app.services.research.need_normalization import ResearchNeedNormalizer
 from app.services.research.plan import (
@@ -499,32 +500,60 @@ async def _run_need_executions(
                 timeout=settings.research_need_timeout_seconds,
             )
         except TimeoutError:
-            logger.warning(
-                "research_need_deadline_exceeded attempt_id=%s research_need_id=%s timeout_seconds=%s",
+            await _complete_timed_out_need(
+                factory,
+                persist_lock,
+                execution_id,
+                need,
+                evidence_set_id,
                 attempt_id,
-                need_id,
-                settings.research_need_timeout_seconds,
             )
-            await _fail_timed_out_need(factory, execution_id)
 
     await asyncio.gather(*(worker(execution_id, need_id) for execution_id, need_id in pending))
 
 
-async def _fail_timed_out_need(
+async def _complete_timed_out_need(
     factory: async_sessionmaker[AsyncSession],
+    persist_lock: asyncio.Lock,
     execution_id: str,
+    need: ResearchNeed,
+    evidence_set_id: str,
+    attempt_id: str,
 ) -> None:
-    """Mark one need failed so the Attempt barrier can run. Do not leave it running."""
-    async with factory() as session:
+    """Persist timeout as source-level error evidence and complete the need."""
+    logger.warning(
+        "research_need_deadline_exceeded attempt_id=%s research_need_id=%s timeout_seconds=%s",
+        attempt_id,
+        need.id,
+        settings.research_need_timeout_seconds,
+    )
+    async with persist_lock, factory() as session:
+        _raise_if_write_fenced()
         with ProgressTracker() as progress:
-            failed = await fail_need_execution(session, execution_id)
-            if failed.status != "failed":
+            row = await get_need_execution(session, execution_id)
+            if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
                 return
-            await emit_need_failed(
+            stored = await add_evidence_items(
                 session,
-                execution=failed,
-                reason="research need exceeded the execution deadline",
+                evidence_set_id=evidence_set_id,
+                items=[
+                    research_evidence(
+                        research_need_id=need.id,
+                        source_type=need.source_types[0] if need.source_types else "unavailable",
+                        status="error",
+                        excerpt="research need exceeded the execution deadline",
+                        metadata={
+                            "error_type": "TimeoutError",
+                            "reason": "need_deadline_exceeded",
+                            "timeout_seconds": settings.research_need_timeout_seconds,
+                        },
+                    )
+                ],
             )
+            for item in stored:
+                await emit_evidence_item(session, attempt_id=attempt_id, item=item)
+            completed = await complete_need_execution(session, execution_id)
+            await emit_need_completed(session, execution=completed)
             await session.commit()
             await progress.publish_committed()
 
