@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 
@@ -36,6 +37,7 @@ class PendingGraphWrite:
 @dataclass
 class GraphWritebackQueue:
     _pending: list[PendingGraphWrite] = field(default_factory=list)
+    session_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     def enqueue(self, item: PendingGraphWrite) -> None:
         self._pending.append(item)
