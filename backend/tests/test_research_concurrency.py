@@ -15,6 +15,7 @@ from app.services.research.concurrency import (
     require_concurrency_limit,
     research_concurrency,
     reset_research_concurrency,
+    shared_db_session,
     source_candidate_slots,
 )
 from app.services.research.models import ResearchContext, ResearchNeed, research_evidence
@@ -140,9 +141,10 @@ async def test_map_with_limit_bounds_overlap_and_keeps_order():
 
 
 class _CountingSource:
-    def __init__(self, source_type: str) -> None:
+    def __init__(self, source_type: str, *, session: object | None = None) -> None:
         self.source_type = source_type
         self.provider_id = f"fake.{source_type}"
+        self.shared_db_session = session
         self.current = 0
         self.max_seen = 0
         self._lock = asyncio.Lock()
@@ -256,5 +258,55 @@ async def test_concurrent_needs_overlap_at_default_source_limit():
             context,
         ),
     )
+    assert first.max_seen == 2
+    reset_research_concurrency()
+
+
+def test_shared_db_session_reads_optional_attribute():
+    assert shared_db_session(None) is None
+    assert shared_db_session(object()) is None
+    holder = _CountingSource("case_knowledge", session="db")
+    assert shared_db_session(holder) == "db"
+
+
+@pytest.mark.asyncio
+async def test_shared_session_candidates_stay_serial_when_limit_is_raised(monkeypatch):
+    monkeypatch.setattr(settings, "research_source_concurrency", 2)
+    reset_research_concurrency()
+    session = object()
+    first = _CountingSource("case_knowledge", session=session)
+    second = _CountingSource("customer_knowledge", session=session)
+    second.share_counter_with(first)
+    registry = KnowledgeProviderCapabilityRegistry()
+    registry.register(first)
+    registry.register(second)
+    router = ResearchRouter(registry)
+    need, context = _need_and_context()
+    evidence = await router.execute_need(need, context)
+    assert [item.source_type for item in evidence] == [
+        "case_knowledge",
+        "customer_knowledge",
+    ]
+    assert first.max_seen == 1
+    reset_research_concurrency()
+
+
+@pytest.mark.asyncio
+async def test_distinct_session_candidates_overlap_when_limit_is_raised(monkeypatch):
+    monkeypatch.setattr(settings, "research_source_concurrency", 2)
+    reset_research_concurrency()
+    first = _CountingSource("case_knowledge", session=object())
+    second = _CountingSource("customer_knowledge", session=object())
+    second.share_counter_with(first)
+    registry = KnowledgeProviderCapabilityRegistry()
+    registry.register(first)
+    registry.register(second)
+    router = ResearchRouter(registry)
+    need, context = _need_and_context()
+    evidence = await router.execute_need(need, context)
+    assert [item.source_type for item in evidence] == [
+        "case_knowledge",
+        "customer_knowledge",
+    ]
     assert first.max_seen == 2
     reset_research_concurrency()

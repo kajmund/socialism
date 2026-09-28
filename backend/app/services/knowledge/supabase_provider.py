@@ -50,6 +50,10 @@ class SupabaseKnowledgeProvider:
         self._embeddings = embeddings
         self._fetch_object = fetch_object or get_object
 
+    @property
+    def shared_db_session(self) -> AsyncSession:
+        return self._session
+
     async def search(self, query: KnowledgeQuery) -> list[KnowledgeHit]:
         require_scope(query.scope)
         vectors = await self._embeddings.embed([query.query])

@@ -10,13 +10,15 @@ loop. ``asyncio.Semaphore`` is loop-bound, so a later call on a different
 running loop (pytest creates one loop per test) gets a fresh set. That
 still caps in-flight document work inside one process and one loop.
 Source candidates use a fresh per-need semaphore so the default of 1
-does not serialize every concurrent need.
+does not serialize every concurrent need. Candidates that expose the
+same ``shared_db_session`` still run one at a time.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Sequence
+from contextlib import AbstractAsyncContextManager, nullcontext
 from dataclasses import dataclass
 
 from app.config import settings
@@ -111,6 +113,23 @@ def source_candidate_slots() -> asyncio.Semaphore:
     every ``source.research()`` and starve ``research_need_concurrency``.
     """
     return asyncio.Semaphore(ResearchConcurrencyLimits.from_settings().sources)
+
+
+def shared_db_session(source: object | None) -> object | None:
+    """Session the adapter already holds, if any. Missing means no sharing."""
+    if source is None:
+        return None
+    return getattr(source, "shared_db_session", None)
+
+
+def session_guard(
+    locks: dict[int, asyncio.Lock],
+    session: object | None,
+) -> AbstractAsyncContextManager[None]:
+    """Serialize candidates that reuse the same ``AsyncSession``."""
+    if session is None:
+        return nullcontext()
+    return locks.setdefault(id(session), asyncio.Lock())
 
 
 def reset_research_concurrency() -> None:
