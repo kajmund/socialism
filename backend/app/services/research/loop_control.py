@@ -47,6 +47,7 @@ from app.services.research.plan import research_plan_from_snapshot
 from app.services.research.progress import ProgressTracker, emit_capability_unavailable
 from app.services.research.provider import KnowledgeProviderDescriptor
 from app.services.research.quality import EvidenceRelevanceAssessor
+from app.services.research.quality_persist import EagerQualityBind
 from app.services.research.question_graph import QuestionEvidenceGraph
 from app.services.research.router import ResearchRouter
 
@@ -148,6 +149,12 @@ async def run_research_loop(**kwargs: object) -> None:
                 question_graph=config.question_graph,
                 attempt_id=config.attempt_id,
                 concurrency=config.concurrency,
+                eager=EagerQualityBind(
+                    descriptors=_quality_descriptors(
+                        config.router, config.provider_descriptors
+                    ),
+                    relevance_assessor=config.relevance_assessor,
+                ),
             )
         next_wave = await _finish_research_wave(config, snapshot_plan=snapshot_plan, wave=wave)
         if next_wave is None:
