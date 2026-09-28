@@ -1,4 +1,8 @@
-"""Bounded lagen.nu document retrieval. Ingest and persist stay serial."""
+"""Bounded lagen.nu document retrieval. Ingest stays serial.
+
+Graph claim/entity write-back is queued during interpret and flushed
+after every document for the source has been interpreted.
+"""
 
 from __future__ import annotations
 
