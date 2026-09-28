@@ -27,14 +27,12 @@ from app.llm.legal_research import (
     LegalInterpreter,
     LlmLegalInterpreter,
 )
-from app.services.knowledge.claims import answer_research_need, persist_knowledge_claims
 from app.services.knowledge.embeddings import EmbeddingProvider
-from app.services.knowledge.entities import persist_knowledge_entities
 from app.services.knowledge.events import list_graph_events
-from app.services.knowledge.relationships import persist_knowledge_relationships
 from app.services.knowledge.revalidation import revalidate_after_events
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.claim_grounding import ground_legal_claims
+from app.services.lagen_nu.graph_writeback import GraphWritebackQueue, flush_graph_writeback
 from app.services.lagen_nu.document_fetch import (
     MAX_DOCUMENT_CHARS as MAX_DOCUMENT_CHARS,
     MAX_DOCUMENT_FETCHES as MAX_DOCUMENT_FETCHES,
@@ -566,6 +564,7 @@ class LagenNuResearchSource:
         self._passage_router = passage_router
         self._impact_gate = impact_gate
         self._owned_client: OfficialLagenNuMcpClient | None = None
+        self._graph_writes = GraphWritebackQueue()
 
     def _require_selector(self) -> LagenNuPassageSelector:
         return resolve_passage_selector(self._selector)
@@ -677,7 +676,8 @@ class LagenNuResearchSource:
     ) -> list[ResearchEvidence]:
         try:
             return await self._research(need, context)
-        except Exception:
+        except BaseException:
+            self._graph_writes.take()
             await _rollback_open_session(self._session)
             raise
         finally:
@@ -736,6 +736,12 @@ class LagenNuResearchSource:
             return [self._not_found(need, budget, reason="irrelevant_relation")]
         found = await self._fetch_candidates(
             need, context, selected, budget=budget, source=source
+        )
+        await flush_graph_writeback(
+            self._session,
+            self._graph_writes,
+            release_connection=_release_db_connection,
+            revalidate=self._revalidate_persisted_graph,
         )
         if found:
             return found
@@ -1100,30 +1106,20 @@ class LagenNuResearchSource:
             if cached is not None
             else f"{units[0].document_version_id}:{need.id}",
         )
-        await persist_knowledge_claims(self._session, grounded_claims)
         graph_entities, graph_edges = ground_legal_graph(
             legal_result,
             grounded_claims,
             customer_id=customer_id,
             document_id=units[0].document_id,
         )
-        await persist_knowledge_entities(self._session, graph_entities)
-        await persist_knowledge_relationships(self._session, graph_edges)
-        await answer_research_need(
-            self._session,
+        self._graph_writes.enqueue_grounded(
+            claims=grounded_claims,
+            entities=graph_entities,
+            edges=graph_edges,
             research_need_id=need.id,
-            question_key=research_question_key(need.question),
-            claim_ids=[claim.id for claim in grounded_claims],
+            question=need.question,
             source_type=self.source_type,
-        )
-        # Shared entity keys are visible to every concurrent need. Commit
-        # before revalidation so those rows are not locked for the rest of
-        # this need.
-        await _release_db_connection(self._session)
-        await self._revalidate_persisted_graph(
             customer_id=customer_id,
-            claim_ids=[claim.id for claim in grounded_claims],
-            relationship_ids=[edge.id for edge in graph_edges],
         )
         return research_evidence(
             research_need_id=need.id,
