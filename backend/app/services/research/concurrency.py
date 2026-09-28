@@ -8,7 +8,9 @@ serial until those loops change.
 ``research_concurrency()`` keeps one limiter set for the current event
 loop. ``asyncio.Semaphore`` is loop-bound, so a later call on a different
 running loop (pytest creates one loop per test) gets a fresh set. That
-still caps in-flight work inside one process and one loop.
+still caps in-flight document work inside one process and one loop.
+Source candidates use a fresh per-need semaphore so the default of 1
+does not serialize every concurrent need.
 """
 
 from __future__ import annotations
@@ -100,6 +102,15 @@ def research_concurrency() -> ResearchConcurrency:
             loop=loop,
         )
     return _shared_concurrency
+
+
+def source_candidate_slots() -> asyncio.Semaphore:
+    """Per-need candidate slots from ``research_source_concurrency``.
+
+    A process-wide source semaphore at the default of 1 would serialize
+    every ``source.research()`` and starve ``research_need_concurrency``.
+    """
+    return asyncio.Semaphore(ResearchConcurrencyLimits.from_settings().sources)
 
 
 def reset_research_concurrency() -> None:
