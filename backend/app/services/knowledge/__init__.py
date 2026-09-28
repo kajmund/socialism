@@ -17,6 +17,7 @@ from app.services.knowledge.claims import (
     supporting_text_unit_ids_for_quote,
 )
 from app.services.knowledge.embeddings import (
+    CachingEmbeddingProvider,
     EmbeddingProvider,
     EmbeddingSpec,
     OpenAIEmbeddingProvider,
@@ -147,6 +148,7 @@ __all__ = [
     "SCOPE_SHARED",
     "SUPABASE_PROVIDER_ID",
     "SUPPORTED_BY",
+    "CachingEmbeddingProvider",
     "CanonicalDocument",
     "DefaultTextExtractor",
     "DocumentSection",

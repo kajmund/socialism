@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
@@ -56,6 +57,40 @@ def require_embedding_vectors(
     return out
 
 
+class CachingEmbeddingProvider:
+    """In-process cache in front of an EmbeddingProvider. Same text, same vector."""
+
+    def __init__(self, inner: EmbeddingProvider) -> None:
+        self._inner = inner
+        self._cache: dict[str, list[float]] = {}
+        self._lock = asyncio.Lock()
+
+    @property
+    def provider_id(self) -> str:
+        return self._inner.provider_id
+
+    @property
+    def model(self) -> str:
+        return self._inner.model
+
+    @property
+    def dimension(self) -> int:
+        return self._inner.dimension
+
+    async def embed(self, texts: Sequence[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        async with self._lock:
+            missing = [text for text in dict.fromkeys(texts) if text not in self._cache]
+            if missing:
+                vectors = await self._inner.embed(missing)
+                if len(vectors) != len(missing):
+                    raise RuntimeError("EmbeddingProvider returned an unexpected vector count")
+                for text, vector in zip(missing, vectors, strict=True):
+                    self._cache[text] = list(vector)
+            return [list(self._cache[text]) for text in texts]
+
+
 class OpenAIEmbeddingProvider:
     """OpenAI embeddings, batched. Isolated from the SSR cache/client."""
 
@@ -91,7 +126,9 @@ class OpenAIEmbeddingProvider:
         client = self._client or _openai_client()
         out: list[list[float]] = []
         for start in range(0, len(texts), self._batch_size):
-            batch = [text if text.strip() else " " for text in texts[start : start + self._batch_size]]
+            batch = [
+                text if text.strip() else " " for text in texts[start : start + self._batch_size]
+            ]
             response = await client.embeddings.create(model=self.model, input=batch)
             by_index = {row.index: row.embedding for row in response.data}
             for index in range(len(batch)):

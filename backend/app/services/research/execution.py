@@ -126,6 +126,7 @@ from app.services.research.models import (
     research_evidence,
 )
 from app.services.research.need_normalization import ResearchNeedNormalizer
+from app.services.research.need_prepare import prepare_need_reuse
 from app.services.research.plan import (
     research_plan_from_snapshot,
     research_plan_to_snapshot,
@@ -181,8 +182,6 @@ from app.services.research.question_reuse import (
     gap_source_types,
     merge_reused_with_provider,
     research_need_for_gaps,
-    safe_canonicalize_research_need,
-    safe_lookup_reusable_evidence,
     safe_upsert_persisted_evidence,
     should_skip_providers,
 )
@@ -381,27 +380,15 @@ async def _execute_one_need(  # noqa: PLR0913
                 await emit_need_running(claim_session, execution=row)
             await claim_session.commit()
             await progress.publish_committed()
-            # Keep canonicalize/reuse on this locked session. A second
-            # session commit races SQLite StaticPool savepoints used by
-            # the other worker's progress events.
-            if not need.knowledge_question_id:
-                await safe_canonicalize_research_need(
-                    claim_session,
-                    graph=question_graph,
-                    need=need,
-                    context=context,
-                )
-                await claim_session.commit()
-            reused = await safe_lookup_reusable_evidence(
-                claim_session,
-                graph=question_graph,
-                need=need,
-                context=context,
-                exclude_attempt_id=None,
-            )
         if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
             return
 
+    reused = await prepare_need_reuse(
+        factory,
+        question_graph=question_graph,
+        need=need,
+        context=context,
+    )
     try:
         async with retrieve_slots:
             evidence = await _candidates_then_providers(
@@ -1154,6 +1141,7 @@ async def _plan_and_persist_global_needs(  # noqa: PLR0913
 async def _run_research_loop(**kwargs: object) -> None:
     """Delegate to loop_control. Imported lazily to avoid a cycle."""
     from app.services.research.loop_control import run_research_loop
+
     await run_research_loop(**kwargs)
 
 

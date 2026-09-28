@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.services.knowledge import (
     SUPABASE_PROVIDER_ID,
+    CachingEmbeddingProvider,
     OpenAIEmbeddingProvider,
     build_knowledge_registry,
 )
+from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.selection import (
     LagenNuPassageSelector,
@@ -52,6 +54,7 @@ _completeness_reviewer_factory: ResearchCompletenessReviewerFactory | None = Non
 _vector_store_factory: KnowledgeVectorStoreFactory | None = None
 _lagen_nu_selector_factory: LagenNuSelectorFactory | None = None
 _need_normalizer_factory: NeedNormalizerFactory | None = None
+_shared_embeddings: CachingEmbeddingProvider | None = None
 
 
 class ResearchCompositionError(ResearchError):
@@ -149,13 +152,27 @@ def standard_available_source_types() -> tuple[str, ...]:
     return production_registered_source_types()
 
 
+def research_embeddings() -> EmbeddingProvider:
+    """One cached provider for matcher and retrieval in this process."""
+    global _shared_embeddings
+    if _shared_embeddings is None:
+        _shared_embeddings = CachingEmbeddingProvider(OpenAIEmbeddingProvider.from_settings())
+    return _shared_embeddings
+
+
+def reset_research_embeddings() -> None:
+    """Drop the process-wide embedding cache. Tests only."""
+    global _shared_embeddings
+    _shared_embeddings = None
+
+
 def build_standard_research_router(session: AsyncSession) -> ResearchRouter:
     if _router_factory is not None:
         return _router_factory(session)
     if _vector_store_factory is None:
         raise ResearchCompositionError(_UNCONFIGURED_VECTOR_STORE)
     vector_store = _vector_store_factory()
-    embeddings = OpenAIEmbeddingProvider.from_settings()
+    embeddings = research_embeddings()
     registry = build_knowledge_registry(
         session,
         vector_store=vector_store,
@@ -180,7 +197,7 @@ def build_standard_question_graph() -> SqlQuestionEvidenceGraph:
     return SqlQuestionEvidenceGraph(
         matcher=SemanticQuestionIdentityMatcher(
             vector_store=_vector_store_factory(),
-            embeddings=OpenAIEmbeddingProvider.from_settings(),
+            embeddings=research_embeddings(),
             version=settings.research_question_embedding_version,
             threshold=settings.research_question_semantic_match_threshold,
             limit=settings.research_question_semantic_match_limit,
