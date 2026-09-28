@@ -63,6 +63,7 @@ class CachingEmbeddingProvider:
     def __init__(self, inner: EmbeddingProvider) -> None:
         self._inner = inner
         self._cache: dict[str, list[float]] = {}
+        self._inflight: dict[str, asyncio.Future[list[float]]] = {}
         self._lock = asyncio.Lock()
 
     @property
@@ -80,15 +81,60 @@ class CachingEmbeddingProvider:
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
         if not texts:
             return []
+        owned, waiters = await self._claim_texts(texts)
+        if owned:
+            await self._fill_owned(owned)
+        resolved: dict[str, list[float]] = {}
+        for text, future in waiters.items():
+            resolved[text] = await future
         async with self._lock:
-            missing = [text for text in dict.fromkeys(texts) if text not in self._cache]
-            if missing:
-                vectors = await self._inner.embed(missing)
-                if len(vectors) != len(missing):
-                    raise RuntimeError("EmbeddingProvider returned an unexpected vector count")
-                for text, vector in zip(missing, vectors, strict=True):
-                    self._cache[text] = list(vector)
-            return [list(self._cache[text]) for text in texts]
+            for text in texts:
+                if text not in resolved:
+                    resolved[text] = self._cache[text]
+        return [list(resolved[text]) for text in texts]
+
+    async def _claim_texts(
+        self, texts: Sequence[str]
+    ) -> tuple[list[str], dict[str, asyncio.Future[list[float]]]]:
+        owned: list[str] = []
+        waiters: dict[str, asyncio.Future[list[float]]] = {}
+        async with self._lock:
+            for text in dict.fromkeys(texts):
+                cached = self._cache.get(text)
+                if cached is not None:
+                    continue
+                existing = self._inflight.get(text)
+                if existing is not None:
+                    waiters[text] = existing
+                    continue
+                future: asyncio.Future[list[float]] = asyncio.get_running_loop().create_future()
+                self._inflight[text] = future
+                waiters[text] = future
+                owned.append(text)
+        return owned, waiters
+
+    async def _fill_owned(self, owned: list[str]) -> None:
+        try:
+            vectors = await self._inner.embed(owned)
+            if len(vectors) != len(owned):
+                raise RuntimeError("EmbeddingProvider returned an unexpected vector count")
+        except BaseException as exc:
+            await self._fail_owned(owned, exc)
+            raise
+        async with self._lock:
+            for text, vector in zip(owned, vectors, strict=True):
+                copied = list(vector)
+                self._cache[text] = copied
+                future = self._inflight.pop(text, None)
+                if future is not None and not future.done():
+                    future.set_result(copied)
+
+    async def _fail_owned(self, owned: list[str], exc: BaseException) -> None:
+        async with self._lock:
+            for text in owned:
+                future = self._inflight.pop(text, None)
+                if future is not None and not future.done():
+                    future.set_exception(exc)
 
 
 class OpenAIEmbeddingProvider:
