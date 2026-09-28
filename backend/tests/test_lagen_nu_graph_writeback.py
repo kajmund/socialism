@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -104,3 +106,25 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
     )
     assert [item.status for item in evidence] == ["found", "found"]
     assert events == ["interpret", "interpret", "persist", "persist"]
+
+
+@pytest.mark.asyncio
+async def test_cancelled_research_drops_deferred_writes(session: AsyncSession, monkeypatch):
+    original_interpret = FakeLegalInterpreter.interpret
+    calls = 0
+
+    async def cancel_on_second(self, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise asyncio.CancelledError
+        return await original_interpret(self, **kwargs)
+
+    monkeypatch.setattr(FakeLegalInterpreter, "interpret", cancel_on_second)
+    source = _law_source(session, _two_doc_client())
+    with pytest.raises(asyncio.CancelledError):
+        await source.research(
+            _need("swedish_law", question="preskription av fordran"),
+            _context(),
+        )
+    assert source._graph_writes.take() == []
