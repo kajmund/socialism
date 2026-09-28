@@ -35,6 +35,12 @@ from app.services.knowledge.relationships import persist_knowledge_relationships
 from app.services.knowledge.revalidation import revalidate_after_events
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.claim_grounding import ground_legal_claims
+from app.services.lagen_nu.document_fetch import (
+    MAX_DOCUMENT_CHARS as MAX_DOCUMENT_CHARS,
+    MAX_DOCUMENT_FETCHES as MAX_DOCUMENT_FETCHES,
+    DocumentFetchPlan,
+    fetch_ranked_documents,
+)
 from app.services.lagen_nu.display import (
     display_source_title,
     is_legal_front_matter,
@@ -44,7 +50,6 @@ from app.services.lagen_nu.mcp_client import (
     LagenNuMcpClient,
     OfficialLagenNuMcpClient,
     OfficialLagenNuMcpError,
-    OfficialLagenNuMcpNotFoundError,
 )
 from app.services.lagen_nu.models import LagenNuDocument, LagenNuSearchHit
 from app.services.lagen_nu.passage_router import (
@@ -70,13 +75,7 @@ from app.services.lagen_nu.selection import (
     SelectableHit,
     resolve_passage_selector,
 )
-from app.services.lagen_nu.text_unit_research import (
-    LagenNuResearchKnowledgeError,
-    current_lagen_nu_units,
-    document_identity_uri,
-    ingest_and_load_text_units,
-    require_lagen_nu_research_knowledge,
-)
+from app.services.lagen_nu.text_unit_research import LagenNuResearchKnowledgeError
 from app.services.lagen_nu.uris import compose_canonical_uri
 from app.services.legal_research_result import LegalResearchResult, LegalSourceIdentity
 from app.services.research.evidence_identity import canonical_source_identity
@@ -93,8 +92,6 @@ from app.services.research.models import (
 logger = logging.getLogger(__name__)
 
 MAX_SEARCH_HITS = 10
-MAX_DOCUMENT_FETCHES = 5
-MAX_DOCUMENT_CHARS = 200000
 MAX_EVIDENCE_CHARS = 16000
 MAX_MCP_TOOL_CALLS = 12
 
@@ -737,7 +734,9 @@ class LagenNuResearchSource:
             return [self._failure(need, budget, "selection_failed", None, str(exc))]
         if not selected:
             return [self._not_found(need, budget, reason="irrelevant_relation")]
-        found = await self._fetch_candidates(need, context, selected, budget, source)
+        found = await self._fetch_candidates(
+            need, context, selected, budget=budget, source=source
+        )
         if found:
             return found
         return [self._not_found(need, budget, reason="budget_exhausted")]
@@ -935,138 +934,32 @@ class LagenNuResearchSource:
                 kept.extend(_kept_candidates(others, decisions))
         return _rank_candidates(need, _merge_candidates(kept))
 
-    async def _fetch_candidates(  # noqa: C901, PLR0912, PLR0917
+    async def _fetch_candidates(
         self,
         need: ResearchNeed,
         context: ResearchContext,
         candidates: list[_Candidate],
+        *,
         budget: _CallBudget,
         source: str,
     ) -> list[ResearchEvidence]:
-        session, embeddings, vector_store = require_lagen_nu_research_knowledge(
-            session=self._session,
-            embeddings=self._embeddings,
-            vector_store=self._vector_store,
-        )
-        customer_id = context.scope.customer_id
-        if customer_id is None:
-            raise LagenNuResearchKnowledgeError("lagen.nu research requires customer_id")
-        found: list[ResearchEvidence] = []
-        seen: set[str] = set()
         terms = _query_terms(need.question)
-        for candidate in candidates:
-            if len(found) >= MAX_DOCUMENT_FETCHES or budget.remaining <= 0:
-                break
-            uri, pinpoint = _fetch_target(candidate.hit, terms, source_type=self.source_type)
-            if uri is None:
-                continue
-            try:
-                canonical_uri = document_identity_uri(uri)
-            except LagenNuResearchKnowledgeError as exc:
-                found.append(self._failure(need, budget, "unsupported_source_shape", uri, str(exc)))
-                continue
-            target_key = canonical_uri if pinpoint is None else f"{canonical_uri}#{pinpoint}"
-            if target_key in seen:
-                continue
-            seen.add(target_key)
-            try:
-                units = await current_lagen_nu_units(
-                    session,
-                    customer_id=customer_id,
-                    canonical_uri=canonical_uri,
-                )
-                reused_units = units is not None
-                document = None
-                if units is None:
-                    logger.info(
-                        "provider_retrieval_started provider=%s source=%s",
-                        self.provider_id,
-                        canonical_uri,
-                    )
-                    await _release_db_connection(session)
-                    document = await budget.call(
-                        "get_document",
-                        self._mcp().get_document(
-                            canonical_uri,
-                            pinpoint=None,
-                            max_chars=MAX_DOCUMENT_CHARS,
-                        ),
-                        {
-                            "uri": canonical_uri,
-                            "pinpoint": None,
-                            "max_chars": MAX_DOCUMENT_CHARS,
-                        },
-                    )
-                    if document.source and document.source != source:
-                        found.append(
-                            self._failure(
-                                need,
-                                budget,
-                                "unsupported_source_shape",
-                                canonical_uri,
-                                f"expected source {source}, received {document.source}",
-                                fetch_success=True,
-                            )
-                        )
-                        continue
-                    ingest_result, units = await ingest_and_load_text_units(
-                        session,
-                        customer_id=customer_id,
-                        document=document,
-                        embeddings=embeddings,
-                        vector_store=vector_store,
-                    )
-                    if ingest_result.status != "indexed" or units is None:
-                        raise LegalDomainExtractionError(
-                            ingest_result.message or "retrieved document has no text",
-                            category="unsupported_source_shape",
-                        )
-                found.append(
-                    await self._from_document(
-                        need,
-                        context,
-                        candidate,
-                        units,
-                        budget,
-                        terms=terms,
-                        canonical_uri=canonical_uri,
-                        pinpoint=pinpoint,
-                        document=document,
-                        reused_units=reused_units,
-                    )
-                )
-            except OfficialLagenNuMcpError as exc:
-                category = (
-                    "resolve_no_document"
-                    if isinstance(exc, OfficialLagenNuMcpNotFoundError)
-                    else getattr(exc, "category", "fetch_failed")
-                )
-                found.append(self._failure(need, budget, category, canonical_uri, str(exc)))
-            except LegalDomainExtractionError as exc:
-                found.append(
-                    self._failure(
-                        need,
-                        budget,
-                        exc.category,
-                        canonical_uri,
-                        str(exc),
-                        fetch_success=True,
-                    )
-                )
-            except LagenNuResearchKnowledgeError as exc:
-                found.append(self._failure(need, budget, "fetch_failed", canonical_uri, str(exc)))
-            except PassageRoutingError as exc:
-                found.append(
-                    self._failure(
-                        need,
-                        budget,
-                        exc.category,
-                        canonical_uri,
-                        str(exc),
-                        fetch_success=True,
-                    )
-                )
-        return found
+        return await fetch_ranked_documents(
+            self,
+            DocumentFetchPlan(
+                need=need,
+                context=context,
+                candidates=tuple(candidates),
+                budget=budget,
+                source=source,
+                terms=terms,
+                resolve_target=lambda candidate: _fetch_target(
+                    candidate.hit,
+                    terms,
+                    source_type=self.source_type,
+                ),
+            ),
+        )
 
     async def _from_document(  # noqa: PLR0913, PLR0917
         self,

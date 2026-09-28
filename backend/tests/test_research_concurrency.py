@@ -8,15 +8,13 @@ import pytest
 
 from app.config import settings
 from app.services.knowledge.models import KnowledgeScope
-from app.services.research.composition import (
-    research_concurrency,
-    reset_research_concurrency,
-)
 from app.services.research.concurrency import (
     ResearchConcurrency,
     ResearchConcurrencyLimits,
     map_with_limit,
     require_concurrency_limit,
+    research_concurrency,
+    reset_research_concurrency,
 )
 from app.services.research.models import ResearchContext, ResearchNeed, research_evidence
 from app.services.research.registry import KnowledgeProviderCapabilityRegistry
