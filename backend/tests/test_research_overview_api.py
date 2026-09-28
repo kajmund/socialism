@@ -402,6 +402,84 @@ def _runtime_need(attempt_id: str, need_id: str, question: str) -> ResearchRunti
     )
 
 
+async def test_overview_uses_parent_assessment_for_runtime_needs(client_db):
+    client, factory = client_db
+    run = (
+        await client.post(
+            "/execution/runs",
+            json={
+                "customer_id": TEST_CUSTOMER_ID,
+                "module": "expertgranskning",
+                "title": "Parent assessment",
+                "context": {},
+            },
+        )
+    ).json()
+    async with factory() as session:
+        parent = await create_attempt(
+            session,
+            run_id=run["id"],
+            attempt_type="generic_panel",
+            configuration_snapshot={},
+            input_snapshot={},
+        )
+        evidence_set = await create_evidence_set(
+            session, run_id=run["id"], created_from_attempt_id=parent.id
+        )
+        await add_evidence_items(
+            session,
+            evidence_set_id=evidence_set.id,
+            items=[
+                research_evidence(
+                    research_need_id="research_9",
+                    source_type="legal_source",
+                    status="found",
+                    title="HD 2020:1",
+                    excerpt="Prejudikat om skadestånd",
+                    source_url="https://lagen.nu/2020:1",
+                    provider="lagen.nu",
+                )
+            ],
+        )
+        await attach_evidence_set(session, attempt_id=parent.id, evidence_set_id=evidence_set.id)
+        session.add(_runtime_need(parent.id, "research_9", "Vilken rättspraxis gäller?"))
+        session.add(
+            ResearchNeedExecution(
+                id=uuid4().hex,
+                attempt_id=parent.id,
+                research_need_id="research_9",
+                status="completed",
+            )
+        )
+        await persist_research_assessment(
+            session,
+            attempt_id=parent.id,
+            evidence_set_id=evidence_set.id,
+            draft=ResearchAssessmentDraft(
+                result="insufficient",
+                rationale="Need-9 lacks supporting sources",
+                need_assessments=[
+                    ResearchNeedAssessment(
+                        research_need_id="research_9",
+                        sufficient=False,
+                        supporting_evidence_ids=[],
+                        missing_or_weak="Behöver mer källmaterial",
+                    )
+                ],
+            ),
+            evidence_fingerprint="fp-parent-runtime",
+            assessment_pass=1,
+        )
+        await session.commit()
+
+    body = (await client.get(f"/execution/attempts/{parent.id}/research-overview")).json()
+    runtime_row = next(
+        row for row in body["questions"] if row["question"] == "Vilken rättspraxis gäller?"
+    )
+    assert runtime_row["status"] == "insufficient"
+    assert runtime_row["need_assessment"]["missing_or_weak"] == "Behöver mer källmaterial"
+
+
 async def test_overview_shows_committed_needs_and_evidence_before_ready(client_db):
     client, factory = client_db
     run = (
