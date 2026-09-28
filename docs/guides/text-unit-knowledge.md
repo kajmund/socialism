@@ -98,11 +98,20 @@ The lagen.nu adapter projects explicit interpretation fields onto that graph aft
 
 ### Phase 5 — temporal graph
 
-Claims and relationships carry valid time (`valid_from` / `valid_to`) and system time (`created_at` / `superseded_at`). Persist emits `CLAIM_ADDED` / `EDGE_ADDED`. `supersede_knowledge_claim` closes both clocks, optionally points at a successor, and emits `CLAIM_SUPERSEDED`. Events are append-only (`knowledge_graph_events`). Reuse ignores superseded claims. Frozen EvidenceSets record `graph_revision_at_freeze` for the revalidation increment.
+Claims and relationships carry valid time (`valid_from` / `valid_to`) and system time (`created_at` / `superseded_at`). Persist emits `CLAIM_ADDED` / `EDGE_ADDED`. `supersede_knowledge_claim` closes both clocks, optionally points at a successor, and emits `CLAIM_SUPERSEDED`. Events are append-only (`knowledge_graph_events`). Reuse ignores superseded claims. Frozen EvidenceSets record `graph_revision_at_freeze` as historical provenance.
 
-### Phase 6 — revalidation
+### Phase 6 — answer review TTL
 
-A graph event (`CLAIM_ADDED`, `EDGE_ADDED`, `CLAIM_SUPERSEDED`) looks up affected `KnowledgeQuestion` keys and frozen EvidenceSets via claim answers, claim ids, and TextUnit ids. Jev answers `material_change` against configurable bands (`REVALIDATION_IMPACT_THRESHOLD` default 0.75 → `impacted`, `REVALIDATION_CLEAR_THRESHOLD` default 0.25 → `clear`, between → `revalidation_required`). Results live on `evidence_set_revalidations`. The frozen snapshot is not rewritten. Freeze stores `graph_revision_at_freeze`. Jev error or invalid noul is `unknown`, never `clear`. No Jev call when no frozen EvidenceSet is touched.
+Research no longer traverses frozen EvidenceSets or asks Jev about graph impact
+after persisting claims/relationships. The existing passage-routing Jev request
+also chooses `soon` (3 calendar months), `later` (6), or `never` (no schedule).
+Grounded question/claim answer versions receive a review date in the same write
+transaction. A separate indexed, bounded process moves due versions into a
+candidate list; expiry never invalidates evidence or prevents reuse.
+
+The former revalidation table and service remain as legacy history, with no
+research caller. See [answer-review-ttl.md](answer-review-ttl.md) for the version
+identity, queue lifecycle, migration behavior, and operational commands.
 
 ### Phase 7 — iterative KnowledgeQuestion-driven research
 
