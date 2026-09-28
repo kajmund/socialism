@@ -52,6 +52,13 @@ class ResearchObsStats:
     evidence_count: int = 0
     provider_calls: int | None = None
     retrieval_calls: int | None = None
+    relevance_source: str | None = None
+    relevance_items: int = 0
+    relevance_calls: int = 0
+    relevance_jev_calls: int = 0
+    relevance_llm_fallbacks: int = 0
+    relevance_ms_total: float = 0.0
+    jev_screen_cache_hits: int = 0
 
 
 _stats: ContextVar[ResearchObsStats | None] = ContextVar(
@@ -114,6 +121,43 @@ def record_follow_up_wave_avoided() -> None:
     if stats is None:
         return
     stats.follow_up_waves_avoided += 1
+
+
+def record_jev_screen_cache_hit() -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.jev_screen_cache_hits += 1
+
+
+def record_relevance_jev_call() -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.relevance_jev_calls += 1
+
+
+def record_relevance_llm_fallback() -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.relevance_llm_fallbacks += 1
+
+
+def record_relevance_batch(
+    *,
+    source: str,
+    items: int,
+    calls: int,
+    latency_ms: float,
+) -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.relevance_source = source
+    stats.relevance_items += items
+    stats.relevance_calls += calls
+    stats.relevance_ms_total += latency_ms
 
 
 def record_evidence_count(count: int) -> None:
@@ -364,6 +408,13 @@ def emit_research_execution_summary(
         "evidence_count": stats.evidence_count,
         "final_status": final_status,
         "jev_mode": mode,
+        "relevance_source": stats.relevance_source,
+        "relevance_items": stats.relevance_items,
+        "relevance_calls": stats.relevance_calls,
+        "relevance_jev_calls": stats.relevance_jev_calls,
+        "relevance_llm_fallbacks": stats.relevance_llm_fallbacks,
+        "relevance_ms_total": stats.relevance_ms_total,
+        "jev_screen_cache_hits": stats.jev_screen_cache_hits,
     }
     if stats.provider_calls is not None:
         research["provider_calls"] = stats.provider_calls

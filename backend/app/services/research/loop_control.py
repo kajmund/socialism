@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -17,6 +17,7 @@ from app.services.execution.service import (
 )
 from app.services.research.assessment import ResearchAssessor
 from app.services.research.completeness import ResearchCompletenessReviewer
+from app.services.research.evidence_screen import bind_attempt_relevance
 from app.services.research.execution import (
     _assert_need_barrier,
     _assess_persisted_evidence,
@@ -123,6 +124,8 @@ async def advance_research_wave(
 
 async def run_research_loop(**kwargs: object) -> None:
     config = _loop_config(kwargs)
+    _, relevance_assessor = bind_attempt_relevance(config.assessor, config.relevance_assessor)
+    config = replace(config, relevance_assessor=relevance_assessor)
     snapshot_plan = kwargs["snapshot_plan"]
     start_wave = kwargs.get("start_wave")
     wave = INITIAL_RESEARCH_WAVE if start_wave is None else int(start_wave)

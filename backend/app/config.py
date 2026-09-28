@@ -183,6 +183,11 @@ class Settings(BaseSettings):
     research_jev_concurrency: int = Field(default=8, ge=1, le=32)
     research_jev_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     research_jev_evidence_screen_enabled: bool = True
+    # Parallel relevance judge() calls at the quality barrier. 1 stays serial.
+    research_relevance_concurrency: int = Field(default=8, ge=1, le=32)
+    # llm = injected EvidenceRelevanceAssessor only (production default).
+    # jev = JevEvidenceRelevanceAssessor with need.question as the objective.
+    research_relevance_source: Literal["llm", "jev"] = "llm"
     # Bounded Question → Evidence graph read-through before provider retrieval.
     research_knowledge_lookup_limit: int = Field(default=10, ge=1, le=32)
     research_question_semantic_match_threshold: float = Field(
