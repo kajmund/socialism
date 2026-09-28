@@ -1,4 +1,4 @@
-"""TTL schedules for immutable question/claim answer versions, not validity dates."""
+"""TTL schedules for complete answer versions, independent of evidence source."""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ REVIEW_MONTHS = {"soon": 3, "later": 6, "never": None}
 REVIEW_TTL_QUESTION = {
     "type": "choice",
     "instructions": (
-        "When should an answer to this question, grounded in the relevant supplied "
-        "passages, next be considered for improvement? This is a review reminder, "
+        "When should this question's answer, based on the combined supplied evidence "
+        "and final assessment, next be considered for improvement? This is a review reminder, "
         "not an expiry or legal validity date. More knowledge can nuance an answer "
         "without invalidating it. Judge stability and gaps, not just source age."
     ),
@@ -68,25 +68,26 @@ def review_after(created_at: datetime, ttl: ReviewTTL) -> datetime | None:
     return stamp.replace(year=year, month=month, day=day)
 
 
-async def schedule_answer_review(
+async def record_answer_review(
     session: AsyncSession,
     *,
     customer_id: int,
     question_key: str,
-    question: str,
-    claim_ids: list[str],
-    decision: AnswerReviewDecision,
+    answer_basis: dict,
     created_at: datetime | None = None,
 ) -> str:
-    """Called with grounded, tenant-validated claims in their write transaction.
+    """Capture a final source-independent snapshot; no model calls in research.
 
-    The same question and claim set is the same answer version across retries and
-    reuse. Rediscovery must not reset its clock or reopen a completed candidate.
+    The basis contains stable evidence references, scope and final assessment.
+    Attempt-local IDs and timestamps must not reset the clock on reuse.
     """
-    claims = sorted(set(claim_ids))
-    if not claims:
-        raise ValueError("answer review requires grounded claims")
-    payload = json.dumps([customer_id, question_key, claims], separators=(",", ":"))
+    if not answer_basis["evidence"]:
+        raise ValueError("answer review requires evidence")
+    payload = json.dumps(
+        [customer_id, question_key, {k: v for k, v in answer_basis.items() if k != "question"}],
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     answer_id = hashlib.sha256(payload.encode()).hexdigest()
     stamp = created_at or datetime.now(UTC)
     insert = sqlite_insert if session.get_bind().dialect.name == "sqlite" else pg_insert
@@ -96,12 +97,12 @@ async def schedule_answer_review(
             id=answer_id,
             customer_id=customer_id,
             question_key=question_key,
-            question=question,
-            claim_ids=claims,
-            ttl=decision.ttl,
+            question=answer_basis["question"],
+            evidence_refs=sorted({row["ref"] for row in answer_basis["evidence"]}),
+            answer_basis=answer_basis,
             created_at=stamp,
-            review_after=review_after(stamp, decision.ttl),
-            status="scheduled",
+            status="awaiting_ttl",
+            next_classification_at=stamp,
         )
         .on_conflict_do_nothing(index_elements=["id"])
     )
@@ -149,15 +150,17 @@ async def enqueue_due_reviews(
 
 
 async def list_review_candidates(
-    session: AsyncSession, *, customer_id: int, limit: int = 100
+    session: AsyncSession, *, customer_id: int, limit: int = 100, status: str = "candidate"
 ) -> list[KnowledgeAnswerReview]:
     if not 1 <= limit <= 500:
         raise ValueError("batch limit must be between 1 and 500")
+    if status not in {"awaiting_ttl", "scheduled", "candidate", "completed"}:
+        raise ValueError("invalid review status")
     result = await session.execute(
         select(KnowledgeAnswerReview)
         .where(
             KnowledgeAnswerReview.customer_id == customer_id,
-            KnowledgeAnswerReview.status == "candidate",
+            KnowledgeAnswerReview.status == status,
         )
         .order_by(KnowledgeAnswerReview.review_after, KnowledgeAnswerReview.id)
         .limit(limit)

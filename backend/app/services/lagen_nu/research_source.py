@@ -1072,7 +1072,6 @@ class LagenNuResearchSource:
         )
         self._graph_writes.enqueue(PendingGraphWrite(
             claims=tuple(grounded_claims),
-            review_decision=routed.review_decision,
             entities=tuple(graph_entities),
             edges=tuple(graph_edges),
             research_need_id=need.id,

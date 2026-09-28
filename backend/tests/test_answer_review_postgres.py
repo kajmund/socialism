@@ -16,7 +16,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.services.knowledge.answer_review import (
     AnswerReviewDecision,
     enqueue_due_reviews,
-    schedule_answer_review,
+    record_answer_review,
+)
+
+from app.services.knowledge.answer_review_classification import (
+    claim_ttl_classification,
+    finish_ttl_classification,
 )
 
 POSTGRES_URL = os.environ.get("TEST_ANSWER_REVIEW_POSTGRES_URL")
@@ -61,17 +66,21 @@ async def test_postgres_migration_and_concurrent_candidate_workers(monkeypatch):
             ids = []
             for claim in ["a", "b", "c"]:
                 ids.append(
-                    await schedule_answer_review(
+                    await record_answer_review(
                         session,
                         customer_id=1,
                         question_key="q",
-                        question="Question?",
-                        claim_ids=[claim],
-                        decision=AnswerReviewDecision("soon"),
+                        answer_basis={
+                            "question": "Question?",
+                            "assessments": [],
+                            "evidence": [{"ref": claim, "source_type": "case_knowledge"}],
+                        },
                         created_at=datetime(2026, 1, 31, tzinfo=UTC),
                     )
                 )
         now = datetime(2027, 1, 1, tzinfo=UTC)
+        await _classify_versions(factory, ids, now)
+
         async with factory.begin() as first:
             batch1 = await enqueue_due_reviews(first, now=now, limit=1)
             # First transaction deliberately remains open and owns its row lock.
@@ -94,3 +103,19 @@ async def test_postgres_migration_and_concurrent_candidate_workers(monkeypatch):
         async with admin.begin() as conn:
             await conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
         await admin.dispose()
+
+
+async def _classify_versions(factory, ids, now):
+    async with factory.begin() as first:
+        claim1 = await claim_ttl_classification(first, now=now)
+        async with factory.begin() as second:
+            claim2 = await asyncio.wait_for(claim_ttl_classification(second, now=now), timeout=3)
+        assert claim1["id"] != claim2["id"]
+    async with factory.begin() as session:
+        claim3 = await claim_ttl_classification(session, now=now)
+        assert {claim["id"] for claim in [claim1, claim2, claim3]} == set(ids)
+        assert await claim_ttl_classification(session, now=now) is None
+        for claim in [claim1, claim2, claim3]:
+            await finish_ttl_classification(
+                session, claim=claim, decision=AnswerReviewDecision("soon")
+            )

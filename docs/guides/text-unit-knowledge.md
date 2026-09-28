@@ -102,16 +102,16 @@ Claims and relationships carry valid time (`valid_from` / `valid_to`) and system
 
 ### Phase 6 — answer review TTL
 
-Research no longer traverses frozen EvidenceSets or asks Jev about graph impact
-after persisting claims/relationships. The existing passage-routing Jev request
-also chooses `soon` (3 calendar months), `later` (6), or `never` (no schedule).
-Grounded question/claim answer versions receive a review date in the same write
-transaction. A separate indexed, bounded process moves due versions into a
-candidate list; expiry never invalidates evidence or prevents reuse.
+At the common research freeze boundary, all sources' evidence for a question is
+captured together, including derived answers. The independent TTL classifier asks
+Jev for `soon` (3 calendar months), `later` (6), or `never` (no schedule). Research
+only records the pending work, with no model call or historical graph traversal.
+A separate indexed process promotes due versions to candidates. TTL never
+invalidates evidence or prevents reuse.
 
-The former revalidation table and service remain as legacy history, with no
-research caller. See [answer-review-ttl.md](answer-review-ttl.md) for the version
-identity, queue lifecycle, migration behavior, and operational commands.
+lagen.nu and other providers have no TTL responsibilities. The former revalidation
+service/table remain as legacy history, with no research caller. See
+[answer-review-ttl.md](answer-review-ttl.md) for the common lifecycle and commands.
 
 ### Phase 7 — iterative KnowledgeQuestion-driven research
 
