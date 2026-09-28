@@ -1043,17 +1043,18 @@ async def get_attempt_research_overview(
     for item in evidence_items:
         if item.research_need_id:
             need_ids_by_item.setdefault(item.id, set()).add(item.research_need_id)
+    assessment_attempt_ids = list(dict.fromkeys([attempt_id, *child_ids]))
     assessments = (
         list(
             (
                 await session.execute(
                     select(ResearchAssessment)
-                    .where(ResearchAssessment.attempt_id.in_(child_ids))
+                    .where(ResearchAssessment.attempt_id.in_(assessment_attempt_ids))
                     .order_by(ResearchAssessment.assessment_pass)
                 )
             ).scalars()
         )
-        if child_ids
+        if assessment_attempt_ids
         else []
     )
     links_by_question: dict[str, list[ResearchQuestionExpert]] = {}
