@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -12,6 +13,7 @@ from app.config import settings
 from app.database.base import Base
 from app.database.models import Kund
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
+from app.services.lagen_nu import document_fetch
 from app.services.lagen_nu.models import SearchResults
 from app.services.lagen_nu.passage_router import KeepAllPassageRouter
 from app.services.research.concurrency import reset_research_concurrency
@@ -42,6 +44,11 @@ async def session():
         await db.flush()
         yield db
     await engine.dispose()
+
+
+def test_document_fetch_owns_get_document():
+    source = inspect.getsource(document_fetch)
+    assert "get_document" in source
 
 
 def _two_doc_client() -> FakeLagenNuClient:
