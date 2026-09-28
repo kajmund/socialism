@@ -116,10 +116,16 @@ def source_candidate_slots() -> asyncio.Semaphore:
 
 
 def shared_db_session(source: object | None) -> object | None:
-    """Session the adapter already holds, if any. Missing means no sharing."""
+    """Session the adapter already holds, if any. Missing means no sharing.
+
+    Reads public ``shared_db_session`` or the lagen.nu ``_session`` field.
+    """
     if source is None:
         return None
-    return getattr(source, "shared_db_session", None)
+    session = getattr(source, "shared_db_session", None)
+    if session is not None:
+        return session
+    return getattr(source, "_session", None)
 
 
 def session_guard(
