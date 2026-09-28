@@ -193,7 +193,7 @@ def _emit_text_chunks(text: str, *, chunk_size: int = 24) -> list[str]:
     return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
 
 
-async def stream_help_chat_turn(
+async def stream_help_chat_turn(  # noqa: PLR0913
     session: AsyncSession,
     *,
     session_id: str,

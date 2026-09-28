@@ -46,7 +46,7 @@ class VisionProviderOut(TypedDict):
     models: list[dict[str, str]]
 
 
-def _provider_available(provider: VisionProvider) -> tuple[bool, str | None]:
+def _provider_available(provider: VisionProvider) -> tuple[bool, str | None]:  # noqa: PLR0911
     if provider == "openai":
         if settings.openai_api_key.strip():
             return True, None

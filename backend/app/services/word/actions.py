@@ -117,7 +117,7 @@ async def load_word_actions(
     return list(result.scalars().all())
 
 
-async def persist_word_action(
+async def persist_word_action(  # noqa: PLR0913
     session: AsyncSession,
     *,
     customer_id: int,

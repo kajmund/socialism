@@ -309,7 +309,7 @@ def _as_datetime(value: object) -> datetime | None:
         return None
 
 
-def _authority_from_signals(
+def _authority_from_signals(  # noqa: PLR0911
     signals: Mapping[str, object],
 ) -> tuple[AuthorityLevel, list[QualityFlag]]:
     flags: list[QualityFlag] = []

@@ -152,6 +152,8 @@ install:
 test: test-backend test-frontend test-word-addin
 
 test-backend:
+	cd backend && uv run $(BACKEND_UV_EXTRA) ruff check app tests scripts/check_maintainability.py
+	cd backend && uv run $(BACKEND_UV_EXTRA) python scripts/check_maintainability.py
 	cd backend && uv run $(BACKEND_UV_EXTRA) pytest
 
 test-frontend:

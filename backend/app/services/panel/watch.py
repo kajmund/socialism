@@ -136,7 +136,7 @@ async def append_turn_live(
     return turn
 
 
-async def commit_turn_checkpoint(
+async def commit_turn_checkpoint(  # noqa: PLR0917
     db: AsyncSession,
     panel: PanelSession,
     transcript: list[PanelTurn],
@@ -152,7 +152,7 @@ async def commit_turn_checkpoint(
     await db.commit()
 
 
-async def run_turn(
+async def run_turn(  # noqa: PLR0913
     db: AsyncSession,
     panel: PanelSession,
     transcript: list[PanelTurn],

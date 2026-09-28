@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # app.config mirrors MEM0_TELEMETRY before the Mem0 package is imported.
-# ruff: noqa: I001
 
 import asyncio
 import hashlib

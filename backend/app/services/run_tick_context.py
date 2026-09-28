@@ -30,7 +30,7 @@ def _at_or_before(value: Any, cutoff: int) -> bool:
     return key <= cutoff
 
 
-def build_persona_feed_context(
+def build_persona_feed_context(  # noqa: C901, PLR0912
     variant: dict[str, Any],
     *,
     persona_id: str,

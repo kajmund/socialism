@@ -35,7 +35,6 @@ from app.services.anchor_calibration import (
     clear_calibration_results,
     finalize_publish_calibration,
     run_calibration_test,
-    validation_snapshot,
 )
 from app.services.anchor_pool import (
     AnchorPoolError,

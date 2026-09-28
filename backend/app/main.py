@@ -66,7 +66,7 @@ def _require_chat_llm() -> None:
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI):  # noqa: PLR0915
     _require_chat_llm()
     if not settings.openai_api_key.strip():
         raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")

@@ -289,7 +289,7 @@ async def _resumable_execution_attempt(
     return attempt
 
 
-async def run_expertgranskning_with_research(
+async def run_expertgranskning_with_research(  # noqa: PLR0915
     factory: async_sessionmaker[AsyncSession],
     *,
     session_id: str,

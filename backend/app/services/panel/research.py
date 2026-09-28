@@ -388,7 +388,7 @@ def _research_copy(locale: str) -> dict[str, str]:
     }
 
 
-def format_expert_research_need_turn(
+def format_expert_research_need_turn(  # noqa: C901, PLR0912
     drafts: Sequence[ResearchNeedDraft] | ExpertResearchNeeds,
     *,
     has_domain_competence: bool = True,
@@ -600,7 +600,7 @@ async def collect_expert_research_needs(
     return result
 
 
-async def consolidate_research_plan(
+async def consolidate_research_plan(  # noqa: PLR0917
     config: PanelSessionConfig,
     opening: str,
     proposals: Sequence[ResearchProposal],

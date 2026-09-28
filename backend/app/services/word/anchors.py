@@ -176,7 +176,7 @@ def _context_matches(
     return previous_ok and next_ok
 
 
-def resolve_word_anchor(
+def resolve_word_anchor(  # noqa: PLR0911
     anchor: WordAnchor,
     current: list[WordDocumentParagraphState],
     current_session_id: str | None = None,

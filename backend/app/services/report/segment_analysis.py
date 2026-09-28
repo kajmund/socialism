@@ -210,7 +210,7 @@ def interview_quote_label(snippet: SegmentInterviewSnippet, *, locale: ReportLoc
     return interview_respondent_label(snippet, locale=locale)
 
 
-def build_segment_narrative(
+def build_segment_narrative(  # noqa: C901, PLR0912, PLR0915
     seg: AudienceSegmentSummary,
     *,
     locale: ReportLocale,
@@ -495,7 +495,7 @@ def _format_arm_diff_line(
     return f"{arm_label}: {' · '.join(bits)}"
 
 
-def build_segment_diff_summary(
+def build_segment_diff_summary(  # noqa: C901, PLR0912, PLR0915
     arms: list[SegmentArmSummary],
     *,
     locale: ReportLocale,

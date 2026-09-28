@@ -372,7 +372,7 @@ def _application_http_result(mutation, *, reject_detail: str) -> WordActionOut:
     "/word-jobs/{job_id}/actions/{action_id}/claim",
     response_model=WordActionOut,
 )
-async def claim_expertgranskning_word_action(
+async def claim_expertgranskning_word_action(  # noqa: PLR0917
     job_id: str,
     action_id: str,
     body: WordApplicationClaimIn,
@@ -399,7 +399,7 @@ async def claim_expertgranskning_word_action(
     "/word-jobs/{job_id}/actions/{action_id}/complete",
     response_model=WordActionOut,
 )
-async def complete_expertgranskning_word_action(
+async def complete_expertgranskning_word_action(  # noqa: PLR0917
     job_id: str,
     action_id: str,
     body: WordApplicationCompleteIn,
@@ -427,7 +427,7 @@ async def complete_expertgranskning_word_action(
     "/word-jobs/{job_id}/actions/{action_id}/unresolved",
     response_model=WordActionOut,
 )
-async def mark_expertgranskning_word_action_unresolved(
+async def mark_expertgranskning_word_action_unresolved(  # noqa: PLR0917
     job_id: str,
     action_id: str,
     body: WordApplicationUnresolvedIn,

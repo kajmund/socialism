@@ -310,7 +310,7 @@ def _classify_bound_messages(
     return "unsafe"
 
 
-async def reclaim_expired_expert_turn(
+async def reclaim_expired_expert_turn(  # noqa: PLR0911
     session: AsyncSession,
     turn: SmeExpertTurn,
 ) -> ReclaimOutcome:
@@ -445,7 +445,7 @@ class ExpertTurnHeartbeat:
         await task
 
 
-async def execute_expert_turn(
+async def execute_expert_turn(  # noqa: C901, PLR0912, PLR0913
     session_factory: async_sessionmaker[AsyncSession],
     *,
     request_id: str,

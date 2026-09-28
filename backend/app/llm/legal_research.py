@@ -80,7 +80,7 @@ class LlmLegalInterpreter:
         self._completer = completer or complete_structured_retry
         self._session_factory = session_factory or SessionLocal
 
-    async def interpret(
+    async def interpret(  # noqa: C901, PLR0912, PLR0915
         self,
         *,
         source: LegalSourceIdentity,

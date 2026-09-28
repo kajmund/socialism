@@ -8,7 +8,6 @@ import pytest
 
 from app.services.report.bundles import RunBundle
 from app.services.report.classify import (
-    BundleClassification,
     _style_shares_from_pmfs,
     classify_bundle,
 )
@@ -38,7 +37,7 @@ def _bundle_with_reactions(
     ]
     comments: list[dict] = []
     agents: list[dict] = [{"index": 0, "member_name": "Parti", "role": "injector"}]
-    next_post_id = 10
+    next_post_id = 10  # noqa: F841
     for user_id, text, likes in reactions:
         if user_id not in {a["index"] for a in agents}:
             agents.append(

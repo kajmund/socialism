@@ -66,7 +66,7 @@ def _tokens(value: str) -> frozenset[str]:
     return frozenset(match.group(0).casefold() for match in _TOKEN.finditer(value))
 
 
-def citation_from_lagen_nu_uri(uri: str | None) -> str | None:
+def citation_from_lagen_nu_uri(uri: str | None) -> str | None:  # noqa: PLR0911
     if not uri:
         return None
     if match := _PROP_PATH.search(uri):

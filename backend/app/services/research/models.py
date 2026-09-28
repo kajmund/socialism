@@ -166,7 +166,7 @@ def make_evidence_id(
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def research_evidence(
+def research_evidence(  # noqa: PLR0913
     *,
     research_need_id: str,
     source_type: str,

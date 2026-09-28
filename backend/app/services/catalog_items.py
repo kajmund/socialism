@@ -10,7 +10,7 @@ from app.schemas.domain import CatalogItem, GeoBounds
 _LEGACY_PIN_DELTA = 0.007
 
 
-def coerce_catalog_item(raw: Any) -> CatalogItem | None:
+def coerce_catalog_item(raw: Any) -> CatalogItem | None:  # noqa: PLR0911
     """Normalize legacy strings / lat-lng pins / rich objects to CatalogItem."""
     if isinstance(raw, CatalogItem):
         label = raw.label.strip()

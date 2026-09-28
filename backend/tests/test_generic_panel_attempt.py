@@ -177,7 +177,7 @@ async def _ready_attempt(
     return customer, run, frozen, stored, attempt
 
 
-def _install_panel_llm(captured: list[list[dict]] | None = None):
+def _install_panel_llm(captured: list[list[dict]] | None = None):  # noqa: C901
     async def _complete(messages, *, model=None):
         if captured is not None:
             captured.append([dict(item) for item in messages])

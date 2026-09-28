@@ -333,7 +333,7 @@ def _pct(raw: object) -> str | None:
     return str(raw).strip()
 
 
-def _figure_from_amount(code: str, raw: object) -> DdAccountFigure | None:
+def _figure_from_amount(code: str, raw: object) -> DdAccountFigure | None:  # noqa: PLR0911
     if raw in (None, ""):
         return None
     namn, kind = _ACCOUNT_META.get(code, (code, "tal"))
@@ -572,7 +572,7 @@ def format_search_markdown(rows: list[dict[str, Any]], *, today: date | None = N
     return "\n\n".join(blocks)
 
 
-def format_lookup_markdown(row: dict[str, Any], *, today: date | None = None) -> str:
+def format_lookup_markdown(row: dict[str, Any], *, today: date | None = None) -> str:  # noqa: C901, PLR0912, PLR0915
     candidate = candidate_from_allabolag(row, today=today)
     address = row.get("visitorAddress") if isinstance(row.get("visitorAddress"), dict) else {}
     address_line = ", ".join(

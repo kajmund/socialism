@@ -313,7 +313,7 @@ def observations_are_same_issue(left: WordObservation, right: WordObservation) -
     return comments_are_similar(left.issue_match_text(), right.issue_match_text())
 
 
-def _copy_observation(
+def _copy_observation(  # noqa: PLR0913
     source: WordObservation,
     *,
     observation_id: str,

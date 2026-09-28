@@ -216,7 +216,7 @@ def _known_parent(
     return None
 
 
-def validate_follow_up_drafts(
+def validate_follow_up_drafts(  # noqa: PLR0913
     drafts: Sequence[FollowUpNeedDraft],
     *,
     previous_needs: Sequence[RuntimeResearchNeed],

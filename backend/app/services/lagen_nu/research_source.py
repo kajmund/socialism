@@ -541,7 +541,7 @@ async def _rollback_open_session(session: AsyncSession | None) -> None:
 
 
 class LagenNuResearchSource:
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         source_type: ResearchSourceType,
@@ -693,7 +693,7 @@ class LagenNuResearchSource:
         self._owned_client = None
         await client.aclose()
 
-    async def _research(
+    async def _research(  # noqa: PLR0911
         self,
         need: ResearchNeed,
         context: ResearchContext,
@@ -935,7 +935,7 @@ class LagenNuResearchSource:
                 kept.extend(_kept_candidates(others, decisions))
         return _rank_candidates(need, _merge_candidates(kept))
 
-    async def _fetch_candidates(
+    async def _fetch_candidates(  # noqa: C901, PLR0912, PLR0917
         self,
         need: ResearchNeed,
         context: ResearchContext,
@@ -1068,7 +1068,7 @@ class LagenNuResearchSource:
                 )
         return found
 
-    async def _from_document(
+    async def _from_document(  # noqa: PLR0913, PLR0917
         self,
         need: ResearchNeed,
         context: ResearchContext,
@@ -1280,7 +1280,7 @@ class LagenNuResearchSource:
             ),
         )
 
-    def _failure(
+    def _failure(  # noqa: PLR0917
         self,
         need: ResearchNeed,
         budget: _CallBudget,

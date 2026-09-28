@@ -48,7 +48,7 @@ def _view(model: str, *, provider: str = "cerebras") -> LlmRuntimeView:
     )
 
 
-def _config(
+def _config(  # noqa: PLR0913
     config_id: int,
     *,
     model: str,

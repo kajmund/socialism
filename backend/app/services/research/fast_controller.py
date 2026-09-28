@@ -318,7 +318,7 @@ def _decision_from_result(
     )
 
 
-def classify_research_decision(
+def classify_research_decision(  # noqa: PLR0913
     *,
     answerable_now: float,
     material_gap: float,

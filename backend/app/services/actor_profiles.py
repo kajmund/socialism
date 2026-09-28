@@ -85,7 +85,7 @@ class ActorProfileTools:
         self.conversation = conversation
         self.requested_by_id = requested_by_id
 
-    async def __call__(self, name: str, arguments: dict) -> str:
+    async def __call__(self, name: str, arguments: dict) -> str:  # noqa: C901, PLR0912
         user = await self.session.get(UserAccount, self.user_id, populate_existing=True)
         if user is None:
             raise ValueError("actor_not_found")

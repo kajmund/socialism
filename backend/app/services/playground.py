@@ -78,7 +78,7 @@ def confusion_counts(
     return matrix
 
 
-async def rate_case(
+async def rate_case(  # noqa: PLR0913
     texts: list[str],
     *,
     dimension: Dimension,

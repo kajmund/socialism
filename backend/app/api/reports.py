@@ -235,7 +235,7 @@ async def _reuse_dd_report(
 
 
 @router.post("", response_model=ReportOut, status_code=202)
-async def create_report(
+async def create_report(  # noqa: PLR0915
     body: ReportCreate,
     response: Response,
     session: AsyncSession = Depends(get_session),
@@ -335,7 +335,7 @@ async def create_report(
 
 
 @router.get("", response_model=list[ReportOut])
-async def list_reports(
+async def list_reports(  # noqa: PLR0917
     status: ReportStatus | None = Query(default=None),
     customer_id: int | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),

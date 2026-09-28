@@ -233,7 +233,7 @@ def _rewrite_labels_list(labels: list, old_label: str, new_label: str) -> tuple[
     return next_labels, next_labels != [str(x) for x in labels]
 
 
-async def rename_label(
+async def rename_label(  # noqa: C901, PLR0917
     session: AsyncSession,
     kind: LabelKind,
     locale: LabelLocale,

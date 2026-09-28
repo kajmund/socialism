@@ -141,7 +141,7 @@ async def publish_job(job: Job) -> None:
     )
 
 
-async def create_job(session: AsyncSession, body: JobCreate) -> Job:
+async def create_job(session: AsyncSession, body: JobCreate) -> Job:  # noqa: C901, PLR0912, PLR0915
     if body.kind == "population_generate":
         # Validate shape early so the API fails before the worker starts.
         PopulationGenerateJobRequest.model_validate(body.request)
@@ -472,7 +472,7 @@ async def _run_population_generate(job_id: str) -> None:
         )
 
 
-async def _run_simulate(job_id: str) -> None:
+async def _run_simulate(job_id: str) -> None:  # noqa: PLR0915
     factory = job_session_factory()
     async with factory() as session:
         job = await session.get(Job, job_id)
@@ -584,7 +584,7 @@ async def _run_simulate(job_id: str) -> None:
             await _fail(session, job_id, str(exc) or exc.__class__.__name__)
 
 
-async def _run_report_generate(job_id: str) -> None:
+async def _run_report_generate(job_id: str) -> None:  # noqa: PLR0915
     from pathlib import Path
 
     from app.modules.registry import module_id_for_report_mode, report_binding_for_mode
@@ -688,7 +688,7 @@ async def _run_report_generate(job_id: str) -> None:
         )
 
 
-async def _run_panel_session(job_id: str) -> None:
+async def _run_panel_session(job_id: str) -> None:  # noqa: C901, PLR0912, PLR0915
     factory = job_session_factory()
     async with factory() as session:
         job = await session.get(Job, job_id)
@@ -963,7 +963,7 @@ async def archive_finished_jobs(
     return rows
 
 
-async def fail_interrupted_jobs(
+async def fail_interrupted_jobs(  # noqa: C901, PLR0912
     session: AsyncSession,
     *,
     message: str = "Avbrutet av serveromstart",

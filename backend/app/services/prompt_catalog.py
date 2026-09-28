@@ -62,7 +62,7 @@ class PromptFieldDef(TypedDict):
     defaults: dict[str, str]
 
 
-def _f(
+def _f(  # noqa: PLR0913, PLR0917
     key: str,
     section: PromptSection,
     label_sv: str,

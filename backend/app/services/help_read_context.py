@@ -419,7 +419,7 @@ async def _load_jobs_snapshot(session: AsyncSession, *, customer_id: int) -> str
     return "\n".join(lines)
 
 
-async def _load_view_entity(
+async def _load_view_entity(  # noqa: C901, PLR0911, PLR0912
     session: AsyncSession,
     view: HelpViewContext,
     *,

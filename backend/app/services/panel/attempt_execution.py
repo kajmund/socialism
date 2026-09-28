@@ -149,7 +149,7 @@ async def _fail_claimed_panel(session: AsyncSession, attempt_id: str) -> None:
     await session.commit()
 
 
-async def execute_generic_panel_attempt(
+async def execute_generic_panel_attempt(  # noqa: C901, PLR0912, PLR0915
     session: AsyncSession,
     *,
     attempt_id: str,

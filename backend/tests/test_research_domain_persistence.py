@@ -42,7 +42,7 @@ from tests.knowledge_fakes import FakeEmbeddingProvider
 
 
 @pytest.mark.asyncio
-async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses(monkeypatch):
+async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses(monkeypatch):  # noqa: PLR0915
     from app.config import settings
     from app.services.lagen_nu.models import ResolvedCitations
     from app.services.lagen_nu.research_source import LagenNuResearchSource
@@ -247,7 +247,7 @@ async def test_three_followups_reuse_one_raw_document_and_keep_distinct_analyses
 
 
 @pytest.mark.asyncio
-async def test_raw_dedupe_question_specific_results_and_grounded_claims():
+async def test_raw_dedupe_question_specific_results_and_grounded_claims():  # noqa: PLR0915
     engine = create_async_engine(
         "sqlite+aiosqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )

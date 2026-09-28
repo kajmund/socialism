@@ -124,10 +124,10 @@ def test_expertgranskning_is_registered():
 
 
 @pytest.fixture
-def mock_panel_llm():
+def mock_panel_llm():  # noqa: C901
     counters = {"n": 0}
 
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: PLR0911
         counters["n"] += 1
         user = messages[-1]["content"]
         if "JA eller NEJ" in user or "YES or NO" in user:
@@ -325,7 +325,7 @@ async def test_rerun_clears_previous_execution_and_panel_state(client: AsyncClie
 
 
 @pytest.mark.asyncio
-async def test_expertgranskning_session_report_and_spindoctor(
+async def test_expertgranskning_session_report_and_spindoctor(  # noqa: PLR0915
     client: AsyncClient,
     mock_panel_llm,
     tmp_path,

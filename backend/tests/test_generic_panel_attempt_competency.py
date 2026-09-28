@@ -142,7 +142,7 @@ def _competency_for_label(
     )
 
 
-def _install_attempt_llm(
+def _install_attempt_llm(  # noqa: C901
     *,
     competency: dict[str, ExpertCompetency] | ExpertCompetency,
     raise_replies: dict[str, str] | str = "JA",
@@ -152,7 +152,7 @@ def _install_attempt_llm(
     synthesis: GenericPanelSynthesis | None = None,
     captured: list[list[dict]] | None = None,
 ) -> None:
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: C901, PLR0911, PLR0912
         if captured is not None:
             captured.append([dict(item) for item in messages])
         user = messages[-1]["content"]

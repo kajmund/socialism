@@ -41,7 +41,7 @@ from app.services.knowledge.vector_store import KnowledgeVectorStore
 _MISSING_EMBEDDINGS = "missing ingest embeddings"
 
 
-async def ingest_extracted_source(
+async def ingest_extracted_source(  # noqa: PLR0913
     session: AsyncSession,
     *,
     extracted: ExtractedDocument,

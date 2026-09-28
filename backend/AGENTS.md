@@ -57,6 +57,11 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 - **Async by default in request-path code.** Don't run blocking I/O on the event loop. Tempfile + small synchronous file reads are OK (they're fast); network calls must be async.
 - **Use `async def` for all route handlers** and any I/O service function.
 - **Validate at boundaries only.** HTTP input is validated by Pydantic models. External API responses are validated when parsed. Internal callers are trusted.
+- **New code follows the Ruff maintainability limits** in `pyproject.toml` (`max-args=7`, `max-positional-args=4`, complexity/branch/return/statement/nesting caps). `uv run ruff check app tests scripts/check_maintainability.py` and `uv run python scripts/check_maintainability.py` must stay green.
+- **Do not add new `# noqa` for `C901` / `PLR09xx` / `PLR1702` / `BLE001`.** Extract instead. `# noqa` without a rule code is forbidden (`PGH004`). File-level `# ruff: noqa` is forbidden.
+- **If you touch a function that already has a `noqa` and it still exceeds the limit:** leave the exemption, but do not make the function larger.
+- **If you touch a baselined module it must not grow.** Put new functionality in a new module. Never raise `module-baseline` / `noqa-baseline`, and do not add `per-file-ignores`.
+- After shrinking a baselined module or removing a `noqa`, run `uv run python scripts/check_maintainability.py --update` (it can only lower values).
 
 ## Configuration
 

@@ -97,7 +97,7 @@ def _pick_recommended_index(
     return scored[0][3]
 
 
-def _action_phrase(
+def _action_phrase(  # noqa: PLR0911
     score: int,
     *,
     locale: ReportLocale,
@@ -148,7 +148,7 @@ def _summary(
     )
 
 
-def build_recommendation(
+def build_recommendation(  # noqa: C901, PLR0912
     metrics: ReportMetrics,
     bundles: list[RunBundle],
     classifications: list[BundleClassification],

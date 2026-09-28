@@ -24,7 +24,7 @@ _PROVOCATIVE = "Provocerande / konfronterande"
 DiffBand = Literal["clear", "weak", "none"]
 
 
-def _validation_issue_lines(
+def _validation_issue_lines(  # noqa: PLR0912
     validation: dict[str, Any] | None,
     *,
     locale: ReportLocale,
@@ -259,7 +259,7 @@ def _topic_share_by_day_half(
     return {"day1": day1, "later": later, "flag": flag, "top_topic": top}
 
 
-def decide_verdict(
+def decide_verdict(  # noqa: PLR0911
     metrics: ReportMetrics,
     bundles: list[RunBundle],
     *,
@@ -483,7 +483,7 @@ def _style_html(
     return "".join(parts)
 
 
-def build_quick_slots(
+def build_quick_slots(  # noqa: PLR0913
     *,
     title: str,
     bundles: list[RunBundle],

@@ -98,7 +98,7 @@ async def _project_id_for_create(session: AsyncSession, user: UserAccount) -> in
 
 
 @router.get("", response_model=list[MessageOut])
-async def list_messages(
+async def list_messages(  # noqa: PLR0917
     q: str | None = Query(default=None),
     type: MessageType | None = Query(default=None),
     project_id: int | None = Query(default=None),
@@ -137,7 +137,7 @@ async def summarize_url(
     )
     try:
         summary = await summarize_url_content(url, body.message_type, prompts=prompts)
-    except Exception as exc:  # noqa: BLE001 — surface fetch/LLM errors as 400
+    except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return SummarizeUrlResponse(
         summary=summary,
@@ -160,7 +160,7 @@ async def generate_variants(
     )
     try:
         variants = await generate_message_variants(body, prompts=prompts)
-    except Exception as exc:  # noqa: BLE001 — surface generation errors as 400
+    except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return GenerateVariantsResponse(variants=variants)
 

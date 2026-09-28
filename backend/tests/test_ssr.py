@@ -169,7 +169,7 @@ def test_cache_put_survives_concurrent_writes():
     def _write() -> None:
         try:
             cache_put(text, vec)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             errors.append(f"{type(exc).__name__}: {exc}")
 
     with ThreadPoolExecutor(max_workers=50) as pool:

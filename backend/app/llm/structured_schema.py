@@ -23,7 +23,7 @@ def strict_json_schema(schema: dict[str, Any]) -> dict[str, Any]:
     return _ensure_strict(root, root)
 
 
-def _ensure_strict(node: dict[str, Any], root: dict[str, Any]) -> dict[str, Any]:
+def _ensure_strict(node: dict[str, Any], root: dict[str, Any]) -> dict[str, Any]:  # noqa: C901, PLR0912
     defs = node.get("$defs")
     if isinstance(defs, dict):
         for name, definition in defs.items():

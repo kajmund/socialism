@@ -110,7 +110,7 @@ async def run_rattsunderlag_research_job(job_id: str) -> None:
                     "sourcing_status": result.sourcing_status,
                 },
             )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         async with factory() as session:
             report = await session.get(Report, report_id)
             if report is not None:
