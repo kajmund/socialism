@@ -159,6 +159,10 @@ class Settings(BaseSettings):
     persona_generate_concurrency: int = Field(default=8, ge=1, le=32)
     # Max concurrent ResearchNeed executions under one Attempt.
     research_need_concurrency: int = Field(default=8, ge=1, le=32)
+    # Max concurrent providers inside one ResearchNeed. 1 keeps the router serial.
+    research_source_concurrency: int = Field(default=1, ge=1, le=32)
+    # Max concurrent document fetches inside one source. 1 keeps fetch serial.
+    research_document_concurrency: int = Field(default=1, ge=1, le=32)
     # One ResearchNeed may not block the Attempt barrier without a bound.
     research_need_timeout_seconds: float = Field(default=900.0, gt=0)
     # Follow-up waves after the initial ResearchNeed wave (wave 0).
