@@ -152,20 +152,16 @@ async def score_need_quality_eager(
     bind: EagerQualityBind | None,
     raise_if_fenced: Callable[[], None],
 ) -> None:
-    """Score this need's stored items after persist. Failures do not fail the need."""
-    if bind is None or not stored:
+    """Score this need's owned stored items after persist. Failures do not fail the need."""
+    owned_ids = {item.id for item in stored if item.research_need_id == need.id}
+    if bind is None or not owned_ids:
         return
-    stored_ids = {item.id for item in stored}
     try:
         raise_if_fenced()
         async with persist_lock, factory() as read_session:
             raise_if_fenced()
             items = await list_evidence_items(read_session, evidence_set_id)
-        batch = [
-            item
-            for item in items
-            if item.research_need_id == need.id or item.id in stored_ids
-        ]
+        batch = [item for item in items if item.research_need_id == need.id]
         drafts = await assess_evidence_quality(
             [quality_input_from_item(item) for item in batch],
             needs=[need],
@@ -183,7 +179,7 @@ async def score_need_quality_eager(
             missing = [
                 draft
                 for draft in drafts
-                if draft.evidence_set_item_id in stored_ids
+                if draft.evidence_set_item_id in owned_ids
                 and _draft_key(draft) not in _existing_keys(existing)
             ]
             if missing:
