@@ -76,12 +76,13 @@ async def persist_pending_graph_writes(
     """Persist queued claims and edges. Returns customer_id plus node ids."""
     if not items:
         return 0, [], []
+    customer_ids = {item.customer_id for item in items}
+    if len(customer_ids) != 1:
+        raise ValueError("graph write-back mixed customer_id values")
     customer_id = items[0].customer_id
     claim_ids: list[str] = []
     relationship_ids: list[str] = []
     for item in items:
-        if item.customer_id != customer_id:
-            raise ValueError("graph write-back mixed customer_id values")
         await persist_knowledge_claims(session, item.claims)
         await persist_knowledge_entities(session, item.entities)
         await persist_knowledge_relationships(session, item.edges)
