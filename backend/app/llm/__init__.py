@@ -25,10 +25,10 @@ from app.llm.runtime_override import (
 from app.llm.selection import llm_call_runtime
 from app.llm.structured_retry import (
     StructuredOutputError,
-    classify_structured_failure,
-    is_json_syntax_validation_error,
+    classify_structured_failure as classify_structured_failure,
+    is_json_syntax_validation_error as is_json_syntax_validation_error,
     run_structured_with_retry,
-    validation_category,
+    validation_category as validation_category,
 )
 from app.llm.structured_schema import strict_json_schema
 from app.llm.tool_messages import normalize_messages_for_provider
@@ -370,7 +370,7 @@ async def _complete_structured[T](
     return response_model.model_validate_json(content)  # type: ignore[attr-defined, no-any-return]
 
 
-async def complete_structured_retry[T](
+async def complete_structured_retry[T](  # noqa: PLR0913
     messages: list[ChatMessage],
     response_model: type[T],
     *,

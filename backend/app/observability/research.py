@@ -142,7 +142,7 @@ def _log_research_event(
     )
 
 
-def emit_jev_started(
+def emit_jev_started(  # noqa: PLR0913
     *,
     event_name: str,
     mode: ResearchJevMode,
@@ -172,7 +172,7 @@ def emit_jev_started(
     )
 
 
-def emit_jev_decision(
+def emit_jev_decision(  # noqa: C901, PLR0913
     *,
     event_name: str,
     outcome: str,
@@ -251,7 +251,7 @@ def emit_jev_decision(
     )
 
 
-def emit_jev_shadow_comparison(
+def emit_jev_shadow_comparison(  # noqa: PLR0913
     *,
     gate: str,
     mode: ResearchJevMode,
@@ -310,7 +310,7 @@ def emit_jev_short_circuit(
     )
 
 
-def emit_jev_evidence_scored(
+def emit_jev_evidence_scored(  # noqa: PLR0913
     *,
     mode: ResearchJevMode,
     model: str,

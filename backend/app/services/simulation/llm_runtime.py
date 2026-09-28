@@ -111,7 +111,7 @@ def _append_external_tool_trace(
     )
 
 
-def _append_reasoning_trace(
+def _append_reasoning_trace(  # noqa: PLR0917
     agent: Any,
     func_name: str,
     args: dict[str, Any],
@@ -160,7 +160,7 @@ def _apply_llm_patches() -> None:
         self._deepseek_pending_reasoning = reasoning
         return result
 
-    def record_tool_calling(
+    def record_tool_calling(  # noqa: PLR0917
         self,
         func_name: str,
         args: dict[str, Any],

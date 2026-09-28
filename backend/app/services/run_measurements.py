@@ -178,7 +178,7 @@ def _summary_for(kind: str, metrics: dict[str, Any]) -> str:
     return f"{posts} inlägg · {comments} kommentarer"
 
 
-def _point_metrics(
+def _point_metrics(  # noqa: PLR0913
     kind: str,
     *,
     window_posts: list[dict[str, Any]],

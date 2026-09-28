@@ -18,7 +18,6 @@ from app.schemas.domain import (
     PopulationRecipe,
 )
 from app.services import population_generate as gen
-from app.services.persona_catalog import LASTN
 from app.services.population_generate import (
     _assign_unique_names,
     sample_slot,
@@ -193,7 +192,7 @@ async def test_llm_batch_uses_preassigned_names_and_waves(monkeypatch, gen_sessi
     seen_fixed: list[str] = []
     anecdote_prevs: list[tuple[str, ...]] = []
 
-    async def fake_from_slot(
+    async def fake_from_slot(  # noqa: PLR0913
         slot,
         free_text="",
         *,

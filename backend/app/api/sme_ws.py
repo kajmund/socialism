@@ -64,7 +64,7 @@ async def _authenticate(websocket: WebSocket) -> UserAccount:
 
 
 @router.websocket("/ws/sme")
-async def sme_chat_websocket(websocket: WebSocket) -> None:
+async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR0915
     await websocket.accept()
     try:
         user = await _authenticate(websocket)
@@ -165,7 +165,7 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:
             }
         )
 
-    async def run_expert_turn(send: SmeExpertSend) -> None:
+    async def run_expert_turn(send: SmeExpertSend) -> None:  # noqa: C901
         envelope = {
             "thread_type": send.thread_type,
             "thread_id": send.thread_id,

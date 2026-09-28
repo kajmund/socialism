@@ -75,7 +75,7 @@ def _extract_pdf(data: bytes) -> str | None:
             for page in pdf.pages:
                 pages.append(page.extract_text() or "")
         return "\n\n".join(pages)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
 
 
@@ -83,5 +83,5 @@ def _extract_docx(data: bytes) -> str | None:
     try:
         result = mammoth.convert_to_markdown(BytesIO(data))
         return str(result.value or "")
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None

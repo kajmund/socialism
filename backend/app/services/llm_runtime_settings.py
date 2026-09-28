@@ -170,7 +170,7 @@ def default_selection_metadata(profile_id: str) -> dict[str, Any]:
     }
 
 
-def normalize_selection_metadata(
+def normalize_selection_metadata(  # noqa: PLR0913
     *,
     profile_id: str,
     selection_role: str | None = None,
@@ -330,7 +330,7 @@ def _infer_profile_id() -> ProfileId:
     return "gpt-oss-120b"
 
 
-def validate_and_normalize(
+def validate_and_normalize(  # noqa: C901
     *,
     profile_id: str,
     temperature: float | None,
@@ -814,7 +814,7 @@ async def _apply_if_default(row: LlmConfiguration) -> None:
     )
 
 
-async def create_configuration(
+async def create_configuration(  # noqa: PLR0913
     session: AsyncSession,
     *,
     name: str,
@@ -887,7 +887,7 @@ async def create_configuration(
     return row
 
 
-async def update_configuration(
+async def update_configuration(  # noqa: PLR0913
     session: AsyncSession,
     configuration_id: int,
     *,

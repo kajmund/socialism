@@ -121,12 +121,12 @@ def test_unanswered_turn_roundtrip_keeps_moderator_note():
 
 
 @pytest.mark.asyncio
-async def test_resume_after_committed_score_skips_model_and_matches_transcript(client_db):
+async def test_resume_after_committed_score_skips_model_and_matches_transcript(client_db):  # noqa: PLR0915
     _client, factory = client_db
     phase = {"resume": False}
     calls = {"score": 0, "score_resume_committed": 0, "tools_score": 0}
 
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: PLR0911
         user = messages[-1]["content"]
         identity = "".join(
             item.get("content") or "" for item in messages if item.get("role") == "system"

@@ -136,7 +136,7 @@ def _comment_topic_status(
     return post_topic_status.get(parent_id)
 
 
-def reception_vs_discussion_rows(
+def reception_vs_discussion_rows(  # noqa: C901, PLR0912
     bundle: RunBundle,
     *,
     post_topic_status: dict[int, TopicStatus] | None = None,

@@ -85,7 +85,7 @@ async def next_expert_profile_sort_order(
     return max(orders) + 1
 
 
-async def create_expert_profile(
+async def create_expert_profile(  # noqa: PLR0913
     session: AsyncSession,
     *,
     customer_id: int,
@@ -120,7 +120,7 @@ async def create_expert_profile(
     return row
 
 
-async def update_expert_profile(
+async def update_expert_profile(  # noqa: PLR0913
     session: AsyncSession,
     row: PanelExpertProfile,
     *,

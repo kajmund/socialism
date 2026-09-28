@@ -156,7 +156,7 @@ def _reset_llm_completers():
 
 
 @pytest.fixture
-async def client(request, tmp_path):
+async def client(request, tmp_path):  # noqa: PLR0915
     settings.persona_generator = "stub"
     settings.cerebras_api_key = "test-key-not-real"
     settings.deepseek_api_key = "test-key-not-real"

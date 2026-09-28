@@ -165,7 +165,7 @@ async def get_underlag_list(
 
 
 @router.post("", response_model=UnderlagOut, status_code=201)
-async def post_underlag(
+async def post_underlag(  # noqa: PLR0917
     module: str = Query(...),
     folder_id: str | None = Query(None),
     file: UploadFile = File(...),
@@ -341,7 +341,7 @@ async def post_underlag_knowledge(
     "/{object_id}/knowledge/{item_id}",
     response_model=DocumentKnowledgeItemOut,
 )
-async def put_underlag_knowledge(
+async def put_underlag_knowledge(  # noqa: PLR0917
     object_id: str,
     item_id: str,
     body: DocumentKnowledgeItemUpdate,

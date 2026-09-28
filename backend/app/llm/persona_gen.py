@@ -70,7 +70,7 @@ def apply_slot_to_profile(profile: EditablePersona, slot: SlotPlan) -> None:
         profile.initials = persona_initials(profile.name)
 
 
-async def llm_persona_from_slot(
+async def llm_persona_from_slot(  # noqa: PLR0913
     slot: SlotPlan,
     free_text: str = "",
     *,

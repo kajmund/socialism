@@ -32,7 +32,7 @@ def current_log_context() -> LogContext:
     return _log_context.get() or LogContext()
 
 
-def bind_log_context(
+def bind_log_context(  # noqa: PLR0913
     *,
     trace_id: str | None = None,
     run_id: str | None = None,

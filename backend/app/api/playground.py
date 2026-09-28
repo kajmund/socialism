@@ -30,7 +30,7 @@ from app.services.report.sampling import (
     collect_all_reactions_for_ssr,
     sample_reactions_for_ssr,
 )
-from app.services.ssr import ANCHOR_SET_VERSION, style_anchors, tone_anchors
+from app.services.ssr import ANCHOR_SET_VERSION
 
 router = APIRouter(
     prefix="/playground",
@@ -472,7 +472,7 @@ async def get_image_models() -> dict[str, Any]:
 
 
 @router.post("/image/react", response_model=ImageReactOut)
-async def post_image_react(
+async def post_image_react(  # noqa: PLR0913, PLR0917
     persona_id: str = Form(...),
     locale: Locale = Form(default="sv"),
     temperature: float = Form(default=0.1),

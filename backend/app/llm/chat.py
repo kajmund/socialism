@@ -149,7 +149,7 @@ def build_run_interview_prompt(
     )
 
 
-def _chat_messages(
+def _chat_messages(  # noqa: PLR0913
     profile: EditablePersona,
     mode: ChatMode,
     history: list[tuple[str, str]] | list[tuple[str, str, str | None]],
@@ -203,7 +203,7 @@ def _chat_messages(
     return messages
 
 
-async def reply_as_persona(
+async def reply_as_persona(  # noqa: PLR0913
     profile: EditablePersona,
     mode: ChatMode,
     history: list[tuple[str, str]] | list[tuple[str, str, str | None]],
@@ -254,7 +254,7 @@ async def reply_as_persona(
     )
 
 
-async def stream_reply_as_persona(
+async def stream_reply_as_persona(  # noqa: PLR0913
     profile: EditablePersona,
     mode: ChatMode,
     history: list[tuple[str, str]] | list[tuple[str, str, str | None]],
@@ -306,7 +306,7 @@ async def stream_reply_as_persona(
         yield chunk
 
 
-async def stream_reply_as_expert(
+async def stream_reply_as_expert(  # noqa: PLR0913
     profile: EditablePersona,
     mode: ChatMode,
     history: list[tuple[str, str]],

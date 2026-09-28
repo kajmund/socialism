@@ -247,7 +247,7 @@ async def _moderator_opening(
     return _visible_moderator_text(await complete_text(messages, prompt_key="panel.moderator.system"))
 
 
-async def _moderator_sub_question(
+async def _moderator_sub_question(  # noqa: PLR0917
     config: PanelSessionConfig,
     sub_question: SubQuestionRef,
     transcript: list[PanelTurn],
@@ -299,7 +299,7 @@ async def _expert_raise_hand_dd(
     return wants, visible
 
 
-async def _expert_score(
+async def _expert_score(  # noqa: PLR0917
     slot: PanelExpertSlot,
     config: PanelSessionConfig,
     sub_question: SubQuestionRef,
@@ -351,7 +351,7 @@ async def _expert_score(
         return _parse_score_payload(raw)
 
 
-async def _moderator_no_answer(
+async def _moderator_no_answer(  # noqa: PLR0917
     config: PanelSessionConfig,
     sub_question: SubQuestionRef,
     expert_slots: list[PanelExpertSlot],
@@ -372,7 +372,7 @@ async def _moderator_no_answer(
     return _visible_moderator_text((await complete_text(messages, prompt_key="panel.moderator.system")).strip())
 
 
-async def _moderator_summary(
+async def _moderator_summary(  # noqa: PLR0917
     config: PanelSessionConfig,
     transcript: list[PanelTurn],
     scores: list[DdExpertScore],
@@ -409,7 +409,7 @@ async def _moderator_summary(
     return _visible_moderator_text(await complete_text(messages, prompt_key="panel.moderator.system"))
 
 
-async def run_structured_scoring(
+async def run_structured_scoring(  # noqa: C901, PLR0915
     db: AsyncSession,
     panel: PanelSession,
     prompts: dict[str, str],

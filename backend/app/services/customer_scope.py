@@ -84,7 +84,7 @@ async def customer_id_for_new_report(
     return await default_os_customer_id(session)
 
 
-async def customer_id_for_new_job(session: AsyncSession, body: JobCreate) -> int:
+async def customer_id_for_new_job(session: AsyncSession, body: JobCreate) -> int:  # noqa: C901, PLR0911, PLR0912
     if body.kind == "population_generate":
         payload = PopulationGenerateJobRequest.model_validate(body.request)
         if payload.kind == "expert_panel":

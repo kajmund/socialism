@@ -1827,7 +1827,7 @@ def _assert_single_linear_head(script: ScriptDirectory, *, through: str) -> None
         current = down
 
 
-def test_word_alembic_chain_is_linear_after_main_head():
+def test_word_alembic_chain_is_linear_after_main_head():  # noqa: PLR0915
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
     _assert_single_linear_head(script, through="115_canonical_text_units")
@@ -2383,12 +2383,12 @@ async def test_word_review_rejects_foreign_panel(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_word_review_raise_hand_then_comment_and_heading(
+async def test_word_review_raise_hand_then_comment_and_heading(  # noqa: PLR0915
     client: AsyncClient, caplog: pytest.LogCaptureFixture
 ):
     calls: list[str] = []
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             calls.append("moderate")
@@ -2487,9 +2487,9 @@ async def test_word_review_raise_hand_then_comment_and_heading(
 async def test_word_review_selection_scope_stays_inside_target(client: AsyncClient):
     captured: list[list[dict]] = []
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         captured.append(messages)
-        user = messages[-1]["content"]
+        user = messages[-1]["content"]  # noqa: F841
         if response_model is WordBatchModeration:
             return WordBatchModeration(
                 needs_review=True,
@@ -2588,7 +2588,7 @@ async def test_word_review_selection_scope_stays_inside_target(client: AsyncClie
 
 @pytest.mark.asyncio
 async def test_word_review_selection_scope_can_comment_and_replace(client: AsyncClient):
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
@@ -2895,7 +2895,7 @@ async def test_word_review_trivial_batch_skips_experts(client: AsyncClient):
 async def test_word_review_experts_select_subset_of_questions(client: AsyncClient):
     comment_questions: list[str] = []
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return WordBatchModeration(
@@ -2972,7 +2972,7 @@ async def test_word_review_experts_select_subset_of_questions(client: AsyncClien
 
 @pytest.mark.asyncio
 async def test_word_review_question_can_span_paragraphs(client: AsyncClient):
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         if response_model is WordBatchModeration:
             return WordBatchModeration(
                 needs_review=True,
@@ -3045,7 +3045,7 @@ async def test_word_review_rewrite_uses_resolved_anchor_not_question_scope(
     paragraph_11 = "Beställaren ska betala fakturan inom skälig tid."
     paragraph_12 = "Avtalet gäller i tolv månader från undertecknandet."
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return WordBatchModeration(
@@ -3121,7 +3121,7 @@ async def test_word_review_rewrite_requires_same_paragraph_anchor(
 ):
     rewrite_calls = 0
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         nonlocal rewrite_calls
         if response_model is WordBatchModeration:
             return WordBatchModeration(
@@ -3197,7 +3197,7 @@ async def test_word_review_single_paragraph_rewrite_still_converges(
 ):
     rewrite_calls = 0
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         nonlocal rewrite_calls
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
@@ -3294,7 +3294,7 @@ async def test_word_review_commits_after_section_not_during_analysis(
     seen_during_heading: list[int] = []
     job_holder: dict[str, str] = {}
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRoute:
@@ -3337,7 +3337,7 @@ async def test_word_review_commits_after_section_not_during_analysis(
 async def test_word_review_no_rewrite_with_one_comment(client: AsyncClient):
     rewrite_calls = 0
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         nonlocal rewrite_calls
         label = _identity_label(messages)
         if response_model is WordBatchModeration:
@@ -3379,7 +3379,7 @@ async def test_word_review_no_rewrite_with_one_comment(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_word_review_split_opinions_do_not_rewrite(client: AsyncClient):
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRoute:
@@ -3414,7 +3414,7 @@ async def test_word_review_split_opinions_do_not_rewrite(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_word_review_converging_comments_write_rewrite(client: AsyncClient):
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
@@ -3614,7 +3614,7 @@ async def test_word_review_cross_batch_nearby_duplicate_writes_one_comment(
         )
     )] == [[1, 2, 3, 4], [5]]
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
@@ -3661,7 +3661,7 @@ async def test_word_review_cross_batch_nearby_duplicate_writes_one_comment(
 async def test_word_review_inter_expert_convergence_writes_one_comment(
     client: AsyncClient,
 ):
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
@@ -3749,7 +3749,7 @@ async def test_word_review_inter_expert_convergence_writes_one_comment(
 async def test_word_review_does_not_materialize_low_value_or_overlap(
     client: AsyncClient,
 ):
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return _moderation_for_batch(user)
@@ -3825,7 +3825,7 @@ async def test_word_review_intent_changes_materialization_context(
 ):
     captured: list[str] = []
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         if response_model is ActorContext:
             return ActorContext(
                 user_role="reviewer",
@@ -3921,7 +3921,7 @@ async def test_word_review_intent_changes_materialization_context(
 async def test_word_review_preserves_dissensus_as_separate_comments(
     client: AsyncClient,
 ):
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         label = _identity_label(messages)
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
@@ -4222,7 +4222,7 @@ async def test_word_review_never_persists_anchor_outside_question_indexes(
 async def test_word_review_uses_explicit_anchor_and_drops_invalid(
     client: AsyncClient,
 ):
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if response_model is WordBatchModeration:
             return WordBatchModeration(
@@ -4339,7 +4339,7 @@ async def test_word_review_uses_moderator_primary_when_expert_omits_anchor(
 
 @pytest.mark.asyncio
 async def test_word_review_patch_comment_id(client: AsyncClient):
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         if response_model is WordBatchModeration:
             return _moderation_for_batch(messages[-1]["content"])
         if response_model is WordExpertRoute:
@@ -4527,7 +4527,7 @@ async def test_latest_word_job_includes_failed_job_error(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_word_review_publishes_first_section_before_later_sections(
+async def test_word_review_publishes_first_section_before_later_sections(  # noqa: C901
     client: AsyncClient, monkeypatch
 ):
     events: list[dict] = []
@@ -4541,7 +4541,7 @@ async def test_word_review_publishes_first_section_before_later_sections(
 
     monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if "Långsam sektion" in user and response_model is WordBatchModeration:
             saw_slow.set()
@@ -4637,7 +4637,7 @@ async def test_word_review_publishes_first_section_before_later_sections(
 
 
 @pytest.mark.asyncio
-async def test_word_review_keeps_first_section_when_later_section_fails(
+async def test_word_review_keeps_first_section_when_later_section_fails(  # noqa: C901
     client: AsyncClient, monkeypatch
 ):
     events: list[dict] = []
@@ -4650,7 +4650,7 @@ async def test_word_review_keeps_first_section_when_later_section_fails(
 
     monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if "Långsam sektion" in user and response_model is WordBatchModeration:
             await release_fail.wait()
@@ -4762,7 +4762,7 @@ def _passthrough_word_completer(
     saw_hold: asyncio.Event | None = None,
     fail_after_hold: str | None = None,
 ):
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         user = messages[-1]["content"]
         if (
             hold_marker

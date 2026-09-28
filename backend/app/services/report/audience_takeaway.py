@@ -141,7 +141,7 @@ def _pick_best_highlight(
     return None
 
 
-def _gender_sentence(
+def _gender_sentence(  # noqa: PLR0911
     rows: list[SegmentToneRow],
     *,
     locale: ReportLocale,
@@ -189,7 +189,7 @@ def _gender_sentence(
     )
 
 
-def build_bundle_takeaway(
+def build_bundle_takeaway(  # noqa: PLR0912
     bundle: RunBundle,
     classification: BundleClassification,
     *,

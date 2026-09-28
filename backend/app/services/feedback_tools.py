@@ -104,7 +104,7 @@ def _compact(payload: object) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
-async def run_feedback_tool(
+async def run_feedback_tool(  # noqa: PLR0911
     session: AsyncSession,
     name: str,
     arguments: dict[str, Any],

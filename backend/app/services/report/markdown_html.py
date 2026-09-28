@@ -14,7 +14,7 @@ _HR = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$")
 _INLINE = re.compile(r"\*\*(.+?)\*\*|\*(.+?)\*")
 
 
-def markdown_to_html(text: str) -> str:
+def markdown_to_html(text: str) -> str:  # noqa: C901
     """Render a subset of markdown (headings, lists, bold/italic) as escaped HTML."""
     source = strip_spindoctor_refs(text.replace("\r\n", "\n")).strip()
     if not source:

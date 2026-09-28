@@ -159,7 +159,7 @@ async def revalidate_after_event(
     return await revalidate_after_events(session, [event], jev=jev)
 
 
-async def revalidate_after_events(
+async def revalidate_after_events(  # noqa: C901, PLR0912
     session: AsyncSession,
     events: Sequence[KnowledgeGraphEventRecord | str],
     *,

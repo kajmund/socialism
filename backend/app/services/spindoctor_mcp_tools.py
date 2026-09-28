@@ -40,7 +40,6 @@ from app.services.report.bundles import RunBundle, build_bundles
 from app.services.scb_tools import help_scb_tool_specs, run_scb_tool
 from app.services.spindoctor_context import load_spindoctor_source
 from app.services.spindoctor_tools import (
-    SPINDOCTOR_TOOL_SPECS,
     run_spindoctor_tool,
     run_spindoctor_tool_on_bundles,
     spindoctor_tool_specs,
@@ -156,7 +155,7 @@ def _latency_ms(ctx: SpindoctorToolContext) -> int | None:
     return max(0, int(delta.total_seconds() * 1000))
 
 
-async def _widget_out(
+async def _widget_out(  # noqa: PLR0913
     ctx: SpindoctorToolContext,
     *,
     kind: WidgetKind,
@@ -912,7 +911,7 @@ async def _resolve_bundles(
     )
 
 
-async def run_spindoctor_mcp_tool(
+async def run_spindoctor_mcp_tool(  # noqa: C901, PLR0911, PLR0912
     session: AsyncSession,
     name: str,
     arguments: dict[str, Any],

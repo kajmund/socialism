@@ -202,7 +202,7 @@ def _fallback_configuration(
     return default_configuration()
 
 
-def _resolution_from_config(
+def _resolution_from_config(  # noqa: PLR0913
     row: CachedLlmConfiguration | None,
     *,
     prompt_key: str | None,
@@ -246,7 +246,7 @@ def _log_resolution(resolution: LlmResolution) -> None:
     )
 
 
-async def resolve_llm_runtime(
+async def resolve_llm_runtime(  # noqa: PLR0911
     *,
     prompt_key: str | None,
     messages: Sequence[dict[str, Any]],
@@ -329,7 +329,7 @@ async def resolve_llm_runtime(
         )
         _log_resolution(resolution)
         return resolution
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.info("llm.runtime.auto_fallback reason=%s error=%s", AUTO_REASON_ERROR, exc)
         resolution = _resolution_from_config(
             fallback,

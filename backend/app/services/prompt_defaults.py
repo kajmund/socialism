@@ -5,7 +5,7 @@ from __future__ import annotations
 from app.services.prompt_catalog import PROMPT_FIELDS, PromptFieldDef
 
 
-def modules_for_prompt_key(key: str) -> list[str]:
+def modules_for_prompt_key(key: str) -> list[str]:  # noqa: PLR0911
     """Assign catalog keys to modules from the implicit prefix convention."""
     if key.startswith(("panel.dd.", "dd.")):
         return ["dd"]

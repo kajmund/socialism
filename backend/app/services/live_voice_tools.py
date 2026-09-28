@@ -36,7 +36,7 @@ def live_voice_tool_specs(persona: Persona) -> list[dict[str, Any]]:
     return filter_openai_tools(specs, allowed)
 
 
-async def run_live_voice_tool(
+async def run_live_voice_tool(  # noqa: PLR0913
     session: AsyncSession,
     *,
     persona: Persona,

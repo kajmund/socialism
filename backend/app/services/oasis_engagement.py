@@ -169,7 +169,7 @@ class StimulusEngagement:
                 self.ever_engaged.add(agent_id)
                 self.passive.discard(agent_id)
 
-    def _action_engages(
+    def _action_engages(  # noqa: PLR0911
         self,
         action: str,
         info: dict[str, Any],

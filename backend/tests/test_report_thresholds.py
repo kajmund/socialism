@@ -190,7 +190,6 @@ def test_build_audience_comparisons_uses_configured_diff_clear():
         AudienceSegmentSummary,
         SegmentArmSummary,
         SegmentToneRow,
-        build_audience_comparisons,
         build_segment_diff_summary,
     )
 

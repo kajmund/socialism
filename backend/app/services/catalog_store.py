@@ -106,7 +106,7 @@ async def list_catalog_lists(
     return [row for row in result.scalars().all() if row.section in KNOWN_SECTIONS]
 
 
-async def ensure_catalog_defaults(
+async def ensure_catalog_defaults(  # noqa: C901
     session: AsyncSession,
     configuration_id: int,
     *,

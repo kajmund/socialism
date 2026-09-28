@@ -229,7 +229,7 @@ class ResearchRouter:
         provider = _registered_provider(source, descriptor)
         try:
             evidence = await source.research(need, context)
-        except Exception as exc:  # noqa: BLE001 — isolate provider failures per need
+        except Exception as exc:
             logger.exception(
                 "research source %s failed for need %s",
                 source.source_type,

@@ -125,7 +125,7 @@ from app.services.research_worker import accept_attempt_research
 router = APIRouter(prefix="/execution", tags=["execution"])
 
 
-def _http_for_execution_error(exc: Exception) -> HTTPException:
+def _http_for_execution_error(exc: Exception) -> HTTPException:  # noqa: PLR0911
     if isinstance(exc, ExecutionNotFoundError):
         return HTTPException(status_code=404, detail=str(exc))
     if isinstance(exc, ExecutionScopeError):
@@ -476,7 +476,7 @@ def _attempt_out_from_loaded(
     )
 
 
-def _summary_from_counts(
+def _summary_from_counts(  # noqa: PLR0917
     evidence_set_id: str,
     status: str,
     found: int,
@@ -724,7 +724,7 @@ async def _research_out_from_attempt(
     "/attempts/{attempt_id}/research",
     response_model=AttemptResearchOut,
 )
-async def post_attempt_research(
+async def post_attempt_research(  # noqa: PLR0917
     attempt_id: str,
     body: AttemptResearchRequest,
     response: Response,
@@ -907,7 +907,7 @@ def _need_assessment_out(raw: object) -> ResearchNeedAssessmentOut | None:
     "/attempts/{attempt_id}/research-overview",
     response_model=ResearchOverviewOut,
 )
-async def get_attempt_research_overview(
+async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
     attempt_id: str,
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
@@ -1290,7 +1290,7 @@ async def get_attempt_research_overview(
     )
 
 
-def _research_question_display_status(
+def _research_question_display_status(  # noqa: PLR0911
     *,
     raw_status: str,
     items: list[EvidenceSetItem],

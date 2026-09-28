@@ -170,7 +170,7 @@ async def _moderator_missing_expertise(
     return (await complete_text(messages, prompt_key="panel.moderator.system")).strip()
 
 
-async def _expert_raise_hand(
+async def _expert_raise_hand(  # noqa: PLR0917
     slot: PanelExpertSlot,
     config: PanelSessionConfig,
     transcript: list[PanelTurn],
@@ -216,7 +216,7 @@ async def _expert_complete(
     ).strip()
 
 
-async def _expert_scratchpad(
+async def _expert_scratchpad(  # noqa: PLR0913, PLR0917
     slot: PanelExpertSlot,
     config: PanelSessionConfig,
     transcript: list[PanelTurn],
@@ -245,7 +245,7 @@ async def _expert_scratchpad(
     )
 
 
-async def _expert_turn(
+async def _expert_turn(  # noqa: PLR0913, PLR0917
     slot: PanelExpertSlot,
     config: PanelSessionConfig,
     transcript: list[PanelTurn],
@@ -311,7 +311,7 @@ def _slot_by_id(config: PanelSessionConfig, slot_id: str) -> PanelExpertSlot:
     raise RuntimeError(f"Unknown expert slot: {slot_id}")
 
 
-async def _run_research_plan_phase(
+async def _run_research_plan_phase(  # noqa: PLR0917
     db: AsyncSession,
     panel: PanelSession,
     transcript: list[PanelTurn],
@@ -374,7 +374,7 @@ async def _run_research_plan_phase(
     )
 
 
-async def run_generic_panel(
+async def run_generic_panel(  # noqa: C901, PLR0912, PLR0915
     db: AsyncSession,
     panel: PanelSession,
     prompts: dict[str, str],

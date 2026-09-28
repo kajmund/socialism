@@ -98,7 +98,7 @@ async def _customer(session: AsyncSession, slug: str) -> Kund:
     return kund
 
 
-async def _index_document(
+async def _index_document(  # noqa: PLR0913
     session: AsyncSession,
     *,
     customer_id: int,

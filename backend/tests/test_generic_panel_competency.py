@@ -100,7 +100,7 @@ async def _run_panel(factory, config: PanelSessionConfig):
         return row
 
 
-def _install_llm(
+def _install_llm(  # noqa: C901
     *,
     expert_needs: dict[str, ExpertResearchNeeds] | ExpertResearchNeeds,
     raise_replies: dict[str, str] | str = "JA",
@@ -111,7 +111,7 @@ def _install_llm(
 ) -> list[str]:
     seen_users: list[str] = []
 
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: C901, PLR0911, PLR0912
         user = messages[-1]["content"]
         seen_users.append(user)
         identity = ""

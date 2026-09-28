@@ -10,9 +10,9 @@ from sqlalchemy import delete, select
 
 from app.database.models import Message, Persona, Population, PopulationMember, Run
 from app.database.session import SessionLocal, engine
-from app.schemas.domain import EditablePersona, new_message_id
+from app.schemas.domain import EditablePersona
 from app.serializers import blank_profile, persona_initials
-from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id, default_os_project_id
+from app.services.kund_store import default_os_customer_id, default_os_project_id
 from app.services.prompt_store import ensure_default_configurations
 
 
@@ -20,7 +20,7 @@ def _dt(day: str) -> datetime:
     return datetime.fromisoformat(day).replace(tzinfo=UTC)
 
 
-def _profile(
+def _profile(  # noqa: PLR0913
     name: str,
     *,
     age: int,
@@ -81,25 +81,25 @@ def _recipe(
         "dist": {
             "age": {
                 "label": "Ålder",
-                "rows": [{"k": k, "l": l, "v": v} for k, l, v in age_rows],
+                "rows": [{"k": k, "l": l, "v": v} for k, l, v in age_rows],  # noqa: E741
             },
             "district": {
                 "label": "Distrikt",
-                "rows": [{"k": k, "l": l, "v": v} for k, l, v in district_rows],
+                "rows": [{"k": k, "l": l, "v": v} for k, l, v in district_rows],  # noqa: E741
             },
             "occ": {
                 "label": "Yrke",
-                "rows": [{"k": k, "l": l, "v": v} for k, l, v in occ_rows],
+                "rows": [{"k": k, "l": l, "v": v} for k, l, v in occ_rows],  # noqa: E741
             },
             "lean": {
                 "label": "Lutning",
-                "rows": [{"k": k, "l": l, "v": v} for k, l, v in lean_rows],
+                "rows": [{"k": k, "l": l, "v": v} for k, l, v in lean_rows],  # noqa: E741
             },
         },
     }
 
 
-def _injection(
+def _injection(  # noqa: PLR0913
     *,
     key: str,
     type: str,
@@ -1185,7 +1185,7 @@ def _assert_profiles_complete() -> None:
             )
 
 
-async def seed(*, reset: bool = True) -> None:
+async def seed(*, reset: bool = True) -> None:  # noqa: C901
     _ensure_data_dir()
     _assert_profiles_complete()
     async with SessionLocal() as session:

@@ -351,7 +351,7 @@ def validate_interview_variant(
         )
 
 
-async def stream_library_chat_turn(
+async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
     session: AsyncSession,
     *,
     persona_id: str,
@@ -512,7 +512,7 @@ async def stream_library_chat_turn(
         )
 
 
-async def stream_run_interview_turn(
+async def stream_run_interview_turn(  # noqa: PLR0913, PLR0915
     session: AsyncSession,
     *,
     run_id: int,
@@ -677,7 +677,7 @@ async def stream_run_interview_turn(
         yield PersonaChatResponse(reply=reply, messages=messages)
 
 
-async def complete_run_interview_turn(
+async def complete_run_interview_turn(  # noqa: PLR0913
     session: AsyncSession,
     *,
     run_id: int,

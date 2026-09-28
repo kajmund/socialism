@@ -259,7 +259,7 @@ async def _insert_sections(
     await session.flush()
 
 
-async def _insert_text_units(
+async def _insert_text_units(  # noqa: PLR0917
     session: AsyncSession,
     version: DocumentVersionRecord,
     units: Sequence[TextUnit],
