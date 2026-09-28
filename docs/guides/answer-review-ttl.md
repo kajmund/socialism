@@ -1,85 +1,97 @@
-# Answer review TTL
+# Source-independent answer review TTL
 
-Research enriches the graph without revalidating historical EvidenceSets. A TTL is
-a reminder to consider improving an answer, **not** an expiry, invalidation, or
-legal `valid_to` date. Growing knowledge can nuance an answer without making the
-earlier answer false.
+Research enriches knowledge without revalidating historical EvidenceSets. TTL is
+an invitation to consider improving an answer, **not** an expiry, invalidation,
+or legal `valid_to` date. More knowledge can nuance an earlier answer.
 
-## First version
+## Common research boundary
 
-The first producer is lagen.nu. Its existing Jev passage-routing request includes
-one additional choice, `review_ttl`, based on the question and supplied source
-passages. There is no additional Jev call, historical graph traversal, or scan of
-frozen evidence. Jev still sees the bounded passage payload; this is a heuristic
-about the answer's source basis, not a separate assessment of the final legal
-interpretation. Invalid/missing choices are explicit passage-routing failures,
-never silently interpreted as `never`.
+All providers use the same producer. When the common research loop freezes an
+EvidenceSet, it captures one final answer basis per normalized question. This
+happens after retrieval, follow-ups, assessment, and any parent-answer synthesis.
+The snapshot combines all found evidence linked to that question, including
+excerpt-only, reused, domain-interpreted, and derived evidence. Providers do not
+choose TTL, enqueue candidates, or know about the review lifecycle.
+
+There is no standalone synthesized-answer entity yet. An answer version is the
+customer + question key + module/case scope + final evidence/assessment snapshot.
+The snapshot contains source references, content hashes, source excerpts,
+interpretations where present, and the question's final sufficiency/gap assessment.
+Only the current attempt's needs and evidence are read, using their existing
+indexes; historical graph nodes and EvidenceSets are not scanned. Duplicate need
+links are consolidated. Unanswered questions without found evidence create no
+answer version.
+
+The common freeze transaction inserts `knowledge_answer_reviews` with status
+`awaiting_ttl`. The row is durable when research becomes `ready`. **Research makes
+no TTL model call and never waits for TTL classification or candidate processing.**
+
+## Jev decision in a separate process
+
+The independent `classify` command asks Jev about the whole captured answer basis,
+not one provider's contribution. It sends a bounded overview, including the full
+source-type set, total evidence count, final assessment, and compact source detail.
+Truncated detail and omitted-item counts are explicit in the request.
 
 | Choice | `review_after` |
 | --- | --- |
-| `soon` | Creation time + 3 calendar months |
-| `later` | Creation time + 6 calendar months |
+| `soon` | Answer creation time + 3 calendar months |
+| `later` | Answer creation time + 6 calendar months |
 | `never` | `NULL`: no scheduled review |
 
-Dates are computed in UTC. Month-end dates clamp to the last day of the target
-month (31 January → 30 April). `never` does not prevent future research or a new
-answer version. Jev should consider stability and gaps, not source age alone.
+Dates are computed in UTC; month ends clamp (31 January → 30 April). Classification
+is deliberately asynchronous, so a new answer briefly has no TTL decision.
+`awaiting_ttl` is distinct from an explicit `never`. Time starts at answer creation,
+not when a delayed worker finally classifies it. TTL never gates research or reuse.
 
-There is no standalone synthesized-answer entity yet. In this version an answer
-version is a tenant's normalized question plus the sorted set of grounded claims
-from one interpreted source result. `knowledge_answer_reviews` records its stable
-hash, question, claim IDs, creation time, TTL, and queue lifecycle. The snapshot of
-claim IDs identifies its source basis; it does not duplicate or mutate evidence.
-Schedules are written in the same transaction as their claims/ANSWERED_BY links.
-An irrelevant or failed interpretation produces no schedule.
+Classification takes one indexed row at a time with a two-minute durable lease,
+commits, and returns the database connection before calling Jev. Success writes the
+choice only if the worker still owns the lease token. A crashed/cancelled worker's
+lease can be reclaimed. An expired worker cannot overwrite a newer decision.
+Known Jev failures (including missing/invalid choices) remain `awaiting_ttl`, store
+the error category, and retry after five minutes. They never become `never` by
+default. Unexpected process failures leave the lease reclaimable and fail loudly.
 
-Repeated retrieval of the same version does not reset its date, replace its TTL,
-or reopen a completed candidate. A changed claim set creates a distinct version.
-Different customers always have distinct versions. This v1 can therefore have
-several candidates for one question when several sources supplied different
-answers. Consolidating them is a future policy decision.
+## Operating the separate process
 
-## Separate candidate process
-
-Run from `backend/`, using the configured backend database account:
+From `backend/`, using the configured trusted database connection:
 
 ```sh
+uv run python -m app.services.knowledge.answer_review_worker classify --limit 100
 uv run python -m app.services.knowledge.answer_review_worker enqueue --limit 100
-uv run python -m app.services.knowledge.answer_review_worker list --customer-id 7 --limit 100
+uv run python -m app.services.knowledge.answer_review_worker list --customer-id 7
+uv run python -m app.services.knowledge.answer_review_worker list --customer-id 7 --status awaiting_ttl
 uv run python -m app.services.knowledge.answer_review_worker complete --customer-id 7 --id ANSWER_VERSION_ID
 ```
 
-Each invocation is bounded (1–500 rows, default 100). `enqueue` atomically changes
-due rows from `scheduled` to `candidate` and records `candidate_at`. Repeated calls
-drain the backlog without offsets, duplicate candidates, or rereading completed
-work. The `(status, review_after, id)` index supports the range lookup and ordering.
-PostgreSQL uses `FOR UPDATE SKIP LOCKED` to let concurrent invocations take separate
-batches. Listing and completion require the owning customer; listing uses the
-`(customer_id, status, review_after, id)` index. No step loads the knowledge graph.
+Each invocation handles at most 1–500 rows (default 100). Run `classify` and
+`enqueue` in a separate deployment process/scheduler as appropriate. This PR does
+not start a loop in the API/research worker or configure a deployment scheduler.
 
-Schedule `enqueue` in a separate process through the deployment's scheduler when
-operationally desired; this PR does not enable a deployment scheduler or start a
-loop inside the API/research worker. The CLI returns JSON for inspection. Marking
-a candidate complete acknowledges it; it does not itself launch research, create
-a revised answer, or change the underlying claims.
+`enqueue` atomically changes due `scheduled` rows to `candidate`. It uses
+`(status, review_after, id)`; classification uses
+`(status, next_classification_at, id)`. PostgreSQL materializes each bounded batch
+and uses `FOR UPDATE SKIP LOCKED` for concurrent workers. Listing requires a
+customer and uses `(customer_id, status, review_after, id)`. No queue step scans
+the graph, uses offsets, or loads unrelated answers.
 
-The table is internal: PostgreSQL RLS is enabled without browser-facing policies.
-Backend/worker access uses the existing trusted database connection. No new
-frontend or HTTP endpoint is introduced.
+Repeated capture of an identical version never resets its clock or reopens a
+completed candidate. Changed knowledge produces a new version. Completing a
+candidate acknowledges it; it does not itself run research or alter the answer.
+The table is internal, with PostgreSQL RLS and no browser-facing policies.
 
-## Existing data and boundaries
+## Rollout and boundaries
 
-The migration creates an empty queue. It does not ask Jev to classify historical
-answers or scan/backfill the graph. Older answers acquire a schedule if they are
-subsequently interpreted and grounded through the new producer.
+The unreleased migration creates an empty queue; there is no historical
+classification/backfill. Existing answers enter the process when the common
+research flow completes a new attempt with their evidence.
 
-The former `revalidate_after_events` call and event lookup have been removed from
-lagen.nu write-back. Existing `evidence_set_revalidations`, the legacy service,
-and its tests remain for historical data; they are not called by research. Graph
-events, explicit claim supersession, and frozen snapshot history are retained.
+The former lagen.nu `revalidate_after_events` call and event lookup are removed.
+The legacy service/table remain for historical data, without a research caller.
+Graph events, explicit claim supersession, frozen snapshots, and existing reuse
+freshness rules are preserved.
 
-TTL never changes claim validity, frozen EvidenceSets, or existing reuse/freshness
-policy. Passing `review_after` has no effect on whether an answer can be reused.
-Other providers do not produce these TTL schedules yet. Automatic candidate
-processing, synthesis/retrieval selection, graph-change triggers, and learned
-prioritization are outside this first version.
+There are no TTL fields or decisions in lagen.nu passage routing or graph
+write-back. Other providers and synthesized answers use the same capture and
+classification path. Automatic candidate research, a UI, graph-change triggers,
+and learned prioritization remain outside this version.

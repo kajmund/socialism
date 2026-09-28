@@ -3,22 +3,16 @@
 from __future__ import annotations
 
 from typing import Any
-from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.answer_review import KnowledgeAnswerReview
 from app.database.models import Kund, TextUnitRecord
 from app.jev.system import JevClientError, JevSystemOneResult, JevUsage
 from app.services.knowledge.models import EmbeddedKnowledgeChunk, KnowledgeChunk
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
-from app.services.knowledge.answer_review import enqueue_due_reviews, list_review_candidates
-from app.services.knowledge.claims import claims_answering_question_key
-from app.services.research.knowledge_question import research_question_key
 from app.services.lagen_nu.models import SearchResults
 from app.services.lagen_nu.passage_router import (
     JevPassageRouter,
@@ -106,7 +100,6 @@ async def _store_for(units: list[TextUnitRecord]) -> MemoryKnowledgeVectorStore:
 
 
 def _jev_result(answers: dict[str, Any]) -> JevSystemOneResult:
-    answers["review_ttl"] = {"choice": "later"}
     return JevSystemOneResult(
         answers=answers,
         model="jev-test",
@@ -135,8 +128,8 @@ class ScriptedPassageJev:
         if isinstance(self.nouls, Exception):
             raise self.nouls
         if isinstance(self.nouls, float):
-            return _jev_result({key: {"noul": self.nouls} for key in questions if key != "review_ttl"})
-        return _jev_result({key: {"noul": self.nouls[key]} for key in questions if key != "review_ttl"})
+            return _jev_result({key: {"noul": self.nouls} for key in questions})
+        return _jev_result({key: {"noul": self.nouls[key]} for key in questions})
 
 
 class ContainsPassageJev:
@@ -404,38 +397,6 @@ async def test_research_interprets_only_expanded_kept_units(session: AsyncSessio
     assert set(evidence[0].metadata["passage_kept_ids"]).issubset(
         set(evidence[0].metadata["text_unit_ids"])
     )
-
-
-async def test_review_ttl_uses_existing_jev_call_and_never_gates_reuse(session, monkeypatch):
-    from app.services.knowledge import revalidation
-
-    async def forbidden(*args, **kwargs):
-        raise AssertionError("research must not look up or revalidate old EvidenceSets")
-
-    monkeypatch.setattr(revalidation, "revalidate_after_events", forbidden)
-    monkeypatch.setattr(revalidation, "revalidate_after_event", forbidden)
-    question = "Jämkades villkoret enligt 36 §?"
-    jev = ContainsPassageJev("jämkning")
-    evidence = await _research_source(session, _client(), jev=jev).research(
-        _need("swedish_case_law", question=question), _context(),
-    )
-    assert [item.status for item in evidence] == ["found"]
-    assert len(jev.asks) == 1
-    row = (await session.execute(select(KnowledgeAnswerReview))).scalar_one()
-    assert row.ttl == "later"
-    assert row.question == question
-    assert row.customer_id == 7
-    assert set(row.claim_ids) == set(evidence[0].metadata["knowledge_claim_ids"])
-    before = await claims_answering_question_key(
-        session, customer_id=7, question_key=research_question_key(question),
-    )
-    await enqueue_due_reviews(session, now=datetime(2100, 1, 1, tzinfo=UTC))
-    assert len(await list_review_candidates(session, customer_id=7)) == 1
-    after = await claims_answering_question_key(
-        session, customer_id=7, question_key=research_question_key(question),
-    )
-    assert [claim.id for claim in before] == [claim.id for claim in after]
-    assert before
 
 
 async def test_research_expands_low_relevance_same_section_neighbor(session: AsyncSession):

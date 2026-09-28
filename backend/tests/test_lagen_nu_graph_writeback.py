@@ -8,7 +8,6 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.services.knowledge.answer_review import AnswerReviewDecision
 from app.database.base import Base
 from app.database.models import Kund
 from app.services.lagen_nu import graph_writeback as writeback
@@ -42,7 +41,6 @@ async def session():
 def test_queue_take_empties_pending_writes():
     queue = GraphWritebackQueue()
     item = PendingGraphWrite(
-        review_decision=AnswerReviewDecision("never"),
         claims=(),
         entities=(),
         edges=(),
@@ -63,7 +61,6 @@ async def test_persist_rejects_mixed_customer_ids():
             None,  # type: ignore[arg-type]
             [
                 PendingGraphWrite(
-                    review_decision=AnswerReviewDecision("never"),
                     claims=(),
                     entities=(),
                     edges=(),
@@ -73,7 +70,6 @@ async def test_persist_rejects_mixed_customer_ids():
                     customer_id=7,
                 ),
                 PendingGraphWrite(
-                    review_decision=AnswerReviewDecision("never"),
                     claims=(),
                     entities=(),
                     edges=(),

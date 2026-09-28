@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.knowledge.answer_review import AnswerReviewDecision, schedule_answer_review
 from app.services.lagen_nu.text_unit_research import LagenNuResearchKnowledgeError
 
 from app.services.knowledge.claims import (
@@ -33,7 +32,6 @@ class PendingGraphWrite:
     question: str
     source_type: str
     customer_id: int
-    review_decision: AnswerReviewDecision
 
 
 @dataclass
@@ -54,7 +52,7 @@ async def persist_pending_graph_writes(
     session: AsyncSession,
     items: Sequence[PendingGraphWrite],
 ) -> None:
-    """Persist claims, edges and their review schedules in one transaction."""
+    """Persist claims, edges and answer links in one transaction."""
     if not items:
         return
     customer_ids = {item.customer_id for item in items}
@@ -62,7 +60,7 @@ async def persist_pending_graph_writes(
         raise ValueError("graph write-back mixed customer_id values")
     for item in items:
         if any(claim.customer_id != item.customer_id for claim in item.claims):
-            raise ValueError("answer review claims must belong to the write-back customer_id")
+            raise ValueError("claims must belong to the write-back customer_id")
         await persist_knowledge_claims(session, item.claims)
         await persist_knowledge_entities(session, item.entities)
         await persist_knowledge_relationships(session, item.edges)
@@ -72,14 +70,6 @@ async def persist_pending_graph_writes(
             question_key=research_question_key(item.question),
             claim_ids=[claim.id for claim in item.claims],
             source_type=item.source_type,
-        )
-        await schedule_answer_review(
-            session,
-            customer_id=item.customer_id,
-            question_key=research_question_key(item.question),
-            question=item.question,
-            claim_ids=[claim.id for claim in item.claims],
-            decision=item.review_decision,
         )
 
 

@@ -95,12 +95,13 @@ jobs, and explicit cancellation.
 
 ## Answer review scheduling
 
-Research no longer calls graph-impact revalidation after lagen.nu write-back.
-Jev chooses `soon`, `later`, or `never` in the existing passage-routing request;
-grounded answer versions receive an indexed review schedule when persisted.
-A separate bounded process promotes due schedules to candidates. It never runs
-inside the research worker and never changes evidence validity or reuse.
-See [answer-review-ttl.md](answer-review-ttl.md) for semantics and commands.
+The common freeze/ready boundary records one final answer basis per question,
+combining all sources and derived evidence. It only writes `awaiting_ttl` work;
+research does not call Jev for TTL or wait for any review process. A separate
+bounded classifier chooses `soon`, `later`, or `never`, and an indexed candidate
+process promotes due schedules. No provider has TTL logic, and lagen.nu no longer
+calls graph-impact revalidation after write-back.
+See [answer-review-ttl.md](answer-review-ttl.md) for semantics, retries, and commands.
 
 ## Need deadlines
 

@@ -22,7 +22,12 @@ from app.services.knowledge.answer_review import (
     list_review_candidates,
     parse_review_decision,
     review_after,
-    schedule_answer_review,
+    record_answer_review,
+)
+
+from app.services.knowledge.answer_review_classification import (
+    claim_ttl_classification,
+    finish_ttl_classification,
 )
 
 
@@ -72,15 +77,44 @@ async def db():
 
 
 async def schedule(db, ttl="soon", *, customer_id=1, claims=None, created=None):
-    return await schedule_answer_review(
+    refs = sorted(set(claims or ["claim-1"]))
+    answer_id = await record_answer_review(
         db,
         customer_id=customer_id,
         question_key="question-key",
-        question="What is known?",
-        claim_ids=claims or ["claim-1"],
-        decision=AnswerReviewDecision(ttl),
+        answer_basis={
+            "question": "What is known?",
+            "assessments": [],
+            "evidence": [{"ref": ref, "source_type": "case_knowledge"} for ref in refs],
+        },
         created_at=created or datetime(2026, 1, 31, tzinfo=UTC),
     )
+    status = await db.scalar(
+        sa.select(KnowledgeAnswerReview.status).where(KnowledgeAnswerReview.id == answer_id)
+    )
+    if status == "awaiting_ttl":
+        claim = await claim_ttl_classification(db, now=datetime(2100, 1, 1, tzinfo=UTC))
+        assert claim["id"] == answer_id
+        await finish_ttl_classification(db, claim=claim, decision=AnswerReviewDecision(ttl))
+    return answer_id
+
+
+async def test_display_question_changes_do_not_reset_version(db):
+    original = await schedule(db)
+    duplicate = await record_answer_review(
+        db,
+        customer_id=1,
+        question_key="question-key",
+        answer_basis={
+            "question": "  WHAT is known?  ",
+            "assessments": [],
+            "evidence": [{"ref": "claim-1", "source_type": "case_knowledge"}],
+        },
+        created_at=datetime(2027, 1, 1, tzinfo=UTC),
+    )
+    assert duplicate == original
+    row = await db.get(KnowledgeAnswerReview, original)
+    assert row.review_after == datetime(2026, 4, 30)
 
 
 async def test_due_boundary_never_and_bounded_idempotent_batches(db):
@@ -164,6 +198,7 @@ def test_migration_roundtrip(monkeypatch):
         assert {i["name"] for i in inspector.get_indexes("knowledge_answer_reviews")} == {
             "ix_answer_review_due",
             "ix_answer_review_customer",
+            "ix_answer_review_classify",
         }
         assert {c["name"] for c in inspector.get_columns("knowledge_answer_reviews")} == {
             c.name for c in KnowledgeAnswerReview.__table__.columns
@@ -175,7 +210,8 @@ def test_migration_roundtrip(monkeypatch):
                 customer_id=1,
                 question_key="q",
                 question="Question?",
-                claim_ids=["claim"],
+                evidence_refs=["claim"],
+                answer_basis={},
                 ttl="never",
                 created_at=datetime.now(UTC),
                 status="scheduled",
