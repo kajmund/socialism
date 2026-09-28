@@ -15,6 +15,7 @@ from app.services.research.concurrency import (
     require_concurrency_limit,
     research_concurrency,
     reset_research_concurrency,
+    source_candidate_slots,
 )
 from app.services.research.models import ResearchContext, ResearchNeed, research_evidence
 from app.services.research.registry import KnowledgeProviderCapabilityRegistry
@@ -80,6 +81,15 @@ async def test_research_concurrency_binds_to_running_loop():
     second = research_concurrency()
     assert first is second
     assert first.loop is asyncio.get_running_loop()
+    reset_research_concurrency()
+
+
+def test_source_candidate_slots_are_per_call():
+    reset_research_concurrency()
+    first = source_candidate_slots()
+    second = source_candidate_slots()
+    assert first is not second
+    assert first is not research_concurrency().sources
     reset_research_concurrency()
 
 
@@ -210,4 +220,41 @@ async def test_execute_need_overlaps_when_source_limit_is_raised(monkeypatch):
         "customer_knowledge",
     ]
     assert counter.max_seen == 2
+    reset_research_concurrency()
+
+
+@pytest.mark.asyncio
+async def test_concurrent_needs_overlap_at_default_source_limit():
+    reset_research_concurrency()
+    first = _CountingSource("case_knowledge")
+    second = _CountingSource("customer_knowledge")
+    second.share_counter_with(first)
+    registry = KnowledgeProviderCapabilityRegistry()
+    registry.register(first)
+    registry.register(second)
+    router = ResearchRouter(registry)
+    context = ResearchContext(scope=KnowledgeScope(customer_id=7, case_id="case-1", module="dd"))
+    await asyncio.gather(
+        router.execute_need(
+            ResearchNeed(
+                id="research_1",
+                question="Vad gäller skattesatsen?",
+                why_needed="behövs för bedömning",
+                requested_by=["legal"],
+                source_types=["case_knowledge"],
+            ),
+            context,
+        ),
+        router.execute_need(
+            ResearchNeed(
+                id="research_2",
+                question="Vad gäller kunden?",
+                why_needed="behövs för bedömning",
+                requested_by=["legal"],
+                source_types=["customer_knowledge"],
+            ),
+            context,
+        ),
+    )
+    assert first.max_seen == 2
     reset_research_concurrency()

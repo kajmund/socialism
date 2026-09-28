@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 
 from app.services.lagen_nu.selection import LagenNuSelectionError
-from app.services.research.concurrency import map_with_limit, research_concurrency
+from app.services.research.concurrency import map_with_limit, source_candidate_slots
 from app.services.research.models import (
     ResearchCapabilityUnavailableError,
     ResearchContext,
@@ -160,7 +160,7 @@ class ResearchRouter:
     ) -> list[ResearchEvidence]:
         prepared = self._candidates_for_need(need, context)
         batches = await map_with_limit(
-            research_concurrency().sources,
+            source_candidate_slots(),
             prepared,
             lambda candidate: self._run_candidate(candidate, need, context),
         )
