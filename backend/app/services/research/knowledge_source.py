@@ -43,6 +43,10 @@ class KnowledgeResearchSource:
     def provider_id(self) -> str:
         return self._provider.provider_id
 
+    @property
+    def shared_db_session(self) -> object | None:
+        return getattr(self._provider, "shared_db_session", None)
+
     async def research(
         self,
         need: ResearchNeed,

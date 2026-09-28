@@ -22,7 +22,7 @@ Legal ResearchNeeds are validated in the legal planner adapter before this hop. 
 
 Routing stays programmatic. An LLM is not used to select providers. Embeddings are not used to select providers in v1; `rank_provider_candidates` is the seam for later semantic ranking over an already-filtered set.
 
-`ResearchRouter.execute_need` still walks ranked candidates one at a time. lagen.nu `get_document` calls use `research_document_concurrency` (default 1). Ingest, interpret, and persist stay serial on the need session. `research_source_concurrency` still defaults to 1 and is unused until the router loop changes. Limiter objects live in `app.services.research.concurrency` (`research_concurrency()`). Need retrieval remains the existing per-wave `research_need_concurrency` semaphore.
+`ResearchRouter.execute_need` runs ranked candidates through a per-need `research_source_concurrency` semaphore (default 1). Evidence order still follows candidate rank. Concurrent needs keep their existing `research_need_concurrency` overlap; a process-wide source slot of 1 would serialize every `source.research()`. Candidates that expose the same `shared_db_session` stay serial even when the source limit is raised (`AsyncSession` is not safe across tasks). lagen.nu `get_document` calls use process-wide `research_document_concurrency` (default 1). Ingest, interpret, and persist stay serial on the need session. Limiter objects live in `app.services.research.concurrency` (`research_concurrency()`). That helper keeps one limiter set per running event loop and recreates it when the loop changes (`asyncio.Semaphore` is loop-bound).
 
 ## Migration from the source-type registry
 

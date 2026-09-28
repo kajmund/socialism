@@ -6,9 +6,16 @@ no silent fallback to unrelated providers.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from app.services.lagen_nu.selection import LagenNuSelectionError
+from app.services.research.concurrency import (
+    map_with_limit,
+    session_guard,
+    shared_db_session,
+    source_candidate_slots,
+)
 from app.services.research.models import (
     ResearchCapabilityUnavailableError,
     ResearchContext,
@@ -157,7 +164,25 @@ class ResearchRouter:
         need: ResearchNeed,
         context: ResearchContext,
     ) -> list[ResearchEvidence]:
+        prepared = self._candidates_for_need(need, context)
+        session_locks: dict[int, asyncio.Lock] = {}
+
+        async def run(candidate: ProviderCandidate) -> list[ResearchEvidence]:
+            async with session_guard(session_locks, shared_db_session(candidate.source)):
+                return await self._run_candidate(candidate, need, context)
+
+        batches = await map_with_limit(source_candidate_slots(), prepared, run)
         collected: list[ResearchEvidence] = []
+        for batch in batches:
+            collected.extend(batch)
+        return collected
+
+    def _candidates_for_need(
+        self,
+        need: ResearchNeed,
+        context: ResearchContext,
+    ) -> list[ProviderCandidate]:
+        prepared: list[ProviderCandidate] = []
         for candidate in self._registry.candidates_for(constraints_from_need(need)):
             if _case_required(candidate) and not context.scope.case_id:
                 candidate = ProviderCandidate(
@@ -165,8 +190,8 @@ class ResearchRouter:
                     evidence_nature=candidate.evidence_nature,
                     descriptor=candidate.descriptor,
                 )
-            collected.extend(await self._run_candidate(candidate, need, context))
-        return collected
+            prepared.append(candidate)
+        return prepared
 
     async def _run_candidate(
         self,
