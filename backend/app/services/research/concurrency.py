@@ -58,8 +58,8 @@ async def map_with_limit[T, R](
 ) -> list[R]:
     """Run ``worker`` over ``items`` with at most ``slots`` in flight.
 
-    Result order matches ``items``. Current router and document loops stay
-    sequential; later phases call this helper to overlap those steps.
+    Result order matches ``items``. Document fetch uses this helper;
+    source candidates stay sequential until that loop changes.
     """
 
     async def run(item: T) -> R:
@@ -67,3 +67,20 @@ async def map_with_limit[T, R](
             return await worker(item)
 
     return list(await asyncio.gather(*(run(item) for item in items)))
+
+
+_shared_concurrency: ResearchConcurrency | None = None
+
+
+def research_concurrency() -> ResearchConcurrency:
+    """One limiter set for need / source / document work in this process."""
+    global _shared_concurrency
+    if _shared_concurrency is None:
+        _shared_concurrency = ResearchConcurrency(ResearchConcurrencyLimits.from_settings())
+    return _shared_concurrency
+
+
+def reset_research_concurrency() -> None:
+    """Drop the process-wide limiter set. Tests only."""
+    global _shared_concurrency
+    _shared_concurrency = None

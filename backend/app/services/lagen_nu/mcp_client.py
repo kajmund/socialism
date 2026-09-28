@@ -307,6 +307,7 @@ class OfficialLagenNuMcpClient:
         self._rpc_id = 0
         self._initialized = False
         self._session_id: str | None = None
+        self._rpc_lock = asyncio.Lock()
 
     async def aclose(self) -> None:
         if self._owns_http and self._http is not None:
@@ -324,12 +325,13 @@ class OfficialLagenNuMcpClient:
         return headers
 
     async def _ensure_connected(self) -> None:
-        if self._http is None:
-            self._http = httpx.AsyncClient(timeout=self._timeout)
-            self._owns_http = True
-        if not self._initialized:
-            await self.initialize()
-            self._initialized = True
+        async with self._rpc_lock:
+            if self._http is None:
+                self._http = httpx.AsyncClient(timeout=self._timeout)
+                self._owns_http = True
+            if not self._initialized:
+                await self.initialize()
+                self._initialized = True
 
     async def _drop_connection(self) -> None:
         """Close a hung socket. A peer FIN left unread stays in CLOSE_WAIT."""
@@ -391,11 +393,13 @@ class OfficialLagenNuMcpClient:
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
         await self._ensure_connected()
-        self._rpc_id += 1
+        async with self._rpc_lock:
+            self._rpc_id += 1
+            rpc_id = self._rpc_id
         body = await self._post(
             {
                 "jsonrpc": "2.0",
-                "id": self._rpc_id,
+                "id": rpc_id,
                 "method": "tools/call",
                 "params": {"name": name, "arguments": arguments},
             }

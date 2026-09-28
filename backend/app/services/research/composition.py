@@ -21,10 +21,6 @@ from app.services.lagen_nu.selection import (
 )
 from app.services.research.assessment import ResearchAssessor
 from app.services.research.completeness import ResearchCompletenessReviewer
-from app.services.research.concurrency import (
-    ResearchConcurrency,
-    ResearchConcurrencyLimits,
-)
 from app.services.research.followup import FollowUpResearchPlanner
 from app.services.research.models import ResearchError
 from app.services.research.need_normalization import ResearchNeedNormalizer
@@ -59,7 +55,6 @@ _vector_store_factory: KnowledgeVectorStoreFactory | None = None
 _lagen_nu_selector_factory: LagenNuSelectorFactory | None = None
 _need_normalizer_factory: NeedNormalizerFactory | None = None
 _shared_embeddings: CachingEmbeddingProvider | None = None
-_shared_concurrency: ResearchConcurrency | None = None
 
 
 class ResearchCompositionError(ResearchError):
@@ -169,20 +164,6 @@ def reset_research_embeddings() -> None:
     """Drop the process-wide embedding cache. Tests only."""
     global _shared_embeddings
     _shared_embeddings = None
-
-
-def research_concurrency() -> ResearchConcurrency:
-    """One limiter set for need / source / document work in this process."""
-    global _shared_concurrency
-    if _shared_concurrency is None:
-        _shared_concurrency = ResearchConcurrency(ResearchConcurrencyLimits.from_settings())
-    return _shared_concurrency
-
-
-def reset_research_concurrency() -> None:
-    """Drop the process-wide limiter set. Tests only."""
-    global _shared_concurrency
-    _shared_concurrency = None
 
 
 def build_standard_research_router(session: AsyncSession) -> ResearchRouter:
