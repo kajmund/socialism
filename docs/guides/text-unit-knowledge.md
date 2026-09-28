@@ -113,7 +113,7 @@ Root question
   → resolve/create canonical KnowledgeQuestion
   → load existing fresh grounded Claims
   → retrieve only remaining source_type gaps
-  → persist Claims + Entities + Relationships
+  → persist Claims + Entities + Relationships after interpret
   → assess / completeness
   → follow-up → child KnowledgeQuestion + lineage
   → repeat until complete or a loop guard
