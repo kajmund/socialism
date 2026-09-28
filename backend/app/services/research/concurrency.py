@@ -4,12 +4,21 @@ Need retrieval already uses a per-wave semaphore from
 ``research_need_concurrency``. Source and document slots exist so later
 phases can overlap those loops; both default to 1 so current callers stay
 serial until those loops change.
+
+``research_concurrency()`` keeps one limiter set for the current event
+loop. ``asyncio.Semaphore`` is loop-bound, so a later call on a different
+running loop (pytest creates one loop per test) gets a fresh set. That
+still caps in-flight document work inside one process and one loop.
+Source candidates use a fresh per-need semaphore so the default of 1
+does not serialize every concurrent need. Candidates that expose the
+same ``shared_db_session`` still run one at a time.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Sequence
+from contextlib import AbstractAsyncContextManager, nullcontext
 from dataclasses import dataclass
 
 from app.config import settings
@@ -44,8 +53,14 @@ class ResearchConcurrencyLimits:
 class ResearchConcurrency:
     """One semaphore set for need / source / document work."""
 
-    def __init__(self, limits: ResearchConcurrencyLimits) -> None:
+    def __init__(
+        self,
+        limits: ResearchConcurrencyLimits,
+        *,
+        loop: asyncio.AbstractEventLoop | None = None,
+    ) -> None:
         self.limits = limits
+        self.loop = loop
         self.needs = asyncio.Semaphore(limits.needs)
         self.sources = asyncio.Semaphore(limits.sources)
         self.documents = asyncio.Semaphore(limits.documents)
@@ -58,8 +73,8 @@ async def map_with_limit[T, R](
 ) -> list[R]:
     """Run ``worker`` over ``items`` with at most ``slots`` in flight.
 
-    Result order matches ``items``. Document fetch uses this helper;
-    source candidates stay sequential until that loop changes.
+    Result order matches ``items``. Source candidates and document fetches
+    use this helper.
     """
 
     async def run(item: T) -> R:
@@ -72,12 +87,55 @@ async def map_with_limit[T, R](
 _shared_concurrency: ResearchConcurrency | None = None
 
 
+def _optional_running_loop() -> asyncio.AbstractEventLoop | None:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
+
 def research_concurrency() -> ResearchConcurrency:
-    """One limiter set for need / source / document work in this process."""
+    """One limiter set for the current event loop."""
     global _shared_concurrency
-    if _shared_concurrency is None:
-        _shared_concurrency = ResearchConcurrency(ResearchConcurrencyLimits.from_settings())
+    loop = _optional_running_loop()
+    if _shared_concurrency is None or _shared_concurrency.loop is not loop:
+        _shared_concurrency = ResearchConcurrency(
+            ResearchConcurrencyLimits.from_settings(),
+            loop=loop,
+        )
     return _shared_concurrency
+
+
+def source_candidate_slots() -> asyncio.Semaphore:
+    """Per-need candidate slots from ``research_source_concurrency``.
+
+    A process-wide source semaphore at the default of 1 would serialize
+    every ``source.research()`` and starve ``research_need_concurrency``.
+    """
+    return asyncio.Semaphore(ResearchConcurrencyLimits.from_settings().sources)
+
+
+def shared_db_session(source: object | None) -> object | None:
+    """Session the adapter already holds, if any. Missing means no sharing.
+
+    Reads public ``shared_db_session`` or the lagen.nu ``_session`` field.
+    """
+    if source is None:
+        return None
+    session = getattr(source, "shared_db_session", None)
+    if session is not None:
+        return session
+    return getattr(source, "_session", None)
+
+
+def session_guard(
+    locks: dict[int, asyncio.Lock],
+    session: object | None,
+) -> AbstractAsyncContextManager[None]:
+    """Serialize candidates that reuse the same ``AsyncSession``."""
+    if session is None:
+        return nullcontext()
+    return locks.setdefault(id(session), asyncio.Lock())
 
 
 def reset_research_concurrency() -> None:
