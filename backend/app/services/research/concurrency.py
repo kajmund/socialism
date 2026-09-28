@@ -4,6 +4,11 @@ Need retrieval already uses a per-wave semaphore from
 ``research_need_concurrency``. Source and document slots exist so later
 phases can overlap those loops; both default to 1 so current callers stay
 serial until those loops change.
+
+``research_concurrency()`` keeps one limiter set for the current event
+loop. ``asyncio.Semaphore`` is loop-bound, so a later call on a different
+running loop (pytest creates one loop per test) gets a fresh set. That
+still caps in-flight work inside one process and one loop.
 """
 
 from __future__ import annotations
@@ -44,8 +49,14 @@ class ResearchConcurrencyLimits:
 class ResearchConcurrency:
     """One semaphore set for need / source / document work."""
 
-    def __init__(self, limits: ResearchConcurrencyLimits) -> None:
+    def __init__(
+        self,
+        limits: ResearchConcurrencyLimits,
+        *,
+        loop: asyncio.AbstractEventLoop | None = None,
+    ) -> None:
         self.limits = limits
+        self.loop = loop
         self.needs = asyncio.Semaphore(limits.needs)
         self.sources = asyncio.Semaphore(limits.sources)
         self.documents = asyncio.Semaphore(limits.documents)
@@ -58,8 +69,8 @@ async def map_with_limit[T, R](
 ) -> list[R]:
     """Run ``worker`` over ``items`` with at most ``slots`` in flight.
 
-    Result order matches ``items``. Document fetch uses this helper;
-    source candidates stay sequential until that loop changes.
+    Result order matches ``items``. Source candidates and document fetches
+    use this helper.
     """
 
     async def run(item: T) -> R:
@@ -72,11 +83,22 @@ async def map_with_limit[T, R](
 _shared_concurrency: ResearchConcurrency | None = None
 
 
+def _optional_running_loop() -> asyncio.AbstractEventLoop | None:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
+
 def research_concurrency() -> ResearchConcurrency:
-    """One limiter set for need / source / document work in this process."""
+    """One limiter set for the current event loop."""
     global _shared_concurrency
-    if _shared_concurrency is None:
-        _shared_concurrency = ResearchConcurrency(ResearchConcurrencyLimits.from_settings())
+    loop = _optional_running_loop()
+    if _shared_concurrency is None or _shared_concurrency.loop is not loop:
+        _shared_concurrency = ResearchConcurrency(
+            ResearchConcurrencyLimits.from_settings(),
+            loop=loop,
+        )
     return _shared_concurrency
 
 
