@@ -298,3 +298,88 @@ async def test_successful_eager_leaves_no_barrier_quality_items(db, caplog):
     research = summary["research"]
     assert research["eager_quality_items"] >= 1
     assert research["barrier_quality_items"] == 0
+
+
+class SharedPassageSource:
+    source_type = "case_knowledge"
+    provider_id = "fake"
+
+    async def research(self, need: ResearchNeed, context: object):
+        del context
+        return [
+            research_evidence(
+                research_need_id=need.id,
+                source_type="case_knowledge",
+                status="found",
+                title="Kommunens skattesats",
+                excerpt="samma passage",
+                locator="p1",
+                source_id="doc-brief",
+                source_url="https://example.test/brief.pdf",
+                provider="fake",
+                retrieved_at=datetime(2026, 4, 1, tzinfo=UTC),
+            )
+        ]
+
+
+@pytest.mark.asyncio
+async def test_linked_passage_keeps_first_need_quality_row(db):
+    session, factory = db
+    attempt = await _created_attempt(session, slug="linked-quality")
+    router, _ = _router(SharedPassageSource())
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(
+            needs=[
+                _need("first", "case_knowledge"),
+                _need("second", "case_knowledge"),
+            ]
+        ),
+        router=router,
+        session_factory=factory,
+        relevance_assessor=FixedRelevance(),
+        concurrency=1,
+    )
+    items = await list_evidence_items(session, result.evidence_set_id)
+    quality = await list_evidence_quality(session, result.evidence_set_id)
+    assert len(items) == 1
+    assert items[0].research_need_id == "first"
+    assert {link.research_need_id for link in items[0].need_links} == {"first", "second"}
+    assert [row.evidence_set_item_id for row in quality] == [items[0].id]
+    assert {row.relevance for row in quality} == {"high"}
+    assert {row.model_name for row in quality} == {"fixed"}
+
+
+@pytest.mark.asyncio
+async def test_graph_upsert_runs_before_eager_quality(db, monkeypatch):
+    session, factory = db
+    attempt = await _created_attempt(session, slug="graph-before-eager")
+    order: list[str] = []
+
+    async def graph(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        order.append("graph")
+
+    async def eager(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        order.append("eager")
+
+    monkeypatch.setattr(
+        "app.services.research.execution.safe_upsert_persisted_evidence",
+        graph,
+    )
+    monkeypatch.setattr(
+        "app.services.research.execution.score_need_quality_eager",
+        eager,
+    )
+    router, _ = _router(RecordingSource("case_knowledge"))
+    result = await execute_attempt_research(
+        session,
+        attempt_id=attempt.id,
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        router=router,
+        session_factory=factory,
+    )
+    assert result.status == "ready"
+    assert order == ["graph", "eager"]

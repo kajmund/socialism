@@ -429,16 +429,6 @@ async def _execute_one_need(  # noqa: PLR0913
             await persist_session.commit()
             await progress.publish_committed()
 
-    await score_need_quality_eager(
-        factory=factory,
-        persist_lock=persist_lock,
-        evidence_set_id=evidence_set_id,
-        need=need,
-        stored=stored,
-        bind=eager,
-        raise_if_fenced=_raise_if_write_fenced,
-    )
-
     async with persist_lock, factory() as graph_session:
         _raise_if_write_fenced()
         await safe_upsert_persisted_evidence(
@@ -449,6 +439,16 @@ async def _execute_one_need(  # noqa: PLR0913
             evidence=evidence,
             source_attempt_id=attempt_id,
         )
+
+    await score_need_quality_eager(
+        factory=factory,
+        persist_lock=persist_lock,
+        evidence_set_id=evidence_set_id,
+        need=need,
+        stored=stored,
+        bind=eager,
+        raise_if_fenced=_raise_if_write_fenced,
+    )
 
 
 async def _run_need_executions(  # noqa: PLR0913
