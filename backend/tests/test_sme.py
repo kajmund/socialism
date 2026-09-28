@@ -460,12 +460,12 @@ async def test_panel_lease_heartbeat_blocks_second_session_after_ttl(
         await other.commit()
     assert stolen is None
     assert second_started_during_first is False
+    release_first.set()
+    await asyncio.gather(task_a, task_b)
     async with factory() as session_a, factory() as session_b:
         connection_a = await (await session_a.connection()).get_raw_connection()
         connection_b = await (await session_b.connection()).get_raw_connection()
         assert connection_a.driver_connection is not connection_b.driver_connection
-    release_first.set()
-    await asyncio.gather(task_a, task_b)
 
     assert seen_histories[0] == ["första"]
     assert "första" in seen_histories[1]
