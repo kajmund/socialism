@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from app.services.knowledge.embeddings import CachingEmbeddingProvider
 from tests.knowledge_fakes import FakeEmbeddingProvider
 
@@ -83,6 +85,20 @@ async def test_distinct_uncached_texts_embed_concurrently():
     inner.release.set()
     assert await first == [[5.0]]
     assert await second == [[4.0]]
+
+
+async def test_cache_evicts_oldest_when_full():
+    inner = FakeEmbeddingProvider()
+    cached = CachingEmbeddingProvider(inner, max_entries=2)
+    await cached.embed(["alpha", "beta"])
+    await cached.embed(["gamma"])
+    await cached.embed(["alpha"])
+    assert inner.calls == [("alpha", "beta"), ("gamma",), ("alpha",)]
+
+
+async def test_cache_rejects_empty_bound():
+    with pytest.raises(ValueError, match="max_entries"):
+        CachingEmbeddingProvider(FakeEmbeddingProvider(), max_entries=0)
 
 
 async def test_same_text_inflight_shares_one_inner_call():

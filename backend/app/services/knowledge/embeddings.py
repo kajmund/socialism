@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
@@ -13,6 +14,7 @@ from app.config import EMBEDDING_MODEL_DIMENSIONS, settings
 
 # OpenAI embeddings API batch limit.
 _MAX_BATCH = 2048
+DEFAULT_EMBEDDING_CACHE_ENTRIES = 2048
 
 
 class EmbeddingProvider(Protocol):
@@ -60,9 +62,17 @@ def require_embedding_vectors(
 class CachingEmbeddingProvider:
     """In-process cache in front of an EmbeddingProvider. Same text, same vector."""
 
-    def __init__(self, inner: EmbeddingProvider) -> None:
+    def __init__(
+        self,
+        inner: EmbeddingProvider,
+        *,
+        max_entries: int = DEFAULT_EMBEDDING_CACHE_ENTRIES,
+    ) -> None:
+        if max_entries < 1:
+            raise ValueError("max_entries must be >= 1")
         self._inner = inner
-        self._cache: dict[str, list[float]] = {}
+        self._max_entries = max_entries
+        self._cache: OrderedDict[str, list[float]] = OrderedDict()
         self._inflight: dict[str, asyncio.Future[list[float]]] = {}
         self._lock = asyncio.Lock()
 
@@ -102,6 +112,7 @@ class CachingEmbeddingProvider:
             for text in dict.fromkeys(texts):
                 cached = self._cache.get(text)
                 if cached is not None:
+                    self._cache.move_to_end(text)
                     continue
                 existing = self._inflight.get(text)
                 if existing is not None:
@@ -125,9 +136,12 @@ class CachingEmbeddingProvider:
             for text, vector in zip(owned, vectors, strict=True):
                 copied = list(vector)
                 self._cache[text] = copied
+                self._cache.move_to_end(text)
                 future = self._inflight.pop(text, None)
                 if future is not None and not future.done():
                     future.set_result(copied)
+            while len(self._cache) > self._max_entries:
+                self._cache.popitem(last=False)
 
     async def _fail_owned(self, owned: list[str], exc: BaseException) -> None:
         async with self._lock:
