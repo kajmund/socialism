@@ -1005,9 +1005,7 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
         if evidence_set_ids
         else []
     )
-    domain_result_ids = [
-        item.domain_result_id for item in evidence_items if item.domain_result_id
-    ]
+    domain_result_ids = [item.domain_result_id for item in evidence_items if item.domain_result_id]
     domain_rows = (
         (
             await session.execute(

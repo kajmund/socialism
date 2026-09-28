@@ -75,7 +75,6 @@ from app.services.execution.service import (
     runtime_need_from_row,
     seed_need_executions,
     set_attempt_snapshots,
-    set_research_loop_state,
 )
 from app.services.knowledge.models import KnowledgeScope
 from app.services.research.assessment import (
@@ -112,7 +111,6 @@ from app.services.research.followup import (
     FollowUpResearchPlanner,
     NoOpFollowUpPlanner,
     RuntimeResearchNeed,
-    next_assessment_pass,
     plan_from_runtime_needs,
     runtime_needs_from_plan,
     take_needs_within_budget,
@@ -145,7 +143,6 @@ from app.services.research.planner import (
 from app.services.research.progress import (
     ProgressTracker,
     emit_assessment_persisted,
-    emit_capability_unavailable,
     emit_completeness_persisted,
     emit_evidence_item,
     emit_initial_plan_accepted,
@@ -336,11 +333,7 @@ async def _retrieve_need(
 
 
 def _fresh_reused_evidence(items: list[ResearchEvidence]) -> list[ResearchEvidence]:
-    return [
-        item
-        for item in items
-        if item.metadata.get("reuse", {}).get("freshness") == "fresh"
-    ]
+    return [item for item in items if item.metadata.get("reuse", {}).get("freshness") == "fresh"]
 
 
 async def _candidates_then_providers(
@@ -503,10 +496,10 @@ async def _run_need_executions(  # noqa: PLR0913
             await _complete_timed_out_need(
                 factory,
                 persist_lock,
-                execution_id,
-                need,
-                evidence_set_id,
-                attempt_id,
+                execution_id=execution_id,
+                need=need,
+                evidence_set_id=evidence_set_id,
+                attempt_id=attempt_id,
             )
 
     await asyncio.gather(*(worker(execution_id, need_id) for execution_id, need_id in pending))
@@ -515,6 +508,7 @@ async def _run_need_executions(  # noqa: PLR0913
 async def _complete_timed_out_need(
     factory: async_sessionmaker[AsyncSession],
     persist_lock: asyncio.Lock,
+    *,
     execution_id: str,
     need: ResearchNeed,
     evidence_set_id: str,
@@ -1157,263 +1151,10 @@ async def _plan_and_persist_global_needs(  # noqa: PLR0913
     return accepted
 
 
-async def _run_research_loop(  # noqa: C901, PLR0911, PLR0912, PLR0913, PLR0915
-    *,
-    factory: async_sessionmaker[AsyncSession],
-    attempt_id: str,
-    evidence_set_id: str,
-    snapshot_plan: ResearchPlan,
-    context: ResearchContext,
-    router: ResearchRouter | None,
-    router_factory: ResearchRouterFactory | None,
-    question_graph: QuestionEvidenceGraph,
-    assessor: ResearchAssessor,
-    planner: FollowUpResearchPlanner,
-    completeness_reviewer: ResearchCompletenessReviewer,
-    relevance_assessor: EvidenceRelevanceAssessor | None,
-    provider_descriptors: tuple[KnowledgeProviderDescriptor, ...] | None,
-    concurrency: int,
-    max_follow_up_waves: int,
-    max_needs: int,
-    max_completeness_passes: int,
-    start_wave: int | None = None,
-    need_normalizer: ResearchNeedNormalizer | None = None,
-) -> None:
-    wave = INITIAL_RESEARCH_WAVE if start_wave is None else start_wave
-    while True:  # noqa: PLR1702
-        bind_log_context(wave_number=wave)
-        async with factory() as wave_session:
-            pending = await _pending_need_pairs(wave_session, attempt_id)
-            runtime_plan = await _runtime_plan(wave_session, attempt_id)
-            if not runtime_plan.needs:
-                runtime_plan = snapshot_plan
-        if pending:
-            await _run_need_executions(
-                factory=factory,
-                pending=pending,
-                evidence_set_id=evidence_set_id,
-                plan=runtime_plan,
-                context=context,
-                router=router,
-                router_factory=router_factory,
-                question_graph=question_graph,
-                attempt_id=attempt_id,
-                concurrency=concurrency,
-            )
-        async with factory() as barrier_session:
-            with ProgressTracker() as progress:
-                _raise_if_write_fenced()
-                await _assert_need_barrier(
-                    barrier_session, attempt_id=attempt_id, evidence_set_id=evidence_set_id
-                )
-                attempt = await get_attempt(barrier_session, attempt_id)
-                if attempt.status == "ready":
-                    return
-                if attempt.research_plan_snapshot is not None:
-                    snapshot_plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
-                runtime_plan = await _runtime_plan(barrier_session, attempt_id)
-                quality_plan = runtime_plan if runtime_plan.needs else snapshot_plan
-                quality = await _persist_evidence_quality(
-                    barrier_session,
-                    evidence_set_id=evidence_set_id,
-                    plan=quality_plan,
-                    descriptors=_quality_descriptors(router, provider_descriptors),
-                    relevance_assessor=relevance_assessor,
-                )
-                assessment = await _assess_persisted_evidence(
-                    barrier_session,
-                    attempt=attempt,
-                    evidence_set_id=evidence_set_id,
-                    plan=quality_plan,
-                    assessor=assessor,
-                    assessment_pass=next_assessment_pass(wave),
-                    quality=quality,
-                    descriptors=_quality_descriptors(router, provider_descriptors),
-                    relevance_assessor=relevance_assessor,
-                )
-                await set_research_loop_state(
-                    barrier_session,
-                    attempt_id,
-                    research_wave=wave,
-                    stop_reason=None,
-                )
-                await barrier_session.commit()
-                await progress.publish_committed()
-
-                if assessment.result == "sufficient":
-                    existing_passes = await list_research_completeness_passes(
-                        barrier_session, attempt_id
-                    )
-                    if len(existing_passes) >= max_completeness_passes:
-                        latest = existing_passes[-1]
-                        stop = (
-                            "sufficient"
-                            if latest.result == "complete"
-                            else "max_completeness_passes"
-                        )
-                        await set_research_loop_state(
-                            barrier_session,
-                            attempt_id,
-                            research_wave=wave,
-                            stop_reason=stop,
-                        )
-                        await _freeze_ready_attempt(
-                            barrier_session,
-                            attempt_id=attempt_id,
-                            evidence_set_id=evidence_set_id,
-                        )
-                        await progress.publish_committed()
-                        return
-                    completeness = await _review_and_persist_completeness(
-                        barrier_session,
-                        attempt=attempt,
-                        evidence_set_id=evidence_set_id,
-                        snapshot_plan=snapshot_plan,
-                        assessment=assessment,
-                        reviewer=completeness_reviewer,
-                        router=router,
-                        case_id=context.scope.case_id,
-                    )
-                    await barrier_session.commit()
-                    await progress.publish_committed()
-                    if completeness.result == "complete":
-                        await set_research_loop_state(
-                            barrier_session,
-                            attempt_id,
-                            research_wave=wave,
-                            stop_reason="sufficient",
-                        )
-                        await _freeze_ready_attempt(
-                            barrier_session,
-                            attempt_id=attempt_id,
-                            evidence_set_id=evidence_set_id,
-                        )
-                        await progress.publish_committed()
-                        return
-                    if completeness.completeness_pass >= max_completeness_passes:
-                        await set_research_loop_state(
-                            barrier_session,
-                            attempt_id,
-                            research_wave=wave,
-                            stop_reason="max_completeness_passes",
-                        )
-                        await _freeze_ready_attempt(
-                            barrier_session,
-                            attempt_id=attempt_id,
-                            evidence_set_id=evidence_set_id,
-                        )
-                        await progress.publish_committed()
-                        return
-                    if wave >= max_follow_up_waves:
-                        await set_research_loop_state(
-                            barrier_session,
-                            attempt_id,
-                            research_wave=wave,
-                            stop_reason="max_iterations",
-                        )
-                        await _freeze_ready_attempt(
-                            barrier_session,
-                            attempt_id=attempt_id,
-                            evidence_set_id=evidence_set_id,
-                        )
-                        await progress.publish_committed()
-                        return
-                    follow_up_wave = wave + 1
-                    planned = await _plan_and_persist_global_needs(
-                        barrier_session,
-                        attempt=attempt,
-                        completeness=completeness,
-                        wave_number=follow_up_wave,
-                        max_needs=max_needs,
-                        router=router,
-                        case_id=context.scope.case_id,
-                        need_normalizer=need_normalizer,
-                        question_graph=question_graph,
-                        context=context,
-                    )
-                    if isinstance(planned, str):
-                        await set_research_loop_state(
-                            barrier_session,
-                            attempt_id,
-                            research_wave=wave,
-                            stop_reason=planned,
-                        )
-                        if planned == "capability_unavailable":
-                            await emit_capability_unavailable(
-                                barrier_session, completeness=completeness
-                            )
-                        await _freeze_ready_attempt(
-                            barrier_session,
-                            attempt_id=attempt_id,
-                            evidence_set_id=evidence_set_id,
-                        )
-                        await progress.publish_committed()
-                        return
-                    await set_research_loop_state(
-                        barrier_session,
-                        attempt_id,
-                        research_wave=follow_up_wave,
-                        stop_reason=None,
-                    )
-                    await barrier_session.commit()
-                    await progress.publish_committed()
-                    wave = follow_up_wave
-                    continue
-
-                if wave >= max_follow_up_waves:
-                    await set_research_loop_state(
-                        barrier_session,
-                        attempt_id,
-                        research_wave=wave,
-                        stop_reason="max_iterations",
-                    )
-                    await _freeze_ready_attempt(
-                        barrier_session,
-                        attempt_id=attempt_id,
-                        evidence_set_id=evidence_set_id,
-                    )
-                    await progress.publish_committed()
-                    return
-
-                follow_up_wave = wave + 1
-                planned = await _plan_and_persist_follow_ups(
-                    barrier_session,
-                    attempt=attempt,
-                    snapshot_plan=snapshot_plan,
-                    assessment=assessment,
-                    evidence_set_id=evidence_set_id,
-                    planner=planner,
-                    wave_number=follow_up_wave,
-                    max_needs=max_needs,
-                    router=router,
-                    case_id=context.scope.case_id,
-                    need_normalizer=need_normalizer,
-                    question_graph=question_graph,
-                    context=context,
-                )
-                if isinstance(planned, str):
-                    await set_research_loop_state(
-                        barrier_session,
-                        attempt_id,
-                        research_wave=wave,
-                        stop_reason=planned,
-                    )
-                    await _freeze_ready_attempt(
-                        barrier_session,
-                        attempt_id=attempt_id,
-                        evidence_set_id=evidence_set_id,
-                    )
-                    await progress.publish_committed()
-                    return
-                await set_research_loop_state(
-                    barrier_session,
-                    attempt_id,
-                    research_wave=follow_up_wave,
-                    stop_reason=None,
-                )
-                await barrier_session.commit()
-                await progress.publish_committed()
-                wave = follow_up_wave
+async def _run_research_loop(**kwargs: object) -> None:
+    """Delegate to loop_control. Imported lazily to avoid a cycle."""
+    from app.services.research.loop_control import run_research_loop
+    await run_research_loop(**kwargs)
 
 
 async def _resolve_research_objective(
@@ -1858,14 +1599,10 @@ def _bind_attempt_log_context(
     snapshot = attempt.input_snapshot if isinstance(attempt.input_snapshot, dict) else {}
     context = {}
     if attempt.research_objective_snapshot is not None:
-        context = research_objective_from_snapshot(
-            attempt.research_objective_snapshot
-        ).context
+        context = research_objective_from_snapshot(attempt.research_objective_snapshot).context
     elif research_objective is not None:
         context = research_objective.context
-    question_id = context.get("research_question_id") or snapshot.get(
-        "research_question_id"
-    )
+    question_id = context.get("research_question_id") or snapshot.get("research_question_id")
     child_id = attempt.id if attempt.attempt_type == "research_question" else None
     return bind_log_context(
         run_id=attempt.run_id,
