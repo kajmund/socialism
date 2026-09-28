@@ -59,6 +59,30 @@ def test_research_concurrency_is_shared_and_resettable():
     reset_research_concurrency()
 
 
+def test_research_concurrency_rebinds_when_loop_changes():
+    reset_research_concurrency()
+    seen: list[ResearchConcurrency] = []
+
+    async def capture() -> None:
+        seen.append(research_concurrency())
+
+    asyncio.run(capture())
+    asyncio.run(capture())
+    assert seen[0] is not seen[1]
+    assert seen[0].loop is not seen[1].loop
+    reset_research_concurrency()
+
+
+@pytest.mark.asyncio
+async def test_research_concurrency_binds_to_running_loop():
+    reset_research_concurrency()
+    first = research_concurrency()
+    second = research_concurrency()
+    assert first is second
+    assert first.loop is asyncio.get_running_loop()
+    reset_research_concurrency()
+
+
 @pytest.mark.asyncio
 async def test_map_with_limit_is_serial_at_one():
     current = 0
