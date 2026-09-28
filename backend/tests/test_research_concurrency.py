@@ -268,6 +268,11 @@ def test_shared_db_session_reads_optional_attribute():
     holder = _CountingSource("case_knowledge", session="db")
     assert shared_db_session(holder) == "db"
 
+    class Legacy:
+        _session = "legacy"
+
+    assert shared_db_session(Legacy()) == "legacy"
+
 
 @pytest.mark.asyncio
 async def test_shared_session_candidates_stay_serial_when_limit_is_raised(monkeypatch):

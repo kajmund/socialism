@@ -567,10 +567,6 @@ class LagenNuResearchSource:
         self._impact_gate = impact_gate
         self._owned_client: OfficialLagenNuMcpClient | None = None
 
-    @property
-    def shared_db_session(self) -> AsyncSession | None:
-        return self._session
-
     def _require_selector(self) -> LagenNuPassageSelector:
         return resolve_passage_selector(self._selector)
 
