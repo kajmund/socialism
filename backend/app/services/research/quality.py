@@ -8,14 +8,18 @@ Scoring is generic: it only reads declared provider/provenance keys.
 from __future__ import annotations
 
 import hashlib
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
 from urllib.parse import urlsplit, urlunsplit
 
+from app.config import settings
+from app.observability.research import record_relevance_batch
 from app.services.research.models import ResearchNeed
 from app.services.research.provider import KnowledgeProviderDescriptor
+from app.services.research.relevance_judge import RelevanceJudgeError, judge_found_items
 
 EVIDENCE_QUALITY_POLICY_VERSION = "2"
 
@@ -115,6 +119,7 @@ class EvidenceRelevanceJudgment:
     model_provider: str | None = None
     model_name: str | None = None
     model_version: str | None = None
+    failed: bool = False
 
     def __post_init__(self) -> None:
         if self.relevance not in RELEVANCE_LEVELS:
@@ -418,6 +423,19 @@ async def assess_evidence_quality(
     """Score each item. Model failure stays unknown; it never upgrades quality."""
     needs_by_id = {need.id: need for need in needs}
     independent_counts = _found_independence_counts(items)
+    started = time.perf_counter()
+    judgments: dict[str, EvidenceRelevanceJudgment] = {}
+    if relevance_assessor is not None:
+        try:
+            judgments = await judge_found_items(items, needs_by_id, relevance_assessor)
+        except RelevanceJudgeError as exc:
+            raise EvidenceQualityError(str(exc)) from exc
+        record_relevance_batch(
+            source=settings.research_relevance_source,
+            items=len(judgments),
+            calls=len(judgments),
+            latency_ms=(time.perf_counter() - started) * 1000,
+        )
     drafts: list[EvidenceQualityDraft] = []
     for item in items:
         descriptor = match_provider_descriptor(item, descriptors)
@@ -436,20 +454,20 @@ async def assess_evidence_quality(
         model_provider = None
         model_name = None
         model_version = None
-        need = needs_by_id.get(item.research_need_id or "")
-        if relevance_assessor is not None and item.status == "found" and need is not None:
-            try:
-                judgment = await relevance_assessor.judge(need, item)
-            except EvidenceQualityError:
-                raise
-            except Exception as exc:
-                raise EvidenceQualityError(
-                    f"Relevance assessor failed for item {item.item_id}"
-                ) from exc
+        judgment = judgments.get(item.item_id)
+        if judgment is not None:
             relevance = judgment.relevance
             model_provider = judgment.model_provider
             model_name = judgment.model_name
             model_version = judgment.model_version
+            if judgment.failed:
+                flags = [
+                    *flags,
+                    QualityFlag(
+                        code=FLAG_RELEVANCE_FAILED,
+                        detail="Relevance assessor did not return a judgment.",
+                    ),
+                ]
         drafts.append(
             EvidenceQualityDraft(
                 evidence_set_item_id=item.item_id,

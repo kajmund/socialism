@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
+import hashlib
+import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,7 +15,13 @@ from app.jev.system import (
     JevSystemOne,
     parse_noul,
 )
-from app.observability.research import emit_jev_evidence_scored, record_jev_call
+from app.observability.research import (
+    emit_jev_evidence_scored,
+    record_jev_call,
+    record_jev_screen_cache_hit,
+    record_relevance_jev_call,
+    record_relevance_llm_fallback,
+)
 from app.services.research.assessment import AssessableEvidence
 from app.services.research.fast_controller import (
     JEV_PROVIDER,
@@ -22,8 +30,15 @@ from app.services.research.fast_controller import (
     research_jev_model,
 )
 from app.services.research.fast_state import compact_evidence_item_state
-from app.services.research.models import ResearchPlan
+from app.services.research.knowledge_question import normalize_research_question
+from app.services.research.models import ResearchNeed, ResearchPlan
 from app.services.research.planner import ResearchObjective
+from app.services.research.quality import (
+    EvidenceRelevanceAssessor,
+    EvidenceRelevanceJudgment,
+    QualityEvidenceInput,
+    RelevanceLevel,
+)
 
 EVIDENCE_SCREEN_QUESTIONS: dict[str, Any] = {
     "relevant_to_question": {
@@ -91,12 +106,138 @@ class EvidenceJevScores:
     latency_ms: float
 
 
+def question_set_version(questions: Mapping[str, Any]) -> str:
+    encoded = json.dumps(questions, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def evidence_screen_cache_key(
+    *,
+    model: str,
+    objective: str,
+    content_hash: str,
+    questions: Mapping[str, Any] = EVIDENCE_SCREEN_QUESTIONS,
+) -> tuple[str, str, str, str]:
+    return (
+        model,
+        question_set_version(questions),
+        content_hash,
+        hashlib.sha256(normalize_research_question(objective).encode("utf-8")).hexdigest(),
+    )
+
+
+class EvidenceScreenCache:
+    """Per-Attempt Jev scores. Shared only when objective and questions match."""
+
+    def __init__(self) -> None:
+        self._store: dict[tuple[str, str, str, str], EvidenceJevScores] = {}
+        self.hits = 0
+
+    def __len__(self) -> int:
+        return len(self._store)
+
+    def get(self, key: tuple[str, str, str, str]) -> EvidenceJevScores | None:
+        row = self._store.get(key)
+        if row is None:
+            return None
+        self.hits += 1
+        record_jev_screen_cache_hit()
+        return row
+
+    def put(self, key: tuple[str, str, str, str], row: EvidenceJevScores) -> None:
+        self._store[key] = row
+        while len(self._store) > 256:
+            del self._store[next(iter(self._store))]
+
+
+def relevance_from_jev_scores(scores: EvidenceJevScores) -> RelevanceLevel:
+    if scores.relevant_to_question >= 0.8 and scores.directly_supports_answer >= 0.5:
+        return "high"
+    if scores.relevant_to_question >= 0.5:
+        return "medium"
+    return "low"
+
+
+class JevEvidenceRelevanceAssessor:
+    """Need-scoped Jev relevance. Does not reuse plan-wide screening scores."""
+
+    def __init__(
+        self,
+        *,
+        inner: EvidenceRelevanceAssessor | None = None,
+        cache: EvidenceScreenCache | None = None,
+        client: JevSystemOne | None = None,
+    ) -> None:
+        self._inner = inner
+        self._cache = cache or EvidenceScreenCache()
+        self._client = client
+
+    async def judge(
+        self,
+        need: ResearchNeed,
+        item: QualityEvidenceInput,
+    ) -> EvidenceRelevanceJudgment:
+        scores = await _score_one(
+            self._client or HttpJevSystemOne(),
+            objective=need.question,
+            item=_assessable_from_quality(item),
+            slots=None,
+            cache=self._cache,
+            count_relevance_call=True,
+        )
+        if scores is not None:
+            return EvidenceRelevanceJudgment(
+                relevance=relevance_from_jev_scores(scores),
+                model_provider="jev",
+                model_name=research_jev_model(),
+            )
+        if self._inner is not None:
+            record_relevance_llm_fallback()
+            return await self._inner.judge(need, item)
+        return EvidenceRelevanceJudgment(relevance="unknown", failed=True)
+
+
+def bind_attempt_relevance(
+    assessor: object,
+    injected: EvidenceRelevanceAssessor | None,
+    *,
+    cache: EvidenceScreenCache | None = None,
+) -> tuple[EvidenceScreenCache, EvidenceRelevanceAssessor | None]:
+    """Share one Attempt cache between screening and Jev relevance."""
+    screen_cache = cache or EvidenceScreenCache()
+    bind = getattr(assessor, "bind_screen_cache", None)
+    if callable(bind):
+        bind(screen_cache)
+    if settings.research_relevance_source == "llm":
+        return screen_cache, injected
+    return screen_cache, JevEvidenceRelevanceAssessor(inner=injected, cache=screen_cache)
+
+
+def _assessable_from_quality(item: QualityEvidenceInput) -> AssessableEvidence:
+    return AssessableEvidence(
+        evidence_id=item.original_evidence_id or item.item_id,
+        research_need_id=item.research_need_id,
+        source_type=item.source_type,
+        status=item.status,
+        title=item.title,
+        excerpt=item.excerpt,
+        locator=item.locator,
+        source_id=item.source_id,
+        source_url=item.source_url,
+        provider=item.provider,
+        score=None,
+        provenance=item.provenance,
+        retrieved_at=item.retrieved_at,
+        content_hash=item.content_hash,
+    )
+
+
 async def screen_evidence(
     *,
     objective: str,
     evidence: Sequence[AssessableEvidence],
     client: JevSystemOne | None = None,
-    cache: dict[tuple[str, str], EvidenceJevScores] | None = None,
+    cache: EvidenceScreenCache | None = None,
 ) -> list[EvidenceJevScores]:
     """Score items concurrently. Failures are omitted; evidence is unchanged."""
     if not research_jev_available() or not settings.research_jev_evidence_screen_enabled:
@@ -150,33 +291,57 @@ def screening_objective(
     return " ".join(need.question for need in plan.needs)
 
 
+async def _ask_screen(
+    client: JevSystemOne,
+    *,
+    payload: dict[str, Any],
+    model: str,
+) -> Any:
+    return await client.ask(
+        state=payload,
+        questions=EVIDENCE_SCREEN_QUESTIONS,
+        model=model,
+        timeout_seconds=settings.research_jev_timeout_seconds,
+    )
+
+
 async def _score_one(
     client: JevSystemOne,
     *,
     objective: str,
     item: AssessableEvidence,
-    slots: asyncio.Semaphore,
-    cache: dict[tuple[str, str], EvidenceJevScores] | None = None,
+    slots: asyncio.Semaphore | None,
+    cache: EvidenceScreenCache | None = None,
+    count_relevance_call: bool = False,
 ) -> EvidenceJevScores | None:
-    payload, input_chars, digest = compact_evidence_item_state(
+    payload, input_chars, _digest = compact_evidence_item_state(
         objective=objective,
         item=item,
         max_state_chars=settings.research_jev_max_state_chars,
     )
     model = research_jev_model()
-    cache_key = (model, digest)
-    if cache is not None and cache_key in cache:
-        return cache[cache_key]
-    async with slots:
-        try:
-            result = await client.ask(
-                state=payload,
-                questions=EVIDENCE_SCREEN_QUESTIONS,
-                model=model,
-                timeout_seconds=settings.research_jev_timeout_seconds,
-            )
-        except Exception:  # noqa: BLE001 - shadow scores must not fail research
-            return None
+    cache_key = evidence_screen_cache_key(
+        model=model,
+        objective=objective,
+        content_hash=item.content_hash,
+        questions=EVIDENCE_SCREEN_QUESTIONS,
+    )
+    if cache is not None:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+    try:
+        if slots is None:
+            result = await _ask_screen(client, payload=payload, model=model)
+        else:
+            async with slots:
+                result = await _ask_screen(client, payload=payload, model=model)
+    except Exception:  # noqa: BLE001 - shadow scores must not fail research
+        if count_relevance_call:
+            record_relevance_jev_call()
+        return None
+    if count_relevance_call:
+        record_relevance_jev_call()
     try:
         scores = EvidenceJevScores(
             evidence_id=item.evidence_id,
@@ -201,9 +366,7 @@ async def _score_one(
     except Exception:  # noqa: BLE001 - omit one bad score, keep the item
         return None
     if cache is not None:
-        cache[cache_key] = scores
-        while len(cache) > 256:
-            del cache[next(iter(cache))]
+        cache.put(cache_key, scores)
     record_jev_call(scores.latency_ms)
     emit_jev_evidence_scored(
         mode=research_jev_mode(),
