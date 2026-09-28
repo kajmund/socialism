@@ -22,6 +22,8 @@ Legal ResearchNeeds are validated in the legal planner adapter before this hop. 
 
 Routing stays programmatic. An LLM is not used to select providers. Embeddings are not used to select providers in v1; `rank_provider_candidates` is the seam for later semantic ranking over an already-filtered set.
 
+`ResearchRouter.execute_need` still walks ranked candidates one at a time. Document fetch inside a source is also serial. `research_source_concurrency` and `research_document_concurrency` default to 1 so those loops stay serial; limiter objects live in `app.services.research.concurrency` (`research_concurrency()`). Raising the knobs does not overlap work until those loops change. Need retrieval remains the existing per-wave `research_need_concurrency` semaphore.
+
 ## Migration from the source-type registry
 
 | Before | After |
