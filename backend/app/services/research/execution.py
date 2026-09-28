@@ -62,13 +62,11 @@ from app.services.execution.service import (
     get_research_completeness_by_fingerprint,
     get_run,
     list_evidence_items,
-    list_evidence_quality,
     list_need_executions,
     list_research_assessments,
     list_research_completeness_passes,
     list_runtime_needs,
     mark_ready,
-    persist_evidence_quality,
     persist_research_assessment,
     persist_research_completeness,
     persist_runtime_needs,
@@ -161,13 +159,13 @@ from app.services.research.provider import (
     filter_source_types_for_scope,
 )
 from app.services.research.quality import (
-    EVIDENCE_QUALITY_POLICY_VERSION,
     EvidenceQualityDraft,
     EvidenceRelevanceAssessor,
-    QualityEvidenceInput,
-    QualityFlag,
-    assess_evidence_quality,
-    quality_model_identity_key,
+)
+from app.services.research.quality_persist import (
+    EagerQualityBind,
+    persist_evidence_quality_drafts as _persist_evidence_quality,
+    score_need_quality_eager,
 )
 from app.services.research.question_graph import (
     DisabledQuestionEvidenceGraph,
@@ -372,6 +370,7 @@ async def _execute_one_need(  # noqa: PLR0913
     router_factory: ResearchRouterFactory | None,
     question_graph: QuestionEvidenceGraph,
     attempt_id: str,
+    eager: EagerQualityBind | None = None,
 ) -> None:
     async with persist_lock, factory() as claim_session:
         with ProgressTracker() as progress:
@@ -430,6 +429,16 @@ async def _execute_one_need(  # noqa: PLR0913
             await persist_session.commit()
             await progress.publish_committed()
 
+    await score_need_quality_eager(
+        factory=factory,
+        persist_lock=persist_lock,
+        evidence_set_id=evidence_set_id,
+        need=need,
+        stored=stored,
+        bind=eager,
+        raise_if_fenced=_raise_if_write_fenced,
+    )
+
     async with persist_lock, factory() as graph_session:
         _raise_if_write_fenced()
         await safe_upsert_persisted_evidence(
@@ -454,6 +463,7 @@ async def _run_need_executions(  # noqa: PLR0913
     question_graph: QuestionEvidenceGraph,
     attempt_id: str,
     concurrency: int,
+    eager: EagerQualityBind | None = None,
 ) -> None:
     if not pending:
         return
@@ -477,6 +487,7 @@ async def _run_need_executions(  # noqa: PLR0913
                     router_factory=router_factory,
                     question_graph=question_graph,
                     attempt_id=attempt_id,
+                    eager=eager,
                 ),
                 timeout=settings.research_need_timeout_seconds,
             )
@@ -608,51 +619,6 @@ def assessable_from_item(
     )
 
 
-def quality_input_from_item(item: EvidenceSetItem) -> QualityEvidenceInput:
-    return QualityEvidenceInput(
-        item_id=item.id,
-        original_evidence_id=item.original_evidence_id,
-        research_need_id=item.research_need_id,
-        source_type=item.source_type,
-        status=item.status,
-        title=item.title,
-        excerpt=item.excerpt,
-        locator=item.locator,
-        source_id=item.source_id,
-        source_url=item.source_url,
-        provider=item.provider,
-        provenance=dict(item.provenance or {}),
-        retrieved_at=item.retrieved_at,
-        content_hash=item.content_hash,
-    )
-
-
-def quality_draft_from_row(row: ResearchEvidenceQuality) -> EvidenceQualityDraft:
-    raw_flags = row.flags if isinstance(row.flags, list) else []
-    flags = []
-    for item in raw_flags:
-        if isinstance(item, dict) and item.get("code"):
-            flags.append(QualityFlag(code=str(item["code"]), detail=str(item.get("detail") or "")))
-    return EvidenceQualityDraft(
-        evidence_set_item_id=row.evidence_set_item_id,
-        original_evidence_id=row.original_evidence_id,
-        scoring_policy_version=row.scoring_policy_version,
-        authority=row.authority,
-        relevance=row.relevance,
-        currentness=row.currentness,
-        source_nature=row.source_nature,
-        source_timestamp=row.source_timestamp,
-        independence_key=row.independence_key,
-        independent_source_count=row.independent_source_count,
-        flags=flags,
-        rationale=row.rationale,
-        declared_signals=dict(row.declared_signals or {}),
-        model_provider=row.model_provider,
-        model_name=row.model_name,
-        model_version=row.model_version,
-    )
-
-
 def _loop_limits(
     max_follow_up_waves: int | None,
     max_needs: int | None,
@@ -701,60 +667,6 @@ def _quality_descriptors(
     if callable(registered):
         return tuple(registered())
     return standard_capability_descriptors()
-
-
-async def _persist_evidence_quality(
-    session: AsyncSession,
-    *,
-    evidence_set_id: str,
-    plan: ResearchPlan,
-    descriptors: tuple[KnowledgeProviderDescriptor, ...],
-    relevance_assessor: EvidenceRelevanceAssessor | None,
-    item_ids: set[str] | None = None,
-) -> list[EvidenceQualityDraft]:
-    """Score persisted items before local sufficiency. Does not mutate items."""
-    items = await list_evidence_items(session, evidence_set_id)
-    existing = await list_evidence_quality(
-        session,
-        evidence_set_id,
-        scoring_policy_version=EVIDENCE_QUALITY_POLICY_VERSION,
-    )
-    existing_keys = {
-        (row.evidence_set_item_id, row.scoring_policy_version, row.model_identity_key)
-        for row in existing
-    }
-    drafts = await assess_evidence_quality(
-        [
-            quality_input_from_item(item)
-            for item in items
-            if item_ids is None or item.id in item_ids
-        ],
-        needs=plan.needs,
-        descriptors=descriptors,
-        relevance_assessor=relevance_assessor,
-    )
-    missing = [
-        draft
-        for draft in drafts
-        if (
-            draft.evidence_set_item_id,
-            draft.scoring_policy_version,
-            quality_model_identity_key(
-                model_provider=draft.model_provider,
-                model_name=draft.model_name,
-                model_version=draft.model_version,
-            ),
-        )
-        not in existing_keys
-    ]
-    if missing:
-        await persist_evidence_quality(session, evidence_set_id=evidence_set_id, drafts=missing)
-    stored = await list_evidence_quality(
-        session,
-        evidence_set_id,
-        scoring_policy_version=EVIDENCE_QUALITY_POLICY_VERSION,
-    )
-    return [quality_draft_from_row(row) for row in stored]
 
 
 def _quality_by_item(
