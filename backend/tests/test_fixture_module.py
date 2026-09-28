@@ -55,7 +55,7 @@ def test_fixture_module_source_has_no_dd_or_politik_imports():
 
 
 @pytest.mark.asyncio
-async def test_third_module_report_panel_and_spindoctor(client_db, tmp_path):
+async def test_third_module_report_panel_and_spindoctor(client_db, tmp_path):  # noqa: PLR0915
     _client, factory = client_db
     install_fixture_module()
     try:

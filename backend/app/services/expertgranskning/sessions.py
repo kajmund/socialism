@@ -311,7 +311,7 @@ async def list_expertgranskning_sessions(
     return out
 
 
-async def update_expertgranskning_session(
+async def update_expertgranskning_session(  # noqa: C901, PLR0912
     session: AsyncSession,
     row: PanelSession,
     body: ExpertgranskningSessionUpdate,

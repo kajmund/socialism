@@ -28,7 +28,7 @@ class StageResult:
     regressions: tuple[str, ...]
 
 
-def evaluate_case(golden: dict[str, Any], artifacts: dict[str, Any]) -> dict[str, StageResult]:
+def evaluate_case(golden: dict[str, Any], artifacts: dict[str, Any]) -> dict[str, StageResult]:  # noqa: C901, PLR0912, PLR0915
     """Compare pipeline outputs to a pinned case without invoking retrieval or an LLM."""
     report: dict[str, StageResult] = {}
 

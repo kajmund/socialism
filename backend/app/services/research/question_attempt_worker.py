@@ -39,7 +39,7 @@ from app.services.research.question_graph import QuestionEvidenceGraph
 class AttemptResearchQuestionWorker:
     """Adapter from a DAG node to a child Attempt with frozen evidence."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         session_factory: async_sessionmaker[AsyncSession],

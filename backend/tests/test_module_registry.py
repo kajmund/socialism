@@ -106,7 +106,7 @@ def test_module_routes_keep_existing_urls():
     assert "/api/dd/campaigns" not in paths
 
 
-def test_module_manifest_shapes():
+def test_module_manifest_shapes():  # noqa: PLR0915
     dd = MODULE_REGISTRY["dd"]
     assert dd.id == "dd"
     assert dd.frontend_entry == "dd"

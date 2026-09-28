@@ -19,7 +19,7 @@ from app.services.dd.source_attribution import SourceBadge, resolve_source_badge
 def mock_dd_panel_llm():
     score_counter = {"n": 0}
 
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: PLR0911
         user = messages[-1]["content"]
         if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
             return "JA\nDelfrågan är min kärnkompetens."
@@ -290,11 +290,11 @@ async def test_expert_raise_hand_dd_accepts_ja_and_yes():
 async def test_dd_panel_skips_score_when_no_expert_raises_hand(
     client: AsyncClient,
 ):
-    from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS, SubQuestionRef
+    from app.services.dd.sub_questions import DD_SUB_QUESTION_DEFAULTS
 
     score_counter = {"n": 0}
 
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: PLR0911
         user = messages[-1]["content"]
         if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
             if "Legal risk" in user:

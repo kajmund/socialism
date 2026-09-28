@@ -327,7 +327,7 @@ def _dedupe_snapshots(
     return unique
 
 
-async def add_evidence_items(
+async def add_evidence_items(  # noqa: C901, PLR0912, PLR0915
     session: AsyncSession,
     *,
     evidence_set_id: str,
@@ -715,7 +715,7 @@ def _assert_preparation(attempt: ExecutionAttempt, *, action: str) -> None:
         )
 
 
-async def create_attempt(
+async def create_attempt(  # noqa: PLR0913
     session: AsyncSession,
     *,
     run_id: str,

@@ -148,7 +148,7 @@ def _company_slot(
     )
 
 
-def format_research_brief(dossier: DdResearchDossier) -> str:
+def format_research_brief(dossier: DdResearchDossier) -> str:  # noqa: C901, PLR0912
     lines = ["## Researchdossier"]
     if dossier.companies:
         lines.append("")
@@ -424,7 +424,7 @@ def _relation_for(orgnr: str, seed_orgnr: str, root_orgnr: str) -> DdResearchRel
     return "dotterbolag"
 
 
-async def run_dd_group_research(
+async def run_dd_group_research(  # noqa: C901, PLR0912, PLR0915
     candidate: DdCandidateCompany,
     *,
     job_id: str = "",
@@ -775,7 +775,7 @@ async def run_dd_people_research(
     return dossier.model_copy(update={"people": people, "leftover": leftover, "job_id": job_id})
 
 
-async def run_dd_research(
+async def run_dd_research(  # noqa: PLR0913
     candidate: DdCandidateCompany,
     *,
     mode: DdResearchMode = "group",

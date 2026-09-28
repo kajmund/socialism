@@ -153,7 +153,7 @@ def test_modules_for_prompt_key_follows_prefix_convention():
     ]
 
 
-def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():
+def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():  # noqa: PLR0915
     dd_keys = {field["key"] for field in dd_prompt_defaults()}
     politik_keys = {field["key"] for field in politik_prompt_defaults()}
     ratts_keys = {field["key"] for field in rattsunderlag_prompt_defaults()}

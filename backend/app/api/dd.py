@@ -255,7 +255,7 @@ async def post_campaign_sourcing_run(
     response_model=JobOut,
     status_code=202,
 )
-async def post_candidate_research(
+async def post_candidate_research(  # noqa: PLR0917
     campaign_id: int,
     candidate_id: str,
     body: DdResearchStartRequest,
@@ -385,7 +385,7 @@ async def list_candidate_annual_reports(
     response_model=StoredObjectOut,
     status_code=201,
 )
-async def upload_candidate_annual_report(
+async def upload_candidate_annual_report(  # noqa: PLR0917
     campaign_id: int,
     candidate_id: str,
     file: UploadFile = File(...),
@@ -415,7 +415,7 @@ async def upload_candidate_annual_report(
 
 
 @router.get("/campaigns/{campaign_id}/candidates/{candidate_id}/files/{file_id}")
-async def download_candidate_annual_report(
+async def download_candidate_annual_report(  # noqa: PLR0917
     campaign_id: int,
     candidate_id: str,
     file_id: str,
@@ -446,7 +446,7 @@ async def download_candidate_annual_report(
     "/campaigns/{campaign_id}/candidates/{candidate_id}/files/{file_id}",
     status_code=204,
 )
-async def delete_candidate_annual_report(
+async def delete_candidate_annual_report(  # noqa: PLR0917
     campaign_id: int,
     candidate_id: str,
     file_id: str,

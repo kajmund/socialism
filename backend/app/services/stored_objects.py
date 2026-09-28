@@ -118,7 +118,7 @@ async def list_candidate_files(
     return list(result.scalars().all())
 
 
-async def upload_annual_report(
+async def upload_annual_report(  # noqa: PLR0913
     session: AsyncSession,
     *,
     customer_id: int,
@@ -279,7 +279,7 @@ async def list_underlag(
     return list(result.scalars().all())
 
 
-async def upload_underlag(
+async def upload_underlag(  # noqa: PLR0913
     session: AsyncSession,
     *,
     customer_id: int,

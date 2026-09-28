@@ -199,7 +199,7 @@ class PopulationMemberCreate(BaseModel):
 
 class DistRow(BaseModel):
     k: str
-    l: str
+    l: str  # noqa: E741
     v: int
 
 
@@ -258,7 +258,7 @@ class PopulationGenerateResponse(BaseModel):
 
 class PopulationDistQaRow(BaseModel):
     k: str
-    l: str
+    l: str  # noqa: E741
     target_v: int
     achieved_v: int
 

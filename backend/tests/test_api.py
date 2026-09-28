@@ -435,7 +435,7 @@ async def test_generate_and_create_from_generation(client):
     assert reuse.status_code == 404
 
 
-async def test_persona_generate_and_chat(client):
+async def test_persona_generate_and_chat(client):  # noqa: PLR0915
     generated = await client.post(
         "/personas/generate",
         json={"mode": "beskrivning", "freeText": "cynisk undersköterska", "count": 2},

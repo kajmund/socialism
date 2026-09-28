@@ -20,7 +20,7 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database.models import Population, PopulationMember, Run
 from app.database.session import SessionLocal
-from app.schemas.domain import Injection, OasisPlatform, OasisRunOptions, Tick
+from app.schemas.domain import Injection, OasisRunOptions, Tick
 from app.serializers import utcnow
 from app.services.customer_scope import customer_id_for_run
 from app.services.district_context import format_area_block, list_district_contexts
@@ -40,7 +40,6 @@ from app.services.oasis_engagement import (
     stratified_agent_sample,
     trace_row_count,
 )
-from app.services.oasis_clock import OasisScenarioClock
 from app.services.oasis_profiles import (
     build_run_profiles,
     injection_body,
@@ -193,7 +192,7 @@ def _read_oasis_results(db_path: Path) -> dict[str, Any]:
     return read_oasis_results(db_path)
 
 
-async def run_oasis_simulation(
+async def run_oasis_simulation(  # noqa: C901, PLR0912, PLR0913, PLR0915
     *,
     run_id: int,
     members: list[PopulationMember],
@@ -236,7 +235,7 @@ async def run_oasis_simulation(
 
     apply_swedish_social_environment_prompts(prompts)
 
-    with camel_llm_runtime():
+    with camel_llm_runtime():  # noqa: PLR1702
         clear_oasis_tool_trace()
         # All configured ticks run: silent = no injection that day, population still reacts.
         active_ticks = list(ticks)
@@ -663,7 +662,7 @@ async def _attach_live_feed_snapshot(
         result_payload["live_feed"] = {"rounds": []}
 
 
-async def _simulate_variant(
+async def _simulate_variant(  # noqa: PLR0913
     *,
     run: Run,
     members: list[PopulationMember],
@@ -705,7 +704,7 @@ async def _simulate_variant(
             )
         except OasisUnavailable:
             raise
-        except Exception as exc:  # noqa: BLE001 — keep other variants; record this failure
+        except Exception as exc:
             log.exception("Variant %s failed: %s", variant_id, exc)
             error = str(exc) or exc.__class__.__name__
             await run_broadcast.publish(

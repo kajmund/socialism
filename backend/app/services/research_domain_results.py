@@ -40,7 +40,7 @@ class DomainClaim:
     citations: list[dict[str, object]]
 
 
-def legal_claims(
+def legal_claims(  # noqa: C901, PLR0912
     result: LegalResearchResult, *, result_id: str, research_need_id: str
 ) -> list[DomainClaim]:
     """Project explicit structured interpretation fields; never infer from prose."""

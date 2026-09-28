@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from app.services.report.bundles import RunBundle
 from app.services.report.classify import (

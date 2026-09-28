@@ -145,7 +145,7 @@ def _extracted(text: str) -> ExtractedDocument:
     )
 
 
-async def _persist_doc(
+async def _persist_doc(  # noqa: PLR0913
     session: AsyncSession,
     *,
     document_id: str,

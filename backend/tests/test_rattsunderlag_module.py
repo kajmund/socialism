@@ -24,7 +24,7 @@ def test_rattsunderlag_manifest_has_shared_renderer_mode():
 
 
 @pytest.mark.asyncio
-async def test_research_job_writes_underlag_visible_without_module_filter(
+async def test_research_job_writes_underlag_visible_without_module_filter(  # noqa: PLR0915
     user_client: AsyncClient,
 ):
     async def planner(_messages, response_model):

@@ -319,7 +319,7 @@ def annotate_fresh_retrieval(
     return annotated
 
 
-async def lookup_reusable_evidence(
+async def lookup_reusable_evidence(  # noqa: PLR0913
     session: AsyncSession,
     *,
     graph: QuestionEvidenceGraph,
@@ -445,7 +445,7 @@ def _scope_provenance(context: ResearchContext, source_type: str | None) -> dict
     return payload
 
 
-async def safe_lookup_reusable_evidence(
+async def safe_lookup_reusable_evidence(  # noqa: PLR0913
     session: AsyncSession,
     *,
     graph: QuestionEvidenceGraph,

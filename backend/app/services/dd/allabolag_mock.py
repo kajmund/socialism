@@ -121,7 +121,7 @@ def _candidate_id(orgnr: str) -> str:
     return hashlib.sha256(orgnr.encode()).hexdigest()[:16]
 
 
-def search_companies(criteria: DdSourcingCriteria) -> list[DdCandidateCompany]:
+def search_companies(criteria: DdSourcingCriteria) -> list[DdCandidateCompany]:  # noqa: C901
     """Return 5–10 mock candidates matching criteria (deterministic per criteria)."""
     seed = _criteria_seed(criteria)
     rng_byte = int(seed[:2], 16)

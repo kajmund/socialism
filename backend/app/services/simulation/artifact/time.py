@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 
-def created_at_to_sort_key(value: Any) -> int | None:
+def created_at_to_sort_key(value: Any) -> int | None:  # noqa: PLR0911
     """Normalize OASIS created_at (timestep int or ISO datetime) to a sortable int."""
     if value is None:
         return None

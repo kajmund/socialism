@@ -24,7 +24,7 @@ LEGAL_ISSUE = "legal.issue"
 LEGAL_PROVISION = "legal.provision"
 
 
-def ground_legal_graph(
+def ground_legal_graph(  # noqa: C901, PLR0912
     result: LegalResearchResult,
     claims: Sequence[KnowledgeClaim],
     *,

@@ -43,7 +43,7 @@ async def create_job(
 
 
 @router.get("", response_model=list[JobOut])
-async def list_jobs(
+async def list_jobs(  # noqa: PLR0917
     status: JobStatus | None = Query(default=None),
     customer_id: int | None = Query(default=None),
     include_archived: bool = Query(default=False),

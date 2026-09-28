@@ -57,7 +57,7 @@ async def test_word_review_emits_result_created_then_finished(
 
     monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag="Tydligare rubrik")
         if response_model is WordRewriteSuggestion:
@@ -173,7 +173,7 @@ async def test_word_result_patch_emits_updated(client: AsyncClient, monkeypatch)
 
     monkeypatch.setattr(expertgranskning_broadcast, "publish", capture)
 
-    async def completer(messages, response_model):
+    async def completer(messages, response_model):  # noqa: PLR0911
         if response_model is WordHeadingAssessment:
             return WordHeadingAssessment(forslag=None)
         if response_model is WordRewriteSuggestion:

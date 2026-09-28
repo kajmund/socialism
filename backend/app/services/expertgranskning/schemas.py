@@ -387,7 +387,7 @@ def is_custom_choice_answer(answer: IntentAnswer) -> bool:
     return not answer.selected_values and bool((answer.free_text or "").strip())
 
 
-def _validate_one_intent_answer(question: IntentQuestion, answer: IntentAnswer) -> None:
+def _validate_one_intent_answer(question: IntentQuestion, answer: IntentAnswer) -> None:  # noqa: C901
     allowed = {option.value for option in question.options}
     if question.type in {"single_choice", "multi_choice"}:
         if is_custom_choice_answer(answer):

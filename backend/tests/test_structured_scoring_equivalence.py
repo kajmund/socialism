@@ -32,7 +32,7 @@ from app.services.prompt_store import require_active_prompts
 def _install_dd_mock() -> None:
     score_counter = {"n": 0}
 
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: PLR0911
         user = messages[-1]["content"]
         if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
             return "JA\nDelfrågan är min kärnkompetens."
@@ -126,7 +126,7 @@ async def test_structured_scoring_unanswered_when_no_raise_hand(client_db):
     config = _dd_config()
     score_counter = {"n": 0}
 
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: PLR0911
         user = messages[-1]["content"]
         if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
             if "Legal risk" in user:

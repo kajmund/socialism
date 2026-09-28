@@ -47,7 +47,7 @@ def serialize_flag(flag: SsrMisclassificationFlag) -> dict[str, Any]:
     }
 
 
-async def create_flag(
+async def create_flag(  # noqa: PLR0913
     session: AsyncSession,
     *,
     kind: MisclassificationKind,

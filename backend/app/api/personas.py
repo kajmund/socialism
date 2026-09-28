@@ -216,7 +216,7 @@ def _stub_candidates(body: PersonaGenerateRequest) -> list[EditablePersona]:
 
 
 @router.get("", response_model=list[LibraryPersona])
-async def list_personas(
+async def list_personas(  # noqa: PLR0917
     q: str | None = Query(default=None),
     origin: str | None = Query(default=None),
     exclude_origin: list[str] | None = Query(default=None),
@@ -412,7 +412,7 @@ async def run_persona_live_tool(
 
 
 @router.post("/{persona_id}/live-memory", status_code=202)
-async def remember_persona_live_turn(
+async def remember_persona_live_turn(  # noqa: PLR0917
     persona_id: str,
     body: PersonaLiveMemoryRequest,
     background_tasks: BackgroundTasks,
@@ -518,7 +518,7 @@ async def remove_persona_avatar(
 
 
 @router.post("", response_model=PersonaDetail, status_code=201)
-async def create_persona(
+async def create_persona(  # noqa: PLR0912
     body: PersonaCreate,
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
@@ -743,7 +743,7 @@ async def clear_persona_memories(
 
 
 @router.patch("/{persona_id}/memories/{memory_id}", response_model=ExpertMemoryOut)
-async def update_persona_memory(
+async def update_persona_memory(  # noqa: PLR0917
     persona_id: str,
     memory_id: str,
     body: ExpertMemoryUpdate,

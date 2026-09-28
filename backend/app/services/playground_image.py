@@ -8,7 +8,7 @@ from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona
-from app.llm.vision import VisionRequest, complete_vision_text
+from app.llm.vision import complete_vision_text
 from app.serializers import profile_from_dict
 from app.services.district_context import area_block_for_name
 from app.services.playground import rate_case
@@ -37,7 +37,7 @@ def validate_image(*, content_type: str | None, size_bytes: int) -> str:
     return mime
 
 
-from app.services.image_caption import rich_caption_prompt
+from app.services.image_caption import rich_caption_prompt  # noqa: E402
 
 
 def _reaction_user_message(description: str, *, locale: Locale) -> str:
@@ -66,7 +66,7 @@ def _ssr_slice(result: dict) -> dict:
     }
 
 
-async def react_to_image(
+async def react_to_image(  # noqa: PLR0913
     session: AsyncSession,
     *,
     persona: Persona,

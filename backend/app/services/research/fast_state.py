@@ -27,7 +27,7 @@ class CompactResearchState:
     input_truncated: bool = False
 
 
-def compact_research_state(
+def compact_research_state(  # noqa: PLR0913
     *,
     objective: str,
     plan: ResearchPlan,

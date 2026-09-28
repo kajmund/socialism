@@ -65,7 +65,7 @@ def _int_or_none(value: Any) -> int | None:
         return None
 
 
-def enrich_trace_rows(db_path: Path, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def enrich_trace_rows(db_path: Path, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:  # noqa: C901, PLR0912, PLR0915
     """Attach post/comment content and social-action targets to trace rows."""
     if not rows:
         return []

@@ -30,7 +30,7 @@ def test_attach_reasoning_to_assistant_message():
 @pytest.fixture
 def camel_available():
     try:
-        from camel.agents.chat_agent import ChatAgent  # noqa: F401
+        from camel.agents.chat_agent import ChatAgent
     except ImportError:
         pytest.skip("camel-oasis not installed")
     import app.services.simulation.llm_runtime as rt
@@ -84,7 +84,6 @@ def test_runtime_refcount_holds_patch_until_last_exit(camel_available):
 def test_record_tool_calling_preserves_reasoning_and_traces_external_tools(
     camel_available,
 ):
-    import app.services.simulation.llm_runtime as rt
     from camel.agents.chat_agent import ChatAgent
     from camel.messages.func_message import FunctionCallingMessage
     from camel.types import OpenAIBackendRole, RoleType

@@ -20,7 +20,7 @@ from app.services.kund_store import bolag_demo_customer_id
 def mock_dd_panel_llm():
     score_counter = {"n": 0}
 
-    async def _complete(messages, *, model=None):
+    async def _complete(messages, *, model=None):  # noqa: PLR0911
         user = messages[-1]["content"]
         if "Första raden: JA eller NEJ" in user or "First line: YES or NO" in user:
             return "JA"
@@ -44,7 +44,7 @@ def mock_dd_panel_llm():
 
 
 @pytest.mark.asyncio
-async def test_candidate_run_links_panel_and_report(
+async def test_candidate_run_links_panel_and_report(  # noqa: PLR0915
     client: AsyncClient,
     mock_dd_panel_llm,
     monkeypatch,

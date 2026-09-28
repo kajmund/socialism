@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from tests.conftest import TEST_CUSTOMER_ID, mint_access_token, USER_USER_ID
+from tests.conftest import TEST_CUSTOMER_ID, USER_USER_ID
 
 
 @pytest.mark.asyncio

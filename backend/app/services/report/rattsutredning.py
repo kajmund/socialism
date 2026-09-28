@@ -263,7 +263,7 @@ window.addEventListener("message", function(ev) {{
     return inject_report_theme(html)
 
 
-def write_rattsutredning_artifacts(
+def write_rattsutredning_artifacts(  # noqa: PLR0913
     payload: RattsutredningPayload,
     *,
     out_dir: Path,
