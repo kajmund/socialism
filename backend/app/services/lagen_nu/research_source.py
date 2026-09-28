@@ -676,7 +676,7 @@ class LagenNuResearchSource:
     ) -> list[ResearchEvidence]:
         try:
             return await self._research(need, context)
-        except Exception:
+        except BaseException:
             self._graph_writes.take()
             await _rollback_open_session(self._session)
             raise
