@@ -21,6 +21,11 @@ from app.jev.system import (
     parse_noul,
 )
 from app.services.knowledge.embeddings import EmbeddingProvider
+from app.services.knowledge.answer_review import (
+    AnswerReviewDecision,
+    REVIEW_TTL_QUESTION,
+    parse_review_decision,
+)
 from app.services.knowledge.vector_store import TextUnitEmbeddingReader, cosine_score
 from app.services.research.failures import FailureCategory
 
@@ -67,6 +72,7 @@ class RoutedPassages:
     router: Literal["jev", "keep_all"]
     jev_clipped: bool
     interpreter_clipped: bool
+    review_decision: AnswerReviewDecision
 
 
 class LagenNuPassageRouter(Protocol):
@@ -103,6 +109,7 @@ class KeepAllPassageRouter:
             router="keep_all",
             jev_clipped=False,
             interpreter_clipped=False,
+            review_decision=AnswerReviewDecision("never"),
         )
 
 
@@ -155,7 +162,7 @@ class JevPassageRouter:
             ranked = await rank_text_units(question, units, embeddings, stored)
             seeds = [unit for _score, unit in ranked[: self._top_k]]
             seed_ids = tuple(unit.id for unit in seeds)
-            kept_ids, jev_clipped = await self._keep_ids(question, seeds)
+            kept_ids, jev_clipped, review_decision = await self._keep_ids(question, seeds)
         except PassageRoutingError:
             raise
         except JevClientError as exc:
@@ -203,13 +210,14 @@ class JevPassageRouter:
             router="jev",
             jev_clipped=jev_clipped,
             interpreter_clipped=interpreter_clipped,
+            review_decision=review_decision,
         )
 
     async def _keep_ids(
         self,
         question: str,
         seeds: Sequence[TextUnitRecord],
-    ) -> tuple[list[str], bool]:
+    ) -> tuple[list[str], bool, AnswerReviewDecision]:
         questions = {
             f"relevant_{index}": {
                 **_RELEVANCE_QUESTION,
@@ -217,6 +225,7 @@ class JevPassageRouter:
             }
             for index, unit in enumerate(seeds)
         }
+        questions["review_ttl"] = REVIEW_TTL_QUESTION
         passages, jev_clipped = clip_passage_texts(
             [
                 {
@@ -247,7 +256,7 @@ class JevPassageRouter:
             noul = parse_noul(result.answers, f"relevant_{index}")
             if noul >= self._keep_threshold:
                 kept.append(unit.id)
-        return kept, jev_clipped
+        return kept, jev_clipped, parse_review_decision(result.answers)
 
 
 async def rank_text_units(

@@ -97,6 +97,8 @@ chat reads and writes memory, while Word review only writes deduplicated
 findings per `doc_id` in phase 1. Keep literal transcripts in their existing
 tables. See [expert-memory.md](../docs/guides/expert-memory.md).
 
+**Answer review TTL:** lagen.nu includes Jev `review_ttl=soon|later|never` in passage routing. Grounded question/claim versions get 3/6 calendar-month or null schedules in `knowledge_answer_reviews`. The separate `python -m app.services.knowledge.answer_review_worker` CLI promotes bounded indexed batches to candidates; it never runs in research and TTL does not invalidate evidence or gate reuse. See [answer-review-ttl.md](../docs/guides/answer-review-ttl.md). Do not reintroduce graph-impact revalidation in provider write-back.
+
 **Knowledge tenant scope:** persisted knowledge uses `scope_type=shared|customer` with `customer_id` null only when shared (`app/database/knowledge_scope.py`). Customer objects may read/reference shared objects. They must never be promoted, deduped, resolved, or retrieved as shared or as another customer. Missing persist/reuse scope fails closed. See [knowledge-tenant-scope.md](../docs/guides/knowledge-tenant-scope.md).
 
 ## Domain (admin library)
