@@ -385,6 +385,7 @@ async def _execute_one_need(  # noqa: PLR0913
 
     reused = await prepare_need_reuse(
         factory,
+        persist_lock,
         question_graph=question_graph,
         need=need,
         context=context,
@@ -1141,7 +1142,6 @@ async def _plan_and_persist_global_needs(  # noqa: PLR0913
 async def _run_research_loop(**kwargs: object) -> None:
     """Delegate to loop_control. Imported lazily to avoid a cycle."""
     from app.services.research.loop_control import run_research_loop
-
     await run_research_loop(**kwargs)
 
 
