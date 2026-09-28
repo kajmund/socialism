@@ -529,7 +529,6 @@ async def _release_db_connection(session: AsyncSession) -> None:
     if session.in_transaction():
         await session.commit()
 
-
 async def _rollback_open_session(session: AsyncSession | None) -> None:
     if session is not None and session.in_transaction():
         await session.rollback()
@@ -624,50 +623,51 @@ class LagenNuResearchSource:
         session = self._session
         if session is None:
             return None
-        source_identity = canonical_source_identity(source_uri, None)
-        raw_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
-        row = (
-            await session.execute(
-                select(DomainResearchResultRecord)
-                .join(RawSource, DomainResearchResultRecord.raw_source_id == RawSource.id)
-                .join(EvidenceSource, RawSource.source_id == EvidenceSource.id)
-                .join(
-                    EvidenceSetItem,
-                    (EvidenceSetItem.domain_result_id == DomainResearchResultRecord.id)
-                    & (
-                        EvidenceSetItem.research_need_id
-                        == DomainResearchResultRecord.research_need_id
-                    ),
+        async with self._graph_writes.session_lock:
+            source_identity = canonical_source_identity(source_uri, None)
+            raw_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+            row = (
+                await session.execute(
+                    select(DomainResearchResultRecord)
+                    .join(RawSource, DomainResearchResultRecord.raw_source_id == RawSource.id)
+                    .join(EvidenceSource, RawSource.source_id == EvidenceSource.id)
+                    .join(
+                        EvidenceSetItem,
+                        (EvidenceSetItem.domain_result_id == DomainResearchResultRecord.id)
+                        & (
+                            EvidenceSetItem.research_need_id
+                            == DomainResearchResultRecord.research_need_id
+                        ),
+                    )
+                    .join(EvidenceSet, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
+                    .join(
+                        ResearchRuntimeNeed,
+                        (ResearchRuntimeNeed.attempt_id == EvidenceSet.created_from_attempt_id)
+                        & (
+                            ResearchRuntimeNeed.research_need_id
+                            == DomainResearchResultRecord.research_need_id
+                        ),
+                    )
+                    .where(
+                        EvidenceSource.provider == self.provider_id,
+                        EvidenceSource.canonical_identity == source_identity,
+                        RawSource.content_hash == raw_hash,
+                        DomainResearchResultRecord.schema_version == 4,
+                        ResearchRuntimeNeed.question_key == research_question_key(need.question),
+                    )
+                    .order_by(DomainResearchResultRecord.created_at.desc())
+                    .limit(1)
                 )
-                .join(EvidenceSet, EvidenceSetItem.evidence_set_id == EvidenceSet.id)
-                .join(
-                    ResearchRuntimeNeed,
-                    (ResearchRuntimeNeed.attempt_id == EvidenceSet.created_from_attempt_id)
-                    & (
-                        ResearchRuntimeNeed.research_need_id
-                        == DomainResearchResultRecord.research_need_id
-                    ),
-                )
-                .where(
-                    EvidenceSource.provider == self.provider_id,
-                    EvidenceSource.canonical_identity == source_identity,
-                    RawSource.content_hash == raw_hash,
-                    DomainResearchResultRecord.schema_version == 4,
-                    ResearchRuntimeNeed.question_key == research_question_key(need.question),
-                )
-                .order_by(DomainResearchResultRecord.created_at.desc())
-                .limit(1)
+            ).scalar_one_or_none()
+            if row is None:
+                return None
+            logger.info(
+                "domain_result_reused provider=%s source=%s domain_result_id=%s",
+                self.provider_id,
+                source_uri,
+                row.id,
             )
-        ).scalar_one_or_none()
-        if row is None:
-            return None
-        logger.info(
-            "domain_result_reused provider=%s source=%s domain_result_id=%s",
-            self.provider_id,
-            source_uri,
-            row.id,
-        )
-        return row.id, LegalResearchResult.model_validate({**row.result, "raw_text": raw_text})
+            return row.id, LegalResearchResult.model_validate({**row.result, "raw_text": raw_text})
 
     async def research(
         self,

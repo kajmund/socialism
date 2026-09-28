@@ -1,7 +1,8 @@
 """Bounded lagen.nu document retrieval. Ingest stays serial.
 
-Graph claim/entity write-back is queued during interpret and flushed
-after every document for the source has been interpreted.
+Interpret overlaps under ``research_document_concurrency``. Graph
+write-back is queued during interpret and flushed after every document
+for the source has been interpreted.
 """
 
 from __future__ import annotations
@@ -121,7 +122,12 @@ async def fetch_ranked_documents(
     )
     slots = await _prepare_slots(work)
     await _fetch_missing_documents(work, slots)
-    return [await _materialize_slot(work, slot) for slot in slots]
+    await _ingest_slots(work, slots)
+    return await map_with_limit(
+        research_concurrency().documents,
+        slots,
+        lambda slot: _materialize_slot(work, slot),
+    )
 
 
 async def _prepare_slots(work: _Work) -> list[_Slot]:
@@ -216,13 +222,30 @@ async def _fetch_one_document(host: DocumentFetchHost, slot: _Slot) -> _Slot:
     return slot
 
 
+async def _ingest_slots(work: _Work, slots: list[_Slot]) -> None:
+    for slot in slots:
+        if slot.early_evidence is not None or slot.fetch_error is not None:
+            continue
+        try:
+            slot.units = await _units_for_slot(work, slot)
+        except (
+            OfficialLagenNuMcpError,
+            LegalDomainExtractionError,
+            LagenNuResearchKnowledgeError,
+            PassageRoutingError,
+        ) as exc:
+            slot.early_evidence = _slot_exception_evidence(work, slot, exc)
+
+
 async def _materialize_slot(work: _Work, slot: _Slot) -> ResearchEvidence:
     if slot.early_evidence is not None:
         return slot.early_evidence
     if slot.fetch_error is not None:
         return _mcp_failure(work, slot, slot.fetch_error)
     try:
-        units = await _units_for_slot(work, slot)
+        units = slot.units
+        if units is None:
+            raise LagenNuResearchKnowledgeError("retrieved document is missing")
         return await work.host._from_document(
             work.plan.need,
             work.plan.context,
