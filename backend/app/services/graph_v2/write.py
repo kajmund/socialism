@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.graph_v2 import GraphFact, GraphFactRelation, GraphFactSource, GraphIdentifier, GraphNode
 from app.database.models import TextUnitRecord
-from app.services.graph_v2.identity import fact_identity, namespaced, normalized, stable_id
+from app.services.graph_v2.identity import (
+    fact_identity, namespaced, normalized, stable_id, weak_node_identity,
+)
 from app.services.graph_v2.types import FactInput, FactJudge, NodeInput, NodeJudge, SourceRef, TextEmbedder
 from app.services.knowledge.scope import KnowledgeTenantScope
 
@@ -37,7 +39,27 @@ async def resolve_node(
             return row
         key = f"{namespace}:{identifier}"
     else:
-        key = f"weak:{proposed.context_key}:{name}"
+        key = weak_node_identity(proposed.context_key, name)
+        legacy_key = f"weak:{proposed.context_key}:{name}"
+        legacy = await session.scalar(select(GraphNode).where(
+            GraphNode.scope_key == scope, GraphNode.node_type == proposed.node_type,
+            GraphNode.identity_key == legacy_key,
+        ))
+        if legacy is not None:
+            try:
+                async with session.begin_nested():
+                    legacy.identity_key = key
+                    await session.flush()
+            except IntegrityError:
+                winner = await session.scalar(select(GraphNode).where(
+                    GraphNode.scope_key == scope,
+                    GraphNode.node_type == proposed.node_type,
+                    GraphNode.identity_key == key,
+                ))
+                if winner is None:
+                    raise
+                return winner
+            return legacy
         match = await _resolve_weak_node(
             session, proposed, name=name, key=key, judge=judge,
         )
@@ -71,12 +93,17 @@ async def _resolve_weak_node(
     session: AsyncSession, proposed: NodeInput, *, name: str, key: str,
     judge: NodeJudge | None,
 ) -> GraphNode | None:
+    context_prefix = f"weak:{stable_id('weak-context', proposed.context_key)}:"
+    legacy_context_prefix = f"weak:{proposed.context_key}:"
     candidates = list((await session.scalars(select(GraphNode).where(
         GraphNode.scope_key == proposed.scope.scope_key,
         GraphNode.node_type == proposed.node_type,
     ).order_by(GraphNode.id).limit(100))).all())
     candidates = [candidate for candidate in candidates
-                  if candidate.identity_key.startswith(f"weak:{proposed.context_key}:")]
+                  if candidate.identity_key.startswith(context_prefix)
+                  or candidate.identity_key == (
+                      f"{legacy_context_prefix}{candidate.normalized_name}"
+                  )]
     for candidate in candidates:
         if candidate.identity_key == key:
             return candidate

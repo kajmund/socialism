@@ -139,6 +139,43 @@ async def test_weak_node_judge_can_merge_synonyms_only_within_context(session):
     assert first.id == same.id and first.id != separate.id
 
 
+async def test_weak_node_identity_is_bounded_for_long_free_text(session):
+    rule_text = "36 § avtalslagen " + ("regeltext med särskilda omständigheter " * 40)
+    context = "case-36:" + ("long-context " * 100)
+    first = await node(session, rule_text, context=context)
+    again = await node(session, rule_text, context=context)
+
+    assert len(first.identity_key) < 160
+    assert first.identity_key.startswith("weak:")
+    assert len(first.normalized_name) > 512
+    assert first.name == rule_text.strip()
+    assert again.id == first.id
+    assert await session.scalar(select(func.count()).select_from(GraphNode)) == 1
+
+
+async def test_legacy_weak_node_candidates_require_exact_context(session):
+    from app.services.graph_v2.identity import stable_id
+
+    old_key = "weak:case:36:car"
+    legacy = GraphNode(
+        id=stable_id("customer:1", "core.concept", old_key),
+        scope_key="customer:1", customer_id=1, node_type="core.concept",
+        identity_key=old_key, name="car", normalized_name="car", attributes={},
+    )
+    session.add(legacy)
+    await session.flush()
+
+    class AlwaysSame:
+        async def same_node(self, proposed, candidate_name):
+            return True
+
+    other_context = await resolve_node(session, NodeInput(
+        node_type="core.concept", name="automobile", scope=customer_scope(1),
+        context_key="case",
+    ), judge=AlwaysSame())
+    assert other_context.id != legacy.id
+
+
 async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session):
     subject, target = await node(session, "Case X"), await node(session, "Outcome")
     question = await resolve_node(session, NodeInput(
