@@ -37,7 +37,9 @@ async def write_legal_facts(
         prompts = await require_active_prompts(
             session, customer_id=source.customer_id, module=module, language="sv",
         )
-        judge = JevFactJudge(prompts["research.graph_fact_resolution"])
+        key = ("rattsunderlag.graph_fact_resolution" if module == "rattsunderlag"
+               else "research.graph_fact_resolution")
+        judge = JevFactJudge(prompts[key])
     entity_by_id = {entity.id: entity for entity in entities}
     grounded_relations = [edge for edge in relationships if
                           edge.from_kind == "entity" and edge.to_kind == "entity"]
