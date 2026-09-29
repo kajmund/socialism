@@ -95,6 +95,36 @@ async def test_malformed_jev_response_retries_graph_work(tmp_path, monkeypatch):
     await engine.dispose()
 
 
+async def test_payload_without_source_entity_is_terminal(tmp_path):
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/missing-source.db")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory.begin() as session:
+        session.add(Kund(id=1, name="One", slug="one", available_modules=[]))
+        session.add(GraphIngestWork(
+            id="missing-source", customer_id=1, scope_key="customer:1", status="pending",
+            attempts=0, payload={
+                "module": "dd",
+                "claims": [{
+                    "id": "claim", "predicate": "legal.outcome",
+                    "value": {"value": "No adjustment"}, "unit_ids": [],
+                }],
+                "entities": [],
+            },
+        ))
+
+    assert await process_graph_work(factory, embedder=FakeEmbedder()) == {
+        "completed": 0, "failed": 1,
+    }
+    async with factory() as session:
+        work = await session.get(GraphIngestWork, "missing-source")
+        assert work.status == "failed"
+        assert work.attempts == 1
+        assert work.retry_at is None
+    await engine.dispose()
+
+
 async def test_transient_embedding_failure_stays_retryable(tmp_path):
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/transient.db")
     async with engine.begin() as conn:
