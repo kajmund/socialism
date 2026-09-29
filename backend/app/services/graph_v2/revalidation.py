@@ -158,7 +158,6 @@ async def process_question_revalidation_work(
     )).all())
     for work in work_items:
         work.status = "processing"
-        work.attempts += 1
         fact_ids = list((await session.scalars(
             select(GraphFactQuestionDependency.fact_id).where(
                 GraphFactQuestionDependency.scope_key == work.scope_key,
@@ -170,6 +169,7 @@ async def process_question_revalidation_work(
             work.status = "pending"
             waiting += 1
             continue
+        work.attempts += 1
         for fact_id in fact_ids:
             await schedule_fact_revalidation(
                 session, trigger_fact_id=fact_id, question_node_id=work.question_node_id,
