@@ -7,18 +7,17 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import EvidenceSet, ExecutionAttempt
+from app.database.models import EvidenceSet, EvidenceSetItem, ExecutionAttempt, ExecutionRun
 from app.services.knowledge.models import KnowledgeScope
 from app.services.legal_research_result import legal_result_summary
 from app.services.prompt_catalog import render_prompt
-from app.services.research.composition import build_standard_question_graph
 from app.services.research.models import (
     RESEARCH_SOURCE_TYPES,
     ResearchContext,
     ResearchEvidence,
     ResearchNeed,
 )
-from app.services.research.question_reuse import safe_lookup_reusable_evidence
+from app.services.research.graph_reuse import lookup_graph_evidence
 
 
 def _render_evidence(items: Sequence[ResearchEvidence]) -> str:
@@ -51,14 +50,13 @@ async def reusable_expert_chat_evidence_context(
     question: str,
     prompts: dict[str, str],
 ) -> str:
-    """Return prompt context from existing Question→Evidence links only.
+    """Return Graph v2 evidence that appeared in a frozen customer attempt.
 
     This path never creates a Run, Attempt, question, or provider request.
     Case-scoped evidence is excluded because library chat has no document case.
     """
-    reused = await safe_lookup_reusable_evidence(
+    reused = await lookup_graph_evidence(
         session,
-        graph=build_standard_question_graph(),
         need=ResearchNeed(
             id="expert_chat_reuse",
             question=question,
@@ -67,30 +65,13 @@ async def reusable_expert_chat_evidence_context(
         ),
         context=ResearchContext(scope=KnowledgeScope(customer_id=customer_id)),
     )
-    attempt_ids = {
-        str(candidate.metadata.get("source_attempt_id"))
-        for candidate in reused
-        if candidate.metadata.get("source_attempt_id")
-    }
-    frozen_attempt_ids: set[str] = set()
-    if attempt_ids:
-        frozen_attempt_ids = set(
-            (
-                await session.execute(
-                    select(ExecutionAttempt.id)
-                    .join(EvidenceSet, EvidenceSet.id == ExecutionAttempt.evidence_set_id)
-                    .where(
-                        ExecutionAttempt.id.in_(attempt_ids),
-                        ExecutionAttempt.status.in_(("ready", "completed")),
-                        EvidenceSet.status == "frozen",
-                    )
-                )
-            ).scalars()
-        )
+    frozen_refs = await _frozen_graph_refs(session, customer_id, reused)
     frozen = [
         candidate
         for candidate in reused
-        if candidate.metadata.get("source_attempt_id") in frozen_attempt_ids
+        if (candidate.metadata["graph_fact_ids"][0], candidate.metadata["document_version_id"])
+        in frozen_refs
+        and candidate.metadata["reuse"]["freshness"] == "fresh"
     ]
     rendered = _render_evidence(frozen)
     if not rendered:
@@ -100,6 +81,22 @@ async def reusable_expert_chat_evidence_context(
         "chat.expert.research_evidence",
         evidence=rendered,
     )
+
+
+async def _frozen_graph_refs(session, customer_id, candidates) -> set[tuple[str, str]]:
+    document_ids = [item.source_id for item in candidates]
+    if not document_ids:
+        return set()
+    rows = (await session.scalars(select(EvidenceSetItem)
+        .join(EvidenceSet, EvidenceSet.id == EvidenceSetItem.evidence_set_id)
+        .join(ExecutionAttempt, ExecutionAttempt.evidence_set_id == EvidenceSet.id)
+        .join(ExecutionRun, ExecutionRun.id == ExecutionAttempt.run_id)
+        .where(ExecutionRun.customer_id == customer_id, EvidenceSet.status == "frozen",
+               ExecutionAttempt.status.in_(("ready", "completed")),
+               EvidenceSetItem.provider == "graph_v2", EvidenceSetItem.status == "found",
+               EvidenceSetItem.source_id.in_(document_ids)))).all()
+    return {(fact_id, row.provenance.get("document_version_id"))
+            for row in rows for fact_id in row.provenance.get("graph_fact_ids", [])}
 
 
 def combine_expert_chat_context(*parts: str) -> str:

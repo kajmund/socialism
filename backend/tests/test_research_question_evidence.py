@@ -70,8 +70,6 @@ from app.services.research.question_graph_memory import InMemoryQuestionEvidence
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_reuse import (
     classify_freshness,
-    gap_source_types,
-    should_skip_providers,
     upsert_persisted_evidence,
 )
 
@@ -199,48 +197,6 @@ def test_evidence_visibility_is_public_only_when_provenance_says_so():
     assert evidence_visibility({"visibility": "public"}) == "public"
     assert evidence_visibility({"source_type": "swedish_law"}) == "tenant"
     assert evidence_visibility({}) == "tenant"
-
-
-def _claim_backed(
-    *,
-    source_type: str = "case_knowledge",
-    freshness: str = "fresh",
-    claim_id: str = "claim-1",
-):
-    return research_evidence(
-        research_need_id="research_1",
-        source_type=source_type,
-        status="found",
-        excerpt="HD ansåg X",
-        metadata={
-            "knowledge_claim_ids": [claim_id],
-            "reuse": {
-                "origin": "persistent_knowledge",
-                "freshness": freshness,
-                "evidence_ref": claim_id,
-            },
-        },
-    )
-
-
-def test_reuse_gate_skips_only_when_fresh_claims_cover_the_need():
-    need = _need("research_1", "case_knowledge")
-    excerpt = research_evidence(
-        research_need_id="research_1",
-        source_type="case_knowledge",
-        status="found",
-        excerpt="current",
-        metadata={"reuse": {"origin": "persistent_knowledge", "freshness": "fresh"}},
-    )
-    claim = _claim_backed()
-    stale = _claim_backed(freshness="stale")
-    assert should_skip_providers(need, [excerpt]) is False
-    assert should_skip_providers(need, []) is False
-    assert should_skip_providers(need, [stale]) is False
-    assert should_skip_providers(need, [claim]) is True
-    multi = _need("research_1", "case_knowledge", "swedish_law")
-    assert should_skip_providers(multi, [claim]) is False
-    assert gap_source_types(multi, [claim]) == ["swedish_law"]
 
 
 def test_freshness_unknown_when_max_age_is_absent():
@@ -400,7 +356,7 @@ async def test_private_tenant_evidence_cannot_cross_customers(db, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_public_evidence_is_reusable_across_customers(db, monkeypatch):
+async def test_public_legacy_evidence_links_are_not_a_retrieval_path(db, monkeypatch):
     monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 86_400)
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
@@ -431,28 +387,26 @@ async def test_public_evidence_is_reusable_across_customers(db, monkeypatch):
     assert public_q.scope.visibility == "public"
     assert source_b.calls == 1
     excerpts = {item.excerpt for item in items}
-    assert excerpts == {"SFS text", "should not run"}
+    assert excerpts == {"should not run"}
     origins = {item.provenance["reuse"]["origin"] for item in items}
-    assert origins == {"fresh_retrieval", "persistent_knowledge"}
+    assert origins == {"fresh_retrieval"}
 
 
 @pytest.mark.asyncio
-async def test_graph_outage_falls_back_to_provider_retrieval(db):
+async def test_graph_outage_fails_before_provider_retrieval(db):
     session, _factory = db
     _customer_row, _run, attempt = await _created_attempt(session, slug="outage-co")
     source = RecordingSource("case_knowledge")
-    result = await execute_attempt_research(
-        session,
-        attempt_id=attempt.id,
-        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
-        router=_router(source)[0],
-        question_graph=GraphitiQuestionEvidenceGraph(UnavailableGraphitiClient()),
-    )
-    items = await list_evidence_items(session, result.evidence_set_id)
-    assert result.status == "ready"
-    assert source.calls == 1
-    assert items[0].status == "found"
-    assert items[0].provenance["reuse"]["origin"] == "fresh_retrieval"
+    from app.services.research.execution import ResearchExecutionError
+
+    with pytest.raises(ResearchExecutionError, match="research failed"):
+        await execute_attempt_research(
+            session, attempt_id=attempt.id,
+            research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+            router=_router(source)[0],
+            question_graph=GraphitiQuestionEvidenceGraph(UnavailableGraphitiClient()),
+        )
+    assert source.calls == 0
 
 
 @pytest.mark.asyncio
@@ -793,25 +747,24 @@ async def test_insufficient_assessor_does_not_let_fresh_reuse_skip_providers(db,
     excerpts = {item.excerpt for item in items}
     assert live.calls == 1
     assert "live retrieval" in excerpts
-    assert "thin cache" in excerpts
+    assert "thin cache" not in excerpts
 
 
 @pytest.mark.asyncio
-async def test_failed_graph_write_does_not_fail_ready_attempt(db):
+async def test_failed_graph_write_fails_attempt(db):
+    from app.services.research.execution import ResearchExecutionError
+
     session, _factory = db
     _customer, _run, attempt = await _created_attempt(session, slug="write-fail")
     source = RecordingSource("case_knowledge")
-    result = await execute_attempt_research(
-        session,
-        attempt_id=attempt.id,
-        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
-        router=_router(source)[0],
-        question_graph=_FailingWriteGraph(),
-    )
-    items = await list_evidence_items(session, result.evidence_set_id)
-    assert result.status == "ready"
+    with pytest.raises(ResearchExecutionError, match="research failed"):
+        await execute_attempt_research(
+            session, attempt_id=attempt.id,
+            research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+            router=_router(source)[0], question_graph=_FailingWriteGraph(),
+        )
     assert source.calls == 1
-    assert items[0].status == "found"
+    assert (await get_attempt(session, attempt.id)).status == "failed"
 
 
 class _CanonicalizeProbeSource(RecordingSource):
@@ -919,7 +872,7 @@ async def test_canonicalize_matches_knowledge_question_before_retrieve(db):
 
 
 @pytest.mark.asyncio
-async def test_fresh_claims_skip_providers_and_leave_source_gaps(db):
+async def test_legacy_claim_answers_are_not_used_when_graph_v2_is_empty(db):
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
     customer, run, first = await _created_attempt(session, slug="claim-reuse")
@@ -939,10 +892,10 @@ async def test_fresh_claims_skip_providers_and_leave_source_gaps(db):
         question_graph=graph,
     )
     items = await list_evidence_items(session, result.evidence_set_id)
-    assert covered.calls == 0
-    assert [item.excerpt for item in items] == ["HD ansåg att villkoret inte jämkas."]
-    assert items[0].provenance["knowledge_claim_ids"]
-    assert items[0].provenance["reuse"]["origin"] == "persistent_knowledge"
+    assert covered.calls == 1
+    assert [item.excerpt for item in items] == ["should not run"]
+    assert "knowledge_claim_ids" not in items[0].provenance
+    assert items[0].provenance["reuse"]["origin"] == "fresh_retrieval"
 
     second = await create_attempt(
         session,
@@ -962,10 +915,10 @@ async def test_fresh_claims_skip_providers_and_leave_source_gaps(db):
         question_graph=graph,
     )
     gap_items = await list_evidence_items(session, gap_result.evidence_set_id)
-    assert covered.calls == 0
+    assert covered.calls == 2
     assert law.calls == 1
     excerpts = {item.excerpt for item in gap_items}
-    assert "HD ansåg att villkoret inte jämkas." in excerpts
+    assert "HD ansåg att villkoret inte jämkas." not in excerpts
     assert "SFS live" in excerpts
 
 

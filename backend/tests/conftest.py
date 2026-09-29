@@ -156,6 +156,21 @@ def _reset_llm_completers():
 
 
 @pytest.fixture
+def graph_retrieval_embeddings(monkeypatch):
+    """Research flow tests exercise persisted retrieval without an external API."""
+
+    class Embeddings:
+        model = "test-graph-embedding"
+        dimension = 3
+        provider_id = "test"
+
+        async def embed(self, texts):
+            return [[1.0, 0.0, 0.0] for _ in texts]
+
+    monkeypatch.setattr("app.services.research.composition.research_embeddings", Embeddings)
+
+
+@pytest.fixture
 async def client(request, tmp_path):  # noqa: PLR0915
     settings.persona_generator = "stub"
     settings.cerebras_api_key = "test-key-not-real"

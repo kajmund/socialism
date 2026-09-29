@@ -177,11 +177,8 @@ from app.services.research.question_iteration import (
     prepare_iterative_follow_ups,
 )
 from app.services.research.question_reuse import (
-    gap_source_types,
     merge_reused_with_provider,
-    research_need_for_gaps,
-    safe_upsert_persisted_evidence,
-    should_skip_providers,
+    commit_persisted_evidence,
 )
 from app.services.research.registry import standard_capability_descriptors
 from app.services.research.router import ResearchRouter
@@ -342,14 +339,14 @@ async def _candidates_then_providers(
     router_factory: ResearchRouterFactory | None,
     reused: list[ResearchEvidence],
 ) -> list[ResearchEvidence]:
-    """Retrieve only source types not already closed by fresh grounded claims."""
+    """Combine graph candidates with external sources before evidence assessment."""
+    from app.services.research.graph_reuse import log_external_search
+
     reused = _fresh_reused_evidence(reused)
-    if should_skip_providers(need, reused):
-        return reused
-    remaining = gap_source_types(need, reused)
+    log_external_search(need, reused)
     provider = await _retrieve_need(
         factory=factory,
-        need=research_need_for_gaps(need, remaining),
+        need=need,
         context=context,
         router=router,
         router_factory=router_factory,
@@ -382,14 +379,14 @@ async def _execute_one_need(  # noqa: PLR0913
         if row.status in TERMINAL_NEED_EXECUTION_STATUSES:
             return
 
-    reused = await prepare_need_reuse(
-        factory,
-        persist_lock,
-        question_graph=question_graph,
-        need=need,
-        context=context,
-    )
     try:
+        reused = await prepare_need_reuse(
+            factory,
+            persist_lock,
+            question_graph=question_graph,
+            need=need,
+            context=context,
+        )
         async with retrieve_slots:
             evidence = await _candidates_then_providers(
                 factory=factory,
@@ -431,7 +428,7 @@ async def _execute_one_need(  # noqa: PLR0913
 
     async with persist_lock, factory() as graph_session:
         _raise_if_write_fenced()
-        await safe_upsert_persisted_evidence(
+        await commit_persisted_evidence(
             graph_session,
             graph=question_graph,
             need=need,
