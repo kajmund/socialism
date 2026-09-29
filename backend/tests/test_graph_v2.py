@@ -1,6 +1,7 @@
 """Regression coverage for Graph v2 identity, provenance and traversal."""
 
 import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -77,6 +78,17 @@ async def test_same_fact_multiple_sources_semantics_and_contradiction(session):
     assert opposite.id != first.id and decision == "CONTRADICTS"
     assert first.invalid_at is None and first.status == "active"
     assert await session.scalar(select(func.count()).select_from(GraphFactRelation)) == 1
+    class OppositeFirst:
+        async def compare(self, proposed, candidate_text):
+            return "CONTRADICTS" if "inte" in candidate_text else "SAME"
+
+    opposite.embedding = [0.0, 1.0]
+    matching, decision = await resolve_fact(
+        session,
+        replace(fact(a, b, "A gäller också B", ref="episode-5"), embedding=(0.0, 1.0)),
+        judge=OppositeFirst(),
+    )
+    assert matching.id == first.id and decision == "SAME"
     with pytest.raises(ValueError, match="matching scope"):
         other_context = await node(session, "Other context")
         scoped, _ = await resolve_fact(session, fact(a, b, "A gäller inte B", context=other_context.id))
@@ -103,6 +115,33 @@ async def test_context_occurrence_tenant_and_multi_hop(session):
     assert await hybrid_facts(session, customer_id=2, query="leder C") == []
     with pytest.raises(ValueError, match="scope"):
         await resolve_fact(session, fact(a, await node(session, "foreign", customer=2), "bad"))
+
+
+async def test_weak_node_judge_can_merge_synonyms_only_within_context(session):
+    class SynonymJudge:
+        async def same_node(self, proposed, candidate_name):
+            return proposed.name == "automobile" and candidate_name == "car"
+
+    first = await node(session, "car", context="case-1")
+    same = await resolve_node(session, NodeInput(
+        node_type="core.concept", name="automobile", scope=customer_scope(1),
+        context_key="case-1",
+    ), judge=SynonymJudge())
+    separate = await node(session, "car", context="case-2")
+    assert first.id == same.id and first.id != separate.id
+
+
+async def test_hybrid_embedding_model_boundary(session):
+    a, b = await node(session, "A"), await node(session, "B")
+    await resolve_fact(session, fact(a, b, "unrelated words"))
+    assert len(await hybrid_facts(
+        session, customer_id=1, query="absent", embedding=[1.0, 0.0],
+        embedding_model="test",
+    )) == 1
+    assert await hybrid_facts(
+        session, customer_id=1, query="absent", embedding=[1.0, 0.0],
+        embedding_model="other",
+    ) == []
 
 
 async def test_parallel_repeated_ingest_is_bounded(tmp_path):
