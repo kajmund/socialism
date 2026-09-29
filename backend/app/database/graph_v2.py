@@ -193,3 +193,31 @@ class GraphIngestWork(Base):
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class GraphEmbeddingCache(Base):
+    """Tenant-independent content-addressed vectors; no source or raw text is stored."""
+
+    __tablename__ = "graph_embedding_cache"
+    __table_args__ = (
+        UniqueConstraint(
+            "model", "model_revision", "dimension", "purpose", "normalized_text_hash",
+            name="uq_graph_embedding_content",
+        ),
+        Index("ix_graph_embedding_lease", "status", "lock_expires_at"),
+        Index("ix_graph_embedding_last_used", "last_used_at"),
+    )
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_revision: Mapped[str] = mapped_column(String(128), nullable=False)
+    dimension: Mapped[int] = mapped_column(Integer, nullable=False)
+    purpose: Mapped[str] = mapped_column(String(64), nullable=False)
+    normalized_text_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    vector: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    lock_owner: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lock_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)

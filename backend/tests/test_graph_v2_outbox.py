@@ -19,6 +19,8 @@ from app.services.knowledge.claims import KnowledgeClaim
 
 class FakeEmbedder:
     model = "test"
+    dimension = 2
+    provider_id = "test"
     async def embed(self, texts):
         return [[1.0, 0.0] for _ in texts]
 

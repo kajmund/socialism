@@ -56,6 +56,7 @@ cp .env.example .env
 | `RESEARCH_JEV_EVIDENCE_SCREEN_ENABLED` | no | `true` | Shadow-score retrieved evidence. Never deletes evidence |
 | `OPENAI_API_KEY` | **yes** | — | OpenAI embeddings for SSR reports (separate from chat LLM) |
 | `EMBEDDING_MODEL` | no | `text-embedding-3-large` | |
+| `EMBEDDING_MODEL_REVISION` | no | `v1` | Bump when the configured model's embedding behavior changes without a model-name change; creates a fresh Graph cache namespace |
 | `EMBEDDING_BASE_URL` | no | `https://api.openai.com/v1` | |
 | `EMBEDDING_TIMEOUT_SECONDS` | no | `60` | |
 | `PERSONA_GENERATOR` | no | `deepseek` | `stub` = weighted random for offline persona *sampling* in tests only |
@@ -110,6 +111,7 @@ DEEPSEEK_MODEL=deepseek-chat
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 OPENAI_API_KEY=sk-...
 EMBEDDING_MODEL=text-embedding-3-large
+EMBEDDING_MODEL_REVISION=v1
 EMBEDDING_BASE_URL=https://api.openai.com/v1
 EMBEDDING_TIMEOUT_SECONDS=60
 PERSONA_GENERATOR=deepseek

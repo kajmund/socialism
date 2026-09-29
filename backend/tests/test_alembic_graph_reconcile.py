@@ -34,7 +34,7 @@ def test_deployed_research_marker_upgrades_without_replaying_claim_migrations(
     assert not app_logger.disabled
     with sqlite3.connect(db) as connection:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchall() == [
-            ("139_graph_question_revalidation_work",)
+            ("140_graph_embedding_cache",)
         ]
         assert connection.execute("SELECT id FROM research_question_nodes").fetchall() == [
             ("preserved",)
@@ -46,5 +46,5 @@ def test_deployed_research_marker_upgrades_without_replaying_claim_migrations(
         assert {
             "graph_nodes", "graph_facts", "graph_ingest_work", "knowledge_answer_reviews",
             "graph_fact_question_dependencies", "graph_fact_revalidations",
-            "graph_question_revalidation_work",
+            "graph_question_revalidation_work", "graph_embedding_cache",
         } <= names
