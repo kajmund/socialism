@@ -31,4 +31,22 @@ def graph_fact_prompt_fields() -> list[dict]:
         **field,
         "key": "rattsunderlag.graph_fact_resolution",
     }
-    return [field, legal_report_field]
+    node_question = {
+        "type": "choice",
+        "instructions": (
+            "Compare two typed value or concept nodes. Choose SAME only when they "
+            "refer to the same concept under the given value_type, even if their "
+            "wording differs. Otherwise choose DISTINCT. Do not infer new facts."
+        ),
+        "criteria": {"SAME": "Equivalent concept or value.",
+                     "DISTINCT": "Different or uncertain concept or value."},
+    }
+    node_field = {
+        "key": "research.graph_node_resolution", "section": "research",
+        "label": {"sv": "Graf — nodupplösning", "en": "Graph — node resolution"},
+        "hint": {"sv": "Semantisk jämförelse av värden.",
+                 "en": "Semantic comparison of values."},
+        "defaults": {"sv": json.dumps(node_question), "en": json.dumps(node_question)},
+    }
+    return [field, legal_report_field, node_field,
+            {**node_field, "key": "rattsunderlag.graph_node_resolution"}]

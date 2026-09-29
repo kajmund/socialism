@@ -1,5 +1,7 @@
 """The worker retries durable graph projection failures without losing research."""
 
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -34,6 +36,15 @@ async def test_failed_projection_keeps_retryable_payload(tmp_path):
         assert work.status == "pending"
         assert work.attempts == 1
         assert work.last_error
+        assert work.retry_at is not None
+        work.retry_at = datetime.now(UTC) - timedelta(seconds=1)
+        await session.commit()
+    assert await process_graph_work(factory, embedder=FakeEmbedder()) == {
+        "completed": 0, "failed": 1,
+    }
+    async with factory() as session:
+        work = await session.get(GraphIngestWork, "broken")
+        assert work.status == "pending" and work.attempts == 2
     await engine.dispose()
 
 
@@ -48,7 +59,7 @@ async def test_outbox_key_distinguishes_new_facts_on_same_research_need(tmp_path
         first = KnowledgeClaim("first", 1, "legal.outcome", {"value": True}, ("unit",))
         second = KnowledgeClaim("second", 1, "legal.outcome", {"value": False}, ("unit",))
         common = dict(customer_id=1, research_need_id="research_1", entities=(),
-                      relationships=(), module="politik")
+                      module="politik")
         first_id = await enqueue_legal_graph(session, claims=[first], **common)
         second_id = await enqueue_legal_graph(session, claims=[second], **common)
         assert first_id != second_id

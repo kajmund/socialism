@@ -123,7 +123,7 @@ async def persist_pending_graph_writes(
                 session, customer_id=item.customer_id,
                 research_need_id=item.research_need_id,
                 claims=tuple(claim for claim in item.claims if claim.id in accepted),
-                entities=item.entities, relationships=item.edges, module=item.module,
+                entities=item.entities, module=item.module,
             )
             await answer_research_need(
                 session,

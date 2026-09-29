@@ -6,15 +6,7 @@ synthetic research fixture, SQLite, and deterministic vectors; it makes no model
 
 import asyncio
 import json
-import os
 from pathlib import Path
-
-# Settings validation needs credentials even though this local evaluation uses none.
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-os.environ.setdefault("OPENAI_API_KEY", "test-key-not-real")
-os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
-os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-key-not-real")
-os.environ.setdefault("CEREBRAS_API_KEY", "test-key-not-real")
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -22,17 +14,29 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.database.base import Base
 from app.database.graph_v2 import GraphFact, GraphFactSource, GraphNode
 from app.database.models import Kund
+from app.services.graph_v2.legal_writeback import value_node_input
 from app.services.graph_v2.retrieval import hybrid_facts, neighbourhood
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
+from app.services.knowledge.claims import KnowledgeClaim
 from app.services.knowledge.scope import customer_scope
 
 FIXTURE = Path(__file__).resolve().parents[1] / "tests/fixtures/research_eval/36_avtl.json"
 
 
+class ExactValueJudge:
+    async def same_node(self, proposed, candidate_name):
+        return proposed.name.casefold() == candidate_name.casefold()
+
+
 async def evaluate() -> dict:
     scenario = json.loads(FIXTURE.read_text())
-    entries = scenario["artifacts"]["claims"]
+    recorded = scenario["artifacts"]["claims"]
+    entries = [*recorded, *(
+        {"id": f"{source_id}_protection", "source_id": source_id,
+         "predicate": "legal.consumer_protection", "value": {"value": True}}
+        for source_id in ("prop_1975_76_81", "statute_36")
+    )]
     sources = scenario["artifacts"]["domain_results"]
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
@@ -50,15 +54,17 @@ async def evaluate() -> dict:
                 node_type="legal.source", name=entry["source_id"], scope=scope,
                 identifier_namespace="legal.canonical_uri", identifier=source["source_uri"],
             ))
-            slot = await resolve_node(session, NodeInput(
-                node_type="core.attribute", name=entry["predicate"], scope=scope,
-                identifier_namespace="legal.attribute",
-                identifier=f"{source['source_uri']}:{entry['predicate']}",
-            ))
+            claim = KnowledgeClaim(
+                id=entry["id"], customer_id=1, predicate=entry["predicate"],
+                value=entry["value"], supporting_text_unit_ids=(),
+            )
+            target = await resolve_node(
+                session, value_node_input(claim, scope), judge=ExactValueJudge(),
+            )
             value = entry["value"]["value"]
-            text = f"{entry['source_id']}: {str(value).lower()}"
+            text = f"{entry['source_id']} — {entry['predicate']}: {str(value).lower()}"
             fact, _ = await resolve_fact(session, FactInput(
-                source_id=subject.id, target_id=slot.id, scope=scope,
+                source_id=subject.id, target_id=target.id, scope=scope,
                 predicate=entry["predicate"], fact_text=text,
                 sources=(SourceRef("episode", entry["id"]),),
                 embedding=(1.0, 0.0), embedding_model="eval-deterministic",
@@ -73,7 +79,7 @@ async def evaluate() -> dict:
         assert ids == await project(session)
         replay = await _counts(session)
         hits = {}
-        for entry in entries:
+        for entry in recorded:
             query = str(entry["value"]["value"]).lower()
             result = await hybrid_facts(session, customer_id=1, query=query, limit=3)
             hits[entry["id"]] = ids[entry["id"]] in {hit.fact.id for hit in result}
@@ -83,14 +89,30 @@ async def evaluate() -> dict:
         neighbours = await neighbourhood(session, customer_id=1, seeds=[source.id], max_hops=2)
         reachable = {hit.fact.id for hit in neighbours}
         multi = all(ids[key] in reachable for key in ("positive", "term_type", "commercial"))
+        proposition = await session.scalar(select(GraphNode).where(
+            GraphNode.identity_key == "legal.canonical_uri:fixture://prop/1975-76-81",
+        ))
+        cross_source = await neighbourhood(
+            session, customer_id=1, seeds=[proposition.id], max_hops=2,
+        )
+        cross_reachable = ids["statute_36_protection"] in {
+            hit.fact.id for hit in cross_source
+        }
+        shared_value = (await session.get(GraphFact, ids["prop_1975_76_81_protection"])).target_id
+        shared_value_equals = shared_value == (
+            await session.get(GraphFact, ids["statute_36_protection"])
+        ).target_id
         isolated = await hybrid_facts(session, customer_id=2, query="liability_cap")
     await engine.dispose()
     return {
-        "scenario": "36_avtl", "claims": len(entries),
+        "scenario": "36_avtl", "recorded_claims": len(recorded),
+        "projected_facts": len(entries),
         "first_pass": first, "replay": replay,
         "growth_on_replay": {key: replay[key] - first[key] for key in first},
         "lexical_recall_at_3": {"hits": sum(hits.values()), "total": len(hits)},
         "positive_case_three_facts_reachable_in_two_hops": multi,
+        "cross_source_two_hop": cross_reachable,
+        "shared_consumer_protection_value": shared_value_equals,
         "other_tenant_hits": len(isolated),
     }
 

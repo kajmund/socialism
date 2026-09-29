@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.graph_v2.jev_judge import JevFactJudge
-from app.services.graph_v2.types import FactInput, SourceRef
+from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
+from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.knowledge.scope import customer_scope
 from app.services.graph_v2.prompts import graph_fact_prompt_fields
 
@@ -43,3 +43,17 @@ async def test_invalid_model_decision_cannot_be_stored():
             predicate="core.relates_to", fact_text="A gäller B",
             sources=(SourceRef("episode", "episode-1"),),
         ), "B")
+
+
+async def test_value_node_judge_merges_only_explicit_same_decision():
+    prompt = next(field for field in graph_fact_prompt_fields()
+                  if field["key"] == "research.graph_node_resolution")["defaults"]["sv"]
+    proposed = NodeInput("legal.decisive_factor.value", "sophisticated parties", customer_scope(1))
+    assert await JevNodeJudge(prompt, FakeJev("SAME")).same_node(
+        proposed, "commercially experienced parties",
+    )
+    assert not await JevNodeJudge(prompt, FakeJev("DISTINCT")).same_node(
+        proposed, "consumer vulnerability",
+    )
+    with pytest.raises(ValueError, match="invalid decision"):
+        await JevNodeJudge(prompt, FakeJev("CONTRADICTS")).same_node(proposed, "other")
