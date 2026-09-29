@@ -1,4 +1,9 @@
-"""Revalidate frozen EvidenceSets when the graph changes. Snapshots stay immutable."""
+"""Legacy claim/event revalidation retained only for the cutover test suite.
+
+Production research code must not call this module for Graph v2. Graph v2
+revalidation lives in ``app.services.graph_v2.revalidation`` and is keyed by
+fact edges, exact TextUnit/episode provenance, and question dependencies.
+"""
 
 from __future__ import annotations
 

@@ -2,7 +2,7 @@
 
 import asyncio
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
@@ -10,9 +10,17 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.graph_v2 import GraphFact, GraphFactRelation, GraphFactSource, GraphNode
+from app.database.graph_v2 import (
+    GraphFact, GraphFactQuestionDependency, GraphFactRelation, GraphFactRevalidation,
+    GraphFactSource, GraphNode,
+)
 from app.database.models import Kund
 from app.services.graph_v2.retrieval import hybrid_facts, neighbourhood
+from app.services.graph_v2.revalidation import (
+    attach_question_dependency,
+    enqueue_question_revalidation,
+    process_question_revalidation_work,
+)
 from app.services.graph_v2.temporal import invalidate_fact
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
@@ -131,6 +139,62 @@ async def test_weak_node_judge_can_merge_synonyms_only_within_context(session):
     assert first.id == same.id and first.id != separate.id
 
 
+async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session):
+    subject, target = await node(session, "Case X"), await node(session, "Outcome")
+    question = await resolve_node(session, NodeInput(
+        node_type="core.question", name="Can the outcome be changed?",
+        scope=customer_scope(1), identifier_namespace="research.question_id",
+        identifier="question-1",
+    ))
+    original, _ = await resolve_fact(session, fact(subject, target, "No adjustment", ref="unit-1"))
+
+    class Distinct:
+        async def compare(self, proposed, candidate_text):
+            return "DISTINCT"
+
+    changed, _ = await resolve_fact(
+        session, fact(subject, target, "Adjustment granted", ref="unit-2"), judge=Distinct(),
+    )
+    changed.created_at = original.created_at + timedelta(seconds=1)
+    await enqueue_question_revalidation(
+        session, customer_id=1, question_node_id=question.id, evidence_set_id="frozen-set-1",
+    )
+    assert await process_question_revalidation_work(session) == {"completed": 0, "waiting": 1}
+    dependency = await attach_question_dependency(
+        session, question_node_id=question.id, fact_id=original.id,
+    )
+    assert dependency.provenance == [{"kind": "episode", "ref": "unit-1"}]
+    await resolve_fact(session, fact(subject, target, "No adjustment", ref="unit-3"))
+    dependency = await attach_question_dependency(
+        session, question_node_id=question.id, fact_id=original.id,
+    )
+    assert dependency.provenance == [
+        {"kind": "episode", "ref": "unit-1"},
+        {"kind": "episode", "ref": "unit-3"},
+    ]
+    await attach_question_dependency(session, question_node_id=question.id, fact_id=changed.id)
+    assert await process_question_revalidation_work(session) == {"completed": 1, "waiting": 0}
+    pending = list((await session.scalars(select(GraphFactRevalidation))).all())
+    assert len(pending) == 1
+    assert pending[0].question_node_id == question.id
+    assert pending[0].trigger_fact_id == changed.id
+    assert pending[0].dependent_fact_id == original.id
+    assert pending[0].trigger_provenance == [{"kind": "episode", "ref": "unit-2"}]
+    assert pending[0].dependent_provenance == [
+        {"kind": "episode", "ref": "unit-1"},
+        {"kind": "episode", "ref": "unit-3"},
+    ]
+    assert await process_question_revalidation_work(session) == {"completed": 0, "waiting": 0}
+    assert await session.scalar(select(func.count()).select_from(GraphFactQuestionDependency)) == 2
+
+
+def test_legacy_event_revalidation_is_not_public_knowledge_api():
+    import app.services.knowledge as knowledge
+
+    assert not hasattr(knowledge, "revalidate_after_event")
+    assert not hasattr(knowledge, "revalidate_after_events")
+
+
 async def test_hybrid_embedding_model_boundary(session):
     a, b = await node(session, "A"), await node(session, "B")
     await resolve_fact(session, fact(a, b, "unrelated words"))
@@ -172,7 +236,15 @@ async def test_parallel_repeated_ingest_is_bounded(tmp_path):
     async def ingest(index):
         async with factory() as session:
             a, b = await node(session, "A"), await node(session, "B")
-            await resolve_fact(session, fact(a, b, "A gäller B", ref=f"episode-{index}"))
+
+            class DuplicateJudge:
+                async def compare(self, proposed, candidate_text):
+                    return "SAME" if proposed.fact_text == candidate_text else "DISTINCT"
+
+            await resolve_fact(
+                session, fact(a, b, "A gäller B", ref=f"episode-{index}"),
+                judge=DuplicateJudge(),
+            )
             await session.commit()
 
     # SQLite serializes writes; the same nested-transaction conflict path runs on Postgres.
