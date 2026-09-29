@@ -32,6 +32,7 @@ class PendingGraphWrite:
     question: str
     source_type: str
     customer_id: int
+    module: str = "dd"
     observations: tuple[KnowledgeObservation, ...] = ()
 
 
@@ -56,6 +57,7 @@ class LegalWriteContext:
     result_id: str
     question: str
     source_type: str
+    module: str = "dd"
 
 
 def queue_legal_knowledge(
@@ -87,6 +89,7 @@ def queue_legal_knowledge(
             question=context.question,
             source_type=context.source_type,
             customer_id=context.customer_id,
+            module=context.module,
             observations=extracted.observations,
         )
     )
@@ -120,7 +123,7 @@ async def persist_pending_graph_writes(
                 session, customer_id=item.customer_id,
                 research_need_id=item.research_need_id,
                 claims=tuple(claim for claim in item.claims if claim.id in accepted),
-                entities=item.entities, relationships=item.edges,
+                entities=item.entities, relationships=item.edges, module=item.module,
             )
             await answer_research_need(
                 session,

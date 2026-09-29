@@ -17,13 +17,16 @@ from app.services.prompt_store import require_active_prompts
 
 async def write_legal_facts(
     session: AsyncSession, *, claims: Sequence[KnowledgeClaim],
-    entities: Sequence[KnowledgeEntity], customer_id: int,
+    entities: Sequence[KnowledgeEntity],
     embedder: EmbeddingProvider, judge: JevFactJudge | None = None,
     relationships: Sequence[KnowledgeRelationship] = (),
+    module: str = "dd",
 ) -> list[str]:
     if not claims:
         return []
     source = next(entity for entity in entities if entity.entity_type == "legal.source")
+    if source.customer_id is None:
+        raise ValueError("legal graph projection requires a customer scope")
     scope = source.scope
     subject = await resolve_node(session, NodeInput(
         node_type=source.entity_type, name=source.name, scope=scope,
@@ -32,7 +35,7 @@ async def write_legal_facts(
     ))
     if judge is None:
         prompts = await require_active_prompts(
-            session, customer_id=customer_id, module="dd", language="sv",
+            session, customer_id=source.customer_id, module=module, language="sv",
         )
         judge = JevFactJudge(prompts["research.graph_fact_resolution"])
     entity_by_id = {entity.id: entity for entity in entities}

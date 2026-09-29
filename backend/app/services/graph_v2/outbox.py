@@ -1,6 +1,7 @@
 """Durable Graph v2 projection queue. No model calls on the research path."""
 
 import logging
+import json
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
@@ -25,17 +26,15 @@ MAX_ATTEMPTS = 5
 async def enqueue_legal_graph(
     session: AsyncSession, *, customer_id: int, research_need_id: str,
     claims: Sequence[KnowledgeClaim], entities: Sequence[KnowledgeEntity],
-    relationships: Sequence[KnowledgeRelationship],
+    relationships: Sequence[KnowledgeRelationship], module: str = "dd",
 ) -> str | None:
     if not claims:
         return None
     scope_key = claims[0].scope.scope_key
     if any(claim.scope.scope_key != scope_key for claim in claims):
         raise ValueError("graph work cannot mix tenant scopes")
-    unit_ids = sorted({unit for claim in claims for unit in claim.supporting_text_unit_ids})
-    source_ids = sorted(entity.id for entity in entities if entity.entity_type == "legal.source")
-    work_id = stable_id(scope_key, research_need_id, *source_ids, *unit_ids)
     payload = {
+        "module": module,
         "claims": [{"id": c.id, "predicate": c.predicate, "value": c.value,
                     "unit_ids": list(c.supporting_text_unit_ids)} for c in claims],
         "entities": [{"id": e.id, "entity_type": e.entity_type, "key": e.key,
@@ -44,6 +43,7 @@ async def enqueue_legal_graph(
                            "from_kind": r.from_kind, "from_id": r.from_id,
                            "to_kind": r.to_kind, "to_id": r.to_id} for r in relationships],
     }
+    work_id = stable_id(scope_key, research_need_id, json.dumps(payload, sort_keys=True))
     try:
         async with session.begin_nested():
             session.add(GraphIngestWork(
@@ -73,7 +73,7 @@ def _deserialize(work: GraphIngestWork):
         from_kind=row["from_kind"], from_id=row["from_id"],
         to_kind=row["to_kind"], to_id=row["to_id"], extra={},
     ) for row in payload["relationships"]]
-    return claims, entities, relationships
+    return claims, entities, relationships, payload["module"]
 
 
 async def claim_graph_work(factory: async_sessionmaker[AsyncSession]) -> str | None:
@@ -107,10 +107,11 @@ async def process_graph_work(
         try:
             async with factory.begin() as session:
                 row = await session.get(GraphIngestWork, work_id)
-                claims, entities, relationships = _deserialize(row)
+                claims, entities, relationships, module = _deserialize(row)
                 await write_legal_facts(
-                    session, claims=claims, entities=entities, customer_id=row.customer_id,
+                    session, claims=claims, entities=entities,
                     relationships=relationships, embedder=provider, judge=judge,
+                    module=module,
                 )
                 row.status = "completed"
                 row.processed_at = datetime.now(UTC)

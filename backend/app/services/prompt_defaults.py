@@ -7,6 +7,8 @@ from app.services.prompt_catalog import PROMPT_FIELDS, PromptFieldDef
 
 def modules_for_prompt_key(key: str) -> list[str]:  # noqa: PLR0911
     """Assign catalog keys to modules from the implicit prefix convention."""
+    if key == "research.graph_fact_resolution":
+        return ["dd", "politik", "expertgranskning", "rattsunderlag"]
     if key.startswith(("panel.dd.", "dd.")):
         return ["dd"]
     if key.startswith(("persona.", "messages.", "oasis.")):
