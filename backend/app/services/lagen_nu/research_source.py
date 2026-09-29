@@ -579,8 +579,7 @@ class LagenNuResearchSource:
     async def _cached_domain_result(
         self, *, need: ResearchNeed, source_uri: str, raw_text: str
     ) -> tuple[str, LegalResearchResult] | None:
-        session = self._session
-        if session is None:
+        if (session := self._session) is None:
             return None
         async with self._graph_writes.session_lock:
             source_identity = canonical_source_identity(source_uri, None)
@@ -618,6 +617,7 @@ class LagenNuResearchSource:
                     .limit(1)
                 )
             ).scalar_one_or_none()
+            await _release_db_connection(session)
             if row is None:
                 return None
             logger.info(

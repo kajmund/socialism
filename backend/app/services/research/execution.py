@@ -163,6 +163,7 @@ from app.services.research.quality import (
 )
 from app.services.research.quality_persist import (
     EagerQualityBind,
+    quality_by_item as _quality_by_item,
     persist_evidence_quality_drafts as _persist_evidence_quality,
     score_need_quality_eager,
 )
@@ -668,12 +669,6 @@ def _quality_descriptors(
     return standard_capability_descriptors()
 
 
-def _quality_by_item(
-    drafts: list[EvidenceQualityDraft],
-) -> dict[str, EvidenceQualityDraft]:
-    return {draft.evidence_set_item_id: draft for draft in drafts}
-
-
 async def _assess_persisted_evidence(  # noqa: PLR0913
     session: AsyncSession,
     *,
@@ -693,6 +688,7 @@ async def _assess_persisted_evidence(  # noqa: PLR0913
     items = await list_evidence_items(session, evidence_set_id)
     quality_map = _quality_by_item(quality or [])
     evidence = [assessable_from_item(item, quality=quality_map.get(item.id)) for item in items]
+    await session.commit()
     try:
         draft = await assessor.assess(plan, evidence)
     except ResearchAssessmentError:
@@ -701,7 +697,6 @@ async def _assess_persisted_evidence(  # noqa: PLR0913
         raise ResearchAssessmentError(f"Attempt {attempt.id} evidence assessment failed") from exc
     draft = sanitize_assessment_draft(draft, plan=plan, evidence=evidence)
     from app.services.research.synthesis import derive_parent_answers
-
     runtime_needs = [
         runtime_need_from_row(row) for row in await list_runtime_needs(session, attempt.id)
     ]
@@ -723,6 +718,7 @@ async def _assess_persisted_evidence(  # noqa: PLR0913
             )
         )
         evidence = [assessable_from_item(item, quality=quality_map.get(item.id)) for item in items]
+        await session.commit()
         draft = sanitize_assessment_draft(
             await assessor.assess(plan, evidence), plan=plan, evidence=evidence
         )
@@ -829,6 +825,7 @@ async def _plan_and_persist_follow_ups(  # noqa: PLR0913
     evidence = [assessable_from_item(item) for item in items]
     draft = assessment_draft_from_row(assessment)
     allowed_source_types = _executable_source_types(router, case_id=case_id)
+    await session.commit()
     try:
         raw_drafts = await planner.plan_follow_ups(
             plan=snapshot_plan,
@@ -933,6 +930,7 @@ async def _review_and_persist_completeness(  # noqa: PLR0913
     ]
     draft = assessment_draft_from_row(assessment)
     allowed_source_types = _executable_source_types(router, case_id=case_id)
+    await session.commit()
     try:
         reviewed = await reviewer.review(
             objective=objective,
@@ -986,6 +984,7 @@ async def _plan_and_persist_global_needs(  # noqa: PLR0913
     allowed_source_types = _executable_source_types(router, case_id=case_id)
     runnable = [row for row in draft.missing_questions if row.source_types]
     raw_drafts = missing_questions_to_follow_up_drafts(runnable)
+    await session.commit()
     if need_normalizer is not None:
         raw_drafts = await need_normalizer.normalize_follow_up_drafts(raw_drafts)
     accepted = validate_follow_up_drafts(
@@ -1310,6 +1309,7 @@ async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
     )
     run = await get_run(session, attempt.run_id)
     case_id = research_context_from_run(run).scope.case_id
+    await session.commit()
     resume = attempt.status == "researching"
     if resume:
         await _resolve_research_objective(attempt, research_objective)
@@ -1368,7 +1368,6 @@ async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
             factory = session_factory or _session_factory(session)
             await session.commit()
             await progress.publish_committed()
-
         await _run_research_loop(
             factory=factory,
             attempt_id=attempt_id,

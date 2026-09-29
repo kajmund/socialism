@@ -101,6 +101,12 @@ def _existing_keys(rows: Sequence[ResearchEvidenceQuality]) -> set[tuple[str, st
     }
 
 
+def quality_by_item(
+    drafts: list[EvidenceQualityDraft],
+) -> dict[str, EvidenceQualityDraft]:
+    return {draft.evidence_set_item_id: draft for draft in drafts}
+
+
 async def persist_evidence_quality_drafts(
     session: AsyncSession,
     *,
@@ -119,12 +125,15 @@ async def persist_evidence_quality_drafts(
         scoring_policy_version=EVIDENCE_QUALITY_POLICY_VERSION,
     )
     existing_keys = _existing_keys(existing)
+    inputs = [
+        quality_input_from_item(item)
+        for item in items
+        if item_ids is None or item.id in item_ids
+    ]
+    # Derived evidence is a durable checkpoint before external scoring.
+    await session.commit()
     drafts = await assess_evidence_quality(
-        [
-            quality_input_from_item(item)
-            for item in items
-            if item_ids is None or item.id in item_ids
-        ],
+        inputs,
         needs=plan.needs,
         descriptors=descriptors,
         relevance_assessor=relevance_assessor,
