@@ -1,4 +1,4 @@
-"""Stable knowledge identity. Scope + provenance + normalized assertion only."""
+"""Stable knowledge identity. Scope + normalized assertion only."""
 
 from __future__ import annotations
 
@@ -67,14 +67,11 @@ def normalize_assertion(value: Any) -> Any:
 def knowledge_claim_identity(
     *,
     scope_key: str,
-    document_id: str,
-    document_version_id: str,
     predicate: str,
     value: dict[str, object],
 ) -> str:
     payload = (
-        f"{scope_key}\0{document_id}\0{document_version_id}\0"
-        f"{predicate.strip()}\0{canonical_json(normalize_assertion(value))}"
+        f"{scope_key}\0{predicate.strip()}\0{canonical_json(normalize_assertion(value))}"
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 

@@ -54,8 +54,6 @@ async def persist_domain_claim(
         )
     identity = knowledge_claim_id(
         scope_key=claim.scope.scope_key,
-        document_id=claim.document_id,
-        document_version_id=claim.document_version_id,
         predicate=claim.predicate,
         value=claim.value,
     )

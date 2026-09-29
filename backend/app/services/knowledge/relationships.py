@@ -217,12 +217,12 @@ async def _update_relationship(
         )
     if row.superseded_at is not None:
         raise KnowledgeRelationshipError(f"relationship {edge.id} is superseded")
-    row.extra = _merge_extra(row.extra, edge.extra)
+    row.extra = merge_relationship_extra(row.extra, edge.extra)
     await session.flush()
     return row
 
 
-def _merge_extra(
+def merge_relationship_extra(
     existing: dict[str, object] | None,
     incoming: dict[str, object],
 ) -> dict[str, object]:

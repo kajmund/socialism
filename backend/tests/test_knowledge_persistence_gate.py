@@ -14,6 +14,7 @@ from app.database.models import (
     KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
     KnowledgeEntityRecord,
+    KnowledgeGraphEventRecord,
     KnowledgeRelationshipRecord,
     Kund,
     TextUnitRecord,
@@ -60,18 +61,39 @@ def test_normalized_assertion_ignores_llm_prose_and_run_ids():
     assert left == right
 
 
+def test_claim_identity_ignores_source_document():
+    first = knowledge_claim(
+        customer_id=1,
+        document_id="doc-a",
+        document_version_id="ver-a",
+        predicate="legal.adjustment_granted",
+        value={"value": False},
+        supporting_text_unit_ids=("tu-hold",),
+    )
+    second = knowledge_claim(
+        customer_id=1,
+        document_id="doc-b",
+        document_version_id="ver-b",
+        predicate="legal.adjustment_granted",
+        value={"value": False},
+        supporting_text_unit_ids=("tu-b",),
+    )
+    assert first.id == second.id
+    assert first.id == knowledge_claim_identity(
+        scope_key="customer:1",
+        predicate="legal.adjustment_granted",
+        value={"value": False},
+    )
+
+
 def test_different_structured_assertions_stay_distinct():
     granted = knowledge_claim_identity(
         scope_key="customer:1",
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.adjustment_granted",
         value={"value": False},
     )
     denied = knowledge_claim_identity(
         scope_key="customer:1",
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.adjustment_granted",
         value={"value": True},
     )
@@ -155,6 +177,42 @@ async def _document(session: AsyncSession) -> None:
             ordinal=1,
             text="The lease was signed in 1998.",
             content_hash="tu-extra",
+        )
+    )
+    await session.flush()
+
+
+async def _second_document(session: AsyncSession) -> None:
+    session.add(
+        CanonicalDocumentRecord(
+            id="doc-b",
+            customer_id=1,
+            source_type="upload",
+            canonical_uri="doc://b",
+            title="B",
+            extra={},
+        )
+    )
+    session.add(
+        DocumentVersionRecord(
+            id="ver-b",
+            document_id="doc-b",
+            customer_id=1,
+            content_hash="hash-b",
+            mime_type="text/plain",
+            extra={},
+        )
+    )
+    session.add(
+        TextUnitRecord(
+            id="tu-b",
+            document_version_id="ver-b",
+            document_id="doc-b",
+            customer_id=1,
+            section_id=None,
+            ordinal=0,
+            text="The court held that the clause was not adjusted.",
+            content_hash="tu-b",
         )
     )
     await session.flush()
@@ -351,4 +409,191 @@ async def test_cleanup_rewires_then_removes_duplicates():
     report = await audit_knowledge_graph(session)
     assert report.source_quality_claim_count == 0
     assert report.domain_claim_count == 1
+    await session.close()
+
+
+async def test_same_assertion_from_two_documents_reuses_one_claim():
+    session = await _session()
+    await _second_document(session)
+    first = knowledge_claim(
+        customer_id=1,
+        document_id="doc-a",
+        document_version_id="ver-a",
+        predicate="legal.adjustment_granted",
+        value={"value": False},
+        supporting_text_unit_ids=("tu-hold",),
+    )
+    second = knowledge_claim(
+        customer_id=1,
+        document_id="doc-b",
+        document_version_id="ver-b",
+        predicate="legal.adjustment_granted",
+        value={"value": False},
+        supporting_text_unit_ids=("tu-b",),
+    )
+    result = await persist_extracted_knowledge(session, claims=[first, second])
+    assert first.id == second.id
+    assert result.stats.claims_accepted == 1
+    assert result.stats.claims_reused == 1
+    assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
+    assert set(await supporting_text_unit_ids_for_claim(session, first.id)) == {
+        "tu-hold",
+        "tu-b",
+    }
+    await session.close()
+
+
+async def test_cleanup_merges_duplicate_claim_edges_without_unique_violation():
+    session = await _session()
+    now = utc_now()
+    session.add(
+        KnowledgeEntityRecord(
+            id="entity-x",
+            entity_type="org",
+            entity_key="source-x",
+            name="Source X",
+            extra={},
+            customer_id=1,
+        )
+    )
+    for claim_id, extra in (
+        ("legacy-claim-a", {"sources": ["doc-a"]}),
+        ("legacy-claim-b", {"sources": ["doc-b"]}),
+    ):
+        session.add(
+            KnowledgeClaimRecord(
+                id=claim_id,
+                identity_key=claim_id,
+                document_id="doc-a",
+                document_version_id="ver-a",
+                predicate="legal.adjustment_granted",
+                value={"value": False},
+                created_at=now,
+                customer_id=1,
+            )
+        )
+        session.add(
+            KnowledgeRelationshipRecord(
+                id=f"edge-{claim_id}",
+                relation=ABOUT,
+                from_kind="claim",
+                from_id=claim_id,
+                to_kind="entity",
+                to_id="entity-x",
+                temporal_key="",
+                extra=extra,
+                created_at=now,
+                customer_id=1,
+            )
+        )
+    session.add(
+        KnowledgeGraphEventRecord(
+            id="evt-loser-claim",
+            event_type="CLAIM_ADDED",
+            node_kind="claim",
+            node_id="legacy-claim-b",
+            payload={},
+            created_at=now,
+            customer_id=1,
+        )
+    )
+    await session.flush()
+    applied = await cleanup_knowledge_graph(session, apply=True)
+    assert applied["applied"] is True
+    assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
+    edges = list((await session.execute(select(KnowledgeRelationshipRecord))).scalars().all())
+    assert len(edges) == 1
+    assert edges[0].from_id == "legacy-claim-a"
+    assert edges[0].to_id == "entity-x"
+    assert edges[0].extra["sources"] == ["doc-a", "doc-b"]
+    event = await session.get(KnowledgeGraphEventRecord, "evt-loser-claim")
+    assert event is not None
+    assert event.node_id == "legacy-claim-a"
+    await session.close()
+
+
+async def test_cleanup_merges_duplicate_entity_edges_without_unique_violation():
+    session = await _session()
+    now = utc_now()
+    session.add(
+        KnowledgeClaimRecord(
+            id="claim-keep",
+            identity_key="claim-keep",
+            document_id="doc-a",
+            document_version_id="ver-a",
+            predicate="legal.adjustment_granted",
+            value={"value": True},
+            created_at=now,
+            customer_id=1,
+        )
+    )
+    session.add(
+        KnowledgeEntityRecord(
+            id="legacy-ent-a",
+            entity_type="org",
+            entity_key="Court X",
+            name="Court X",
+            extra={"aliases": ["A"]},
+            created_at=now,
+            customer_id=1,
+        )
+    )
+    session.add(
+        KnowledgeEntityRecord(
+            id="legacy-ent-b",
+            entity_type="org",
+            entity_key="court  x",
+            name="Court X",
+            extra={"aliases": ["B"]},
+            created_at=now,
+            customer_id=1,
+        )
+    )
+    for entity_id, extra in (
+        ("legacy-ent-a", {"sources": ["a"]}),
+        ("legacy-ent-b", {"sources": ["b"]}),
+    ):
+        session.add(
+            KnowledgeRelationshipRecord(
+                id=f"in-{entity_id}",
+                relation=ABOUT,
+                from_kind="claim",
+                from_id="claim-keep",
+                to_kind="entity",
+                to_id=entity_id,
+                temporal_key="",
+                extra=extra,
+                created_at=now,
+                customer_id=1,
+            )
+        )
+        session.add(
+            KnowledgeRelationshipRecord(
+                id=f"out-{entity_id}",
+                relation=ABOUT,
+                from_kind="entity",
+                from_id=entity_id,
+                to_kind="document",
+                to_id="doc-a",
+                temporal_key="",
+                extra={"docs": [entity_id]},
+                created_at=now,
+                customer_id=1,
+            )
+        )
+    await session.flush()
+    applied = await cleanup_knowledge_graph(session, apply=True)
+    assert applied["applied"] is True
+    assert await session.scalar(select(func.count()).select_from(KnowledgeEntityRecord)) == 1
+    winner = await session.get(KnowledgeEntityRecord, "legacy-ent-a")
+    assert winner is not None
+    assert winner.extra["aliases"] == ["A", "B"]
+    edges = list((await session.execute(select(KnowledgeRelationshipRecord))).scalars().all())
+    assert len(edges) == 2
+    incoming = next(edge for edge in edges if edge.from_kind == "claim")
+    outgoing = next(edge for edge in edges if edge.from_kind == "entity")
+    assert incoming.to_id == "legacy-ent-a"
+    assert incoming.extra["sources"] == ["a", "b"]
+    assert outgoing.from_id == "legacy-ent-a"
+    assert outgoing.to_id == "doc-a"
     await session.close()

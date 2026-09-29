@@ -86,16 +86,12 @@ class KnowledgeClaimAnswerHit:
 
 def knowledge_claim_id(
     *,
-    document_version_id: str,
     predicate: str,
     value: dict[str, object],
-    document_id: str,
     scope_key: str,
 ) -> str:
     return knowledge_claim_identity(
         scope_key=scope_key,
-        document_id=document_id,
-        document_version_id=document_version_id,
         predicate=predicate,
         value=value,
     )
@@ -113,8 +109,6 @@ def knowledge_claim(
     scope = require_persist_scope(customer_id=customer_id)
     identity = knowledge_claim_id(
         scope_key=scope.scope_key,
-        document_id=document_id,
-        document_version_id=document_version_id,
         predicate=predicate,
         value=value,
     )
