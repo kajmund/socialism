@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.database.graph_v2 import GraphIngestWork
 from app.services.graph_v2.identity import stable_id
 from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
+from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
 from app.services.graph_v2.legal_writeback import write_legal_facts
 from app.services.knowledge.claims import KnowledgeClaim
 from app.services.knowledge.embeddings import EmbeddingProvider, OpenAIEmbeddingProvider
@@ -91,7 +92,8 @@ async def process_graph_work(
     node_judge: JevNodeJudge | None = None,
 ) -> dict[str, int]:
     completed = failed = 0
-    provider = embedder or OpenAIEmbeddingProvider.from_settings()
+    inner = embedder or OpenAIEmbeddingProvider.from_settings()
+    provider = inner if isinstance(inner, GraphEmbeddingCacheProvider) else GraphEmbeddingCacheProvider(factory, inner)
     for _ in range(limit):
         claim = await claim_graph_work(factory)
         if claim is None:

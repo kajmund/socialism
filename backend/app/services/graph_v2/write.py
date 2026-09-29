@@ -1,6 +1,7 @@
 """Resolve nodes before facts. Semantic decisions can never bypass structural guards."""
 
 import math
+from difflib import SequenceMatcher
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -37,17 +38,11 @@ async def resolve_node(
         key = f"{namespace}:{identifier}"
     else:
         key = f"weak:{proposed.context_key}:{name}"
-        candidates = list((await session.scalars(select(GraphNode).where(
-            GraphNode.scope_key == scope,
-            GraphNode.node_type == proposed.node_type,
-        ).limit(100))).all())
-        for candidate in candidates:
-            if not candidate.identity_key.startswith(f"weak:{proposed.context_key}:"):
-                continue
-            if candidate.identity_key == key:
-                return candidate
-            if judge is not None and await judge.same_node(proposed, candidate.name):
-                return candidate
+        match = await _resolve_weak_node(
+            session, proposed, name=name, key=key, judge=judge,
+        )
+        if match is not None:
+            return match
     node_id = stable_id(scope, proposed.node_type, key)
     row = GraphNode(
         id=node_id, scope_key=scope, customer_id=proposed.scope.customer_id,
@@ -70,6 +65,42 @@ async def resolve_node(
             session, row, scope=scope, namespace=namespace, identifier=identifier,
         )
     return row
+
+
+async def _resolve_weak_node(
+    session: AsyncSession, proposed: NodeInput, *, name: str, key: str,
+    judge: NodeJudge | None,
+) -> GraphNode | None:
+    candidates = list((await session.scalars(select(GraphNode).where(
+        GraphNode.scope_key == proposed.scope.scope_key,
+        GraphNode.node_type == proposed.node_type,
+    ).order_by(GraphNode.id).limit(100))).all())
+    candidates = [candidate for candidate in candidates
+                  if candidate.identity_key.startswith(f"weak:{proposed.context_key}:")]
+    for candidate in candidates:
+        if candidate.identity_key == key:
+            return candidate
+    if judge is None:
+        return None
+    proposed_tokens = set(name.split())
+
+    def local_score(candidate: GraphNode) -> float:
+        candidate_tokens = set(candidate.normalized_name.split())
+        overlap = len(proposed_tokens & candidate_tokens) / max(
+            1, len(proposed_tokens | candidate_tokens),
+        )
+        return max(overlap, SequenceMatcher(None, name, candidate.normalized_name).ratio())
+
+    ranked = sorted(candidates, key=local_score, reverse=True)
+    # A lone same-context candidate is worth a semantic check; larger sets need
+    # lexical evidence first to keep model calls bounded and genuinely ambiguous.
+    shortlist = ranked[:1] if len(ranked) == 1 else [
+        candidate for candidate in ranked[:5] if local_score(candidate) >= 0.35
+    ]
+    for candidate in shortlist:
+        if await judge.same_node(proposed, candidate.name):
+            return candidate
+    return None
 
 
 async def _identifier(
@@ -107,22 +138,17 @@ async def resolve_fact(
     session: AsyncSession, proposed: FactInput, *, judge: FactJudge | None = None,
     embedder: TextEmbedder | None = None,
 ) -> tuple[GraphFact, str]:
+    exact = await resolve_exact_fact(session, proposed)
+    if exact is not None:
+        return exact, "SAME"
     namespaced(proposed.predicate)
     normalized(proposed.fact_text)
-    if not proposed.sources:
-        raise ValueError("fact requires at least one episode or TextUnit")
-    await _validate_endpoints(session, proposed)
-    await _validate_sources(session, proposed.scope, proposed.sources)
     identity = fact_identity(
         scope_key=proposed.scope.scope_key, source_id=proposed.source_id,
         target_id=proposed.target_id, predicate=proposed.predicate,
         context_id=proposed.context_id, occurrence_key=proposed.occurrence_key,
         fact_text=proposed.fact_text,
     )
-    exact = await session.get(GraphFact, identity)
-    if exact is not None:
-        await _attach_sources(session, exact.id, proposed.sources)
-        return exact, "SAME"
     candidates = list((await session.scalars(_candidate_query(proposed))).all())
     vector = list(proposed.embedding) if proposed.embedding is not None else None
     if vector is None and embedder is not None:
@@ -130,7 +156,7 @@ async def resolve_fact(
     if candidates and judge is None:
         raise ValueError("fact judge required for non-exact candidates")
     contradiction = None
-    for candidate in _rank_candidates(candidates, vector):
+    for candidate in _rank_candidates(candidates, vector)[:5]:
         decision = await judge.compare(proposed, candidate.fact_text)  # type: ignore[union-attr]
         if decision == "SAME":
             await _attach_sources(session, candidate.id, proposed.sources)
@@ -163,6 +189,26 @@ async def resolve_fact(
     if contradiction is not None and contradiction.id != row.id:
         await _relate_contradiction(session, row.id, contradiction.id)
     return row, "CONTRADICTS" if contradiction is not None else "DISTINCT"
+
+
+async def resolve_exact_fact(session: AsyncSession, proposed: FactInput) -> GraphFact | None:
+    """Validate and attach provenance to an exact edge before any embedding call."""
+    namespaced(proposed.predicate)
+    normalized(proposed.fact_text)
+    if not proposed.sources:
+        raise ValueError("fact requires at least one episode or TextUnit")
+    await _validate_endpoints(session, proposed)
+    await _validate_sources(session, proposed.scope, proposed.sources)
+    identity = fact_identity(
+        scope_key=proposed.scope.scope_key, source_id=proposed.source_id,
+        target_id=proposed.target_id, predicate=proposed.predicate,
+        context_id=proposed.context_id, occurrence_key=proposed.occurrence_key,
+        fact_text=proposed.fact_text,
+    )
+    exact = await session.get(GraphFact, identity)
+    if exact is not None:
+        await _attach_sources(session, exact.id, proposed.sources)
+    return exact
 
 
 def _candidate_query(proposed: FactInput):

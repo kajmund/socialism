@@ -24,6 +24,17 @@ Data API policies; backend owner connections manage writes.
 `core.question` nodes project canonical KnowledgeQuestions. Research lineage
 projects as `research.decomposed_to` fact edges. The existing research tables
 remain the orchestration record while the graph representation converges.
+Research commits its evidence and GraphIngestWork outbox row together. Embedding
+and semantic resolution happen in the background worker, so graph writeback
+does not hold research completion open. Exact edge identity is checked before
+embedding; unresolved fact texts are embedded as one batch and only locally
+shortlisted ambiguous nodes/facts reach the semantic judge.
+
+`graph_embedding_cache` is shared across tenants and content-addressed by model,
+the configured `EMBEDDING_MODEL_REVISION`, dimension, purpose and normalized-text hash. It stores no tenant,
+source, run, provenance or raw text. Database leases coordinate simultaneous
+cache misses across workers; changing the model revision produces a new cache
+entry without rewriting graph facts.
 
 ## Retrieval and portability
 
@@ -34,5 +45,7 @@ and a bounded semantic scan; a vector index and asynchronous ingestion are
 required for large corpora. Community summaries should be recomputed from
 fact edges and provenance, never used as an authoritative fact store.
 
-The existing claim read-through and legal extraction are not yet cut over to
-Graph v2. Do not remove legacy tables until those readers use fact edges.
+The legal research adapter projects meaningful subject and concept/value nodes;
+the full assertion is held by its fact edge and only its supporting TextUnits
+are attached as provenance. The legacy claims remain an extraction/orchestration
+boundary during cutover, rather than the Graph v2 identity model.
