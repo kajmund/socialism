@@ -6,15 +6,12 @@ Placeholders in templates:
   {surname_block}  — optional taken-surnames block (may be empty)
   {voice_block}    — optional previous-persona block
   {free_text}      — user free text
-  {field_guide}    — persona field guide (inserted by caller or nested)
   {count}          — number of personas
   {candidate_index}, {candidate_count}
   {demo_block}     — optional fixed demography block
   {persona_block}  — formatted persona profile lines
   {chat_mode}, {transcript}, {name}  — follow-up question suggestions / role lock
   {first_name}, {actor_context}, {memory_summary} — Gemini Live voice context
-  {anecdote_context}
-  {prev_block}     — previous anecdotes block
   {type_label}     — message type label
   {page_text}
   {angle_instruction}, {context_block}, {source_material}
@@ -29,6 +26,7 @@ Placeholders in templates:
 from __future__ import annotations
 
 from typing import Literal, TypedDict
+from app.services.graph_v2.prompts import graph_fact_prompt_fields
 
 ConfigurationLanguage = Literal["sv", "en", "nb"]
 PromptSection = Literal[
@@ -3677,6 +3675,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         ),
     ),
 ]
+
+PROMPT_FIELDS.extend(graph_fact_prompt_fields())
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)
 PROMPT_KEY_SET: frozenset[str] = frozenset(PROMPT_KEYS)

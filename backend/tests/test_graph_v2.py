@@ -144,6 +144,22 @@ async def test_hybrid_embedding_model_boundary(session):
     ) == []
 
 
+async def test_cross_domain_traversal_over_shared_context(session):
+    legal = await resolve_node(session, NodeInput(
+        node_type="legal.contract", name="Agreement 42", scope=customer_scope(1),
+        identifier_namespace="legal.contract_id", identifier="42",
+    ))
+    company = await resolve_node(session, NodeInput(
+        node_type="finance.company", name="AB Example", scope=customer_scope(1),
+        identifier_namespace="finance.org_number", identifier="556000-0000",
+    ))
+    context = await node(session, "Case 42")
+    first, _ = await resolve_fact(session, fact(legal, context, "Avtalet hör till ärendet"))
+    second, _ = await resolve_fact(session, fact(context, company, "Ärendet avser bolaget"))
+    hits = await neighbourhood(session, customer_id=1, seeds=[legal.id], max_hops=2)
+    assert {first.id, second.id} <= {hit.fact.id for hit in hits}
+
+
 async def test_parallel_repeated_ingest_is_bounded(tmp_path):
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/graph.db")
     async with engine.begin() as conn:
