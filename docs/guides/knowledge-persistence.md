@@ -30,6 +30,8 @@ Re-extraction of the same assertion attaches additional TextUnit / question link
 
 Provenance is only `knowledge_claim_text_units` → `text_units` → `document_version` → `canonical_document`. `knowledge_claims` has no `document_id` / `document_version_id`. Deleting a document removes that document's support links. The claim stays if another document still supports it; unsupported claims are pruned. Audit/cleanup winners are oldest `created_at`, then `id` — never a source field.
 
+Alembic `126` is the one-shot upgrade: drop claim source columns, reclassify junk out of `knowledge_claims`, merge rows that share the new identity, then write `identity_key` on **every** remaining claim (including singletons). Runtime cleanup is not required for correct lookup.
+
 ## Entities and relationships
 
 - Entity identity stays `(scope_key, entity_type, entity_key)` with a deterministic normalized key. Do not create a second entity for the same canonical key (store aliases in `extra`).

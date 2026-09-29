@@ -21,6 +21,7 @@ from app.database.models import (
     TextUnitRecord,
 )
 from app.services.knowledge.audit import audit_knowledge_graph, cleanup_knowledge_graph
+from app.services.knowledge.claim_rekey import backfill_source_independent_claims
 from app.services.knowledge.events import utc_now
 from app.services.knowledge.claims import (
     SUPPORTED_BY,
@@ -602,4 +603,85 @@ async def test_deleting_one_supporting_document_keeps_claim_with_other_support()
     assert set(await supporting_text_unit_ids_for_claim(session, first.id)) == {"tu-b"}
     assert await session.get(CanonicalDocumentRecord, "doc-a") is None
     assert await session.get(CanonicalDocumentRecord, "doc-b") is not None
+    await session.close()
+
+
+def _legacy_claim(
+    session: AsyncSession,
+    *,
+    claim_id: str,
+    unit_id: str,
+) -> None:
+    session.add(
+        KnowledgeClaimRecord(
+            id=claim_id,
+            identity_key=claim_id,
+            predicate="legal.adjustment_granted",
+            value={"value": False},
+            created_at=utc_now(),
+            customer_id=1,
+        )
+    )
+    session.add(
+        KnowledgeClaimTextUnit(
+            claim_id=claim_id,
+            text_unit_id=unit_id,
+            ordinal=0,
+            relation=SUPPORTED_BY,
+        )
+    )
+
+
+async def test_legacy_singleton_is_rekeyed_to_source_independent_identity():
+    session = await _session()
+    expected = knowledge_claim_identity(
+        scope_key="customer:1",
+        predicate="legal.adjustment_granted",
+        value={"value": False},
+    )
+    _legacy_claim(session, claim_id="legacy-old-hash", unit_id="tu-hold")
+    await session.flush()
+    await backfill_source_independent_claims(session)
+    row = await session.get(KnowledgeClaimRecord, "legacy-old-hash")
+    assert row is not None
+    assert row.identity_key == expected
+    assert row.identity_key != "legacy-old-hash"
+    await session.close()
+
+
+async def test_backfill_then_research_does_not_mint_a_second_claim():
+    session = await _session()
+    _legacy_claim(session, claim_id="legacy-old-hash", unit_id="tu-hold")
+    await session.flush()
+    await backfill_source_independent_claims(session)
+    claim = _domain_claim()
+    result = await persist_extracted_knowledge(session, claims=[claim])
+    assert result.stats.claims_accepted == 0
+    assert result.stats.claims_reused == 1
+    assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
+    stored = await session.get(KnowledgeClaimRecord, "legacy-old-hash")
+    assert stored is not None
+    assert stored.identity_key == claim.id
+    await session.close()
+
+
+async def test_backfill_merges_legacy_claims_from_two_documents():
+    session = await _session()
+    await _second_document(session)
+    expected = knowledge_claim_identity(
+        scope_key="customer:1",
+        predicate="legal.adjustment_granted",
+        value={"value": False},
+    )
+    _legacy_claim(session, claim_id="legacy-a", unit_id="tu-hold")
+    _legacy_claim(session, claim_id="legacy-b", unit_id="tu-b")
+    await session.flush()
+    await backfill_source_independent_claims(session)
+    assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
+    winner = (await session.execute(select(KnowledgeClaimRecord))).scalar_one()
+    assert winner.identity_key == expected
+    assert set(await supporting_text_unit_ids_for_claim(session, winner.id)) == {
+        "tu-hold",
+        "tu-b",
+    }
     await session.close()
