@@ -20,6 +20,7 @@ from app.services.knowledge.observations import (
     knowledge_observation,
     persist_knowledge_observation,
 )
+from app.services.knowledge.persist import persist_extracted_knowledge
 from app.services.knowledge.persistence_class import DOMAIN_KNOWLEDGE, classify_persistence
 from app.services.knowledge.relationships import (
     ABOUT,
@@ -156,4 +157,49 @@ async def test_legacy_entity_reuses_normalized_stable_key():
     assert reused is True
     assert row.id == "legacy-court"
     assert await session.scalar(select(func.count()).select_from(KnowledgeEntityRecord)) == 1
+    await session.close()
+
+
+@pytest.mark.asyncio
+async def test_reused_legacy_entity_remaps_relationship_endpoint():
+    session = await _session()
+    session.add(
+        KnowledgeEntityRecord(
+            id="legacy-court",
+            customer_id=1,
+            entity_type="org",
+            entity_key="Court  X",
+            name="Court X",
+            extra={},
+        )
+    )
+    await session.flush()
+    proposed = knowledge_entity(
+        customer_id=1,
+        entity_type="org",
+        key="court x",
+        name="Court X",
+    )
+    other = knowledge_entity(
+        customer_id=1,
+        entity_type="org",
+        key="other",
+        name="Other",
+    )
+    edge = knowledge_relationship(
+        customer_id=1,
+        relation=ABOUT,
+        from_kind="entity",
+        from_id=proposed.id,
+        to_kind="entity",
+        to_id=other.id,
+    )
+    await persist_extracted_knowledge(
+        session,
+        entities=[proposed, other],
+        relationships=[edge],
+    )
+    stored_edge = (await session.execute(select(KnowledgeRelationshipRecord))).scalar_one()
+    assert stored_edge.from_id == "legacy-court"
+    assert stored_edge.to_id == other.id
     await session.close()
