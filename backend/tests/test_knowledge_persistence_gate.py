@@ -13,6 +13,7 @@ from app.database.models import (
     DocumentVersionRecord,
     KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
+    KnowledgeClaimTextUnit,
     KnowledgeEntityRecord,
     KnowledgeGraphEventRecord,
     KnowledgeRelationshipRecord,
@@ -22,11 +23,13 @@ from app.database.models import (
 from app.services.knowledge.audit import audit_knowledge_graph, cleanup_knowledge_graph
 from app.services.knowledge.events import utc_now
 from app.services.knowledge.claims import (
+    SUPPORTED_BY,
     KnowledgeClaim,
     knowledge_claim,
     persist_knowledge_claim,
     supporting_text_unit_ids_for_claim,
 )
+from app.services.knowledge.persistence import delete_canonical_document
 from app.services.knowledge.entities import knowledge_entity
 from app.services.knowledge.identity import knowledge_claim_identity, normalize_assertion
 from app.services.knowledge.persist import persist_extracted_knowledge
@@ -64,16 +67,12 @@ def test_normalized_assertion_ignores_llm_prose_and_run_ids():
 def test_claim_identity_ignores_source_document():
     first = knowledge_claim(
         customer_id=1,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.adjustment_granted",
         value={"value": False},
         supporting_text_unit_ids=("tu-hold",),
     )
     second = knowledge_claim(
         customer_id=1,
-        document_id="doc-b",
-        document_version_id="ver-b",
         predicate="legal.adjustment_granted",
         value={"value": False},
         supporting_text_unit_ids=("tu-b",),
@@ -221,8 +220,6 @@ async def _second_document(session: AsyncSession) -> None:
 def _domain_claim(value: object = False, *unit_ids: str) -> KnowledgeClaim:
     return knowledge_claim(
         customer_id=1,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.adjustment_granted",
         value={"value": value},
         supporting_text_unit_ids=unit_ids or ("tu-hold",),
@@ -233,8 +230,6 @@ async def test_wording_variants_reuse_the_same_durable_claim():
     session = await _session()
     first = knowledge_claim(
         customer_id=1,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.rule_or_principle",
         value={
             "value": "The court held that the clause was not adjusted.",
@@ -245,8 +240,6 @@ async def test_wording_variants_reuse_the_same_durable_claim():
     )
     second = knowledge_claim(
         customer_id=1,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.rule_or_principle",
         value={
             "value": "the court held that the clause was not adjusted",
@@ -333,16 +326,12 @@ async def test_source_quality_and_gaps_do_not_enter_knowledge_claims():
     session = await _session()
     quality = knowledge_claim(
         customer_id=1,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.limitation",
         value={"value": "referatet är trunkerat"},
         supporting_text_unit_ids=("tu-hold",),
     )
     gap = knowledge_claim(
         customer_id=1,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.limitation",
         value={"value": "this source does not answer the research question"},
         supporting_text_unit_ids=("tu-hold",),
@@ -388,14 +377,20 @@ async def test_cleanup_rewires_then_removes_duplicates():
     junk = KnowledgeClaimRecord(
         id="legacy-quality",
         identity_key="legacy-quality",
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.limitation",
         value={"value": "fullständiga domskäl saknas"},
         created_at=now,
         customer_id=1,
     )
     session.add(junk)
+    session.add(
+        KnowledgeClaimTextUnit(
+            claim_id="legacy-quality",
+            text_unit_id="tu-hold",
+            ordinal=0,
+            relation=SUPPORTED_BY,
+        )
+    )
     await session.flush()
     dry = await cleanup_knowledge_graph(session, apply=False)
     assert dry["applied"] is False
@@ -417,16 +412,12 @@ async def test_same_assertion_from_two_documents_reuses_one_claim():
     await _second_document(session)
     first = knowledge_claim(
         customer_id=1,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.adjustment_granted",
         value={"value": False},
         supporting_text_unit_ids=("tu-hold",),
     )
     second = knowledge_claim(
         customer_id=1,
-        document_id="doc-b",
-        document_version_id="ver-b",
         predicate="legal.adjustment_granted",
         value={"value": False},
         supporting_text_unit_ids=("tu-b",),
@@ -464,8 +455,6 @@ async def test_cleanup_merges_duplicate_claim_edges_without_unique_violation():
             KnowledgeClaimRecord(
                 id=claim_id,
                 identity_key=claim_id,
-                document_id="doc-a",
-                document_version_id="ver-a",
                 predicate="legal.adjustment_granted",
                 value={"value": False},
                 created_at=now,
@@ -519,8 +508,6 @@ async def test_cleanup_merges_duplicate_entity_edges_without_unique_violation():
         KnowledgeClaimRecord(
             id="claim-keep",
             identity_key="claim-keep",
-            document_id="doc-a",
-            document_version_id="ver-a",
             predicate="legal.adjustment_granted",
             value={"value": True},
             created_at=now,
@@ -596,4 +583,23 @@ async def test_cleanup_merges_duplicate_entity_edges_without_unique_violation():
     assert incoming.extra["sources"] == ["a", "b"]
     assert outgoing.from_id == "legacy-ent-a"
     assert outgoing.to_id == "doc-a"
+    await session.close()
+
+
+async def test_deleting_one_supporting_document_keeps_claim_with_other_support():
+    session = await _session()
+    await _second_document(session)
+    first = _domain_claim(False, "tu-hold")
+    second = _domain_claim(False, "tu-b")
+    result = await persist_extracted_knowledge(session, claims=[first, second])
+    assert first.id == second.id
+    assert result.stats.claims_accepted == 1
+    assert result.stats.claims_reused == 1
+    await delete_canonical_document(session, "doc-a")
+    remaining = await session.get(KnowledgeClaimRecord, first.id)
+    assert remaining is not None
+    assert remaining.superseded_at is None
+    assert set(await supporting_text_unit_ids_for_claim(session, first.id)) == {"tu-b"}
+    assert await session.get(CanonicalDocumentRecord, "doc-a") is None
+    assert await session.get(CanonicalDocumentRecord, "doc-b") is not None
     await session.close()

@@ -129,8 +129,6 @@ async def _insert_claim(
     row = KnowledgeClaimRecord(
         id=identity,
         identity_key=identity,
-        document_id=claim.document_id,
-        document_version_id=claim.document_version_id,
         predicate=claim.predicate,
         value=claim.value,
         valid_from=now,
@@ -157,3 +155,18 @@ async def _insert_claim(
         created_at=now,
     )
     return row, False
+
+
+async def prune_unsupported_claims(session: AsyncSession) -> None:
+    supported = select(KnowledgeClaimTextUnit.claim_id).distinct()
+    rows = list(
+        (
+            await session.execute(
+                select(KnowledgeClaimRecord).where(KnowledgeClaimRecord.id.not_in(supported))
+            )
+        ).scalars().all()
+    )
+    for row in rows:
+        await session.delete(row)
+    if rows:
+        await session.flush()

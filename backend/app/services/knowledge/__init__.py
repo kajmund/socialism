@@ -57,6 +57,7 @@ from app.services.knowledge.models import (
     KnowledgeScopeRequiredError,
 )
 from app.services.knowledge.persistence import (
+    delete_canonical_document,
     get_canonical_document_by_identity,
     get_current_document_version,
     list_document_versions,
@@ -203,6 +204,7 @@ __all__ = [
     "claims_answering_question_key",
     "classify_revalidation_state",
     "customer_scope",
+    "delete_canonical_document",
     "expand_text_unit_context",
     "get_canonical_document_by_identity",
     "get_current_document_version",

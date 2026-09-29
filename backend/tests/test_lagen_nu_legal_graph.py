@@ -61,8 +61,6 @@ def _claim(predicate: str, value: object, *unit_ids: str) -> KnowledgeClaim:
     return KnowledgeClaim(
         id=f"claim-{predicate}",
         customer_id=7,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate=predicate,
         value={"value": value},
         supporting_text_unit_ids=tuple(unit_ids),

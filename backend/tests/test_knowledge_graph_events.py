@@ -95,8 +95,6 @@ def _claim(*, value: object, predicate: str = "outcome.granted") -> KnowledgeCla
             value=payload,
         ),
         customer_id=1,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate=predicate,
         value=payload,
         supporting_text_unit_ids=("tu-hold",),

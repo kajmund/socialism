@@ -26,6 +26,10 @@ from app.observability.knowledge import (
     record_knowledge_decision,
 )
 from app.services.knowledge.claim_store import attach_supporting_text_units
+from app.services.knowledge.claims import (
+    document_refs_for_units,
+    supporting_text_unit_ids_for_claim,
+)
 from app.services.knowledge.identity import knowledge_claim_identity, normalize_assertion_text
 from app.services.knowledge.relationships import merge_relationship_extra
 from app.services.knowledge.observations import (
@@ -183,18 +187,21 @@ async def _reclassify_non_domain_claims(
         decision = classify_persistence(value=claim.value)
         if decision.persistence_class == DOMAIN_KNOWLEDGE:
             continue
-        observation = knowledge_observation(
-            ObservationSeed(
-                observation_class=decision.persistence_class,
-                kind=decision.kind,
-                document_id=claim.document_id,
-                document_version_id=claim.document_version_id,
-                statement_normalized=decision.statement_normalized or claim.predicate,
-                extra={"predicate": claim.predicate, "migrated_claim_id": claim.id},
-            ),
-            require_persist_scope(customer_id=claim.customer_id, scope_type=claim.scope_type),
-        )
-        await persist_knowledge_observation(session, observation)
+        support = await supporting_text_unit_ids_for_claim(session, claim.id)
+        refs = await document_refs_for_units(session, support)
+        if refs is not None:
+            observation = knowledge_observation(
+                ObservationSeed(
+                    observation_class=decision.persistence_class,
+                    kind=decision.kind,
+                    document_id=refs[0],
+                    document_version_id=refs[1],
+                    statement_normalized=decision.statement_normalized or claim.predicate,
+                    extra={"predicate": claim.predicate, "migrated_claim_id": claim.id},
+                ),
+                require_persist_scope(customer_id=claim.customer_id, scope_type=claim.scope_type),
+            )
+            await persist_knowledge_observation(session, observation)
         await _delete_claim(session, claim.id)
         record_knowledge_decision(
             stats,
@@ -205,7 +212,6 @@ async def _reclassify_non_domain_claims(
                 reason="cleanup_reclassify",
                 predicate=claim.predicate,
                 identity_key=claim.id,
-                document_id=claim.document_id,
             ),
         )
 
@@ -242,7 +248,6 @@ async def _merge_claim_groups(
                     kind="claim",
                     action="merged",
                     identity_key=winner.identity_key,
-                    document_id=winner.document_id,
                     predicate=winner.predicate,
                 ),
             )

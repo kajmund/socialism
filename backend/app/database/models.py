@@ -1881,8 +1881,6 @@ class KnowledgeClaimRecord(Base):
 
     __tablename__ = "knowledge_claims"
     __table_args__ = (
-        Index("ix_knowledge_claims_document_version", "document_version_id"),
-        Index("ix_knowledge_claims_document_predicate", "document_id", "predicate"),
         Index("ix_knowledge_claims_superseded_at", "superseded_at"),
         UniqueConstraint(
             "scope_key",
@@ -1904,16 +1902,6 @@ class KnowledgeClaimRecord(Base):
     customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("kunder.id", ondelete="RESTRICT"),
         nullable=True,
-        index=True,
-    )
-    document_id: Mapped[str] = mapped_column(
-        ForeignKey("canonical_documents.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    document_version_id: Mapped[str] = mapped_column(
-        ForeignKey("document_versions.id", ondelete="CASCADE"),
-        nullable=False,
         index=True,
     )
     predicate: Mapped[str] = mapped_column(String(128), nullable=False)
