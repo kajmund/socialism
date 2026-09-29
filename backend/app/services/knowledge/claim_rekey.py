@@ -87,6 +87,15 @@ def _migrate_observation(
     if unit is None:
         return
     try:
+        question_key = ""
+        if decision.persistence_class == "research_observation":
+            question_key = session.scalars(
+                select(KnowledgeClaimAnswer.question_key)
+                .where(KnowledgeClaimAnswer.claim_id == claim.id)
+                .order_by(KnowledgeClaimAnswer.research_need_id)
+            ).first() or ""
+            if not question_key:
+                return
         observation = knowledge_observation(
             ObservationSeed(
                 observation_class=decision.persistence_class,
@@ -94,6 +103,7 @@ def _migrate_observation(
                 document_id=unit.document_id,
                 document_version_id=unit.document_version_id,
                 statement_normalized=decision.statement_normalized or claim.predicate,
+                question_key=question_key,
                 extra={"predicate": claim.predicate, "migrated_claim_id": claim.id},
             ),
             require_persist_scope(customer_id=claim.customer_id, scope_type=claim.scope_type),
