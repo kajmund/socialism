@@ -203,7 +203,7 @@ def _contains_phrase(normalized: str, phrases: tuple[str, ...]) -> bool:
         marker = normalize_assertion_text(phrase)
         if not marker:
             continue
-        if re.search(rf"(?<!\\w){re.escape(marker)}(?!\\w)", normalized):
+        if re.search(rf"(?<!\w){re.escape(marker)}(?!\w)", normalized):
             return True
     return False
 
