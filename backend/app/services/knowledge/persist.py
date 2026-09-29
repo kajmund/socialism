@@ -117,6 +117,7 @@ async def persist_extracted_knowledge(
     results: list[ClaimPersistResult] = []
     claim_id_map: dict[str, str] = {}
     accepted_claim_ids: list[str] = []
+    entity_id_map: dict[str, str] = {}
     for observation in observations:
         await _persist_observation(session, observation, counters)
     for claim in claims:
@@ -135,6 +136,7 @@ async def persist_extracted_knowledge(
             ),
         )
         _row, reused = await persist_knowledge_entity_result(session, entity)
+        entity_id_map[entity.id] = _row.id
         record_knowledge_decision(
             counters,
             KnowledgeDecision(
@@ -144,7 +146,7 @@ async def persist_extracted_knowledge(
                 identity_key=entity.id,
             ),
         )
-    for edge in _remap_relationships(relationships, claim_id_map):
+    for edge in _remap_relationships(relationships, claim_id_map, entity_id_map):
         record_knowledge_decision(
             counters,
             KnowledgeDecision(
@@ -262,10 +264,11 @@ async def _observation_from_claim(
 def _remap_relationships(
     relationships: Sequence[KnowledgeRelationship],
     claim_id_map: dict[str, str],
+    entity_id_map: dict[str, str],
 ) -> list[KnowledgeRelationship]:
     remapped: list[KnowledgeRelationship] = []
     for edge in relationships:
-        item = _remap_relationship(edge, claim_id_map)
+        item = _remap_relationship(edge, claim_id_map, entity_id_map)
         if item is not None:
             remapped.append(item)
     return remapped
@@ -274,6 +277,7 @@ def _remap_relationships(
 def _remap_relationship(
     edge: KnowledgeRelationship,
     claim_id_map: dict[str, str],
+    entity_id_map: dict[str, str],
 ) -> KnowledgeRelationship | None:
     from_id = edge.from_id
     to_id = edge.to_id
@@ -285,6 +289,10 @@ def _remap_relationship(
         if edge.to_id not in claim_id_map:
             return None
         to_id = claim_id_map[edge.to_id]
+    if edge.from_kind == "entity" and edge.from_id in entity_id_map:
+        from_id = entity_id_map[edge.from_id]
+    if edge.to_kind == "entity" and edge.to_id in entity_id_map:
+        to_id = entity_id_map[edge.to_id]
     if from_id == edge.from_id and to_id == edge.to_id:
         return edge
     extra = dict(edge.extra)

@@ -161,6 +161,8 @@ async def persist_knowledge_relationship_result(
 ) -> tuple[KnowledgeRelationshipRecord, bool]:
     row = await session.get(KnowledgeRelationshipRecord, edge.id)
     await _assert_endpoint_scopes(session, edge)
+    if row is None:
+        row = await _relationship_by_tuple(session, edge)
     if row is not None:
         return await _update_relationship(session, row, edge), True
     now = utc_now()
@@ -182,8 +184,8 @@ async def persist_knowledge_relationship_result(
             session.add(row)
             await session.flush()
     except IntegrityError:
-        # Another need inserted this shared edge and committed while we waited.
-        winner = await session.get(KnowledgeRelationshipRecord, edge.id)
+        # Concurrent or legacy rows can have a different PK but the same stable tuple.
+        winner = await _relationship_by_tuple(session, edge)
         if winner is None:
             raise
         return await _update_relationship(session, winner, edge), True
@@ -204,6 +206,25 @@ async def persist_knowledge_relationship_result(
         created_at=now,
     )
     return row, False
+
+
+async def _relationship_by_tuple(
+    session: AsyncSession,
+    edge: KnowledgeRelationship,
+) -> KnowledgeRelationshipRecord | None:
+    return (
+        await session.execute(
+            select(KnowledgeRelationshipRecord).where(
+                KnowledgeRelationshipRecord.scope_key == edge.scope.scope_key,
+                KnowledgeRelationshipRecord.relation == edge.relation,
+                KnowledgeRelationshipRecord.from_kind == edge.from_kind,
+                KnowledgeRelationshipRecord.from_id == edge.from_id,
+                KnowledgeRelationshipRecord.to_kind == edge.to_kind,
+                KnowledgeRelationshipRecord.to_id == edge.to_id,
+                KnowledgeRelationshipRecord.temporal_key == edge.temporal_key,
+            )
+        )
+    ).scalars().first()
 
 
 async def _update_relationship(
