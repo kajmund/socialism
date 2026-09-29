@@ -22,7 +22,7 @@ LEGAL_COURT = "legal.court"
 LEGAL_PROVISION = "legal.provision"
 
 
-def ground_legal_graph(  # noqa: C901, PLR0912
+def ground_legal_graph(
     result: LegalResearchResult,
     claims: Sequence[KnowledgeClaim],
     *,
@@ -88,17 +88,16 @@ def ground_legal_graph(  # noqa: C901, PLR0912
         )
 
     for citation in _citation_uris(result):
-        cited = add_entity(
-            knowledge_entity(
-                customer_id=customer_id,
-                entity_type=LEGAL_SOURCE,
-                key=citation,
-                name=citation,
-                extra={"canonical_uri": citation},
-            )
+        cited = knowledge_entity(
+            customer_id=customer_id,
+            entity_type=LEGAL_SOURCE,
+            key=citation,
+            name=citation,
+            extra={"canonical_uri": citation},
         )
         if cited.id == source.id:
             continue
+        add_entity(cited)
         add_edge(
             knowledge_relationship(
                 customer_id=customer_id,

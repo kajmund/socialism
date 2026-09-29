@@ -8,19 +8,19 @@ from dataclasses import dataclass, field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.observability.knowledge import (
+    KnowledgeDecision,
     KnowledgePersistStats,
     record_knowledge_decision,
 )
-from app.services.knowledge.claims import (
-    KnowledgeClaim,
-    persist_domain_claim,
-)
+from app.services.knowledge.claim_store import persist_domain_claim
+from app.services.knowledge.claims import KnowledgeClaim
 from app.services.knowledge.entities import (
     KnowledgeEntity,
     persist_knowledge_entity_result,
 )
 from app.services.knowledge.observations import (
     KnowledgeObservation,
+    ObservationSeed,
     knowledge_observation,
     persist_knowledge_observation,
 )
@@ -70,22 +70,26 @@ async def persist_extracted_claim(
     question_key: str = "",
 ) -> ClaimPersistResult:
     counters = stats or KnowledgePersistStats()
-    record_knowledge_decision(counters, kind="claim", action="proposed")
+    record_knowledge_decision(
+        counters, KnowledgeDecision(kind="claim", action="proposed")
+    )
     decision = classify_claim(claim)
     if decision.persistence_class != DOMAIN_KNOWLEDGE:
         return await _persist_rejected_claim(
-            session, claim, decision, counters, question_key
+            session, claim, decision, counters=counters, question_key=question_key
         )
     row, reused = await persist_domain_claim(session, claim)
     record_knowledge_decision(
         counters,
-        kind="claim",
-        action="reused" if reused else "accepted",
-        persistence_class=DOMAIN_KNOWLEDGE,
-        reason=decision.reason,
-        predicate=claim.predicate,
-        identity_key=row.identity_key,
-        document_id=claim.document_id,
+        KnowledgeDecision(
+            kind="claim",
+            action="reused" if reused else "accepted",
+            persistence_class=DOMAIN_KNOWLEDGE,
+            reason=decision.reason,
+            predicate=claim.predicate,
+            identity_key=row.identity_key,
+            document_id=claim.document_id,
+        ),
     )
     return ClaimPersistResult(
         action="reused" if reused else "accepted",
@@ -122,27 +126,37 @@ async def persist_extracted_knowledge(
             accepted_claim_ids.append(result.claim_id)
     for entity in entities:
         record_knowledge_decision(
-            counters, kind="entity", action="proposed", entity_type=entity.entity_type
+            counters,
+            KnowledgeDecision(
+                kind="entity", action="proposed", entity_type=entity.entity_type
+            ),
         )
         _row, reused = await persist_knowledge_entity_result(session, entity)
         record_knowledge_decision(
             counters,
-            kind="entity",
-            action="reused" if reused else "accepted",
-            entity_type=entity.entity_type,
-            identity_key=entity.id,
+            KnowledgeDecision(
+                kind="entity",
+                action="reused" if reused else "accepted",
+                entity_type=entity.entity_type,
+                identity_key=entity.id,
+            ),
         )
     for edge in _remap_relationships(relationships, claim_id_map):
         record_knowledge_decision(
-            counters, kind="relationship", action="proposed", relation=edge.relation
+            counters,
+            KnowledgeDecision(
+                kind="relationship", action="proposed", relation=edge.relation
+            ),
         )
         _row, reused = await persist_knowledge_relationship_result(session, edge)
         record_knowledge_decision(
             counters,
-            kind="relationship",
-            action="reused" if reused else "accepted",
-            relation=edge.relation,
-            identity_key=edge.id,
+            KnowledgeDecision(
+                kind="relationship",
+                action="reused" if reused else "accepted",
+                relation=edge.relation,
+                identity_key=edge.id,
+            ),
         )
     return ExtractedKnowledgePersistResult(
         stats=counters,
@@ -156,6 +170,7 @@ async def _persist_rejected_claim(
     session: AsyncSession,
     claim: KnowledgeClaim,
     decision: PersistenceDecision,
+    *,
     counters: KnowledgePersistStats,
     question_key: str,
 ) -> ClaimPersistResult:
@@ -163,22 +178,26 @@ async def _persist_rejected_claim(
     row, reused = await persist_knowledge_observation(session, observation)
     record_knowledge_decision(
         counters,
-        kind="claim",
-        action="rejected_by_class",
-        persistence_class=decision.persistence_class,
-        reason=decision.reason,
-        predicate=claim.predicate,
-        identity_key=claim.id,
-        document_id=claim.document_id,
+        KnowledgeDecision(
+            kind="claim",
+            action="rejected_by_class",
+            persistence_class=decision.persistence_class,
+            reason=decision.reason,
+            predicate=claim.predicate,
+            identity_key=claim.id,
+            document_id=claim.document_id,
+        ),
     )
     record_knowledge_decision(
         counters,
-        kind="observation",
-        action="reused" if reused else "accepted",
-        persistence_class=decision.persistence_class,
-        reason=decision.kind,
-        identity_key=row.id,
-        document_id=claim.document_id,
+        KnowledgeDecision(
+            kind="observation",
+            action="reused" if reused else "accepted",
+            persistence_class=decision.persistence_class,
+            reason=decision.kind,
+            identity_key=row.id,
+            document_id=claim.document_id,
+        ),
     )
     return ClaimPersistResult(
         action="rejected_by_class",
@@ -198,12 +217,14 @@ async def _persist_observation(
     row, reused = await persist_knowledge_observation(session, observation)
     record_knowledge_decision(
         counters,
-        kind="observation",
-        action="reused" if reused else "accepted",
-        persistence_class=observation.observation_class,
-        reason=observation.kind,
-        identity_key=row.id,
-        document_id=observation.document_id,
+        KnowledgeDecision(
+            kind="observation",
+            action="reused" if reused else "accepted",
+            persistence_class=observation.observation_class,
+            reason=observation.kind,
+            identity_key=row.id,
+            document_id=observation.document_id,
+        ),
     )
 
 
@@ -214,15 +235,16 @@ def _observation_from_claim(
     question_key: str,
 ) -> KnowledgeObservation:
     return knowledge_observation(
-        customer_id=claim.customer_id,
-        scope=claim.scope,
-        observation_class=decision.persistence_class,
-        kind=decision.kind,
-        document_id=claim.document_id,
-        document_version_id=claim.document_version_id,
-        statement_normalized=decision.statement_normalized or claim.predicate,
-        question_key=question_key,
-        extra={"predicate": claim.predicate},
+        ObservationSeed(
+            observation_class=decision.persistence_class,
+            kind=decision.kind,
+            document_id=claim.document_id,
+            document_version_id=claim.document_version_id,
+            statement_normalized=decision.statement_normalized or claim.predicate,
+            question_key=question_key,
+            extra={"predicate": claim.predicate},
+        ),
+        claim.scope,
     )
 
 
@@ -254,6 +276,9 @@ def _remap_relationship(
         to_id = claim_id_map[edge.to_id]
     if from_id == edge.from_id and to_id == edge.to_id:
         return edge
+    extra = dict(edge.extra)
+    if edge.temporal_key:
+        extra["temporal_key"] = edge.temporal_key
     return knowledge_relationship(
         customer_id=edge.customer_id,
         scope=edge.scope,
@@ -262,6 +287,5 @@ def _remap_relationship(
         from_id=from_id,
         to_kind=edge.to_kind,
         to_id=to_id,
-        extra=edge.extra,
-        temporal_key=edge.temporal_key,
+        extra=extra,
     )

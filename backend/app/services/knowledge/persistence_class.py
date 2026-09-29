@@ -189,20 +189,16 @@ def _contains_phrase(normalized: str, phrases: tuple[str, ...]) -> bool:
     return any(normalize_assertion_text(phrase) in normalized for phrase in phrases)
 
 
-def _source_quality_kind(normalized: str) -> str:
-    if _contains_phrase(normalized, ("ocr",)):
-        return "ocr"
-    if _contains_phrase(normalized, ("corrupt", "corrupted", "korrupt")):
-        return "corrupted"
-    if _contains_phrase(
-        normalized,
+_SOURCE_QUALITY_KIND_PHRASES = (
+    ("ocr", ("ocr",)),
+    ("corrupted", ("corrupt", "corrupted", "korrupt")),
+    (
+        "incorrect_source",
         ("incorrect source", "wrong source", "fel källa", "felaktig källa"),
-    ):
-        return "incorrect_source"
-    if _contains_phrase(normalized, ("retrieval limit", "retrieval limitation")):
-        return "retrieval_limit"
-    if _contains_phrase(
-        normalized,
+    ),
+    ("retrieval_limit", ("retrieval limit", "retrieval limitation")),
+    (
+        "truncation",
         (
             "truncated",
             "truncation",
@@ -211,8 +207,13 @@ def _source_quality_kind(normalized: str) -> str:
             "trunkering",
             "referatet är trunkerat",
         ),
-    ):
-        return "truncation"
-    if _contains_phrase(normalized, ("partial source",)):
-        return "partial_source"
+    ),
+    ("partial_source", ("partial source",)),
+)
+
+
+def _source_quality_kind(normalized: str) -> str:
+    for kind, phrases in _SOURCE_QUALITY_KIND_PHRASES:
+        if _contains_phrase(normalized, phrases):
+            return kind
     return "incomplete_source"

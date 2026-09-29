@@ -7,13 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
+from app.database.knowledge_observation import KnowledgeObservationRecord
 from app.database.models import (
     CanonicalDocumentRecord,
     DocumentVersionRecord,
     KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
     KnowledgeEntityRecord,
-    KnowledgeObservationRecord,
     KnowledgeRelationshipRecord,
     Kund,
     TextUnitRecord,
