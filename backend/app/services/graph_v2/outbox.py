@@ -5,7 +5,7 @@ import json
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -66,7 +66,7 @@ def _deserialize(work: GraphIngestWork):
     return claims, entities, payload["module"]
 
 
-async def claim_graph_work(factory: async_sessionmaker[AsyncSession]) -> str | None:
+async def claim_graph_work(factory: async_sessionmaker[AsyncSession]) -> tuple[str, int] | None:
     now = datetime.now(UTC)
     async with factory.begin() as session:
         row = await session.scalar(select(GraphIngestWork).where(
@@ -82,7 +82,7 @@ async def claim_graph_work(factory: async_sessionmaker[AsyncSession]) -> str | N
         row.claimed_at = now
         row.retry_at = None
         row.attempts += 1
-        return row.id
+        return row.id, row.attempts
 
 
 async def process_graph_work(
@@ -93,9 +93,10 @@ async def process_graph_work(
     completed = failed = 0
     provider = embedder or OpenAIEmbeddingProvider.from_settings()
     for _ in range(limit):
-        work_id = await claim_graph_work(factory)
-        if work_id is None:
+        claim = await claim_graph_work(factory)
+        if claim is None:
             break
+        work_id, attempt = claim
         try:
             async with factory.begin() as session:
                 row = await session.get(GraphIngestWork, work_id)
@@ -105,21 +106,31 @@ async def process_graph_work(
                     embedder=provider, judge=judge, node_judge=node_judge,
                     module=module,
                 )
-                row.status = "completed"
-                row.processed_at = datetime.now(UTC)
-                row.retry_at = None
-                row.last_error = None
-            completed += 1
+                result = await session.execute(update(GraphIngestWork).where(
+                    GraphIngestWork.id == work_id,
+                    GraphIngestWork.status == "processing",
+                    GraphIngestWork.attempts == attempt,
+                ).values(status="completed", processed_at=datetime.now(UTC),
+                         retry_at=None, last_error=None))
+            completed += int(result.rowcount == 1)
         except Exception as exc:  # One bad projection must not stall the queue.
             logger.exception("graph_v2.ingest_failed work_id=%s", work_id)
-            async with factory.begin() as session:
-                row = await session.get(GraphIngestWork, work_id)
-                row.status = "pending"
-                row.retry_at = datetime.now(UTC) + timedelta(
-                    seconds=min(5 * 2 ** min(row.attempts - 1, 7), 600),
-                )
-                row.last_error = str(exc)[:2000]
+            await _retry_graph_work(factory, work_id, attempt, exc)
             failed += 1
             # A failed item stays eligible after this batch, but not in a tight loop.
             break
     return {"completed": completed, "failed": failed}
+
+
+async def _retry_graph_work(
+    factory: async_sessionmaker[AsyncSession], work_id: str,
+    attempt: int, exc: Exception,
+) -> None:
+    delay = min(5 * 2 ** min(attempt - 1, 7), 600)
+    async with factory.begin() as session:
+        await session.execute(update(GraphIngestWork).where(
+            GraphIngestWork.id == work_id,
+            GraphIngestWork.status == "processing",
+            GraphIngestWork.attempts == attempt,
+        ).values(status="pending", retry_at=datetime.now(UTC) + timedelta(seconds=delay),
+                 last_error=str(exc)[:2000]))

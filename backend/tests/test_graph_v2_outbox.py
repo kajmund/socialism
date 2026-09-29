@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.database.base import Base
 from app.database.graph_v2 import GraphIngestWork
 from app.database.models import Kund
-from app.services.graph_v2.outbox import enqueue_legal_graph, process_graph_work
+from app.services.graph_v2.outbox import (
+    _retry_graph_work,
+    claim_graph_work,
+    enqueue_legal_graph,
+    process_graph_work,
+)
 from app.services.knowledge.claims import KnowledgeClaim
 
 
@@ -66,4 +71,32 @@ async def test_outbox_key_distinguishes_new_facts_on_same_research_need(tmp_path
         assert await enqueue_legal_graph(session, claims=[first], **common) == first_id
         assert await session.scalar(select(func.count()).select_from(GraphIngestWork)) == 2
         assert (await session.get(GraphIngestWork, first_id)).payload["module"] == "politik"
+    await engine.dispose()
+
+
+async def test_expired_worker_cannot_requeue_a_completed_newer_attempt(tmp_path):
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/lease.db")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory.begin() as session:
+        session.add(Kund(id=1, name="One", slug="one", available_modules=[]))
+        session.add(GraphIngestWork(
+            id="race", customer_id=1, scope_key="customer:1",
+            payload={}, status="pending", attempts=0,
+        ))
+    assert await claim_graph_work(factory) == ("race", 1)
+    async with factory.begin() as session:
+        row = await session.get(GraphIngestWork, "race")
+        row.claimed_at = datetime.now(UTC) - timedelta(minutes=6)
+    assert await claim_graph_work(factory) == ("race", 2)
+    await _retry_graph_work(factory, "race", 1, RuntimeError("late failure"))
+    async with factory.begin() as session:
+        row = await session.get(GraphIngestWork, "race")
+        assert row.status == "processing" and row.attempts == 2
+        row.status = "completed"
+    await _retry_graph_work(factory, "race", 1, RuntimeError("late failure"))
+    async with factory() as session:
+        row = await session.get(GraphIngestWork, "race")
+        assert row.status == "completed" and row.retry_at is None
     await engine.dispose()
