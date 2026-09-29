@@ -1,6 +1,7 @@
 """Bounded Jev TTL classification outside research and outside DB transactions."""
 
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ from app.services.knowledge.answer_review import (
     review_after,
 )
 
+logger = logging.getLogger(__name__)
 
 MAX_CLASSIFICATION_ATTEMPTS = 5
 _RETRY_BASE = timedelta(minutes=5)
@@ -149,7 +151,8 @@ async def classify_pending_reviews(
                 timeout_seconds=settings.jev_timeout_seconds,
             )
             decision = parse_review_decision(result.answers)
-        except Exception as exc:  # noqa: BLE001 - one bad row must not stall the queue
+        except Exception as exc:  # one bad row must not stall the queue
+            logger.exception("answer_review_classification_failed id=%s", claim["id"])
             category = str(getattr(exc, "category", None) or type(exc).__name__)[:64]
             await _record_failure(factory, claim=claim, category=category)
             failed.append({"id": claim["id"], "error": category})
