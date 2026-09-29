@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
+from app.services.graph_v2.errors import JevMalformedResponseError
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.knowledge.scope import customer_scope
 from app.services.graph_v2.prompts import graph_fact_prompt_fields
@@ -37,7 +38,7 @@ async def test_fact_decision_comes_from_seeded_question(choice):
 
 async def test_invalid_model_decision_cannot_be_stored():
     judge = JevFactJudge(graph_fact_prompt_fields()[0]["defaults"]["en"], FakeJev("MAYBE"))
-    with pytest.raises(ValueError, match="invalid decision"):
+    with pytest.raises(JevMalformedResponseError, match="invalid decision"):
         await judge.compare(FactInput(
             source_id="a", target_id="b", scope=customer_scope(1),
             predicate="core.relates_to", fact_text="A gäller B",
@@ -55,5 +56,5 @@ async def test_value_node_judge_merges_only_explicit_same_decision():
     assert not await JevNodeJudge(prompt, FakeJev("DISTINCT")).same_node(
         proposed, "consumer vulnerability",
     )
-    with pytest.raises(ValueError, match="invalid decision"):
+    with pytest.raises(JevMalformedResponseError, match="invalid decision"):
         await JevNodeJudge(prompt, FakeJev("CONTRADICTS")).same_node(proposed, "other")

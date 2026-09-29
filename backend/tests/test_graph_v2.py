@@ -125,6 +125,18 @@ async def test_context_occurrence_tenant_and_multi_hop(session):
         await resolve_fact(session, fact(a, await node(session, "foreign", customer=2), "bad"))
 
 
+async def test_sqlite_lexical_ties_use_fact_id_as_stable_tiebreaker(session):
+    pairs = [(await node(session, f"subject-{i}"), await node(session, f"object-{i}"))
+             for i in range(2)]
+    facts = [await resolve_fact(session, fact(source, target, "shared searchable phrase"))
+             for source, target in pairs]
+    expected = sorted(row.id for row, _ in facts)
+
+    hits = await hybrid_facts(session, customer_id=1, query="shared searchable phrase", limit=2)
+
+    assert [hit.fact.id for hit in hits] == expected
+
+
 async def test_weak_node_judge_can_merge_synonyms_only_within_context(session):
     class SynonymJudge:
         async def same_node(self, proposed, candidate_name):

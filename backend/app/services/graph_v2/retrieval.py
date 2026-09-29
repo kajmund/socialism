@@ -42,7 +42,8 @@ async def hybrid_facts(
         lexical_order = GraphFact.normalized_text
     lexical_rows = list((await session.scalars(select(GraphFact).where(
         _visible(customer_id), GraphFact.status == "active", lexical,
-    ).order_by(lexical_order, GraphFact.normalized_text).limit(max(100, limit * 5)))).all())
+        ).order_by(lexical_order, GraphFact.normalized_text, GraphFact.id)
+          .limit(max(100, limit * 5)))).all())
     semantic_rows = await _semantic_candidates(
         session, customer_id=customer_id, embedding=embedding,
         model=embedding_model, limit=max(100, limit * 5),

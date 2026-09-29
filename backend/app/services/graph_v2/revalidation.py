@@ -13,6 +13,7 @@ from app.database.graph_v2 import (
     GraphQuestionRevalidationWork,
 )
 from app.services.graph_v2.identity import stable_id
+from app.services.graph_v2.errors import PermanentGraphError
 
 
 async def attach_question_dependency(
@@ -22,12 +23,12 @@ async def attach_question_dependency(
     question = await session.get(GraphNode, question_node_id)
     fact = await session.get(GraphFact, fact_id)
     if question is None or question.node_type != "core.question" or fact is None:
-        raise ValueError("question dependency requires a persisted question node and fact")
+        raise PermanentGraphError("question dependency requires a persisted question node and fact")
     if question.scope_key != fact.scope_key and question.scope_key != "shared":
-        raise ValueError("question dependency cannot cross tenant scopes")
+        raise PermanentGraphError("question dependency cannot cross tenant scopes")
     sources = await fact_provenance(session, fact_id)
     if not sources:
-        raise ValueError("question dependency requires fact provenance")
+        raise PermanentGraphError("question dependency requires fact provenance")
     dependency_id = stable_id("question-depends-on", question_node_id, fact_id)
     row = await session.get(GraphFactQuestionDependency, dependency_id)
     if row is not None:
@@ -62,7 +63,7 @@ async def schedule_fact_revalidation(
     """
     trigger = await session.get(GraphFact, trigger_fact_id)
     if trigger is None:
-        raise ValueError("revalidation trigger fact is missing")
+        raise PermanentGraphError("revalidation trigger fact is missing")
     trigger_sources = await fact_provenance(session, trigger.id)
     if not trigger_sources:
         return 0
@@ -121,10 +122,10 @@ async def enqueue_question_revalidation(
     """Record a complete answer-basis review request at the shared freeze boundary."""
     question = await session.get(GraphNode, question_node_id)
     if question is None or question.node_type != "core.question":
-        raise ValueError("revalidation work requires a canonical question node")
+        raise PermanentGraphError("revalidation work requires a canonical question node")
     scope_key = f"customer:{customer_id}"
     if question.scope_key not in {scope_key, "shared"}:
-        raise ValueError("question revalidation cannot cross tenant scope")
+        raise PermanentGraphError("question revalidation cannot cross tenant scope")
     work_id = stable_id("graph-question-revalidation", scope_key, question_node_id, evidence_set_id)
     row = await session.get(GraphQuestionRevalidationWork, work_id)
     if row is not None:
