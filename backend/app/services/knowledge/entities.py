@@ -6,6 +6,7 @@ import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -110,6 +111,8 @@ async def persist_knowledge_entity_result(
     entity: KnowledgeEntity,
 ) -> tuple[KnowledgeEntityRecord, bool]:
     row = await session.get(KnowledgeEntityRecord, entity.id)
+    if row is None:
+        row = await _entity_by_stable_key(session, entity)
     if row is not None:
         return await _update_entity(session, row, entity), True
     row = KnowledgeEntityRecord(
@@ -125,12 +128,30 @@ async def persist_knowledge_entity_result(
             session.add(row)
             await session.flush()
     except IntegrityError:
-        # Another need inserted this shared identity and committed while we waited.
-        winner = await session.get(KnowledgeEntityRecord, entity.id)
+        # Concurrent or legacy rows may use a different PK for the same stable key.
+        winner = await _entity_by_stable_key(session, entity)
         if winner is None:
             raise
         return await _update_entity(session, winner, entity), True
     return row, False
+
+
+async def _entity_by_stable_key(
+    session: AsyncSession,
+    entity: KnowledgeEntity,
+) -> KnowledgeEntityRecord | None:
+    rows = (
+        await session.execute(
+            select(KnowledgeEntityRecord).where(
+                KnowledgeEntityRecord.scope_key == entity.scope.scope_key,
+                KnowledgeEntityRecord.entity_type == entity.entity_type,
+            )
+        )
+    ).scalars().all()
+    return next(
+        (row for row in rows if _normalize_key(row.entity_key) == entity.key),
+        None,
+    )
 
 
 async def _update_entity(
