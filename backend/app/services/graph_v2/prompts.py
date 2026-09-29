@@ -19,11 +19,16 @@ def graph_fact_prompt_fields() -> list[dict]:
             "CONTRADICTS": "Mutually exclusive assertions for the same occurrence and time.",
         },
     }
-    return [{
+    field = {
         "key": "research.graph_fact_resolution",
         "section": "research",
         "label": {"sv": "Graf — faktaupplösning", "en": "Graph — fact resolution"},
         "hint": {"sv": "Semantisk jämförelse av faktakanter.",
                  "en": "Semantic comparison of fact edges."},
         "defaults": {"sv": json.dumps(question), "en": json.dumps(question)},
-    }]
+    }
+    legal_report_field = {
+        **field,
+        "key": "rattsunderlag.graph_fact_resolution",
+    }
+    return [field, legal_report_field]
