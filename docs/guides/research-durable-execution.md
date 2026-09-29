@@ -69,6 +69,24 @@ research. Errors while binding assessor / follow-up / completeness (before
 `execute_attempt_research` is the single execution implementation. Direct
 calls remain the synchronous test seam.
 
+## Database connections during model work
+
+The initial planner, local assessor, completeness reviewer and follow-up
+normalizer run after the current session commits its prepared input checkpoint.
+Barrier quality scoring also commits derived evidence before calling the model.
+Production sessions use `expire_on_commit=False`, so prepared inputs remain
+available without another database read. Result persistence opens the next
+transaction; model failures still follow the existing failure/recovery path.
+Previously committed evidence is retained and does not imply a completed assessment.
+
+The lagen.nu domain-result cache releases its transaction under the source
+session lock, on both hits and misses, before document interpretation. Claims
+and edges remain deferred until all documents have been interpreted.
+
+These boundaries return connections to the pool while external work is pending,
+leaving capacity for progress reads and lease heartbeats. Pool sizes and timeout
+settings are unchanged.
+
 ## Recovery
 
 A worker crash leaves Attempt `researching` and the lease to expire. The

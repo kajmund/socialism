@@ -91,6 +91,7 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
     original_persist = writeback.persist_knowledge_claims
 
     async def tracking_interpret(self, **kwargs):
+        assert not session.in_transaction()
         events.append("interpret")
         return await original_interpret(self, **kwargs)
 
