@@ -875,8 +875,6 @@ async def _seed_claim_answer(
             value=value,
         ),
         customer_id=customer_id,
-        document_id="doc-claim",
-        document_version_id="ver-claim",
         predicate="legal.adjustment_granted",
         value=value,
         supporting_text_unit_ids=("tu-claim",),

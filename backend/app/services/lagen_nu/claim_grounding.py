@@ -114,8 +114,6 @@ def ground_legal_extraction(
             domain_claim.citations,
             units,
             customer_id=customer_id,
-            document_id=document_id,
-            document_version_id=document_version_id,
         )
         if claim is not None:
             grounded.append(claim)
@@ -177,8 +175,6 @@ def _ground_domain_claim(
     units: Sequence[TextUnitRecord],
     *,
     customer_id: int,
-    document_id: str,
-    document_version_id: str,
 ) -> KnowledgeClaim | None:
     quotes = [
         str(citation.get("quote") or "").strip()
@@ -208,8 +204,6 @@ def _ground_domain_claim(
         )
     return knowledge_claim(
         customer_id=customer_id,
-        document_id=document_id,
-        document_version_id=document_version_id,
         predicate=predicate,
         value=value,
         supporting_text_unit_ids=support,

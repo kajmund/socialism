@@ -28,6 +28,8 @@ scope_key + predicate + normalize(assertion)
 
 Re-extraction of the same assertion attaches additional TextUnit / question links to the existing row. It does not replace support and does not change the identity. Domains that need a finer split must put that discriminator in the structured assertion, not in the source.
 
+Provenance is only `knowledge_claim_text_units` → `text_units` → `document_version` → `canonical_document`. `knowledge_claims` has no `document_id` / `document_version_id`. Deleting a document removes that document's support links. The claim stays if another document still supports it; unsupported claims are pruned. Audit/cleanup winners are oldest `created_at`, then `id` — never a source field.
+
 ## Entities and relationships
 
 - Entity identity stays `(scope_key, entity_type, entity_key)` with a deterministic normalized key. Do not create a second entity for the same canonical key (store aliases in `extra`).

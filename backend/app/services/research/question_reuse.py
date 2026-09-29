@@ -572,13 +572,15 @@ async def _claim_hit_to_evidence(
     hit: KnowledgeClaimAnswerHit,
     freshness: Freshness,
 ) -> ResearchEvidence:
-    document = await session.get(CanonicalDocumentRecord, hit.claim.document_id)
-    if document is None:
-        raise KnowledgeClaimError(
-            f"claim {hit.claim.id} document {hit.claim.document_id} is missing"
-        )
     units = await _supporting_units(session, hit.claim.supporting_text_unit_ids)
     excerpt = "\n\n".join(unit.text for unit in units)
+    document_ids = list(dict.fromkeys(unit.document_id for unit in units))
+    version_ids = list(dict.fromkeys(unit.document_version_id for unit in units))
+    document = await session.get(CanonicalDocumentRecord, document_ids[0])
+    if document is None:
+        raise KnowledgeClaimError(
+            f"claim {hit.claim.id} document {document_ids[0]} is missing"
+        )
     evidence_ref = hit.claim.id
     return research_evidence(
         research_need_id=need.id,
@@ -587,14 +589,16 @@ async def _claim_hit_to_evidence(
         title=document.title,
         excerpt=excerpt,
         locator=",".join(hit.claim.supporting_text_unit_ids),
-        source_id=hit.claim.document_id,
+        source_id=document.id,
         source_url=document.canonical_uri,
         provider="knowledge_claim",
         retrieved_at=hit.created_at,
         metadata={
             "knowledge_claim_ids": [hit.claim.id],
             "supporting_text_unit_ids": list(hit.claim.supporting_text_unit_ids),
-            "document_version_id": hit.claim.document_version_id,
+            "document_ids": document_ids,
+            "document_version_ids": version_ids,
+            "document_version_id": version_ids[0],
             "answered_by_question_key": research_question_key(need.question),
             "reuse": reuse_lineage(
                 origin=REUSE_ORIGIN_PERSISTENT,

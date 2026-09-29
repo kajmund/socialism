@@ -15,7 +15,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import (
-    CanonicalDocumentRecord,
     KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
     KnowledgeClaimTextUnit,
@@ -57,8 +56,6 @@ class ClaimPassage(Protocol):
 class KnowledgeClaim:
     id: str
     customer_id: int | None
-    document_id: str
-    document_version_id: str
     predicate: str
     value: dict[str, object]
     supporting_text_unit_ids: tuple[str, ...]
@@ -99,8 +96,6 @@ def knowledge_claim_id(
 
 def knowledge_claim(
     *,
-    document_id: str,
-    document_version_id: str,
     predicate: str,
     value: dict[str, object],
     supporting_text_unit_ids: Sequence[str],
@@ -116,8 +111,6 @@ def knowledge_claim(
         id=identity,
         customer_id=scope.customer_id,
         scope_type=scope.scope_type,
-        document_id=document_id,
-        document_version_id=document_version_id,
         predicate=predicate,
         value=value,
         supporting_text_unit_ids=tuple(supporting_text_unit_ids),
@@ -319,8 +312,6 @@ async def claim_answers_for_question_key(
                     id=record.id,
                     customer_id=scope_from_row(record).customer_id,
                     scope_type=scope_from_row(record).scope_type,
-                    document_id=record.document_id,
-                    document_version_id=record.document_version_id,
                     predicate=record.predicate,
                     value=record.value,
                     supporting_text_unit_ids=tuple(support),
@@ -378,16 +369,6 @@ async def assert_claim_grounding_scope(
     session: AsyncSession,
     claim: KnowledgeClaim,
 ) -> None:
-    document = await session.get(CanonicalDocumentRecord, claim.document_id)
-    if document is None:
-        raise KnowledgeClaimError(f"claim {claim.id} document {claim.document_id} is missing")
-    document_scope = scope_from_row(document)
-    try:
-        assert_not_promoted(source=document_scope, target=claim.scope)
-    except KnowledgeScopeError as exc:
-        raise KnowledgeClaimError(str(exc)) from exc
-    if document_scope.scope_type == SCOPE_CUSTOMER and claim.scope != document_scope:
-        raise KnowledgeClaimError("customer claim must stay in the document tenant scope")
     for unit_id in claim.supporting_text_unit_ids:
         unit = await session.get(TextUnitRecord, unit_id)
         if unit is None:
@@ -405,6 +386,18 @@ async def assert_claim_grounding_scope(
             and not visible_to(owned=unit_scope, reader_customer_id=claim.scope.customer_id)
         ):
             raise KnowledgeClaimError("customer claim cannot ground in another tenant TextUnit")
+
+
+async def document_refs_for_units(
+    session: AsyncSession,
+    unit_ids: Sequence[str],
+) -> tuple[str, str] | None:
+    if not unit_ids:
+        return None
+    unit = await session.get(TextUnitRecord, unit_ids[0])
+    if unit is None:
+        return None
+    return unit.document_id, unit.document_version_id
 
 
 async def supporting_text_unit_ids_for_claim(

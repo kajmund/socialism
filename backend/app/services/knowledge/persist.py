@@ -13,7 +13,11 @@ from app.observability.knowledge import (
     record_knowledge_decision,
 )
 from app.services.knowledge.claim_store import persist_domain_claim
-from app.services.knowledge.claims import KnowledgeClaim
+from app.services.knowledge.claims import (
+    KnowledgeClaim,
+    KnowledgeClaimError,
+    document_refs_for_units,
+)
 from app.services.knowledge.entities import (
     KnowledgeEntity,
     persist_knowledge_entity_result,
@@ -88,7 +92,6 @@ async def persist_extracted_claim(
             reason=decision.reason,
             predicate=claim.predicate,
             identity_key=row.identity_key,
-            document_id=claim.document_id,
         ),
     )
     return ClaimPersistResult(
@@ -174,7 +177,9 @@ async def _persist_rejected_claim(
     counters: KnowledgePersistStats,
     question_key: str,
 ) -> ClaimPersistResult:
-    observation = _observation_from_claim(claim, decision, question_key=question_key)
+    observation = await _observation_from_claim(
+        session, claim, decision, question_key=question_key
+    )
     row, reused = await persist_knowledge_observation(session, observation)
     record_knowledge_decision(
         counters,
@@ -185,7 +190,6 @@ async def _persist_rejected_claim(
             reason=decision.reason,
             predicate=claim.predicate,
             identity_key=claim.id,
-            document_id=claim.document_id,
         ),
     )
     record_knowledge_decision(
@@ -196,7 +200,7 @@ async def _persist_rejected_claim(
             persistence_class=decision.persistence_class,
             reason=decision.kind,
             identity_key=row.id,
-            document_id=claim.document_id,
+            document_id=observation.document_id,
         ),
     )
     return ClaimPersistResult(
@@ -228,18 +232,25 @@ async def _persist_observation(
     )
 
 
-def _observation_from_claim(
+async def _observation_from_claim(
+    session: AsyncSession,
     claim: KnowledgeClaim,
     decision: PersistenceDecision,
     *,
     question_key: str,
 ) -> KnowledgeObservation:
+    refs = await document_refs_for_units(session, claim.supporting_text_unit_ids)
+    if refs is None:
+        raise KnowledgeClaimError(
+            f"claim {claim.id} has no TextUnit document for observation"
+        )
+    document_id, document_version_id = refs
     return knowledge_observation(
         ObservationSeed(
             observation_class=decision.persistence_class,
             kind=decision.kind,
-            document_id=claim.document_id,
-            document_version_id=claim.document_version_id,
+            document_id=document_id,
+            document_version_id=document_version_id,
             statement_normalized=decision.statement_normalized or claim.predicate,
             question_key=question_key,
             extra={"predicate": claim.predicate},
