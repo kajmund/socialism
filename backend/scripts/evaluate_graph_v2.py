@@ -83,12 +83,6 @@ async def evaluate() -> dict:
             query = str(entry["value"]["value"]).lower()
             result = await hybrid_facts(session, customer_id=1, query=query, limit=3)
             hits[entry["id"]] = ids[entry["id"]] in {hit.fact.id for hit in result}
-        source = await session.scalar(select(GraphNode).where(
-            GraphNode.identity_key == "legal.canonical_uri:fixture://case/positive",
-        ))
-        neighbours = await neighbourhood(session, customer_id=1, seeds=[source.id], max_hops=2)
-        reachable = {hit.fact.id for hit in neighbours}
-        multi = all(ids[key] in reachable for key in ("positive", "term_type", "commercial"))
         proposition = await session.scalar(select(GraphNode).where(
             GraphNode.identity_key == "legal.canonical_uri:fixture://prop/1975-76-81",
         ))
@@ -98,10 +92,20 @@ async def evaluate() -> dict:
         cross_reachable = ids["statute_36_protection"] in {
             hit.fact.id for hit in cross_source
         }
-        shared_value = (await session.get(GraphFact, ids["prop_1975_76_81_protection"])).target_id
-        shared_value_equals = shared_value == (
-            await session.get(GraphFact, ids["statute_36_protection"])
-        ).target_id
+        proposition_fact = await session.get(GraphFact, ids["prop_1975_76_81_protection"])
+        statute_fact = await session.get(GraphFact, ids["statute_36_protection"])
+        shared_value = await session.get(GraphNode, proposition_fact.target_id)
+        statute_source = await session.get(GraphNode, statute_fact.source_id)
+        statute_hit = next(
+            (hit for hit in cross_source if hit.fact.id == statute_fact.id), None,
+        )
+        cross_path = bool(
+            statute_hit is not None and statute_hit.hop == 2
+            and proposition_fact.source_id == proposition.id
+            and statute_fact.source_id == statute_source.id
+            and proposition.id != statute_source.id
+            and proposition_fact.target_id == statute_fact.target_id
+        )
         isolated = await hybrid_facts(session, customer_id=2, query="liability_cap")
     await engine.dispose()
     return {
@@ -110,9 +114,14 @@ async def evaluate() -> dict:
         "first_pass": first, "replay": replay,
         "growth_on_replay": {key: replay[key] - first[key] for key in first},
         "lexical_recall_at_3": {"hits": sum(hits.values()), "total": len(hits)},
-        "positive_case_three_facts_reachable_in_two_hops": multi,
-        "cross_source_two_hop": cross_reachable,
-        "shared_consumer_protection_value": shared_value_equals,
+        "cross_source_two_hop": cross_reachable and cross_path,
+        "multi_hop_path": {
+            "from": proposition.name,
+            "via": f"{shared_value.node_type}:{shared_value.name}",
+            "to": statute_source.name,
+            "hops": statute_hit.hop if statute_hit is not None else None,
+        },
+        "shared_consumer_protection_value": proposition_fact.target_id == statute_fact.target_id,
         "other_tenant_hits": len(isolated),
     }
 
