@@ -7,14 +7,18 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.database.base import Base
 from app.database.graph_v2 import GraphIngestWork
-from app.database.models import Kund
+from app.database.models import (
+    CanonicalDocumentRecord, DocumentVersionRecord, Kund, TextUnitRecord,
+)
 from app.services.graph_v2.outbox import (
     _retry_graph_work,
+    _is_permanent_graph_error,
     claim_graph_work,
     enqueue_legal_graph,
     process_graph_work,
 )
 from app.services.knowledge.claims import KnowledgeClaim
+from sqlalchemy.exc import DataError, IntegrityError
 
 
 class FakeEmbedder:
@@ -25,7 +29,7 @@ class FakeEmbedder:
         return [[1.0, 0.0] for _ in texts]
 
 
-async def test_failed_projection_keeps_retryable_payload(tmp_path):
+async def test_invalid_projection_payload_is_terminal_and_keeps_payload(tmp_path):
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/outbox.db")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -40,18 +44,72 @@ async def test_failed_projection_keeps_retryable_payload(tmp_path):
     assert result == {"completed": 0, "failed": 1}
     async with factory() as session:
         work = await session.scalar(select(GraphIngestWork))
-        assert work.status == "pending"
+        assert work.status == "failed"
         assert work.attempts == 1
         assert work.last_error
-        assert work.retry_at is not None
-        work.retry_at = datetime.now(UTC) - timedelta(seconds=1)
-        await session.commit()
+        assert work.retry_at is None
+        assert work.payload == {"claims": [{"bad": "shape"}]}
     assert await process_graph_work(factory, embedder=FakeEmbedder()) == {
+        "completed": 0, "failed": 0,
+    }
+    await engine.dispose()
+
+
+def test_graph_error_classification_separates_permanent_from_transient():
+    assert _is_permanent_graph_error(ValueError("bad payload"))
+    assert _is_permanent_graph_error(DataError("INSERT", {}, Exception("value too long")))
+    assert _is_permanent_graph_error(IntegrityError("constraint", {}, Exception()))
+    assert not _is_permanent_graph_error(TimeoutError("provider timeout"))
+    assert not _is_permanent_graph_error(ConnectionError("provider unavailable"))
+
+
+async def test_transient_embedding_failure_stays_retryable(tmp_path):
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/transient.db")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory.begin() as session:
+        session.add(Kund(id=1, name="One", slug="one", available_modules=[]))
+        session.add(CanonicalDocumentRecord(
+            id="doc", scope_type="customer", scope_key="customer:1", customer_id=1,
+            source_type="upload", canonical_uri="doc://case-x", title="Case X", extra={},
+        ))
+        session.add(DocumentVersionRecord(
+            id="version", scope_type="customer", scope_key="customer:1", customer_id=1,
+            document_id="doc", content_hash="version-hash", mime_type="text/plain", extra={},
+        ))
+        session.add(TextUnitRecord(
+            id="unit", scope_type="customer", scope_key="customer:1", customer_id=1,
+            document_version_id="version", document_id="doc", section_id=None,
+            ordinal=0, text="No adjustment", content_hash="unit-hash",
+        ))
+        session.add(GraphIngestWork(
+            id="transient", customer_id=1, scope_key="customer:1", status="pending",
+            attempts=0, payload={
+                "module": "dd",
+                "claims": [{
+                    "id": "claim", "predicate": "legal.outcome",
+                    "value": {"value": "No adjustment"}, "unit_ids": ["unit"],
+                }],
+                "entities": [{
+                    "id": "source", "entity_type": "legal.source",
+                    "key": "https://example.test/case", "name": "Case X", "extra": {},
+                }],
+            },
+        ))
+
+    class OfflineEmbedder(FakeEmbedder):
+        async def embed(self, texts):
+            raise TimeoutError("embedding provider timeout")
+
+    assert await process_graph_work(factory, embedder=OfflineEmbedder()) == {
         "completed": 0, "failed": 1,
     }
     async with factory() as session:
-        work = await session.get(GraphIngestWork, "broken")
-        assert work.status == "pending" and work.attempts == 2
+        work = await session.get(GraphIngestWork, "transient")
+        assert work.status == "pending"
+        assert work.attempts == 1
+        assert work.retry_at is not None
     await engine.dispose()
 
 

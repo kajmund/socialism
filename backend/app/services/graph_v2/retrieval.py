@@ -39,10 +39,10 @@ async def hybrid_facts(
         lexical_order = func.ts_rank_cd(vector, parsed).desc()
     else:
         lexical = or_(*(GraphFact.normalized_text.ilike(f"%{term}%") for term in terms))
-        lexical_order = GraphFact.id
+        lexical_order = GraphFact.normalized_text
     lexical_rows = list((await session.scalars(select(GraphFact).where(
         _visible(customer_id), GraphFact.status == "active", lexical,
-    ).order_by(lexical_order).limit(max(100, limit * 5)))).all())
+    ).order_by(lexical_order, GraphFact.normalized_text).limit(max(100, limit * 5)))).all())
     semantic_rows = await _semantic_candidates(
         session, customer_id=customer_id, embedding=embedding,
         model=embedding_model, limit=max(100, limit * 5),

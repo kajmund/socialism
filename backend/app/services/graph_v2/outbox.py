@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import or_, select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.graph_v2 import GraphIngestWork
@@ -116,12 +116,41 @@ async def process_graph_work(
                          retry_at=None, last_error=None))
             completed += int(result.rowcount == 1)
         except Exception as exc:  # One bad projection must not stall the queue.
-            logger.exception("graph_v2.ingest_failed work_id=%s", work_id)
-            await _retry_graph_work(factory, work_id, attempt, exc)
+            if _is_permanent_graph_error(exc):
+                logger.exception(
+                    "graph_v2.ingest_terminal work_id=%s error_type=%s",
+                    work_id, type(exc).__name__,
+                )
+                await _fail_graph_work(factory, work_id, attempt, exc)
+            else:
+                logger.exception(
+                    "graph_v2.ingest_retryable work_id=%s error_type=%s",
+                    work_id, type(exc).__name__,
+                )
+                await _retry_graph_work(factory, work_id, attempt, exc)
             failed += 1
             # A failed item stays eligible after this batch, but not in a tight loop.
             break
     return {"completed": completed, "failed": failed}
+
+
+def _is_permanent_graph_error(exc: Exception) -> bool:
+    """Payload, invariant, and data-shape failures cannot heal on retry."""
+    return isinstance(
+        exc, (ValueError, TypeError, KeyError, IndexError, DataError, IntegrityError, ProgrammingError),
+    )
+
+
+async def _fail_graph_work(
+    factory: async_sessionmaker[AsyncSession], work_id: str,
+    attempt: int, exc: Exception,
+) -> None:
+    async with factory.begin() as session:
+        await session.execute(update(GraphIngestWork).where(
+            GraphIngestWork.id == work_id,
+            GraphIngestWork.status == "processing",
+            GraphIngestWork.attempts == attempt,
+        ).values(status="failed", retry_at=None, last_error=str(exc)[:2000]))
 
 
 async def _retry_graph_work(
