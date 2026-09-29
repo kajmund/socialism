@@ -91,6 +91,8 @@ def _claim(*, value: object, predicate: str = "outcome.granted") -> KnowledgeCla
     return KnowledgeClaim(
         id=knowledge_claim_id(
             document_version_id="ver-a",
+            document_id="doc-a",
+            scope_key="customer:1",
             predicate=predicate,
             value=payload,
         ),

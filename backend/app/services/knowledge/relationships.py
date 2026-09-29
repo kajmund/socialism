@@ -55,6 +55,7 @@ class KnowledgeRelationship:
     to_id: str
     extra: dict[str, object]
     scope_type: str = SCOPE_CUSTOMER
+    temporal_key: str = ""
 
     @property
     def scope(self) -> KnowledgeTenantScope:
@@ -81,14 +82,17 @@ def knowledge_relationship_id(
     to_id: str,
     customer_id: int | None = None,
     scope: KnowledgeTenantScope | None = None,
+    temporal_key: str = "",
 ) -> str:
     resolved = require_persist_scope(scope=scope, customer_id=customer_id)
+    stamp = temporal_key.strip()
     if resolved.scope_type == SCOPE_CUSTOMER:
         payload = (
-            f"{resolved.customer_id}\0{relation}\0{from_kind}\0{from_id}\0{to_kind}\0{to_id}"
+            f"{resolved.customer_id}\0{relation}\0{from_kind}\0{from_id}\0"
+            f"{to_kind}\0{to_id}\0{stamp}"
         )
     else:
-        payload = f"shared\0{relation}\0{from_kind}\0{from_id}\0{to_kind}\0{to_id}"
+        payload = f"shared\0{relation}\0{from_kind}\0{from_id}\0{to_kind}\0{to_id}\0{stamp}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -102,6 +106,7 @@ def knowledge_relationship(  # noqa: PLR0913
     customer_id: int | None = None,
     scope: KnowledgeTenantScope | None = None,
     extra: dict[str, object] | None = None,
+    temporal_key: str = "",
 ) -> KnowledgeRelationship:
     rel = require_relation(relation)
     if from_kind not in NODE_KINDS:
@@ -111,6 +116,7 @@ def knowledge_relationship(  # noqa: PLR0913
     if not from_id.strip() or not to_id.strip():
         raise KnowledgeRelationshipError("relationship endpoints require ids")
     resolved = require_persist_scope(scope=scope, customer_id=customer_id)
+    stamp = temporal_key.strip()
     return KnowledgeRelationship(
         id=knowledge_relationship_id(
             scope=resolved,
@@ -119,6 +125,7 @@ def knowledge_relationship(  # noqa: PLR0913
             from_id=from_id,
             to_kind=to_kind,
             to_id=to_id,
+            temporal_key=stamp,
         ),
         customer_id=resolved.customer_id,
         scope_type=resolved.scope_type,
@@ -128,6 +135,7 @@ def knowledge_relationship(  # noqa: PLR0913
         to_kind=to_kind,
         to_id=to_id,
         extra=dict(extra or {}),
+        temporal_key=stamp,
     )
 
 
@@ -144,10 +152,18 @@ async def persist_knowledge_relationship(
     session: AsyncSession,
     edge: KnowledgeRelationship,
 ) -> KnowledgeRelationshipRecord:
+    row, _reused = await persist_knowledge_relationship_result(session, edge)
+    return row
+
+
+async def persist_knowledge_relationship_result(
+    session: AsyncSession,
+    edge: KnowledgeRelationship,
+) -> tuple[KnowledgeRelationshipRecord, bool]:
     row = await session.get(KnowledgeRelationshipRecord, edge.id)
     await _assert_endpoint_scopes(session, edge)
     if row is not None:
-        return await _update_relationship(session, row, edge)
+        return await _update_relationship(session, row, edge), True
     now = utc_now()
     row = KnowledgeRelationshipRecord(
         id=edge.id,
@@ -156,6 +172,7 @@ async def persist_knowledge_relationship(
         from_id=edge.from_id,
         to_kind=edge.to_kind,
         to_id=edge.to_id,
+        temporal_key=edge.temporal_key,
         extra=edge.extra,
         valid_from=now,
         created_at=now,
@@ -170,7 +187,7 @@ async def persist_knowledge_relationship(
         winner = await session.get(KnowledgeRelationshipRecord, edge.id)
         if winner is None:
             raise
-        return await _update_relationship(session, winner, edge)
+        return await _update_relationship(session, winner, edge), True
     await record_graph_event(
         session,
         scope=edge.scope,
@@ -187,7 +204,7 @@ async def persist_knowledge_relationship(
         },
         created_at=now,
     )
-    return row
+    return row, False
 
 
 async def _update_relationship(
@@ -201,9 +218,27 @@ async def _update_relationship(
         )
     if row.superseded_at is not None:
         raise KnowledgeRelationshipError(f"relationship {edge.id} is superseded")
-    row.extra = edge.extra
+    row.extra = _merge_extra(row.extra, edge.extra)
     await session.flush()
     return row
+
+
+def _merge_extra(
+    existing: dict[str, object] | None,
+    incoming: dict[str, object],
+) -> dict[str, object]:
+    merged = dict(existing or {})
+    for key, value in incoming.items():
+        prior = merged.get(key)
+        if isinstance(prior, list) and isinstance(value, list):
+            seen: list[object] = []
+            for item in [*prior, *value]:
+                if item not in seen:
+                    seen.append(item)
+            merged[key] = seen
+        else:
+            merged[key] = value
+    return merged
 
 
 async def relationships_touching(
@@ -255,6 +290,7 @@ def _relationship_from_row(row: KnowledgeRelationshipRecord) -> KnowledgeRelatio
         to_kind=row.to_kind,  # type: ignore[arg-type]
         to_id=row.to_id,
         extra=dict(row.extra or {}),
+        temporal_key=row.temporal_key or "",
     )
 
 

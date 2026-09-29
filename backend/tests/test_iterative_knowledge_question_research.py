@@ -119,6 +119,8 @@ async def _seed_claim(
     claim = KnowledgeClaim(
         id=knowledge_claim_id(
             document_version_id=f"ver-{doc_id}",
+            document_id=doc_id,
+            scope_key=f"customer:{customer_id}",
             predicate="core.published_rate",
             value=value,
         ),

@@ -101,9 +101,17 @@ async def persist_knowledge_entity(
     session: AsyncSession,
     entity: KnowledgeEntity,
 ) -> KnowledgeEntityRecord:
+    row, _reused = await persist_knowledge_entity_result(session, entity)
+    return row
+
+
+async def persist_knowledge_entity_result(
+    session: AsyncSession,
+    entity: KnowledgeEntity,
+) -> tuple[KnowledgeEntityRecord, bool]:
     row = await session.get(KnowledgeEntityRecord, entity.id)
     if row is not None:
-        return await _update_entity(session, row, entity)
+        return await _update_entity(session, row, entity), True
     row = KnowledgeEntityRecord(
         id=entity.id,
         entity_type=entity.entity_type,
@@ -121,8 +129,8 @@ async def persist_knowledge_entity(
         winner = await session.get(KnowledgeEntityRecord, entity.id)
         if winner is None:
             raise
-        return await _update_entity(session, winner, entity)
-    return row
+        return await _update_entity(session, winner, entity), True
+    return row, False
 
 
 async def _update_entity(
@@ -135,7 +143,7 @@ async def _update_entity(
             f"entity {entity.id} already exists in a different knowledge scope"
         )
     row.name = entity.name
-    row.extra = entity.extra
+    row.extra = {**(row.extra or {}), **entity.extra}
     await session.flush()
     return row
 

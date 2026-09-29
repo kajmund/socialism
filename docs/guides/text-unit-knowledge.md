@@ -84,7 +84,7 @@ lagen.nu research ranks current TextUnits in-process (question embed + ingest ve
 
 ### Phase 4b — claims on TextUnits
 
-A `KnowledgeClaim` is an assertion. Support is `SUPPORTED_BY` one or more TextUnits (`knowledge_claims` + `knowledge_claim_text_units`). The knowledge core does not interpret predicate strings. The lagen.nu adapter projects `legal_claims` after interpret and grounds each citation quote to the interpreted units. A quote that is not in those units is `citation_grounding_failed`.
+A `KnowledgeClaim` is a **domain** assertion. Support is `SUPPORTED_BY` one or more TextUnits (`knowledge_claims` + `knowledge_claim_text_units`). Source-quality notes and question-relative gaps are `knowledge_observations`, not claims. Identity is `scope + document version + predicate + normalized assertion` — not LLM wording, excerpts, or attempt IDs. See [knowledge-persistence.md](knowledge-persistence.md). The knowledge core does not interpret predicate strings. The lagen.nu adapter projects `legal_claims` after interpret and grounds each citation quote to the interpreted units. A quote that is not in those units is `citation_grounding_failed`.
 
 `ResearchNeed` → `ANSWERED_BY` → Claim (`knowledge_claim_answers`, keyed by `question_key` + `source_type`) so reuse can find grounded answers instead of only evidence excerpts.
 
@@ -94,7 +94,7 @@ Runtime needs canonicalize to `KnowledgeQuestion` before live retrieval (identit
 
 The knowledge core stores named `Entity` nodes and typed `Relationship` edges. Core relations are closed: `ABOUT`, `SUPPORTED_BY`, `CONTRADICTS`, `PART_OF`, `SAME_AS`. Adapters add namespaced relations (`legal.cites`, `legal.applies`, `legal.decided_by`). Node kinds are `entity`, `claim`, `text_unit`, and `document`. Predicate and entity_type strings stay opaque in the core.
 
-The lagen.nu adapter projects explicit interpretation fields onto that graph after claims are grounded: source / court / issue / provision entities, `ABOUT` from claims, `SUPPORTED_BY` onto TextUnits, `SAME_AS` for an identifier alias, and the legal edges above. No prose inference.
+The lagen.nu adapter projects explicit interpretation fields onto that graph after claims are grounded: one `legal.source` entity keyed by canonical URI (identifier stored in `extra`), court / provision entities, `ABOUT` from claims, `SUPPORTED_BY` onto TextUnits, and the legal edges above. No prose-keyed issue nodes and no alias entities created only to `SAME_AS` them. No prose inference.
 
 ### Phase 5 — temporal graph
 

@@ -1884,6 +1884,11 @@ class KnowledgeClaimRecord(Base):
         Index("ix_knowledge_claims_document_version", "document_version_id"),
         Index("ix_knowledge_claims_document_predicate", "document_id", "predicate"),
         Index("ix_knowledge_claims_superseded_at", "superseded_at"),
+        UniqueConstraint(
+            "scope_key",
+            "identity_key",
+            name="uq_knowledge_claims_scope_identity",
+        ),
         CheckConstraint(
             "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
             "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
@@ -1893,6 +1898,7 @@ class KnowledgeClaimRecord(Base):
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    identity_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     customer_id: Mapped[int | None] = mapped_column(
@@ -2056,6 +2062,7 @@ class KnowledgeRelationshipRecord(Base):
             "from_id",
             "to_kind",
             "to_id",
+            "temporal_key",
             name="uq_knowledge_relationships_scope_edge",
         ),
         Index("ix_knowledge_relationships_from", "from_kind", "from_id"),
@@ -2083,6 +2090,7 @@ class KnowledgeRelationshipRecord(Base):
     from_id: Mapped[str] = mapped_column(String(64), nullable=False)
     to_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     to_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    temporal_key: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -2124,6 +2132,62 @@ class KnowledgeGraphEventRecord(Base):
     node_id: Mapped[str] = mapped_column(String(64), nullable=False)
     related_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class KnowledgeObservationRecord(Base):
+    """Source-quality or research-gap note. Not a durable knowledge claim."""
+
+    __tablename__ = "knowledge_observations"
+    __table_args__ = (
+        UniqueConstraint(
+            "scope_key",
+            "observation_class",
+            "kind",
+            "document_version_id",
+            "question_key",
+            "statement_normalized",
+            name="uq_knowledge_observations_identity",
+        ),
+        Index(
+            "ix_knowledge_observations_document_version",
+            "document_version_id",
+        ),
+        Index("ix_knowledge_observations_class", "observation_class"),
+        CheckConstraint(
+            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
+            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
+            "scope_key = 'customer:' || customer_id)",
+            name="ck_knowledge_observations_knowledge_scope",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("kunder.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    observation_class: Mapped[str] = mapped_column(String(32), nullable=False)
+    kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("canonical_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    document_version_id: Mapped[str] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    question_key: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    statement_normalized: Mapped[str] = mapped_column(Text, nullable=False)
+    extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -3279,6 +3343,7 @@ def _register_knowledge_scope_listeners() -> None:
         KnowledgeEntityRecord,
         KnowledgeRelationshipRecord,
         KnowledgeGraphEventRecord,
+        KnowledgeObservationRecord,
         KnowledgeQuestionRow,
     ):
         bind_scoped_mapper(model)

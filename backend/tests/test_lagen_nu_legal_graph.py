@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from app.services.knowledge.claims import SUPPORTED_BY, KnowledgeClaim
-from app.services.knowledge.relationships import ABOUT, SAME_AS
+from app.services.knowledge.relationships import ABOUT
 from app.services.lagen_nu.legal_graph import (
     LEGAL_APPLIES,
     LEGAL_CITES,
     LEGAL_COURT,
     LEGAL_DECIDED_BY,
-    LEGAL_ISSUE,
     LEGAL_PROVISION,
     LEGAL_SOURCE,
     ground_legal_graph,
@@ -82,9 +81,9 @@ def test_legal_graph_uses_core_edges_then_namespaced_legal_relations():
         document_id="doc-a",
     )
     types = {entity.entity_type for entity in entities}
-    assert types == {LEGAL_SOURCE, LEGAL_COURT, LEGAL_ISSUE, LEGAL_PROVISION}
+    assert types == {LEGAL_SOURCE, LEGAL_COURT, LEGAL_PROVISION}
     relations = {edge.relation for edge in edges}
-    assert {ABOUT, SUPPORTED_BY, SAME_AS, LEGAL_APPLIES, LEGAL_DECIDED_BY} <= relations
+    assert {ABOUT, SUPPORTED_BY, LEGAL_APPLIES, LEGAL_DECIDED_BY} <= relations
     assert all(edge.to_id != edge.from_id or edge.relation != LEGAL_CITES for edge in edges)
     assert any(
         edge.relation == SUPPORTED_BY
@@ -92,4 +91,6 @@ def test_legal_graph_uses_core_edges_then_namespaced_legal_relations():
         and edge.to_id == "tu-hold"
         for edge in edges
     )
-    assert any(edge.relation == SAME_AS for edge in edges)
+    sources = [entity for entity in entities if entity.entity_type == LEGAL_SOURCE]
+    assert len(sources) == 1
+    assert sources[0].extra["identifier"] == "NJA 2005 s. 142"

@@ -88,19 +88,19 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
 ):
     events: list[str] = []
     original_interpret = FakeLegalInterpreter.interpret
-    original_persist = writeback.persist_knowledge_claims
+    original_persist = writeback.persist_extracted_knowledge
 
     async def tracking_interpret(self, **kwargs):
         assert not session.in_transaction()
         events.append("interpret")
         return await original_interpret(self, **kwargs)
 
-    async def tracking_persist(db, claims):
+    async def tracking_persist(db, **kwargs):
         events.append("persist")
-        return await original_persist(db, claims)
+        return await original_persist(db, **kwargs)
 
     monkeypatch.setattr(FakeLegalInterpreter, "interpret", tracking_interpret)
-    monkeypatch.setattr(writeback, "persist_knowledge_claims", tracking_persist)
+    monkeypatch.setattr(writeback, "persist_extracted_knowledge", tracking_persist)
     evidence = await _law_source(session, _two_doc_client()).research(
         _need("swedish_law", question="preskription av fordran"),
         _context(),

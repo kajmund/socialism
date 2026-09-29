@@ -228,6 +228,8 @@ async def _new_claim(session: AsyncSession, customer_id: int) -> str:
     claim = KnowledgeClaim(
         id=knowledge_claim_id(
             document_version_id="ver-a",
+            document_id="doc-a",
+            scope_key=f"customer:{customer_id}",
             predicate="legal.adjustment_granted",
             value=value,
         ),
@@ -284,6 +286,8 @@ async def test_low_impact_is_clear_and_unrelated_claim_skips_jev(db):
     other = KnowledgeClaim(
         id=knowledge_claim_id(
             document_version_id="ver-a",
+            document_id="doc-a",
+            scope_key=f"customer:{kund.id}",
             predicate="other.topic",
             value={"value": "nope"},
         ),
@@ -477,6 +481,8 @@ async def test_several_events_share_one_provenance_read_and_release_the_connecti
     second = KnowledgeClaim(
         id=knowledge_claim_id(
             document_version_id="ver-a",
+            document_id="doc-a",
+            scope_key=f"customer:{kund.id}",
             predicate="legal.other_holding",
             value=second_value,
         ),
