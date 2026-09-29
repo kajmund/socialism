@@ -13,11 +13,14 @@ from app.database.models import (
     EvidenceSetItem,
     EvidenceSetItemNeed,
     EvidenceSource,
+    KnowledgeQuestionRow,
     ResearchAssessment,
     ResearchRuntimeNeed,
 )
 from app.services.execution.service import get_attempt, get_run, mark_ready
 from app.services.knowledge.answer_review import record_answer_review
+from app.services.graph_v2.questions import question_node
+from app.services.graph_v2.revalidation import enqueue_question_revalidation
 from app.services.research.progress import emit_research_frozen_ready
 
 _IDENTITY_FIELDS = ("source_type", "source_id", "source_url", "locator", "content_hash")
@@ -27,7 +30,14 @@ async def complete_research_freeze(
     session: AsyncSession, *, attempt_id: str, evidence_set_id: str
 ) -> None:
     """Research only records durable work; TTL classification runs separately."""
-    await capture_answer_reviews(session, attempt_id=attempt_id, evidence_set_id=evidence_set_id)
+    frozen_questions = await capture_answer_reviews(
+        session, attempt_id=attempt_id, evidence_set_id=evidence_set_id,
+    )
+    run = await get_run(session, (await get_attempt(session, attempt_id)).run_id)
+    await _enqueue_graph_revalidation(
+        session, customer_id=run.customer_id, evidence_set_id=evidence_set_id,
+        questions=frozen_questions,
+    )
     ready = await mark_ready(session, attempt_id)
     await emit_research_frozen_ready(
         session,
@@ -39,7 +49,7 @@ async def complete_research_freeze(
 
 async def capture_answer_reviews(
     session: AsyncSession, *, attempt_id: str, evidence_set_id: str
-) -> None:
+) -> tuple[tuple[str, str], ...]:
     attempt = await get_attempt(session, attempt_id)
     run = await get_run(session, attempt.run_id)
     needs = (
@@ -82,6 +92,7 @@ async def capture_answer_reviews(
                     if k not in {"research_need_id", "supporting_evidence_ids"}
                 }
             )
+    frozen_questions: list[tuple[str, str]] = []
     for key, basis in groups.items():
         if not basis["evidence"]:
             continue
@@ -94,6 +105,41 @@ async def capture_answer_reviews(
             customer_id=run.customer_id,
             question_key=key,
             answer_basis=basis,
+        )
+        frozen_questions.append((key, basis["question"]))
+    return tuple(frozen_questions)
+
+
+async def _enqueue_graph_revalidation(
+    session: AsyncSession, *, customer_id: int, evidence_set_id: str,
+    questions: tuple[tuple[str, str], ...],
+) -> None:
+    """Start graph review only after all providers contributed to the frozen basis."""
+    tenant_scope = f"customer:{customer_id}"
+    for key, _text in questions:
+        question = await session.scalar(
+            select(KnowledgeQuestionRow)
+            .where(
+                KnowledgeQuestionRow.identity_key == key,
+                KnowledgeQuestionRow.scope_key == tenant_scope,
+            )
+            .limit(1)
+        )
+        if question is None:
+            question = await session.scalar(
+                select(KnowledgeQuestionRow)
+                .where(
+                    KnowledgeQuestionRow.identity_key == key,
+                    KnowledgeQuestionRow.scope_key == "shared",
+                )
+                .limit(1)
+            )
+        if question is None:
+            continue
+        node = await question_node(session, question)
+        await enqueue_question_revalidation(
+            session, customer_id=customer_id, question_node_id=node.id,
+            evidence_set_id=evidence_set_id,
         )
 
 
