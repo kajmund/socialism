@@ -34,7 +34,7 @@ async def write_legal_facts(
 ) -> list[str]:
     if not claims:
         return []
-    source = next(entity for entity in entities if entity.entity_type == "legal.source")
+    source = _source_entity(entities)
     if source.customer_id is None:
         raise PermanentGraphError("legal graph projection requires a customer scope")
     scope = source.scope
@@ -163,6 +163,13 @@ class _LazyJudges:
     @property
     def node(self):
         return _LazyJudgeProxy(self, "node")
+
+
+def _source_entity(entities: Sequence[KnowledgeEntity]) -> KnowledgeEntity:
+    source = next((entity for entity in entities if entity.entity_type == "legal.source"), None)
+    if source is None:
+        raise PermanentGraphError("legal graph projection payload has no source entity")
+    return source
 
 
 class _LazyJudgeProxy:
