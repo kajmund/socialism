@@ -153,6 +153,31 @@ class GraphFactRevalidation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class GraphQuestionRevalidationWork(Base):
+    """Final-basis revalidation request written at the shared research boundary."""
+
+    __tablename__ = "graph_question_revalidation_work"
+    __table_args__ = (
+        UniqueConstraint(
+            "scope_key", "question_node_id", "evidence_set_id",
+            name="uq_graph_question_revalidation_work",
+        ),
+        Index("ix_graph_question_revalidation_pending", "status", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    question_node_id: Mapped[str] = mapped_column(
+        ForeignKey("graph_nodes.id", ondelete="CASCADE"), nullable=False,
+    )
+    evidence_set_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class GraphIngestWork(Base):
     __tablename__ = "graph_ingest_work"
     __table_args__ = (Index("ix_graph_ingest_pending", "status", "created_at"),)

@@ -2,7 +2,7 @@
 
 import asyncio
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
@@ -16,7 +16,11 @@ from app.database.graph_v2 import (
 )
 from app.database.models import Kund
 from app.services.graph_v2.retrieval import hybrid_facts, neighbourhood
-from app.services.graph_v2.revalidation import attach_question_dependency, schedule_fact_revalidation
+from app.services.graph_v2.revalidation import (
+    attach_question_dependency,
+    enqueue_question_revalidation,
+    process_question_revalidation_work,
+)
 from app.services.graph_v2.temporal import invalidate_fact
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
@@ -151,11 +155,17 @@ async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session
     changed, _ = await resolve_fact(
         session, fact(subject, target, "Adjustment granted", ref="unit-2"), judge=Distinct(),
     )
+    changed.created_at = original.created_at + timedelta(seconds=1)
+    await enqueue_question_revalidation(
+        session, customer_id=1, question_node_id=question.id, evidence_set_id="frozen-set-1",
+    )
+    assert await process_question_revalidation_work(session) == {"completed": 0, "waiting": 1}
     dependency = await attach_question_dependency(
         session, question_node_id=question.id, fact_id=original.id,
     )
     assert dependency.provenance == [{"kind": "episode", "ref": "unit-1"}]
-    assert await schedule_fact_revalidation(session, trigger_fact_id=changed.id) == 1
+    await attach_question_dependency(session, question_node_id=question.id, fact_id=changed.id)
+    assert await process_question_revalidation_work(session) == {"completed": 1, "waiting": 0}
     pending = list((await session.scalars(select(GraphFactRevalidation))).all())
     assert len(pending) == 1
     assert pending[0].question_node_id == question.id
@@ -163,8 +173,8 @@ async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session
     assert pending[0].dependent_fact_id == original.id
     assert pending[0].trigger_provenance == [{"kind": "episode", "ref": "unit-2"}]
     assert pending[0].dependent_provenance == [{"kind": "episode", "ref": "unit-1"}]
-    assert await schedule_fact_revalidation(session, trigger_fact_id=changed.id) == 0
-    assert await session.scalar(select(func.count()).select_from(GraphFactQuestionDependency)) == 1
+    assert await process_question_revalidation_work(session) == {"completed": 0, "waiting": 0}
+    assert await session.scalar(select(func.count()).select_from(GraphFactQuestionDependency)) == 2
 
 
 def test_legacy_event_revalidation_is_not_public_knowledge_api():
