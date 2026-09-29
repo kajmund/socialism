@@ -44,7 +44,7 @@ from app.services.research.assessment import (
     AssessableEvidence,
     programmatic_assessment,
 )
-from app.services.research.execution import quality_input_from_item
+from app.services.research.quality_persist import quality_input_from_item
 from app.services.research.quality import (
     EVIDENCE_QUALITY_POLICY_VERSION,
     FLAG_AUTHORITY_WARNING,

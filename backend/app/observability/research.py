@@ -59,6 +59,8 @@ class ResearchObsStats:
     relevance_llm_fallbacks: int = 0
     relevance_ms_total: float = 0.0
     jev_screen_cache_hits: int = 0
+    eager_quality_items: int = 0
+    barrier_quality_items: int = 0
 
 
 _stats: ContextVar[ResearchObsStats | None] = ContextVar(
@@ -142,6 +144,20 @@ def record_relevance_llm_fallback() -> None:
     if stats is None:
         return
     stats.relevance_llm_fallbacks += 1
+
+
+def record_eager_quality_items(count: int) -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.eager_quality_items += count
+
+
+def record_barrier_quality_items(count: int) -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.barrier_quality_items += count
 
 
 def record_relevance_batch(
@@ -415,6 +431,8 @@ def emit_research_execution_summary(
         "relevance_llm_fallbacks": stats.relevance_llm_fallbacks,
         "relevance_ms_total": stats.relevance_ms_total,
         "jev_screen_cache_hits": stats.jev_screen_cache_hits,
+        "eager_quality_items": stats.eager_quality_items,
+        "barrier_quality_items": stats.barrier_quality_items,
     }
     if stats.provider_calls is not None:
         research["provider_calls"] = stats.provider_calls
