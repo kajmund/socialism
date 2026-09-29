@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -10,6 +11,9 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import Kund
+from app.database.graph_v2 import GraphFact, GraphFactSource, GraphIngestWork, GraphNode
+from sqlalchemy import func, select
+from app.services.graph_v2.outbox import process_graph_work
 from app.services.lagen_nu import graph_writeback as writeback
 from app.services.lagen_nu.graph_writeback import (
     GraphWritebackQueue,
@@ -82,6 +86,34 @@ async def test_persist_rejects_mixed_customer_ids():
         )
 
 
+async def test_only_accepted_claims_enter_graph_outbox(session, monkeypatch):
+    accepted = SimpleNamespace(id="accepted", customer_id=7)
+    rejected = SimpleNamespace(id="rejected", customer_id=7)
+    queued = []
+    modules = []
+
+    async def persist(*args, **kwargs):
+        return SimpleNamespace(accepted_claim_ids=["accepted"])
+
+    async def enqueue(*args, **kwargs):
+        queued.extend(kwargs["claims"])
+        modules.append(kwargs["module"])
+
+    async def answer(*args, **kwargs):
+        pass
+
+    monkeypatch.setattr(writeback, "persist_extracted_knowledge", persist)
+    monkeypatch.setattr(writeback, "enqueue_legal_graph", enqueue)
+    monkeypatch.setattr(writeback, "answer_research_need", answer)
+    await persist_pending_graph_writes(session, [PendingGraphWrite(
+        claims=(accepted, rejected), entities=(), edges=(),
+        research_need_id="need", question="Vad gäller?",
+        source_type="swedish_law", customer_id=7, module="politik",
+    )])
+    assert queued == [accepted]
+    assert modules == ["politik"]
+
+
 @pytest.mark.asyncio
 async def test_graph_writeback_waits_until_every_document_is_interpreted(
     session: AsyncSession, monkeypatch
@@ -89,6 +121,19 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
     events: list[str] = []
     original_interpret = FakeLegalInterpreter.interpret
     original_persist = writeback.persist_extracted_knowledge
+
+    class FakeEmbedder:
+        model = "test"
+        async def embed(self, texts):
+            return [[1.0, 0.0] for _ in texts]
+
+    class FakeJudge:
+        async def compare(self, proposed, candidate_text):
+            return "SAME" if proposed.fact_text == candidate_text else "DISTINCT"
+
+    class FakeNodeJudge:
+        async def same_node(self, proposed, candidate_name):
+            return proposed.name == candidate_name
 
     async def tracking_interpret(self, **kwargs):
         assert not session.in_transaction()
@@ -107,6 +152,21 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
     )
     assert [item.status for item in evidence] == ["found", "found"]
     assert events == ["interpret", "interpret", "persist", "persist"]
+    assert await session.scalar(select(func.count()).select_from(GraphIngestWork)) == 2
+    assert await session.scalar(select(func.count()).select_from(GraphFact)) == 0
+    factory = async_sessionmaker(session.bind, expire_on_commit=False)
+    assert (await process_graph_work(
+        factory, embedder=FakeEmbedder(), judge=FakeJudge(), node_judge=FakeNodeJudge(),
+    ))["completed"] == 2
+    assert await session.scalar(select(func.count()).select_from(GraphFact)) > 0
+    assert await session.scalar(select(func.count()).select_from(GraphFactSource)) > 0
+    targets = (await session.scalars(select(GraphNode).join(
+        GraphFact, GraphFact.target_id == GraphNode.id,
+    ))).all()
+    assert targets and all(row.node_type.endswith(".value") for row in targets)
+    assert (await process_graph_work(
+        factory, embedder=FakeEmbedder(), judge=FakeJudge(), node_judge=FakeNodeJudge(),
+    )) == {"completed": 0, "failed": 0}
 
 
 @pytest.mark.asyncio

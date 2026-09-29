@@ -1067,7 +1067,7 @@ class LagenNuResearchSource:
                 if cached is not None
                 else f"{units[0].document_version_id}:{need.id}",
                 question=need.question,
-                source_type=self.source_type,
+                source_type=self.source_type, module=context.scope.module or "dd",
             ),
         )
         grounded_claims = list(extracted.claims)
