@@ -167,6 +167,13 @@ async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session
     assert await session.scalar(select(func.count()).select_from(GraphFactQuestionDependency)) == 1
 
 
+def test_legacy_event_revalidation_is_not_public_knowledge_api():
+    import app.services.knowledge as knowledge
+
+    assert not hasattr(knowledge, "revalidate_after_event")
+    assert not hasattr(knowledge, "revalidate_after_events")
+
+
 async def test_hybrid_embedding_model_boundary(session):
     a, b = await node(session, "A"), await node(session, "B")
     await resolve_fact(session, fact(a, b, "unrelated words"))
