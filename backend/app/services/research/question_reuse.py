@@ -573,21 +573,17 @@ async def _claim_hit_to_evidence(
     freshness: Freshness,
 ) -> ResearchEvidence:
     units = await _supporting_units(session, hit.claim.supporting_text_unit_ids)
-    excerpt = "\n\n".join(unit.text for unit in units)
     document_ids = list(dict.fromkeys(unit.document_id for unit in units))
     version_ids = list(dict.fromkeys(unit.document_version_id for unit in units))
     document = await session.get(CanonicalDocumentRecord, document_ids[0])
     if document is None:
-        raise KnowledgeClaimError(
-            f"claim {hit.claim.id} document {document_ids[0]} is missing"
-        )
-    evidence_ref = hit.claim.id
+        raise KnowledgeClaimError(f"claim {hit.claim.id} document {document_ids[0]} is missing")
     return research_evidence(
         research_need_id=need.id,
         source_type=hit.source_type,
         status="found",
         title=document.title,
-        excerpt=excerpt,
+        excerpt="\n\n".join(unit.text for unit in units),
         locator=",".join(hit.claim.supporting_text_unit_ids),
         source_id=document.id,
         source_url=document.canonical_uri,
@@ -603,7 +599,7 @@ async def _claim_hit_to_evidence(
             "reuse": reuse_lineage(
                 origin=REUSE_ORIGIN_PERSISTENT,
                 knowledge_question_id=hit.knowledge_question_id,
-                evidence_ref=evidence_ref,
+                evidence_ref=hit.claim.id,
                 freshness=freshness,
             ),
         },
