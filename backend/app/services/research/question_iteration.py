@@ -10,7 +10,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Literal, Protocol
-from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,26 +28,18 @@ from app.services.research.knowledge_question import (
     KnowledgeQuestion,
     KnowledgeQuestionError,
     KnowledgeQuestionScope,
-    QuestionIdentity,
     identity_from_text,
     tenant_question_scope,
 )
-from app.services.research.models import ResearchContext, ResearchNeed
-from app.services.research.question_graph import (
-    QuestionEvidenceGraph,
-    QuestionEvidenceGraphError,
-)
-from app.services.research.question_reuse import (
-    gap_source_types,
-    lookup_reusable_claims,
-    should_skip_providers,
-)
+from app.services.research.models import ResearchContext
+from app.services.research.question_graph import QuestionEvidenceGraph
 
 GENERATED_FROM = "GENERATED_FROM"
 QuestionRelationKind = Literal["same_as", "broader", "narrower"]
 GROUNDED_REF_KEYS = (
     "knowledge_question_ids",
     "knowledge_claim_ids",
+    "graph_fact_ids",
     "document_version_ids",
     "text_unit_ids",
 )
@@ -148,37 +139,8 @@ async def resolve_or_create_knowledge_question(
     for neighbour in related:
         if neighbour.relation == "same_as":
             return neighbour.question
-    try:
-        created = await graph.upsert_question(session, identity, scope)
-    except QuestionEvidenceGraphError:
-        return await _create_sql_question(session, identity, scope)
+    created = await graph.upsert_question(session, identity, scope)
     return await _ensure_sql_question(session, created)
-
-
-async def _create_sql_question(
-    session: AsyncSession,
-    identity: QuestionIdentity,
-    scope: KnowledgeQuestionScope,
-) -> KnowledgeQuestion:
-    colliding = await match_canonical_question(session, identity.display_text, scope)
-    if colliding is not None:
-        return colliding
-    session.add(
-        KnowledgeQuestionRow(
-            id=uuid4().hex,
-            identity_key=identity.identity_key,
-            normalized_text=identity.normalized_text,
-            display_text=identity.display_text,
-            namespace=scope.namespace,
-            visibility=scope.visibility,
-            **persist_scope_fields(scope.tenant),
-        )
-    )
-    await session.flush()
-    stored = await match_canonical_question(session, identity.display_text, scope)
-    if stored is None:
-        raise RuntimeError("KnowledgeQuestion SQL persist failed")
-    return stored
 
 
 async def _ensure_sql_question(
@@ -303,31 +265,6 @@ async def list_question_children(
     ]
 
 
-async def gaps_for_need(
-    session: AsyncSession,
-    *,
-    need: ResearchNeed,
-    context: ResearchContext,
-) -> list[str]:
-    """Source types not closed by fresh grounded claims."""
-    if context.scope.customer_id is None:
-        return list(need.source_types)
-    reused = await lookup_reusable_claims(session, need=need, context=context)
-    return gap_source_types(need, reused)
-
-
-async def question_is_freshly_answered(
-    session: AsyncSession,
-    *,
-    need: ResearchNeed,
-    context: ResearchContext,
-) -> bool:
-    if context.scope.customer_id is None:
-        return False
-    reused = await lookup_reusable_claims(session, need=need, context=context)
-    return should_skip_providers(need, reused)
-
-
 def bind_need_to_question(need: RuntimeResearchNeed, question: KnowledgeQuestion) -> RuntimeResearchNeed:
     return replace(need, knowledge_question_id=question.id, question_key=question.identity_key)
 
@@ -410,7 +347,7 @@ async def prepare_iterative_follow_ups(
     previous: Sequence[RuntimeResearchNeed],
     relations: QuestionRelationResolver | None = None,
 ) -> list[RuntimeResearchNeed]:
-    """Resolve/reuse child KnowledgeQuestions and keep only remaining gaps."""
+    """Resolve child identities; retrieval and assessment happen during execution."""
     customer_id = context.scope.customer_id
     if customer_id is None:
         return list(accepted)
@@ -450,21 +387,9 @@ async def prepare_iterative_follow_ups(
                 trigger_claim_id=need.trigger_claim_id or None,
                 trigger_graph_event_id=need.trigger_graph_event_id or None,
             )
-        executable = replace(
-            need.as_need(),
-            knowledge_question_id=child.id,
-        )
-        if await question_is_freshly_answered(
-            session, need=executable, context=context
-        ):
-            continue
-        remaining = await gaps_for_need(session, need=executable, context=context)
-        if not remaining:
-            continue
         prepared.append(
             replace(
                 need,
-                source_types=list(remaining),  # type: ignore[arg-type]
                 knowledge_question_id=child.id,
                 generated_from_question_id=parent_id or "",
                 question_key=child.identity_key,
@@ -510,6 +435,7 @@ def collect_grounded_refs(
     """Immutable freeze snapshot of grounded identities. No live pointers."""
     questions = {item for item in question_ids if item}
     claims: set[str] = set()
+    facts: set[str] = set()
     versions: set[str] = set()
     units: set[str] = set()
     for item in items:
@@ -519,6 +445,7 @@ def collect_grounded_refs(
             question_id = reuse.get("knowledge_question_id")
             if isinstance(question_id, str) and question_id.strip():
                 questions.add(question_id.strip())
+        facts.update(_string_list(provenance.get("graph_fact_ids")))
         for claim_id in _string_list(provenance.get("knowledge_claim_ids")):
             claims.add(claim_id)
         version_id = provenance.get("document_version_id")
@@ -529,6 +456,7 @@ def collect_grounded_refs(
     return {
         "knowledge_question_ids": sorted(questions),
         "knowledge_claim_ids": sorted(claims),
+        "graph_fact_ids": sorted(facts),
         "document_version_ids": sorted(versions),
         "text_unit_ids": sorted(units),
     }

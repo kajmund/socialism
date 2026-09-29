@@ -53,6 +53,8 @@ from tests.test_research_execution import (
 from tests.test_research_loop import ScriptedPlanner, SequenceAssessor
 
 
+pytestmark = pytest.mark.usefixtures("graph_retrieval_embeddings")
+
 @pytest.fixture
 async def db():
     engine = create_async_engine(

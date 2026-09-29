@@ -42,6 +42,8 @@ from app.services.research.registry import ResearchSourceRegistry
 from app.services.research.router import ResearchRouter
 
 
+pytestmark = pytest.mark.usefixtures("graph_retrieval_embeddings")
+
 @pytest.fixture
 async def factory():
     engine = create_async_engine(
