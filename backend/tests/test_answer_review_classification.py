@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+import sqlalchemy as sa
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -10,7 +11,9 @@ from app.database.answer_review import KnowledgeAnswerReview
 from app.jev.system import JevClientError, JevSystemOneResult, JevUsage
 from app.services.knowledge.answer_review import AnswerReviewDecision, record_answer_review
 from app.services.knowledge.answer_review_classification import (
+    MAX_CLASSIFICATION_ATTEMPTS,
     claim_ttl_classification,
+    retry_delay,
     classification_state,
     classify_pending_reviews,
     finish_ttl_classification,
@@ -176,3 +179,54 @@ async def test_classification_claim_uses_the_queue_index(db):
     plan = " ".join(str(row) for row in plans)
     assert "SEARCH knowledge_answer_reviews USING COVERING INDEX ix_answer_review_classify" in plan
     assert "SCAN knowledge_answer_reviews" not in plan
+
+
+def test_backoff_grows_and_is_capped():
+    assert [retry_delay(n) for n in (1, 2, 3)] == [timedelta(minutes=m) for m in (5, 10, 20)]
+    assert retry_delay(50) == timedelta(hours=6)
+
+
+async def test_unexpected_error_does_not_stall_queue_and_row_is_parked(db):
+    """A poison row (non-Jev exception) is recorded, skipped, and eventually parked."""
+    poison = await pending(db, sources=("poison",))
+    healthy = await pending(db, sources=("case_knowledge",))
+    factory = async_sessionmaker(db.bind, expire_on_commit=False)
+
+    class PoisonJev(FakeJev):
+        async def ask(self, **kwargs):
+            if kwargs["state"]["source_types"] == ["poison"]:
+                raise KeyError("broken basis")
+            return await super().ask(**kwargs)
+
+    jev = PoisonJev("soon")
+    result = await classify_pending_reviews(factory, jev=jev)
+    # The healthy row behind the poison one is still classified in the same run.
+    assert result["classified_ids"] == [healthy]
+    assert result["failed"] == [{"id": poison, "error": "KeyError"}]
+    row = await db.get(KnowledgeAnswerReview, poison)
+    await db.refresh(row)
+    assert row.status == "awaiting_ttl" and row.last_error == "KeyError"
+    assert row.classification_attempts == 1
+
+    # Retries back off, and after the last attempt the row is parked for good.
+    for _ in range(MAX_CLASSIFICATION_ATTEMPTS - 1):
+        claim = await claim_ttl_classification(db, now=datetime.now(UTC) + timedelta(days=30))
+        assert claim["id"] == poison
+        await db.execute(
+            sa.update(KnowledgeAnswerReview)
+            .where(KnowledgeAnswerReview.id == poison)
+            .values(classification_token=None, next_classification_at=datetime.now(UTC))
+        )
+    await db.refresh(row)
+    assert row.classification_attempts == MAX_CLASSIFICATION_ATTEMPTS
+    assert await claim_ttl_classification(db, now=datetime.now(UTC) + timedelta(days=365)) is None
+
+
+async def test_crash_loop_consumes_attempts(db):
+    """A worker that dies mid-claim (lease expiry) still counts toward the limit."""
+    await pending(db)
+    now = datetime.now(UTC)
+    for n in range(MAX_CLASSIFICATION_ATTEMPTS):
+        claim = await claim_ttl_classification(db, now=now + timedelta(minutes=3 * n))
+        assert claim["classification_attempts"] == n + 1
+    assert await claim_ttl_classification(db, now=now + timedelta(days=1)) is None

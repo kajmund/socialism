@@ -79,12 +79,21 @@ async def record_answer_review(
     """Capture a final source-independent snapshot; no model calls in research.
 
     The basis contains stable evidence references, scope and final assessment.
-    Attempt-local IDs and timestamps must not reset the clock on reuse.
+    Attempt-local IDs, timestamps and LLM wording must not reset the clock on reuse.
     """
     if not answer_basis["evidence"]:
         raise ValueError("answer review requires evidence")
+    # Version identity: tenant, question, scope and the cited evidence set. The
+    # final assessment and interpretations are non-deterministic LLM text and must
+    # not mint a new version (and a new review clock) when the same evidence is
+    # rediscovered. They remain in answer_basis for the classifier.
     payload = json.dumps(
-        [customer_id, question_key, {k: v for k, v in answer_basis.items() if k != "question"}],
+        [
+            customer_id,
+            question_key,
+            answer_basis.get("scope"),
+            sorted({row["ref"] for row in answer_basis["evidence"]}),
+        ],
         sort_keys=True,
         separators=(",", ":"),
     )
