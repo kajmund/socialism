@@ -14,7 +14,10 @@ migration_settings = MigrationSettings()
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Migrations can run from a long-lived application process or test runner.
+    # Alembic's default disables every existing non-root logger, which silently
+    # breaks later observability and caplog assertions in that same process.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
