@@ -31,6 +31,8 @@ async def attach_question_dependency(
     dependency_id = stable_id("question-depends-on", question_node_id, fact_id)
     row = await session.get(GraphFactQuestionDependency, dependency_id)
     if row is not None:
+        row.provenance = sources
+        await session.flush()
         return row
     row = GraphFactQuestionDependency(
         id=dependency_id, scope_key=fact.scope_key, question_node_id=question_node_id,

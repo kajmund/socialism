@@ -164,6 +164,14 @@ async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session
         session, question_node_id=question.id, fact_id=original.id,
     )
     assert dependency.provenance == [{"kind": "episode", "ref": "unit-1"}]
+    await resolve_fact(session, fact(subject, target, "No adjustment", ref="unit-3"))
+    dependency = await attach_question_dependency(
+        session, question_node_id=question.id, fact_id=original.id,
+    )
+    assert dependency.provenance == [
+        {"kind": "episode", "ref": "unit-1"},
+        {"kind": "episode", "ref": "unit-3"},
+    ]
     await attach_question_dependency(session, question_node_id=question.id, fact_id=changed.id)
     assert await process_question_revalidation_work(session) == {"completed": 1, "waiting": 0}
     pending = list((await session.scalars(select(GraphFactRevalidation))).all())
@@ -172,7 +180,10 @@ async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session
     assert pending[0].trigger_fact_id == changed.id
     assert pending[0].dependent_fact_id == original.id
     assert pending[0].trigger_provenance == [{"kind": "episode", "ref": "unit-2"}]
-    assert pending[0].dependent_provenance == [{"kind": "episode", "ref": "unit-1"}]
+    assert pending[0].dependent_provenance == [
+        {"kind": "episode", "ref": "unit-1"},
+        {"kind": "episode", "ref": "unit-3"},
+    ]
     assert await process_question_revalidation_work(session) == {"completed": 0, "waiting": 0}
     assert await session.scalar(select(func.count()).select_from(GraphFactQuestionDependency)) == 2
 
