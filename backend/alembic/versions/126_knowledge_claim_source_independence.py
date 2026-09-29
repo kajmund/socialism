@@ -19,15 +19,17 @@ _SOURCE_COLUMNS = frozenset({"document_id", "document_version_id"})
 
 def upgrade() -> None:
     inspector = sa.inspect(op.get_bind())
-    indexes = inspector.get_indexes("knowledge_claims")
-    fks = inspector.get_foreign_keys("knowledge_claims")
+    for index in inspector.get_indexes("knowledge_claims"):
+        name = index.get("name")
+        columns = set(index.get("column_names") or ())
+        if name and _SOURCE_COLUMNS.intersection(columns):
+            op.drop_index(name, table_name="knowledge_claims")
+    for fk in inspector.get_foreign_keys("knowledge_claims"):
+        name = fk.get("name")
+        columns = set(fk.get("constrained_columns") or ())
+        if name and _SOURCE_COLUMNS.intersection(columns):
+            op.drop_constraint(name, "knowledge_claims", type_="foreignkey")
     with op.batch_alter_table("knowledge_claims") as batch:
-        for index in indexes:
-            if _SOURCE_COLUMNS.intersection(index.get("column_names") or ()):
-                batch.drop_index(index["name"])
-        for fk in fks:
-            if _SOURCE_COLUMNS.intersection(fk.get("constrained_columns") or ()):
-                batch.drop_constraint(fk["name"], type_="foreignkey")
         batch.drop_column("document_id")
         batch.drop_column("document_version_id")
 
