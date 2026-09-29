@@ -6,18 +6,15 @@ Adapters choose predicate strings; this module does not interpret them.
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import (
-    CanonicalDocumentRecord,
     KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
     KnowledgeClaimTextUnit,
@@ -25,11 +22,11 @@ from app.database.models import (
     TextUnitRecord,
 )
 from app.services.knowledge.events import (
-    CLAIM_ADDED,
     CLAIM_SUPERSEDED,
     record_graph_event,
     utc_now,
 )
+from app.services.knowledge.identity import knowledge_claim_identity
 from app.services.knowledge.scope import (
     SCOPE_CUSTOMER,
     KnowledgeScopeError,
@@ -59,12 +56,12 @@ class ClaimPassage(Protocol):
 class KnowledgeClaim:
     id: str
     customer_id: int | None
-    document_id: str
-    document_version_id: str
     predicate: str
     value: dict[str, object]
     supporting_text_unit_ids: tuple[str, ...]
     scope_type: str = SCOPE_CUSTOMER
+    persistence_class: str | None = None
+    observation_kind: str | None = None
 
     def __post_init__(self) -> None:
         require_persist_scope(scope_type=self.scope_type, customer_id=self.customer_id)
@@ -86,12 +83,38 @@ class KnowledgeClaimAnswerHit:
 
 def knowledge_claim_id(
     *,
-    document_version_id: str,
     predicate: str,
     value: dict[str, object],
+    scope_key: str,
 ) -> str:
-    payload = f"{document_version_id}\0{predicate}\0{_canonical_json(value)}"
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return knowledge_claim_identity(
+        scope_key=scope_key,
+        predicate=predicate,
+        value=value,
+    )
+
+
+def knowledge_claim(
+    *,
+    predicate: str,
+    value: dict[str, object],
+    supporting_text_unit_ids: Sequence[str],
+    customer_id: int,
+) -> KnowledgeClaim:
+    scope = require_persist_scope(customer_id=customer_id)
+    identity = knowledge_claim_id(
+        scope_key=scope.scope_key,
+        predicate=predicate,
+        value=value,
+    )
+    return KnowledgeClaim(
+        id=identity,
+        customer_id=scope.customer_id,
+        scope_type=scope.scope_type,
+        predicate=predicate,
+        value=value,
+        supporting_text_unit_ids=tuple(supporting_text_unit_ids),
+    )
 
 
 def supporting_text_unit_ids_for_quote(
@@ -126,67 +149,22 @@ def supporting_text_unit_ids_for_quote(
     return overlapping
 
 
-async def persist_knowledge_claims(
-    session: AsyncSession,
-    claims: Sequence[KnowledgeClaim],
-) -> list[KnowledgeClaimRecord]:
-    rows: list[KnowledgeClaimRecord] = []
-    for claim in claims:
-        rows.append(await persist_knowledge_claim(session, claim))
-    return rows
-
-
 async def persist_knowledge_claim(
-    session: AsyncSession,
-    claim: KnowledgeClaim,
+    session: AsyncSession, claim: KnowledgeClaim
 ) -> KnowledgeClaimRecord:
-    if not claim.supporting_text_unit_ids:
-        raise KnowledgeClaimError(f"claim {claim.id} has no SUPPORTED_BY TextUnits")
-    row = await session.get(KnowledgeClaimRecord, claim.id)
-    if row is not None and row.superseded_at is not None:
-        raise KnowledgeClaimError(f"claim {claim.id} is superseded")
-    await _assert_claim_grounding_scope(session, claim)
-    if row is None:
-        now = utc_now()
-        row = KnowledgeClaimRecord(
-            id=claim.id,
-            document_id=claim.document_id,
-            document_version_id=claim.document_version_id,
-            predicate=claim.predicate,
-            value=claim.value,
-            valid_from=now,
-            created_at=now,
-            **persist_scope_fields(claim.scope),
-        )
-        session.add(row)
-        await session.flush()
-        await record_graph_event(
-            session,
-            scope=claim.scope,
-            event_type=CLAIM_ADDED,
-            node_kind="claim",
-            node_id=claim.id,
-            payload={"predicate": claim.predicate},
-            created_at=now,
-        )
-    elif scope_from_row(row) != claim.scope:
-        raise KnowledgeClaimError(
-            f"claim {claim.id} already exists in a different knowledge scope"
-        )
-    await session.execute(
-        delete(KnowledgeClaimTextUnit).where(KnowledgeClaimTextUnit.claim_id == claim.id)
-    )
-    for ordinal, unit_id in enumerate(claim.supporting_text_unit_ids):
-        session.add(
-            KnowledgeClaimTextUnit(
-                claim_id=claim.id,
-                text_unit_id=unit_id,
-                ordinal=ordinal,
-                relation=SUPPORTED_BY,
-            )
-        )
-    await session.flush()
-    return row
+    # Circular: claim_store imports claim identity helpers from this module.
+    from app.services.knowledge.claim_store import persist_knowledge_claim as persist
+
+    return await persist(session, claim)
+
+
+async def persist_knowledge_claims(
+    session: AsyncSession, claims: Sequence[KnowledgeClaim]
+) -> list[KnowledgeClaimRecord]:
+    # Circular: claim_store imports claim identity helpers from this module.
+    from app.services.knowledge.claim_store import persist_knowledge_claims as persist
+
+    return await persist(session, claims)
 
 
 async def supersede_knowledge_claim(
@@ -334,8 +312,6 @@ async def claim_answers_for_question_key(
                     id=record.id,
                     customer_id=scope_from_row(record).customer_id,
                     scope_type=scope_from_row(record).scope_type,
-                    document_id=record.document_id,
-                    document_version_id=record.document_version_id,
                     predicate=record.predicate,
                     value=record.value,
                     supporting_text_unit_ids=tuple(support),
@@ -389,20 +365,10 @@ async def _claim_scope(session: AsyncSession, claim_id: str) -> KnowledgeTenantS
     return scope_from_row(row)
 
 
-async def _assert_claim_grounding_scope(
+async def assert_claim_grounding_scope(
     session: AsyncSession,
     claim: KnowledgeClaim,
 ) -> None:
-    document = await session.get(CanonicalDocumentRecord, claim.document_id)
-    if document is None:
-        raise KnowledgeClaimError(f"claim {claim.id} document {claim.document_id} is missing")
-    document_scope = scope_from_row(document)
-    try:
-        assert_not_promoted(source=document_scope, target=claim.scope)
-    except KnowledgeScopeError as exc:
-        raise KnowledgeClaimError(str(exc)) from exc
-    if document_scope.scope_type == SCOPE_CUSTOMER and claim.scope != document_scope:
-        raise KnowledgeClaimError("customer claim must stay in the document tenant scope")
     for unit_id in claim.supporting_text_unit_ids:
         unit = await session.get(TextUnitRecord, unit_id)
         if unit is None:
@@ -422,6 +388,18 @@ async def _assert_claim_grounding_scope(
             raise KnowledgeClaimError("customer claim cannot ground in another tenant TextUnit")
 
 
+async def document_refs_for_units(
+    session: AsyncSession,
+    unit_ids: Sequence[str],
+) -> tuple[str, str] | None:
+    if not unit_ids:
+        return None
+    unit = await session.get(TextUnitRecord, unit_ids[0])
+    if unit is None:
+        return None
+    return unit.document_id, unit.document_version_id
+
+
 async def supporting_text_unit_ids_for_claim(
     session: AsyncSession,
     claim_id: str,
@@ -434,10 +412,6 @@ async def supporting_text_unit_ids_for_claim(
         )
     ).all()
     return [row[0] for row in rows]
-
-
-def _canonical_json(value: object) -> str:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _compact(value: str) -> str:

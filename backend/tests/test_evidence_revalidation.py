@@ -227,13 +227,11 @@ async def _new_claim(session: AsyncSession, customer_id: int) -> str:
     value: dict[str, object] = {"value": False}
     claim = KnowledgeClaim(
         id=knowledge_claim_id(
-            document_version_id="ver-a",
+            scope_key=f"customer:{customer_id}",
             predicate="legal.adjustment_granted",
             value=value,
         ),
         customer_id=customer_id,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.adjustment_granted",
         value=value,
         supporting_text_unit_ids=("tu-hold",),
@@ -283,13 +281,11 @@ async def test_low_impact_is_clear_and_unrelated_claim_skips_jev(db):
 
     other = KnowledgeClaim(
         id=knowledge_claim_id(
-            document_version_id="ver-a",
+            scope_key=f"customer:{kund.id}",
             predicate="other.topic",
             value={"value": "nope"},
         ),
         customer_id=kund.id,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="other.topic",
         value={"value": "nope"},
         supporting_text_unit_ids=("tu-other",),
@@ -476,13 +472,11 @@ async def test_several_events_share_one_provenance_read_and_release_the_connecti
     second_value: dict[str, object] = {"value": True}
     second = KnowledgeClaim(
         id=knowledge_claim_id(
-            document_version_id="ver-a",
+            scope_key=f"customer:{kund.id}",
             predicate="legal.other_holding",
             value=second_value,
         ),
         customer_id=kund.id,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="legal.other_holding",
         value=second_value,
         supporting_text_unit_ids=("tu-hold",),

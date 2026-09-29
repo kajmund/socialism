@@ -174,7 +174,9 @@ async def test_research_persists_claims_on_interpreted_text_units():
         assert {claim.id for claim in reused} == set(claim_ids)
         assert all(claim.supporting_text_unit_ids for claim in reused)
         entities = list((await session.execute(select(KnowledgeEntityRecord))).scalars().all())
-        assert {row.entity_type for row in entities} >= {"legal.source", "legal.issue"}
+        types = {row.entity_type for row in entities}
+        assert "legal.source" in types
+        assert "legal.issue" not in types
         graph_edges = list(
             (await session.execute(select(KnowledgeRelationshipRecord))).scalars().all()
         )

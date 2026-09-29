@@ -90,13 +90,11 @@ def _claim(*, value: object, predicate: str = "outcome.granted") -> KnowledgeCla
     payload = {"value": value}
     return KnowledgeClaim(
         id=knowledge_claim_id(
-            document_version_id="ver-a",
+            scope_key="customer:1",
             predicate=predicate,
             value=payload,
         ),
         customer_id=1,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate=predicate,
         value=payload,
         supporting_text_unit_ids=("tu-hold",),

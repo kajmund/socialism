@@ -115,13 +115,11 @@ async def test_persist_claim_writes_supported_by_links(session: AsyncSession):
     value = {"value": False}
     claim = KnowledgeClaim(
         id=knowledge_claim_id(
-            document_version_id="ver-a",
+            scope_key="customer:1",
             predicate="outcome.granted",
             value=value,
         ),
         customer_id=1,
-        document_id="doc-a",
-        document_version_id="ver-a",
         predicate="outcome.granted",
         value=value,
         supporting_text_unit_ids=("tu-hold",),
