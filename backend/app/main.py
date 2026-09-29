@@ -38,6 +38,7 @@ from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
 from app.services.expertgranskning.memory import close_default_expert_memory
+from app.services.graph_v2.worker import start_graph_ingest_loop, stop_graph_ingest_loop
 from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
 from app.services.knowledge.vector_store import SupabaseVectorBucketStore
 from app.services.kund_store import ensure_default_kunder
@@ -98,6 +99,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
     vector_runtime = None
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None
+    graph_task = None
     set_lagen_nu_selector_factory(LlmLagenNuSelector)
     if settings.research_worker_loop_enabled:
         vector_runtime = await start_supabase_vector_runtime(settings)
@@ -110,11 +112,14 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
             "dimension": vector_runtime.health.dimension,
         }
         reclaim_stop = start_research_reclaim_loop()
+        graph_task = start_graph_ingest_loop(factory)
     try:
         yield
     finally:
         if reclaim_stop is not None:
             await stop_research_reclaim_loop(reclaim_stop)
+        if graph_task is not None:
+            await stop_graph_ingest_loop(graph_task)
         set_knowledge_vector_store_factory(None)
         set_lagen_nu_selector_factory(None)
         if vector_runtime is not None:
