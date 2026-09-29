@@ -21,7 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from app.database.base import Base
-from app.database.knowledge_scope import bind_scoped_mapper
+from app.database.knowledge_observation import KnowledgeObservationRecord as KnowledgeObservationRecord
 
 
 class Kund(Base):
@@ -1881,9 +1881,12 @@ class KnowledgeClaimRecord(Base):
 
     __tablename__ = "knowledge_claims"
     __table_args__ = (
-        Index("ix_knowledge_claims_document_version", "document_version_id"),
-        Index("ix_knowledge_claims_document_predicate", "document_id", "predicate"),
         Index("ix_knowledge_claims_superseded_at", "superseded_at"),
+        UniqueConstraint(
+            "scope_key",
+            "identity_key",
+            name="uq_knowledge_claims_scope_identity",
+        ),
         CheckConstraint(
             "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
             "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
@@ -1893,21 +1896,12 @@ class KnowledgeClaimRecord(Base):
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    identity_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("kunder.id", ondelete="RESTRICT"),
         nullable=True,
-        index=True,
-    )
-    document_id: Mapped[str] = mapped_column(
-        ForeignKey("canonical_documents.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    document_version_id: Mapped[str] = mapped_column(
-        ForeignKey("document_versions.id", ondelete="CASCADE"),
-        nullable=False,
         index=True,
     )
     predicate: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -2056,6 +2050,7 @@ class KnowledgeRelationshipRecord(Base):
             "from_id",
             "to_kind",
             "to_id",
+            "temporal_key",
             name="uq_knowledge_relationships_scope_edge",
         ),
         Index("ix_knowledge_relationships_from", "from_kind", "from_id"),
@@ -2083,6 +2078,7 @@ class KnowledgeRelationshipRecord(Base):
     from_id: Mapped[str] = mapped_column(String(64), nullable=False)
     to_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     to_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    temporal_key: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -3269,19 +3265,10 @@ class ActorContextProposal(Base):
 
 
 def _register_knowledge_scope_listeners() -> None:
-    for model in (
-        CanonicalDocumentRecord,
-        DocumentVersionRecord,
-        DocumentSectionRecord,
-        TextUnitRecord,
-        KnowledgeClaimRecord,
-        KnowledgeClaimAnswer,
-        KnowledgeEntityRecord,
-        KnowledgeRelationshipRecord,
-        KnowledgeGraphEventRecord,
-        KnowledgeQuestionRow,
-    ):
-        bind_scoped_mapper(model)
+    # Circular: knowledge_bind imports mapped classes defined in this module.
+    from app.database.knowledge_bind import register_knowledge_scope_listeners
+
+    register_knowledge_scope_listeners()
 
 
 _register_knowledge_scope_listeners()

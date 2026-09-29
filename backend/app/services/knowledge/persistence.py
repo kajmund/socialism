@@ -12,9 +12,11 @@ from app.database.models import (
     CanonicalDocumentRecord,
     DocumentSectionRecord,
     DocumentVersionRecord,
+    KnowledgeClaimTextUnit,
     TextUnitRecord,
 )
 from app.serializers import utcnow
+from app.services.knowledge.claim_store import prune_unsupported_claims
 from app.services.knowledge.scope import (
     KnowledgeTenantScope,
     persist_scope_fields,
@@ -291,3 +293,31 @@ async def _insert_text_units(  # noqa: PLR0917
             )
         )
     await session.flush()
+
+
+async def delete_canonical_document(session: AsyncSession, document_id: str) -> None:
+    row = await session.get(CanonicalDocumentRecord, document_id)
+    if row is None:
+        return
+    unit_ids = list(
+        (
+            await session.execute(
+                select(TextUnitRecord.id).where(TextUnitRecord.document_id == document_id)
+            )
+        ).scalars().all()
+    )
+    if unit_ids:
+        links = list(
+            (
+                await session.execute(
+                    select(KnowledgeClaimTextUnit).where(
+                        KnowledgeClaimTextUnit.text_unit_id.in_(unit_ids)
+                    )
+                )
+            ).scalars().all()
+        )
+        for link in links:
+            await session.delete(link)
+    await session.delete(row)
+    await session.flush()
+    await prune_unsupported_claims(session)

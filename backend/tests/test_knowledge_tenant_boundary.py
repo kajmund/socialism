@@ -200,14 +200,12 @@ async def _claim_for_doc(
     )
     claim = KnowledgeClaim(
         id=knowledge_claim_id(
-            document_version_id=persisted.version.id,
+            scope_key="shared" if scope_type == "shared" else f"customer:{customer_id}",
             predicate=predicate,
             value=value,
         ),
         customer_id=customer_id,
         scope_type=scope_type,
-        document_id=persisted.document.id,
-        document_version_id=persisted.version.id,
         predicate=predicate,
         value=value,
         supporting_text_unit_ids=tuple(unit.id for unit in units),
@@ -353,8 +351,6 @@ async def test_missing_customer_id_cannot_promote_private_claim_to_global(
         KnowledgeClaim(
             id="claim-missing-scope",
             customer_id=None,
-            document_id=persisted.document.id,
-            document_version_id=persisted.version.id,
             predicate="contract.rebate",
             value={"pct": 12},
             supporting_text_unit_ids=tuple(unit.id for unit in units),
@@ -370,14 +366,12 @@ async def test_missing_customer_id_cannot_promote_private_claim_to_global(
             session,
             KnowledgeClaim(
                 id=knowledge_claim_id(
-                    document_version_id=persisted.version.id,
+                    scope_key="shared",
                     predicate="contract.rebate",
                     value={"pct": 12},
                 ),
                 customer_id=None,
                 scope_type=SCOPE_SHARED,
-                document_id=persisted.document.id,
-                document_version_id=persisted.version.id,
                 predicate="contract.rebate",
                 value={"pct": 12},
                 supporting_text_unit_ids=tuple(unit.id for unit in units),

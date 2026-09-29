@@ -27,9 +27,11 @@ from app.llm.legal_research import (
 )
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.vector_store import KnowledgeVectorStore
-from app.services.lagen_nu.claim_grounding import ground_legal_claims
 from app.services.lagen_nu.graph_writeback import (
-    GraphWritebackQueue, PendingGraphWrite, flush_graph_writeback,
+    GraphWritebackQueue,
+    LegalWriteContext,
+    flush_graph_writeback,
+    queue_legal_knowledge,
 )
 from app.services.lagen_nu.document_fetch import (
     MAX_DOCUMENT_CHARS as MAX_DOCUMENT_CHARS,
@@ -41,7 +43,6 @@ from app.services.lagen_nu.display import (
     display_source_title,
     is_legal_front_matter,
 )
-from app.services.lagen_nu.legal_graph import ground_legal_graph
 from app.services.lagen_nu.mcp_client import (
     LagenNuMcpClient,
     OfficialLagenNuMcpClient,
@@ -1055,30 +1056,21 @@ class LagenNuResearchSource:
             raise LagenNuResearchKnowledgeError(
                 "lagen.nu research requires session and customer_id to persist claims"
             )
-        grounded_claims = ground_legal_claims(
+        extracted = queue_legal_knowledge(
+            self._graph_writes,
             legal_result,
             routed.units,
-            customer_id=customer_id,
-            research_need_id=need.id,
-            result_id=cached[0]
-            if cached is not None
-            else f"{units[0].document_version_id}:{need.id}",
+            LegalWriteContext(
+                customer_id=customer_id,
+                research_need_id=need.id,
+                result_id=cached[0]
+                if cached is not None
+                else f"{units[0].document_version_id}:{need.id}",
+                question=need.question,
+                source_type=self.source_type,
+            ),
         )
-        graph_entities, graph_edges = ground_legal_graph(
-            legal_result,
-            grounded_claims,
-            customer_id=customer_id,
-            document_id=units[0].document_id,
-        )
-        self._graph_writes.enqueue(PendingGraphWrite(
-            claims=tuple(grounded_claims),
-            entities=tuple(graph_entities),
-            edges=tuple(graph_edges),
-            research_need_id=need.id,
-            question=need.question,
-            source_type=self.source_type,
-            customer_id=customer_id,
-        ))
+        grounded_claims = list(extracted.claims)
         return research_evidence(
             research_need_id=need.id,
             source_type=self.source_type,

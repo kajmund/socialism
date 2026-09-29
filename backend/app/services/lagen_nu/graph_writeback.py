@@ -10,16 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.lagen_nu.text_unit_research import LagenNuResearchKnowledgeError
 
-from app.services.knowledge.claims import (
-    KnowledgeClaim,
-    answer_research_need,
-    persist_knowledge_claims,
-)
-from app.services.knowledge.entities import KnowledgeEntity, persist_knowledge_entities
-from app.services.knowledge.relationships import (
-    KnowledgeRelationship,
-    persist_knowledge_relationships,
-)
+from app.database.models import TextUnitRecord
+from app.services.knowledge.claims import KnowledgeClaim, answer_research_need
+from app.services.knowledge.entities import KnowledgeEntity
+from app.services.knowledge.observations import KnowledgeObservation
+from app.services.knowledge.persist import persist_extracted_knowledge
+from app.services.knowledge.relationships import KnowledgeRelationship
+from app.services.lagen_nu.claim_grounding import GroundedLegalKnowledge, ground_legal_extraction
+from app.services.lagen_nu.legal_graph import ground_legal_graph
+from app.services.legal_research_result import LegalResearchResult
 from app.services.research.knowledge_question import research_question_key
 
 
@@ -32,6 +31,7 @@ class PendingGraphWrite:
     question: str
     source_type: str
     customer_id: int
+    observations: tuple[KnowledgeObservation, ...] = ()
 
 
 @dataclass
@@ -48,6 +48,50 @@ class GraphWritebackQueue:
         return pending
 
 
+@dataclass(frozen=True)
+class LegalWriteContext:
+    customer_id: int
+    research_need_id: str
+    result_id: str
+    question: str
+    source_type: str
+
+
+def queue_legal_knowledge(
+    queue: GraphWritebackQueue,
+    result: LegalResearchResult,
+    units: Sequence[TextUnitRecord],
+    context: LegalWriteContext,
+) -> GroundedLegalKnowledge:
+    extracted = ground_legal_extraction(
+        result,
+        units,
+        customer_id=context.customer_id,
+        research_need_id=context.research_need_id,
+        result_id=context.result_id,
+        question=context.question,
+    )
+    entities, edges = ground_legal_graph(
+        result,
+        extracted.claims,
+        customer_id=context.customer_id,
+        document_id=units[0].document_id,
+    )
+    queue.enqueue(
+        PendingGraphWrite(
+            claims=extracted.claims,
+            entities=tuple(entities),
+            edges=tuple(edges),
+            research_need_id=context.research_need_id,
+            question=context.question,
+            source_type=context.source_type,
+            customer_id=context.customer_id,
+            observations=extracted.observations,
+        )
+    )
+    return extracted
+
+
 async def persist_pending_graph_writes(
     session: AsyncSession,
     items: Sequence[PendingGraphWrite],
@@ -61,16 +105,22 @@ async def persist_pending_graph_writes(
     for item in items:
         if any(claim.customer_id != item.customer_id for claim in item.claims):
             raise ValueError("claims must belong to the write-back customer_id")
-        await persist_knowledge_claims(session, item.claims)
-        await persist_knowledge_entities(session, item.entities)
-        await persist_knowledge_relationships(session, item.edges)
-        await answer_research_need(
+        persisted = await persist_extracted_knowledge(
             session,
-            research_need_id=item.research_need_id,
+            claims=item.claims,
+            entities=item.entities,
+            relationships=item.edges,
+            observations=item.observations,
             question_key=research_question_key(item.question),
-            claim_ids=[claim.id for claim in item.claims],
-            source_type=item.source_type,
         )
+        if persisted.accepted_claim_ids:
+            await answer_research_need(
+                session,
+                research_need_id=item.research_need_id,
+                question_key=research_question_key(item.question),
+                claim_ids=persisted.accepted_claim_ids,
+                source_type=item.source_type,
+            )
 
 
 async def flush_graph_writeback(
