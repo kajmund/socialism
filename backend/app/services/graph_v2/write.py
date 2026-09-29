@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.graph_v2 import GraphFact, GraphFactRelation, GraphFactSource, GraphIdentifier, GraphNode
 from app.database.models import TextUnitRecord
+from app.services.graph_v2.errors import PermanentGraphError
 from app.services.graph_v2.identity import (
     fact_identity, namespaced, normalized, stable_id, weak_node_identity,
 )
@@ -35,7 +36,7 @@ async def resolve_node(
         if alias is not None:
             row = await session.get(GraphNode, alias.node_id)
             if row is None or row.node_type != proposed.node_type:
-                raise ValueError("strong identifier conflicts with node type")
+                raise PermanentGraphError("strong identifier conflicts with node type")
             return row
         key = f"{namespace}:{identifier}"
     else:
@@ -156,7 +157,7 @@ async def _attach_identifier(
             raise
         resolved = await session.get(GraphNode, winner.node_id)
         if resolved is None or resolved.node_type != row.node_type:
-            raise ValueError("strong identifier conflicts with node type")
+            raise PermanentGraphError("strong identifier conflicts with node type")
         return resolved
     return row
 
@@ -181,7 +182,7 @@ async def resolve_fact(
     if vector is None and embedder is not None:
         vector = (await embedder.embed([proposed.fact_text]))[0]
     if candidates and judge is None:
-        raise ValueError("fact judge required for non-exact candidates")
+        raise PermanentGraphError("fact judge required for non-exact candidates")
     contradiction = None
     for candidate in _rank_candidates(candidates, vector)[:5]:
         decision = await judge.compare(proposed, candidate.fact_text)  # type: ignore[union-attr]
@@ -193,7 +194,7 @@ async def resolve_fact(
             contradiction = contradiction or candidate
             continue
         if decision != "DISTINCT":
-            raise ValueError(f"invalid fact judge decision: {decision}")
+            raise PermanentGraphError(f"invalid fact judge decision: {decision}")
     row = GraphFact(
         id=identity, identity_key=identity, scope_key=proposed.scope.scope_key,
         customer_id=proposed.scope.customer_id, source_id=proposed.source_id,
@@ -223,7 +224,7 @@ async def resolve_exact_fact(session: AsyncSession, proposed: FactInput) -> Grap
     namespaced(proposed.predicate)
     normalized(proposed.fact_text)
     if not proposed.sources:
-        raise ValueError("fact requires at least one episode or TextUnit")
+        raise PermanentGraphError("fact requires at least one episode or TextUnit")
     await _validate_endpoints(session, proposed)
     await _validate_sources(session, proposed.scope, proposed.sources)
     identity = fact_identity(
@@ -268,7 +269,7 @@ async def _validate_endpoints(session: AsyncSession, proposed: FactInput) -> Non
             continue
         row = await session.get(GraphNode, node_id)
         if row is None or not _can_reference(proposed.scope, row):
-            raise ValueError("fact endpoint is missing or outside tenant scope")
+            raise PermanentGraphError("fact endpoint is missing or outside tenant scope")
 
 
 async def _validate_sources(
@@ -276,13 +277,13 @@ async def _validate_sources(
 ) -> None:
     for source in sources:
         if not source.ref.strip():
-            raise ValueError("empty provenance reference")
+            raise PermanentGraphError("empty provenance reference")
         if source.kind == "text_unit":
             unit = await session.get(TextUnitRecord, source.ref)
             if unit is None or unit.scope_key not in (scope.scope_key, "shared"):
-                raise ValueError("TextUnit provenance is missing or outside tenant scope")
+                raise PermanentGraphError("TextUnit provenance is missing or outside tenant scope")
         elif source.kind != "episode":
-            raise ValueError("unsupported provenance kind")
+            raise PermanentGraphError("unsupported provenance kind")
 
 
 async def _attach_sources(

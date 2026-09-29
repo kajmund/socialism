@@ -13,6 +13,7 @@ from app.database.graph_v2 import GraphIngestWork
 from app.services.graph_v2.identity import stable_id
 from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
 from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
+from app.services.graph_v2.errors import PermanentGraphError
 from app.services.graph_v2.legal_writeback import write_legal_facts
 from app.services.knowledge.claims import KnowledgeClaim
 from app.services.knowledge.embeddings import EmbeddingProvider, OpenAIEmbeddingProvider
@@ -31,7 +32,7 @@ async def enqueue_legal_graph(
         return None
     scope_key = claims[0].scope.scope_key
     if any(claim.scope.scope_key != scope_key for claim in claims):
-        raise ValueError("graph work cannot mix tenant scopes")
+        raise PermanentGraphError("graph work cannot mix tenant scopes")
     payload = {
         "module": module,
         "claims": [{"id": c.id, "predicate": c.predicate, "value": c.value,
@@ -56,15 +57,19 @@ async def enqueue_legal_graph(
 def _deserialize(work: GraphIngestWork):
     customer_id = work.customer_id
     payload = work.payload
-    claims = [KnowledgeClaim(
-        id=row["id"], customer_id=customer_id, predicate=row["predicate"],
-        value=row["value"], supporting_text_unit_ids=tuple(row["unit_ids"]),
-    ) for row in payload["claims"]]
-    entities = [KnowledgeEntity(
-        id=row["id"], customer_id=customer_id, entity_type=row["entity_type"],
-        key=row["key"], name=row["name"], extra=row["extra"],
-    ) for row in payload["entities"]]
-    return claims, entities, payload["module"]
+    try:
+        claims = [KnowledgeClaim(
+            id=row["id"], customer_id=customer_id, predicate=row["predicate"],
+            value=row["value"], supporting_text_unit_ids=tuple(row["unit_ids"]),
+        ) for row in payload["claims"]]
+        entities = [KnowledgeEntity(
+            id=row["id"], customer_id=customer_id, entity_type=row["entity_type"],
+            key=row["key"], name=row["name"], extra=row["extra"],
+        ) for row in payload["entities"]]
+        module = payload["module"]
+    except (KeyError, TypeError, IndexError, ValueError) as exc:
+        raise PermanentGraphError("invalid persisted Graph v2 work payload") from exc
+    return claims, entities, module
 
 
 async def claim_graph_work(factory: async_sessionmaker[AsyncSession]) -> tuple[str, int] | None:
@@ -136,9 +141,7 @@ async def process_graph_work(
 
 def _is_permanent_graph_error(exc: Exception) -> bool:
     """Payload, invariant, and data-shape failures cannot heal on retry."""
-    return isinstance(
-        exc, (ValueError, TypeError, KeyError, IndexError, DataError, IntegrityError, ProgrammingError),
-    )
+    return isinstance(exc, (PermanentGraphError, DataError, ProgrammingError))
 
 
 async def _fail_graph_work(

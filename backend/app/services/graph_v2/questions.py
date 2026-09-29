@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import uuid4
 
 from app.database.models import KnowledgeQuestionLineage, KnowledgeQuestionRow
+from app.services.graph_v2.errors import PermanentGraphError
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
 from app.services.knowledge.scope import require_persist_scope
@@ -29,7 +30,7 @@ async def link_decomposition(
         scope_type=parent.scope_type, customer_id=parent.customer_id,
     )
     if child.scope_key != parent.scope_key:
-        raise ValueError("decomposition cannot cross question scopes")
+        raise PermanentGraphError("decomposition cannot cross question scopes")
     await resolve_fact(session, FactInput(
         source_id=source.id, target_id=target.id, scope=scope,
         predicate="research.decomposed_to",
