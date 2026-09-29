@@ -220,3 +220,39 @@ def test_migration_roundtrip(monkeypatch):
         migration.downgrade()
         assert "knowledge_answer_reviews" not in sa.inspect(conn).get_table_names()
     engine.dispose()
+
+
+async def test_llm_wording_does_not_mint_new_version(db):
+    """Same cited evidence + scope is one version, however the LLM words it."""
+
+    def basis(assessment, interpretation):
+        return {
+            "question": "What is known?",
+            "scope": {"module": "rattsunderlag", "case_id": 5},
+            "assessments": [{"summary": assessment}],
+            "evidence": [
+                {"ref": "ref-a", "source_type": "case_knowledge", "interpretation": interpretation}
+            ],
+        }
+
+    first = await record_answer_review(
+        db, customer_id=1, question_key="q", answer_basis=basis("Sufficient.", "Reading one"),
+        created_at=datetime(2026, 1, 31, tzinfo=UTC),
+    )
+    again = await record_answer_review(
+        db, customer_id=1, question_key="q", answer_basis=basis("Adequate.", "Reading two"),
+        created_at=datetime(2027, 1, 1, tzinfo=UTC),
+    )
+    other_case = await record_answer_review(
+        db, customer_id=1, question_key="q",
+        answer_basis={**basis("Sufficient.", "Reading one"), "scope": {"module": "rattsunderlag", "case_id": 6}},
+    )
+    new_evidence = await record_answer_review(
+        db, customer_id=1, question_key="q",
+        answer_basis={**basis("Sufficient.", "Reading one"),
+                      "evidence": [{"ref": "ref-a", "source_type": "x"}, {"ref": "ref-b", "source_type": "x"}]},
+    )
+    assert first == again
+    assert len({first, other_case, new_evidence}) == 3
+    row = await db.get(KnowledgeAnswerReview, first)
+    assert row.created_at.replace(tzinfo=UTC) == datetime(2026, 1, 31, tzinfo=UTC)

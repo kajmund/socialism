@@ -1,6 +1,7 @@
 """Bounded Jev TTL classification outside research and outside DB transactions."""
 
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -16,6 +17,17 @@ from app.services.knowledge.answer_review import (
     parse_review_decision,
     review_after,
 )
+
+logger = logging.getLogger(__name__)
+
+MAX_CLASSIFICATION_ATTEMPTS = 5
+_RETRY_BASE = timedelta(minutes=5)
+_RETRY_CAP = timedelta(hours=6)
+
+
+def retry_delay(attempts: int) -> timedelta:
+    """Exponential backoff: 5 min, 10, 20, ... capped at 6 h."""
+    return min(_RETRY_BASE * 2 ** min(max(attempts - 1, 0), 10), _RETRY_CAP)
 
 
 def classification_state(basis: dict) -> dict:
@@ -52,6 +64,7 @@ async def claim_ttl_classification(session: AsyncSession, *, now: datetime) -> d
         .where(
             KnowledgeAnswerReview.status == "awaiting_ttl",
             KnowledgeAnswerReview.next_classification_at <= now,
+            KnowledgeAnswerReview.classification_attempts < MAX_CLASSIFICATION_ATTEMPTS,
         )
         .order_by(KnowledgeAnswerReview.next_classification_at, KnowledgeAnswerReview.id)
         .limit(1)
@@ -66,9 +79,15 @@ async def claim_ttl_classification(session: AsyncSession, *, now: datetime) -> d
             KnowledgeAnswerReview.id.in_(select(due.c.id)),
             KnowledgeAnswerReview.status == "awaiting_ttl",
         )
-        .values(classification_token=token, next_classification_at=now + timedelta(minutes=2))
+        .values(
+            classification_token=token,
+            next_classification_at=now + timedelta(minutes=2),
+            # Counted at claim time so a worker crash also consumes an attempt.
+            classification_attempts=KnowledgeAnswerReview.classification_attempts + 1,
+        )
         .returning(
             KnowledgeAnswerReview.id,
+            KnowledgeAnswerReview.classification_attempts,
             KnowledgeAnswerReview.answer_basis,
             KnowledgeAnswerReview.created_at,
             KnowledgeAnswerReview.classification_token,
@@ -132,23 +151,36 @@ async def classify_pending_reviews(
                 timeout_seconds=settings.jev_timeout_seconds,
             )
             decision = parse_review_decision(result.answers)
-        except JevClientError as exc:
-            async with factory.begin() as session:
-                await session.execute(
-                    update(KnowledgeAnswerReview)
-                    .where(
-                        KnowledgeAnswerReview.id == claim["id"],
-                        KnowledgeAnswerReview.classification_token == claim["classification_token"],
-                    )
-                    .values(
-                        last_error=exc.category,
-                        classification_token=None,
-                        next_classification_at=datetime.now(UTC) + timedelta(minutes=5),
-                    )
-                )
-            failed.append({"id": claim["id"], "error": exc.category})
+        except Exception as exc:  # one bad row must not stall the queue
+            logger.exception("answer_review_classification_failed id=%s", claim["id"])
+            category = str(getattr(exc, "category", None) or type(exc).__name__)[:64]
+            await _record_failure(factory, claim=claim, category=category)
+            failed.append({"id": claim["id"], "error": category})
             continue
         async with factory.begin() as session:
             if await finish_ttl_classification(session, claim=claim, decision=decision):
                 completed.append(claim["id"])
     return {"classified_ids": completed, "failed": failed}
+
+
+async def _record_failure(
+    factory: async_sessionmaker[AsyncSession], *, claim: dict, category: str
+) -> None:
+    """Release the lease with backoff; park (no next attempt) after the last try."""
+    attempts = claim["classification_attempts"]
+    parked = attempts >= MAX_CLASSIFICATION_ATTEMPTS
+    async with factory.begin() as session:
+        await session.execute(
+            update(KnowledgeAnswerReview)
+            .where(
+                KnowledgeAnswerReview.id == claim["id"],
+                KnowledgeAnswerReview.classification_token == claim["classification_token"],
+            )
+            .values(
+                last_error=category,
+                classification_token=None,
+                next_classification_at=(
+                    None if parked else datetime.now(UTC) + retry_delay(attempts)
+                ),
+            )
+        )

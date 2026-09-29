@@ -14,7 +14,11 @@ excerpt-only, reused, domain-interpreted, and derived evidence. Providers do not
 choose TTL, enqueue candidates, or know about the review lifecycle.
 
 There is no standalone synthesized-answer entity yet. An answer version is the
-customer + question key + module/case scope + final evidence/assessment snapshot.
+customer + question key + module/case scope + the set of cited evidence references.
+Evidence identity is source type/id/url, locator and content hash. The final
+assessment, interpretations and derived excerpts are LLM wording: they are stored
+and sent to the classifier but never part of the version hash, so rediscovering
+the same evidence does not mint a new version or reset the review clock.
 The snapshot contains source references, content hashes, source excerpts,
 interpretations where present, and the question's final sufficiency/gap assessment.
 Only the current attempt's needs and evidence are read, using their existing
@@ -48,9 +52,12 @@ Classification takes one indexed row at a time with a two-minute durable lease,
 commits, and returns the database connection before calling Jev. Success writes the
 choice only if the worker still owns the lease token. A crashed/cancelled worker's
 lease can be reclaimed. An expired worker cannot overwrite a newer decision.
-Known Jev failures (including missing/invalid choices) remain `awaiting_ttl`, store
-the error category, and retry after five minutes. They never become `never` by
-default. Unexpected process failures leave the lease reclaimable and fail loudly.
+Every claim counts as an attempt (also a worker crash, whose lease later expires).
+Any failure, Jev or otherwise, keeps the row `awaiting_ttl`, stores the error
+category and retries with exponential backoff (5 min, 10, 20 … capped at 6 h). After
+5 attempts the row is parked (`awaiting_ttl`, no `next_classification_at`) and is
+visible with `list --status awaiting_ttl`; a failing row never blocks the rest of
+the batch and never becomes `never` by default.
 
 ## Operating the separate process
 
