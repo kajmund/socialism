@@ -3,6 +3,7 @@
 import hashlib
 
 from app.services.knowledge.identity import normalize_assertion_text
+from app.services.graph_v2.errors import PermanentGraphError
 
 
 def stable_id(*parts: str) -> str:
@@ -11,14 +12,14 @@ def stable_id(*parts: str) -> str:
 
 def namespaced(value: str) -> str:
     if "." not in value or value.startswith(".") or value.endswith(".") or value.strip() != value:
-        raise ValueError(f"expected a namespaced graph label: {value!r}")
+        raise PermanentGraphError(f"expected a namespaced graph label: {value!r}")
     return value
 
 
 def normalized(text: str) -> str:
     result = normalize_assertion_text(text)
     if not result:
-        raise ValueError("graph text must not be empty")
+        raise PermanentGraphError("graph text must not be empty")
     return result
 
 

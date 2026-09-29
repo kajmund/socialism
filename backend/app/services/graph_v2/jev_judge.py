@@ -4,6 +4,7 @@ import json
 
 from app.config import settings
 from app.jev.system import HttpJevSystemOne, JevSystemOne
+from app.services.graph_v2.errors import JevMalformedResponseError
 from app.services.graph_v2.types import Decision, FactInput, NodeInput
 
 
@@ -22,7 +23,7 @@ class JevFactJudge:
         answer = result.answers.get("relation")
         choice = answer.get("choice") if isinstance(answer, dict) else None
         if choice not in {"SAME", "DISTINCT", "CONTRADICTS"}:
-            raise ValueError("semantic fact judge returned an invalid decision")
+            raise JevMalformedResponseError("semantic fact judge returned an invalid decision")
         return choice
 
 
@@ -42,5 +43,5 @@ class JevNodeJudge:
         answer = result.answers.get("relation")
         choice = answer.get("choice") if isinstance(answer, dict) else None
         if choice not in {"SAME", "DISTINCT"}:
-            raise ValueError("semantic node judge returned an invalid decision")
+            raise JevMalformedResponseError("semantic node judge returned an invalid decision")
         return choice == "SAME"

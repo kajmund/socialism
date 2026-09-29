@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import KnowledgeClaimAnswer, KnowledgeQuestionRow
 from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
 from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
+from app.services.graph_v2.errors import PermanentGraphError
 from app.services.graph_v2.questions import question_node
 from app.services.graph_v2.revalidation import attach_question_dependency
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
@@ -35,7 +36,7 @@ async def write_legal_facts(
         return []
     source = next(entity for entity in entities if entity.entity_type == "legal.source")
     if source.customer_id is None:
-        raise ValueError("legal graph projection requires a customer scope")
+        raise PermanentGraphError("legal graph projection requires a customer scope")
     scope = source.scope
     subject = await resolve_node(
         session,
