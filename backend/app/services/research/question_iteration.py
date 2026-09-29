@@ -244,17 +244,13 @@ async def record_question_lineage(
             trigger_graph_event_id=existing.trigger_graph_event_id,
             why_needed=existing.why_needed,
         )
-    session.add(
-        KnowledgeQuestionLineage(
-            id=uuid4().hex,
-            parent_question_id=parent_question_id,
-            child_question_id=child_question_id,
-            trigger_claim_id=trigger_claim_id,
-            trigger_graph_event_id=trigger_graph_event_id,
-            why_needed=why_needed,
-        )
+    from app.services.graph_v2.questions import persist_decomposition
+
+    await persist_decomposition(
+        session, parent_id=parent_question_id, child_id=child_question_id,
+        why_needed=why_needed, trigger_claim_id=trigger_claim_id,
+        trigger_graph_event_id=trigger_graph_event_id,
     )
-    await session.flush()
     return QuestionLineageEdge(
         parent_question_id=parent_question_id,
         child_question_id=child_question_id,
@@ -578,4 +574,3 @@ async def attach_freeze_grounded_refs(
     evidence_set.grounded_refs = refs
     await session.flush()
     return refs
-
