@@ -215,7 +215,15 @@ async def test_parallel_repeated_ingest_is_bounded(tmp_path):
     async def ingest(index):
         async with factory() as session:
             a, b = await node(session, "A"), await node(session, "B")
-            await resolve_fact(session, fact(a, b, "A gäller B", ref=f"episode-{index}"))
+
+            class DuplicateJudge:
+                async def compare(self, proposed, candidate_text):
+                    return "SAME" if proposed.fact_text == candidate_text else "DISTINCT"
+
+            await resolve_fact(
+                session, fact(a, b, "A gäller B", ref=f"episode-{index}"),
+                judge=DuplicateJudge(),
+            )
             await session.commit()
 
     # SQLite serializes writes; the same nested-transaction conflict path runs on Postgres.
