@@ -870,8 +870,6 @@ async def _seed_claim_answer(
     value: dict[str, object] = {"value": False}
     claim = KnowledgeClaim(
         id=knowledge_claim_id(
-            document_version_id="ver-claim",
-            document_id="doc-claim",
             scope_key=f"customer:{customer_id}",
             predicate="legal.adjustment_granted",
             value=value,

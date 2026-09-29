@@ -6,7 +6,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.knowledge_observation import KnowledgeObservationRecord
@@ -27,6 +27,7 @@ from app.observability.knowledge import (
 )
 from app.services.knowledge.claim_store import attach_supporting_text_units
 from app.services.knowledge.identity import knowledge_claim_identity, normalize_assertion_text
+from app.services.knowledge.relationships import merge_relationship_extra
 from app.services.knowledge.observations import (
     ObservationSeed,
     knowledge_observation,
@@ -97,19 +98,10 @@ async def audit_knowledge_graph(session: AsyncSession) -> KnowledgeAuditReport:
             report.research_observation_claim_count += 1
         else:
             report.domain_claim_count += 1
-        exact_key = "|".join(
-            (
-                claim.scope_key,
-                claim.document_version_id,
-                claim.predicate,
-                str(claim.value),
-            )
-        )
+        exact_key = "|".join((claim.scope_key, claim.predicate, str(claim.value)))
         exact[exact_key].append(claim)
         identity = knowledge_claim_identity(
             scope_key=claim.scope_key,
-            document_id=claim.document_id,
-            document_version_id=claim.document_version_id,
             predicate=claim.predicate,
             value=claim.value,
         )
@@ -254,15 +246,25 @@ async def _merge_claim_groups(
                     predicate=winner.predicate,
                 ),
             )
+        winner.identity_key = knowledge_claim_identity(
+            scope_key=winner.scope_key,
+            predicate=winner.predicate,
+            value=winner.value,
+        )
 
 
 async def _merge_entity_groups(session: AsyncSession, groups: SequenceLike) -> None:
     for group in groups:
+        winner = await session.get(KnowledgeEntityRecord, group.winner_id)
+        if winner is None:
+            continue
         for loser_id in group.loser_ids:
+            loser = await session.get(KnowledgeEntityRecord, loser_id)
+            if loser is None:
+                continue
+            winner.extra = merge_relationship_extra(winner.extra, loser.extra)
             await _rewire_node(session, "entity", loser_id, group.winner_id)
-            row = await session.get(KnowledgeEntityRecord, loser_id)
-            if row is not None:
-                await session.delete(row)
+            await session.delete(loser)
 
 
 async def _merge_relationship_groups(session: AsyncSession, groups: SequenceLike) -> None:
@@ -315,22 +317,80 @@ async def _rewire_claim_references(session: AsyncSession, loser_id: str, winner_
 
 
 async def _rewire_node(session: AsyncSession, kind: str, loser_id: str, winner_id: str) -> None:
-    await session.execute(
-        update(KnowledgeRelationshipRecord)
-        .where(
-            KnowledgeRelationshipRecord.from_kind == kind,
-            KnowledgeRelationshipRecord.from_id == loser_id,
-        )
-        .values(from_id=winner_id)
+    edges = list(
+        (
+            await session.execute(
+                select(KnowledgeRelationshipRecord).where(
+                    or_(
+                        (
+                            (KnowledgeRelationshipRecord.from_kind == kind)
+                            & (KnowledgeRelationshipRecord.from_id == loser_id)
+                        ),
+                        (
+                            (KnowledgeRelationshipRecord.to_kind == kind)
+                            & (KnowledgeRelationshipRecord.to_id == loser_id)
+                        ),
+                    )
+                )
+            )
+        ).scalars().all()
     )
-    await session.execute(
-        update(KnowledgeRelationshipRecord)
-        .where(
-            KnowledgeRelationshipRecord.to_kind == kind,
-            KnowledgeRelationshipRecord.to_id == loser_id,
+    for edge in edges:
+        await _rewire_edge(session, edge, kind=kind, loser_id=loser_id, winner_id=winner_id)
+    await _rewire_graph_events(session, kind, loser_id, winner_id)
+
+
+async def _rewire_edge(
+    session: AsyncSession,
+    edge: KnowledgeRelationshipRecord,
+    *,
+    kind: str,
+    loser_id: str,
+    winner_id: str,
+) -> None:
+    new_from = winner_id if edge.from_kind == kind and edge.from_id == loser_id else edge.from_id
+    new_to = winner_id if edge.to_kind == kind and edge.to_id == loser_id else edge.to_id
+    if new_from == edge.from_id and new_to == edge.to_id:
+        return
+    existing = await _edge_for_tuple(session, edge, from_id=new_from, to_id=new_to)
+    if existing is not None and existing.id != edge.id:
+        existing.extra = merge_relationship_extra(existing.extra, edge.extra)
+        await _rewire_graph_events(session, "relationship", edge.id, existing.id)
+        await session.delete(edge)
+        return
+    edge.from_id = new_from
+    edge.to_id = new_to
+    await session.flush()
+
+
+async def _edge_for_tuple(
+    session: AsyncSession,
+    edge: KnowledgeRelationshipRecord,
+    *,
+    from_id: str,
+    to_id: str,
+) -> KnowledgeRelationshipRecord | None:
+    return (
+        await session.execute(
+            select(KnowledgeRelationshipRecord).where(
+                KnowledgeRelationshipRecord.scope_key == edge.scope_key,
+                KnowledgeRelationshipRecord.relation == edge.relation,
+                KnowledgeRelationshipRecord.from_kind == edge.from_kind,
+                KnowledgeRelationshipRecord.from_id == from_id,
+                KnowledgeRelationshipRecord.to_kind == edge.to_kind,
+                KnowledgeRelationshipRecord.to_id == to_id,
+                KnowledgeRelationshipRecord.temporal_key == (edge.temporal_key or ""),
+            )
         )
-        .values(to_id=winner_id)
-    )
+    ).scalars().first()
+
+
+async def _rewire_graph_events(
+    session: AsyncSession,
+    kind: str,
+    loser_id: str,
+    winner_id: str,
+) -> None:
     await session.execute(
         update(KnowledgeGraphEventRecord)
         .where(

@@ -2,7 +2,7 @@
 
 Durable knowledge is **classified before persist**, then upserted by a stable identity. Re-running the same research over the same source must not mint new claims, entities, or edges because LLM wording, question phrasing, attempt IDs, or excerpts changed.
 
-This is the same identity principle as answer-review TTL ([answer-review-ttl.md](answer-review-ttl.md)): hash **scope + provenance + structured assertion**, not display prose.
+This is the same identity principle as answer-review TTL ([answer-review-ttl.md](answer-review-ttl.md)): hash **scope + structured assertion**, not display prose or source identity. Documents, versions, and TextUnits are provenance attached to the claim.
 
 ## Persistence classes
 
@@ -21,12 +21,12 @@ The classifier is domain-free. Producers may declare a class and kind. Otherwise
 `knowledge_claims.identity_key` is SHA-256 of:
 
 ```text
-scope_key + document_id + document_version_id + predicate + normalize(assertion)
+scope_key + predicate + normalize(assertion)
 ```
 
-`normalize` drops volatile keys (`excerpt`, `quote`, `question`, `attempt_id`, `run_id`, `rationale`, …) and casefolds / collapses whitespace on strings.
+`normalize` drops volatile keys (`excerpt`, `quote`, `question`, `attempt_id`, `run_id`, `rationale`, …) and casefolds / collapses whitespace on strings. Source identity is not part of the hash. A second document that asserts the same fact reuses the claim and attaches its TextUnits.
 
-Re-extraction of the same assertion attaches additional TextUnit / question links to the existing row. It does not replace support and does not change the identity.
+Re-extraction of the same assertion attaches additional TextUnit / question links to the existing row. It does not replace support and does not change the identity. Domains that need a finer split must put that discriminator in the structured assertion, not in the source.
 
 ## Entities and relationships
 
@@ -41,7 +41,7 @@ python -m app.services.knowledge.audit_cli cleanup          # dry-run
 python -m app.services.knowledge.audit_cli cleanup --apply  # rewire, then delete
 ```
 
-The report lists exact duplicate claims, same-provenance normalizable claims, duplicate entities/edges, and how many source-quality / research-observation rows are still stored as `knowledge_claims`. `--apply` rewires answers, lineage, runtime needs, relationships, and graph events before removing losers. No cleanup without that dry-run path.
+The report lists exact duplicate claims, normalizable claims (same scope + predicate + assertion), duplicate entities/edges, and how many source-quality / research-observation rows are still stored as `knowledge_claims`. `--apply` rewires answers, lineage, runtime needs, relationships, and graph events before removing losers. When a rewired edge collides with an existing stable tuple, extras are merged and the loser edge is deleted. No cleanup without that dry-run path.
 
 ## Observability
 
