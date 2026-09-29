@@ -8,7 +8,6 @@ from app.services.knowledge.claims import SUPPORTED_BY, KnowledgeClaim
 from app.services.knowledge.entities import KnowledgeEntity, knowledge_entity
 from app.services.knowledge.relationships import (
     ABOUT,
-    SAME_AS,
     KnowledgeRelationship,
     knowledge_relationship,
 )
@@ -20,7 +19,6 @@ LEGAL_DECIDED_BY = "legal.decided_by"
 
 LEGAL_SOURCE = "legal.source"
 LEGAL_COURT = "legal.court"
-LEGAL_ISSUE = "legal.issue"
 LEGAL_PROVISION = "legal.provision"
 
 
@@ -48,7 +46,7 @@ def ground_legal_graph(  # noqa: C901, PLR0912
             entity_type=LEGAL_SOURCE,
             key=result.source.canonical_uri,
             name=result.source.title,
-            extra={"kind": result.source.kind, "canonical_uri": result.source.canonical_uri},
+            extra=_source_extra(result),
         )
     )
     add_edge(
@@ -61,29 +59,6 @@ def ground_legal_graph(  # noqa: C901, PLR0912
             to_id=source.id,
         )
     )
-    identifier = (result.source.identifier or "").strip()
-    if identifier:
-        alias = add_entity(
-            knowledge_entity(
-                customer_id=customer_id,
-                entity_type=LEGAL_SOURCE,
-                key=identifier,
-                name=identifier,
-                extra={"identifier": identifier},
-            )
-        )
-        if alias.id != source.id:
-            add_edge(
-                knowledge_relationship(
-                    customer_id=customer_id,
-                    relation=SAME_AS,
-                    from_kind="entity",
-                    from_id=source.id,
-                    to_kind="entity",
-                    to_id=alias.id,
-                )
-            )
-
     court = _court_entity(result, customer_id=customer_id)
     if court is not None:
         add_entity(court)
@@ -97,10 +72,6 @@ def ground_legal_graph(  # noqa: C901, PLR0912
                 to_id=court.id,
             )
         )
-
-    issue = _issue_entity(result, customer_id=customer_id)
-    if issue is not None:
-        add_entity(issue)
 
     provisions = _provision_entities(result, customer_id=customer_id)
     for provision in provisions:
@@ -150,17 +121,6 @@ def ground_legal_graph(  # noqa: C901, PLR0912
                 to_id=source.id,
             )
         )
-        if issue is not None:
-            add_edge(
-                knowledge_relationship(
-                    customer_id=customer_id,
-                    relation=ABOUT,
-                    from_kind="claim",
-                    from_id=claim.id,
-                    to_kind="entity",
-                    to_id=issue.id,
-                )
-            )
         if court is not None:
             add_edge(
                 knowledge_relationship(
@@ -225,22 +185,15 @@ def _court_entity(
     )
 
 
-def _issue_entity(
-    result: LegalResearchResult,
-    *,
-    customer_id: int,
-) -> KnowledgeEntity | None:
-    if result.case_law is None:
-        return None
-    issue = result.case_law.legal_issue.strip()
-    if not issue:
-        return None
-    return knowledge_entity(
-        customer_id=customer_id,
-        entity_type=LEGAL_ISSUE,
-        key=issue,
-        name=issue,
-    )
+def _source_extra(result: LegalResearchResult) -> dict[str, object]:
+    extra: dict[str, object] = {
+        "kind": result.source.kind,
+        "canonical_uri": result.source.canonical_uri,
+    }
+    identifier = (result.source.identifier or "").strip()
+    if identifier:
+        extra["identifier"] = identifier
+    return extra
 
 
 def _provision_entities(

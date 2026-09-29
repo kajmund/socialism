@@ -201,6 +201,8 @@ async def _claim_for_doc(
     claim = KnowledgeClaim(
         id=knowledge_claim_id(
             document_version_id=persisted.version.id,
+            document_id=persisted.document.id,
+            scope_key="shared" if scope_type == "shared" else f"customer:{customer_id}",
             predicate=predicate,
             value=value,
         ),
@@ -371,6 +373,8 @@ async def test_missing_customer_id_cannot_promote_private_claim_to_global(
             KnowledgeClaim(
                 id=knowledge_claim_id(
                     document_version_id=persisted.version.id,
+                    document_id=persisted.document.id,
+                    scope_key="shared",
                     predicate="contract.rebate",
                     value={"pct": 12},
                 ),
