@@ -68,8 +68,12 @@ _SOURCE_QUALITY_PHRASES = (
 _COMPLETENESS_MARKERS = (
     "complete",
     "fullständig",
+    "fullständiga",
+    "fullständigt",
     "incomplete",
     "ofullständig",
+    "ofullständiga",
+    "ofullständigt",
 )
 _ABSENCE_MARKERS = (
     "absent",
