@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import Kund
-from app.database.graph_v2 import GraphFact, GraphFactSource, GraphIngestWork
+from app.database.graph_v2 import GraphFact, GraphFactSource, GraphIngestWork, GraphNode
 from sqlalchemy import func, select
 from app.services.graph_v2.outbox import process_graph_work
 from app.services.lagen_nu import graph_writeback as writeback
@@ -160,6 +160,10 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
     ))["completed"] == 2
     assert await session.scalar(select(func.count()).select_from(GraphFact)) > 0
     assert await session.scalar(select(func.count()).select_from(GraphFactSource)) > 0
+    targets = (await session.scalars(select(GraphNode).join(
+        GraphFact, GraphFact.target_id == GraphNode.id,
+    ))).all()
+    assert targets and all(row.node_type.endswith(".value") for row in targets)
     assert (await process_graph_work(
         factory, embedder=FakeEmbedder(), judge=FakeJudge(), node_judge=FakeNodeJudge(),
     )) == {"completed": 0, "failed": 0}
