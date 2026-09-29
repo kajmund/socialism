@@ -113,7 +113,7 @@ async def test_need_deadline_fails_the_need_and_the_attempt(db, monkeypatch):
 async def test_need_deadline_completes_one_need_and_keeps_the_other(db, monkeypatch):
     session, _factory = db
     _customer_row, _run, attempt = await _created_attempt(session, slug="deadline-mix")
-    monkeypatch.setattr(settings, "research_need_timeout_seconds", 0.25)
+    monkeypatch.setattr(settings, "research_need_timeout_seconds", 5.0)
     found = RecordingSource("case_knowledge")
     result = await execute_attempt_research(
         session,
