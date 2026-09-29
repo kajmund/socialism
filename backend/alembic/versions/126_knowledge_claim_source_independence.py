@@ -8,6 +8,9 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.orm import Session
+
+from app.services.knowledge.claim_rekey import rekey_claim_identities
 
 revision: str = "126_knowledge_claim_source_independence"
 down_revision: str | Sequence[str] | None = "125_knowledge_persistence_gate"
@@ -32,6 +35,7 @@ def upgrade() -> None:
     with op.batch_alter_table("knowledge_claims") as batch:
         batch.drop_column("document_id")
         batch.drop_column("document_version_id")
+    rekey_claim_identities(Session(bind=op.get_bind()))
 
 
 def downgrade() -> None:

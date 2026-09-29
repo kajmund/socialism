@@ -11,37 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.knowledge_observation import KnowledgeObservationRecord
 from app.database.models import (
-    KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
-    KnowledgeClaimTextUnit,
     KnowledgeEntityRecord,
     KnowledgeGraphEventRecord,
-    KnowledgeQuestionLineage,
     KnowledgeRelationshipRecord,
-    ResearchRuntimeNeed,
 )
-from app.observability.knowledge import (
-    KnowledgeDecision,
-    KnowledgePersistStats,
-    record_knowledge_decision,
-)
-from app.services.knowledge.claim_store import attach_supporting_text_units
-from app.services.knowledge.claims import (
-    document_refs_for_units,
-    supporting_text_unit_ids_for_claim,
-)
+from app.observability.knowledge import KnowledgePersistStats
+from app.services.knowledge.claim_rekey import rekey_claim_identities
 from app.services.knowledge.identity import knowledge_claim_identity, normalize_assertion_text
 from app.services.knowledge.relationships import merge_relationship_extra
-from app.services.knowledge.observations import (
-    ObservationSeed,
-    knowledge_observation,
-    persist_knowledge_observation,
-)
-from app.services.knowledge.scope import require_persist_scope
-from app.services.knowledge.persistence_class import (
-    DOMAIN_KNOWLEDGE,
-    classify_persistence,
-)
+from app.services.knowledge.persistence_class import classify_persistence
 
 
 @dataclass
@@ -148,8 +127,7 @@ async def cleanup_knowledge_graph(
     if not apply:
         return payload
     stats = KnowledgePersistStats()
-    await _reclassify_non_domain_claims(session, stats)
-    await _merge_claim_groups(session, report.normalizable_duplicate_claims, stats)
+    await session.run_sync(rekey_claim_identities)
     await _merge_entity_groups(session, report.duplicate_entities)
     await _merge_relationship_groups(session, report.duplicate_relationships)
     await session.flush()
@@ -176,88 +154,6 @@ def _groups(buckets: dict[str, list[Any]]) -> list[DuplicateGroup]:
     return groups
 
 
-async def _reclassify_non_domain_claims(
-    session: AsyncSession,
-    stats: KnowledgePersistStats,
-) -> None:
-    claims = list(
-        (await session.execute(select(KnowledgeClaimRecord))).scalars().all()
-    )
-    for claim in claims:
-        decision = classify_persistence(value=claim.value)
-        if decision.persistence_class == DOMAIN_KNOWLEDGE:
-            continue
-        support = await supporting_text_unit_ids_for_claim(session, claim.id)
-        refs = await document_refs_for_units(session, support)
-        if refs is not None:
-            observation = knowledge_observation(
-                ObservationSeed(
-                    observation_class=decision.persistence_class,
-                    kind=decision.kind,
-                    document_id=refs[0],
-                    document_version_id=refs[1],
-                    statement_normalized=decision.statement_normalized or claim.predicate,
-                    extra={"predicate": claim.predicate, "migrated_claim_id": claim.id},
-                ),
-                require_persist_scope(customer_id=claim.customer_id, scope_type=claim.scope_type),
-            )
-            await persist_knowledge_observation(session, observation)
-        await _delete_claim(session, claim.id)
-        record_knowledge_decision(
-            stats,
-            KnowledgeDecision(
-                kind="claim",
-                action="rejected_by_class",
-                persistence_class=decision.persistence_class,
-                reason="cleanup_reclassify",
-                predicate=claim.predicate,
-                identity_key=claim.id,
-            ),
-        )
-
-
-async def _merge_claim_groups(
-    session: AsyncSession,
-    groups: SequenceLike,
-    stats: KnowledgePersistStats,
-) -> None:
-    for group in groups:
-        winner = await session.get(KnowledgeClaimRecord, group.winner_id)
-        if winner is None:
-            continue
-        for loser_id in group.loser_ids:
-            loser = await session.get(KnowledgeClaimRecord, loser_id)
-            if loser is None:
-                continue
-            support = [
-                row[0]
-                for row in (
-                    await session.execute(
-                        select(KnowledgeClaimTextUnit.text_unit_id).where(
-                            KnowledgeClaimTextUnit.claim_id == loser_id
-                        )
-                    )
-                ).all()
-            ]
-            await attach_supporting_text_units(session, winner.id, support)
-            await _rewire_claim_references(session, loser_id, winner.id)
-            await _delete_claim(session, loser_id)
-            record_knowledge_decision(
-                stats,
-                KnowledgeDecision(
-                    kind="claim",
-                    action="merged",
-                    identity_key=winner.identity_key,
-                    predicate=winner.predicate,
-                ),
-            )
-        winner.identity_key = knowledge_claim_identity(
-            scope_key=winner.scope_key,
-            predicate=winner.predicate,
-            value=winner.value,
-        )
-
-
 async def _merge_entity_groups(session: AsyncSession, groups: SequenceLike) -> None:
     for group in groups:
         winner = await session.get(KnowledgeEntityRecord, group.winner_id)
@@ -278,47 +174,6 @@ async def _merge_relationship_groups(session: AsyncSession, groups: SequenceLike
             row = await session.get(KnowledgeRelationshipRecord, loser_id)
             if row is not None:
                 await session.delete(row)
-
-
-async def _rewire_claim_references(session: AsyncSession, loser_id: str, winner_id: str) -> None:
-    winner_needs = {
-        row[0]
-        for row in (
-            await session.execute(
-                select(KnowledgeClaimAnswer.research_need_id).where(
-                    KnowledgeClaimAnswer.claim_id == winner_id
-                )
-            )
-        ).all()
-    }
-    loser_answers = list(
-        (
-            await session.execute(
-                select(KnowledgeClaimAnswer).where(KnowledgeClaimAnswer.claim_id == loser_id)
-            )
-        ).scalars().all()
-    )
-    for answer in loser_answers:
-        if answer.research_need_id in winner_needs:
-            await session.delete(answer)
-        else:
-            answer.claim_id = winner_id
-    await session.execute(
-        update(KnowledgeQuestionLineage)
-        .where(KnowledgeQuestionLineage.trigger_claim_id == loser_id)
-        .values(trigger_claim_id=winner_id)
-    )
-    await session.execute(
-        update(ResearchRuntimeNeed)
-        .where(ResearchRuntimeNeed.trigger_claim_id == loser_id)
-        .values(trigger_claim_id=winner_id)
-    )
-    await session.execute(
-        update(KnowledgeClaimRecord)
-        .where(KnowledgeClaimRecord.successor_id == loser_id)
-        .values(successor_id=winner_id)
-    )
-    await _rewire_node(session, "claim", loser_id, winner_id)
 
 
 async def _rewire_node(session: AsyncSession, kind: str, loser_id: str, winner_id: str) -> None:
@@ -409,12 +264,6 @@ async def _rewire_graph_events(
         .where(KnowledgeGraphEventRecord.related_id == loser_id)
         .values(related_id=winner_id)
     )
-
-
-async def _delete_claim(session: AsyncSession, claim_id: str) -> None:
-    row = await session.get(KnowledgeClaimRecord, claim_id)
-    if row is not None:
-        await session.delete(row)
 
 
 SequenceLike = list[DuplicateGroup]
