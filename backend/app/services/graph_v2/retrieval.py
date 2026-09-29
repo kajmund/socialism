@@ -23,26 +23,33 @@ def _visible(customer_id: int):
 
 async def hybrid_facts(
     session: AsyncSession, *, customer_id: int, query: str,
-    embedding: list[float] | None = None, limit: int = 20,
+    embedding: list[float] | None = None, embedding_model: str | None = None,
+    limit: int = 20,
 ) -> list[FactHit]:
     if not query.strip() or limit < 1:
         raise ValueError("query and positive limit required")
+    if embedding is not None and not embedding_model:
+        raise ValueError("embedding retrieval requires its model identifier")
     terms = re.findall(r"\w+", query.casefold())
     if session.bind and session.bind.dialect.name == "postgresql":
         from sqlalchemy import func
-        lexical = func.to_tsvector("simple", GraphFact.fact_text).op("@@")(
-            func.websearch_to_tsquery("simple", query)
-        )
+        vector = func.to_tsvector("simple", GraphFact.fact_text)
+        parsed = func.websearch_to_tsquery("simple", query)
+        lexical = vector.op("@@")(parsed)
+        lexical_order = func.ts_rank_cd(vector, parsed).desc()
     else:
         lexical = or_(*(GraphFact.normalized_text.ilike(f"%{term}%") for term in terms))
+        lexical_order = GraphFact.id
     lexical_rows = list((await session.scalars(select(GraphFact).where(
         _visible(customer_id), GraphFact.status == "active", lexical,
-    ).limit(max(100, limit * 5)))).all())
+    ).order_by(lexical_order).limit(max(100, limit * 5)))).all())
     # Portable bounded scan for embeddings; Postgres FTS index serves lexical retrieval.
     semantic_rows = list((await session.scalars(select(GraphFact).where(
         _visible(customer_id), GraphFact.status == "active",
         GraphFact.embedding.is_not(None),
+        GraphFact.embedding_model == embedding_model,
     ).limit(2000))).all()) if embedding is not None else []
+    semantic_rows = [row for row in semantic_rows if len(row.embedding) == len(embedding)] if embedding else []
     lexical_rank = {row.id: rank for rank, row in enumerate(lexical_rows, 1)}
     semantic_rank = {
         row.id: rank for rank, row in enumerate(

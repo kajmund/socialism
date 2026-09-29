@@ -40,8 +40,7 @@ async def resolve_node(
         candidates = list((await session.scalars(select(GraphNode).where(
             GraphNode.scope_key == scope,
             GraphNode.node_type == proposed.node_type,
-            GraphNode.normalized_name == name,
-        ).limit(30))).all())
+        ).limit(100))).all())
         for candidate in candidates:
             if not candidate.identity_key.startswith(f"weak:{proposed.context_key}:"):
                 continue
@@ -130,6 +129,7 @@ async def resolve_fact(
         vector = (await embedder.embed([proposed.fact_text]))[0]
     if candidates and judge is None:
         raise ValueError("fact judge required for non-exact candidates")
+    contradiction = None
     for candidate in _rank_candidates(candidates, vector):
         decision = await judge.compare(proposed, candidate.fact_text)  # type: ignore[union-attr]
         if decision == "SAME":
@@ -137,12 +137,10 @@ async def resolve_fact(
             return candidate, decision
         if decision == "CONTRADICTS":
             # A contradiction is recorded, never an implicit invalidation.
-            contradiction = candidate
-            break
+            contradiction = contradiction or candidate
+            continue
         if decision != "DISTINCT":
             raise ValueError(f"invalid fact judge decision: {decision}")
-    else:
-        contradiction = None
     row = GraphFact(
         id=identity, identity_key=identity, scope_key=proposed.scope.scope_key,
         customer_id=proposed.scope.customer_id, source_id=proposed.source_id,
