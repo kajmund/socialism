@@ -1,3 +1,4 @@
+from app.database.answer_review import KnowledgeAnswerReview
 from app.database.base import Base
 from app.database.models import (
     CatalogList,
@@ -16,6 +17,7 @@ from app.database.models import (
 
 __all__ = [
     "Base",
+    "KnowledgeAnswerReview",
     "CatalogList",
     "Configuration",
     "Job",

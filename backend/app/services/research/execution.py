@@ -66,7 +66,6 @@ from app.services.execution.service import (
     list_research_assessments,
     list_research_completeness_passes,
     list_runtime_needs,
-    mark_ready,
     persist_research_assessment,
     persist_research_completeness,
     persist_runtime_needs,
@@ -75,6 +74,7 @@ from app.services.execution.service import (
     set_attempt_snapshots,
 )
 from app.services.knowledge.models import KnowledgeScope
+from app.services.research.answer_review import complete_research_freeze
 from app.services.research.assessment import (
     AssessableEvidence,
     ProgrammaticResearchAssessor,
@@ -151,7 +151,6 @@ from app.services.research.progress import (
     emit_need_running,
     emit_objective_accepted,
     emit_research_failed,
-    emit_research_frozen_ready,
     emit_runtime_need_created,
 )
 from app.services.research.provider import (
@@ -783,12 +782,8 @@ async def _freeze_ready_attempt(
                     evidence_set_id=evidence_set_id,
                     attempt_id=attempt_id,
                 )
-            ready = await mark_ready(session, attempt_id)
-            await emit_research_frozen_ready(
-                session,
-                attempt_id=attempt_id,
-                evidence_set_id=evidence_set_id,
-                stop_reason=ready.research_stop_reason,
+            await complete_research_freeze(
+                session, attempt_id=attempt_id, evidence_set_id=evidence_set_id,
             )
             await session.commit()
             return
@@ -805,12 +800,8 @@ async def _freeze_ready_attempt(
         evidence_set_id=evidence_set_id,
         attempt_id=attempt_id,
     )
-    ready = await mark_ready(session, attempt_id)
-    await emit_research_frozen_ready(
-        session,
-        attempt_id=attempt_id,
-        evidence_set_id=evidence_set_id,
-        stop_reason=ready.research_stop_reason,
+    await complete_research_freeze(
+        session, attempt_id=attempt_id, evidence_set_id=evidence_set_id,
     )
     await session.commit()
 
