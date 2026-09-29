@@ -131,6 +131,10 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
         async def compare(self, proposed, candidate_text):
             return "SAME" if proposed.fact_text == candidate_text else "DISTINCT"
 
+    class FakeNodeJudge:
+        async def same_node(self, proposed, candidate_name):
+            return proposed.name == candidate_name
+
     async def tracking_interpret(self, **kwargs):
         assert not session.in_transaction()
         events.append("interpret")
@@ -152,12 +156,12 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
     assert await session.scalar(select(func.count()).select_from(GraphFact)) == 0
     factory = async_sessionmaker(session.bind, expire_on_commit=False)
     assert (await process_graph_work(
-        factory, embedder=FakeEmbedder(), judge=FakeJudge(),
+        factory, embedder=FakeEmbedder(), judge=FakeJudge(), node_judge=FakeNodeJudge(),
     ))["completed"] == 2
     assert await session.scalar(select(func.count()).select_from(GraphFact)) > 0
     assert await session.scalar(select(func.count()).select_from(GraphFactSource)) > 0
     assert (await process_graph_work(
-        factory, embedder=FakeEmbedder(), judge=FakeJudge(),
+        factory, embedder=FakeEmbedder(), judge=FakeJudge(), node_judge=FakeNodeJudge(),
     )) == {"completed": 0, "failed": 0}
 
 

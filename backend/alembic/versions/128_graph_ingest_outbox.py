@@ -25,6 +25,7 @@ def upgrade() -> None:
         sa.Column("last_error", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("claimed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("retry_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("processed_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index("ix_graph_ingest_pending", "graph_ingest_work", ["status", "created_at"])
