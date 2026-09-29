@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import JSON
 
@@ -49,3 +49,6 @@ class KnowledgeAnswerReview(Base):
     next_classification_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     classification_token: Mapped[str | None] = mapped_column(String(32))
     last_error: Mapped[str | None] = mapped_column(String(64))
+    classification_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
