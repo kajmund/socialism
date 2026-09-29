@@ -22,6 +22,13 @@ def normalized(text: str) -> str:
     return result
 
 
+def weak_node_identity(context_key: str, normalized_name: str) -> str:
+    """Keep free text out of storage identities while preserving exact identity."""
+    context_hash = stable_id("weak-context", context_key)
+    content_hash = stable_id("weak-name", normalized_name)
+    return f"weak:{context_hash}:{content_hash}"
+
+
 def fact_identity(
     *, scope_key: str, source_id: str, target_id: str, predicate: str,
     fact_text: str, context_id: str | None, occurrence_key: str,
