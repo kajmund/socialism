@@ -9,12 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.services.knowledge import (
     SUPABASE_PROVIDER_ID,
-    CachingEmbeddingProvider,
     OpenAIEmbeddingProvider,
     build_knowledge_registry,
 )
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.vector_store import KnowledgeVectorStore
+from app.database.session import SessionLocal
+from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
 from app.services.lagen_nu.selection import (
     LagenNuPassageSelector,
     set_passage_selector_factory,
@@ -54,7 +55,7 @@ _completeness_reviewer_factory: ResearchCompletenessReviewerFactory | None = Non
 _vector_store_factory: KnowledgeVectorStoreFactory | None = None
 _lagen_nu_selector_factory: LagenNuSelectorFactory | None = None
 _need_normalizer_factory: NeedNormalizerFactory | None = None
-_shared_embeddings: CachingEmbeddingProvider | None = None
+_shared_embeddings: EmbeddingProvider | None = None
 
 
 class ResearchCompositionError(ResearchError):
@@ -156,7 +157,9 @@ def research_embeddings() -> EmbeddingProvider:
     """One cached provider for matcher and retrieval in this process."""
     global _shared_embeddings
     if _shared_embeddings is None:
-        _shared_embeddings = CachingEmbeddingProvider(OpenAIEmbeddingProvider.from_settings())
+        _shared_embeddings = GraphEmbeddingCacheProvider(
+            SessionLocal, OpenAIEmbeddingProvider.from_settings(),
+        )
     return _shared_embeddings
 
 

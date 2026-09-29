@@ -161,6 +161,7 @@ class OpenAIEmbeddingProvider:
         *,
         model: str,
         dimension: int,
+        model_revision: str | None = None,
         client: AsyncOpenAI | None = None,
         batch_size: int = _MAX_BATCH,
     ) -> None:
@@ -169,6 +170,7 @@ class OpenAIEmbeddingProvider:
         spec = EmbeddingSpec(model=model, dimension=dimension)
         self.model = spec.model
         self.dimension = spec.dimension
+        self.model_revision = model_revision or settings.embedding_model_revision
         self._client = client
         self._batch_size = min(batch_size, _MAX_BATCH)
 

@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     # OpenAI embeddings for SSR and knowledge ingest (separate from chat LLM / CAMEL).
     openai_api_key: str = ""
     embedding_model: str = "text-embedding-3-large"
+    embedding_model_revision: str = "v1"
     embedding_dimension: int = 3072
     embedding_base_url: str = "https://api.openai.com/v1"
     embedding_timeout_seconds: float = 60.0

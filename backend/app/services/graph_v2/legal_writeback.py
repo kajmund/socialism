@@ -1,6 +1,7 @@
 """Legal adapter: structured facts link source/context subjects to reusable values."""
 
 import json
+from dataclasses import replace
 from collections.abc import Sequence
 
 from sqlalchemy import select
@@ -11,7 +12,7 @@ from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
 from app.services.graph_v2.questions import question_node
 from app.services.graph_v2.revalidation import attach_question_dependency
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
-from app.services.graph_v2.write import resolve_fact, resolve_node
+from app.services.graph_v2.write import resolve_exact_fact, resolve_fact, resolve_node
 from app.services.knowledge.claims import KnowledgeClaim
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.entities import KnowledgeEntity
@@ -37,26 +38,38 @@ async def write_legal_facts(
         identifier_namespace="legal.canonical_uri", identifier=source.key,
         attributes=source.extra,
     ))
-    if judge is None or node_judge is None:
-        prompts = await require_active_prompts(
-            session, customer_id=source.customer_id, module=module, language="sv",
-        )
-        prefix = "rattsunderlag" if module == "rattsunderlag" else "research"
-        if judge is None:
-            judge = JevFactJudge(prompts[f"{prefix}.graph_fact_resolution"])
-        if node_judge is None:
-            node_judge = JevNodeJudge(prompts[f"{prefix}.graph_node_resolution"])
-    texts = [_fact_text(source.name, claim) for claim in claims]
-    vectors = await embedder.embed(texts)
-    ids: list[str] = []
-    for claim, text, vector in zip(claims, texts, vectors, strict=True):
-        target = await resolve_node(session, value_node_input(claim, scope), judge=node_judge)
-        row, _decision = await resolve_fact(session, FactInput(
+    lazy_judges = _LazyJudges(
+        session, customer_id=source.customer_id, module=module,
+        fact_judge=judge, node_judge=node_judge,
+    )
+    pending: list[tuple[KnowledgeClaim, FactInput]] = []
+    ids_by_claim: dict[str, str] = {}
+    for claim in claims:
+        text = _fact_text(source.name, claim)
+        target = await resolve_node(session, value_node_input(claim, scope), judge=lazy_judges.node)
+        proposed = FactInput(
             source_id=subject.id, target_id=target.id, scope=scope,
             predicate=claim.predicate, fact_text=text,
             sources=tuple(SourceRef("text_unit", ref) for ref in claim.supporting_text_unit_ids),
-            embedding=tuple(vector), embedding_model=embedder.model,
-        ), judge=judge)
+        )
+        exact = await resolve_exact_fact(session, proposed)
+        if exact is not None:
+            ids_by_claim[claim.id] = exact.id
+        else:
+            pending.append((claim, proposed))
+
+    # Exact edge resolution precedes provider work; all remaining misses are one batch.
+    vectors = await embedder.embed([proposed.fact_text for _, proposed in pending]) if pending else []
+    for (claim, proposed), vector in zip(pending, vectors, strict=True):
+        row, _decision = await resolve_fact(
+            session, replace(proposed, embedding=tuple(vector), embedding_model=embedder.model),
+            judge=lazy_judges.fact,
+        )
+        ids_by_claim[claim.id] = row.id
+
+    ids: list[str] = []
+    for claim in claims:
+        fact_id = ids_by_claim[claim.id]
         question_ids = set((await session.scalars(select(KnowledgeClaimAnswer.knowledge_question_id).where(
             KnowledgeClaimAnswer.claim_id == claim.id,
             KnowledgeClaimAnswer.knowledge_question_id.is_not(None),
@@ -67,10 +80,57 @@ async def write_legal_facts(
                 continue
             question_node_row = await question_node(session, question)
             await attach_question_dependency(
-                session, question_node_id=question_node_row.id, fact_id=row.id,
+                session, question_node_id=question_node_row.id, fact_id=fact_id,
             )
-        ids.append(row.id)
+        ids.append(fact_id)
     return ids
+
+
+class _LazyJudges:
+    def __init__(self, session, *, customer_id: int, module: str,
+                 fact_judge: JevFactJudge | None, node_judge: JevNodeJudge | None) -> None:
+        self.session = session
+        self.customer_id = customer_id
+        self.module = module
+        self.fact_judge = fact_judge
+        self.node_judge = node_judge
+        self._loaded = False
+
+    async def _load(self) -> None:
+        if self._loaded:
+            return
+        if self.fact_judge is not None and self.node_judge is not None:
+            self._loaded = True
+            return
+        prompts = await require_active_prompts(
+            self.session, customer_id=self.customer_id, module=self.module, language="sv",
+        )
+        prefix = "rattsunderlag" if self.module == "rattsunderlag" else "research"
+        self.fact_judge = self.fact_judge or JevFactJudge(prompts[f"{prefix}.graph_fact_resolution"])
+        self.node_judge = self.node_judge or JevNodeJudge(prompts[f"{prefix}.graph_node_resolution"])
+        self._loaded = True
+
+    @property
+    def fact(self):
+        return _LazyJudgeProxy(self, "fact")
+
+    @property
+    def node(self):
+        return _LazyJudgeProxy(self, "node")
+
+
+class _LazyJudgeProxy:
+    def __init__(self, owner: _LazyJudges, kind: str) -> None:
+        self.owner = owner
+        self.kind = kind
+
+    async def compare(self, proposed: FactInput, candidate_text: str):
+        await self.owner._load()
+        return await self.owner.fact_judge.compare(proposed, candidate_text)
+
+    async def same_node(self, proposed: NodeInput, candidate_name: str) -> bool:
+        await self.owner._load()
+        return await self.owner.node_judge.same_node(proposed, candidate_name)
 
 
 def _fact_text(source_name: str, claim: KnowledgeClaim) -> str:
