@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-import time
 from dataclasses import dataclass, replace
 from typing import Literal
 
@@ -21,18 +20,17 @@ from app.database.models import (
     ResearchRuntimeNeed,
     TextUnitRecord,
 )
-from app.jev.system import HttpJevSystemOne, JevSystemOne
 from app.llm.legal_research import (
     LegalDomainExtractionError,
     LegalInterpreter,
     LlmLegalInterpreter,
 )
 from app.services.knowledge.embeddings import EmbeddingProvider
-from app.services.knowledge.events import list_graph_events
-from app.services.knowledge.revalidation import revalidate_after_events
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.claim_grounding import ground_legal_claims
-from app.services.lagen_nu.graph_writeback import GraphWritebackQueue, flush_graph_writeback
+from app.services.lagen_nu.graph_writeback import (
+    GraphWritebackQueue, PendingGraphWrite, flush_graph_writeback,
+)
 from app.services.lagen_nu.document_fetch import (
     MAX_DOCUMENT_CHARS as MAX_DOCUMENT_CHARS,
     MAX_DOCUMENT_FETCHES as MAX_DOCUMENT_FETCHES,
@@ -547,7 +545,6 @@ class LagenNuResearchSource:
         vector_store: KnowledgeVectorStore | None = None,
         question_validator: LegalQuestionValidator | None = None,
         passage_router: LagenNuPassageRouter | None = None,
-        impact_gate: JevSystemOne | None = None,
     ) -> None:
         if source_type not in LAGEN_NU_EVIDENCE_NATURES:
             raise ValueError(f"{source_type} is not implemented by the official lagen.nu adapter")
@@ -561,7 +558,6 @@ class LagenNuResearchSource:
         self._vector_store = vector_store
         self._question_validator = question_validator
         self._passage_router = passage_router
-        self._impact_gate = impact_gate
         self._owned_client: OfficialLagenNuMcpClient | None = None
         self._graph_writes = GraphWritebackQueue()
 
@@ -572,43 +568,6 @@ class LagenNuResearchSource:
         if self._passage_router is not None:
             return self._passage_router
         return JevPassageRouter()
-
-    def _require_impact_gate(self) -> JevSystemOne:
-        return self._impact_gate or HttpJevSystemOne()
-
-    async def _revalidate_persisted_graph(
-        self,
-        *,
-        customer_id: int,
-        claim_ids: list[str],
-        relationship_ids: list[str],
-    ) -> None:
-        if self._session is None:
-            return
-        gate = self._require_impact_gate()
-        started = time.monotonic()
-        logger.info(
-            "graph_revalidation_started customer_id=%s claims=%s relationships=%s",
-            customer_id, len(claim_ids), len(relationship_ids),
-        )
-        event_ids: list[str] = []
-        for node_kind, node_ids in (
-            ("claim", claim_ids),
-            ("relationship", relationship_ids),
-        ):
-            for node_id in node_ids:
-                events = await list_graph_events(
-                    self._session,
-                    customer_id=customer_id,
-                    node_kind=node_kind,
-                    node_id=node_id,
-                )
-                event_ids.extend(event.id for event in events)
-        await revalidate_after_events(self._session, event_ids, jev=gate)
-        logger.info(
-            "graph_revalidation_completed customer_id=%s events=%s elapsed_seconds=%.3f",
-            customer_id, len(event_ids), time.monotonic() - started,
-        )
 
     def _mcp(self) -> LagenNuMcpClient:
         if self._client is not None:
@@ -741,7 +700,6 @@ class LagenNuResearchSource:
             self._session,
             self._graph_writes,
             release_connection=_release_db_connection,
-            revalidate=self._revalidate_persisted_graph,
         )
         if found:
             return found
@@ -1112,15 +1070,15 @@ class LagenNuResearchSource:
             customer_id=customer_id,
             document_id=units[0].document_id,
         )
-        self._graph_writes.enqueue_grounded(
-            claims=grounded_claims,
-            entities=graph_entities,
-            edges=graph_edges,
+        self._graph_writes.enqueue(PendingGraphWrite(
+            claims=tuple(grounded_claims),
+            entities=tuple(graph_entities),
+            edges=tuple(graph_edges),
             research_need_id=need.id,
             question=need.question,
             source_type=self.source_type,
             customer_id=customer_id,
-        )
+        ))
         return research_evidence(
             research_need_id=need.id,
             source_type=self.source_type,

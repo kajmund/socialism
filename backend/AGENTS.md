@@ -97,6 +97,8 @@ chat reads and writes memory, while Word review only writes deduplicated
 findings per `doc_id` in phase 1. Keep literal transcripts in their existing
 tables. See [expert-memory.md](../docs/guides/expert-memory.md).
 
+**Answer review TTL:** the common research freeze/ready boundary captures one final question/evidence basis across all providers (including synthesized and reused evidence) in `knowledge_answer_reviews` as `awaiting_ttl`. Providers have no TTL logic. The separate `python -m app.services.knowledge.answer_review_worker classify` process asks Jev for `soon|later|never` (3/6 calendar months or no schedule); `enqueue` promotes bounded indexed batches to candidates. Research makes no TTL model calls and TTL never gates reuse. See [answer-review-ttl.md](../docs/guides/answer-review-ttl.md). Do not reintroduce graph-impact revalidation in provider write-back.
+
 **Knowledge tenant scope:** persisted knowledge uses `scope_type=shared|customer` with `customer_id` null only when shared (`app/database/knowledge_scope.py`). Customer objects may read/reference shared objects. They must never be promoted, deduped, resolved, or retrieved as shared or as another customer. Missing persist/reuse scope fails closed. See [knowledge-tenant-scope.md](../docs/guides/knowledge-tenant-scope.md).
 
 ## Domain (admin library)

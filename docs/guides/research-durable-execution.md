@@ -93,21 +93,17 @@ Startup no longer marks in-flight research failed.
 WebSocket progress (later spec), distributed schedulers, Graphiti, report
 jobs, and explicit cancellation.
 
-## Graph revalidation and the database connection
+## Answer review scheduling
 
-After legal interpretation, one call revalidates every new claim and edge.
-Frozen provenance for that customer is read once. Matching stays in memory.
-The session commits before each Jev call and again after the decision rows
-are written, so the pool connection is not held across the round trip.
+The common freeze/ready boundary records one final answer basis per question,
+combining all sources and derived evidence. It only writes `awaiting_ttl` work;
+research does not call Jev for TTL or wait for any review process. A separate
+bounded classifier chooses `soon`, `later`, or `never`, and an indexed candidate
+process promotes due schedules. No provider has TTL logic, and lagen.nu no longer
+calls graph-impact revalidation after write-back.
+See [answer-review-ttl.md](answer-review-ttl.md) for semantics, retries, and commands.
 
-Do not load `EvidenceSetItem` entities for this match. Their select-in
-relationships also fetch passages, domain results, raw sources and claims.
-The lookup selects the evidence set and the provenance column only.
-
-An `idle in transaction` session whose `query_start` keeps moving, with empty
-`pg_blocking_pids`, is repeated reads rather than a lock wait. Provider logs
-`graph_revalidation_started` and `graph_revalidation_completed` record counts
-and elapsed time without logging source text.
+## Need deadlines
 
 Each ResearchNeed runs under `research_need_timeout_seconds` (default 900).
 When that deadline is missed the worker persists one `error` evidence item
