@@ -1,6 +1,7 @@
 """Exercise the deployed Alembic marker alongside the Graph v2 branch."""
 
 import sqlite3
+import logging
 from pathlib import Path
 
 from alembic import command
@@ -15,8 +16,10 @@ def test_deployed_research_marker_upgrades_without_replaying_claim_migrations(
     monkeypatch.setenv("DATABASE_URL", url)
     monkeypatch.setenv("MIGRATION_DATABASE_URL", url)
     config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    app_logger = logging.getLogger("app.research.observability")
 
     command.upgrade(config, "126_knowledge_claim_source_independence")
+    assert not app_logger.disabled
     with sqlite3.connect(db) as connection:
         connection.execute("DROP TABLE knowledge_answer_reviews")
         connection.execute("CREATE TABLE research_question_nodes (id TEXT PRIMARY KEY)")
@@ -28,6 +31,7 @@ def test_deployed_research_marker_upgrades_without_replaying_claim_migrations(
 
     command.upgrade(config, "head")
     command.upgrade(config, "head")
+    assert not app_logger.disabled
     with sqlite3.connect(db) as connection:
         assert connection.execute("SELECT version_num FROM alembic_version").fetchall() == [
             ("139_graph_question_revalidation_work",)
