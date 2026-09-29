@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Literal
 
 from app.services.knowledge.identity import normalize_assertion_text
@@ -198,7 +199,13 @@ def _statement_text(value: dict[str, object]) -> str:
 
 
 def _contains_phrase(normalized: str, phrases: tuple[str, ...]) -> bool:
-    return any(normalize_assertion_text(phrase) in normalized for phrase in phrases)
+    for phrase in phrases:
+        marker = normalize_assertion_text(phrase)
+        if not marker:
+            continue
+        if re.search(rf"(?<!\\w){re.escape(marker)}(?!\\w)", normalized):
+            return True
+    return False
 
 
 def _looks_like_incomplete_source(normalized: str) -> bool:
