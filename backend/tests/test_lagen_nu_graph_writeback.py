@@ -90,12 +90,14 @@ async def test_only_accepted_claims_enter_graph_outbox(session, monkeypatch):
     accepted = SimpleNamespace(id="accepted", customer_id=7)
     rejected = SimpleNamespace(id="rejected", customer_id=7)
     queued = []
+    modules = []
 
     async def persist(*args, **kwargs):
         return SimpleNamespace(accepted_claim_ids=["accepted"])
 
     async def enqueue(*args, **kwargs):
         queued.extend(kwargs["claims"])
+        modules.append(kwargs["module"])
 
     async def answer(*args, **kwargs):
         pass
@@ -106,9 +108,10 @@ async def test_only_accepted_claims_enter_graph_outbox(session, monkeypatch):
     await persist_pending_graph_writes(session, [PendingGraphWrite(
         claims=(accepted, rejected), entities=(), edges=(),
         research_need_id="need", question="Vad gäller?",
-        source_type="swedish_law", customer_id=7,
+        source_type="swedish_law", customer_id=7, module="politik",
     )])
     assert queued == [accepted]
+    assert modules == ["politik"]
 
 
 @pytest.mark.asyncio
