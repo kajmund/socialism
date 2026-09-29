@@ -1,4 +1,4 @@
-"""Legal adapter: structured claims become source-to-attribute fact edges."""
+"""Legal adapter: structured facts link source/context subjects to reusable values."""
 
 import json
 from collections.abc import Sequence
