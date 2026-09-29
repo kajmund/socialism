@@ -100,6 +100,59 @@ class GraphFactRelation(Base):
     to_fact_id: Mapped[str] = mapped_column(ForeignKey("graph_facts.id", ondelete="CASCADE"), nullable=False)
 
 
+class GraphFactQuestionDependency(Base):
+    """Question→fact dependency with the fact's exact supporting provenance."""
+
+    __tablename__ = "graph_fact_question_dependencies"
+    __table_args__ = (
+        UniqueConstraint("question_node_id", "fact_id", name="uq_graph_fact_question_dependency"),
+        Index("ix_graph_fact_question_dependency_fact", "fact_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    question_node_id: Mapped[str] = mapped_column(
+        ForeignKey("graph_nodes.id", ondelete="CASCADE"), nullable=False,
+    )
+    fact_id: Mapped[str] = mapped_column(
+        ForeignKey("graph_facts.id", ondelete="CASCADE"), nullable=False,
+    )
+    relation: Mapped[str] = mapped_column(String(64), nullable=False, default="research.depends_on")
+    provenance: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GraphFactRevalidation(Base):
+    """Durable candidate work for facts supporting questions, never claim/event IDs."""
+
+    __tablename__ = "graph_fact_revalidations"
+    __table_args__ = (
+        UniqueConstraint(
+            "trigger_fact_id", "dependent_fact_id", "question_node_id",
+            name="uq_graph_fact_revalidation_candidate",
+        ),
+        Index("ix_graph_fact_revalidation_pending", "status", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    trigger_fact_id: Mapped[str] = mapped_column(
+        ForeignKey("graph_facts.id", ondelete="CASCADE"), nullable=False,
+    )
+    dependent_fact_id: Mapped[str] = mapped_column(
+        ForeignKey("graph_facts.id", ondelete="CASCADE"), nullable=False,
+    )
+    question_node_id: Mapped[str] = mapped_column(
+        ForeignKey("graph_nodes.id", ondelete="CASCADE"), nullable=False,
+    )
+    trigger_provenance: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    dependent_provenance: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class GraphIngestWork(Base):
     __tablename__ = "graph_ingest_work"
     __table_args__ = (Index("ix_graph_ingest_pending", "status", "created_at"),)
