@@ -115,10 +115,12 @@ async def persist_pending_graph_writes(
             question_key=research_question_key(item.question),
         )
         if persisted.accepted_claim_ids:
+            accepted = set(persisted.accepted_claim_ids)
             await enqueue_legal_graph(
                 session, customer_id=item.customer_id,
                 research_need_id=item.research_need_id,
-                claims=item.claims, entities=item.entities, relationships=item.edges,
+                claims=tuple(claim for claim in item.claims if claim.id in accepted),
+                entities=item.entities, relationships=item.edges,
             )
             await answer_research_need(
                 session,
