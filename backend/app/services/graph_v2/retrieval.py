@@ -4,7 +4,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.graph_v2 import GraphFact
@@ -43,13 +43,10 @@ async def hybrid_facts(
     lexical_rows = list((await session.scalars(select(GraphFact).where(
         _visible(customer_id), GraphFact.status == "active", lexical,
     ).order_by(lexical_order).limit(max(100, limit * 5)))).all())
-    # Portable bounded scan for embeddings; Postgres FTS index serves lexical retrieval.
-    semantic_rows = list((await session.scalars(select(GraphFact).where(
-        _visible(customer_id), GraphFact.status == "active",
-        GraphFact.embedding.is_not(None),
-        GraphFact.embedding_model == embedding_model,
-    ).limit(2000))).all()) if embedding is not None else []
-    semantic_rows = [row for row in semantic_rows if len(row.embedding) == len(embedding)] if embedding else []
+    semantic_rows = await _semantic_candidates(
+        session, customer_id=customer_id, embedding=embedding,
+        model=embedding_model, limit=max(100, limit * 5),
+    ) if embedding is not None else []
     lexical_rank = {row.id: rank for rank, row in enumerate(lexical_rows, 1)}
     semantic_rank = {
         row.id: rank for rank, row in enumerate(
@@ -66,6 +63,33 @@ async def hybrid_facts(
         )
         for row in rows.values()
     ), key=lambda hit: hit.score, reverse=True)[:limit]
+
+
+async def _semantic_candidates(
+    session: AsyncSession, *, customer_id: int, embedding: list[float],
+    model: str | None, limit: int,
+) -> list[GraphFact]:
+    if session.bind and session.bind.dialect.name == "postgresql":
+        ids = list((await session.scalars(text("""
+            SELECT id FROM graph_facts
+            WHERE scope_key IN (:owned, 'shared') AND status = 'active'
+              AND embedding IS NOT NULL AND embedding_model = :model
+              AND json_array_length(embedding::json) = :dimension
+            ORDER BY (embedding::text)::vector <=> CAST(:query AS vector)
+            LIMIT :limit
+        """), {
+            "owned": f"customer:{customer_id}", "model": model,
+            "dimension": len(embedding), "query": str(embedding), "limit": limit,
+        })).all())
+        rows = {row.id: row for row in (await session.scalars(
+            select(GraphFact).where(GraphFact.id.in_(ids))
+        )).all()}
+        return [rows[row_id] for row_id in ids]
+    rows = list((await session.scalars(select(GraphFact).where(
+        _visible(customer_id), GraphFact.status == "active",
+        GraphFact.embedding.is_not(None), GraphFact.embedding_model == model,
+    ).limit(2000))).all())
+    return [row for row in rows if len(row.embedding) == len(embedding)]
 
 
 def _cosine(first: list[float] | None, second: list[float] | None) -> float:

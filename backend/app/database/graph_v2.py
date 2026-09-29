@@ -98,3 +98,19 @@ class GraphFactRelation(Base):
     from_fact_id: Mapped[str] = mapped_column(ForeignKey("graph_facts.id", ondelete="CASCADE"), nullable=False)
     predicate: Mapped[str] = mapped_column(String(64), nullable=False)
     to_fact_id: Mapped[str] = mapped_column(ForeignKey("graph_facts.id", ondelete="CASCADE"), nullable=False)
+
+
+class GraphIngestWork(Base):
+    __tablename__ = "graph_ingest_work"
+    __table_args__ = (Index("ix_graph_ingest_pending", "status", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("kunder.id"), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
