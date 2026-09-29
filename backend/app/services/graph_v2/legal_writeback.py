@@ -3,9 +3,13 @@
 import json
 from collections.abc import Sequence
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.models import KnowledgeClaimAnswer, KnowledgeQuestionRow
 from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
+from app.services.graph_v2.questions import question_node
+from app.services.graph_v2.revalidation import attach_question_dependency, schedule_fact_revalidation
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
 from app.services.knowledge.claims import KnowledgeClaim
@@ -47,12 +51,26 @@ async def write_legal_facts(
     ids: list[str] = []
     for claim, text, vector in zip(claims, texts, vectors, strict=True):
         target = await resolve_node(session, value_node_input(claim, scope), judge=node_judge)
-        row, _decision = await resolve_fact(session, FactInput(
+        row, decision = await resolve_fact(session, FactInput(
             source_id=subject.id, target_id=target.id, scope=scope,
             predicate=claim.predicate, fact_text=text,
             sources=tuple(SourceRef("text_unit", ref) for ref in claim.supporting_text_unit_ids),
             embedding=tuple(vector), embedding_model=embedder.model,
         ), judge=judge)
+        question_ids = set((await session.scalars(select(KnowledgeClaimAnswer.knowledge_question_id).where(
+            KnowledgeClaimAnswer.claim_id == claim.id,
+            KnowledgeClaimAnswer.knowledge_question_id.is_not(None),
+        ))).all())
+        for question_id in sorted(question_ids):
+            question = await session.get(KnowledgeQuestionRow, question_id)
+            if question is None:
+                continue
+            question_node_row = await question_node(session, question)
+            await attach_question_dependency(
+                session, question_node_id=question_node_row.id, fact_id=row.id,
+            )
+        if decision in {"DISTINCT", "CONTRADICTS"}:
+            await schedule_fact_revalidation(session, trigger_fact_id=row.id)
         ids.append(row.id)
     return ids
 

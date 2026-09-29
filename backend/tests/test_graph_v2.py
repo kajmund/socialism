@@ -10,9 +10,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.graph_v2 import GraphFact, GraphFactRelation, GraphFactSource, GraphNode
+from app.database.graph_v2 import (
+    GraphFact, GraphFactQuestionDependency, GraphFactRelation, GraphFactRevalidation,
+    GraphFactSource, GraphNode,
+)
 from app.database.models import Kund
 from app.services.graph_v2.retrieval import hybrid_facts, neighbourhood
+from app.services.graph_v2.revalidation import attach_question_dependency, schedule_fact_revalidation
 from app.services.graph_v2.temporal import invalidate_fact
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
@@ -129,6 +133,38 @@ async def test_weak_node_judge_can_merge_synonyms_only_within_context(session):
     ), judge=SynonymJudge())
     separate = await node(session, "car", context="case-2")
     assert first.id == same.id and first.id != separate.id
+
+
+async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session):
+    subject, target = await node(session, "Case X"), await node(session, "Outcome")
+    question = await resolve_node(session, NodeInput(
+        node_type="core.question", name="Can the outcome be changed?",
+        scope=customer_scope(1), identifier_namespace="research.question_id",
+        identifier="question-1",
+    ))
+    original, _ = await resolve_fact(session, fact(subject, target, "No adjustment", ref="unit-1"))
+
+    class Distinct:
+        async def compare(self, proposed, candidate_text):
+            return "DISTINCT"
+
+    changed, _ = await resolve_fact(
+        session, fact(subject, target, "Adjustment granted", ref="unit-2"), judge=Distinct(),
+    )
+    dependency = await attach_question_dependency(
+        session, question_node_id=question.id, fact_id=original.id,
+    )
+    assert dependency.provenance == [{"kind": "episode", "ref": "unit-1"}]
+    assert await schedule_fact_revalidation(session, trigger_fact_id=changed.id) == 1
+    pending = list((await session.scalars(select(GraphFactRevalidation))).all())
+    assert len(pending) == 1
+    assert pending[0].question_node_id == question.id
+    assert pending[0].trigger_fact_id == changed.id
+    assert pending[0].dependent_fact_id == original.id
+    assert pending[0].trigger_provenance == [{"kind": "episode", "ref": "unit-2"}]
+    assert pending[0].dependent_provenance == [{"kind": "episode", "ref": "unit-1"}]
+    assert await schedule_fact_revalidation(session, trigger_fact_id=changed.id) == 0
+    assert await session.scalar(select(func.count()).select_from(GraphFactQuestionDependency)) == 1
 
 
 async def test_hybrid_embedding_model_boundary(session):
