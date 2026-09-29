@@ -13,6 +13,7 @@ from app.database.models import (
     KnowledgeQuestionEvidenceLink,
     KnowledgeQuestionRow,
 )
+from app.services.graph_v2.questions import question_node
 from app.services.knowledge.scope import persist_scope_fields
 from app.services.research.knowledge_question import (
     ExactQuestionIdentityMatcher,
@@ -87,6 +88,8 @@ class SqlQuestionEvidenceGraph:
     ) -> KnowledgeQuestion:
         existing = await self.match_question(session, identity, scope)
         if existing is not None:
+            row = await session.get(KnowledgeQuestionRow, existing.id)
+            await question_node(session, row)
             return existing
         row = KnowledgeQuestionRow(
             id=uuid4().hex,
@@ -99,6 +102,7 @@ class SqlQuestionEvidenceGraph:
         )
         session.add(row)
         await session.flush()
+        await question_node(session, row)
         question = _question_from_row(row)
         await self._matcher.index([question])
         metadata = self._matcher.embedding_metadata
