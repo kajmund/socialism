@@ -124,6 +124,9 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
 
     class FakeEmbedder:
         model = "test"
+        dimension = 2
+        provider_id = "test"
+
         async def embed(self, texts):
             return [[1.0, 0.0] for _ in texts]
 
