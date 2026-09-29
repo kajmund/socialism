@@ -17,8 +17,10 @@ from app.services.graph_v2.outbox import (
     enqueue_legal_graph,
     process_graph_work,
 )
+from app.services.graph_v2.errors import JevMalformedResponseError, PermanentGraphError
+import app.services.graph_v2.outbox as graph_outbox
 from app.services.knowledge.claims import KnowledgeClaim
-from sqlalchemy.exc import DataError, IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError, ProgrammingError
 
 
 class FakeEmbedder:
@@ -56,11 +58,41 @@ async def test_invalid_projection_payload_is_terminal_and_keeps_payload(tmp_path
 
 
 def test_graph_error_classification_separates_permanent_from_transient():
-    assert _is_permanent_graph_error(ValueError("bad payload"))
+    assert _is_permanent_graph_error(PermanentGraphError("invalid invariant"))
+    assert not _is_permanent_graph_error(ValueError("provider returned an unusable result"))
     assert _is_permanent_graph_error(DataError("INSERT", {}, Exception("value too long")))
-    assert _is_permanent_graph_error(IntegrityError("constraint", {}, Exception()))
+    assert _is_permanent_graph_error(ProgrammingError("schema mismatch", {}, Exception()))
+    assert not _is_permanent_graph_error(IntegrityError("concurrent conflict", {}, Exception()))
+    assert not _is_permanent_graph_error(JevMalformedResponseError("missing choice"))
     assert not _is_permanent_graph_error(TimeoutError("provider timeout"))
     assert not _is_permanent_graph_error(ConnectionError("provider unavailable"))
+
+
+async def test_malformed_jev_response_retries_graph_work(tmp_path, monkeypatch):
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/jev-retry.db")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory.begin() as session:
+        session.add(Kund(id=1, name="One", slug="one", available_modules=[]))
+        session.add(GraphIngestWork(
+            id="jev-malformed", customer_id=1, scope_key="customer:1", status="pending",
+            attempts=0, payload={"module": "dd", "claims": [], "entities": []},
+        ))
+
+    async def malformed(*args, **kwargs):
+        raise JevMalformedResponseError("semantic fact judge returned an invalid decision")
+
+    monkeypatch.setattr(graph_outbox, "write_legal_facts", malformed)
+    assert await process_graph_work(factory, embedder=FakeEmbedder()) == {
+        "completed": 0, "failed": 1,
+    }
+    async with factory() as session:
+        work = await session.get(GraphIngestWork, "jev-malformed")
+        assert work.status == "pending"
+        assert work.attempts == 1
+        assert work.retry_at is not None
+    await engine.dispose()
 
 
 async def test_transient_embedding_failure_stays_retryable(tmp_path):
