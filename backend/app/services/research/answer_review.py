@@ -20,6 +20,8 @@ from app.services.execution.service import get_attempt, get_run, mark_ready
 from app.services.knowledge.answer_review import record_answer_review
 from app.services.research.progress import emit_research_frozen_ready
 
+_IDENTITY_FIELDS = ("source_type", "source_id", "source_url", "locator", "content_hash")
+
 
 async def complete_research_freeze(
     session: AsyncSession, *, attempt_id: str, evidence_set_id: str
@@ -134,6 +136,10 @@ async def _evidence_by_need(session: AsyncSession, evidence_set_id: str) -> dict
     evidence: dict[str, dict] = defaultdict(dict)
     for row in rows:
         snapshot = {k: v for k, v in row.items() if k != "need_id"}
-        ref = hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
+        # Identity is the cited source content only. Excerpts of derived evidence,
+        # interpretations and providers are LLM/adapter output and may be worded
+        # differently on rediscovery; they stay in the payload, not in the hash.
+        identity = {k: snapshot[k] for k in _IDENTITY_FIELDS}
+        ref = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         evidence[row["need_id"]][ref] = {"ref": ref, **snapshot}
     return evidence

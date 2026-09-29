@@ -31,6 +31,9 @@ def upgrade() -> None:
         sa.Column("next_classification_at", sa.DateTime(timezone=True)),
         sa.Column("classification_token", sa.String(32)),
         sa.Column("last_error", sa.String(64)),
+        sa.Column(
+            "classification_attempts", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.ForeignKeyConstraint(["customer_id"], ["kunder.id"], ondelete="RESTRICT"),
         sa.CheckConstraint("ttl IN ('soon', 'later', 'never')", name="ck_answer_review_ttl"),
         sa.CheckConstraint(
