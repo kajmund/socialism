@@ -13,7 +13,11 @@ from app.services.knowledge.claims import (
     knowledge_claim,
     supporting_text_unit_ids_for_quote,
 )
-from app.services.knowledge.observations import KnowledgeObservation, knowledge_observation
+from app.services.knowledge.observations import (
+    KnowledgeObservation,
+    ObservationSeed,
+    knowledge_observation,
+)
 from app.services.knowledge.persistence_class import (
     DOMAIN_KNOWLEDGE,
     RESEARCH_OBSERVATION,
@@ -89,14 +93,17 @@ def ground_legal_extraction(
         if decision.persistence_class != DOMAIN_KNOWLEDGE:
             observations.append(
                 knowledge_observation(
-                    scope=scope,
-                    observation_class=decision.persistence_class,
-                    kind=decision.kind,
-                    document_id=document_id,
-                    document_version_id=document_version_id,
-                    statement_normalized=decision.statement_normalized or domain_claim.predicate,
-                    question_key=research_question_key(question) if question.strip() else "",
-                    extra={"predicate": domain_claim.predicate},
+                    ObservationSeed(
+                        observation_class=decision.persistence_class,
+                        kind=decision.kind,
+                        document_id=document_id,
+                        document_version_id=document_version_id,
+                        statement_normalized=decision.statement_normalized
+                        or domain_claim.predicate,
+                        question_key=research_question_key(question) if question.strip() else "",
+                        extra={"predicate": domain_claim.predicate},
+                    ),
+                    scope,
                 )
             )
             continue
@@ -134,26 +141,30 @@ def legal_source_observations(
     if result.truncated:
         items.append(
             knowledge_observation(
-                scope=scope,
-                observation_class=SOURCE_QUALITY,
-                kind="truncation",
-                document_id=document_id,
-                document_version_id=document_version_id,
-                statement_normalized="source text was truncated during retrieval",
-                extra={"truncated": True},
+                ObservationSeed(
+                    observation_class=SOURCE_QUALITY,
+                    kind="truncation",
+                    document_id=document_id,
+                    document_version_id=document_version_id,
+                    statement_normalized="source text was truncated during retrieval",
+                    extra={"truncated": True},
+                ),
+                scope,
             )
         )
     if result.relation.relation == "irrelevant":
         items.append(
             knowledge_observation(
-                scope=scope,
-                observation_class=RESEARCH_OBSERVATION,
-                kind="does_not_answer",
-                document_id=document_id,
-                document_version_id=document_version_id,
-                statement_normalized="source does not answer the research question",
-                question_key=question_key,
-                extra={"relation": result.relation.relation},
+                ObservationSeed(
+                    observation_class=RESEARCH_OBSERVATION,
+                    kind="does_not_answer",
+                    document_id=document_id,
+                    document_version_id=document_version_id,
+                    statement_normalized="source does not answer the research question",
+                    question_key=question_key,
+                    extra={"relation": result.relation.relation},
+                ),
+                scope,
             )
         )
     return items

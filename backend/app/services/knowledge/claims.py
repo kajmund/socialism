@@ -12,7 +12,6 @@ from datetime import datetime
 from typing import Protocol
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import (
@@ -24,16 +23,11 @@ from app.database.models import (
     TextUnitRecord,
 )
 from app.services.knowledge.events import (
-    CLAIM_ADDED,
     CLAIM_SUPERSEDED,
     record_graph_event,
     utc_now,
 )
 from app.services.knowledge.identity import knowledge_claim_identity
-from app.services.knowledge.persistence_class import (
-    DOMAIN_KNOWLEDGE,
-    classify_persistence,
-)
 from app.services.knowledge.scope import (
     SCOPE_CUSTOMER,
     KnowledgeScopeError,
@@ -168,91 +162,22 @@ def supporting_text_unit_ids_for_quote(
     return overlapping
 
 
-async def persist_knowledge_claims(
-    session: AsyncSession,
-    claims: Sequence[KnowledgeClaim],
-) -> list[KnowledgeClaimRecord]:
-    rows: list[KnowledgeClaimRecord] = []
-    for claim in claims:
-        rows.append(await persist_knowledge_claim(session, claim))
-    return rows
-
-
 async def persist_knowledge_claim(
-    session: AsyncSession,
-    claim: KnowledgeClaim,
+    session: AsyncSession, claim: KnowledgeClaim
 ) -> KnowledgeClaimRecord:
-    row, _reused = await persist_domain_claim(session, claim)
-    return row
+    # Circular: claim_store imports claim identity helpers from this module.
+    from app.services.knowledge.claim_store import persist_knowledge_claim as persist
+
+    return await persist(session, claim)
 
 
-async def persist_domain_claim(
-    session: AsyncSession,
-    claim: KnowledgeClaim,
-) -> tuple[KnowledgeClaimRecord, bool]:
-    if not claim.supporting_text_unit_ids:
-        raise KnowledgeClaimError(f"claim {claim.id} has no SUPPORTED_BY TextUnits")
-    decision = classify_persistence(
-        value=claim.value,
-        declared_class=claim.persistence_class,
-        declared_kind=claim.observation_kind,
-    )
-    if decision.persistence_class != DOMAIN_KNOWLEDGE:
-        raise KnowledgeClaimError(
-            f"claim rejected as {decision.persistence_class}: {decision.reason}"
-        )
-    identity = knowledge_claim_id(
-        scope_key=claim.scope.scope_key,
-        document_id=claim.document_id,
-        document_version_id=claim.document_version_id,
-        predicate=claim.predicate,
-        value=claim.value,
-    )
-    if claim.id != identity:
-        raise KnowledgeClaimError("claim id does not match stable identity")
-    await _assert_claim_grounding_scope(session, claim)
-    row = await _claim_by_identity(session, claim.scope.scope_key, identity)
-    if row is not None and row.superseded_at is not None:
-        raise KnowledgeClaimError(f"claim {row.id} is superseded")
-    reused = row is not None
-    if row is None:
-        now = utc_now()
-        row = KnowledgeClaimRecord(
-            id=identity,
-            identity_key=identity,
-            document_id=claim.document_id,
-            document_version_id=claim.document_version_id,
-            predicate=claim.predicate,
-            value=claim.value,
-            valid_from=now,
-            created_at=now,
-            **persist_scope_fields(claim.scope),
-        )
-        try:
-            async with session.begin_nested():
-                session.add(row)
-                await session.flush()
-        except IntegrityError:
-            row = await _claim_by_identity(session, claim.scope.scope_key, identity)
-            if row is None:
-                raise
-            reused = True
-        else:
-            await record_graph_event(
-                session,
-                scope=claim.scope,
-                event_type=CLAIM_ADDED,
-                node_kind="claim",
-                node_id=row.id,
-                payload={"predicate": claim.predicate},
-                created_at=now,
-            )
-    elif scope_from_row(row) != claim.scope:
-        raise KnowledgeClaimError(
-            f"claim {row.id} already exists in a different knowledge scope"
-        )
-    await attach_supporting_text_units(session, row.id, claim.supporting_text_unit_ids)
-    return row, reused
+async def persist_knowledge_claims(
+    session: AsyncSession, claims: Sequence[KnowledgeClaim]
+) -> list[KnowledgeClaimRecord]:
+    # Circular: claim_store imports claim identity helpers from this module.
+    from app.services.knowledge.claim_store import persist_knowledge_claims as persist
+
+    return await persist(session, claims)
 
 
 async def supersede_knowledge_claim(
@@ -455,7 +380,7 @@ async def _claim_scope(session: AsyncSession, claim_id: str) -> KnowledgeTenantS
     return scope_from_row(row)
 
 
-async def _assert_claim_grounding_scope(
+async def assert_claim_grounding_scope(
     session: AsyncSession,
     claim: KnowledgeClaim,
 ) -> None:
@@ -500,48 +425,6 @@ async def supporting_text_unit_ids_for_claim(
         )
     ).all()
     return [row[0] for row in rows]
-
-
-async def _claim_by_identity(
-    session: AsyncSession,
-    scope_key: str,
-    identity: str,
-) -> KnowledgeClaimRecord | None:
-    return (
-        await session.execute(
-            select(KnowledgeClaimRecord)
-            .where(
-                KnowledgeClaimRecord.identity_key == identity,
-                KnowledgeClaimRecord.scope_key == scope_key,
-                KnowledgeClaimRecord.superseded_at.is_(None),
-            )
-            .order_by(KnowledgeClaimRecord.created_at, KnowledgeClaimRecord.id)
-        )
-    ).scalars().first()
-
-
-async def attach_supporting_text_units(
-    session: AsyncSession,
-    claim_id: str,
-    unit_ids: Sequence[str],
-) -> None:
-    existing = await supporting_text_unit_ids_for_claim(session, claim_id)
-    seen = set(existing)
-    ordinal = len(existing)
-    for unit_id in unit_ids:
-        if unit_id in seen:
-            continue
-        session.add(
-            KnowledgeClaimTextUnit(
-                claim_id=claim_id,
-                text_unit_id=unit_id,
-                ordinal=ordinal,
-                relation=SUPPORTED_BY,
-            )
-        )
-        seen.add(unit_id)
-        ordinal += 1
-    await session.flush()
 
 
 def _compact(value: str) -> str:

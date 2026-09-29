@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import KnowledgeObservationRecord
+from app.database.knowledge_observation import KnowledgeObservationRecord
 from app.services.knowledge.identity import knowledge_observation_id
 from app.services.knowledge.persistence_class import (
     RESEARCH_OBSERVATION,
@@ -31,6 +31,17 @@ class KnowledgeObservationError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class ObservationSeed:
+    observation_class: str
+    kind: str
+    document_id: str
+    document_version_id: str
+    statement_normalized: str
+    question_key: str = ""
+    extra: dict[str, object] | None = None
+
+
+@dataclass(frozen=True)
 class KnowledgeObservation:
     id: str
     customer_id: int | None
@@ -49,28 +60,20 @@ class KnowledgeObservation:
 
 
 def knowledge_observation(
-    *,
-    observation_class: str,
-    kind: str,
-    document_id: str,
-    document_version_id: str,
-    statement_normalized: str,
-    customer_id: int | None = None,
-    scope: KnowledgeTenantScope | None = None,
-    question_key: str = "",
-    extra: dict[str, object] | None = None,
+    seed: ObservationSeed,
+    scope: KnowledgeTenantScope,
 ) -> KnowledgeObservation:
     try:
-        classified = require_persistence_class(observation_class)
+        classified = require_persistence_class(seed.observation_class)
     except PersistenceClassError as exc:
         raise KnowledgeObservationError(str(exc)) from exc
     if classified == "domain_knowledge":
         raise KnowledgeObservationError("domain_knowledge is not an observation class")
-    resolved = require_persist_scope(scope=scope, customer_id=customer_id)
-    normalized = " ".join(statement_normalized.split())
+    resolved = require_persist_scope(scope=scope)
+    normalized = " ".join(seed.statement_normalized.split())
     if not normalized:
         raise KnowledgeObservationError("observation statement is empty")
-    question = question_key.strip()
+    question = seed.question_key.strip()
     if classified == RESEARCH_OBSERVATION and not question:
         raise KnowledgeObservationError("research_observation requires question_key")
     if classified == SOURCE_QUALITY:
@@ -79,20 +82,20 @@ def knowledge_observation(
         id=knowledge_observation_id(
             scope_key=resolved.scope_key,
             observation_class=classified,
-            kind=kind.strip(),
-            document_version_id=document_version_id,
+            kind=seed.kind.strip(),
+            document_version_id=seed.document_version_id,
             question_key=question,
             statement_normalized=normalized,
         ),
         customer_id=resolved.customer_id,
         scope_type=resolved.scope_type,
         observation_class=classified,
-        kind=kind.strip(),
-        document_id=document_id,
-        document_version_id=document_version_id,
+        kind=seed.kind.strip(),
+        document_id=seed.document_id,
+        document_version_id=seed.document_version_id,
         question_key=question,
         statement_normalized=normalized,
-        extra=dict(extra or {}),
+        extra=dict(seed.extra or {}),
     )
 
 

@@ -80,11 +80,10 @@ def knowledge_relationship_id(
     from_id: str,
     to_kind: str,
     to_id: str,
-    customer_id: int | None = None,
-    scope: KnowledgeTenantScope | None = None,
+    scope: KnowledgeTenantScope,
     temporal_key: str = "",
 ) -> str:
-    resolved = require_persist_scope(scope=scope, customer_id=customer_id)
+    resolved = require_persist_scope(scope=scope)
     stamp = temporal_key.strip()
     if resolved.scope_type == SCOPE_CUSTOMER:
         payload = (
@@ -106,7 +105,6 @@ def knowledge_relationship(  # noqa: PLR0913
     customer_id: int | None = None,
     scope: KnowledgeTenantScope | None = None,
     extra: dict[str, object] | None = None,
-    temporal_key: str = "",
 ) -> KnowledgeRelationship:
     rel = require_relation(relation)
     if from_kind not in NODE_KINDS:
@@ -116,7 +114,8 @@ def knowledge_relationship(  # noqa: PLR0913
     if not from_id.strip() or not to_id.strip():
         raise KnowledgeRelationshipError("relationship endpoints require ids")
     resolved = require_persist_scope(scope=scope, customer_id=customer_id)
-    stamp = temporal_key.strip()
+    payload = dict(extra or {})
+    stamp = str(payload.pop("temporal_key", "") or "").strip()
     return KnowledgeRelationship(
         id=knowledge_relationship_id(
             scope=resolved,
@@ -134,7 +133,7 @@ def knowledge_relationship(  # noqa: PLR0913
         from_id=from_id,
         to_kind=to_kind,
         to_id=to_id,
-        extra=dict(extra or {}),
+        extra=payload,
         temporal_key=stamp,
     )
 

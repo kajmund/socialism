@@ -24,6 +24,19 @@ KnowledgeAction = Literal[
 ]
 
 
+@dataclass(frozen=True)
+class KnowledgeDecision:
+    kind: KnowledgeKind
+    action: KnowledgeAction
+    persistence_class: str | None = None
+    reason: str | None = None
+    predicate: str | None = None
+    identity_key: str | None = None
+    document_id: str | None = None
+    relation: str | None = None
+    entity_type: str | None = None
+
+
 @dataclass
 class KnowledgePersistStats:
     claims_proposed: int = 0
@@ -61,48 +74,42 @@ class KnowledgePersistStats:
 
 def record_knowledge_decision(
     stats: KnowledgePersistStats,
-    *,
-    kind: KnowledgeKind,
-    action: KnowledgeAction,
-    persistence_class: str | None = None,
-    reason: str | None = None,
-    predicate: str | None = None,
-    identity_key: str | None = None,
-    document_id: str | None = None,
-    relation: str | None = None,
-    entity_type: str | None = None,
+    decision: KnowledgeDecision,
 ) -> None:
-    _increment(stats, kind, action)
+    _increment(stats, decision.kind, decision.action)
     fields: dict[str, object] = {
-        "knowledge_kind": kind,
-        "action": action,
+        "knowledge_kind": decision.kind,
+        "action": decision.action,
     }
-    if persistence_class:
-        fields["persistence_class"] = persistence_class
-    if reason:
-        fields["reason"] = reason
-    if predicate:
-        fields["predicate"] = predicate
-    if identity_key:
-        fields["identity_key"] = identity_key
-    if document_id:
-        fields["document_id"] = document_id
-    if relation:
-        fields["relation"] = relation
-    if entity_type:
-        fields["entity_type"] = entity_type
+    optional = {
+        "persistence_class": decision.persistence_class,
+        "reason": decision.reason,
+        "predicate": decision.predicate,
+        "identity_key": decision.identity_key,
+        "document_id": decision.document_id,
+        "relation": decision.relation,
+        "entity_type": decision.entity_type,
+    }
+    for key, value in optional.items():
+        if value:
+            fields[key] = value
     stats._events.append(fields)
-    outcome = "success" if action != "rejected_by_class" else "rejected"
-    event_name = (
-        EVENT_KNOWLEDGE_REJECTED if action == "rejected_by_class" else EVENT_KNOWLEDGE_PERSIST
-    )
+    rejected = decision.action == "rejected_by_class"
     log_event(
         logger,
-        event_name,
+        EVENT_KNOWLEDGE_REJECTED if rejected else EVENT_KNOWLEDGE_PERSIST,
         dataset=EVENT_DATASET_KNOWLEDGE,
-        outcome=outcome,
+        outcome="rejected" if rejected else "success",
         fields={"knowledge": fields},
     )
+
+
+_KIND_PLURAL = {
+    "claim": "claims",
+    "entity": "entities",
+    "relationship": "relationships",
+    "observation": "observations",
+}
 
 
 def _increment(
@@ -110,9 +117,9 @@ def _increment(
     kind: KnowledgeKind,
     action: KnowledgeAction,
 ) -> None:
-    key = f"{kind}s_{action}"
     if kind == "observation" and action == "rejected_by_class":
         return
+    key = f"{_KIND_PLURAL[kind]}_{action}"
     if not hasattr(stats, key):
         return
     setattr(stats, key, int(getattr(stats, key)) + 1)
