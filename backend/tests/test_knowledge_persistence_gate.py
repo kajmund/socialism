@@ -90,6 +90,10 @@ def test_source_quality_and_gap_statements_are_not_domain_knowledge():
     assert holding.persistence_class == DOMAIN_KNOWLEDGE
     rule = classify_persistence(value={"value": "the rule does not apply to commercial parties"})
     assert rule.persistence_class == DOMAIN_KNOWLEDGE
+    incomplete = classify_persistence(value={"value": "the complete source text is missing"})
+    assert incomplete.persistence_class == SOURCE_QUALITY
+    exception_gap = classify_persistence(value={"value": "an exception is missing from the rule"})
+    assert exception_gap.persistence_class == DOMAIN_KNOWLEDGE
 
 
 async def _session() -> AsyncSession:

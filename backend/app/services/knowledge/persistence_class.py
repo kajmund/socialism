@@ -47,15 +47,12 @@ _SOURCE_QUALITY_PHRASES = (
     "corrupted",
     "fel källa",
     "felaktig källa",
-    "fullständiga domskäl saknas",
-    "fullständiga skäl saknas",
     "incomplete source",
     "incorrect source",
     "korrupt",
     "ocr",
     "ofullständig källa",
     "partial source",
-    "referatet är trunkerat",
     "retrieval limit",
     "retrieval limitation",
     "source is incomplete",
@@ -66,6 +63,18 @@ _SOURCE_QUALITY_PHRASES = (
     "trunkerat",
     "trunkering",
     "wrong source",
+)
+_COMPLETENESS_MARKERS = (
+    "complete",
+    "fullständig",
+    "incomplete",
+    "ofullständig",
+)
+_ABSENCE_MARKERS = (
+    "absent",
+    "missing",
+    "saknas",
+    "unavailable",
 )
 _RESEARCH_OBS_PHRASES = (
     "besvarar inte",
@@ -133,7 +142,10 @@ def classify_persistence(
             reason="structured_kind",
             statement_normalized=normalized,
         )
-    if normalized and _contains_phrase(normalized, _SOURCE_QUALITY_PHRASES):
+    if normalized and (
+        _contains_phrase(normalized, _SOURCE_QUALITY_PHRASES)
+        or _looks_like_incomplete_source(normalized)
+    ):
         return PersistenceDecision(
             persistence_class=SOURCE_QUALITY,
             kind=_source_quality_kind(normalized),
@@ -189,6 +201,12 @@ def _contains_phrase(normalized: str, phrases: tuple[str, ...]) -> bool:
     return any(normalize_assertion_text(phrase) in normalized for phrase in phrases)
 
 
+def _looks_like_incomplete_source(normalized: str) -> bool:
+    return _contains_phrase(normalized, _COMPLETENESS_MARKERS) and _contains_phrase(
+        normalized, _ABSENCE_MARKERS
+    )
+
+
 _SOURCE_QUALITY_KIND_PHRASES = (
     ("ocr", ("ocr",)),
     ("corrupted", ("corrupt", "corrupted", "korrupt")),
@@ -205,7 +223,6 @@ _SOURCE_QUALITY_KIND_PHRASES = (
             "trunkerat",
             "trunkerad",
             "trunkering",
-            "referatet är trunkerat",
         ),
     ),
     ("partial_source", ("partial source",)),
