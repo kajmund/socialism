@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -83,6 +84,31 @@ async def test_persist_rejects_mixed_customer_ids():
                 ),
             ],
         )
+
+
+async def test_only_accepted_claims_enter_graph_outbox(session, monkeypatch):
+    accepted = SimpleNamespace(id="accepted", customer_id=7)
+    rejected = SimpleNamespace(id="rejected", customer_id=7)
+    queued = []
+
+    async def persist(*args, **kwargs):
+        return SimpleNamespace(accepted_claim_ids=["accepted"])
+
+    async def enqueue(*args, **kwargs):
+        queued.extend(kwargs["claims"])
+
+    async def answer(*args, **kwargs):
+        pass
+
+    monkeypatch.setattr(writeback, "persist_extracted_knowledge", persist)
+    monkeypatch.setattr(writeback, "enqueue_legal_graph", enqueue)
+    monkeypatch.setattr(writeback, "answer_research_need", answer)
+    await persist_pending_graph_writes(session, [PendingGraphWrite(
+        claims=(accepted, rejected), entities=(), edges=(),
+        research_need_id="need", question="Vad gäller?",
+        source_type="swedish_law", customer_id=7,
+    )])
+    assert queued == [accepted]
 
 
 @pytest.mark.asyncio
