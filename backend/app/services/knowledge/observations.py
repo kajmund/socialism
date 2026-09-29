@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.knowledge_observation import KnowledgeObservationRecord
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord
 from app.services.knowledge.identity import knowledge_observation_id
 from app.services.knowledge.persistence_class import (
     RESEARCH_OBSERVATION,
@@ -23,6 +24,7 @@ from app.services.knowledge.scope import (
     KnowledgeTenantScope,
     persist_scope_fields,
     require_persist_scope,
+    scope_from_row,
 )
 
 
@@ -110,6 +112,7 @@ async def persist_knowledge_observation(
     session: AsyncSession,
     observation: KnowledgeObservation,
 ) -> tuple[KnowledgeObservationRecord, bool]:
+    await _validate_observation_provenance(session, observation)
     row = await session.get(KnowledgeObservationRecord, observation.id)
     if row is not None:
         return row, True
@@ -136,6 +139,28 @@ async def persist_knowledge_observation(
             raise
         return winner, True
     return row, False
+
+
+
+async def _validate_observation_provenance(
+    session: AsyncSession,
+    observation: KnowledgeObservation,
+) -> None:
+    document = await session.get(CanonicalDocumentRecord, observation.document_id)
+    version = await session.get(DocumentVersionRecord, observation.document_version_id)
+    if document is None or version is None:
+        raise KnowledgeObservationError("observation provenance is missing")
+    if version.document_id != document.id:
+        raise KnowledgeObservationError("observation version does not belong to document")
+    document_scope = scope_from_row(document)
+    version_scope = scope_from_row(version)
+    if document_scope != version_scope:
+        raise KnowledgeObservationError("observation document/version scopes differ")
+    target = observation.scope
+    if document_scope.scope_type == "customer" and document_scope != target:
+        raise KnowledgeObservationError("observation cannot reference another tenant")
+    if target.scope_type == "shared" and document_scope.scope_type != "shared":
+        raise KnowledgeObservationError("shared observation cannot reference customer provenance")
 
 
 async def _lookup_observation(
