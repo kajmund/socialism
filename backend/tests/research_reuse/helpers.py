@@ -1,8 +1,6 @@
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
-import pytest
-
 from app.llm.research_assessment import (
     EvidenceSufficiencyModel,
     LlmResearchAssessor,
@@ -15,11 +13,6 @@ from app.services.research.planner import ResearchObjective
 
 MAIN = "Hur tillämpas 36 § avtalslagen i svensk rättspraxis?"
 CHILD = "Vilken betydelse har senare lagändringar för 36 § avtalslagen?"
-
-
-def pending_contract(reason):
-    # Unexpected success fails CI: remove the marker when the product implements it.
-    return pytest.mark.xfail(reason=reason, strict=True, raises=AssertionError)
 
 
 def need(*, question=CHILD, need_id="child", question_id="") -> ResearchNeed:
@@ -93,3 +86,53 @@ def assessor(*, sufficient=True):
 
 def objective() -> ResearchObjective:
     return ResearchObjective(objective=MAIN)
+
+
+class FreshSource:
+    source_type = "swedish_preparatory_works"
+    provider_id = "mock-public-source"
+
+    def __init__(self):
+        self.questions = []
+
+    async def research(self, research_need, _context):
+        self.questions.append(research_need.question)
+        return [
+            research_evidence(
+                research_need_id=research_need.id,
+                source_type=self.source_type,
+                status="found",
+                source_id="source:" + research_need.id,
+                excerpt="Belagt svar om " + research_need.question,
+                provider=self.provider_id,
+                retrieved_at=datetime.now(UTC),
+            )
+        ]
+
+
+async def reviewed_answer(plan, items):
+    # Mock the judgment only; production still validates question and citation IDs.
+    from app.services.research.assessment import ResearchNeedAssessment
+
+    rows = []
+    for research_need in plan.needs:
+        supporting = [
+            item.evidence_id
+            for item in items
+            if item.status == "found"
+            and research_need.id in (item.research_need_ids or (item.research_need_id,))
+        ]
+        rows.append(
+            ResearchNeedAssessment(
+                research_need_id=research_need.id,
+                sufficient=bool(supporting),
+                supporting_evidence_ids=supporting,
+            )
+        )
+    from app.services.research.assessment import ResearchAssessmentDraft
+
+    return ResearchAssessmentDraft(
+        result="sufficient" if all(row.sufficient for row in rows) else "insufficient",
+        rationale="Mocked question-specific judgment",
+        need_assessments=rows,
+    )

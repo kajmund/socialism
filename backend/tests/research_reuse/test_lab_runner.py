@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy import text
 
-from app.services.research.assessment import ResearchAssessmentDraft
+from app.services.research.assessment import ResearchAssessmentDraft, ResearchNeedAssessment
 from app.services.research.followup import FollowUpNeedDraft
 from tests.research_reuse import live, probes
 from tests.research_reuse.helpers import context, evidence, need
@@ -106,6 +106,13 @@ async def test_step_two_replays_step_one_without_embedding_or_graph_lookup(
             return_value=ResearchAssessmentDraft(
                 result="sufficient",
                 rationale="Reusable",
+                need_assessments=[
+                    ResearchNeedAssessment(
+                        research_need_id=current.id,
+                        sufficient=True,
+                        supporting_evidence_ids=[evidence().evidence_id],
+                    )
+                ],
             )
         )
     )

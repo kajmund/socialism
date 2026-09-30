@@ -198,7 +198,7 @@ class Settings(BaseSettings):
     research_question_embedding_version: str = Field(
         default="knowledge-question-v1", min_length=1
     )
-    # Age after which reused graph evidence is stale. None = freshness unknown.
+    # Age after which active Graph v2 source evidence expires. None = no age cutoff.
     research_knowledge_freshness_max_age_seconds: int | None = Field(
         default=None, ge=1
     )

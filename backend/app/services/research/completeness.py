@@ -8,6 +8,7 @@ material questions the plan never asked.
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
@@ -110,7 +111,8 @@ def question_fingerprint(
     """Stable hash of the questions and objective the reviewer saw."""
     lines = sorted(row.question_key for row in needs)
     objective_text = objective.objective.strip() if objective is not None else ""
-    payload = "\n".join([*lines, f"objective:{objective_text}"])
+    context = json.dumps(objective.context if objective else {}, sort_keys=True, ensure_ascii=False)
+    payload = "\n".join([*lines, f"objective:{objective_text}", f"context:{context}"])
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 

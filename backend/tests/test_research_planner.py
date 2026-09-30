@@ -43,14 +43,13 @@ from app.services.research.registry import (
     set_standard_capability_descriptors,
 )
 from app.services.research.router import ResearchRouter
-from tests.test_research_assessment import _fixed_draft
 from tests.test_research_execution import (
     RecordingSource,
     _created_attempt,
     _need,
     _router,
 )
-from tests.test_research_loop import ScriptedPlanner, SequenceAssessor
+from tests.test_research_loop import ScriptedPlanner
 
 
 pytestmark = pytest.mark.usefixtures("graph_retrieval_embeddings")
@@ -132,13 +131,13 @@ async def test_generated_plan_persists_before_any_retrieval(db):
     assert reloaded.research_objective_snapshot["objective"] == (
         "Vad är kommunens skattesats?"
     )
-    assert reloaded.research_plan_snapshot["needs"][0]["id"] == "research_1"
-    assert reloaded.research_plan_snapshot["needs"][0]["question"] == (
+    assert reloaded.research_plan_snapshot["needs"][1]["id"] == "research_1"
+    assert reloaded.research_plan_snapshot["needs"][1]["question"] == (
         "Vad gäller skattesatsen?"
     )
     assert seen["status"] == "researching"
     assert seen["objective"]["objective"] == "Vad är kommunens skattesats?"
-    assert seen["plan"]["needs"][0]["id"] == "research_1"
+    assert seen["plan"]["needs"][1]["id"] == "research_1"
     assert seen["items"] == []
 
 
@@ -285,17 +284,24 @@ async def test_generated_plan_flows_unchanged_into_research_loop(db):
             ]
         ]
     )
-    assessor = SequenceAssessor(
-        [
-            _fixed_draft(
-                result="insufficient",
-                need_id="research_1",
-                evidence_ids=[],
-                further="Behöver taxa.",
-            ),
-            _fixed_draft(result="sufficient", need_id="research_1", evidence_ids=[]),
-        ]
-    )
+    from app.services.research.assessment import programmatic_assessment, ResearchAssessmentDraft, ResearchNeedAssessment
+    class MainAwareAssessor:
+        def __init__(self):
+            self.barriers = 0
+        async def assess(self, plan, evidence):
+            draft = programmatic_assessment(plan, evidence)
+            if evidence and len(plan.needs) > 1:
+                self.barriers += 1
+                if self.barriers == 1:
+                    return ResearchAssessmentDraft(
+                        result="insufficient", rationale="Taxa saknas",
+                        need_assessments=[ResearchNeedAssessment(
+                            research_need_id="research_1", sufficient=False,
+                            further_information="Behöver taxa.",
+                        )],
+                    )
+            return draft
+    assessor = MainAwareAssessor()
     result = await execute_attempt_research(
         session,
         attempt_id=attempt.id,
@@ -312,14 +318,14 @@ async def test_generated_plan_flows_unchanged_into_research_loop(db):
     rows = await list_research_assessments(session, attempt.id)
     snapshot_ids = [need["id"] for need in reloaded.research_plan_snapshot["needs"]]
     assert result.status == "ready"
-    assert snapshot_ids == ["research_1"]
-    assert [row.origin for row in runtime] == ["initial", "derived"]
-    assert runtime[0].question == "Vad gäller skattesatsen?"
-    assert runtime[1].question == "Vad är kommunens taxa?"
+    assert snapshot_ids == ["research-main", "research_1"]
+    assert [row.origin for row in runtime] == ["initial", "initial", "derived"]
+    assert runtime[0].question == "Vad är kommunens skattesats?"
+    assert runtime[1].question == "Vad gäller skattesatsen?"
+    assert runtime[2].question == "Vad är kommunens taxa?"
     assert reloaded.research_stop_reason == "sufficient"
     assert [row.assessment_pass for row in rows] == [1, 2]
-    assert follow_up.calls[0][0].needs[0].id == "research_1"
-    assert follow_up.calls[0][0].needs[0].question == "Vad gäller skattesatsen?"
+    assert [row.id for row in follow_up.calls[0][0].needs] == snapshot_ids
 
 
 @pytest.mark.asyncio

@@ -8,7 +8,7 @@ from app.database.models import CanonicalDocumentRecord
 from app.services.lagen_nu.canonical_ingest import ingest_lagen_nu_document
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.research.graph_grounding import GraphResearchError
-from app.services.research.graph_reuse import lookup_graph_evidence
+from tests.test_research_graph_v2_reuse import lookup_graph_evidence
 from tests.knowledge_fakes import FakeEmbeddingProvider
 from tests.test_lagen_nu_canonical_ingest import _document
 from tests.test_research_graph_v2_reuse import NOW, context, need, seed_fact

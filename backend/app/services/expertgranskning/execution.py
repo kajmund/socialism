@@ -52,6 +52,7 @@ from app.services.research.expert_knowledge import (
     publish_completed_attempt_knowledge,
     remember_published_question,
 )
+from app.services.research.question_prepare import prepare_question_inventory
 from app.services.research.question_attempt_worker import AttemptResearchQuestionWorker
 from app.services.research.question_domain import (
     GeneralQuestionDraft,
@@ -143,9 +144,9 @@ async def _persist_questions(
     attempt_id: str,
     panel_session_id: str,
     config: PanelSessionConfig,
-    plan: ResearchPlan,
-    customer_id: int,
+    inventory,
 ) -> None:
+    customer_id = inventory.customer_id
     specific = await create_specific_question(
         session,
         run_id=run_id,
@@ -155,7 +156,7 @@ async def _persist_questions(
         origin_ref=panel_session_id,
     )
     persona_by_slot = await _slot_persona_ids(session, customer_id=customer_id)
-    for need in plan.needs:
+    for need in inventory.plan.needs:
         raised_by = [
             persona_by_slot[slot_id] for slot_id in need.requested_by if slot_id in persona_by_slot
         ]
@@ -165,6 +166,7 @@ async def _persist_questions(
             session,
             attempt_id=attempt_id,
             specific_question_id=specific.id,
+            question_graph=inventory.graph,
             draft=GeneralQuestionDraft(
                 question=need.question,
                 why_needed=need.why_needed,
@@ -357,6 +359,8 @@ async def run_expertgranskning_with_research(  # noqa: PLR0915
                 prompts,
                 actor_profile_handler=read_actor_profile if owner else None,
             )
+            await session.commit()
+            inventory = await prepare_question_inventory(factory, customer_id, plan)
             run_context: dict[str, object] = {
                 "consumer": "expertgranskning",
                 "panel_session_id": panel.id,
@@ -390,8 +394,7 @@ async def run_expertgranskning_with_research(  # noqa: PLR0915
                 attempt_id=attempt.id,
                 panel_session_id=panel.id,
                 config=config,
-                plan=plan,
-                customer_id=customer_id,
+                inventory=inventory,
             )
             await assign_unowned_research_questions(
                 session,

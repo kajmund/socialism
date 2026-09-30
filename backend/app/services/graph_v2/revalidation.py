@@ -24,7 +24,7 @@ async def attach_question_dependency(
     fact = await session.get(GraphFact, fact_id)
     if question is None or question.node_type != "core.question" or fact is None:
         raise PermanentGraphError("question dependency requires a persisted question node and fact")
-    if question.scope_key != fact.scope_key and question.scope_key != "shared":
+    if question.scope_key != fact.scope_key and fact.scope_key != "shared":
         raise PermanentGraphError("question dependency cannot cross tenant scopes")
     sources = await fact_provenance(session, fact_id)
     if not sources:
@@ -36,7 +36,7 @@ async def attach_question_dependency(
         await session.flush()
         return row
     row = GraphFactQuestionDependency(
-        id=dependency_id, scope_key=fact.scope_key, question_node_id=question_node_id,
+        id=dependency_id, scope_key=question.scope_key, question_node_id=question_node_id,
         fact_id=fact_id, relation="research.depends_on", provenance=sources,
     )
     try:

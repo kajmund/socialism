@@ -48,8 +48,33 @@ async def workload(factory, attempt_id: str, need_id: str | None):
             objective = (attempt.research_objective_snapshot or {}).get("objective")
             if not objective:
                 raise ValueError("The attempt has no persisted research objective")
+            from app.database.models import KnowledgeQuestionRow
+            from app.services.research.knowledge_question import identity_from_text
+            from sqlalchemy import select
+
+            main_rows = await list_runtime_needs(session, attempt.id)
+            canonical_id = next(
+                (
+                    row.knowledge_question_id
+                    for row in main_rows
+                    if row.research_need_id == "research-main"
+                ),
+                "",
+            )
+            if not canonical_id:
+                canonical_id = (
+                    await session.scalar(
+                        select(KnowledgeQuestionRow.id).where(
+                            KnowledgeQuestionRow.scope_key == f"customer:{run.customer_id}",
+                            KnowledgeQuestionRow.identity_key
+                            == identity_from_text(objective).identity_key,
+                        )
+                    )
+                    or ""
+                )
             need = ResearchNeed(
                 id="main",
+                knowledge_question_id=canonical_id,
                 question=objective,
                 why_needed="Main-question reuse probe",
                 source_types=list(standard_available_source_types()),
