@@ -236,8 +236,8 @@ async def test_fast_need_quality_exists_before_slow_need_completes(file_db):
             attempt_id=attempt_id,
             research_plan=ResearchPlan(
                 needs=[
-                    _need("fast", "case_knowledge"),
-                    _need("slow", "case_knowledge"),
+                    _need('fast', 'case_knowledge', question=f"Vad gäller skattesatsen för {'fast'}?"),
+                    _need('slow', 'case_knowledge', question=f"Vad gäller skattesatsen för {'slow'}?"),
                 ]
             ),
             router=router,
@@ -332,8 +332,8 @@ async def test_linked_passage_keeps_first_need_quality_row(db):
         attempt_id=attempt.id,
         research_plan=ResearchPlan(
             needs=[
-                _need("first", "case_knowledge"),
-                _need("second", "case_knowledge"),
+                _need('first', 'case_knowledge', question=f"Vad gäller skattesatsen för {'first'}?"),
+                _need('second', 'case_knowledge', question=f"Vad gäller skattesatsen för {'second'}?"),
             ]
         ),
         router=router,

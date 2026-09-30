@@ -120,8 +120,8 @@ async def test_need_deadline_completes_one_need_and_keeps_the_other(db, monkeypa
         attempt_id=attempt.id,
         research_plan=ResearchPlan(
             needs=[
-                _need("slow", "case_knowledge"),
-                _need("fast", "case_knowledge"),
+                _need('slow', 'case_knowledge', question=f"Vad gäller skattesatsen för {'slow'}?"),
+                _need('fast', 'case_knowledge', question=f"Vad gäller skattesatsen för {'fast'}?"),
             ]
         ),
         router=MixedTimeoutRouter("slow", found),  # type: ignore[arg-type]
@@ -152,7 +152,7 @@ async def test_need_deadline_completes_one_need_and_keeps_the_other(db, monkeypa
     assert by_assessment["slow"] is False
     assert by_assessment["fast"] is True
     draft = await ProgrammaticResearchAssessor().assess(
-        ResearchPlan(needs=[_need("slow", "case_knowledge"), _need("fast", "case_knowledge")]),
+        ResearchPlan(needs=[_need('slow', 'case_knowledge', question=f"Vad gäller skattesatsen för {'slow'}?"), _need('fast', 'case_knowledge', question=f"Vad gäller skattesatsen för {'fast'}?")]),
         [assessable_from_item(item) for item in items],
     )
     assert draft.result == "insufficient"

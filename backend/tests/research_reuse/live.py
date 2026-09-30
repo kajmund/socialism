@@ -19,7 +19,8 @@ from app.services.llm_runtime_settings import get_default_configuration, load_ru
 from app.services.prompt_store import require_active_prompts
 from app.services.research.composition import standard_available_source_types
 from app.services.research.execution import research_context_from_run
-from app.services.research.models import ResearchNeed
+from app.services.research.planner import ResearchObjective
+from app.services.research.startup import main_need
 from tests.research_reuse import probes
 from tests.research_reuse.snapshots import (
     ASSESSMENT,
@@ -72,12 +73,12 @@ async def workload(factory, attempt_id: str, need_id: str | None):
                     )
                     or ""
                 )
-            need = ResearchNeed(
-                id="main",
+            need = replace(
+                main_need(
+                    ResearchObjective(objective, context=attempt.research_objective_snapshot.get("context", {})),
+                    standard_available_source_types(),
+                ),
                 knowledge_question_id=canonical_id,
-                question=objective,
-                why_needed="Main-question reuse probe",
-                source_types=list(standard_available_source_types()),
             )
         if await get_default_configuration(session) is None:
             raise ValueError("A configured default LLM configuration is required")
