@@ -125,11 +125,11 @@ async def _customer(session: AsyncSession, slug: str) -> Kund:
 def _need(
     need_id: str,
     *source_types: str,
-    question: str = "Vad gäller skattesatsen?",
+    question: str | None = None,
 ) -> ResearchNeed:
     return ResearchNeed(
         id=need_id,
-        question=question,
+        question=question or f"Vad gäller skattesatsen för {need_id}?",
         why_needed="behövs för bedömning",
         requested_by=["legal"],
         source_types=list(source_types),  # type: ignore[arg-type]
@@ -256,30 +256,14 @@ async def test_acceptance_found_and_not_found_reach_ready(db):
     assert result.error_count == 0
     assert result.evidence_set_id == reloaded.evidence_set_id
     assert reloaded.status == "ready"
-    assert reloaded.research_plan_snapshot == {
-        "needs": [
-            {
-                "id": "research_1",
-                "question": "Vad gäller skattesatsen?",
-                "why_needed": "behövs för bedömning",
-                "requested_by": ["legal"],
-                "source_types": ["case_knowledge"],
-                "domains": [],
-                "modalities": [],
-                "capabilities": [],
-            },
-            {
-                "id": "research_2",
-                "question": "Finns kundpolicy?",
-                "why_needed": "behövs för bedömning",
-                "requested_by": ["legal"],
-                "source_types": ["customer_knowledge"],
-                "domains": [],
-                "modalities": [],
-                "capabilities": [],
-            },
-        ]
+    stored_needs = await list_runtime_needs(session, attempt.id)
+    snapshot_needs = reloaded.research_plan_snapshot["needs"]
+    assert {row["id"]: row["knowledge_question_id"] for row in snapshot_needs} == {
+        row.research_need_id: row.knowledge_question_id for row in stored_needs
     }
+    assert all(row.knowledge_question_id for row in stored_needs)
+    assert [{key: value for key, value in row.items() if key != "knowledge_question_id"}
+            for row in snapshot_needs] == research_plan_to_snapshot(plan)["needs"]
     assert research_plan_from_snapshot(reloaded.research_plan_snapshot).needs[0].id == (
         "research_1"
     )

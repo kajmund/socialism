@@ -156,7 +156,7 @@ async def _persist_questions(
         origin_ref=panel_session_id,
     )
     persona_by_slot = await _slot_persona_ids(session, customer_id=customer_id)
-    for need in inventory.plan.needs:
+    for need in inventory.needs:
         raised_by = [
             persona_by_slot[slot_id] for slot_id in need.requested_by if slot_id in persona_by_slot
         ]
@@ -360,7 +360,7 @@ async def run_expertgranskning_with_research(  # noqa: PLR0915
                 actor_profile_handler=read_actor_profile if owner else None,
             )
             await session.commit()
-            inventory = await prepare_question_inventory(factory, customer_id, plan)
+            inventory = await prepare_question_inventory(factory, customer_id, plan.needs)
             run_context: dict[str, object] = {
                 "consumer": "expertgranskning",
                 "panel_session_id": panel.id,
