@@ -257,3 +257,30 @@ async def test_only_the_assessed_main_gap_becomes_a_child(graph_basis):
         "Ändringar under 1995 saknas",
         "research-main: Ändringar under 1995 saknas",
     ]
+
+
+async def test_initial_duplicates_execute_once_without_losing_source_requests(reuse_db):
+    from app.services.research import execute_attempt_research, ResearchPlan
+    from app.services.execution import list_runtime_needs, list_need_executions
+    from tests.test_research_question_evidence import RecordingSource, _router
+    from tests.research_reuse.helpers import attempt
+
+    law = RecordingSource("swedish_law")
+    preparatory = RecordingSource("swedish_preparatory_works")
+    async with reuse_db() as session:
+        row = await attempt(session)
+        await session.commit()
+        await execute_attempt_research(
+            session, attempt_id=row.id,
+            research_plan=ResearchPlan(needs=[
+                replace(need(), id="first", source_types=[law.source_type]),
+                replace(need(), id="second", source_types=[preparatory.source_type]),
+            ]),
+            router=_router(law, preparatory)[0],
+            question_graph=SqlQuestionEvidenceGraph(),
+            session_factory=reuse_db,
+        )
+        needs = await list_runtime_needs(session, row.id)
+        assert len(needs) == len(await list_need_executions(session, row.id)) == 1
+        assert set(needs[0].source_types) == {law.source_type, preparatory.source_type}
+    assert law.calls == preparatory.calls == 1

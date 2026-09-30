@@ -69,7 +69,8 @@ async def reusable_expert_chat_evidence_context(
         ),
         ResearchContext(scope=KnowledgeScope(customer_id=customer_id)),
     )
-    frozen_refs = await _frozen_graph_refs(session, customer_id, reused)
+    async with _session_factory(session)() as read_session:
+        frozen_refs = await _frozen_graph_refs(read_session, customer_id, reused)
     frozen = [
         candidate
         for candidate in reused

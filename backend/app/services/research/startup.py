@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field, replace
 import json
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -43,6 +44,19 @@ from app.services.research.reuse_gate import (
 )
 
 MAIN_NEED_ID = "research-main"
+
+
+def main_need(objective: ResearchObjective, source_types: Sequence[str]) -> ResearchNeed:
+    return ResearchNeed(
+        id=MAIN_NEED_ID,
+        question=objective.objective,
+        why_needed=json.dumps(
+            {"objective": objective.objective, "context": objective.context},
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
+        source_types=list(source_types),
+    )
 
 
 @dataclass(frozen=True)
@@ -108,16 +122,7 @@ async def _main_first(inputs: StartInputs) -> ResearchStart:
         )
     if not inputs.allowed_source_types:
         raise ResearchPlannerError("no executable research source types are available")
-    root = ResearchNeed(
-        id=MAIN_NEED_ID,
-        question=inputs.objective.objective,
-        why_needed=json.dumps(
-            {"objective": inputs.objective.objective, "context": inputs.objective.context},
-            ensure_ascii=False,
-            sort_keys=True,
-        ),
-        source_types=list(inputs.allowed_source_types),
-    )
+    root = main_need(inputs.objective, inputs.allowed_source_types)
     await prepare_graph_questions(inputs.factory, inputs.graph, inputs.context, [root.question])
     from app.services.research.question_iteration import resolve_or_create_knowledge_question
     from app.services.research.knowledge_question import tenant_question_scope
@@ -249,7 +254,7 @@ async def _bind_initial(inputs: StartInputs, start: ResearchStart) -> ResearchSt
     from app.services.research.knowledge_question import tenant_question_scope
 
     scope = tenant_question_scope(inputs.context.scope.customer_id)
-    seen = set()
+    seen = {}
     needs = []
     duplicate_main = False
     async with inputs.factory.begin() as session:
@@ -261,21 +266,27 @@ async def _bind_initial(inputs: StartInputs, start: ResearchStart) -> ResearchSt
                 scope=scope,
             )
             if question.id in seen:
-                if (
-                    needs
-                    and needs[0].id == MAIN_NEED_ID
-                    and question.id == needs[0].knowledge_question_id
-                ):
+                index = seen[question.id]
+                prior = needs[index]
+                if prior.id == MAIN_NEED_ID:
+                    if not duplicate_main:
+                        prior = replace(prior, source_types=[], domains=[], modalities=[], capabilities=[])
                     duplicate_main = True
-                    needs[0] = replace(
-                        needs[0],
-                        source_types=need.source_types,
-                        domains=need.domains,
-                        modalities=need.modalities,
-                        capabilities=need.capabilities,
-                    )
+                needs[index] = _merge_requirements(prior, need)
                 continue
-            seen.add(question.id)
+            seen[question.id] = len(needs)
             needs.append(replace(need, knowledge_question_id=question.id))
     prepared = start.main_prepared and not duplicate_main
     return replace(start, plan=ResearchPlan(needs=needs), main_prepared=prepared)
+
+
+def _merge_requirements(first: ResearchNeed, second: ResearchNeed) -> ResearchNeed:
+    """Execute one canonical question without dropping either request's source constraints."""
+    return replace(
+        first,
+        source_types=list(dict.fromkeys([*first.source_types, *second.source_types])),
+        requested_by=list(dict.fromkeys([*first.requested_by, *second.requested_by])),
+        domains=list(dict.fromkeys([*first.domains, *second.domains])),
+        modalities=list(dict.fromkeys([*first.modalities, *second.modalities])),
+        capabilities=list(dict.fromkeys([*first.capabilities, *second.capabilities])),
+    )
