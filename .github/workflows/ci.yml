@@ -108,9 +108,41 @@ jobs:
       - name: Run pytest
         run: >-
           uv run pytest
+          -m "not smoke and not research_reuse"
           --splits 4
           --group ${{ matrix.group }}
           --splitting-algorithm least_duration
+
+  research-reuse:
+    name: Research reuse contracts (steps 1–4)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Mocked reuse contracts and per-test timings
+        run: >-
+          uv run pytest tests/research_reuse -m research_reuse
+          -rxX --durations=0 --junitxml=data/reuse-contracts.xml
+      - name: Save contract results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-reuse-contracts
+          path: backend/data/reuse-contracts.xml
+      - name: Show implemented and pending contracts
+        if: always()
+        run: uv run python scripts/summarize_reuse_contracts.py data/reuse-contracts.xml >> "$GITHUB_STEP_SUMMARY"
+
 
   postgres-schema:
     name: PostgreSQL schema
@@ -233,13 +265,14 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [changes, backend, postgres-schema, frontend, word-addin, knowledge]
+    needs: [changes, backend, research-reuse, postgres-schema, frontend, word-addin, knowledge]
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
         run: |
           changes="${{ needs.changes.result }}"
           backend="${{ needs.backend.result }}"
+          research_reuse="${{ needs.research-reuse.result }}"
           postgres_schema="${{ needs.postgres-schema.result }}"
           frontend="${{ needs.frontend.result }}"
           word_addin="${{ needs.word-addin.result }}"
@@ -250,9 +283,9 @@ jobs:
             exit 1
           fi
 
-          for result in "$backend" "$postgres_schema" "$frontend" "$word_addin" "$knowledge"; do
+          for result in "$backend" "$research_reuse" "$postgres_schema" "$frontend" "$word_addin" "$knowledge"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              echo "Required jobs: backend=$backend postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge"
+              echo "Required jobs: backend=$backend research-reuse=$research_reuse postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge"
               exit 1
             fi
           done

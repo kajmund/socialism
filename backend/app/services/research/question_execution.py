@@ -17,6 +17,7 @@ from app.database.models import (
     ResearchQuestionExpert,
 )
 from app.services.execution.service import get_attempt
+from app.services.research.question_prepare import prepare_outcome_graph
 from app.services.research.progress import ProgressTracker, emit_question_status
 from app.services.research.question_domain import (
     GeneralQuestionDraft,
@@ -149,6 +150,7 @@ async def execute_research_question_dag(
         waves += 1
         executable = [_as_executable(state, attempt_id) for state in ready]
         outcomes = await _run_wave(worker, executable, concurrency=concurrency)
+        prepared_graph = await prepare_outcome_graph(factory, attempt_id, outcomes)
 
         async with factory() as session:
             with ProgressTracker() as progress:
@@ -175,7 +177,7 @@ async def execute_research_question_dag(
                     row.outcome_reason = None
                     if outcome.execution_attempt_id is not None:
                         row.execution_attempt_id = outcome.execution_attempt_id
-                    await _persist_follow_ups(session, parent=question, outcome=outcome)
+                    await _persist_follow_ups(session, parent=question, outcome=outcome, graph=prepared_graph)
                     await emit_question_status(
                         session,
                         attempt_id=attempt_id,
@@ -293,6 +295,7 @@ async def _persist_follow_ups(
     *,
     parent: ExecutableResearchQuestion,
     outcome: QuestionResearchOutcome,
+    graph,
 ) -> None:
     for follow_up in outcome.follow_ups:
         assigned = follow_up.assigned_expert_id or parent.assigned_expert_id
@@ -301,6 +304,7 @@ async def _persist_follow_ups(
             session,
             attempt_id=parent.attempt_id,
             specific_question_id=parent.specific_question_id,
+            question_graph=graph,
             draft=GeneralQuestionDraft(
                 question=follow_up.question,
                 why_needed=follow_up.why_needed,

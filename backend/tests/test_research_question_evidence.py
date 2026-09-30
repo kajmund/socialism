@@ -397,9 +397,7 @@ async def test_graph_outage_fails_before_provider_retrieval(db):
     session, _factory = db
     _customer_row, _run, attempt = await _created_attempt(session, slug="outage-co")
     source = RecordingSource("case_knowledge")
-    from app.services.research.execution import ResearchExecutionError
-
-    with pytest.raises(ResearchExecutionError, match="research failed"):
+    with pytest.raises(QuestionEvidenceGraphError, match="Graphiti unavailable"):
         await execute_attempt_research(
             session, attempt_id=attempt.id,
             research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
@@ -896,6 +894,12 @@ async def test_legacy_claim_answers_are_not_used_when_graph_v2_is_empty(db):
     assert [item.excerpt for item in items] == ["should not run"]
     assert "knowledge_claim_ids" not in items[0].provenance
     assert items[0].provenance["reuse"]["origin"] == "fresh_retrieval"
+
+    from app.database.graph_v2 import GraphFact
+    from sqlalchemy import delete
+    # The first freeze now publishes a real Graph answer. Remove it to test an empty Graph.
+    await session.execute(delete(GraphFact).where(GraphFact.predicate == "research.answered_by"))
+    await session.commit()
 
     second = await create_attempt(
         session,

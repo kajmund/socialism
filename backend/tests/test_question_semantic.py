@@ -12,11 +12,11 @@ from app.database.models import KnowledgeQuestionRow, Kund
 from app.services.knowledge.models import EmbeddedKnowledgeChunk, KnowledgeChunk
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.research.knowledge_question import (
-    identity_from_text,
     tenant_question_scope,
 )
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_semantic import SemanticQuestionIdentityMatcher
+from app.services.research.question_prepare import prepare_sql_question
 
 
 class MeaningEmbeddingProvider:
@@ -75,14 +75,12 @@ async def test_semantic_question_match_reuses_canonical_identity(factory):
     store = MemoryKnowledgeVectorStore()
     graph = _graph(store)
     async with factory() as session:
-        first = await graph.upsert_question(
-            session,
-            identity_from_text("När får ett avtal jämkas enligt 36 § avtalslagen?"),
+        first = await prepare_sql_question(
+            factory, graph, "När får ett avtal jämkas enligt 36 § avtalslagen?",
             tenant_question_scope(1),
         )
-        second = await graph.upsert_question(
-            session,
-            identity_from_text("Vilka rekvisit gör ett avtalsvillkor oskäligt?"),
+        second = await prepare_sql_question(
+            factory, graph, "Vilka rekvisit gör ett avtalsvillkor oskäligt?",
             tenant_question_scope(1),
         )
         count = await session.scalar(select(func.count()).select_from(KnowledgeQuestionRow))
@@ -101,17 +99,15 @@ async def test_semantic_question_match_reuses_canonical_identity(factory):
 async def test_semantic_question_match_keeps_different_meanings_separate(factory):
     store = MemoryKnowledgeVectorStore()
     graph = _graph(store)
-    async with factory() as session:
-        first = await graph.upsert_question(
-            session,
-            identity_from_text("När får ett avtal jämkas?"),
-            tenant_question_scope(1),
-        )
-        second = await graph.upsert_question(
-            session,
-            identity_from_text("När får en part häva avtalet?"),
-            tenant_question_scope(1),
-        )
+    first = await prepare_sql_question(
+        factory, graph, "När får ett avtal jämkas?",
+        tenant_question_scope(1),
+    )
+    second = await prepare_sql_question(
+        factory, graph, "När får en part häva avtalet?",
+        tenant_question_scope(1),
+    )
+
 
     assert second.id != first.id
 
@@ -119,17 +115,15 @@ async def test_semantic_question_match_keeps_different_meanings_separate(factory
 async def test_semantic_question_match_never_crosses_customer_namespace(factory):
     store = MemoryKnowledgeVectorStore()
     graph = _graph(store)
-    async with factory() as session:
-        first = await graph.upsert_question(
-            session,
-            identity_from_text("När får ett avtal jämkas?"),
-            tenant_question_scope(1),
-        )
-        second = await graph.upsert_question(
-            session,
-            identity_from_text("Vilka villkor är oskäliga?"),
-            tenant_question_scope(2),
-        )
+    first = await prepare_sql_question(
+        factory, graph, "När får ett avtal jämkas?",
+        tenant_question_scope(1),
+    )
+    second = await prepare_sql_question(
+        factory, graph, "Vilka villkor är oskäliga?",
+        tenant_question_scope(2),
+    )
+
 
     assert second.id != first.id
     assert second.scope.namespace == "tenant:2"
@@ -155,16 +149,14 @@ async def test_semantic_question_search_isolated_from_document_vectors(factory):
         ]
     )
     graph = _graph(store, limit=1)
-    async with factory() as session:
-        first = await graph.upsert_question(
-            session,
-            identity_from_text("När får ett avtal jämkas?"),
-            tenant_question_scope(1),
-        )
-        second = await graph.upsert_question(
-            session,
-            identity_from_text("Vilka avtalsvillkor är oskäliga?"),
-            tenant_question_scope(1),
-        )
+    first = await prepare_sql_question(
+        factory, graph, "När får ett avtal jämkas?",
+        tenant_question_scope(1),
+    )
+    second = await prepare_sql_question(
+        factory, graph, "Vilka avtalsvillkor är oskäliga?",
+        tenant_question_scope(1),
+    )
+
 
     assert second.id == first.id

@@ -415,7 +415,7 @@ async def test_superseded_claim_reopens_gap(db):
 
 
 @pytest.mark.asyncio
-async def test_two_runtime_needs_share_one_knowledge_question(db):
+async def test_duplicate_requests_execute_one_canonical_question_with_all_source_types(db):
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
     customer, _run, attempt = await _created_attempt(session, slug="kq-share")
@@ -435,9 +435,9 @@ async def test_two_runtime_needs_share_one_knowledge_question(db):
         question_graph=graph,
     )
     needs = await list_runtime_needs(session, attempt.id)
-    assert {row.research_need_id for row in needs} == {"research_1", "research_2"}
+    assert [row.research_need_id for row in needs] == ["research_1"]
     assert needs[0].knowledge_question_id
-    assert needs[0].knowledge_question_id == needs[1].knowledge_question_id
+    assert set(needs[0].source_types) == {"case_knowledge", "web"}
     rows = list(
         (
             await session.execute(

@@ -13,7 +13,7 @@ from app.database.graph_v2 import GraphFact, GraphFactQuestionDependency, GraphF
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund, TextUnitRecord
 from app.services.knowledge.models import KnowledgeScope
 from app.services.research.graph_grounding import GraphResearchError
-from app.services.research.graph_reuse import lookup_graph_evidence
+from app.services.research.graph_reuse import GraphQueryEmbedding, lookup_graph_evidence as read_graph_evidence
 from app.services.research.models import ResearchContext, ResearchNeed
 
 NOW = datetime.now(UTC)
@@ -26,6 +26,12 @@ class Embeddings:
 
     async def embed(self, texts):
         return [[1.0, 0.0, 0.0] for _ in texts]
+
+
+async def lookup_graph_evidence(session, **kwargs):
+    """Hydration tests supply a precomputed vector; only the wrapper calls embeddings."""
+    kwargs.setdefault("query_embedding", GraphQueryEmbedding(Embeddings.model, 3, [1.0, 0.0, 0.0]))
+    return await read_graph_evidence(session, **kwargs)
 
 
 @pytest.fixture
@@ -166,13 +172,8 @@ async def test_graph_fact_is_hydrated_without_claims_and_keeps_source_ids(graph_
     assert "knowledge_claim_ids" not in hit.metadata
 
 
-async def test_empty_graph_does_not_call_embeddings(graph_db):
-    embedder = Embeddings()
-    embedder.embed = AsyncMock(side_effect=AssertionError("empty graph must not embed"))
-    assert (
-        await lookup_graph_evidence(graph_db, need=need(), context=context(), embedder=embedder)
-        == []
-    )
+async def test_empty_graph_requires_no_query_embedding(graph_db):
+    assert await read_graph_evidence(graph_db, need=need(), context=context()) == []
 
 
 async def test_canonical_dependency_is_read_from_graph_without_legacy_links(graph_db, monkeypatch):
@@ -327,12 +328,10 @@ async def test_broken_text_unit_ref_fails_loudly(graph_db):
         await lookup_graph_evidence(graph_db, need=need(), context=context())
 
 
-async def test_embedding_failure_is_not_a_lexical_fallback(graph_db):
+async def test_graph_read_refuses_to_embed_inside_a_database_transaction(graph_db):
     await seed_fact(graph_db)
-    embedder = Embeddings()
-    embedder.embed = AsyncMock(side_effect=RuntimeError("embedding unavailable"))
-    with pytest.raises(RuntimeError, match="embedding unavailable"):
-        await lookup_graph_evidence(graph_db, need=need(), context=context(), embedder=embedder)
+    with pytest.raises(GraphResearchError, match="Prepare query embedding"):
+        await read_graph_evidence(graph_db, need=need(), context=context())
 
 
 async def test_missing_customer_fails_closed(graph_db):
@@ -361,7 +360,7 @@ async def _attempt(session):
     return attempt
 
 
-async def test_attempt_combines_graph_evidence_with_live_sources(graph_db):
+async def test_attempt_skips_live_sources_after_sufficient_graph_assessment(graph_db):
     from app.services.execution import get_evidence_set, list_evidence_items
     from app.services.research import ResearchPlan, execute_attempt_research
     from tests.test_research_question_evidence import RecordingSource, _router
@@ -376,8 +375,8 @@ async def test_attempt_combines_graph_evidence_with_live_sources(graph_db):
         router=_router(source)[0],
     )
     items = await list_evidence_items(graph_db, result.evidence_set_id)
-    assert source.calls == 1
-    assert {item.provider for item in items} == {"graph_v2", source.provider_id}
+    assert source.calls == 0
+    assert {item.provider for item in items} == {"graph_v2"}
     graph_item = next(item for item in items if item.provider == "graph_v2")
     assert graph_item.provenance["graph_fact_ids"] == ["fact-customer-1"]
     frozen = await get_evidence_set(graph_db, result.evidence_set_id)
@@ -436,9 +435,11 @@ async def test_expert_chat_reads_graph_evidence_only_after_freeze(graph_db):
         question=need().question,
         prompts={"chat.expert.research_evidence": "FRYST EVIDENS\n{evidence}"},
     )
+    await graph_db.commit()
     assert await reusable_expert_chat_evidence_context(graph_db, **args) == ""
     await freeze_evidence_set(graph_db, evidence_set.id)
     await mark_ready(graph_db, attempt.id)
+    await graph_db.commit()
     rendered = await reusable_expert_chat_evidence_context(graph_db, **args)
     assert "FRYST EVIDENS" in rendered
     assert "Prop. 1994/95:17" in rendered

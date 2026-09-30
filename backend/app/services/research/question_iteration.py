@@ -14,7 +14,6 @@ from typing import Literal, Protocol
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database.models import (
     EvidenceSet,
     EvidenceSetItem,
@@ -33,6 +32,7 @@ from app.services.research.knowledge_question import (
 )
 from app.services.research.models import ResearchContext
 from app.services.research.question_graph import QuestionEvidenceGraph
+from app.services.research.question_followups import prepare_iterative_follow_ups as prepare_iterative_follow_ups
 
 GENERATED_FROM = "GENERATED_FROM"
 QuestionRelationKind = Literal["same_as", "broader", "narrower"]
@@ -309,8 +309,6 @@ async def bind_runtime_needs_to_questions(
     )
     by_need_id = {row.research_need_id: row for row in rows}
     for row in rows:
-        if row.knowledge_question_id:
-            continue
         question = await resolve_or_create_knowledge_question(
             session,
             graph=graph,
@@ -319,6 +317,7 @@ async def bind_runtime_needs_to_questions(
             relations=relations,
         )
         row.knowledge_question_id = question.id
+        row.question_key = question.identity_key
         parent_id = row.generated_from_question_id
         if parent_id is None and row.parent_research_need_id:
             parent_row = by_need_id.get(row.parent_research_need_id)
@@ -338,64 +337,6 @@ async def bind_runtime_needs_to_questions(
     return rows
 
 
-async def prepare_iterative_follow_ups(
-    session: AsyncSession,
-    *,
-    graph: QuestionEvidenceGraph,
-    context: ResearchContext,
-    accepted: Sequence[RuntimeResearchNeed],
-    previous: Sequence[RuntimeResearchNeed],
-    relations: QuestionRelationResolver | None = None,
-) -> list[RuntimeResearchNeed]:
-    """Resolve child identities; retrieval and assessment happen during execution."""
-    customer_id = context.scope.customer_id
-    if customer_id is None:
-        return list(accepted)
-    scope = tenant_question_scope(customer_id)
-    previous_by_id = {row.research_need_id: row for row in previous}
-    prepared: list[RuntimeResearchNeed] = []
-    max_depth = settings.research_max_follow_up_waves
-    for need in accepted:
-        child = await resolve_or_create_knowledge_question(
-            session,
-            graph=graph,
-            question=need.question,
-            scope=scope,
-            relations=relations,
-        )
-        parent_id = _parent_question_id(need, previous_by_id)
-        if parent_id is None and need.parent_research_need_id:
-            parent_need = previous_by_id.get(need.parent_research_need_id)
-            if parent_need is not None:
-                parent = await resolve_or_create_knowledge_question(
-                    session,
-                    graph=graph,
-                    question=parent_need.question,
-                    scope=scope,
-                    relations=relations,
-                )
-                parent_id = parent.id
-        if parent_id is not None:
-            ancestors = await lineage_ancestors(session, parent_id)
-            if child.id in ancestors or len(ancestors) > max_depth:
-                continue
-            await record_question_lineage(
-                session,
-                parent_question_id=parent_id,
-                child_question_id=child.id,
-                why_needed=need.why_needed or need.source_gap,
-                trigger_claim_id=need.trigger_claim_id or None,
-                trigger_graph_event_id=need.trigger_graph_event_id or None,
-            )
-        prepared.append(
-            replace(
-                need,
-                knowledge_question_id=child.id,
-                generated_from_question_id=parent_id or "",
-                question_key=child.identity_key,
-            )
-        )
-    return prepared
 
 
 def question_from_row(row: KnowledgeQuestionRow) -> KnowledgeQuestion:

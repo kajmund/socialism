@@ -115,7 +115,6 @@ from app.services.research.followup import (
     validate_follow_up_drafts,
 )
 from app.services.research.models import (
-    InvalidResearchPlanError,
     ResearchContext,
     ResearchError,
     ResearchEvidence,
@@ -124,18 +123,15 @@ from app.services.research.models import (
     research_evidence,
 )
 from app.services.research.need_normalization import ResearchNeedNormalizer
+from app.services.research.startup import StartInputs, resolve_start, persist_main_lookup
 from app.services.research.need_prepare import prepare_need_reuse
+from app.services.research.need_retrieval import NeedReusePolicy, candidates_then_providers as _candidates_then_providers
 from app.services.research.plan import (
-    research_plan_from_snapshot,
     research_plan_to_snapshot,
-    validate_research_plan,
 )
 from app.services.research.planner import (
-    InvalidResearchObjectiveError,
     ResearchObjective,
     ResearchPlanner,
-    ResearchPlannerError,
-    plan_from_planner_drafts,
     research_objective_from_snapshot,
     research_objective_to_snapshot,
 )
@@ -177,7 +173,6 @@ from app.services.research.question_iteration import (
     prepare_iterative_follow_ups,
 )
 from app.services.research.question_reuse import (
-    merge_reused_with_provider,
     commit_persisted_evidence,
 )
 from app.services.research.registry import standard_capability_descriptors
@@ -326,32 +321,6 @@ async def _retrieve_need(
     raise ResearchExecutionError("ResearchRouter is required")
 
 
-def _fresh_reused_evidence(items: list[ResearchEvidence]) -> list[ResearchEvidence]:
-    return [item for item in items if item.metadata.get("reuse", {}).get("freshness") == "fresh"]
-
-
-async def _candidates_then_providers(
-    *,
-    factory: async_sessionmaker[AsyncSession],
-    need: ResearchNeed,
-    context: ResearchContext,
-    router: ResearchRouter | None,
-    router_factory: ResearchRouterFactory | None,
-    reused: list[ResearchEvidence],
-) -> list[ResearchEvidence]:
-    """Combine graph candidates with external sources before evidence assessment."""
-    from app.services.research.graph_reuse import log_external_search
-
-    reused = _fresh_reused_evidence(reused)
-    log_external_search(need, reused)
-    provider = await _retrieve_need(
-        factory=factory,
-        need=need,
-        context=context,
-        router=router,
-        router_factory=router_factory,
-    )
-    return merge_reused_with_provider(reused, provider)
 
 
 async def _execute_one_need(  # noqa: PLR0913
@@ -367,7 +336,7 @@ async def _execute_one_need(  # noqa: PLR0913
     router_factory: ResearchRouterFactory | None,
     question_graph: QuestionEvidenceGraph,
     attempt_id: str,
-    eager: EagerQualityBind | None = None,
+    eager: EagerQualityBind,
 ) -> None:
     async with persist_lock, factory() as claim_session:
         with ProgressTracker() as progress:
@@ -395,6 +364,7 @@ async def _execute_one_need(  # noqa: PLR0913
                 router=router,
                 router_factory=router_factory,
                 reused=reused,
+                policy=NeedReusePolicy(eager.reuse_assessor, question_graph),
             )
     except BaseException as exc:
         if isinstance(exc, asyncio.CancelledError):
@@ -460,7 +430,7 @@ async def _run_need_executions(  # noqa: PLR0913
     question_graph: QuestionEvidenceGraph,
     attempt_id: str,
     concurrency: int,
-    eager: EagerQualityBind | None = None,
+    eager: EagerQualityBind,
 ) -> None:
     if not pending:
         return
@@ -1075,97 +1045,6 @@ def _executable_source_types(
     return filter_source_types_for_scope(types, case_id=case_id, descriptors=descriptors)
 
 
-async def _resolve_initial_plan(  # noqa: PLR0913
-    session: AsyncSession,
-    *,
-    attempt: ExecutionAttempt,
-    research_plan: ResearchPlan | None,
-    research_objective: ResearchObjective | None,
-    research_planner: ResearchPlanner | None,
-    need_limit: int,
-    router: ResearchRouter | None,
-    case_id: str | None,
-    need_normalizer: ResearchNeedNormalizer | None,
-) -> ResearchPlan:
-    """Persist objective + initial plan before research is claimed.
-
-    A snapshot already on the Attempt is reused. Planner/model failure
-    leaves the Attempt created.
-    """
-    if attempt.research_plan_snapshot is not None:
-        plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
-        _assert_plan_within_budget(plan, need_limit)
-        return plan
-
-    if research_plan is not None:
-        plan = validate_research_plan(research_plan)
-        if need_normalizer is not None:
-            plan = await need_normalizer.normalize_plan(plan)
-        _assert_plan_within_budget(plan, need_limit)
-        await _persist_start_snapshots(
-            session,
-            attempt=attempt,
-            objective=research_objective,
-            plan=plan,
-        )
-        return plan
-
-    if research_objective is None:
-        raise InvalidResearchObjectiveError(
-            "research_objective is required when no ResearchPlan is supplied"
-        )
-    if research_planner is None:
-        raise ResearchPlannerError("ResearchPlanner is required")
-    allowed_source_types = _executable_source_types(router, case_id=case_id)
-    if not allowed_source_types:
-        raise ResearchPlannerError("no executable research source types are available")
-    try:
-        drafts = await research_planner.plan_research(
-            objective=research_objective,
-            available_source_types=allowed_source_types,
-        )
-    except ResearchPlannerError:
-        raise
-    except Exception as exc:
-        raise ResearchPlannerError(f"Attempt {attempt.id} research planning failed") from exc
-    if need_normalizer is not None:
-        drafts = await need_normalizer.normalize_drafts(drafts)
-    plan = plan_from_planner_drafts(drafts, allowed_source_types=allowed_source_types)
-    _assert_plan_within_budget(plan, need_limit)
-    await _persist_start_snapshots(
-        session,
-        attempt=attempt,
-        objective=research_objective,
-        plan=plan,
-    )
-    return plan
-
-
-def _assert_plan_within_budget(plan: ResearchPlan, need_limit: int) -> None:
-    if len(plan.needs) > need_limit:
-        raise InvalidResearchPlanError(
-            f"ResearchPlan has {len(plan.needs)} needs; research_max_needs_per_attempt={need_limit}"
-        )
-
-
-async def _resolve_resume_plan(
-    attempt: ExecutionAttempt,
-    *,
-    research_plan: ResearchPlan | None,
-    need_limit: int,
-) -> ResearchPlan:
-    """Reuse the immutable initial plan. Never invoke the planner on reclaim."""
-    if attempt.research_plan_snapshot is not None:
-        plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
-        _assert_plan_within_budget(plan, need_limit)
-        return plan
-    if research_plan is not None:
-        plan = validate_research_plan(research_plan)
-        _assert_plan_within_budget(plan, need_limit)
-        return plan
-    raise ResearchExecutionError(
-        f"Attempt {attempt.id} cannot resume research without a persisted plan"
-    )
 
 
 async def _ensure_research_inventory(
@@ -1199,7 +1078,10 @@ async def _ensure_research_inventory(
     stored_needs = await persist_runtime_needs(
         session,
         attempt_id=attempt.id,
-        needs=runtime_needs_from_plan(plan),
+        needs=[replace(row, parent_research_need_id="research-main")
+               if any(need.id == "research-main" for need in plan.needs)
+               and row.research_need_id != "research-main" else row
+               for row in runtime_needs_from_plan(plan)],
     )
     await bind_runtime_needs_to_questions(
         session,
@@ -1270,9 +1152,8 @@ async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
 ) -> AttemptResearchResult:
     """Plan if needed, then run ResearchNeeds in bounded waves and freeze.
 
-    Canonical path: persisted research_objective → ResearchPlanner →
-    validated initial ResearchPlan snapshot → retrieve / quality / assess /
-    follow-up.
+    Canonical path: persisted objective → Graph lookup / assessment →
+    remaining gaps → validated plan → retrieve / quality / assess / follow-up.
     An explicit ResearchPlan skips the planner (tests and internal callers).
     A researching Attempt resumes the same objective/plan/EvidenceSet
     lineage without regenerating the initial plan. Scope is always taken
@@ -1308,26 +1189,17 @@ async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
     case_id = research_context_from_run(run).scope.case_id
     await session.commit()
     resume = attempt.status == "researching"
-    if resume:
-        await _resolve_research_objective(attempt, research_objective)
-        plan = await _resolve_resume_plan(
-            attempt,
-            research_plan=research_plan,
-            need_limit=need_limit,
-        )
-    else:
-        objective = await _resolve_research_objective(attempt, research_objective)
-        plan = await _resolve_initial_plan(
-            session,
-            attempt=attempt,
-            research_plan=research_plan,
-            research_objective=objective,
-            research_planner=research_planner,
-            need_limit=need_limit,
-            router=router,
-            case_id=case_id,
-            need_normalizer=need_normalizer,
-        )
+    factory = session_factory or _session_factory(session)
+    objective = await _resolve_research_objective(attempt, research_objective)
+    start = await resolve_start(session, attempt, StartInputs(
+        factory=factory, objective=objective, plan=research_plan,
+        initial_planner=research_planner, followup_planner=bound_planner,
+        assessor=bound_assessor, graph=bound_graph,
+        context=replace(research_context_from_run(run), attempt_id=attempt_id),
+        allowed_source_types=_executable_source_types(router, case_id=case_id),
+        need_limit=need_limit, normalizer=need_normalizer,
+    ))
+    plan = start.plan
     need_concurrency = _concurrency_limit(concurrency)
     claimed = resume
     evidence_set_id: str | None = attempt.evidence_set_id
@@ -1361,8 +1233,8 @@ async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 question_graph=bound_graph,
                 context=context,
             )
+            await persist_main_lookup(session, attempt_id=attempt_id, set_id=evidence_set_id, start=start)
             start_wave = attempt.research_wave if resume else INITIAL_RESEARCH_WAVE
-            factory = session_factory or _session_factory(session)
             await session.commit()
             await progress.publish_committed()
         await _run_research_loop(

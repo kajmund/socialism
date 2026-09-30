@@ -157,6 +157,7 @@ async def _consult(
 
     slots = [_slot(candidate) for candidate in candidates]
     config = _config(question, slots)
+    await session.commit()
     decisions = await asyncio.gather(
         *(assess_expert_competency(slot, config, prompts) for slot in slots)
     )
