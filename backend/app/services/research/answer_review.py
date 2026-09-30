@@ -71,6 +71,15 @@ async def capture_answer_reviews(
         )
     ).scalar_one_or_none() or []
     assessments = {row["research_need_id"]: row for row in assessment}
+    from app.services.research.knowledge_question import identity_from_text
+
+    objective = (attempt.research_objective_snapshot or {}).get("objective")
+    main_key = next((key for need_id, key, question in needs
+                     if need_id == "research-main" or question == objective), None)
+    if main_key is None and objective:
+        main_key = identity_from_text(objective).identity_key
+    if main_key and not any(key == main_key for _id, key, _text in needs):
+        needs = [*needs, ("research-main", main_key, objective)]
     groups: dict[str, dict] = {}
     for need_id, key, question in needs:
         basis = groups.setdefault(
@@ -92,6 +101,9 @@ async def capture_answer_reviews(
                     if k not in {"research_need_id", "supporting_evidence_ids"}
                 }
             )
+    if main_key in groups:
+        for source_basis in evidence.values():
+            groups[main_key]["evidence"].update(source_basis)
     frozen_questions: list[tuple[str, str]] = []
     for key, basis in groups.items():
         if not basis["evidence"]:
@@ -107,6 +119,10 @@ async def capture_answer_reviews(
             answer_basis=basis,
         )
         frozen_questions.append((key, basis["question"]))
+    from app.services.research.answer_capture import project_groups
+
+    await project_groups(session, attempt=attempt, run=run, groups=groups,
+                         evidence_set_id=evidence_set_id)
     return tuple(frozen_questions)
 
 

@@ -191,8 +191,8 @@ async def test_assessment_runs_only_after_need_executions_complete(file_db):
             attempt_id=attempt_id,
             research_plan=ResearchPlan(
                 needs=[
-                    _need("fast", "case_knowledge"),
-                    _need("slow", "case_knowledge"),
+                    _need('fast', 'case_knowledge', question=f"Vad gäller skattesatsen för {'fast'}?"),
+                    _need('slow', 'case_knowledge', question=f"Vad gäller skattesatsen för {'slow'}?"),
                 ]
             ),
             router=router,
@@ -418,7 +418,7 @@ async def test_empty_evidence_with_needs_is_insufficient_without_llm(db):
     assert row is not None
     assert row.result == "insufficient"
     assert row.need_assessments[0]["sufficient"] is False
-    assert row.need_assessments[0]["further_information"] == "Vad gäller skattesatsen?"
+    assert row.need_assessments[0]["further_information"] == _need("research_1", "case_knowledge").question
 
 
 def test_invalid_evidence_ids_are_discarded():
@@ -555,8 +555,8 @@ def test_review_groups_exact_sources_and_preserves_need_lineage():
 async def test_llm_assessor_keeps_same_source_analyses_separate_by_need():
     plan = ResearchPlan(
         needs=[
-            _need("need_1", "swedish_case_law"),
-            _need("need_2", "swedish_case_law"),
+            _need('need_1', 'swedish_case_law', question=f"Vad gäller skattesatsen för {'need_1'}?"),
+            _need('need_2', 'swedish_case_law', question=f"Vad gäller skattesatsen för {'need_2'}?"),
         ]
     )
     first = AssessableEvidence(
@@ -841,8 +841,8 @@ async def test_need_executions_completed_before_assessment_uses_all_items(db):
         attempt_id=attempt.id,
         research_plan=ResearchPlan(
             needs=[
-                _need("research_1", "case_knowledge"),
-                _need("research_2", "case_knowledge"),
+                _need('research_1', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_1'}?"),
+                _need('research_2', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_2'}?"),
             ]
         ),
         router=router,
@@ -856,7 +856,7 @@ async def test_need_executions_completed_before_assessment_uses_all_items(db):
 
 
 def test_need_assessment_cannot_cite_other_needs_found_or_error_items():
-    plan = ResearchPlan(needs=[_need("need_a", "swedish_law"), _need("need_b", "swedish_law")])
+    plan = ResearchPlan(needs=[_need('need_a', 'swedish_law', question=f"Vad gäller skattesatsen för {'need_a'}?"), _need('need_b', 'swedish_law', question=f"Vad gäller skattesatsen för {'need_b'}?")])
     template = AssessableEvidence(
         evidence_id="found-b",
         research_need_id="need_b",

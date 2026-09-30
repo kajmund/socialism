@@ -77,6 +77,7 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 addopts = "-m 'not smoke'"
 markers = [
+    "research_reuse: isolated four-step Graph v2 reuse contracts (all external boundaries mocked)",
     "integration: hits network or optional heavy deps (skipped in default CI)",
     "smoke: manual live OASIS simulation against camel-oasis + DeepSeek (opt-in)",
 ]
@@ -164,9 +165,8 @@ tests-max-lines = 1000
 "app/services/report/dd_report.py" = 804
 "app/services/report/quick.py" = 693
 "app/services/report/segment_analysis.py" = 622
-"app/services/research/execution.py" = 1503
+"app/services/research/execution.py" = 1375
 "app/services/research/progress.py" = 669
-"app/services/research/question_iteration.py" = 504
 "app/services/sme_expert_turns.py" = 580
 "app/services/spindoctor_mcp_tools.py" = 983
 "tests/test_api.py" = 1533
@@ -175,7 +175,7 @@ tests-max-lines = 1000
 "tests/test_generic_panel_research.py" = 1098
 "tests/test_intent_interview.py" = 1026
 "tests/test_lagen_nu_provider.py" = 2420
-"tests/test_research_execution.py" = 1250
+"tests/test_research_execution.py" = 1234
 "tests/test_sme.py" = 1042
 "tests/test_websocket.py" = 1260
 
@@ -369,7 +369,7 @@ tests-max-lines = 1000
 "app/services/research/evidence_screen.py:BLE001" = 2
 "app/services/research/execution.py:C901" = 1
 "app/services/research/execution.py:PLR0912" = 1
-"app/services/research/execution.py:PLR0913" = 8
+"app/services/research/execution.py:PLR0913" = 7
 "app/services/research/execution.py:PLR0915" = 1
 "app/services/research/fast_controller.py:BLE001" = 2
 "app/services/research/fast_controller.py:PLR0913" = 1

@@ -16,6 +16,7 @@ from app.services.execution.service import (
     list_evidence_quality,
     persist_evidence_quality,
 )
+from app.services.research.assessment import ResearchAssessor
 from app.services.research.models import ResearchNeed, ResearchPlan
 from app.services.research.provider import KnowledgeProviderDescriptor
 from app.services.research.quality import (
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class EagerQualityBind:
+    reuse_assessor: ResearchAssessor
     descriptors: tuple[KnowledgeProviderDescriptor, ...]
     relevance_assessor: EvidenceRelevanceAssessor | None
 

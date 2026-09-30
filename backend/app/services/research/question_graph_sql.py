@@ -37,6 +37,7 @@ class SqlQuestionEvidenceGraph:
         matcher: QuestionIdentityMatcher | None = None,
     ) -> None:
         self._matcher = matcher or ExactQuestionIdentityMatcher()
+        self.prepared: dict[tuple[str, str], KnowledgeQuestion] = {}
 
     async def match_question(
         self,
@@ -57,28 +58,12 @@ class SqlQuestionEvidenceGraph:
                     "canonical question reuse crossed a knowledge tenant boundary"
                 )
             return _question_from_row(row)
-        namespace_result = await session.execute(
-            select(KnowledgeQuestionRow).where(
-                KnowledgeQuestionRow.namespace == scope.namespace
-            )
-        )
-        rows = list(namespace_result.scalars())
-        candidates = [_question_from_row(item) for item in rows]
-        await self._matcher.index(candidates)
-        metadata = self._matcher.embedding_metadata
-        if metadata is not None:
-            model, version, dimension = metadata
-            for row in rows:
-                row.embedding_model = model
-                row.embedding_version = version
-                row.embedding_dimension = dimension
-            await session.flush()
-            candidates = [_question_from_row(item) for item in rows]
-        return await self._matcher.match(
-            normalized_text=identity.normalized_text,
-            identity_key=identity.identity_key,
-            candidates=candidates,
-        )
+        prepared = self.prepared.get((scope.namespace, identity.identity_key))
+        if prepared is not None:
+            return prepared
+        if self._matcher.embedding_metadata is not None:
+            raise KnowledgeQuestionError("Prepare semantic question matching before database writes")
+        return None
 
     async def upsert_question(
         self,
@@ -103,8 +88,6 @@ class SqlQuestionEvidenceGraph:
         session.add(row)
         await session.flush()
         await question_node(session, row)
-        question = _question_from_row(row)
-        await self._matcher.index([question])
         metadata = self._matcher.embedding_metadata
         if metadata is not None:
             row.embedding_model, row.embedding_version, row.embedding_dimension = metadata

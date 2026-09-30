@@ -154,6 +154,7 @@ async def run_research_loop(**kwargs: object) -> None:
                         config.router, config.provider_descriptors
                     ),
                     relevance_assessor=config.relevance_assessor,
+                    reuse_assessor=config.assessor,
                 ),
             )
         next_wave = await _finish_research_wave(config, snapshot_plan=snapshot_plan, wave=wave)

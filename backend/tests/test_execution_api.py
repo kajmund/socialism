@@ -449,8 +449,8 @@ async def test_research_from_objective_persists_generated_plan(
         body = detail.json()
         assert body["status"] == "ready"
         assert body["research_objective_snapshot"]["context"]["matter"] == "tax"
-        assert body["research_plan_snapshot"]["needs"][0]["id"] == "research_1"
-        assert body["research_plan_snapshot"]["needs"][0]["question"] == (
+        assert body["research_plan_snapshot"]["needs"][1]["id"] == "research_1"
+        assert body["research_plan_snapshot"]["needs"][1]["question"] == (
             "Vad är skattesatsen?"
         )
     finally:

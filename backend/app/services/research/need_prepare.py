@@ -6,7 +6,7 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.services.research.graph_reuse import lookup_graph_evidence
+from app.services.research.graph_lookup import lookup_question
 from app.services.research.models import ResearchContext, ResearchEvidence, ResearchNeed
 from app.services.research.question_graph import QuestionEvidenceGraph
 from app.services.research.question_reuse import canonicalize_research_need
@@ -30,10 +30,4 @@ async def prepare_need_reuse(
                 context=context,
             )
             await session.commit()
-        evidence = await lookup_graph_evidence(
-            session,
-            need=need,
-            context=context,
-        )
-        await session.commit()
-        return evidence
+    return await lookup_question(factory, need, context)

@@ -233,7 +233,7 @@ async def test_acceptance_found_and_not_found_reach_ready(db):
     router, _ = _router(found, missing)
     plan = ResearchPlan(
         needs=[
-            _need("research_1", "case_knowledge"),
+            _need('research_1', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_1'}?"),
             _need("research_2", "customer_knowledge", question="Finns kundpolicy?"),
         ]
     )
@@ -256,30 +256,14 @@ async def test_acceptance_found_and_not_found_reach_ready(db):
     assert result.error_count == 0
     assert result.evidence_set_id == reloaded.evidence_set_id
     assert reloaded.status == "ready"
-    assert reloaded.research_plan_snapshot == {
-        "needs": [
-            {
-                "id": "research_1",
-                "question": "Vad gäller skattesatsen?",
-                "why_needed": "behövs för bedömning",
-                "requested_by": ["legal"],
-                "source_types": ["case_knowledge"],
-                "domains": [],
-                "modalities": [],
-                "capabilities": [],
-            },
-            {
-                "id": "research_2",
-                "question": "Finns kundpolicy?",
-                "why_needed": "behövs för bedömning",
-                "requested_by": ["legal"],
-                "source_types": ["customer_knowledge"],
-                "domains": [],
-                "modalities": [],
-                "capabilities": [],
-            },
-        ]
+    stored_needs = await list_runtime_needs(session, attempt.id)
+    snapshot_needs = reloaded.research_plan_snapshot["needs"]
+    assert {row["id"]: row["knowledge_question_id"] for row in snapshot_needs} == {
+        row.research_need_id: row.knowledge_question_id for row in stored_needs
     }
+    assert all(row.knowledge_question_id for row in stored_needs)
+    assert [{key: value for key, value in row.items() if key != "knowledge_question_id"}
+            for row in snapshot_needs] == research_plan_to_snapshot(plan)["needs"]
     assert research_plan_from_snapshot(reloaded.research_plan_snapshot).needs[0].id == (
         "research_1"
     )
@@ -509,8 +493,8 @@ async def test_duplicate_need_ids_and_invalid_plan_leave_attempt_created(db):
             attempt_id=attempt.id,
             research_plan=ResearchPlan(
                 needs=[
-                    _need("research_1", "case_knowledge"),
-                    _need("research_1", "customer_knowledge"),
+                    _need('research_1', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_1'}?"),
+                    _need('research_1', 'customer_knowledge', question=f"Vad gäller skattesatsen för {'research_1'}?"),
                 ]
             ),
             router=router,
@@ -751,8 +735,8 @@ async def test_needs_run_concurrently_not_sequentially(db):
             attempt_id=attempt.id,
             research_plan=ResearchPlan(
                 needs=[
-                    _need("research_1", "case_knowledge"),
-                    _need("research_2", "case_knowledge"),
+                    _need('research_1', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_1'}?"),
+                    _need('research_2', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_2'}?"),
                 ]
             ),
             router=router,
@@ -803,7 +787,7 @@ async def test_need_concurrency_is_bounded(db):
         session,
         attempt_id=attempt.id,
         research_plan=ResearchPlan(
-            needs=[_need(f"research_{index}", "case_knowledge") for index in range(5)]
+            needs=[_need(f'research_{index}', 'case_knowledge', question=f"Vad gäller skattesatsen för {f'research_{index}'}?") for index in range(5)]
         ),
         router=router,
         concurrency=2,
@@ -863,9 +847,9 @@ async def test_persist_does_not_consume_retrieval_slots(db, monkeypatch):
             attempt_id=attempt.id,
             research_plan=ResearchPlan(
                 needs=[
-                    _need("research_1", "case_knowledge"),
-                    _need("research_2", "case_knowledge"),
-                    _need("research_3", "case_knowledge"),
+                    _need('research_1', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_1'}?"),
+                    _need('research_2', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_2'}?"),
+                    _need('research_3', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_3'}?"),
                 ]
             ),
             router=router,
@@ -940,8 +924,8 @@ async def test_fast_need_persists_before_slow_need_completes(file_db):
             attempt_id=attempt_id,
             research_plan=ResearchPlan(
                 needs=[
-                    _need("fast", "case_knowledge"),
-                    _need("slow", "case_knowledge"),
+                    _need('fast', 'case_knowledge', question=f"Vad gäller skattesatsen för {'fast'}?"),
+                    _need('slow', 'case_knowledge', question=f"Vad gäller skattesatsen för {'slow'}?"),
                 ]
             ),
             router=router,
@@ -974,9 +958,9 @@ async def test_not_found_and_source_error_complete_the_barrier(db):
         attempt_id=attempt.id,
         research_plan=ResearchPlan(
             needs=[
-                _need("research_1", "case_knowledge"),
-                _need("research_2", "customer_knowledge"),
-                _need("research_3", "swedish_law"),
+                _need('research_1', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_1'}?"),
+                _need('research_2', 'customer_knowledge', question=f"Vad gäller skattesatsen för {'research_2'}?"),
+                _need('research_3', 'swedish_law', question=f"Vad gäller skattesatsen för {'research_3'}?"),
             ]
         ),
         router=router,
@@ -1036,8 +1020,8 @@ async def test_worker_failure_after_partial_persist_is_fail_closed(file_db):
             attempt_id=attempt_id,
             research_plan=ResearchPlan(
                 needs=[
-                    _need("kept", "case_knowledge"),
-                    _need("boom", "case_knowledge"),
+                    _need('kept', 'case_knowledge', question=f"Vad gäller skattesatsen för {'kept'}?"),
+                    _need('boom', 'case_knowledge', question=f"Vad gäller skattesatsen för {'boom'}?"),
                 ]
             ),
             router=MixedRouter(),  # type: ignore[arg-type]
@@ -1122,8 +1106,8 @@ async def test_same_passage_across_needs_is_stored_once_with_both_links(db):
         attempt_id=attempt.id,
         research_plan=ResearchPlan(
             needs=[
-                _need("research_1", "case_knowledge"),
-                _need("research_2", "case_knowledge"),
+                _need('research_1', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_1'}?"),
+                _need('research_2', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_2'}?"),
             ]
         ),
         router=router,
@@ -1175,8 +1159,8 @@ async def test_need_executions_are_completed_on_success(db):
         attempt_id=attempt.id,
         research_plan=ResearchPlan(
             needs=[
-                _need("research_1", "case_knowledge"),
-                _need("research_2", "case_knowledge"),
+                _need('research_1', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_1'}?"),
+                _need('research_2', 'case_knowledge', question=f"Vad gäller skattesatsen för {'research_2'}?"),
             ]
         ),
         router=router,

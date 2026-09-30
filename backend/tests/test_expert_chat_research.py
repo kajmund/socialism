@@ -131,7 +131,7 @@ async def test_resume_reuses_attempt_and_requeues_running_question(client_db, mo
         AsyncMock(side_effect=AssertionError("resume must not replan questions")),
     )
     create_run = AsyncMock(side_effect=AssertionError("resume must not create a new run"))
-    monkeypatch.setattr("app.services.expert_chat_research.create_run", create_run)
+    monkeypatch.setattr("app.services.research.chat_question_start.create_run", create_run)
 
     async def assert_requeued(_factory, *, attempt_id: str, worker):
         async with factory() as session:

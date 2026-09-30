@@ -77,7 +77,6 @@ from app.services.knowledge.scope import (
 from app.services.knowledge.segmentation import DocumentSegmenter
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.research.knowledge_question import (
-    identity_from_text,
     public_question_scope,
     tenant_question_scope,
 )
@@ -585,18 +584,14 @@ async def test_semantic_and_entity_resolution_cannot_merge_tenants(
             limit=5,
         )
     )
-    await resolve_or_create_knowledge_question(
-        session,
-        graph=graph,
-        question="När får avtalet jämkas?",
-        scope=tenant_question_scope(1),
-    )
-    match = await graph.match_question(
-        session,
-        identity_from_text("När kan avtalet jämkas?"),
-        tenant_question_scope(2),
-    )
-    assert match is None
+    from app.services.research.execution import _session_factory
+    from app.services.research.question_prepare import prepare_sql_question
+    await session.commit()
+    factory = _session_factory(session)
+    first = await prepare_sql_question(factory, graph, "När får avtalet jämkas?", tenant_question_scope(1))
+    second = await prepare_sql_question(factory, graph, "När kan avtalet jämkas?", tenant_question_scope(2))
+    assert first.id != second.id
+    assert second.scope.customer_id == 2
 
 
 async def test_revalidation_only_finds_evidence_sets_in_tenant_scope(
