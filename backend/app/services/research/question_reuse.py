@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.execution.snapshots import snapshot_research_evidence
 from app.services.research.evidence_identity import (
     evidence_passage_id,
     evidence_source_id,
@@ -224,12 +224,10 @@ def evidence_to_link(
         locator=evidence.locator,
         excerpt=evidence.excerpt,
     )
-    declared_hash = evidence.metadata.get("content_hash")
-    content_hash = (
-        declared_hash
-        if isinstance(declared_hash, str) and declared_hash.strip()
-        else hashlib.sha256((evidence.excerpt or "").encode()).hexdigest()
-    )
+    # Legal snapshots include their question-specific interpretation in the hash.
+    # Write-back must reference that same passage, not an excerpt-only identity.
+    content_hash = snapshot_research_evidence(evidence).content_hash
+    assert content_hash is not None
     source_key = evidence_source_id(
         provider=evidence.provider,
         source_id=evidence.source_id,
