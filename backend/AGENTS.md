@@ -82,6 +82,7 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 
 ## Database
 
+- **Mandatory:** follow the root [AGENTS.md](../AGENTS.md) rule **Critical rule: release database connections before external calls**. It applies to read-only queries, cache reuse, provider adapters and background workers as well as writes.
 - Alembic is the source of truth for schema changes.
 - The shared durable data path uses Supabase Postgres (`DATABASE_URL=postgresql+psycopg://...`). Local development and fast tests may use SQLite. Models and every Alembic migration must work on both dialects. Cap the SQLAlchemy pool below the Supabase session-mode client limit (15); dispose the engine on shutdown.
 - Run migrations from `backend/` with `uv run alembic upgrade head`.
