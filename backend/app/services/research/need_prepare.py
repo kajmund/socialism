@@ -6,12 +6,10 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.services.research.graph_reuse import lookup_graph_evidence
 from app.services.research.models import ResearchContext, ResearchEvidence, ResearchNeed
 from app.services.research.question_graph import QuestionEvidenceGraph
-from app.services.research.question_reuse import (
-    safe_canonicalize_research_need,
-    safe_lookup_reusable_evidence,
-)
+from app.services.research.question_reuse import canonicalize_research_need
 
 
 async def prepare_need_reuse(
@@ -25,17 +23,17 @@ async def prepare_need_reuse(
     """Serialize the prepare session so SQLite StaticPool cannot interleave it."""
     async with persist_lock, factory() as session:
         if not need.knowledge_question_id:
-            await safe_canonicalize_research_need(
+            await canonicalize_research_need(
                 session,
                 graph=question_graph,
                 need=need,
                 context=context,
             )
             await session.commit()
-        return await safe_lookup_reusable_evidence(
+        evidence = await lookup_graph_evidence(
             session,
-            graph=question_graph,
             need=need,
             context=context,
-            exclude_attempt_id=None,
         )
+        await session.commit()
+        return evidence

@@ -1,4 +1,4 @@
-# Question → Evidence graph (v1)
+# Research reuse through Graph v2
 
 Reusable persistent knowledge for research. This is a seam on the existing engine, not a second research loop.
 
@@ -9,6 +9,7 @@ Reusable persistent knowledge for research. This is a seam on the existing engin
 | `ResearchNeed` / `ResearchRuntimeNeed` | One Attempt/wave question plus execution/status/lineage | `research_runtime_needs`, plan snapshots |
 | `ResearchNeedExecution` | Running / completed / failed for that need | `research_need_executions` |
 | `KnowledgeQuestion` | Canonical persistent question identity | `knowledge_questions` + graph node |
+| `GraphFact` / `GraphFactSource` | Reusable fact with canonical source grounding | `graph_facts`, `graph_fact_sources`, `text_units`, `document_versions`, `canonical_documents` |
 | `EvidenceSource` / `EvidencePassage` | Canonical document and immutable unique passage | `evidence_sources`, `evidence_passages` |
 | `ANSWERED_BY` / `BESVARAS_AV` | Question → passage relation | `knowledge_question_evidence_links` |
 | `ResearchEvidence` / `EvidenceSet` | Frozen membership plus need lineage | `evidence_set_items`, `evidence_set_item_needs` |
@@ -28,8 +29,8 @@ vectors.
 ```text
 ResearchNeed
   → resolve/create canonical KnowledgeQuestion
-  → reuse fresh grounded Claims (excerpt hits stay candidates)
-  → retrieve only remaining source_type gaps
+  → retrieve candidates from Graph v2 facts and source TextUnits
+  → retrieve external sources for unassessed needs
   → persist Claims + ANSWERED_BY
   → assess / completeness
   → follow-up KnowledgeQuestion + idempotent parent/child lineage
@@ -38,13 +39,15 @@ ResearchNeed
 
 `KnowledgeQuestion` is the reusable identity. `ResearchNeed` is the execution unit for remaining gaps. Follow-ups reuse `identity_key`; they do not create a new node per wave. `knowledge_question_lineage` stores `generated_from` plus optional claim/event triggers. `QuestionRelationResolver` is reserved for later same_as/broader/narrower matching.
 
-Executing research does not inject persistent graph candidates into a new EvidenceSet. This prevents old, broad, or truncated passages from accumulating beside fresh provider results. The graph remains the durable Question→Passage history and is available to explicit read-only expert-chat reuse. A future execution reuse gate must validate relevance and freshness before it can be enabled.
+Executing research first calls `graph_reuse.lookup_graph_evidence`. It retrieves bounded canonical-question dependencies, hybrid lexical/semantic fact hits, and one-hop neighbours. Graph facts are hydrated only through `GraphFactSource` → `TextUnitRecord` → `DocumentVersionRecord` → `CanonicalDocumentRecord`. Runtime research never reads legacy claims or legacy Question→Evidence links as a retrieval path.
 
-Library expert chat is intentionally different from an executing research
-Attempt: it performs read-only semantic question matching and may answer from
-matching frozen evidence without starting research. If that evidence does not
-answer the user's question, the existing explicit confirmation flow is still
-required before the expert can create a background research job.
+Graph hits are evidence candidates, not proof that the question is answered. A matching source type or question dependency cannot skip external sources. The existing assessment/completeness loop evaluates the combined frozen basis. This deliberately removes the former claim/source-type shortcut; it does not yet introduce an early sufficiency gate to save provider calls.
+
+Follow-up preparation binds canonical question identities and lineage without reading legacy claims or closing needs by source type. Each accepted follow-up uses the same Graph v2 retrieval path when it executes. Freeze snapshots include `graph_fact_ids` alongside source version and TextUnit IDs.
+
+Expert chat uses the same graph retrieval function. It includes only fresh graph evidence previously recorded in a frozen EvidenceSet from a ready/completed attempt owned by the customer. No Run, Attempt, question, or external research request is created by this read.
+
+Legacy claim creation and Question→Evidence write-back still serve existing ingest/history consumers. They are not runtime read alternatives. Graph projection must complete before newly ingested facts become reusable.
 
 ## Scope
 
@@ -55,7 +58,7 @@ Namespaces are designed now so later customers do not need an unsafe compatibili
 | `public` | `visibility=public`, `customer_id` null | Every kund, and only edges whose provenance is public |
 | `tenant:{id}` | `visibility=tenant`, required `customer_id` | That kund only |
 
-Public reuse is allowed only when provenance says `public` (`public: true` or `visibility`/`scope` = `public`). Source type alone is not enough. Private tenant evidence is never written to `public` and is never visible to another customer.
+Graph retrieval reads only `shared` and `customer:{id}` scopes. Shared facts may reference only shared passages; customer facts may reference shared or same-customer passages. Inconsistent or missing grounding raises `GraphResearchError`. Source type alone never grants visibility. The namespace table above describes canonical question identity, not the retrieval engine.
 
 Reuse also has to match the current need:
 
@@ -64,30 +67,15 @@ Reuse also has to match the current need:
 - Tenant edges store `knowledge_module` and stay inside that module.
 - Reused `persistent_knowledge` items are not written back. A cache hit must not refresh `observed_at` or keep an edge `fresh` forever.
 
-## Freshness
+## Validity, freshness and failures
 
-Persisted on each edge: `retrieved_at`, `observed_at`, source identity, `freshness`.
+Only active facts within their validity interval are returned. Documents, versions and TextUnits must agree on scope and document identity. Superseded or out-of-interval source versions are excluded. Declared case/module scope must match the current research context; case knowledge without a declared case is excluded.
 
-| Value | Meaning |
-| --- | --- |
-| `fresh` | Age is within `RESEARCH_KNOWLEDGE_FRESHNESS_MAX_AGE_SECONDS` |
-| `stale` | Age is beyond that window, or the edge was stored as stale |
-| `unknown` | No timestamp, or no max-age policy. Do not guess |
+Candidate freshness is based on the source version's `ingested_at`, not a new retrieval timestamp. An optional `RESEARCH_KNOWLEDGE_FRESHNESS_MAX_AGE_SECONDS` ages out old candidates; an unset max-age adds no age limit. Validity and supersession checks always apply. Fresh candidates still cannot bypass assessment.
 
-Default max-age is unset. Reused candidates are then `unknown` and **cannot** skip live providers. Graph reuse never permanently bypasses providers.
+There is one read path. Graph, SQL, canonicalization, embedding and write-back errors propagate; they are never converted into an empty successful lookup. External provider retrieval is normal research after a successful graph read, not an error fallback. Canonical SQL and in-memory/Graphiti question adapters remain identity/write test seams; they do not provide alternate evidence reads.
 
-## Graphiti
-
-Core research types do not import Graphiti. `QuestionEvidenceGraph` is the contract. Adapters:
-
-- `SqlQuestionEvidenceGraph` — durable production adapter (`POST /execution/attempts/{id}/research`)
-- `GraphitiQuestionEvidenceGraph` — maps domain nodes/edges onto a `GraphitiClient` (official SDK is optional; not required in phase 1)
-- `InMemoryQuestionEvidenceGraph` — tests
-- `DisabledQuestionEvidenceGraph` — empty lookup / no-op write (test default when no graph is injected)
-
-Lookup is one hop and bounded by `RESEARCH_KNOWLEDGE_LOOKUP_LIMIT` (default 10). No communities, GraphRAG, or multi-hop reasoning in v1.
-
-Graph lookup or write failure falls back to normal provider retrieval / keeps already persisted EvidenceSet items. It must not invent sufficiency or fail the Attempt merely because the graph is down.
+Bounds use `RESEARCH_KNOWLEDGE_LOOKUP_LIMIT`. An actually empty grounded graph requires no embedding request. With graph data present, query embedding failure aborts instead of switching to lexical-only search. `research.graph_v2.retrieval.completed` reports candidate/evidence counts and `research.graph_v2.external_search` records why provider retrieval is needed.
 
 ## Lineage
 
@@ -104,7 +92,7 @@ Graph lookup or write failure falls back to normal provider retrieval / keeps al
 }
 ```
 
-Retries upsert the same `(question, passage_id)` edge. EvidenceSet writes upsert `(evidence_set, passage_id)` and add need links instead of copying the passage. Edges store `source_attempt_id` so the current Attempt cannot reuse its own in-flight writes; a later Attempt can.
+Retries upsert the same `(question, passage_id)` history edge. EvidenceSet writes upsert `(evidence_set, passage_id)` and add need links instead of copying the passage. History edges retain `source_attempt_id`; Graph v2 retrieval uses fact validity and canonical source grounding rather than hydrating those edges.
 
 When a question child Attempt is ready, its found frozen EvidenceSet items are
 also linked directly to the high-level canonical `KnowledgeQuestion`. One
