@@ -48,10 +48,13 @@ from app.services.research.question_iteration import (
 from tests.test_research_assessment import RecordingAssessor, _fixed_draft
 from tests.test_research_execution import RecordingSource, _created_attempt, _need, _router
 from tests.test_research_loop import ScriptedPlanner, SequenceAssessor, _follow_up
+from tests.test_research_question_evidence import RecordingSource as PassageSource
 
 ROOT_QUESTION = "What is the published rate?"
 FOLLOW_UP_QUESTION = "Which source states the published rate?"
 
+
+pytestmark = pytest.mark.usefixtures("graph_retrieval_embeddings")
 
 @pytest.fixture
 async def db():
@@ -191,7 +194,7 @@ async def test_root_question_creates_and_reuses_canonical_knowledge_question(db)
 
 
 @pytest.mark.asyncio
-async def test_fresh_grounded_claims_skip_matching_source_type(db):
+async def test_legacy_claims_do_not_skip_matching_source_type(db):
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
     customer, _run, attempt = await _created_attempt(session, slug="kq-fresh")
@@ -211,13 +214,13 @@ async def test_fresh_grounded_claims_skip_matching_source_type(db):
         question_graph=graph,
     )
     items = await list_evidence_items(session, result.evidence_set_id)
-    assert covered.calls == 0
-    assert items[0].provenance["knowledge_claim_ids"]
-    assert items[0].provenance["reuse"]["origin"] == "persistent_knowledge"
+    assert covered.calls == 1
+    assert "knowledge_claim_ids" not in items[0].provenance
+    assert items[0].provenance["reuse"]["origin"] == "fresh_retrieval"
 
 
 @pytest.mark.asyncio
-async def test_partial_coverage_retrieves_only_the_gap(db):
+async def test_legacy_claims_do_not_close_partial_coverage(db):
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
     customer, _run, attempt = await _created_attempt(session, slug="kq-gap")
@@ -228,8 +231,8 @@ async def test_partial_coverage_retrieves_only_the_gap(db):
         source_type="case_knowledge",
     )
     await session.commit()
-    covered = RecordingSource("case_knowledge", excerpt="should not run")
-    live = RecordingSource("web", excerpt="live web hit")
+    covered = PassageSource("case_knowledge", excerpt="live case hit", locator="p1")
+    live = PassageSource("web", excerpt="live web hit", locator="p2")
     result = await execute_attempt_research(
         session,
         attempt_id=attempt.id,
@@ -238,9 +241,9 @@ async def test_partial_coverage_retrieves_only_the_gap(db):
         question_graph=graph,
     )
     excerpts = {item.excerpt for item in await list_evidence_items(session, result.evidence_set_id)}
-    assert covered.calls == 0
+    assert covered.calls == 1
     assert live.calls == 1
-    assert "The published rate is 32 percent." in excerpts
+    assert "The published rate is 32 percent." not in excerpts
     assert "live web hit" in excerpts
 
 
@@ -352,7 +355,7 @@ async def test_same_follow_up_in_later_wave_reuses_child_and_edge(db):
 
 
 @pytest.mark.asyncio
-async def test_already_answered_follow_up_does_not_fetch(db):
+async def test_legacy_claim_answer_does_not_skip_follow_up(db):
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
     customer, _run, attempt = await _created_attempt(session, slug="kq-answered")
@@ -380,8 +383,8 @@ async def test_already_answered_follow_up_does_not_fetch(db):
     reloaded = await get_attempt(session, attempt.id)
     derived = [row for row in await list_runtime_needs(session, attempt.id) if row.origin == "derived"]
     assert result.status == "ready"
-    assert derived == []
-    assert live.calls == 1
+    assert len(derived) == 1
+    assert live.calls == 2
     assert reloaded.research_stop_reason == "no_novel_followups"
 
 
@@ -495,11 +498,11 @@ async def test_max_iteration_guard_freezes_safely(db):
 
 
 @pytest.mark.asyncio
-async def test_frozen_evidence_set_keeps_grounded_provenance(db):
+async def test_frozen_evidence_does_not_hydrate_legacy_claims(db):
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
     customer, _run, attempt = await _created_attempt(session, slug="kq-freeze")
-    claim_id = await _seed_claim(
+    await _seed_claim(
         session,
         customer_id=customer.id,
         question=ROOT_QUESTION,
@@ -519,9 +522,9 @@ async def test_frozen_evidence_set_keeps_grounded_provenance(db):
     )
     assert evidence_set.status == "frozen"
     assert evidence_set.graph_revision_at_freeze is not None
-    assert evidence_set.grounded_refs["knowledge_claim_ids"] == [claim_id]
-    assert evidence_set.grounded_refs["document_version_ids"] == ["ver-doc-rate"]
-    assert evidence_set.grounded_refs["text_unit_ids"] == ["tu-doc-rate"]
+    assert evidence_set.grounded_refs["knowledge_claim_ids"] == []
+    assert "ver-doc-rate" not in evidence_set.grounded_refs["document_version_ids"]
+    assert "tu-doc-rate" not in evidence_set.grounded_refs["text_unit_ids"]
     assert question is not None
     assert question.id in evidence_set.grounded_refs["knowledge_question_ids"]
 

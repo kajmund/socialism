@@ -366,7 +366,7 @@ async def test_graph_upsert_runs_before_eager_quality(db, monkeypatch):
         order.append("eager")
 
     monkeypatch.setattr(
-        "app.services.research.execution.safe_upsert_persisted_evidence",
+        "app.services.research.execution.commit_persisted_evidence",
         graph,
     )
     monkeypatch.setattr(

@@ -115,7 +115,7 @@ def _prompts() -> dict[str, str]:
     return {"chat.expert.research_evidence": "FRYST EVIDENS\n{evidence}"}
 
 
-async def test_exact_question_reads_tenant_evidence_without_creating_execution(session):
+async def test_legacy_evidence_link_is_not_read_by_expert_chat(session):
     customer = Kund(name="Acme", slug="acme", available_modules=[])
     session.add(customer)
     await session.flush()
@@ -130,10 +130,7 @@ async def test_exact_question_reads_tenant_evidence_without_creating_execution(s
         prompts=_prompts(),
     )
 
-    assert "FRYST EVIDENS" in context
-    assert "[R1] Avtalslagen 36 §" in context
-    assert "Avtalsvillkor får jämkas" in context
-    assert "Aktualitet: unknown" in context
+    assert context == ""
     after = await session.scalar(select(func.count()).select_from(ExecutionRun))
     assert after == before
 
