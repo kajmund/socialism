@@ -15,6 +15,7 @@ from app.database.graph_v2 import GraphFact, GraphNode
 from app.llm.research_assessment import build_llm_research_assessor
 from app.llm.research_followup import build_llm_follow_up_planner
 from app.llm.legal_question_validator import build_llm_legal_question_validator
+from app.services.lagen_nu.followup_validation import record_gap_timings
 from app.services.execution import get_attempt, get_run, list_runtime_needs
 from app.services.research.answer_review import capture_answer_reviews
 from app.services.research.gap_planning import plan_question_gaps
@@ -105,7 +106,8 @@ async def gaps(
     if timings is not None:
         timings["prompt_load"] = perf_counter() - started
     started = perf_counter()
-    result = await plan_question_gaps(adapter, need, assessment, items)
+    with record_gap_timings(timings):
+        result = await plan_question_gaps(adapter, need, assessment, items)
     if timings is not None:
         timings["gap_planning"] = perf_counter() - started
     return result

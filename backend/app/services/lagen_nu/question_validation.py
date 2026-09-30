@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Literal, Protocol
 
+from app.services.lagen_nu.followup_validation import measure_gap_stage, validate_followups
 from app.services.research.followup import FollowUpNeedDraft, RuntimeResearchNeed
 from app.services.research.knowledge_question import research_question_key
 from app.services.research.models import ResearchNeed, ResearchPlan
@@ -305,9 +306,9 @@ def apply_legal_verdict_to_need(
     raise LegalQuestionValidationError(f"unknown legal validation action: {verdict.action}")
 
 
-def _deduplicate_normalized[
-    NormalizedNeed: (ResearchNeedDraft, FollowUpNeedDraft, ResearchNeed)
-](needs: Sequence[NormalizedNeed]) -> list[NormalizedNeed]:
+def _deduplicate_normalized[NormalizedNeed: (ResearchNeedDraft, FollowUpNeedDraft, ResearchNeed)](
+    needs: Sequence[NormalizedNeed],
+) -> list[NormalizedNeed]:
     """Normalization can make distinct inputs converge on the same question."""
     unique: dict[str, NormalizedNeed] = {}
     for need in needs:
@@ -340,9 +341,7 @@ class LegalNeedNormalizer:
     async def normalize_follow_up_drafts(
         self, drafts: Sequence[FollowUpNeedDraft]
     ) -> list[FollowUpNeedDraft]:
-        expanded: list[FollowUpNeedDraft] = []
-        for draft in drafts:
-            expanded.extend(await self._normalize_follow_up(draft))
+        expanded = await validate_followups(_deduplicate_normalized(drafts), self._normalize_follow_up)
         return _deduplicate_normalized(expanded)
 
     async def normalize_plan(self, plan: ResearchPlan) -> ResearchPlan:
@@ -430,13 +429,14 @@ class LegalFollowUpPlannerAdapter:
         previous_needs: Sequence[RuntimeResearchNeed],
         available_source_types: Sequence[str] | None = None,
     ) -> Sequence[FollowUpNeedDraft]:
-        drafts = await self._inner.plan_follow_ups(
-            plan=plan,
-            assessment=assessment,
-            evidence=evidence,
-            previous_needs=previous_needs,
-            available_source_types=available_source_types,
-        )
+        with measure_gap_stage("follow_up_model"):
+            drafts = await self._inner.plan_follow_ups(
+                plan=plan,
+                assessment=assessment,
+                evidence=evidence,
+                previous_needs=previous_needs,
+                available_source_types=available_source_types,
+            )
         return await self._normalizer.normalize_follow_up_drafts(drafts)
 
 

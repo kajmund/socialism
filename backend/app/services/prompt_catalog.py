@@ -3166,14 +3166,14 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
             "evidensbedömning. Du hämtar inte evidens och du svarar inte på "
             "frågorna. Varje behov ska ha en konkret fråga, varför den behövs "
             "kopplat till en lucka, och tillåtna source_types. "
-            "Upprepa inte tidigare frågor. Hitta inte på source_types."
+            "Upprepa inte tidigare frågor. Hitta inte på source_types. Täck endast konstaterade luckor med konkreta avgränsade frågor. Slå samman frågor endast när de efterfrågar samma information inom samma rättsliga spår; håll självständiga informationsbehov separata och skapa inte breda flerledade frågor; begär inte fler avgöranden i en separat fråga om en annan redan efterfrågar dem. Bevara skilda rättsliga spår och källkrav."
         ),
         (
             "You propose follow-up ResearchNeeds from an insufficient evidence "
             "assessment. You do not retrieve evidence and you do not answer the "
             "questions. Each need must have a concrete question, a why_needed "
             "tied to a gap, and allowed source_types. "
-            "Do not repeat previous questions. Do not invent source_types."
+            "Do not repeat previous questions. Do not invent source_types. Cover only assessed gaps with concrete focused questions. Consolidate questions only when they request the same information within the same legal track; keep independent information needs separate and avoid broad compound questions; do not separately request additional cases already requested by another question. Preserve distinct legal tracks and source requirements."
         ),
     ),
     _f(

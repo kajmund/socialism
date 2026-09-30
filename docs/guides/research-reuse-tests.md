@@ -113,3 +113,20 @@ CI-tider gäller mockade tester och ska inte tolkas som tjänsternas prestanda.
 Proberna använder egna korta databastransaktioner. Embedding och modellarbete
 körs med kopplingen återlämnad till poolen. Steg 4 har inga externa anrop inom
 sin skrivtransaktion och committar inte granskningsändringarna.
+
+### Gap-planning performance
+
+Follow-up legal validation runs in bounded parallel tasks using
+`research_need_concurrency`. Results preserve draft order; failed or cancelled
+batches cancel and await all sibling tasks. Identical draft questions merge
+source requirements before validation. Different legal tracks require separate questions.
+
+Live step 3 records `follow_up_model`, `legal_validation` and individual
+`legal_validation_N` durations. Each measurement includes `llm_calls` with
+actual provider, model, reasoning effort, selected configuration, token counts,
+retries and failures. The top-level configuration describes the default only.
+
+The follow-up catalog prompt requests focused non-overlapping
+questions covering assessed gaps, keeping independent information needs separate. Existing database prompt text is insert-only:
+update that field explicitly through the prompt editor when adopting this change.
+Do not overwrite customer overrides automatically.
