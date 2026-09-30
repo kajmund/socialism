@@ -130,3 +130,40 @@ The follow-up catalog prompt requests focused non-overlapping
 questions covering assessed gaps, keeping independent information needs separate. Existing database prompt text is insert-only:
 update that field explicitly through the prompt editor when adopting this change.
 Do not overwrite customer overrides automatically.
+
+### Verify gap coverage before optimizing question count
+
+Use `scripts/check_research_gap_coverage.py` to repeat only planning and legal
+normalization, then evaluate every plan against an explicit human-authored rubric.
+The opt-in judge is a separate database-configured prompt, not a production step.
+It adds no model call to ordinary research. CI mocks both planning and evaluation;
+CI verifies the evaluation contract, not the semantic quality of a live model.
+
+The rubric contains `question`, `assessment_digest` (the digest of step 2's
+`payload`, using `snapshots.digest`) and `criteria`, each with `id`, `requirement`
+and required `source_types`. Bind the rubric to the saved assessment so it cannot
+silently evaluate a different workload. The legal example criteria are in
+`backend/tests/research_reuse/fixtures/gap_coverage_36_avtl.json`; add the digest
+from your own matching saved assessment before running it.
+
+Seed the catalog fields `research.followup.coverage.system` and `.user` through
+the normal prompt catalog setup and explicitly choose the evaluator's model in
+admin settings. Missing prompts/configuration/API errors propagate.
+
+```sh
+python scripts/check_research_gap_coverage.py --live \
+  --attempt-id ATTEMPT_ID --workspace PATH_TO_SAVED_STEPS \
+  --rubric BOUND_RUBRIC.json --repeat 5 --output coverage.json
+```
+
+Every iteration retains its questions, criterion verdicts, exact question quotes,
+source constraints, overlap flags, planning time, separate judge time and actual
+model calls. Missing/partial coverage, materially redundant questions or overbroad
+questions cause a nonzero exit. Omitting a criterion from the judge response,
+invented question IDs, unsupported quotes or missing required source types fail
+validation. Existing output files are never overwritten.
+
+The judge is probabilistic, including when the same provider evaluates its own
+planner. Review the saved questions and rationales, and use known positive and
+negative controls. A passing benchmark on one workload is not proof of universal
+coverage or of the accuracy of legal assertions in the assessor's input.
