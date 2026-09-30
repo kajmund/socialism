@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
 import pytest
 from sqlalchemy import select
 
@@ -127,8 +130,6 @@ async def test_main_answer_is_projected_for_the_next_research(reuse_db):
 
 @pytest.mark.parametrize("main_question", [MAIN, "Hur bedöms avtalsvillkor enligt paragraf 36?"])
 async def test_a_second_research_reuses_the_whole_assessed_main_answer(reuse_db, main_question):
-    from types import SimpleNamespace
-    from unittest.mock import AsyncMock
     from app.database.graph_v2 import GraphFact, GraphNode
     from app.services.execution import list_runtime_needs, list_evidence_items
     from app.services.research import execute_attempt_research
@@ -232,6 +233,9 @@ async def test_a_second_research_reuses_the_whole_assessed_main_answer(reuse_db,
             "source:research_2",
         }
         assert all(item.provider == "graph_v2" for item in items)
+        await session.commit()
+        captured = await capture(reuse_db, second.id)
+        assert captured["contract_passed"], captured
         answers = list(
             await session.scalars(select(GraphNode).where(GraphNode.node_type == "research.answer"))
         )

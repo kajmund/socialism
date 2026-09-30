@@ -12,11 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.answer_review import KnowledgeAnswerReview
 from app.database.graph_v2 import GraphFact, GraphNode
-from app.services.graph_v2.identity import normalized
 from app.llm.research_assessment import build_llm_research_assessor
 from app.llm.research_followup import build_llm_follow_up_planner
 from app.llm.legal_question_validator import build_llm_legal_question_validator
-from app.services.execution import get_attempt, get_run
+from app.services.execution import get_attempt, get_run, list_runtime_needs
 from app.services.research.answer_review import capture_answer_reviews
 from app.services.research.gap_planning import plan_question_gaps
 from app.services.lagen_nu.question_validation import (
@@ -127,7 +126,11 @@ async def capture(factory: Factory, attempt_id: str) -> dict[str, object]:
             attempt_id=attempt.id,
             evidence_set_id=attempt.evidence_set_id,
         )
-        main_key = identity_from_text(objective).identity_key
+        main_key = next(
+            (row.question_key for row in await list_runtime_needs(session, attempt.id)
+             if row.research_need_id == "research-main" or row.question == objective),
+            identity_from_text(objective).identity_key,
+        )
         main_basis = await session.scalar(
             select(KnowledgeAnswerReview.answer_basis)
             .where(
@@ -137,12 +140,20 @@ async def capture(factory: Factory, attempt_id: str) -> dict[str, object]:
             .order_by(KnowledgeAnswerReview.created_at.desc())
             .limit(1)
         )
+        from app.database.models import KnowledgeQuestionRow
+
+        canonical_id = await session.scalar(
+            select(KnowledgeQuestionRow.id).where(
+                KnowledgeQuestionRow.scope_key == f"customer:{run.customer_id}",
+                KnowledgeQuestionRow.identity_key == main_key,
+            )
+        )
         nodes = list(
             await session.scalars(
                 select(GraphNode.id).where(
                     GraphNode.scope_key == f"customer:{run.customer_id}",
                     GraphNode.node_type == "core.question",
-                    GraphNode.normalized_name == normalized(objective),
+                    GraphNode.attributes["canonical_question_id"].as_string() == canonical_id,
                 )
             )
         )
