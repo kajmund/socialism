@@ -124,6 +124,11 @@ CRUD for personas, populations (members + recipe/fingerprint), runs (timeline JS
 - Manual OASIS smoke (live camel-oasis + DeepSeek): `@pytest.mark.smoke` under `tests/smoke/`; run with `uv run pytest -m smoke` or `scripts/run_simulation_smoke.py` after `uv sync --extra oasis`. Default pytest excludes smoke (`addopts` in `pyproject.toml`). Not part of CI.
 - OASIS action vocabulary: single source in `app/services/simulation/action_catalog.py` — see [simulation-engine-layers.md](../docs/guides/simulation-engine-layers.md) for adapter phases and camel-oasis upgrade checklist.
 - Tests live under `tests/` mirroring the area under test.
+- Research reuse contracts live in `tests/research_reuse/` and have their own CI job.
+  All external boundaries are mocked and sockets are blocked. Unimplemented product
+  contracts use strict XFAIL; remove each marker when its production behavior is fixed.
+  For isolated real-service iteration and timings, use `scripts/check_research_reuse.py`
+  from the configured backend directory. See [research-reuse-tests.md](../docs/guides/research-reuse-tests.md).
 - Profile CSV mapping for OASIS is unit-tested without importing `camel-oasis`.
 
 ## Anti-patterns (rejected)
