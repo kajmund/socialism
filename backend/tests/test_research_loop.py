@@ -424,13 +424,14 @@ async def test_reassessment_sees_accumulated_evidence_then_freezes(db):
     assert reloaded.research_plan_snapshot["needs"] == [
         {
             "id": "research_1",
-            "question": "Vad gäller skattesatsen?",
+            "question": _need("research_1", "case_knowledge").question,
             "why_needed": "behövs för bedömning",
             "requested_by": ["legal"],
             "source_types": ["case_knowledge"],
             "domains": [],
             "modalities": [],
             "capabilities": [],
+            "knowledge_question_id": needs[0].knowledge_question_id,
         }
     ]
 
@@ -536,7 +537,7 @@ async def test_duplicate_follow_up_questions_are_not_reexecuted(db):
     await execute_attempt_research(
         session,
         attempt_id=attempt.id,
-        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
+        research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge", question="Vad gäller skattesatsen?")]),
         router=_router(source)[0],
         assessor=RecordingAssessor(
             _fixed_draft(result="insufficient", need_id="research_1", evidence_ids=[])

@@ -26,7 +26,6 @@ from app.services.research.question_graph import QuestionEvidenceGraph
 if TYPE_CHECKING:
     from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
     from app.services.research.question_execution import QuestionResearchOutcome
-    from app.services.panel.research import ResearchPlan as PanelResearchPlan
 
 
 async def prepare_sql_question(
@@ -146,17 +145,17 @@ async def prepare_outcome_graph(
 @dataclass(frozen=True)
 class QuestionInventory:
     customer_id: int
-    plan: PanelResearchPlan
+    needs: tuple[ResearchNeed, ...]
     graph: QuestionEvidenceGraph
 
 
 async def prepare_question_inventory(
     factory: async_sessionmaker[AsyncSession],
     customer_id: int,
-    plan: PanelResearchPlan,
+    needs: Sequence[ResearchNeed],
 ) -> QuestionInventory:
-    graph = await prepare_domain_graph(factory, customer_id, [need.question for need in plan.needs])
-    return QuestionInventory(customer_id, plan, graph)
+    graph = await prepare_domain_graph(factory, customer_id, [need.question for need in needs])
+    return QuestionInventory(customer_id, tuple(needs), graph)
 
 
 async def prepare_public_writeback(

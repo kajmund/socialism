@@ -418,7 +418,7 @@ async def test_empty_evidence_with_needs_is_insufficient_without_llm(db):
     assert row is not None
     assert row.result == "insufficient"
     assert row.need_assessments[0]["sufficient"] is False
-    assert row.need_assessments[0]["further_information"] == "Vad gäller skattesatsen?"
+    assert row.need_assessments[0]["further_information"] == _need("research_1", "case_knowledge").question
 
 
 def test_invalid_evidence_ids_are_discarded():
