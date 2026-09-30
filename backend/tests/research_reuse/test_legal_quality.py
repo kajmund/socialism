@@ -118,21 +118,39 @@ async def test_lab_reports_model_failure_without_using_a_substitute():
     interpreter.interpret.assert_awaited_once()
 
 
-@pytest.mark.parametrize("outcome", ["error", "cancel"])
+@pytest.mark.parametrize("outcome", ["success", "error", "cancel"])
 async def test_native_interpreter_releases_pool_before_external_call(
     reuse_db, monkeypatch, outcome
 ):
     async def prompts(session, **kwargs):
         await session.execute(text("SELECT 1"))
-        return {"research.lagen_nu.domain.v3.court_passage": "Mock prompt"}
+        return {
+            "research.lagen_nu.domain.v3.court_passage": "Mock prompt",
+            "research.lagen_nu.domain.v3.system": "Mock",
+            "research.lagen_nu.domain.v3.court_context": "{court_text}",
+            "research.lagen_nu.domain.v3.user": "{source_text}",
+        }
 
     monkeypatch.setattr("app.llm.legal_research.require_active_prompts", prompts)
     entered, release = asyncio.Event(), asyncio.Event()
 
-    async def complete(*args, **kwargs):
+    calls = 0
+
+    async def complete(messages, schema, **kwargs):
+        nonlocal calls
+        calls += 1
         entered.set()
         await release.wait()
-        raise RuntimeError("External service failed")
+        if outcome != "success":
+            raise RuntimeError("External service failed")
+        if calls == 1:
+            return schema.model_validate(
+                {"reasoning_start": "s0", "reasoning_end": "s0", "explanation": "Majority"}
+            )
+        parsed = result().model_dump()
+        return schema.model_validate(
+            {"relation": parsed["relation"], "case_law": parsed["case_law"]}
+        )
 
     native = LlmLegalInterpreter(completer=complete, session_factory=reuse_db)
     task = asyncio.create_task(interpret_case(native, case(), context()))
@@ -145,4 +163,6 @@ async def test_native_interpreter_releases_pool_before_external_call(
             await task
     else:
         release.set()
-        assert (await task)["status"] == "error"
+        row = await task
+        assert row["status"] == ("success" if outcome == "success" else "error")
+        assert row["passed"] is (outcome == "success")
