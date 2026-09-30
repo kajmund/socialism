@@ -46,7 +46,11 @@ from app.services.anchor_store import (
 )
 from app.services.kund_store import default_os_customer_id
 from app.services.llm_runtime_settings import assignment_map
-from app.services.prompt_fields_store import filled_prompts, replace_prompt_overrides
+from app.services.prompt_fields_store import (
+    clear_prompt_cache,
+    filled_prompts,
+    replace_prompt_overrides,
+)
 from app.services.prompt_store import ensure_default_configurations, set_active_configuration
 from app.services.report.thresholds import (
     ReportThresholds,
@@ -251,6 +255,7 @@ async def create_configuration(
         prompts=prompts,
     )
     await session.commit()
+    clear_prompt_cache()
     await session.refresh(row)
     await ensure_catalog_defaults(session, row.id)
     return await _serialize(session, row)
@@ -323,7 +328,8 @@ async def update_configuration(
     if "language" in data and data["language"] is not None:
         row.language = data["language"]
     language: ConfigurationLanguage = row.language  # type: ignore[assignment]
-    if "prompts" in data and data["prompts"] is not None:
+    prompts_changed = "prompts" in data and data["prompts"] is not None
+    if prompts_changed:
         await replace_prompt_overrides(
             session,
             customer_id=row.customer_id,
@@ -356,6 +362,8 @@ async def update_configuration(
         row.is_active = False
     row.updated_at = utcnow()
     await session.commit()
+    if prompts_changed:
+        clear_prompt_cache()
     await session.refresh(row)
     return await _serialize(session, row)
 
