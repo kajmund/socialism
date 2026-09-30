@@ -2,6 +2,17 @@
 
 This file is the source of truth for any coding agent (Claude Code, Cursor, Codex, etc.) working in this repo. Read it before touching code.
 
+## Critical rule: release database connections before external calls
+
+**Mandatory for every code path: never hold a checked-out database connection, an open transaction, or a database lock while calling or waiting for an external service. Violations block approval of a change.** This includes LLMs, embeddings, MCP, HTTP APIs, remote vector stores, object storage, streaming, retries and cache hits as well as misses.
+
+- Split work into three phases: a short database transaction to load/materialize inputs; external work with the connection returned to the pool; a new short transaction to persist results.
+- End the input transaction deliberately: commit intended durable writes, or roll back read-only/abandoned work. Do not commit a caller's unrelated pending writes just to release a connection; give the operation its own transaction boundary.
+- A `SELECT` can start a transaction and retain a connection. An `AsyncSession` staying alive does not mean its connection has been released. Materialize everything needed, including ORM fields, before external work; avoid lazy loads that reopen a transaction during that work.
+- Never put external calls inside `session.begin()`, database lock scopes, or connection contexts. Apply the same rule inside database-backed provider/cache adapters; nested sessions must not make the caller retain a connection while another session or service is awaited.
+- Increasing pool size/timeouts or adding a fallback is not a fix. Correct transaction ownership and release connections on success, failure and cancellation.
+- When adding or changing a path that combines database access and external calls, include a focused regression test proving another client can acquire a connection while the external call is pending. Prefer a one-connection pool so accidental retention fails visibly.
+
 ## Product
 
 **Socialism** — internal tool for political messaging simulation and due diligence against AI agent populations (personas grounded in local context). Swedish UI by default.
