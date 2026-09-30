@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.config import settings
 from app.database.sqlite import register_sqlite_pragmas
+from app.llm import bind_usage_recorder, reset_usage_recorder
 from app.llm.lagen_nu_selector import LlmLagenNuSelector
 from app.llm.legal_research import LlmLegalInterpreter
 from app.llm.runtime_override import current_runtime
@@ -75,7 +76,9 @@ async def workload(factory, attempt_id: str, need_id: str | None):
                 )
             need = replace(
                 main_need(
-                    ResearchObjective(objective, context=attempt.research_objective_snapshot.get("context", {})),
+                    ResearchObjective(
+                        objective, context=attempt.research_objective_snapshot.get("context", {})
+                    ),
                     standard_available_source_types(),
                 ),
                 knowledge_question_id=canonical_id,
@@ -182,15 +185,22 @@ async def run(args) -> dict:
         stages = range(1, 5) if args.step == "all" else [int(args.step)]
         for _iteration in range(args.repeat):
             for stage in stages:
-                with TimedStep(stage, measurements) as timer:
-                    result = await run_step(
-                        stage,
-                        factory=factory,
-                        target=target,
-                        paths=paths,
-                        timings=timer.parts,
-                        fetch_index=args.fetch_gap,
-                    )
+                calls = []
+                token = bind_usage_recorder(lambda stats: calls.append(asdict(stats)))
+                try:
+                    with TimedStep(stage, measurements) as timer:
+                        result = await run_step(
+                            stage,
+                            factory=factory,
+                            target=target,
+                            paths=paths,
+                            timings=timer.parts,
+                            fetch_index=args.fetch_gap,
+                        )
+                finally:
+                    reset_usage_recorder(token)
+                    if measurements:
+                        measurements[-1]["llm_calls"] = calls
                 measurements[-1]["result"] = result
                 if result.get("source_errors"):
                     measurements[-1].update(status="error", error_type="SourceEvidenceError")
