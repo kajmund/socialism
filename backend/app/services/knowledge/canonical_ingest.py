@@ -117,6 +117,7 @@ async def ingest_extracted_source(  # noqa: PLR0913
             text_unit_from_record(row)
             for row in await current_text_units(session, resolved_document.document_id)
         ]
+        await session.commit()
         if not units:
             raise RuntimeError(
                 f"reused document {resolved_document.document_id} has no current TextUnits"

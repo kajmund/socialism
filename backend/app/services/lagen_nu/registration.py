@@ -31,6 +31,13 @@ def mcp_source_for_nature(nature: str) -> str:
         raise ValueError(f"lagen.nu adapter does not implement evidence nature {nature!r}") from exc
 
 
+def evidence_nature_for_mcp_source(source: str | None) -> str:
+    for nature, mcp_source in _MCP_SOURCE_BY_NATURE.items():
+        if source == mcp_source:
+            return nature
+    raise ValueError(f"lagen.nu document has unsupported MCP source {source!r}")
+
+
 def lagen_nu_descriptor(evidence_nature: str) -> KnowledgeProviderDescriptor:
     """Stable descriptor for one implemented nature, from the shared registration."""
     mcp_source_for_nature(evidence_nature)
