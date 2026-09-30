@@ -121,8 +121,11 @@ async def fetch_ranked_documents(
         customer_id=customer_id,
     )
     slots = await _prepare_slots(work)
+    await session.commit()
     await _fetch_missing_documents(work, slots)
     await _ingest_slots(work, slots)
+    # Loading current TextUnits starts a new transaction, even on cache hits.
+    await session.commit()
     return await map_with_limit(
         research_concurrency().documents,
         slots,
@@ -201,8 +204,6 @@ async def _fetch_missing_documents(work: _Work, slots: list[_Slot]) -> None:
         work.host.provider_id,
         len(pending),
     )
-    if work.session.in_transaction():
-        await work.session.commit()
     await map_with_limit(
         research_concurrency().documents,
         pending,

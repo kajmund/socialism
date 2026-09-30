@@ -83,6 +83,14 @@ The lagen.nu domain-result cache releases its transaction under the source
 session lock, on both hits and misses, before document interpretation. Claims
 and edges remain deferred until all documents have been interpreted.
 
+Document retrieval also commits after preparing cached TextUnits, even when no
+MCP fetch is needed, and after loading ingested TextUnits before passage routing.
+Reindexing an unchanged document releases the TextUnit read transaction before
+checking vectors or requesting embeddings. The connection-release regression
+tests run four cached needs with one pool connection and probe a separate DB
+client at external boundaries. Claim support inserts use the unique
+`(claim_id, text_unit_id)` conflict target so concurrent rediscovery is idempotent.
+
 These boundaries return connections to the pool while external work is pending,
 leaving capacity for progress reads and lease heartbeats. Pool sizes and timeout
 settings are unchanged.

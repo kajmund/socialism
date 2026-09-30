@@ -22,7 +22,7 @@ from app.services.knowledge.scope import (
 from app.services.knowledge.units import hash_text
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.models import LagenNuDocument
-from app.services.lagen_nu.registration import LAGEN_NU_PROVIDER_ID
+from app.services.lagen_nu.registration import LAGEN_NU_PROVIDER_ID, evidence_nature_for_mcp_source
 from app.services.lagen_nu.uris import canonical_lagen_nu_document_uri
 
 
@@ -87,6 +87,7 @@ async def ingest_lagen_nu_document(  # noqa: PLR0913
         source_type=LAGEN_NU_PROVIDER_ID,
         canonical_uri=canonical_uri,
         metadata={
+            "evidence_nature": evidence_nature_for_mcp_source(document.source),
             "kind": document.kind,
             "source": document.source,
             "publisher_source_url": document.publisher_source_url,
