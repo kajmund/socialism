@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -11,9 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.graph_v2 import GraphFact, GraphFactQuestionDependency, GraphFactSource, GraphNode
 from app.observability.events import EVENT_DATASET_RESEARCH, log_event
-from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
 from app.services.graph_v2.retrieval import FactHit, hybrid_facts, neighbourhood
-from app.services.knowledge.embeddings import EmbeddingProvider, require_embedding_vectors
+from app.services.knowledge.embeddings import require_embedding_vectors
 from app.services.research.graph_grounding import fact_is_current, grounded_fact_evidence
 from app.services.research.graph_grounding import GraphResearchError
 from app.services.research.models import ResearchContext, ResearchEvidence, ResearchNeed, utc_now
@@ -21,12 +21,19 @@ from app.services.research.models import ResearchContext, ResearchEvidence, Rese
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class GraphQueryEmbedding:
+    model: str
+    dimension: int
+    vector: list[float]
+
+
 async def lookup_graph_evidence(
     session: AsyncSession,
     *,
     need: ResearchNeed,
     context: ResearchContext,
-    embedder: EmbeddingProvider | None = None,
+    query_embedding: GraphQueryEmbedding | None = None,
     limit: int | None = None,
     now: datetime | None = None,
 ) -> list[ResearchEvidence]:
@@ -39,10 +46,14 @@ async def lookup_graph_evidence(
     current = now or utc_now()
     current = current.replace(tzinfo=UTC) if current.tzinfo is None else current
     hits = await _candidates(
-        session, need=need, customer_id=customer_id, embedder=embedder, bound=bound
+        session, need=need, customer_id=customer_id, query_embedding=query_embedding, bound=bound
     )
-    output: list[ResearchEvidence] = []
-    seen: set[str] = set()
+    from app.services.research.answer_graph import lookup_answers
+
+    output = await lookup_answers(session, need=need, context=context, now=current)
+    # Whole answer episodes retain every source; the fact-search cap must not truncate them.
+    bound += len(output)
+    seen = {str(item.metadata["reuse"]["evidence_ref"]) for item in output}
     for hit in hits:
         if not fact_is_current(hit.fact, current):
             continue
@@ -88,7 +99,7 @@ def _fact_context_allowed(fact: GraphFact, context: ResearchContext) -> bool:
     )
 
 
-async def _candidates(session, *, need, customer_id, embedder, bound) -> list[FactHit]:
+async def _candidates(session, *, need, customer_id, query_embedding, bound) -> list[FactHit]:
     scopes = ("shared", f"customer:{customer_id}")
     present = await session.scalar(
         select(GraphFact.id)
@@ -103,28 +114,16 @@ async def _candidates(session, *, need, customer_id, embedder, bound) -> list[Fa
     if present is None:
         # A verified empty graph requires no embedding call.
         return []
-    if embedder is None:
-        from app.services.research.composition import research_embeddings
-
-        embedder = research_embeddings()
-    raw = (
-        await embedder.embed_in_session(session, [need.question])
-        if isinstance(
-            embedder,
-            GraphEmbeddingCacheProvider,
-        )
-        else await embedder.embed([need.question])
-    )
-    vectors = require_embedding_vectors(raw, dimension=embedder.dimension)
-    if len(vectors) != 1:
-        raise GraphResearchError("Graph v2 query embedding count must be one")
+    if query_embedding is None:
+        raise GraphResearchError("Prepare query embedding before opening the Graph read transaction")
+    vectors = require_embedding_vectors([query_embedding.vector], dimension=query_embedding.dimension)
     direct = await _question_facts(session, need.knowledge_question_id, scopes, bound)
     hybrid = await hybrid_facts(
         session,
         customer_id=customer_id,
         query=need.question,
         embedding=vectors[0],
-        embedding_model=embedder.model,
+        embedding_model=query_embedding.model,
         limit=bound,
     )
     seeds = list(
@@ -160,7 +159,7 @@ def log_external_search(need: ResearchNeed, candidates: list[ResearchEvidence]) 
                 "research_need_id": need.id,
                 "graph_evidence_count": len(candidates),
                 "source_types": need.source_types,
-                "retrieval_reason": "candidates_require_assessment"
+                "retrieval_reason": "insufficient_graph_answer"
                 if candidates
                 else "no_graph_evidence",
             }

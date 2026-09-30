@@ -13,7 +13,6 @@ from tests.research_reuse.helpers import (
     context,
     evidence,
     need,
-    pending_contract,
 )
 from tests.research_reuse.probes import assess, lookup
 from tests.test_research_graph_v2_reuse import Embeddings
@@ -55,7 +54,6 @@ async def test_assessor_failure_propagates_without_search_or_substitute(reuse_db
         )
 
 
-@pending_contract("Punkt 2: providers are currently called before sufficiency is assessed")
 async def test_sufficient_graph_answer_skips_external_source_for_child(graph_basis):
     source = RecordingSource("swedish_preparatory_works")
     router, _ = _router(source)
@@ -119,3 +117,85 @@ async def test_single_pool_connection_is_available_during_embedding_and_assessme
         return adapter
 
     await assess(graph_basis, need(), items, context(), builder=builder)
+
+
+@pytest.mark.parametrize("failure", [RuntimeError("model unavailable"), asyncio.CancelledError()])
+async def test_production_reuse_gate_releases_pool_and_never_searches_on_failure(
+    graph_basis, failure
+):
+    from app.services.research.need_retrieval import candidates_then_providers, NeedReusePolicy
+    from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
+    from app.services.research.graph_lookup import lookup_question
+
+    source = RecordingSource("swedish_preparatory_works")
+
+    async def pending_call(_plan, _items):
+        async with graph_basis() as other:
+            assert await other.scalar(text("SELECT 1")) == 1
+        raise failure
+
+    adapter = SimpleNamespace(assess=AsyncMock(side_effect=pending_call))
+    items = await lookup_question(graph_basis, need(), context(), Embeddings())
+    with pytest.raises(type(failure)):
+        await candidates_then_providers(
+            factory=graph_basis,
+            need=need(),
+            context=context(),
+            router=_router(source)[0],
+            router_factory=None,
+            reused=items,
+            policy=NeedReusePolicy(adapter, SqlQuestionEvidenceGraph()),
+        )
+    assert source.calls == 0
+    async with graph_basis() as other:
+        assert await other.scalar(text("SELECT 1")) == 1
+
+
+async def test_unsupported_or_contradictory_sufficiency_cannot_skip_search(graph_basis):
+    from app.services.research.need_retrieval import candidates_then_providers, NeedReusePolicy
+    from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
+
+    adapter = SimpleNamespace(
+        assess=AsyncMock(
+            return_value=ResearchAssessmentDraft(
+                result="sufficient",
+                rationale="Untrustworthy judgment",
+                need_assessments=[
+                    ResearchNeedAssessment(
+                        research_need_id="child",
+                        sufficient=True,
+                        supporting_evidence_ids=["invented-id"],
+                        contradictions=["Conflicting source"],
+                    )
+                ],
+            )
+        )
+    )
+    source = RecordingSource("swedish_preparatory_works")
+    await candidates_then_providers(
+        factory=graph_basis,
+        need=need(),
+        context=context(),
+        router=_router(source)[0],
+        router_factory=None,
+        reused=[evidence()],
+        policy=NeedReusePolicy(adapter, SqlQuestionEvidenceGraph()),
+    )
+    assert source.calls == 1
+
+
+async def test_chat_graph_lookup_refuses_to_commit_a_callers_pending_changes(reuse_db):
+    from app.database.models import Kund
+    from app.services.expert_chat_evidence import reusable_expert_chat_evidence_context
+
+    async with reuse_db() as caller:
+        customer = await caller.get(Kund, 1)
+        customer.name = "Unrelated pending edit"
+        with pytest.raises(RuntimeError, match="Release chat input transaction"):
+            await reusable_expert_chat_evidence_context(
+                caller, customer_id=1, question=need().question, prompts={}
+            )
+        assert customer in caller.dirty
+        await caller.rollback()
+    async with reuse_db() as other:
+        assert (await other.get(Kund, 1)).name == "First"

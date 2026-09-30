@@ -138,6 +138,9 @@ class IncompleteThenSufficientAssessor:
         self.calls = 0
 
     async def assess(self, plan, evidence):
+        if not evidence:
+            from app.services.research.assessment import programmatic_assessment
+            return programmatic_assessment(plan, evidence)
         self.calls += 1
         if self.calls == 1:
             return ResearchAssessmentDraft(
@@ -251,11 +254,11 @@ async def test_question_runs_as_child_attempt_with_frozen_evidence(factory):
                 )
             ).scalars()
         )
-        assert len(links) == 1
+        assert len(links) == 2  # Original source and the assessed main synthesis.
         assert links[0].source_attempt_id == child.id
         passage = await session.get(EvidencePassage, links[0].passage_id)
         assert passage is not None
-        assert passage.excerpt == "Avtalsvillkoret får jämkas om det är oskäligt."
+        assert "Avtalsvillkoret får jämkas om det är oskäligt." in passage.excerpt
         assert {receipt.role for receipt in receipts} == {"raised_by", "assigned_to"}
         assert {receipt.expert_id for receipt in receipts} == {"avtalsjurist"}
         assert {receipt.evidence_set_id for receipt in receipts} == {evidence_set.id}

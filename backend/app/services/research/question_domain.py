@@ -18,6 +18,7 @@ from app.database.models import (
 from app.services.execution.service import get_attempt, get_run, new_id
 from app.services.research.composition import build_standard_question_graph
 from app.services.research.followup import RuntimeResearchNeed
+from app.services.research.question_graph import QuestionEvidenceGraph
 from app.services.research.knowledge_question import identity_from_text, tenant_question_scope
 
 SpecificQuestionOrigin = Literal["expertgranskning", "expert_chat", "api"]
@@ -79,6 +80,7 @@ async def create_general_question(
     attempt_id: str,
     specific_question_id: str,
     draft: GeneralQuestionDraft,
+    question_graph: QuestionEvidenceGraph | None = None,
 ) -> ResearchQuestion:
     attempt = await get_attempt(session, attempt_id)
     run = await get_run(session, attempt.run_id)
@@ -90,7 +92,7 @@ async def create_general_question(
             "specific question and Attempt must belong to the same Run"
         )
 
-    graph = build_standard_question_graph()
+    graph = question_graph or build_standard_question_graph()
     canonical = await graph.upsert_question(
         session,
         identity_from_text(draft.question),

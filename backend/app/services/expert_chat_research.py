@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.models import ExecutionAttempt, Job, Persona
 from app.serializers import utcnow
-from app.services.execution.service import create_attempt, create_run, get_attempt, get_run
+from app.services.execution.service import get_attempt, get_run
 from app.services.panel.question_expert_adapters import (
     PanelCompetencyQuestionMatcher,
     UnderlagExpertCreator,
@@ -22,11 +22,8 @@ from app.services.research.expert_knowledge import (
     remember_published_question,
 )
 from app.services.research.question_attempt_worker import AttemptResearchQuestionWorker
-from app.services.research.question_domain import (
-    GeneralQuestionDraft,
-    create_general_question,
-    create_specific_question,
-)
+from app.services.research.chat_question_start import create_chat_question
+from app.services.research.question_prepare import prepare_domain_graph
 from app.services.research.question_execution import (
     execute_research_question_dag,
     requeue_interrupted_research_questions,
@@ -105,44 +102,10 @@ async def run_expert_chat_research_job(
             if specific_id is None or question_id is None:
                 raise RuntimeError(f"Expert chat research job is missing question ids: {job.id}")
         else:
-            run = await create_run(
-                session,
-                customer_id=job.customer_id,
-                module="dd",
-                title=payload.specific_question,
-                context={
-                    "consumer": "expert_chat",
-                    "persona_id": persona.id,
-                    "job_id": job.id,
-                },
-            )
-            attempt = await create_attempt(
-                session,
-                run_id=run.id,
-                attempt_type="expert_chat_question_dag",
-                configuration_snapshot={"persona_id": persona.id},
-                input_snapshot={
-                    "specific_question": payload.specific_question,
-                    "question": payload.question,
-                },
-            )
-            specific = await create_specific_question(
-                session,
-                run_id=run.id,
-                text=payload.specific_question,
-                context={"persona_id": persona.id, "job_id": job.id},
-                origin_kind="expert_chat",
-                origin_ref=job.id,
-            )
-            question = await create_general_question(
-                session,
-                attempt_id=attempt.id,
-                specific_question_id=specific.id,
-                draft=GeneralQuestionDraft(
-                    question=payload.question,
-                    why_needed="Expertchatten saknar tillräckligt fryst evidens för frågan.",
-                    raised_by_expert_ids=[persona.id],
-                ),
+            await session.commit()
+            graph = await prepare_domain_graph(factory, job.customer_id, [payload.question])
+            run, attempt, specific, question = await create_chat_question(
+                session, job=job, persona=persona, payload=payload, graph=graph,
             )
             await assign_unowned_research_questions(
                 session,

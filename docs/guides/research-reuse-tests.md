@@ -1,8 +1,14 @@
 # Research reuse: fyra isolerade steg
 
 Testgruppen `backend/tests/research_reuse/` gör återanvändningens fyra krav
-synliga var för sig. Den ändrar inte researchflödet. Testerna anropar befintliga
-produktionsfunktioner; testverktyget implementerar ingen alternativ researchmotor.
+synliga var för sig. Produktionsflödet läser och bedömer huvudfrågan före
+uppdelning. Samma kontroll körs för varje underfråga innan extern sökning.
+Bedömningen ser huvudfrågans kontext. När hela huvudsvaret räcker sparas den
+bedömningen och dess källunderlag direkt; ingen andra bedömningsrunda eller
+uppdelning behövs. Fingeravtrycket för fullständighet inkluderar även kontexten.
+Frysta svar med hela källunderlaget och faktisk bedömning publiceras som
+`research.answer` med `research.answered_by` i Graph v2. Ingen återanvändning
+läser legacy claims eller Question→Evidence-länkar.
 
 | Steg | Testfil | Kontrakt |
 | --- | --- | --- |
@@ -29,19 +35,12 @@ medan externa tjänster körs. Inga riktiga nycklar eller databaser behövs i CI
 JUnit-resultat med tider sparas som artefakten `research-reuse-contracts` och
 jobbsammanfattningen visar passerade, ofärdiga och felande kontrakt separat.
 
-Sex krav fallerar med dagens produktionskod och har **strict XFAIL** med en
-namngiven orsak. De är inte godkända funktioner. En oväntad framgång gör CI röd;
-ta bort motsvarande markering när produktionsändringen är klar. Se alla verkliga
-kontraktsfel utan XFAIL:
-
-```sh
-uv run pytest tests/research_reuse --runxfail -q
-```
-
-Övriga tester verifierar befintliga byggstenar samt replay, felpropagering och
-transaktionsgränser. Två smala integrationstester kontrollerar dagens ordning
-mellan uppdelning, grafhämtning och källsökning. Övriga fall startar ingen hel
-researchkedja, worker eller REST-körning.
+Alla fyra kontrakt ska passera; inga XFAIL eller förväntade produktfel finns.
+Testerna omfattar också två på varandra följande körningar, en omformulerad
+huvudfråga, kvarvarande luckor, partiella svar, källornas ålder,
+kund/case/modulgränser samt tillgänglig databaskoppling vid modellfel och avbrott.
+De flesta tester kör ett enda steg. Smala integrationstester verifierar att
+stegen är inkopplade i produktionsflödet utan REST eller bakgrundsworker.
 
 ## Iteration med riktiga tjänster
 
@@ -65,12 +64,15 @@ exitkod skild från noll; inga ersättningstjänster används.
   prompts, bedömer underlaget från steg 1. Ingen ny embedding eller källhämtning.
 - **Steg 3:** produktionsadaptern för följdfrågor och dess vanliga validering
   körs mot bedömningen från steg 2. Vid `sufficient` anropas ingen planner.
-  Detta är en planner-probe; den verifierar inte ännu det saknade rekursiva
-  produktionsflödet eller semantisk deduplicering. Dessa brister bevakas i CI-kontrakten.
+  Samma `plan_question_gaps` används av huvudfrågans produktionsflöde.
+  Den isolerade körningen planerar luckor; kanonisk ködeduplicering och nästa
+  frågas återanvändningskontroll verifieras separat i CI-gruppen.
 - **Steg 4:** befintliga researchens underlag skickas genom produktionsfunktionens
   svarsfångst. Riktiga databasändringar inspekteras och rullas sedan tillbaka.
-  Huvudfrågans svar och grundade Graph v2-beroenden måste finnas för att kontraktet
-  ska passera. Dagens saknade projektion ger `contract_failed` och exitkod 1.
+  Huvudfrågans svar och dess `research.answered_by`-projektion måste finnas
+  för att kontraktet ska passera. Äldre körningar utan en uttrycklig bedömning
+  av huvudfrågan publiceras som partiella. Bara frysta EvidenceSet får bli
+  återanvändbara svarsepisoder.
 
 För ett enskilt befintligt ResearchNeed lägg till `--need-id NEED` i steg 1–3.
 Steg 4 granskar alltid huvudfrågan. För att även köra den riktiga lagen.nu-adaptern

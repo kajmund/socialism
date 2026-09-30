@@ -17,7 +17,7 @@ from app.services.research.models import (
     ResearchEvidence,
     ResearchNeed,
 )
-from app.services.research.graph_reuse import lookup_graph_evidence
+from app.services.research.graph_lookup import lookup_question
 
 
 def _render_evidence(items: Sequence[ResearchEvidence]) -> str:
@@ -55,15 +55,19 @@ async def reusable_expert_chat_evidence_context(
     This path never creates a Run, Attempt, question, or provider request.
     Case-scoped evidence is excluded because library chat has no document case.
     """
-    reused = await lookup_graph_evidence(
-        session,
-        need=ResearchNeed(
+    from app.services.research.execution import _session_factory
+
+    if session.in_transaction():
+        raise RuntimeError("Release chat input transaction before reading reusable Graph evidence")
+    reused = await lookup_question(
+        _session_factory(session),
+        ResearchNeed(
             id="expert_chat_reuse",
             question=question,
             why_needed="",
             source_types=list(RESEARCH_SOURCE_TYPES),
         ),
-        context=ResearchContext(scope=KnowledgeScope(customer_id=customer_id)),
+        ResearchContext(scope=KnowledgeScope(customer_id=customer_id)),
     )
     frozen_refs = await _frozen_graph_refs(session, customer_id, reused)
     frozen = [

@@ -123,6 +123,7 @@ async def test_legacy_evidence_link_is_not_read_by_expert_chat(session):
     await _store_answer(session, customer_id=customer.id, question=question)
 
     before = await session.scalar(select(func.count()).select_from(ExecutionRun))
+    await session.commit()
     context = await reusable_expert_chat_evidence_context(
         session,
         customer_id=customer.id,
@@ -149,6 +150,7 @@ async def test_chat_reuse_is_tenant_isolated_and_excludes_case_evidence(session)
         case_id="document-1",
     )
 
+    await session.commit()
     isolated = await reusable_expert_chat_evidence_context(
         session,
         customer_id=second.id,
@@ -169,6 +171,7 @@ async def test_non_matching_question_returns_no_context(session):
         question="Vilka rekvisit gäller för jämkning?",
     )
 
+    await session.commit()
     context = await reusable_expert_chat_evidence_context(
         session,
         customer_id=customer.id,
@@ -191,6 +194,7 @@ async def test_unfrozen_evidence_is_not_exposed_to_chat(session):
         frozen=False,
     )
 
+    await session.commit()
     context = await reusable_expert_chat_evidence_context(
         session,
         customer_id=customer.id,

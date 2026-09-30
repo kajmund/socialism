@@ -2,10 +2,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.research.execution import _resolve_initial_plan
+from app.services.research.execution import execute_attempt_research
 from app.services.research.graph_reuse import lookup_graph_evidence
 from app.services.research.planner import FakeResearchPlanner, ResearchNeedDraft
-from tests.research_reuse.helpers import MAIN, attempt, context, need, objective, pending_contract
+from tests.research_reuse.helpers import MAIN, attempt, context, need, objective
 from tests.research_reuse.probes import lookup
 from tests.test_research_graph_v2_reuse import Embeddings
 from tests.test_research_question_evidence import RecordingSource, _router
@@ -40,7 +40,6 @@ async def test_invalidated_facts_do_not_answer_main_question(graph_basis):
     assert await lookup(graph_basis, need(question=MAIN), context(), Embeddings()) == []
 
 
-@pending_contract("Punkt 1: initial planning currently precedes main-question Graph v2 lookup")
 async def test_main_question_is_looked_up_before_decomposition(graph_basis, monkeypatch):
     trace = []
     real_lookup = lookup_graph_evidence
@@ -64,21 +63,48 @@ async def test_main_question_is_looked_up_before_decomposition(graph_basis, monk
         trace.append("decompose")
         return await real_plan(**kwargs)
 
-    monkeypatch.setattr("app.services.research.graph_reuse.lookup_graph_evidence", observed_lookup)
+    monkeypatch.setattr("app.services.research.graph_lookup.lookup_graph_evidence", observed_lookup)
     monkeypatch.setattr(planner, "plan_research", observed_plan)
     router, _ = _router(RecordingSource("swedish_preparatory_works"))
     async with graph_basis() as session:
         row = await attempt(session)
         await session.commit()
-        await _resolve_initial_plan(
+        await execute_attempt_research(
             session,
-            attempt=row,
-            research_plan=None,
+            attempt_id=row.id,
             research_objective=objective(),
             research_planner=planner,
-            need_limit=16,
             router=router,
-            case_id=None,
-            need_normalizer=None,
+            session_factory=graph_basis,
         )
     assert trace[0] == "lookup:" + MAIN, trace
+
+
+async def test_main_reuse_is_assessed_with_objective_context(graph_basis):
+    from types import SimpleNamespace
+    from app.services.research.planner import ResearchObjective
+    from tests.research_reuse.helpers import reviewed_answer
+
+    adapter = SimpleNamespace(assess=AsyncMock(side_effect=reviewed_answer))
+    reviewer = SimpleNamespace(review=AsyncMock(side_effect=AssertionError("Already assessed")))
+    planner = FakeResearchPlanner([])
+    source = RecordingSource("swedish_preparatory_works")
+    async with graph_basis() as session:
+        row = await attempt(session)
+        row.research_objective_snapshot = {"objective": MAIN, "context": {"contract": "commercial lease"}}
+        await session.commit()
+        result = await execute_attempt_research(
+            session,
+            attempt_id=row.id,
+            research_objective=ResearchObjective(MAIN, context={"contract": "commercial lease"}),
+            research_planner=planner,
+            assessor=adapter,
+            completeness_reviewer=reviewer,
+            router=_router(source)[0],
+            session_factory=graph_basis,
+        )
+    assert result.status == "ready"
+    assert adapter.assess.await_count == 1
+    assert '"contract": "commercial lease"' in adapter.assess.call_args.args[0].needs[0].why_needed
+    assert source.calls == 0 and planner.calls == []
+    reviewer.review.assert_not_awaited()

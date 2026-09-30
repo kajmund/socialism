@@ -364,8 +364,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
 ) -> AsyncIterator[str | PersonaChatResponse]:
     """Yield token strings, then PersonaChatResponse.
 
-    Follow-up chips are fetched separately (WebSocket sends them in the
-    background) so a slow structured LLM call cannot block the next turn.
+    Follow-up chips run in the background so structured calls cannot block the next turn.
     """
     async with _library_chat_lock(persona_id, mode):
         persona = await session.get(Persona, persona_id)
@@ -386,6 +385,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             validate_chat_turn_images(history, message, image_sha256)
         except ValueError as exc:
             raise ChatTurnError(str(exc)) from exc
+        await session.commit()
         memory_context = await expert_memory_context(
             persona, message, prompts, image_sha256=image_sha256
         )
