@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,18 +82,21 @@ async def attach_supporting_text_units(
     unit_ids: Sequence[str],
 ) -> None:
     existing = await supporting_text_unit_ids_for_claim(session, claim_id)
+    insert = sqlite_insert if session.get_bind().dialect.name == "sqlite" else pg_insert
     seen = set(existing)
     ordinal = len(existing)
     for unit_id in unit_ids:
         if unit_id in seen:
             continue
-        session.add(
-            KnowledgeClaimTextUnit(
+        await session.execute(
+            insert(KnowledgeClaimTextUnit)
+            .values(
                 claim_id=claim_id,
                 text_unit_id=unit_id,
                 ordinal=ordinal,
                 relation=SUPPORTED_BY,
             )
+            .on_conflict_do_nothing(index_elements=["claim_id", "text_unit_id"])
         )
         seen.add(unit_id)
         ordinal += 1

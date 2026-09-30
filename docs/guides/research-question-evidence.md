@@ -41,6 +41,8 @@ ResearchNeed
 
 Executing research first calls `graph_reuse.lookup_graph_evidence`. It retrieves bounded canonical-question dependencies, hybrid lexical/semantic fact hits, and one-hop neighbours. Graph facts are hydrated only through `GraphFactSource` → `TextUnitRecord` → `DocumentVersionRecord` → `CanonicalDocumentRecord`. Runtime research never reads legacy claims or legacy Question→Evidence links as a retrieval path.
 
+Canonical lagen.nu document identity uses `source_type=lagen_nu`. Its declared `extra.evidence_nature` identifies law, case law or preparatory works and is what Graph retrieval matches against a ResearchNeed. Ingest preserves document metadata through segmentation. Migration `141_canonical_evidence_nature` explicitly backfills existing canonical publisher namespaces without changing document, version or TextUnit IDs. Apply it before running the updated Graph read path; a missing or invalid nature raises an error rather than silently discarding graph evidence. Runtime retrieval never guesses the nature from a URL.
+
 Graph hits are evidence candidates, not proof that the question is answered. A matching source type or question dependency cannot skip external sources. The existing assessment/completeness loop evaluates the combined frozen basis. This deliberately removes the former claim/source-type shortcut; it does not yet introduce an early sufficiency gate to save provider calls.
 
 Follow-up preparation binds canonical question identities and lineage without reading legacy claims or closing needs by source type. Each accepted follow-up uses the same Graph v2 retrieval path when it executes. Freeze snapshots include `graph_fact_ids` alongside source version and TextUnit IDs.

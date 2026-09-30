@@ -85,6 +85,7 @@ class DocumentSegmenter:
             canonical_uri=resolved_uri,
             title=document.title,
             metadata={
+                **document.metadata,
                 "provider": document.provider,
                 "external_id": document.external_id,
             },
