@@ -1,0 +1,40 @@
+{
+  "question": "Hur tillämpas 36 § avtalslagen i svensk rättspraxis?",
+  "criteria": [
+    {
+      "id": "motivated_cases",
+      "requirement": "Avgöranden där HD eller annan allmän domstol faktiskt tillämpar 36 § och redovisar skälighetsbedömningen, inte enbart nämner paragrafen.",
+      "source_types": [
+        "swedish_case_law"
+      ]
+    },
+    {
+      "id": "consumer_contracts",
+      "requirement": "Rättspraxis om tillämpningen av 36 § i konsumentavtal, som del av jämförelsen mellan avtalstyper.",
+      "source_types": [
+        "swedish_case_law"
+      ]
+    },
+    {
+      "id": "commercial_contracts",
+      "requirement": "Rättspraxis om tillämpningen av 36 § mellan näringsidkare, som del av jämförelsen mellan avtalstyper.",
+      "source_types": [
+        "swedish_case_law"
+      ]
+    },
+    {
+      "id": "employment_contracts",
+      "requirement": "Rättspraxis om civilrättslig tillämpning av 36 § i arbetsavtal, som del av jämförelsen mellan avtalstyper.",
+      "source_types": [
+        "swedish_case_law"
+      ]
+    },
+    {
+      "id": "original_preparatory_works",
+      "requirement": "Systematisk genomgång av tillämpningsriktlinjerna i de ursprungliga förarbetena prop. 1975/76:81 och SOU 1974:83.",
+      "source_types": [
+        "swedish_preparatory_works"
+      ]
+    }
+  ]
+}
