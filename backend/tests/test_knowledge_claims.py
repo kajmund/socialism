@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -76,7 +77,7 @@ async def session():
     await engine.dispose()
 
 
-async def test_persist_claim_writes_supported_by_links(session: AsyncSession):
+async def _persist_supported_claim(session: AsyncSession):
     from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord
 
     session.add(
@@ -138,3 +139,26 @@ async def test_persist_claim_writes_supported_by_links(session: AsyncSession):
         )
     ).one()
     assert link.relation == SUPPORTED_BY
+
+
+async def test_persist_claim_writes_supported_by_links(session: AsyncSession):
+    await _persist_supported_claim(session)
+
+
+async def test_support_attach_is_idempotent_even_when_existing_read_is_stale(
+    session: AsyncSession, monkeypatch
+):
+    from unittest.mock import AsyncMock
+    from app.services.knowledge.claim_store import attach_supporting_text_units
+
+    await _persist_supported_claim(session)
+    claim = (await session.execute(select(KnowledgeClaimRecord))).scalars().one()
+    # Both writers can observe no link before the first commits it.
+    monkeypatch.setattr(
+        "app.services.knowledge.claim_store.supporting_text_unit_ids_for_claim",
+        AsyncMock(return_value=[]),
+    )
+    await attach_supporting_text_units(session, claim.id, ["tu-hold", "tu-hold"])
+    links = list((await session.execute(select(KnowledgeClaimTextUnit))).scalars())
+    assert len(links) == 1
+    assert links[0].relation == SUPPORTED_BY

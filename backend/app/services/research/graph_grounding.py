@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.graph_v2 import GraphFact, GraphFactSource
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, TextUnitRecord
+from app.services.lagen_nu.registration import LAGEN_NU_EVIDENCE_NATURES, LAGEN_NU_PROVIDER_ID
 from app.services.research.models import (
     ResearchContext,
     ResearchError,
@@ -138,7 +139,7 @@ def _valid_grounding(fact, document, version, passages) -> bool:
 
 def _usable_source(*, document, version, passages, need, context, now) -> bool:
     return (
-        document.source_type in need.source_types
+        _evidence_nature(document) in need.source_types
         and version.superseded_at is None
         and current_interval(version.valid_from, version.valid_to, now)
         and _context_allowed(
@@ -149,6 +150,18 @@ def _usable_source(*, document, version, passages, need, context, now) -> bool:
     )
 
 
+def _evidence_nature(document: CanonicalDocumentRecord) -> str:
+    if document.source_type != LAGEN_NU_PROVIDER_ID:
+        return document.source_type
+    nature = document.extra.get("evidence_nature")
+    if nature not in LAGEN_NU_EVIDENCE_NATURES:
+        raise GraphResearchError(
+            f"lagen.nu document {document.id} lacks a valid evidence_nature; "
+            "apply the canonical evidence nature migration"
+        )
+    return nature
+
+
 def _to_evidence(
     *, fact, document, version, passages, need, now, max_age_seconds
 ) -> ResearchEvidence:
@@ -157,7 +170,7 @@ def _to_evidence(
     fresh = age >= 0 and (max_age_seconds is None or age <= max_age_seconds)
     return research_evidence(
         research_need_id=need.id,
-        source_type=document.source_type,
+        source_type=_evidence_nature(document),
         status="found",
         title=document.title,
         excerpt="\n\n".join(unit.text for unit in passages),
