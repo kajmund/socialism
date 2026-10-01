@@ -23,9 +23,9 @@ from app.services.research.assessment import (
     can_assess_programmatically,
     group_evidence_for_review,
     programmatic_assessment,
-    review_excerpt,
     sanitize_assessment_draft,
 )
+from app.services.research.assessment_input import compact_provenance, encode_assessment_input
 from app.services.research.fast_gate import wrap_research_assessor
 from app.services.research.models import ResearchPlan
 from app.services.research.review_payload import compact_claims
@@ -98,13 +98,13 @@ def _evidence_payload(group: EvidenceReviewGroup) -> dict[str, object]:
         "source_type": item.source_type,
         "status": item.status,
         "title": item.title,
-        "excerpt": review_excerpt(item.excerpt),
+        "excerpt": item.excerpt,
         "locator": item.locator,
         "source_id": item.source_id,
         "source_url": item.source_url,
         "provider": item.provider,
         "score": item.score,
-        "provenance": {k: v for k, v in item.provenance.items() if k not in {"legal_result", "derived_claims"}},
+        "provenance": compact_provenance(item.provenance),
         "legal_result": (
             item.legal_result.model_dump(mode="json", exclude={"raw_text"})
             if item.legal_result else None
@@ -219,6 +219,9 @@ class LlmResearchAssessor:
                 model_name=None,
                 model_version=None,
             )
+        review = encode_assessment_input(
+            [_evidence_payload(group) for group in group_evidence_for_review(evidence)]
+        )
         messages = [
             {"role": "system", "content": self._system_prompt},
             {
@@ -227,13 +230,7 @@ class LlmResearchAssessor:
                     {"research.assessment.user": self._user_prompt},
                     "research.assessment.user",
                     plan_json=json.dumps(_plan_payload(plan), ensure_ascii=False),
-                    evidence_json=json.dumps(
-                        [
-                            _evidence_payload(group)
-                            for group in group_evidence_for_review(evidence)
-                        ],
-                        ensure_ascii=False,
-                    ),
+                    evidence_json=json.dumps(review.payload, ensure_ascii=False),
                 ),
             },
         ]
@@ -256,11 +253,13 @@ class LlmResearchAssessor:
                     "Evidence sufficiency model returned an invalid payload"
                 ) from exc
         return sanitize_assessment_draft(
-            _draft_from_model(
-                parsed,
-                provider=self._provider,
-                model=self._model,
-                model_version=self._model_version,
+            review.restore(
+                _draft_from_model(
+                    parsed,
+                    provider=self._provider,
+                    model=self._model,
+                    model_version=self._model_version,
+                )
             ),
             plan=plan,
             evidence=evidence,

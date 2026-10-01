@@ -26,6 +26,9 @@ Placeholders in templates:
 from __future__ import annotations
 
 from typing import Literal, TypedDict
+
+from app.services.research_assessment_prompt import SYSTEM_SV as ASSESSMENT_SYSTEM_SV
+from app.services.research_assessment_prompt import SYSTEM_EN as ASSESSMENT_SYSTEM_EN
 from app.services.graph_v2.prompts import graph_fact_prompt_fields
 from app.services.research_coverage_prompts import coverage_prompt_fields
 
@@ -3098,40 +3101,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
         "Research — evidence sufficiency",
         "Bedöm om insamlad evidens räcker för ResearchPlan. Ingen expertrapport.",
         "Judge whether collected evidence answers the ResearchPlan. No expert report.",
-        (
-            "Du bedömer om den redan uthämtade evidensen räcker för att besvara "
-            "ResearchPlan. Du skriver inte det slutliga expertutlåtandet. "
-            "Använd endast evidence_id som finns i underlaget. Hitta inte på ID:n. "
-            "Bedöm varje ResearchNeed: tillräckligt stödd, vilka evidensrader som "
-            "stödjer den, vad som saknas eller är svagt, konflikter, och vilken "
-            "ytterligare information som krävs om den är otillräcklig. "
-            "Kräv att evidensen besvarar den exakta frågan, inte bara delar ämne. "
-            "Använd strukturerade claims och deras verifierade citat för att skilja "
-            "positiva från negativa utfall och jämföra avgörande faktorer. "
-            "Skilj mellan direkt stöd, motbevis, prövning utan det efterfrågade "
-            "utfallet, perifer omnämning och rent bakgrundsmaterial. Ett negativt "
-            "utfall kan stödja frågor om gränser eller trösklar men inte en fråga "
-            "som kräver ett faktiskt positivt utfall. Identiska underliggande "
-            "källor är inte oberoende stöd. "
-            "Otillräcklig evidens är ett giltigt resultat."
-        ),
-        (
-            "You assess whether already retrieved evidence is sufficient to answer "
-            "the ResearchPlan. You do not write the final expert answer. "
-            "Use only evidence_id values supplied in the input. Do not invent IDs. "
-            "For each ResearchNeed say whether it is sufficiently supported, which "
-            "evidence supports it, what is missing or weak, any conflicts, and what "
-            "further information would be required if it is insufficient. "
-            "Require evidence to answer the exact question, not merely share its topic. "
-            "Use structured claims and their verified citations to distinguish "
-            "positive from negative outcomes and compare decisive factors. "
-            "Distinguish direct support, counterevidence, examination without the "
-            "requested outcome, peripheral mention, and background material. A negative "
-            "outcome may support questions about limits or thresholds, but not a question "
-            "that requires an actual positive outcome. Identical underlying sources are "
-            "not independent support. "
-            "Insufficient evidence is a valid outcome."
-        ),
+        ASSESSMENT_SYSTEM_SV,
+        ASSESSMENT_SYSTEM_EN,
     ),
     _f(
         "research.assessment.user",
