@@ -231,3 +231,22 @@ this local setup), rather than `research_jev_timeout_seconds` (5 seconds). An
 8000-character/eight-candidate relevance batch can therefore fail even when
 research's separate Jev assessment timeout is longer. Timeout settings were not
 changed by these benchmarks.
+
+## Kontroll av SHA för chunks
+
+`test_03_chunk_sha.py` verifierar embeddingåteranvändning mellan olika dokument
+genom riktig ingestion, SQL och den beständiga embeddingcachen. Varje dokument
+använder en ny cacheinstans så att återanvändningen kräver en sparad cachepost.
+Identiska chunks återanvänder embedding och behåller separata dokumentversioner
+och källhänvisningar. Vid delvis överlapp embeddas endast de nya chunktexterna.
+Ändringar i stora bokstäver, mellanslag, skiljetecken eller Unicode-representation
+ger egna SHA-nycklar. Embeddingtjänsten får exakt den hashade chunktexten.
+
+Modell, revision och dimension måste också matcha. Den nya cacheversionen
+`text.exact.v2` använder inte äldre normaliserade cacheposter som fallback.
+Fel och avbrott frigör cacheleasen och databaskopplingen utan att skriva vektorer.
+En pool med en enda koppling kontrollerar embedding- och indexeringsgränserna.
+CI mockar tjänsterna; testerna verifierar inte embeddingmodellens kvalitet.
+Återanvändningen delar embeddingberäkningen, medan text och vektorprojektioner
+ännu lagras per dokument. Gemensam textlagring och migrering av befintliga
+indexvektorer ingår inte i detta kontrakt.
