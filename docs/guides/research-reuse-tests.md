@@ -226,6 +226,11 @@ all uninstrumented time in the earlier run. Four replacements would cost about
 70 seconds at that measured rate. No index deletion or replacement was performed
 by the inventory profile itself.
 
+That profile describes the former canonical-source replacement path. Canonical
+source ingestion now uses version-specific direct writes, keeping historical
+vectors and avoiding that inventory scan entirely. The uploaded-file and
+document-item replacement paths still use the existing adapter.
+
 Jev passage routing currently uses `settings.jev_timeout_seconds` (3 seconds in
 this local setup), rather than `research_jev_timeout_seconds` (5 seconds). An
 8000-character/eight-candidate relevance batch can therefore fail even when
@@ -274,3 +279,35 @@ Testerna skapar och tar bort egna tillfälliga scheman; kontot måste få skapa
 scheman. De ändrar inte befintliga applikationstabeller och anropar inga externa
 modelltjänster. Utan denna variabel hoppas dessa två PostgreSQL-tester över;
 SQLite-kontrakten och CI:s obligatoriska PostgreSQL-jobb körs som vanligt.
+
+## Versionsbevarande vektorindexering
+
+`test_05_version_vectors.py` använder riktig canonical ingestion, SQL och
+embeddingcache samt den faktiska Supabase-adaptern. SDK:s nätverksgräns mockas
+och listning, radering och semantisk sökning förbjuds i testindexet. Kontrakten
+kontrollerar kall och varm ingestion, historisk hämtning efter A → B → A,
+fel/avbrott, delvis skriven projektion och återindexering av saknade nycklar.
+En pool med en enda koppling verifierar både embedding och direkta indexanrop.
+Återindexering får inte avsluta en transaktion som tillhör anroparen.
+
+Isolerad mätning med riktig databas, beständig embeddingcache/OpenAI och
+Supabase kan köras utan källhämtning, chunkning, LLM-bedömning eller en research:
+
+```sh
+python scripts/check_source_vector_index.py --live --document-id DOCUMENT_ID \
+  --repeat 2 --output new-index-report.json
+```
+
+Detta läser aktuell versions chunk-ID:n och kontrollerar att vektorerna finns.
+Saknade vektorer ger en rapport och icke-noll exitstatus. Lägg till `--write`
+för att uttryckligen beräkna eller återanvända embeddings via cachen och skriva samma versions kända
+projektioner, även om de redan finns. Rapporten skiljer SQL-laddning, direkt
+vektorhämtning, cache/embedding plus skrivning och verifiering. En befintlig
+rapportfil skrivs inte över. Varken källa, version, frågor eller TTL ändras.
+
+En live-mätning 2026-10-01 av NJA 1989 s. 346, aktuell version med 38 chunks,
+gav direkthämtning på 0,77 respektive 0,49 sekunder och cache/embedding plus
+direktskrivning på 6,25 respektive 2,46 sekunder. Vektorerna fanns redan före
+båda iterationerna; detta är en omskrivningsmätning, inte ett kallt researchflöde.
+Ingen helindexlistning eller radering kördes. Tiderna kan inte jämföras som hela
+researchtider med den tidigare inventeringskostnaden på 17,53 sekunder.
