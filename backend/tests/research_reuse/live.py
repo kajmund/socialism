@@ -1,6 +1,7 @@
 """Real-service step runner. CI calls the same probes with mocked boundaries."""
 
 from dataclasses import asdict, replace
+from contextlib import AsyncExitStack
 from pathlib import Path
 from time import perf_counter
 
@@ -14,6 +15,9 @@ from app.llm.legal_research import LlmLegalInterpreter
 from app.llm.runtime_override import current_runtime
 from app.services.execution import get_attempt, get_run, list_runtime_needs, runtime_need_from_row
 from app.services.knowledge.embeddings import OpenAIEmbeddingProvider
+from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
+from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
+from app.services.knowledge.vector_store import SupabaseVectorBucketStore
 from app.services.lagen_nu.mcp_client import OfficialLagenNuMcpClient
 from app.services.lagen_nu.research_source import LagenNuResearchSource
 from app.services.llm_runtime_settings import get_default_configuration, load_runtime_settings
@@ -105,18 +109,25 @@ async def workload(factory, attempt_id: str, need_id: str | None):
 async def fetch_gap(factory, row, context):
     if len(row.source_types) != 1:
         raise ValueError("The selected source probe must request exactly one source type")
-    client = OfficialLagenNuMcpClient()
-    try:
+    async with AsyncExitStack() as resources:
+        client = OfficialLagenNuMcpClient()
+        resources.push_async_callback(client.aclose)
+        runtime = await start_supabase_vector_runtime(settings)
+        resources.push_async_callback(runtime.close)
+        session = await resources.enter_async_context(factory())
         source = LagenNuResearchSource(
             source_type=row.source_types[0],
             client=client,
             selector=LlmLagenNuSelector(session_factory=factory),
             interpreter=LlmLegalInterpreter(session_factory=factory),
+            session=session,
+            embeddings=GraphEmbeddingCacheProvider(factory, OpenAIEmbeddingProvider.from_settings()),
+            vector_store=SupabaseVectorBucketStore(runtime.client),
         )
-        # Source-only probe: no provider ingestion, vector upsert or attempt mutation.
-        return await source.research(row.as_need(), context)
-    finally:
-        await client.aclose()
+        result = await source.research(row.as_need(), context)
+        # Own only provider/cache writes; no attempt or worker is started by this probe.
+        await session.commit()
+        return result
 
 
 async def run_step(stage, *, factory, target, paths, timings, fetch_index=None):

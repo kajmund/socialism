@@ -31,17 +31,25 @@ def test_ci_refuses_unmocked_network_connections():
             connection.connect(("127.0.0.1", 9))
 
 
-async def test_real_source_probe_releases_pool_and_closes_client(reuse_db, monkeypatch):
+@pytest.mark.parametrize("outcome", ["success", "error", "cancel"])
+async def test_real_source_probe_releases_pool_and_closes_clients(reuse_db, monkeypatch, outcome):
     client = SimpleNamespace(aclose=AsyncMock())
     monkeypatch.setattr(live, "OfficialLagenNuMcpClient", lambda: client)
+    runtime = SimpleNamespace(client=SimpleNamespace(), close=AsyncMock())
+    monkeypatch.setattr(live, "start_supabase_vector_runtime", AsyncMock(return_value=runtime))
     constructed = []
 
     def source_factory(**kwargs):
         constructed.append(kwargs)
 
         async def research(_need, _context):
+            assert not kwargs["session"].in_transaction()
             async with reuse_db() as other:
                 assert await asyncio.wait_for(other.scalar(text("SELECT 1")), timeout=1) == 1
+            if outcome == "error":
+                raise RuntimeError("Source failed")
+            if outcome == "cancel":
+                raise asyncio.CancelledError()
             return [evidence()]
 
         return SimpleNamespace(research=research)
@@ -51,12 +59,20 @@ async def test_real_source_probe_releases_pool_and_closes_client(reuse_db, monke
     from app.services.research.models import ResearchPlan
 
     row = runtime_needs_from_plan(ResearchPlan(needs=[need()]))[0]
-    result = await live.fetch_gap(reuse_db, row, context())
-    assert result[0].source_id == "law"
-    assert "session" not in constructed[0], (
-        "Source probe must not hold a DB session during retrieval"
-    )
+    if outcome == "success":
+        result = await live.fetch_gap(reuse_db, row, context())
+        assert result[0].source_id == "law"
+    else:
+        failure = RuntimeError if outcome == "error" else asyncio.CancelledError
+        with pytest.raises(failure):
+            await live.fetch_gap(reuse_db, row, context())
+    assert constructed[0]["session"] is not None
+    assert constructed[0]["embeddings"] is not None
+    assert constructed[0]["vector_store"]._client is runtime.client
     client.aclose.assert_awaited_once()
+    runtime.close.assert_awaited_once()
+    async with reuse_db() as other:
+        assert await other.scalar(text("SELECT 1")) == 1
 
 
 def test_replay_preserves_evidence_and_rejects_other_scope_and_changed_parent(tmp_path):
