@@ -10,11 +10,12 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.graph_v2 import GraphFact, GraphFactQuestionDependency, GraphFactSource, GraphNode
-from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund, TextUnitRecord
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund
 from app.services.knowledge.models import KnowledgeScope
 from app.services.research.graph_grounding import GraphResearchError
 from app.services.research.graph_reuse import GraphQueryEmbedding, lookup_graph_evidence as read_graph_evidence
 from app.services.research.models import ResearchContext, ResearchNeed
+from tests.text_unit_fakes import persisted_text_unit
 
 NOW = datetime.now(UTC)
 
@@ -102,13 +103,12 @@ async def seed_fact(
     )
     session.add(version)
     await session.flush()
-    unit = TextUnitRecord(
+    unit = await persisted_text_unit(session,
         id=f"unit-{suffix}",
         document_id=document.id,
         document_version_id=version.id,
         ordinal=0,
         text="36 § avtalslagen senare lagändringar i förarbetena.",
-        content_hash="unit-hash",
         locator="a4.2",
         ingested_at=NOW,
         **source_fields,

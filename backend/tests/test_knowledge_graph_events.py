@@ -11,7 +11,6 @@ from app.database.models import (
     CanonicalDocumentRecord,
     DocumentVersionRecord,
     Kund,
-    TextUnitRecord,
 )
 from app.services.knowledge.claims import (
     KnowledgeClaim,
@@ -31,6 +30,7 @@ from app.services.knowledge.relationships import (
     knowledge_relationship,
     persist_knowledge_relationship,
 )
+from tests.text_unit_fakes import persisted_text_unit
 
 
 @pytest.fixture
@@ -72,7 +72,7 @@ async def _document(session: AsyncSession) -> None:
         )
     )
     session.add(
-        TextUnitRecord(
+        await persisted_text_unit(session,
             id="tu-hold",
             document_version_id="ver-a",
             document_id="doc-a",
@@ -80,7 +80,6 @@ async def _document(session: AsyncSession) -> None:
             section_id=None,
             ordinal=0,
             text="The court held X.",
-            content_hash="tu-hold",
         )
     )
     await session.flush()

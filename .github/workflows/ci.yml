@@ -184,6 +184,10 @@ jobs:
         run: uv sync --frozen
       - name: Apply all Alembic migrations
         run: uv run alembic upgrade head
+      - name: Verify shared chunk migration and concurrent ingestion
+        env:
+          TEST_SHARED_CHUNK_POSTGRES_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/socialism_test
+        run: uv run pytest tests/test_shared_chunk_postgres.py -m integration
       - name: Verify LLM configuration table is protected
         run: |
           uv run python - <<'PYCODE'
