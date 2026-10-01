@@ -34,6 +34,60 @@ Assessorgränsen kontrollerar att underlaget kommer från sparade svarsepisoder
 och att den enda databaskopplingen är ledig. Samma förbjudna käll-, chunk-,
 index- och TTL-gränser används som i huvudfrågetestet. Ingen ny fråga får skapas.
 
+## Bedömningens källunderlag
+
+`test_assessment_input.py` kontrollerar bedömningens kompakta inmatning.
+Assessorn får hela de redan utvalda källutdragen, utan den tidigare kapningen
+vid 2 000 tecken. Identiska stycken skickas en gång i `passages`; varje
+evidensrad har ordnade `passage_ids`. Sammanfogning ger exakt originalutdraget,
+inklusive Unicode och blanksteg. Detta ändrar bara modellens inmatning:
+dokument, chunks, SHA, embeddings och sparade källreferenser ändras inte.
+Tidigare begränsningar vid hämtning/tolkning kan fortfarande finnas och deras
+markeringar bevaras. Fullständighetsbedömningens separata adapter ändras inte.
+
+Källor med samma text behåller olika källidentiteter. Korta `evidence_id` och
+`source_id` gäller endast det aktuella modellanropet. Stödreferenser översätts
+till original-ID innan den vanliga kontrollen av frågetillhörighet körs.
+Passage-ID och okända stödreferenser kan inte bli källhänvisningar. Strukturerad
+juridisk analys, verifierade citat, claims, kvalitetsvarningar och tidsmarkeringar
+bevaras. Opaque lagringsreferenser, anropsdiagnostik och tidigare svarsbetyg
+ingår inte i modellunderlaget. `graph_fact_text` är en utsaga att kontrollera
+mot källpassagerna, inte självständigt belägg.
+
+Formatinstruktionerna ligger i `research_assessment_prompt.py` och ingår via
+`prompt_catalog.py` i modulernas vanliga databas-seed. Testerna seedar en tom
+databas för dd, politik och expertgranskning. Runtime läser fortsatt prompten
+från databasen. Befintliga prompttexter och kundöverskrivningar uppdateras inte
+av seed: uppdatera `research.assessment.system` uttryckligen vid införandet.
+Modellvalet ändras inte av denna optimering.
+
+### Isolerad Qwen-mätning 2026-10-02
+
+Samma sparade underlag från research `b0187407f2d54abfb7b83ee2f7d190ff`
+(21 evidensposter, 16 granskningsgrupper) bedömdes med konfiguration 3,
+Qwen 3.8 27B och medium reasoning. De nya katalogprompterna seedades i en
+isolerad SQLite-databas för förhandskontrollen; produktionsprompterna ändrades
+inte. Huvud-/underfrågan med stöd, en fråga om HD-avgöranden 2026 utan stöd
+och ett underlag med bara en källtitel kördes två gånger vardera. Dessa åtta
+kontroller kompletterades med två kontroller av beslut med oförenliga datum.
+Alla tio förväntade utfall passerade med originalreferenser efter översättningen.
+Inga källor hämtades och inga research- eller grafposter skrevs.
+
+| Mått för de fyra positiva kontrollerna | Före | Efter |
+| --- | --- | --- |
+| Median inmatningstokens | 38 627 | 32 149,5 |
+| Median bedömningstid | 5,29 s | 5,16 s |
+| Tillgänglig utvald källtext | 31 145 tecken efter kapning | 101 525 tecken, delad som 59 131 unika tecken |
+
+Originalutdrag rekonstruerades exakt i alla 16 grupper. Färre tokens trots
+mer källtext är den säkra observationen; en stabil tidsvinst har inte visats.
+Jämförelsen avser samma frysta evidens men olika serialisering och
+formatinstruktioner. Den är inte en mätning av hela researchkedjan eller ett
+bevis för generell bedömningskvalitet. En tidigare iteration stoppade ett
+tillräckligt svar eftersom modellen klassade en förenlig skillnad i betoning
+som motsägelse. Prompten skiljer nu sakmotsägelser från nyanser i rationale;
+återanvändningskontrollen blockerar fortfarande rapporterade sakmotsägelser.
+
 ## CI och snabb lokal verifiering
 
 Från `backend/`:

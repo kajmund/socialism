@@ -28,7 +28,11 @@ async def test_model_assesses_the_exact_question_and_graph_evidence(reuse_db, su
     result = await assess(reuse_db, need(), [evidence()], context(), builder=builder)
     messages = completer.call_args.args[0]
     assert need().question in messages[1]["content"]
-    assert evidence().evidence_id in messages[1]["content"]
+    assert "e0" in messages[1]["content"]
+    assert evidence().evidence_id not in messages[1]["content"]
+    assert result.need_assessments[0].supporting_evidence_ids == (
+        [evidence().evidence_id] if sufficient else []
+    )
     assert result.result == ("sufficient" if sufficient else "insufficient")
 
 
