@@ -21,6 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from app.database.base import Base
+from app.database.text_units import TextUnitRecord as TextUnitRecord
 from app.database.knowledge_observation import KnowledgeObservationRecord as KnowledgeObservationRecord
 
 
@@ -1790,65 +1791,6 @@ class DocumentSectionRecord(Base):
     text_units: Mapped[list["TextUnitRecord"]] = relationship(back_populates="section")
 
 
-class TextUnitRecord(Base):
-    """Canonical passage. Claims, Q&A, and research ground here."""
-
-    __tablename__ = "text_units"
-    __table_args__ = (
-        Index("ix_text_units_document_ordinal", "document_id", "ordinal"),
-        Index("ix_text_units_version_ordinal", "document_version_id", "ordinal"),
-        Index("ix_text_units_content_hash", "content_hash"),
-        CheckConstraint(
-            "(scope_type = 'shared' AND customer_id IS NULL AND scope_key = 'shared') OR "
-            "(scope_type = 'customer' AND customer_id IS NOT NULL AND "
-            "scope_key = 'customer:' || customer_id)",
-            name="ck_text_units_knowledge_scope",
-        ),
-    )
-
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    scope_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
-    scope_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    customer_id: Mapped[int | None] = mapped_column(
-        ForeignKey("kunder.id", ondelete="RESTRICT"),
-        nullable=True,
-        index=True,
-    )
-    document_version_id: Mapped[str] = mapped_column(
-        ForeignKey("document_versions.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    document_id: Mapped[str] = mapped_column(
-        ForeignKey("canonical_documents.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    section_id: Mapped[str | None] = mapped_column(
-        ForeignKey("document_sections.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
-    text: Mapped[str] = mapped_column(Text, nullable=False)
-    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    locator: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    char_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    char_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    ingested_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-    )
-    embedding_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-
-    document_version: Mapped[DocumentVersionRecord] = relationship(back_populates="text_units")
-    section: Mapped[DocumentSectionRecord | None] = relationship(back_populates="text_units")
 
 
 class DocumentKnowledgeItemTextUnit(Base):

@@ -17,6 +17,7 @@ from app.database.models import (
 )
 from app.serializers import utcnow
 from app.services.knowledge.claim_store import prune_unsupported_claims
+from app.services.knowledge.shared_chunks import resolve_shared_chunks
 from app.services.knowledge.scope import (
     KnowledgeTenantScope,
     persist_scope_fields,
@@ -269,6 +270,7 @@ async def _insert_text_units(  # noqa: PLR0917
     scope: KnowledgeTenantScope,
 ) -> None:
     fields = persist_scope_fields(scope)
+    chunks = await resolve_shared_chunks(session, [(unit.content_hash, unit.text) for unit in units])
     for unit in units:
         session.add(
             TextUnitRecord(
@@ -277,7 +279,7 @@ async def _insert_text_units(  # noqa: PLR0917
                 document_id=version.document_id,
                 section_id=unit.section_id,
                 ordinal=unit.ordinal,
-                text=unit.text,
+                chunk=chunks[unit.content_hash],
                 content_hash=unit.content_hash,
                 locator=unit.locator,
                 page_start=unit.page_start,

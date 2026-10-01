@@ -32,6 +32,7 @@ from tests.test_lagen_nu_provider import (
     _hit,
 )
 from tests.test_research import _context, _need
+from tests.text_unit_fakes import text_unit_record
 
 URI = "https://lagen.nu/dom/nja/2005s142"
 REASONING = (
@@ -61,7 +62,7 @@ def _unit(
     document_id: str = "d1",
     document_version_id: str = "v1",
 ) -> TextUnitRecord:
-    return TextUnitRecord(
+    return text_unit_record(
         id=unit_id,
         document_version_id=document_version_id,
         document_id=document_id,
@@ -69,7 +70,6 @@ def _unit(
         section_id=section_id,
         ordinal=ordinal,
         text=text,
-        content_hash=unit_id,
     )
 
 

@@ -46,7 +46,40 @@ lookup is attempted. The existing SQL column `normalized_text_hash` holds the
 exact input hash for this new purpose. Already materialized TextUnit/index
 vectors and graph-fact vectors are not migrated or recomputed by this change.
 Different documents retain their own TextUnits and vector projections even
-when an embedding is reused; shared physical text storage is a separate step.
+when an embedding is reused.
+
+## Shared chunk text and temporal occurrences
+
+`shared_text_chunks` stores exact text once, keyed by SHA-256 of its UTF-8 bytes.
+Each `text_units` row references that content and retains its own document,
+version, scope, locator, ordinal and temporal metadata. Shared content has no
+tenant or provenance fields and is not a retrieval or authorization boundary;
+reads still select scoped TextUnits. PostgreSQL RLS and revoked client-role
+grants keep the content table backend-only.
+
+Ingestion validates the incoming SHA before writing, resolves overlapping
+batches in sorted hash order, and rejects an existing hash with different text.
+Database triggers reject changes to stored content and retargeting an existing
+TextUnit to different content. A source changing A → B → A creates a third
+version occurrence referencing the original A chunk, preserving the earlier
+version history. Removing one occurrence does not delete shared text or other
+documents' references; no customer-material deletion API is introduced here.
+
+Text is eagerly joined when TextUnits are loaded, so it is materialized before
+the database connection is released for embedding or vector-store work. The
+embedding cache remains independently keyed by model, revision, dimension,
+purpose and exact-text SHA. Vector projections still carry document-specific
+text and provenance; their storage and replacement behavior are unchanged.
+The Jev/TTL answer-review pipeline is unchanged.
+
+Migration `e8c2f4a1b6d0` validates all existing TextUnit hashes, copies unique
+text into the shared table and replaces the old text column with a foreign key.
+It preserves TextUnit IDs, supporting references and version metadata without
+embedding calls or vector reindexing. A mismatched hash aborts rather than
+rehashing historical identities. PostgreSQL locks the affected table during
+the migration; SQLite requires foreign keys disabled on the migration
+connection before its batch-table rewrite, to preserve incoming references.
+Downgrade reconstructs each occurrence's text from the shared table.
 
 ## Retrieval and portability
 

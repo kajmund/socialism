@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import KnowledgeClaimRecord, KnowledgeClaimTextUnit, Kund, TextUnitRecord
+from app.database.models import KnowledgeClaimRecord, KnowledgeClaimTextUnit, Kund
 from app.services.knowledge.claims import (
     SUPPORTED_BY,
     KnowledgeClaim,
@@ -19,6 +19,7 @@ from app.services.knowledge.claims import (
     supporting_text_unit_ids_for_quote,
 )
 from app.services.knowledge.units import TextUnit
+from tests.text_unit_fakes import persisted_text_unit
 
 
 def _passage(unit_id: str, text: str) -> TextUnit:
@@ -101,7 +102,7 @@ async def _persist_supported_claim(session: AsyncSession):
         )
     )
     session.add(
-        TextUnitRecord(
+        await persisted_text_unit(session,
             id="tu-hold",
             document_version_id="ver-a",
             document_id="doc-a",
@@ -109,7 +110,6 @@ async def _persist_supported_claim(session: AsyncSession):
             section_id=None,
             ordinal=0,
             text="The court held that the clause was not adjusted.",
-            content_hash="tu-hold",
         )
     )
     await session.flush()
