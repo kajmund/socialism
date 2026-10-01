@@ -18,7 +18,6 @@ from app.database.models import (
     KnowledgeGraphEventRecord,
     KnowledgeRelationshipRecord,
     Kund,
-    TextUnitRecord,
 )
 from app.services.knowledge.audit import audit_knowledge_graph, cleanup_knowledge_graph
 from app.services.knowledge.claim_rekey import backfill_source_independent_claims
@@ -42,6 +41,7 @@ from app.services.knowledge.persistence_class import (
 )
 from app.services.knowledge.relationships import ABOUT, knowledge_relationship
 from app.services.lagen_nu.graph_writeback import PendingGraphWrite, persist_pending_graph_writes
+from tests.text_unit_fakes import persisted_text_unit
 
 
 def test_normalized_assertion_ignores_llm_prose_and_run_ids():
@@ -156,7 +156,7 @@ async def _document(session: AsyncSession) -> None:
         )
     )
     session.add(
-        TextUnitRecord(
+        await persisted_text_unit(session,
             id="tu-hold",
             document_version_id="ver-a",
             document_id="doc-a",
@@ -164,11 +164,10 @@ async def _document(session: AsyncSession) -> None:
             section_id=None,
             ordinal=0,
             text="The court held that the clause was not adjusted.",
-            content_hash="tu-hold",
         )
     )
     session.add(
-        TextUnitRecord(
+        await persisted_text_unit(session,
             id="tu-extra",
             document_version_id="ver-a",
             document_id="doc-a",
@@ -176,7 +175,6 @@ async def _document(session: AsyncSession) -> None:
             section_id=None,
             ordinal=1,
             text="The lease was signed in 1998.",
-            content_hash="tu-extra",
         )
     )
     await session.flush()
@@ -204,7 +202,7 @@ async def _second_document(session: AsyncSession) -> None:
         )
     )
     session.add(
-        TextUnitRecord(
+        await persisted_text_unit(session,
             id="tu-b",
             document_version_id="ver-b",
             document_id="doc-b",
@@ -212,7 +210,6 @@ async def _second_document(session: AsyncSession) -> None:
             section_id=None,
             ordinal=0,
             text="The court held that the clause was not adjusted.",
-            content_hash="tu-b",
         )
     )
     await session.flush()

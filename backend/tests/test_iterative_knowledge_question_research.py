@@ -13,7 +13,6 @@ from app.database.models import (
     DocumentVersionRecord,
     KnowledgeQuestionLineage,
     KnowledgeQuestionRow,
-    TextUnitRecord,
 )
 from app.services.execution import (
     create_attempt,
@@ -49,6 +48,7 @@ from tests.test_research_assessment import RecordingAssessor, _fixed_draft
 from tests.test_research_execution import RecordingSource, _created_attempt, _need, _router
 from tests.test_research_loop import ScriptedPlanner, SequenceAssessor, _follow_up
 from tests.test_research_question_evidence import RecordingSource as PassageSource
+from tests.text_unit_fakes import persisted_text_unit
 
 ROOT_QUESTION = "What is the published rate?"
 FOLLOW_UP_QUESTION = "Which source states the published rate?"
@@ -106,7 +106,7 @@ async def _seed_claim(
             )
         )
         session.add(
-            TextUnitRecord(
+            await persisted_text_unit(session,
                 id=f"tu-{doc_id}",
                 document_version_id=f"ver-{doc_id}",
                 document_id=doc_id,
@@ -114,7 +114,6 @@ async def _seed_claim(
                 section_id=None,
                 ordinal=0,
                 text=unit_text,
-                content_hash=f"tu-{doc_id}",
             )
         )
         await session.flush()
