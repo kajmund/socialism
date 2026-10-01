@@ -17,6 +17,16 @@ läser legacy claims eller Question→Evidence-länkar.
 | 3 | `test_03_remaining_gaps.py` | Planera bara luckor; köa inte samma kanoniska fråga igen. |
 | 4 | `test_04_main_answer.py` | Bevara komplett respektive partiellt svar och gör huvudsvaret återanvändbart i Graph v2. |
 
+`test_01_sufficient_knowledge.py` verifierar dessutom det första kontraktet genom
+hela produktionsflödet: tillräckligt grundad Graph-kunskap avslutar huvudfrågan,
+och nästa körning återanvänder dess sparade svar. Källhämtning, dokumentinläsning,
+chunkning, vektorindexering och följdfrågeplanering får inte anropas. Dokument-
+och TextUnit-antal samt versionshänvisningar bevaras. Frågans embedding tillåts
+för retrieval; inga källtexter får skickas för embedding. TTL-underlaget fångas
+utan Jev-anrop och samma svarsversion behåller sin granskningspost. Bedömningen
+mockas: testet verifierar flödeskontraktet, inte juridisk svarskvalitet eller att
+temporal historiksökning och hashåteranvändning redan är fullständigt implementerade.
+
 ## CI och snabb lokal verifiering
 
 Från `backend/`:
