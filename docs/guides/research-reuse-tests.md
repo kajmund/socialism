@@ -247,6 +247,30 @@ Modell, revision och dimension måste också matcha. Den nya cacheversionen
 Fel och avbrott frigör cacheleasen och databaskopplingen utan att skriva vektorer.
 En pool med en enda koppling kontrollerar embedding- och indexeringsgränserna.
 CI mockar tjänsterna; testerna verifierar inte embeddingmodellens kvalitet.
-Återanvändningen delar embeddingberäkningen, medan text och vektorprojektioner
-ännu lagras per dokument. Gemensam textlagring och migrering av befintliga
-indexvektorer ingår inte i detta kontrakt.
+Återanvändningen delar embeddingberäkningen. Vektorprojektionerna lagras
+fortfarande per dokument; befintliga indexvektorer migreras inte.
+
+`test_04_shared_chunks.py` kontrollerar dessutom gemensam SQL-textlagring med
+separata dokument- och versionsrelationer: identiska och delvis överlappande
+dokument, versionsföljden A → B → A, samtidiga skrivningar, oföränderliga
+chunktexter och innehållsreferenser samt bevarade chunks när en relation tas bort.
+Texten ska vara läsbar efter att databassessionen stängts. Samma testgrupp
+kontrollerar att externa anrop kan låna den enda databaskopplingen.
+
+`tests/test_shared_chunk_migration.py` verifierar SQLite-migrering och downgrade
+med befintliga källhänvisningar samt att felaktiga SHA stoppar migreringen.
+PostgreSQL-jobbet i CI kör hela migreringskedjan och därefter
+`tests/test_shared_chunk_postgres.py`, inklusive riktig samtidig ingestion.
+LLM-, embedding- och indextjänster mockas även där.
+
+PostgreSQL-kontrollerna kan köras isolerat mot en testdatabas:
+
+```sh
+TEST_SHARED_CHUNK_POSTGRES_URL=postgresql+psycopg://USER:PASSWORD@HOST:PORT/TEST_DATABASE \
+  uv run pytest tests/test_shared_chunk_postgres.py -m integration
+```
+
+Testerna skapar och tar bort egna tillfälliga scheman; kontot måste få skapa
+scheman. De ändrar inte befintliga applikationstabeller och anropar inga externa
+modelltjänster. Utan denna variabel hoppas dessa två PostgreSQL-tester över;
+SQLite-kontrakten och CI:s obligatoriska PostgreSQL-jobb körs som vanligt.

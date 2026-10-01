@@ -17,7 +17,6 @@ from app.database.models import (
     EvidenceSetItem,
     EvidenceSetRevalidation,
     Kund,
-    TextUnitRecord,
 )
 from app.jev.system import JevClientError, JevSystemOneResult, JevUsage
 from app.services.execution import (
@@ -48,6 +47,7 @@ from app.services.knowledge.revalidation import (
 )
 from app.services.research import research_evidence
 from app.services.research.knowledge_question import research_question_key
+from tests.text_unit_fakes import persisted_text_unit
 
 QUESTION = "Jämkades villkoret enligt 36 §?"
 
@@ -169,7 +169,7 @@ async def _setup_frozen_set(session: AsyncSession, *, excerpt: str = "old holdin
         )
     )
     session.add(
-        TextUnitRecord(
+        await persisted_text_unit(session,
             id="tu-hold",
             document_version_id="ver-a",
             document_id="doc-a",
@@ -177,11 +177,10 @@ async def _setup_frozen_set(session: AsyncSession, *, excerpt: str = "old holdin
             section_id=None,
             ordinal=0,
             text="HD ansåg X",
-            content_hash="tu-hold",
         )
     )
     session.add(
-        TextUnitRecord(
+        await persisted_text_unit(session,
             id="tu-other",
             document_version_id="ver-a",
             document_id="doc-a",
@@ -189,7 +188,6 @@ async def _setup_frozen_set(session: AsyncSession, *, excerpt: str = "old holdin
             section_id=None,
             ordinal=1,
             text="Irrelevant passage",
-            content_hash="tu-other",
         )
     )
     await session.flush()
