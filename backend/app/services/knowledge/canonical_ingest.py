@@ -128,7 +128,7 @@ async def ingest_extracted_source(  # noqa: PLR0913
             document_version_id=persisted.version.id,
             units=units,
         ):
-            await _embed_and_replace(
+            await _embed_and_upsert(
                 embeddings=embeddings,
                 vector_store=vector_store,
                 document=resolved_document,
@@ -145,7 +145,7 @@ async def ingest_extracted_source(  # noqa: PLR0913
             segmented=segmented,
         )
 
-    await _embed_and_replace(
+    await _embed_and_upsert(
         embeddings=embeddings,
         vector_store=vector_store,
         document=resolved_document,
@@ -173,9 +173,42 @@ async def index_missing_persisted_documents(
     Returns ``(documents_written, documents_already_present)``. Documents with
     no current version are left untouched.
     """
-    rows = list((await session.execute(select(CanonicalDocumentRecord))).scalars().all())
+    if session.in_transaction():
+        raise RuntimeError("Index repair requires a session without an active transaction")
+    try:
+        inputs = await _current_index_inputs(session)
+    finally:
+        await session.rollback()
     written = 0
     present = 0
+    for document, units in inputs:
+        if await _index_has_text_units(
+            vector_store,
+            document_id=document.document_id,
+            document_version_id=units[0].document_version_id,
+            units=units,
+        ):
+            present += 1
+            continue
+        await _embed_and_upsert(
+            embeddings=embeddings,
+            vector_store=vector_store,
+            document=document,
+            units=units,
+        )
+        written += 1
+    return written, present
+
+
+async def _current_index_inputs(
+    session: AsyncSession,
+    document_id: str | None = None,
+) -> list[tuple[KnowledgeDocument, list[TextUnit]]]:
+    statement = select(CanonicalDocumentRecord)
+    if document_id is not None:
+        statement = statement.where(CanonicalDocumentRecord.id == document_id)
+    rows = list(await session.scalars(statement))
+    inputs = []
     for row in rows:
         version = await get_current_document_version(session, row.id)
         if version is None:
@@ -198,22 +231,8 @@ async def index_missing_persisted_documents(
             source_type=row.source_type,
             canonical_uri=row.canonical_uri,
         )
-        if await _index_has_text_units(
-            vector_store,
-            document_id=row.id,
-            document_version_id=version.id,
-            units=units,
-        ):
-            present += 1
-            continue
-        await _embed_and_replace(
-            embeddings=embeddings,
-            vector_store=vector_store,
-            document=document,
-            units=units,
-        )
-        written += 1
-    return written, present
+        inputs.append((document, units))
+    return inputs
 
 
 async def _index_has_text_units(
@@ -236,7 +255,7 @@ async def _index_has_text_units(
     return True
 
 
-async def _embed_and_replace(
+async def _embed_and_upsert(
     *,
     embeddings: EmbeddingProvider,
     vector_store: KnowledgeVectorStore,
@@ -249,8 +268,9 @@ async def _embed_and_replace(
             f"EmbeddingProvider returned {len(vectors)} vectors for {len(units)} text units"
         )
     chunks = [text_unit_to_chunk(unit, document) for unit in units]
-    await vector_store.replace_document_chunks(
-        document.document_id,
+    # TextUnit IDs belong to a temporal occurrence. Keep earlier projections
+    # addressable by their frozen source IDs; no document-wide scan or delete.
+    await vector_store.upsert_chunks(
         [
             EmbeddedKnowledgeChunk(chunk=chunk, embedding=vector)
             for chunk, vector in zip(chunks, vectors, strict=True)
