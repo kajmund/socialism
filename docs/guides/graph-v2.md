@@ -69,8 +69,21 @@ Text is eagerly joined when TextUnits are loaded, so it is materialized before
 the database connection is released for embedding or vector-store work. The
 embedding cache remains independently keyed by model, revision, dimension,
 purpose and exact-text SHA. Vector projections still carry document-specific
-text and provenance; their storage and replacement behavior are unchanged.
+text and provenance. Canonical source ingestion writes the new occurrence's
+known keys directly with `upsert_chunks`, retaining earlier versions' vectors.
+It does not list the index or delete previous projections. Current source
+selection comes from SQL's current version; frozen historical source references
+can retrieve their own TextUnit vectors by exact document and chunk keys.
 The Jev/TTL answer-review pipeline is unchanged.
+
+Index repair materializes current document/TextUnit inputs, ends its read
+transaction and then checks or writes known keys. A supplied active transaction
+is rejected before any external call, preserving the caller's pending work.
+An interrupted index write propagates the error; replaying the persisted
+version checks the same keys and uses the embedding cache to complete it.
+Already-deleted historical vectors are not reconstructed by this change.
+Uploaded customer files and editable document-item indexes retain their
+existing replacement/deletion behavior; this change covers canonical sources.
 
 Migration `e8c2f4a1b6d0` validates all existing TextUnit hashes, copies unique
 text into the shared table and replaces the old text column with a foreign key.

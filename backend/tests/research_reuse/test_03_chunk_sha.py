@@ -70,13 +70,13 @@ async def lab(reuse_db):
 
     inner.embed = AsyncMock(side_effect=embed)
     store = MemoryKnowledgeVectorStore()
-    original_replace = store.replace_document_chunks
+    original_upsert = store.upsert_chunks
 
-    async def replace(document_id, chunks):
+    async def upsert(chunks):
         await available_connection(reuse_db)
-        return await original_replace(document_id, chunks)
+        return await original_upsert(chunks)
 
-    store.replace_document_chunks = AsyncMock(side_effect=replace)
+    store.upsert_chunks = AsyncMock(side_effect=upsert)
     return Lab(reuse_db, store, inner)
 
 
@@ -194,4 +194,4 @@ async def test_embedding_failure_releases_connection_and_lease_without_indexing(
     rows = await lab.rows(GraphEmbeddingCache)
     assert len(rows) == 1 and rows[0].status == "pending"
     assert rows[0].lock_owner is None and rows[0].lock_expires_at is None
-    lab.store.replace_document_chunks.assert_not_awaited()
+    lab.store.upsert_chunks.assert_not_awaited()
