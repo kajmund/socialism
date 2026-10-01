@@ -27,6 +27,21 @@ utan Jev-anrop och samma svarsversion behåller sin granskningspost. Bedömninge
 mockas: testet verifierar flödeskontraktet, inte juridisk svarskvalitet eller att
 temporal historiksökning och hashåteranvändning redan är fullständigt implementerade.
 
+`test_02_cached_source.py` verifierar nästa övergång för både huvudfrågan och
+underfrågor: befintlig Graph-kunskap bedöms som otillräcklig, varefter lagen.nu-
+adaptern använder cachade TextUnits och deras sparade embeddings. Ny evidens
+bedöms därefter som tillräcklig. Dokumentversion, text, chunkarnas SHA-nycklar
+och källhänvisningar bevaras. Dokumenthämtning, ingestion, chunkning och
+ersättning av dokumentets vektorer får inte anropas. Saknade sparade vektorer
+ger ett uttryckligt källfel utan återhämtning eller om-embedding.
+
+Källsökning för att identifiera dokumentet, embedding av frågan, Jevs passageval
+och tolkning av texten kan fortfarande behövas: cachad text betyder inte att
+frågan redan är besvarad. CI mockar dessa externa gränser och själva bedömningen,
+men använder produktionsfunktionerna och en riktig testdatabas. Kontraktet gäller
+återanvändning inom samma dokumentversion; delade chunks mellan olika dokument
+och temporal invalidering behöver separata kontrakt.
+
 ## CI och snabb lokal verifiering
 
 Från `backend/`:
@@ -95,8 +110,13 @@ uv run python scripts/check_research_reuse.py --live --attempt-id ATTEMPT \
 
 Den valda luckan måste begära exakt en av lagen.nu:s källtyper. Detta kör riktig
 MCP-hämtning, passageval och tolkning med konfigurerade tjänster och prompts.
-Det startar ingen Attempt, ingen bakgrundsworker och ingen provider-ingestion
-eller vektorupsert. Källevidens med status `error` ger exitkod 1 och sparas
+Adaptern får sin databas, embeddingtjänst och vektorlagring, precis som vid vanlig
+källhämtning. Den återanvänder tillgängliga TextUnits och embeddings; vid en
+cachemiss kan den hämta texten, dela upp den, skapa embeddings och spara dokumentet samt skriva
+providerunderlag. Dessa ändringar committas. Den startar ingen Attempt eller
+bakgrundsworker. Resultatets `reused_text_units`, dokumentversion och TextUnit-ID:n
+visar när cachen användes; jämför kalla och varma körningar separat.
+Källevidens med status `error` ger exitkod 1 och sparas
 i resultatfilen; den ersätts inte med andra källor.
 
 `--step all` kör de fyra proberna i ordning; `--repeat N` mäter upprepningar.
