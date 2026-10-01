@@ -1,4 +1,5 @@
 import socket
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -42,3 +43,20 @@ async def graph_basis(reuse_db):
     async with reuse_db.begin() as session:
         await seed_fact(session)
     return reuse_db
+
+
+@pytest.fixture
+def no_source_work(monkeypatch):
+    calls = {}
+    boundaries = {
+        "fetch": "app.services.lagen_nu.mcp_client.OfficialLagenNuMcpClient.get_document",
+        "ingest": "app.services.lagen_nu.text_unit_research.ingest_lagen_nu_document",
+        "index": "app.services.knowledge.supabase_vector_client.SupabaseStorageVectorClient.upsert",
+        "ttl": "app.services.knowledge.answer_review_classification.classify_pending_reviews",
+    }
+    for label, path in boundaries.items():
+        calls[label] = AsyncMock(side_effect=AssertionError(f"Unexpected {label}"))
+        monkeypatch.setattr(path, calls[label])
+    calls["chunk"] = Mock(side_effect=AssertionError("Unexpected chunking"))
+    monkeypatch.setattr("app.services.knowledge.chunking.KnowledgeChunker.segment", calls["chunk"])
+    return calls
