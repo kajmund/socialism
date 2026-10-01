@@ -31,10 +31,22 @@ embedding; unresolved fact texts are embedded as one batch and only locally
 shortlisted ambiguous nodes/facts reach the semantic judge.
 
 `graph_embedding_cache` is shared across tenants and content-addressed by model,
-the configured `EMBEDDING_MODEL_REVISION`, dimension, purpose and normalized-text hash. It stores no tenant,
+the configured `EMBEDDING_MODEL_REVISION`, dimension, purpose and SHA-256 of the
+exact UTF-8 input. The embedding service receives that same unmodified input:
+case, whitespace, punctuation and Unicode representation are not normalized.
+This applies to source chunks, queries and fact texts using this shared adapter;
+normalized graph edge identity remains a separate concern. It stores no tenant,
 source, run, provenance or raw text. Database leases coordinate simultaneous
 cache misses across workers; changing the model revision produces a new cache
 entry without rewriting graph facts.
+
+The default purpose is `text.exact.v2`, which does not read the old normalized
+`text.v1` namespace. Old cache rows remain available for inspection; no legacy
+lookup is attempted. The existing SQL column `normalized_text_hash` holds the
+exact input hash for this new purpose. Already materialized TextUnit/index
+vectors and graph-fact vectors are not migrated or recomputed by this change.
+Different documents retain their own TextUnits and vector projections even
+when an embedding is reused; shared physical text storage is a separate step.
 
 ## Retrieval and portability
 

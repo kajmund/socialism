@@ -32,14 +32,14 @@ async def test_content_addressed_cache_batches_misses_and_reuses_across_instance
     provider = CountingEmbedder()
 
     first = GraphEmbeddingCacheProvider(factory, provider)
-    vectors = await first.embed(["  Same   fact. ", "another fact", "same fact"])
+    vectors = await first.embed(["  Same   fact. ", "another fact", "  Same   fact. "])
     assert vectors[0] == vectors[2]
-    assert provider.batches == [["same fact", "another fact"]]
+    assert provider.batches == [["  Same   fact. ", "another fact"]]
 
     # A fresh provider (and thus no process-local state) reads the durable vector.
     second = GraphEmbeddingCacheProvider(factory, provider)
-    assert await second.embed(["same fact"]) == [vectors[0]]
-    assert provider.batches == [["same fact", "another fact"]]
+    assert await second.embed(["  Same   fact. "]) == [vectors[0]]
+    assert provider.batches == [["  Same   fact. ", "another fact"]]
     async with factory() as session:
         rows = list((await session.scalars(select(GraphEmbeddingCache))).all())
         assert len(rows) == 2
@@ -96,11 +96,11 @@ async def test_concurrent_cache_misses_use_one_provider_batch(tmp_path):
     cache = GraphEmbeddingCacheProvider(factory, inner)
     leader = asyncio.create_task(cache.embed(["Shared text"]))
     await inner.started.wait()
-    follower = asyncio.create_task(cache.embed(["shared text"]))
+    follower = asyncio.create_task(cache.embed(["Shared text"]))
     await asyncio.sleep(0.01)
     inner.release.set()
     assert await leader == await follower
-    assert inner.batches == [["shared text"]]
+    assert inner.batches == [["Shared text"]]
     await engine.dispose()
 
 
@@ -126,7 +126,7 @@ async def test_cancelling_a_waiter_does_not_cancel_the_shared_embedding(tmp_path
     cache = GraphEmbeddingCacheProvider(factory, inner)
     owner = asyncio.create_task(cache.embed(["A fact"]))
     await inner.started.wait()
-    waiter = asyncio.create_task(cache.embed(["a fact"]))
+    waiter = asyncio.create_task(cache.embed(["A fact"]))
     await asyncio.sleep(0.01)
     waiter.cancel()
     try:
@@ -135,7 +135,7 @@ async def test_cancelling_a_waiter_does_not_cancel_the_shared_embedding(tmp_path
         pass
     inner.release.set()
     assert await owner == [[1.0, 0.0, 0.0]]
-    assert inner.batches == [["a fact"]]
+    assert inner.batches == [["A fact"]]
     await engine.dispose()
 
 
@@ -163,12 +163,12 @@ async def test_independent_workers_share_a_content_lease(tmp_path):
     second = GraphEmbeddingCacheProvider(factory, second_provider)
     leader = asyncio.create_task(first.embed(["A shared representation"]))
     await first_provider.started.wait()
-    follower = asyncio.create_task(second.embed(["a shared representation"]))
+    follower = asyncio.create_task(second.embed(["A shared representation"]))
     await asyncio.sleep(0.1)
     first_provider.release.set()
     leader_vector, follower_vector = await asyncio.gather(leader, follower)
     assert leader_vector == follower_vector
-    assert first_provider.batches == [["a shared representation"]]
+    assert first_provider.batches == [["A shared representation"]]
     assert second_provider.batches == []
     await engine.dispose()
 
@@ -199,5 +199,5 @@ async def test_sqlite_projection_can_fill_cache_in_its_write_transaction(tmp_pat
     async with factory() as session:
         row = await session.scalar(select(GraphEmbeddingCache))
         assert row is not None and row.status == "ready"
-    assert inner.batches == [["a fact"]]
+    assert inner.batches == [["A fact"]]
     await engine.dispose()
