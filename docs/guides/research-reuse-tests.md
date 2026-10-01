@@ -27,6 +27,13 @@ utan Jev-anrop och samma svarsversion behåller sin granskningspost. Bedömninge
 mockas: testet verifierar flödeskontraktet, inte juridisk svarskvalitet eller att
 temporal historiksökning och hashåteranvändning redan är fullständigt implementerade.
 
+`test_01_saved_answer.py` verifierar fyra kombinationer genom produktionsflödet:
+ett tidigare huvud- respektive undersvar återanvänds som huvud- respektive
+underfråga. Kanonisk frågeidentitet och båda originalkällorna måste bevaras.
+Assessorgränsen kontrollerar att underlaget kommer från sparade svarsepisoder
+och att den enda databaskopplingen är ledig. Samma förbjudna käll-, chunk-,
+index- och TTL-gränser används som i huvudfrågetestet. Ingen ny fråga får skapas.
+
 ## CI och snabb lokal verifiering
 
 Från `backend/`:
@@ -104,6 +111,68 @@ i resultatfilen; den ersätts inte med andra källor.
 `backend/data/research_reuse_lab/ATTEMPT/NEED/` (eller `main/`).
 
 ## Replay och tidsmätning
+
+### Strikt prov av ett tillräckligt sparat svar
+
+För att verifiera just återanvändningen utan att köra en hel research:
+
+```sh
+python scripts/check_sufficient_answer_reuse.py --live --attempt-id ATTEMPT \
+  --need-id NEED --repeat 2 --output new-child-report.json
+python scripts/check_sufficient_answer_reuse.py --live --attempt-id ATTEMPT \
+  --need-id NEED --as-main --repeat 2 --output new-main-report.json
+```
+
+Utelämna `--need-id` för den ursprungliga huvudfrågan. `--as-main` prövar en
+sparad underfråga som ny huvudfråga med samma kanoniska identitet och
+huvudfrågans vanliga indata; det skapar ingen ny Attempt. Kontextens
+kund/case/modul bevaras. Ett undersvar kan räcka för just den frågan även när
+den tidigare researchens bredare huvudfråga fortfarande saknar ett komplett svar.
+
+Provet läser aktuell Graph v2 med den beständiga embeddingcachen och bedömer
+underlaget med den aktuella databasstyrda assessorn. Frågans embedding får
+återanvändas eller beräknas; ingen källtext embeddas. Minst en färsk sparad
+`research.answer` måste bidra med evidens. Därefter måste en ny bedömning passera
+produktionsflödets kontroll av sufficiens och giltiga stödreferenser.
+Vid tillräckligt stöd kontrolleras även att den vanliga luckfunktionen ger noll
+följdfrågor utan att skapa en planner. Ett tidigare `sufficient`-fält räcker
+alltså inte för att godkänna provet.
+
+Saknat sparat svar eller otillräckligt stöd ger exitkod 1. Provet stannar då;
+det hämtar inga nya källor och försöker inte fylla luckan. Modell- och databasfel
+fortplantas. Källhämtning, ingestion, chunkning och indexering ingår inte i
+provet; att hela orkestreringen avstår från dessa anrop verifieras av CI-testerna
+ovan. Provet publicerar inte svarsepisoder eller ändrar den tidigare researchen.
+Det kan skriva cacheposter för frågans embedding. Äldre research måste först
+ha publicerats via den ordinarie svarsfångsten från sitt frysta underlag;
+saknade episoder skapas inte automatiskt här.
+
+Rapporten sparar varje repetitions underlag, svarsfakt-ID:n, ny bedömning,
+modellstatistik och separata tider för embedding, grafhämtning och bedömning.
+En befintlig rapport skrivs inte över. CI testar även att provet avvisar
+otillräckliga bedömningar, påhittade stödreferenser och saknade sparade svar,
+med riktiga SQL-transaktioner och mockade modellgränser.
+
+Ett verkligt prov 2026-10-01 använde `need_2` från den frysta researchen
+`b0187407f2d54abfb7b83ee2f7d190ff`: frågan om förarbetenas uttalanden om
+36 § avtalslagens syfte och funktion. Dess underlag publicerades först genom
+ordinarie svarsfångst; två av researchens 15 svar var tillräckliga och resterande
+13 förblev partiella. Den bredare ursprungliga huvudfrågan förblev otillräcklig.
+Inga tidigare bedömningar eller researchstatusar ändrades.
+
+| Roll | Två prov godkända | Total tid | Bedömningstid |
+| --- | --- | --- | --- |
+| Underfråga | Ja | 47,25 / 29,25 s | 42,41 / 24,79 s |
+| Samma fråga som huvudfråga | Ja | 54,58 / 50,21 s | 47,74 / 43,97 s |
+
+Alla fyra prov hittade samma svarsfakt, fick en ny tillräcklig bedömning och
+gav noll följdfrågor. Modellstatistiken visade den konfigurerade assessorn
+`deepseek-v4-pro`, reasoning `high`, och cirka 33 000 indatatokens per prov.
+21 evidensposter lästes, varav 11 från det sparade svaret. Ingen modellinställning
+ändrades. De två rollproven kördes samtidigt, så tiderna är diagnostiska och
+utgör inte ett kontrollerat jämförande prestandatest.
+
+### Stegvisa ögonblicksbilder
 
 `step_1.json` sparar evidens, `step_2.json` bedömningen, `step_3.json` luckor och
 eventuell källevidens, `step_4.json` projektionens kontrollresultat.
