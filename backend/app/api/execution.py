@@ -103,6 +103,7 @@ from app.services.panel.attempt_execution import (
     validate_generic_panel_snapshots,
 )
 from app.services.prompt_store import require_active_prompts
+from app.services.execution.research_overview import need_assessment_view
 from app.services.research.assessment import need_assessment_from_json
 from app.services.research.completeness import (
     ResearchCompletenessError,
@@ -844,6 +845,7 @@ def _overview_sources(
                 derived=bool((item.provenance or {}).get("derived")),
                 failure_category=(item.provenance or {}).get("failure_category"),
                 id=item.id,
+                original_evidence_id=item.original_evidence_id,
                 passage_id=item.passage_id,
                 domain_result_id=item.domain_result_id,
                 raw_source_id=domain.raw_source_id if domain is not None else None,
@@ -887,20 +889,6 @@ def _items_for_need(
         for item in items_by_set.get(evidence_set_id, [])
         if research_need_id in need_ids_by_item.get(item.id, set())
     ]
-
-
-def _need_assessment_out(raw: object) -> ResearchNeedAssessmentOut | None:
-    if not raw:
-        return None
-    parsed = need_assessment_from_json(raw)
-    return ResearchNeedAssessmentOut(
-        research_need_id=parsed.research_need_id,
-        sufficient=parsed.sufficient,
-        supporting_evidence_ids=parsed.supporting_evidence_ids,
-        missing_or_weak=parsed.missing_or_weak,
-        contradictions=parsed.contradictions,
-        further_information=parsed.further_information,
-    )
 
 
 @router.get(
@@ -1068,36 +1056,49 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
         items_by_set.setdefault(item.evidence_set_id, []).append(item)
     assessment_by_attempt = {row.attempt_id: row for row in assessments}
 
+    need_attempt_ids = list(dict.fromkeys([attempt_id, *child_ids]))
+    runtime_needs = list(
+        (
+            await session.execute(
+                select(ResearchRuntimeNeed)
+                .where(ResearchRuntimeNeed.attempt_id.in_(need_attempt_ids))
+                .order_by(
+                    ResearchRuntimeNeed.wave_number,
+                    ResearchRuntimeNeed.created_at,
+                    ResearchRuntimeNeed.research_need_id,
+                )
+            )
+        ).scalars()
+    )
+    need_by_question = {
+        (need.attempt_id, need.knowledge_question_id): need
+        for need in runtime_needs
+        if need.knowledge_question_id
+    }
+    represented_needs: set[tuple[str, str]] = set()
     completed_question_ids = {row.id for row, _, _ in question_rows if row.status == "completed"}
     questions: list[ResearchQuestionOverviewOut] = []
     for row, question_text, specific_text in question_rows:
         child = child_by_id.get(row.execution_attempt_id or "")
-        items = (
-            [
-                item
-                for item in items_by_set.get(child.evidence_set_id, [])
-                if row.runtime_need_id in need_ids_by_item.get(item.id, set())
-            ]
-            if child and child.evidence_set_id and row.runtime_need_id
-            else []
+        need = need_by_question.get(
+            (child.id if child else attempt_id, row.knowledge_question_id)
         )
-        assessment = assessment_by_attempt.get(child.id) if child else None
-        need_assessment = (
-            next(
-                (
-                    item
-                    for item in (assessment.need_assessments or [])
-                    if item.get("research_need_id") == row.runtime_need_id
-                ),
-                None,
-            )
-            if assessment and row.runtime_need_id
-            else None
+        if need is not None:
+            represented_needs.add((need.attempt_id, need.research_need_id))
+        items = _items_for_need(
+            items_by_set,
+            need_ids_by_item,
+            evidence_set_id=child.evidence_set_id if child else attempt.evidence_set_id,
+            research_need_id=need.research_need_id if need else "",
+        )
+        assessment = assessment_by_attempt.get(need.attempt_id) if need else None
+        need_assessment = need_assessment_view(
+            assessment, need.research_need_id if need else ""
         )
         status = _research_question_display_status(
             raw_status=row.status,
             items=items,
-            need_sufficient=(need_assessment.get("sufficient") if need_assessment else None),
+            need_sufficient=(need_assessment.sufficient if need_assessment else None),
         )
         links = links_by_question.get(row.id, [])
         raised = [link for link in links if link.role == "raised_by"]
@@ -1140,31 +1141,14 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
                     items, domain_by_id=domain_by_id, need_ids_by_item=need_ids_by_item
                 ),
                 source_count=_overview_source_count(items),
-                need_assessment=_need_assessment_out(need_assessment),
+                need_assessment=need_assessment,
             )
         )
-    represented_need_ids = {
-        row.runtime_need_id for row, _question, _specific in question_rows if row.runtime_need_id
-    }
     specific_by_child = {
         row.execution_attempt_id: specific_text
         for row, _question, specific_text in question_rows
         if row.execution_attempt_id
     }
-    need_attempt_ids = list(dict.fromkeys([attempt_id, *child_ids]))
-    runtime_needs = list(
-        (
-            await session.execute(
-                select(ResearchRuntimeNeed)
-                .where(ResearchRuntimeNeed.attempt_id.in_(need_attempt_ids))
-                .order_by(
-                    ResearchRuntimeNeed.wave_number,
-                    ResearchRuntimeNeed.created_at,
-                    ResearchRuntimeNeed.research_need_id,
-                )
-            )
-        ).scalars()
-    )
     need_executions = list(
         (
             await session.execute(
@@ -1181,7 +1165,7 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
     if attempt.evidence_set_id:
         evidence_set_by_attempt[attempt.id] = attempt.evidence_set_id
     for need in runtime_needs:
-        if need.research_need_id in represented_need_ids:
+        if (need.attempt_id, need.research_need_id) in represented_needs:
             continue
         execution = execution_by_need.get((need.attempt_id, need.research_need_id))
         raw_status = execution.status if execution is not None else "pending"
@@ -1195,18 +1179,7 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
         )
         owner = child_by_id.get(need.attempt_id)
         assessment = assessment_by_attempt.get(need.attempt_id)
-        need_assessment = (
-            next(
-                (
-                    item
-                    for item in (assessment.need_assessments or [])
-                    if item.get("research_need_id") == need.research_need_id
-                ),
-                None,
-            )
-            if assessment
-            else None
-        )
+        need_assessment = need_assessment_view(assessment, need.research_need_id)
         questions.append(
             ResearchQuestionOverviewOut(
                 id=f"runtime-need:{need.attempt_id}:{need.research_need_id}",
@@ -1217,7 +1190,7 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
                     raw_status=raw_status,
                     items=need_items,
                     need_sufficient=(
-                        need_assessment.get("sufficient") if need_assessment else None
+                        need_assessment.sufficient if need_assessment else None
                     ),
                 ),
                 raw_status=raw_status,
@@ -1235,7 +1208,7 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
                     need_ids_by_item=need_ids_by_item,
                 ),
                 source_count=_overview_source_count(need_items),
-                need_assessment=_need_assessment_out(need_assessment),
+                need_assessment=need_assessment,
             )
         )
     status_counts = {
