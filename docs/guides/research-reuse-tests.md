@@ -560,3 +560,88 @@ trunkerade källor; experimentet återskapar inte saknade domskäl. De verkliga
 svarstillräcklighet. Ingen variant införs i produktion på dessa resultat.
 Ett fortsatt experiment bör använda avgränsade textpassager med verifierbar
 full täckning och en separat jämförelse av motstridiga fakta.
+
+### Avgränsade passager och separata faktapar
+
+`scripts/check_jev_windows.py` kör nästa experiment på samma frysta underlag:
+
+```sh
+python scripts/check_jev_windows.py --live --input saved-assessment-input.json \
+  --output new-window-report.json --repeat 2
+```
+
+`--controls-only` kör de nio syntetiska kontrollfallen. Samtidighet och timeout
+kommer från ordinarie inställningar; `--concurrency 1` väljer uttryckligen en
+separat mätning med ett anrop i taget. De tre varianterna är `compact_rank`,
+`excerpt_windows` och `source_windows`; `--variants` väljer en delmängd.
+
+Här mäts endast relevans och direkt svarsstöd, med samma två befintliga
+frågedefinitioner i alla tre varianter. Tiderna avser denna komponent, inte
+alla sex screeningfrågor, slutlig tillräcklighetsbedömning eller en research.
+`excerpt_windows` täcker hela det sparade utdraget. `source_windows` täcker
+`legal_result.raw_text` för juridiskt analyserade poster och `excerpt` för
+övriga poster. Det senare skickar inte den strukturerade rättsanalysen; ett
+komplett textfält är inte samma underlag som föregående fulltextvariant.
+
+Passagernas kärnor är högst 1 200 Python-tecken och täcker textfältet exakt
+utan luckor eller dubblerade kärnpositioner. Bedömningens textvy innehåller
+även upp till 160 tecken före och efter kärnan. Originaltexten återskapas och
+verifieras före anrop; varken blanksteg, radslut, Unicode eller canonical SHA
+normaliseras. Rapporten binder kärn- och kontextpositioner till originalets
+text-SHA och befintliga innehållshash. Dessa är laboratoriets vyer, inte nya
+ingestion-chunks eller embeddings. Varje batch håller ordinarie teckenbudget
+och högst sexton frågor. En för stor passage ger fel utan avklippning.
+
+Relevans och svarsstöd för en post hämtas från samma bästa passage. Poäng från
+olika passager får inte kombineras till ett påhittat stöd. Alla passagepoäng
+sparas för granskning. Detta ger svarskandidater, inte ett automatiskt beslut
+om att forskningsfrågan är besvarad. Ingen beständig bedömningscache införs.
+
+För motsägelser prövas explicit utpekade faktapar separat i båda riktningarna,
+med hela målposten och hela jämförelseposten. Kontrollfallen omfattar
+motstridiga aktuella datum, överensstämmande datum, historiska versioner och
+olika avtal. Paret måste få plats i budgeten. Detta testar Jevs bedömning av
+givna faktapar; experimentet upptäcker inte automatiskt alla relevanta faktapar
+i de verkliga 77 posterna och ändrar inte Graph v2:s TTL eller invalidation.
+
+`test_jev_windows.py` verifierar exakt rekonstruktion, källfält, budget,
+frågebindningar, sammanhängande poäng, faktapar och att diagnostik bevarar
+HTTP-felet samt redigerar bort API-nyckeln. Externa anrop mockas och sockets
+blockeras även för dessa tester. API-fel avbryter och lämnar rapporten
+`incomplete`; ingen variant används som ersättning för en annan.
+
+#### Andra live-experimentet 2026-10-02
+
+En komplett jämförelse vid samtidighet ett och samma femsekunderstimeout gav:
+
+| Variant | Tid | Anrop | Passager | Täckta kärntecken | Indatatokens |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Korta utdrag, två frågor | 61,18 s | 77 | – | – | 35 582 |
+| Hela utdrag i passager | 59,35 s | 70 | 194 | 192 306 | 191 944 |
+| Rå källtext i passager | 125,97 s | 141 | 349 | 376 838 | 369 178 |
+
+Vid upprepning i omvänd ordning tog utdragspassagerna 58,68 s; den efterföljande
+korta varianten avbröts med timeout. Det finns därför bara en komplett
+seriemätning av den korta varianten. Råtextvarianten har inte upprepats.
+
+Vid samtidighet åtta tog den korta varianten med två frågor 9,44 s. Den
+efterföljande passagevarianten avbröts med HTTP 429 efter 51 lyckade anrop.
+Ett senare isolerat prov av enbart utdragspassagerna genomförde alla 70 anrop
+på 9,15 s. Det visar ungefär samma tidsordning för betydligt mer text, men
+ingen säker tidsvinst eller stabil kapacitet för sammanhängande körningar.
+De mindre passagerna avskaffar inte API-begränsningen. Felens exakta kvotorsak
+är inte fastställd; det enstaka diagnostiska anropet gav 200 utan kvotheaders.
+
+De nio kontrollfallen kördes två gånger. Båda passagevarianterna klarade alla
+tolv märkta bedömningar av svarsstöd per variant, inklusive domslut först i
+tredje passagen. Den korta varianten missade de två sena domsluten i båda
+iterationerna. En separat granskning av tolv passagepoäng från det tredje
+fönstret visade korrekt svarsstöd i rätt passage och avvisade de tidigare
+passagerna. Faktaparsbedömningen klarade sexton av sexton riktade kontroller,
+inklusive historiska förändringar och olika avtal. Ett negativt svar för olika
+avtal låg nära tröskeln (0,477 mot 0,5); kontrollfallen är ingen allmän
+kalibrering eller bevis på juridisk precision i de verkliga posterna.
+
+Detta stödjer fortsatt kvalitetstest av passagebedömningen, men ingen
+produktionsändring görs. Verkliga träffars riktighet, hantering av relevanta
+faktapar och hållbar API-kapacitet återstår att verifiera.
