@@ -138,6 +138,16 @@ def test_large_unique_analyses_share_source_quotes_without_dropping_any_analysis
     )
 
 
+def test_repeated_characters_do_not_expand_into_one_reference_per_character():
+    quote = "x" * 128
+    source = "x" * 6000 + "\n\nUndantaget: villkoret jämkades inte."
+    originals = [row(source, {"quote": quote, "adjustment_granted": False})]
+    payload = encode_assessment_input(originals).payload
+    assert_roundtrip(originals, payload)
+    assert len(payload["evidence"][0]["passage_ids"]) < 60
+    assert len(json.dumps(payload, ensure_ascii=False)) < len(json.dumps(originals, ensure_ascii=False))
+
+
 @pytest.mark.parametrize("code", ["context_length_exceeded", "invalid_request_error"])
 async def test_provider_failure_preserves_cause_releases_database_and_logs_only_safe_fields(
     reuse_db,
