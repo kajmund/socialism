@@ -1070,7 +1070,6 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
             )
         ).scalars()
     )
-    # Runtime need IDs are local to a child; canonical identity binds the expert question.
     need_by_question = {
         (need.attempt_id, need.knowledge_question_id): need
         for need in runtime_needs
