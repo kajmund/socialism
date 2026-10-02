@@ -610,6 +610,40 @@ HTTP-felet samt redigerar bort API-nyckeln. Externa anrop mockas och sockets
 blockeras även för dessa tester. API-fel avbryter och lämnar rapporten
 `incomplete`; ingen variant används som ersättning för en annan.
 
+#### Kort backoff vid HTTP 429
+
+`--retry-429` aktiverar ett separat, uttryckligt experiment med begränsade
+omförsök mot samma tjänst, modell och oförändrade anrop. Utan flaggan gäller
+fortfarande ett försök per anrop. Produktionsklienten ändras inte.
+
+Högst fyra HTTP-försök görs per logiskt anrop. Grundväntan mellan försöken är
+0,5, 1 och 2 sekunder, med upp till 0,2 sekunders jitter. `Retry-After`, både
+antal sekunder och HTTP-datum, respekteras som minsta väntan. En gemensam paus
+stoppar nya anrop från experimentets klient; redan pågående anrop kan
+fortfarande avslutas. Högst tjugo sekunders sammanlagd väntan tillåts per
+logiskt anrop, även när ett annat parallellt anrop förlänger pausen. En längre
+begärd väntan ger ett tydligt fel utan ett för tidigt omförsök. Timeout per
+HTTP-försök kommer fortfarande från ordinarie inställningar.
+
+```sh
+python scripts/check_jev_windows.py --live --input saved-assessment-input.json \
+  --output new-backoff-report.json --repeat 2 --concurrency 8 \
+  --variants compact_rank excerpt_windows --retry-429
+```
+
+Alla väntetider ingår i variantens uppmätta tid och anropets latens.
+`requests` räknar logiska anrop; `http_attempts` redovisar de faktiska
+HTTP-försöken separat, tillsammans med `backoff_waits`, `scheduled_retries`,
+`retry_policy` och fortsatt feldiagnostik. Väntetiderna per parallellt anrop
+överlappar och ska inte summeras som total väggtid. Slutligt HTTP 429,
+överskriden väntbudget, felaktig `Retry-After`, övriga HTTP-fel, timeout och
+ogiltiga svar avbryter experimentet med en `incomplete` rapport.
+
+`test_jev_backoff.py` mockar tjänsten och väntan. Testerna verifierar
+oförändrad begäran, försöks- och väntgränser, båda `Retry-After`-formaten,
+gemensam paus, avbrott och att latensmätningen inkluderar väntan. Inga
+databasanslutningar används i detta experiment.
+
 #### Andra live-experimentet 2026-10-02
 
 En komplett jämförelse vid samtidighet ett och samma femsekunderstimeout gav:
@@ -645,3 +679,33 @@ kalibrering eller bevis på juridisk precision i de verkliga posterna.
 Detta stödjer fortsatt kvalitetstest av passagebedömningen, men ingen
 produktionsändring görs. Verkliga träffars riktighet, hantering av relevanta
 faktapar och hållbar API-kapacitet återstår att verifiera.
+
+#### Backoff-experimentet 2026-10-03
+
+Med samma frysta 79 poster, 77 granskningsgrupper, modell `openjev-0.1`,
+samtidighet åtta och femsekunderstimeout per HTTP-försök avslutades två
+iterationer. Ordningen vändes i den andra iterationen. Väntan ingår i tiderna:
+
+| Ordning | Variant | Tid | Logiska anrop | HTTP-försök | HTTP 429 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 1 | Korta utdrag | 9,94 s | 77 | 77 | 0 |
+| 2 | Hela utdrag i passager | 28,30 s | 70 | 79 | 9 |
+| 3 | Hela utdrag i passager | 19,18 s | 70 | 74 | 4 |
+| 4 | Korta utdrag | 33,35 s | 77 | 86 | 9 |
+
+Alla 294 logiska anrop lyckades efter totalt 316 HTTP-försök. Tjugo anrop
+behövde omförsök; två av dem fick 429 två gånger. Högst tre försök behövdes.
+Samtliga 22 svar med HTTP 429 angav `Retry-After: 5` och feltexten
+`Rate limit exceeded: 60 requests per minute per key.` Det är tjänstens
+uppgivna gräns, inte en oberoende verifiering av dess kvotberäkning.
+
+Ett föregående prov med endast sex sekunders sammanlagd väntbudget lyckades
+återhämta fyra anrop men avbröt nästa iteration när pausen förlängdes.
+Den ofullständiga rapporten bevarades; den slutliga tjugosekundersgränsen
+rymmer flera femsekunderspauser utan att göra försöken obegränsade.
+
+Backoff möjliggjorde alltså en komplett jämförelse vid 429, men tiderna är
+nu tydligt påverkade av kvoten. Resultatet visar varken stabil svarstid eller
+högre juridisk precision. Alla passager och anrop behöll samma underlag;
+inga alternativa modeller, kortare ersättningsutdrag eller uteblivna poster
+användes för att slutföra mätningen.

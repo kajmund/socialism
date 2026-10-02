@@ -15,6 +15,7 @@ async def run(args: argparse.Namespace) -> None:
     from app.services.research.reuse_gate import assessable_candidates
     from tests.research_reuse.jev_window_controls import snapshots
     from tests.research_reuse.jev_diagnostics import DiagnosticJev
+    from tests.research_reuse.jev_backoff import BackoffJev, POLICY
     from tests.research_reuse.jev_window_live import pair_control, variant
     from tests.research_reuse.snapshots import EVIDENCE, digest
 
@@ -23,7 +24,8 @@ async def run(args: argparse.Namespace) -> None:
     source = json.loads(Path(args.input).read_text())
     cases = snapshots() if args.controls_only else [{"name": "frozen-evidence", **source}]
     report = {"status": "incomplete", "cases": [], "snapshot_sha256": digest(source)}
-    client = DiagnosticJev()
+    client = BackoffJev() if args.retry_429 else DiagnosticJev()
+    report["retry_policy"] = POLICY if args.retry_429 else None
     try:
         for snapshot in cases:
             groups = group_evidence_for_review(assessable_candidates(EVIDENCE.validate_python(snapshot["evidence"])))
@@ -56,6 +58,10 @@ async def run(args: argparse.Namespace) -> None:
         report["status"] = "completed"
     finally:
         report["api_errors"] = client.errors
+        if isinstance(client, BackoffJev):
+            report["http_attempts"] = client.attempts
+            report["backoff_waits"] = client.waits
+            report["scheduled_retries"] = client.retries
         Path(args.output).write_text(json.dumps(report, ensure_ascii=False, indent=2))
 
 
@@ -84,6 +90,7 @@ def main() -> None:
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--controls-only", action="store_true")
+    parser.add_argument("--retry-429", action="store_true", help="Measured bounded same-request 429 retries")
     parser.add_argument("--concurrency", type=int, choices=range(1, 33))
     parser.add_argument("--repeat", type=int, choices=range(1, 11), default=2)
     parser.add_argument("--variants", nargs="+", choices=["compact_rank", "excerpt_windows", "source_windows"],
