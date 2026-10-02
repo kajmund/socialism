@@ -701,11 +701,14 @@ async def test_expertgranskning_list_patch_delete(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_admin_with_kund_keeps_underlag_and_panel_on_same_kund(client_db):
+async def test_admin_with_kund_keeps_underlag_and_panel_on_same_kund(client_db, monkeypatch):
     """Admin bound to a kund must not attach underlag to another kund's panel."""
     from app.database.models import UserAccount
     from tests.conftest import ADMIN_USER_ID
 
+    # Access checks must not race an ingestion worker on the fixture's shared SQLite connection.
+    queued_jobs = []
+    monkeypatch.setattr(jobs_service, "enqueue_job", queued_jobs.append)
     client, factory = client_db
     listed = await client.get("/kunder")
     assert listed.status_code == 200
@@ -750,6 +753,7 @@ async def test_admin_with_kund_keeps_underlag_and_panel_on_same_kund(client_db):
     )
     assert uploaded.status_code == 201, uploaded.text
     underlag_id = uploaded.json()["id"]
+    assert queued_jobs == [uploaded.json()["knowledge_job_id"]]
 
     denied = await client.post(
         "/expertgranskning/sessions",
