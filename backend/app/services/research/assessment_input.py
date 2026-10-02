@@ -89,7 +89,8 @@ class PassagePool:
                 end = start + len(shared)
                 cuts.update((start, end))
                 occurrences.append((shared, start, end))
-                start = text.find(shared, start + 1)
+                # Identical overlapping occurrences would create one fragment per character.
+                start = text.find(shared, end)
         boundaries = sorted(cuts)
         refs = [
             self.text_ids.setdefault(text[start:end], f"p{len(self.text_ids)}")
