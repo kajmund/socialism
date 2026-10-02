@@ -613,7 +613,12 @@ async def test_extracted_source_new_version_keeps_historical_units(session: Asyn
     assert historical is not None
     assert historical.document_version_id == first.document_version_id
     assert historical.text == "Original public passage."
-    assert {item.chunk.text for item in store.chunks} == {"Revised public passage."}
+    assert {item.chunk.text for item in store.chunks} == {
+        "Original public passage.", "Revised public passage.",
+    }
+    assert {item.chunk.metadata["document_version_id"] for item in store.chunks} == {
+        first.document_version_id, second.document_version_id,
+    }
     assert len(embeddings.calls) == 2
 
 

@@ -16,7 +16,6 @@ from app.database.models import (
     DocumentVersionRecord,
     KnowledgeClaimRecord,
     Kund,
-    TextUnitRecord,
 )
 from app.services.execution import (
     create_attempt,
@@ -72,6 +71,7 @@ from app.services.research.question_reuse import (
     classify_freshness,
     upsert_persisted_evidence,
 )
+from tests.text_unit_fakes import persisted_text_unit
 
 
 @pytest.fixture
@@ -806,7 +806,7 @@ async def _seed_claim_answer(
         )
     )
     session.add(
-        TextUnitRecord(
+        await persisted_text_unit(session,
             id="tu-claim",
             document_version_id="ver-claim",
             document_id="doc-claim",
@@ -814,7 +814,6 @@ async def _seed_claim_answer(
             section_id=None,
             ordinal=0,
             text=unit_text,
-            content_hash="tu-claim",
         )
     )
     await session.flush()

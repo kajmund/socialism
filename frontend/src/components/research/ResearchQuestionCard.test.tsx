@@ -11,7 +11,7 @@ const question: ResearchOverviewQuestion = {
   why_needed: "", status: "insufficient", raw_status: "completed", outcome_reason: null,
   origin: "initial", depth: 0, child_attempt_id: "attempt", child_attempt_status: "ready",
   dependency_ids: [], raised_by: [], assigned_to: null,
-  sources: [{ id: "evidence-a", passage_id: null, domain_result_id: null, raw_source_id: null, analysis: null, research_need_ids: ["need-a"], status: "found", title: "Shared source", excerpt: null, locator: null, source_url: null, source_type: "swedish_law", provider: "lagen.nu" }],
+  sources: [{ id: "snapshot-a", original_evidence_id: "evidence-a", passage_id: null, domain_result_id: null, raw_source_id: null, analysis: null, research_need_ids: ["need-a"], status: "found", title: "Shared source", excerpt: null, locator: null, source_url: null, source_type: "swedish_law", provider: "lagen.nu" }],
   source_count: 1,
   need_assessment: { research_need_id: "need-a", sufficient: false, supporting_evidence_ids: ["evidence-a"], missing_or_weak: "Need A gap", contradictions: [], further_information: "Need A follow-up" },
 }
@@ -27,6 +27,8 @@ describe("ResearchQuestionCard", () => {
     expect(html).toContain("Need A gap")
     expect(html).toContain("Need A follow-up")
     expect(html).toContain("Shared source")
+    expect(html).not.toContain("evidence-a")
+    expect(html).not.toContain("snapshot-a")
     expect(html).not.toContain("GLOBAL PLAN RATIONALE")
     expect(html).not.toContain("GLOBAL COMPLETENESS RATIONALE")
   })

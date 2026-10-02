@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.database.base import Base
 from app.database.graph_v2 import GraphIngestWork
 from app.database.models import (
-    CanonicalDocumentRecord, DocumentVersionRecord, Kund, TextUnitRecord,
+    CanonicalDocumentRecord, DocumentVersionRecord, Kund,
 )
 from app.services.graph_v2.outbox import (
     _retry_graph_work,
@@ -21,6 +21,7 @@ from app.services.graph_v2.errors import JevMalformedResponseError, PermanentGra
 import app.services.graph_v2.outbox as graph_outbox
 from app.services.knowledge.claims import KnowledgeClaim
 from sqlalchemy.exc import DataError, IntegrityError, ProgrammingError
+from tests.text_unit_fakes import persisted_text_unit
 
 
 class FakeEmbedder:
@@ -140,10 +141,10 @@ async def test_transient_embedding_failure_stays_retryable(tmp_path):
             id="version", scope_type="customer", scope_key="customer:1", customer_id=1,
             document_id="doc", content_hash="version-hash", mime_type="text/plain", extra={},
         ))
-        session.add(TextUnitRecord(
+        session.add(await persisted_text_unit(session,
             id="unit", scope_type="customer", scope_key="customer:1", customer_id=1,
             document_version_id="version", document_id="doc", section_id=None,
-            ordinal=0, text="No adjustment", content_hash="unit-hash",
+            ordinal=0, text="No adjustment",
         ))
         session.add(GraphIngestWork(
             id="transient", customer_id=1, scope_key="customer:1", status="pending",

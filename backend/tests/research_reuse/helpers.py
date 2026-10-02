@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
@@ -61,6 +62,8 @@ def evidence(*, need_id="child", source_id="law", freshness="fresh"):
 
 def assessor(*, sufficient=True):
     async def complete(_messages, _model):
+        payload = json.loads(_messages[1]["content"].split("\n", 1)[1])
+        refs = [row["evidence_id"] for row in payload["evidence"]]
         return EvidenceSufficiencyModel(
             result="sufficient" if sufficient else "insufficient",
             rationale="Bedömd mot frågan",
@@ -68,11 +71,11 @@ def assessor(*, sufficient=True):
                 NeedSufficiencyModel(
                     research_need_id="child",
                     sufficient=sufficient,
-                    supporting_evidence_ids=[evidence().evidence_id] if sufficient else [],
+                    supporting_evidence_ids=refs if sufficient else [],
                     missing_or_weak="" if sufficient else "Senare lagändringar saknas",
                 )
             ],
-            considered_evidence_ids=[evidence().evidence_id],
+            considered_evidence_ids=refs,
         )
 
     completer = AsyncMock(side_effect=complete)
@@ -136,3 +139,18 @@ async def reviewed_answer(plan, items):
         rationale="Mocked question-specific judgment",
         need_assessments=rows,
     )
+
+
+def restore_legal_input(value, payload):
+    """Independently decode the wire format to compare every original field in tests."""
+    if isinstance(value, dict):
+        if set(value) == {"passage_ids"}:
+            return "".join(payload["passages"][ref] for ref in value["passage_ids"])
+        fields = payload["legal_schemas"][value["schema_id"]]
+        return {
+            field: restore_legal_input(item, payload)
+            for field, item in zip(fields, value["values"], strict=True)
+        }
+    if isinstance(value, list):
+        return [restore_legal_input(item, payload) for item in value]
+    return value

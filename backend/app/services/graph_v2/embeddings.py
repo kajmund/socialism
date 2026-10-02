@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.graph_v2 import GraphEmbeddingCache
 from app.services.knowledge.embeddings import EmbeddingProvider, require_embedding_vectors
-from app.services.knowledge.identity import normalize_assertion_text
 
 _LEASE = timedelta(minutes=5)
 _WAIT_SECONDS = 0.05
@@ -26,8 +25,7 @@ def _cache_identity(
     text: str,
 ) -> tuple[str, str]:
     model, revision, dimension, purpose = identity
-    normalized_text = normalize_assertion_text(text)
-    text_hash = hashlib.sha256(normalized_text.encode("utf-8")).hexdigest()
+    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
     payload = json.dumps(
         [model, revision, dimension, purpose, text_hash],
         ensure_ascii=False,
@@ -37,14 +35,14 @@ def _cache_identity(
 
 
 class GraphEmbeddingCacheProvider:
-    """Batch and persist vectors; leases provide single-flight across workers."""
+    """Cache exact UTF-8 text; leases provide single-flight across workers."""
 
     def __init__(
         self,
         factory: async_sessionmaker[AsyncSession],
         inner: EmbeddingProvider,
         *,
-        purpose: str = "text.v1",
+        purpose: str = "text.exact.v2",
         revision: str | None = None,
     ) -> None:
         self._factory = factory
@@ -217,7 +215,7 @@ class GraphEmbeddingCacheProvider:
                 texts = list(reserved)
                 try:
                     vectors = require_embedding_vectors(
-                        await self._inner.embed([normalize_assertion_text(text) for text in texts]),
+                        await self._inner.embed(texts),
                         dimension=self.dimension,
                     )
                     if len(vectors) != len(texts):

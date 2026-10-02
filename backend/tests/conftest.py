@@ -47,6 +47,7 @@ from app.services.object_storage import MemoryObjectStorage, set_object_storage
 from app.services.panel.competency import ExpertCompetency
 from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis
+from app.services.prompt_fields_store import clear_prompt_cache
 from app.services.ssr import clear_embedding_cache, set_embedder
 
 # Isolate disk cache / rotating logs from developer machine data/.
@@ -144,6 +145,7 @@ def _memory_object_storage():
 def _reset_llm_completers():
     clear_embedding_cache()
     clear_image_cache()
+    clear_prompt_cache()
     yield
     set_structured_completer(None)
     set_text_completer(None)
@@ -153,6 +155,7 @@ def _reset_llm_completers():
     set_embedder(None)
     clear_embedding_cache()
     clear_image_cache()
+    clear_prompt_cache()
 
 
 @pytest.fixture
