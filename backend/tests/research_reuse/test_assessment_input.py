@@ -21,7 +21,7 @@ from app.services.research.reuse_gate import (
     assess_reuse,
     answer_is_sufficient,
 )
-from tests.research_reuse.helpers import evidence, need
+from tests.research_reuse.helpers import evidence, need, restore_legal_input
 
 pytestmark = pytest.mark.research_reuse
 
@@ -65,9 +65,9 @@ def test_exact_shared_paragraphs_preserve_sources_order_repetitions_and_original
     )
     rows = review.payload["evidence"]
     assert [reconstruct(review.payload, row) for row in rows] == [first.excerpt, second.excerpt]
-    assert rows[0]["passage_ids"][0] == rows[0]["passage_ids"][1] == rows[1]["passage_ids"][0]
+    assert rows[0]["passage_ids"][:2] == rows[0]["passage_ids"][2:4] == rows[1]["passage_ids"][:2]
     assert rows[0]["source_id"] != rows[1]["source_id"]
-    assert list(review.payload["passages"].values()).count(shared) == 1
+    assert list(review.payload["passages"].values()).count(shared.rstrip("\n")) == 1
     assert inputs == before
     assert review.evidence_ids == {"e0": first.evidence_id, "e1": second.evidence_id}
 
@@ -155,11 +155,14 @@ def test_legal_claims_quotes_quality_warnings_and_temporal_signals_survive_encod
         ),
     )
     original = _evidence_payload(group_evidence_for_review([item])[0])
-    packed = encode_assessment_input([original]).payload["evidence"][0]
-    for key in ("legal_result", "claims", "claim_citations", "quality", "provenance"):
+    payload = encode_assessment_input([original]).payload
+    packed = payload["evidence"][0]
+    restored = restore_legal_input(packed["legal_result"], payload)
+    assert restored == original["legal_result"]
+    for key in ("claims", "claim_citations", "quality", "provenance"):
         assert packed[key] == original[key]
-    assert packed["legal_result"]["statute"]["citations"][0]["quote"] == "fordran preskriberas"
-    assert "raw_text" not in packed["legal_result"]
+    assert restored["statute"]["citations"][0]["quote"] == "fordran preskriberas"
+    assert "raw_text" not in restored
 
 
 async def test_a_valid_alias_for_another_question_cannot_supply_its_support():
@@ -296,3 +299,4 @@ async def test_assessment_format_instructions_are_seeded_in_an_empty_database(re
         assert module in field.modules
         for system in (field.default_sv, field.default_en):
             assert "passage_ids" in system and "source_id" in system
+            assert "legal_schemas" in system and "schema_id" in system

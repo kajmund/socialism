@@ -61,6 +61,27 @@ från databasen. Befintliga prompttexter och kundöverskrivningar uppdateras int
 av seed: uppdatera `research.assessment.system` uttryckligen vid införandet.
 Modellvalet ändras inte av denna optimering.
 
+`test_assessment_quotes.py` omfattar också överlappande citat, olika källor och
+roller, Unicode/blanksteg, citat utanför valt utdrag samt 79 unika analyser med
+upprepade källcitat. Analysens återkommande text delar samma `passages` som
+källutdragen. Matchningen är exakt; korta unika texter lämnas direkt i fältet.
+Styckeseparatorer bevaras som egna passager så att ett stycke kan återanvändas
+även när ett annat utdrag slutar före separatorn.
+
+Upprepade fältnamn i `legal_result` skickas en gång i `legal_schemas`.
+Varje analysobjekt har `schema_id` och `values`, med samma fältordning som
+schemat; detta gäller även nästlade objekt. Alla originalvärden behålls,
+inklusive null, tomma listor, negativa utfall, källadresser och span-ID.
+Testerna rekonstruerar hela originalanalysen, inte bara citaten. Textdelning
+gör inte analys till primärkälla. Prompten förklarar både formatet och skillnaden.
+JSON serialiseras utan formateringsblanksteg; blanksteg inne i text ändras inte.
+
+Modellfel för kontextgräns, för långt svar och timeout har olika felmeddelanden.
+`research.assessment.failed` loggar säker felkategori, undantagstyp, antal
+evidensposter/granskningsgrupper och inmatningens teckenantal, utan källtext
+eller leverantörens felkropp. Orsaksundantaget bevaras och inga alternativa
+modeller eller källvägar används.
+
 ### Isolerad Qwen-mätning 2026-10-02
 
 Samma sparade underlag från research `b0187407f2d54abfb7b83ee2f7d190ff`
@@ -87,6 +108,30 @@ bevis för generell bedömningskvalitet. En tidigare iteration stoppade ett
 tillräckligt svar eftersom modellen klassade en förenlig skillnad i betoning
 som motsägelse. Prompten skiljer nu sakmotsägelser från nyanser i rationale;
 återanvändningskontrollen blockerar fortfarande rapporterade sakmotsägelser.
+
+### Kontextöverskridandet i expertchatten 2026-10-02
+
+Huvudfrågan ”Hur tillämpas 36 § avtalslagen i svensk rättspraxis?” gav
+79 Graph v2-poster och 77 granskningsgrupper. Cerebras avvisade den tidigare
+inmatningen med `context_length_exceeded`: begärd längd 169 124, gräns 131 072.
+De tidigare kontrollerna ovan använde den smalare frågan med 21 poster och
+upptäckte därför inte denna storleksregression.
+
+Med samma 79 sparade poster, samma Qwen-konfiguration och den nya seedade
+formatprompten krävdes 122 384 inmatningstokens. I två slutkontroller blev
+utfallet `sufficient` efter 8,80 respektive 6,32 sekunder, med 6 224 respektive
+5 290 utmatningstokens och inget extra modellförsök. Alla 77 källutdrag och
+hela deras strukturerade analyser rekonstruerades exakt. Varken hämtning,
+embedding eller grafskrivning ingick i kontrollerna. Tio separata kontroller
+av tillräckligt/otillräckligt underlag och oförenliga datum passerade också.
+
+En tidigare kontroll av det slutliga formatet lyckades på 15,43 sekunder,
+medan nästa fick en timeout efter 60 sekunder. Den misslyckade kontrollen
+räknas inte som passerad. Förlustfri delning löser detta reproducerade
+kontextöverskridande, men garanterar varken godtyckligt stora underlag eller
+tjänstens svarstid. Dessa fel förblir synliga. Produktionsinförandet kräver
+att den aktiva databaslagrade formatprompten uppdateras tillsammans med koden;
+förhandskontrollerna uppdaterade inte produktionsprompten.
 
 ## CI och snabb lokal verifiering
 

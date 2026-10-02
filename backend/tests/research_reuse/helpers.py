@@ -139,3 +139,18 @@ async def reviewed_answer(plan, items):
         rationale="Mocked question-specific judgment",
         need_assessments=rows,
     )
+
+
+def restore_legal_input(value, payload):
+    """Independently decode the wire format to compare every original field in tests."""
+    if isinstance(value, dict):
+        if set(value) == {"passage_ids"}:
+            return "".join(payload["passages"][ref] for ref in value["passage_ids"])
+        fields = payload["legal_schemas"][value["schema_id"]]
+        return {
+            field: restore_legal_input(item, payload)
+            for field, item in zip(fields, value["values"], strict=True)
+        }
+    if isinstance(value, list):
+        return [restore_legal_input(item, payload) for item in value]
+    return value
