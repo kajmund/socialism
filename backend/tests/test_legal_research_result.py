@@ -209,6 +209,52 @@ async def test_structured_interpreter_verifies_model_quote(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_interpreter_skips_database_when_prompts_are_cached(monkeypatch):
+    def factory():
+        raise AssertionError("prompt session opened")
+
+    monkeypatch.setattr(
+        "app.llm.legal_research.cached_filled_prompts",
+        lambda **_kwargs: {
+            "research.lagen_nu.domain.v3.system": "Read the source",
+            "research.lagen_nu.domain.v3.repair": "Repair: {validation_errors}",
+            "research.lagen_nu.domain.v3.user": (
+                "{question}\n{source_kind}\n{source_uri}\n{source_text}"
+            ),
+        },
+    )
+
+    async def complete(messages, schema):
+        assert "fordran preskriberas" in messages[1]["content"]
+        return {
+            "relation": {
+                "relation": "supports",
+                "explanation": "Regeln gäller.",
+                "confidence": "high",
+            },
+            "statute": {
+                "operative_rule": "Preskription gäller.",
+                "citations": [
+                    {"source_uri": "https://lagen.nu/1981:130", "quote": "påhittat citat"}
+                ],
+            },
+        }
+
+    interpreter = LlmLegalInterpreter(completer=complete, session_factory=factory)
+    with pytest.raises(LegalDomainExtractionError) as error:
+        await interpreter.interpret(
+            source=LegalSourceIdentity(
+                kind="statute", title="Preskriptionslag", canonical_uri="https://lagen.nu/1981:130"
+            ),
+            question="När preskriberas fordran?",
+            raw_text="En fordran preskriberas tio år efter tillkomsten.",
+            truncated=False,
+            context=ResearchContext(scope=KnowledgeScope(customer_id=1, module="dd")),
+        )
+    assert isinstance(error.value.__cause__, ValidationError)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "span_ids,valid", [(["s1"], True), (["invented", "s1"], True), (["invented"] * 3, False)]
 )

@@ -22,6 +22,41 @@ class MissingPromptCatalogError(RuntimeError):
     """Raised when no active prompt fields exist for the requested module."""
 
 
+# Filled prompt maps are stable until an editor or seed writes them. Research
+# interpret used to check out a pool connection per document just to read them.
+_prompt_cache: dict[tuple[int, str, str | None], dict[str, str]] = {}
+_prompt_cache_generation = 0
+
+
+def clear_prompt_cache() -> None:
+    """Drop cached prompt maps. In-flight loads that started earlier do not store."""
+    global _prompt_cache_generation
+    _prompt_cache_generation += 1
+    _prompt_cache.clear()
+
+
+def cached_filled_prompts(
+    *,
+    customer_id: int,
+    language: str,
+    module: str | None = None,
+) -> dict[str, str] | None:
+    hit = _prompt_cache.get((customer_id, language, module))
+    if hit is None:
+        return None
+    return dict(hit)
+
+
+def _remember_filled_prompts(
+    key: tuple[int, str, str | None],
+    prompts: dict[str, str],
+    generation: int,
+) -> None:
+    if generation != _prompt_cache_generation:
+        return
+    _prompt_cache[key] = dict(prompts)
+
+
 def _row_modules(row: PromptField) -> list[str]:
     raw = row.modules
     if not isinstance(raw, list):
@@ -116,6 +151,7 @@ async def ensure_prompt_field_defaults(
     except IntegrityError:
         await session.rollback()
         return 0
+    clear_prompt_cache()
     return changed
 
 
@@ -165,6 +201,7 @@ async def ensure_prompt_overrides_from_configurations(session: AsyncSession) -> 
     except IntegrityError:
         await session.rollback()
         return 0
+    clear_prompt_cache()
     return added
 
 
@@ -200,6 +237,7 @@ async def retire_unknown_prompt_fields(
         config.prompts = stored
         config.updated_at = now
     await session.commit()
+    clear_prompt_cache()
     return len(retired)
 
 
@@ -219,8 +257,14 @@ async def filled_prompts(
 ) -> dict[str, str]:
     """Catalog defaults for ``module`` (or all modules) overlaid with sparse overrides.
 
-    Does not read or write ``Configuration.prompts``.
+    Does not read or write ``Configuration.prompts``. A process cache serves
+    repeat loads; writers call ``clear_prompt_cache`` after their commit.
     """
+    key = (customer_id, language, module)
+    hit = _prompt_cache.get(key)
+    if hit is not None:
+        return dict(hit)
+    generation = _prompt_cache_generation
     await _require_kund(session, customer_id)
     fields = await get_prompt_fields(session, module, active_only=True)
     if not fields:
@@ -243,7 +287,8 @@ async def filled_prompts(
             out[field.key] = override
         else:
             out[field.key] = field_default_text(field, language)
-    return out
+    _remember_filled_prompts(key, out, generation)
+    return dict(out)
 
 
 async def replace_prompt_overrides(
@@ -294,3 +339,4 @@ async def replace_prompt_overrides(
             current.text = body
             current.updated_at = now
     await session.flush()
+    clear_prompt_cache()
