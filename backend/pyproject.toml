@@ -127,7 +127,7 @@ tests-max-lines = 1000
 [tool.socialism.maintainability.module-baseline]
 "app/api/anchor_sets.py" = 637
 "app/api/dd.py" = 502
-"app/api/execution.py" = 1413
+"app/api/execution.py" = 1386
 "app/api/personas.py" = 1195
 "app/api/playground.py" = 510
 "app/api/populations.py" = 563
