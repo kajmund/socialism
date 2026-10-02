@@ -479,3 +479,84 @@ direktskrivning på 6,25 respektive 2,46 sekunder. Vektorerna fanns redan före
 båda iterationerna; detta är en omskrivningsmätning, inte ett kallt researchflöde.
 Ingen helindexlistning eller radering kördes. Tiderna kan inte jämföras som hela
 researchtider med den tidigare inventeringskostnaden på 17,53 sekunder.
+
+## Isolerad Jev-screening på fryst underlag
+
+`test_jev_passages.py` verifierar full text, oförändrade innehållshashar,
+individuella frågebindningar, felaktiga svar, modellbyte och avbrott av väntande
+anrop. Samma nätverksförbud som resten av `research_reuse` gäller i CI.
+`jev_controls.py` innehåller fem syntetiska kontrollfall, inklusive sena domslut,
+rubriker, partsyrkanden, sammanblandning av två poster och motstridiga datum.
+Kontrollfallen beskriver inga verkliga rättsfall.
+
+Kör från backend med den riktiga miljökonfigurationen:
+
+```sh
+python scripts/check_jev_passages.py --live --input saved-assessment-input.json \
+  --output new-jev-report.json --repeat 2 --controls
+```
+
+Indata har `need.question` och `evidence` med serialiserade `ResearchEvidence`.
+Det är ett separat laboratorieläge; ingen databasanslutning öppnas och inga
+researchfrågor, dokument, vektorer, TTL eller produktionsinställningar ändras.
+Modell, endpoint och timeout kommer från ordinarie Jev-inställningar.
+`--concurrency N` väljer uttryckligen en annan samtidighet för experimentet.
+`--controls --controls-only` kör bara kontrollfallen. `--limit N` begränsar
+antalet granskningsgrupper för ett inledande funktionstest.
+
+Varianterna använder samma sex befintliga screeningfrågor:
+
+| Variant | Underlag och frågebindning |
+| --- | --- |
+| `compact` | Befintlig komprimering med 280 tecken, ett anrop per post |
+| `full` | Hela sparade utdraget, rättsanalysen och råtexten, ett anrop per post |
+| `batched_refs` | Två hela poster i gemensamt underlag; varje fråga pekar på sitt evidens-ID |
+| `batched` | Diagnostisk variant som även upprepar hela målposten i varje fråga |
+
+Standardordningen är `compact full batched_refs`; nästa iteration kör omvänd
+ordning. `--variants compact batched_refs` väljer två specifika varianter.
+En grupp med två poster innehåller tolv frågor, inte två. Exakta dubbletter
+grupperas med produktionens befintliga funktion och dubblettkopplingarna sparas.
+Inga nya prompttexter eller alternativa modeller används.
+
+Rapporten innehåller underlagets SHA, frågor och begärans SHA, varje anrops
+status, svarad modell, rapporterade tokens och fullständiga poäng. Vid API- eller
+schemafel avbryts körningen, väntande anrop avslutas och rapporten markeras
+`incomplete`. Det finns inga automatiska omförsök eller ersättningsresultat.
+En befintlig rapportfil skrivs inte över. `completed` betyder att mätningen
+genomförts; kontrollfallens separata `checks` avgör om bedömningarna var rätt.
+
+### Första live-experimentet 2026-10-02
+
+79 frysta evidensposter om 36 § avtalslagen gav 77 granskningsgrupper. Samma
+konfigurerade `openjev-latest`, svarad modell `openjev-0.1`, samtidighet åtta
+och timeout fem sekunder användes. En komplett jämförelse gav:
+
+| Variant | Tid | Anrop | Rapporterade indatatokens |
+| --- | ---: | ---: | ---: |
+| `compact` | 9,28 s | 77 | 47 132 |
+| `batched_refs` | 17,07 s | 39 | 285 847 |
+
+Nästa iteration av grupperingen avbröts med HTTP 429: åtta anrop hann lyckas,
+ett gav fel och trettio avbröts. Ett tidigare fulltextexperiment vid samtidighet
+åtta gav också HTTP 429. Ett separat experiment vid samtidighet ett fick
+timeout i fulltextvarianten. Detta är inte stabila medianer eller bevis på att
+gruppering i sig är långsammare: både textmängd och frågebindning ändras, och
+hela fulltextvarianten saknar en komplett tidsmätning.
+
+Kontrollerna kördes två gånger med samtidighet ett. Det sena domslutet missades
+av `compact` båda gångerna och hittades av båda fulltextvarianterna båda
+gångerna. Alla tre avvisade rubriken och partsyrkandet utan domslut. Den
+optimerade grupperingen höll isär svarsstöd och rubrik även i samma anrop.
+För en uttrycklig datumkonflikt flaggade den bara den andra posten i båda
+iterationerna; individuella anrop saknar den andra posten att jämföra mot.
+Två slumpmässigt grupperade poster ersätter inte en övergripande
+motsägelsebedömning av allt tillgängligt underlag.
+
+Full text avser allt som redan är sparat, inklusive befintliga markeringar om
+trunkerade källor; experimentet återskapar inte saknade domskäl. De verkliga
+77 posterna har inga manuellt granskade facit i detta experiment. Därför ger
+ändrade screeningpoäng ingen mätning av juridisk träffsäkerhet eller slutlig
+svarstillräcklighet. Ingen variant införs i produktion på dessa resultat.
+Ett fortsatt experiment bör använda avgränsade textpassager med verifierbar
+full täckning och en separat jämförelse av motstridiga fakta.
