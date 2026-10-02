@@ -70,7 +70,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Visa expertminnen](visa-expertminnen.md) — Se, redigera och ta bort vad experterna har sparat i långtidsminnet
 * [Välja LLM-modell](valja-llm-modell.md) — Skapa LLM-konfigurationer, sätt default och välj default, fast eller Auto per prompt
 * [Följa bakgrundsjobb](folja-bakgrundsjobb.md) — Status för generering, simulering, sourcing, rättsunderlag och rapporter
-* [Följa research i realtid](folja-research-i-realtid.md) — Live-vy för research innan expertgranskning och panel
+* [Följa research i realtid](folja-research-i-realtid.md) — Frågor, källor och bedömningar i research innan expertgranskning och panel
 
 # Due Diligence (bolag)
 

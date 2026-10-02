@@ -301,6 +301,7 @@ export type ResearchOverviewSource = {
   derived?: boolean
   failure_category?: string | null
   id: string
+  original_evidence_id: string | null
   passage_id: string | null
   domain_result_id: string | null
   raw_source_id: string | null
