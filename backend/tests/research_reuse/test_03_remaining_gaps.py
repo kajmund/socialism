@@ -16,7 +16,7 @@ from app.services.research.question_iteration import (
     RelatedKnowledgeQuestion,
     prepare_iterative_follow_ups,
 )
-from tests.research_reuse.helpers import context, evidence, need
+from tests.research_reuse.helpers import MAIN, context, evidence, need
 from tests.research_reuse.probes import gaps
 
 pytestmark = pytest.mark.research_reuse
@@ -257,6 +257,51 @@ async def test_only_the_assessed_main_gap_becomes_a_child(graph_basis):
         "Ändringar under 1995 saknas",
         "research-main: Ändringar under 1995 saknas",
     ]
+
+
+async def test_main_duplicate_merges_all_source_types(reuse_db):
+    from app.services.research.startup import MAIN_NEED_ID, StartInputs, ResearchStart, _bind_initial
+    from app.services.research.models import ResearchPlan
+    from tests.test_research_question_evidence import RecordingSource
+
+    law = RecordingSource("swedish_law")
+    preparatory = RecordingSource("swedish_preparatory_works")
+    case_law = RecordingSource("swedish_case_law")
+    root = replace(
+        need(question=MAIN, need_id=MAIN_NEED_ID),
+        source_types=[law.source_type, preparatory.source_type, case_law.source_type],
+    )
+    child = replace(
+        need(question=MAIN, need_id="child"),
+        source_types=[law.source_type],
+    )
+    graph = SqlQuestionEvidenceGraph()
+    start = await _bind_initial(
+        StartInputs(
+            factory=reuse_db,
+            objective=None,
+            plan=ResearchPlan(needs=[root, child]),
+            initial_planner=None,
+            followup_planner=AsyncMock(),
+            assessor=AsyncMock(),
+            graph=graph,
+            context=context(),
+            allowed_source_types=(
+                law.source_type,
+                preparatory.source_type,
+                case_law.source_type,
+            ),
+            need_limit=10,
+            normalizer=None,
+        ),
+        ResearchStart(ResearchPlan(needs=[root, child])),
+    )
+    assert len(start.plan.needs) == 1
+    assert set(start.plan.needs[0].source_types) == {
+        law.source_type,
+        preparatory.source_type,
+        case_law.source_type,
+    }
 
 
 async def test_initial_duplicates_execute_once_without_losing_source_requests(reuse_db):
