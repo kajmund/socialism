@@ -45,6 +45,7 @@ from tests.test_lagen_nu_provider import (
     _hit,
 )
 from tests.test_research import _context, _need
+from tests.text_unit_fakes import text_unit_record
 
 URI = "https://lagen.nu/dom/nja/2005s142"
 HOLDING = "Högsta domstolen ogillade yrkandet om jämkning enligt 36 §."
@@ -52,7 +53,7 @@ BACKGROUND = "Leasingavtalet tecknades år 1998 och avsåg en personbil."
 
 
 def _unit(unit_id: str, text: str, *, ordinal: int = 0) -> TextUnitRecord:
-    return TextUnitRecord(
+    return text_unit_record(
         id=unit_id,
         document_version_id="ver-a",
         document_id="doc-a",
@@ -60,7 +61,6 @@ def _unit(unit_id: str, text: str, *, ordinal: int = 0) -> TextUnitRecord:
         section_id="s1",
         ordinal=ordinal,
         text=text,
-        content_hash=unit_id,
     )
 
 

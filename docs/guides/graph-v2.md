@@ -31,10 +31,68 @@ embedding; unresolved fact texts are embedded as one batch and only locally
 shortlisted ambiguous nodes/facts reach the semantic judge.
 
 `graph_embedding_cache` is shared across tenants and content-addressed by model,
-the configured `EMBEDDING_MODEL_REVISION`, dimension, purpose and normalized-text hash. It stores no tenant,
+the configured `EMBEDDING_MODEL_REVISION`, dimension, purpose and SHA-256 of the
+exact UTF-8 input. The embedding service receives that same unmodified input:
+case, whitespace, punctuation and Unicode representation are not normalized.
+This applies to source chunks, queries and fact texts using this shared adapter;
+normalized graph edge identity remains a separate concern. It stores no tenant,
 source, run, provenance or raw text. Database leases coordinate simultaneous
 cache misses across workers; changing the model revision produces a new cache
 entry without rewriting graph facts.
+
+The default purpose is `text.exact.v2`, which does not read the old normalized
+`text.v1` namespace. Old cache rows remain available for inspection; no legacy
+lookup is attempted. The existing SQL column `normalized_text_hash` holds the
+exact input hash for this new purpose. Already materialized TextUnit/index
+vectors and graph-fact vectors are not migrated or recomputed by this change.
+Different documents retain their own TextUnits and vector projections even
+when an embedding is reused.
+
+## Shared chunk text and temporal occurrences
+
+`shared_text_chunks` stores exact text once, keyed by SHA-256 of its UTF-8 bytes.
+Each `text_units` row references that content and retains its own document,
+version, scope, locator, ordinal and temporal metadata. Shared content has no
+tenant or provenance fields and is not a retrieval or authorization boundary;
+reads still select scoped TextUnits. PostgreSQL RLS and revoked client-role
+grants keep the content table backend-only.
+
+Ingestion validates the incoming SHA before writing, resolves overlapping
+batches in sorted hash order, and rejects an existing hash with different text.
+Database triggers reject changes to stored content and retargeting an existing
+TextUnit to different content. A source changing A → B → A creates a third
+version occurrence referencing the original A chunk, preserving the earlier
+version history. Removing one occurrence does not delete shared text or other
+documents' references; no customer-material deletion API is introduced here.
+
+Text is eagerly joined when TextUnits are loaded, so it is materialized before
+the database connection is released for embedding or vector-store work. The
+embedding cache remains independently keyed by model, revision, dimension,
+purpose and exact-text SHA. Vector projections still carry document-specific
+text and provenance. Canonical source ingestion writes the new occurrence's
+known keys directly with `upsert_chunks`, retaining earlier versions' vectors.
+It does not list the index or delete previous projections. Current source
+selection comes from SQL's current version; frozen historical source references
+can retrieve their own TextUnit vectors by exact document and chunk keys.
+The Jev/TTL answer-review pipeline is unchanged.
+
+Index repair materializes current document/TextUnit inputs, ends its read
+transaction and then checks or writes known keys. A supplied active transaction
+is rejected before any external call, preserving the caller's pending work.
+An interrupted index write propagates the error; replaying the persisted
+version checks the same keys and uses the embedding cache to complete it.
+Already-deleted historical vectors are not reconstructed by this change.
+Uploaded customer files and editable document-item indexes retain their
+existing replacement/deletion behavior; this change covers canonical sources.
+
+Migration `e8c2f4a1b6d0` validates all existing TextUnit hashes, copies unique
+text into the shared table and replaces the old text column with a foreign key.
+It preserves TextUnit IDs, supporting references and version metadata without
+embedding calls or vector reindexing. A mismatched hash aborts rather than
+rehashing historical identities. PostgreSQL locks the affected table during
+the migration; SQLite requires foreign keys disabled on the migration
+connection before its batch-table rewrite, to preserve incoming references.
+Downgrade reconstructs each occurrence's text from the shared table.
 
 ## Retrieval and portability
 

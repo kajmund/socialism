@@ -45,6 +45,8 @@ Under **Generella frågor** finns ett kort per fråga med:
 - Varför frågan behövs och den kontextspecifika formuleringen.
 - Hittade källor och bedömning (fullständighet, stödjande evidens, luckor, motstridigheter).
 
+En experts fråga visas tillsammans med sin bedömning och sina källor i samma kort. Stödjande evidens visas med källornas namn. Verkliga följdfrågor har egna kort.
+
 Längst ner finns en **teknisk händelselogg** med tidsstämplade händelser — användbar om något verkar ha fastnat.
 
 ## Relaterade guider

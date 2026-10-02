@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, Literal
 
@@ -10,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.llm import complete_structured_retry, invoke_structured_completer
+from app.llm import StructuredOutputError, complete_structured_retry, invoke_structured_completer
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.research.assessment import (
@@ -23,14 +24,31 @@ from app.services.research.assessment import (
     can_assess_programmatically,
     group_evidence_for_review,
     programmatic_assessment,
-    review_excerpt,
     sanitize_assessment_draft,
 )
+from app.services.research.assessment_input import compact_provenance, encode_assessment_input
 from app.services.research.fast_gate import wrap_research_assessor
 from app.services.research.models import ResearchPlan
 from app.services.research.review_payload import compact_claims
 
 Completer = Callable[[list[dict[str, Any]], type[Any]], Awaitable[Any]]
+logger = logging.getLogger(__name__)
+_FAILURE_MESSAGES = {
+    "context_length_exceeded": "Evidence sufficiency model context limit exceeded (context_length_exceeded)",
+    "output_length_exceeded": "Evidence sufficiency model response exceeded its output limit",
+    "timeout": "Evidence sufficiency model call timed out",
+    "model_call_failed": "Evidence sufficiency model call failed",
+}
+
+
+def _failure_reason(exc: Exception) -> str:
+    if getattr(exc, "code", None) == "context_length_exceeded":
+        return "context_length_exceeded"
+    if isinstance(exc, TimeoutError):
+        return "timeout"
+    if isinstance(exc, StructuredOutputError) and exc.category == "length":
+        return "output_length_exceeded"
+    return "model_call_failed"
 
 
 class NeedSufficiencyModel(BaseModel):
@@ -98,16 +116,17 @@ def _evidence_payload(group: EvidenceReviewGroup) -> dict[str, object]:
         "source_type": item.source_type,
         "status": item.status,
         "title": item.title,
-        "excerpt": review_excerpt(item.excerpt),
+        "excerpt": item.excerpt,
         "locator": item.locator,
         "source_id": item.source_id,
         "source_url": item.source_url,
         "provider": item.provider,
         "score": item.score,
-        "provenance": {k: v for k, v in item.provenance.items() if k not in {"legal_result", "derived_claims"}},
+        "provenance": compact_provenance(item.provenance),
         "legal_result": (
             item.legal_result.model_dump(mode="json", exclude={"raw_text"})
-            if item.legal_result else None
+            if item.legal_result
+            else None
         ),
         **compact_claims(item.claims),
         "retrieved_at": item.retrieved_at.isoformat(),
@@ -219,6 +238,9 @@ class LlmResearchAssessor:
                 model_name=None,
                 model_version=None,
             )
+        review = encode_assessment_input(
+            [_evidence_payload(group) for group in group_evidence_for_review(evidence)]
+        )
         messages = [
             {"role": "system", "content": self._system_prompt},
             {
@@ -226,13 +248,11 @@ class LlmResearchAssessor:
                 "content": render_prompt(
                     {"research.assessment.user": self._user_prompt},
                     "research.assessment.user",
-                    plan_json=json.dumps(_plan_payload(plan), ensure_ascii=False),
+                    plan_json=json.dumps(
+                        _plan_payload(plan), ensure_ascii=False, separators=(",", ":")
+                    ),
                     evidence_json=json.dumps(
-                        [
-                            _evidence_payload(group)
-                            for group in group_evidence_for_review(evidence)
-                        ],
-                        ensure_ascii=False,
+                        review.payload, ensure_ascii=False, separators=(",", ":")
                     ),
                 ),
             },
@@ -245,9 +265,18 @@ class LlmResearchAssessor:
                 prompt_key="research.assessment.system",
             )
         except Exception as exc:
-            raise ResearchAssessmentError(
-                "Evidence sufficiency model call failed"
-            ) from exc
+            # Provider error bodies can contain request data; log only the safe category.
+            reason = _failure_reason(exc)
+            logger.error(
+                "research.assessment.failed reason=%s error_type=%s evidence_count=%s "
+                "review_group_count=%s input_chars=%s",
+                reason,
+                type(exc).__name__,
+                len(evidence),
+                len(review.evidence_ids),
+                sum(len(message["content"]) for message in messages),
+            )
+            raise ResearchAssessmentError(_FAILURE_MESSAGES[reason]) from exc
         if not isinstance(parsed, EvidenceSufficiencyModel):
             try:
                 parsed = EvidenceSufficiencyModel.model_validate(parsed)
@@ -256,11 +285,13 @@ class LlmResearchAssessor:
                     "Evidence sufficiency model returned an invalid payload"
                 ) from exc
         return sanitize_assessment_draft(
-            _draft_from_model(
-                parsed,
-                provider=self._provider,
-                model=self._model,
-                model_version=self._model_version,
+            review.restore(
+                _draft_from_model(
+                    parsed,
+                    provider=self._provider,
+                    model=self._model,
+                    model_version=self._model_version,
+                )
             ),
             plan=plan,
             evidence=evidence,

@@ -583,8 +583,8 @@ async def test_llm_assessor_keeps_same_source_analyses_separate_by_need():
 
     async def completer(messages, response_model):
         payload = json.loads(messages[-1]["content"].split("EvidenceSet:\n", 1)[1])
-        assert len(payload) == 2
-        assert [row["research_need_ids"] for row in payload] == [["need_1"], ["need_2"]]
+        assert len(payload["evidence"]) == 2
+        assert [row["research_need_ids"] for row in payload["evidence"]] == [["need_1"], ["need_2"]]
         return EvidenceSufficiencyModel(
             result="sufficient",
             rationale="samma källa kan stödja båda frågorna",
@@ -592,7 +592,7 @@ async def test_llm_assessor_keeps_same_source_analyses_separate_by_need():
                 NeedSufficiencyModel(
                     research_need_id=need_id,
                     sufficient=True,
-                    supporting_evidence_ids=["evidence-1" if need_id == "need_1" else "evidence-2"],
+                    supporting_evidence_ids=["e0" if need_id == "need_1" else "e1"],
                 )
                 for need_id in ("need_1", "need_2")
             ],
@@ -633,7 +633,7 @@ def test_research_evaluation_prompts_are_domain_neutral_and_outcome_aware():
 
 
 @pytest.mark.asyncio
-async def test_llm_assessor_clips_long_excerpts_before_model_call():
+async def test_llm_assessor_keeps_full_selected_source_before_model_call():
     plan = ResearchPlan(needs=[_need("research_1", "swedish_law")])
     dumped = "Bokföringslag " + ("x" * 16000)
     evidence = [
@@ -657,11 +657,12 @@ async def test_llm_assessor_clips_long_excerpts_before_model_call():
 
     async def completer(messages, response_model):
         payload = json.loads(messages[-1]["content"].split("EvidenceSet:\n", 1)[1])
-        assert payload[0]["excerpt"] == dumped[:2000]
-        assert dumped not in messages[-1]["content"]
+        row = payload["evidence"][0]
+        assert "".join(payload["passages"][ref] for ref in row["passage_ids"]) == dumped
+        assert dumped in messages[-1]["content"]
         return EvidenceSufficiencyModel(
             result="insufficient",
-            rationale="för stort underlag klipptes",
+            rationale="bevarat underlag saknar precist stöd",
             need_assessments=[
                 NeedSufficiencyModel(
                     research_need_id="research_1",
@@ -705,7 +706,7 @@ async def test_llm_assessor_sanitizes_structured_output():
 
     async def completer(messages, response_model):
         assert response_model is EvidenceSufficiencyModel
-        assert "real-1" in messages[-1]["content"]
+        assert "e0" in messages[-1]["content"]
         return EvidenceSufficiencyModel(
             result="sufficient",
             rationale="stöds",
@@ -713,10 +714,10 @@ async def test_llm_assessor_sanitizes_structured_output():
                 NeedSufficiencyModel(
                     research_need_id="research_1",
                     sufficient=True,
-                    supporting_evidence_ids=["real-1", "nope"],
+                    supporting_evidence_ids=["e0", "nope"],
                 )
             ],
-            considered_evidence_ids=["real-1", "nope"],
+            considered_evidence_ids=["e0", "nope"],
         )
 
     assessor = LlmResearchAssessor(

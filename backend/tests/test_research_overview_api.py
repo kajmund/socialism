@@ -214,6 +214,9 @@ async def test_research_overview_aggregates_question_graph_and_sources(client_db
                 ],
             ),
         )
+        runtime = _runtime_need(child.id, "need-1", "Vilka rekvisit gäller?")
+        runtime.knowledge_question_id = answered.knowledge_question_id
+        session.add(runtime)
         answered.execution_attempt_id = child.id
         answered.status = "completed"
         await session.commit()
@@ -341,6 +344,9 @@ async def test_overview_keeps_shared_raw_source_domain_results_with_their_needs(
         await attach_evidence_set(session, attempt_id=child.id, evidence_set_id=evidence_set.id)
         await mark_ready(session, child.id)
         for question in questions:
+            runtime = _runtime_need(child.id, question.runtime_need_id, f"Fråga {question.runtime_need_id}")
+            runtime.knowledge_question_id = question.knowledge_question_id
+            session.add(runtime)
             question.execution_attempt_id = child.id
             question.status = "completed"
         assert len((await session.scalars(select(RawSource))).all()) == 1

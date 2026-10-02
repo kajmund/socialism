@@ -49,7 +49,7 @@ function NeedAssessment({ assessment, sources }: { assessment: NonNullable<Resea
   const { t } = useLocale()
   return <div className="space-y-2">
     <Info label={t("execution.researchMonitor.assessment")} text={t(assessment.sufficient ? "execution.researchMonitor.status.answered" : "execution.researchMonitor.status.insufficient")} />
-    {assessment.supporting_evidence_ids.length > 0 ? <Info label={t("execution.researchMonitor.supportingEvidence")} text={assessment.supporting_evidence_ids.map((id) => sources.find((source) => source.id === id)?.title ?? id).join(", ")} /> : null}
+    {assessment.supporting_evidence_ids.length > 0 ? <Info label={t("execution.researchMonitor.supportingEvidence")} text={assessment.supporting_evidence_ids.map((id) => sources.find((source) => source.original_evidence_id === id)?.title ?? id).join(", ")} /> : null}
     {assessment.missing_or_weak ? <Info label={t("execution.researchMonitor.missingOrWeak")} text={assessment.missing_or_weak} /> : null}
     {assessment.contradictions.map((text, index) => <Info key={index} label={t("execution.researchMonitor.contradictions")} text={text} />)}
     {assessment.further_information ? <Info label={t("execution.researchMonitor.furtherInformation")} text={assessment.further_information} /> : null}

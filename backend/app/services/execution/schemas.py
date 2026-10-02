@@ -337,6 +337,7 @@ class ResearchSourceOut(BaseModel):
     derived: bool = False
     failure_category: str | None = None
     id: str
+    original_evidence_id: str | None
     passage_id: str | None
     domain_result_id: str | None = None
     raw_source_id: str | None = None

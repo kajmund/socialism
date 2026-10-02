@@ -1,7 +1,7 @@
 """A sufficient Graph answer ends research before any source ingestion work."""
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import func, select, text
@@ -15,23 +15,6 @@ from tests.test_research_graph_v2_reuse import Embeddings
 from tests.test_research_question_evidence import RecordingSource, _router
 
 pytestmark = pytest.mark.research_reuse
-
-
-@pytest.fixture
-def no_source_work(monkeypatch):
-    calls = {}
-    boundaries = {
-        "fetch": "app.services.lagen_nu.mcp_client.OfficialLagenNuMcpClient.get_document",
-        "ingest": "app.services.lagen_nu.text_unit_research.ingest_lagen_nu_document",
-        "index": "app.services.knowledge.supabase_vector_client.SupabaseStorageVectorClient.upsert",
-        "ttl": "app.services.knowledge.answer_review_classification.classify_pending_reviews",
-    }
-    for label, path in boundaries.items():
-        calls[label] = AsyncMock(side_effect=AssertionError(f"Unexpected {label}"))
-        monkeypatch.setattr(path, calls[label])
-    calls["chunk"] = Mock(side_effect=AssertionError("Unexpected chunking"))
-    monkeypatch.setattr("app.services.knowledge.chunking.KnowledgeChunker.segment", calls["chunk"])
-    return calls
 
 
 async def _stored_source_counts(factory):
