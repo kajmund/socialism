@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal, Protocol
 
@@ -19,11 +20,16 @@ from app.services.legal_research_result import (
     StatuteAnalysis,
 )
 from app.services.prompt_catalog import render_prompt
+from app.services.prompt_fields_store import cached_filled_prompts
 from app.services.prompt_store import require_active_prompts
 from app.services.research.failures import FailureCategory
 from app.services.research.models import ResearchContext
 
 Completer = Callable[[list[dict[str, Any]], type[Any]], Awaitable[Any]]
+
+# One miss loads prompts. Overlapping interprets wait here instead of each
+# checking out a pool connection.
+_prompt_load_lock = asyncio.Lock()
 
 
 class LegalDomainExtractionError(Exception):
@@ -34,6 +40,25 @@ class LegalDomainExtractionError(Exception):
     ) -> None:
         super().__init__(message)
         self.category = category
+
+
+async def _load_interpret_prompts(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    customer_id: int,
+    module: str,
+) -> dict[str, str]:
+    hit = cached_filled_prompts(customer_id=customer_id, language="sv", module=module)
+    if hit is not None:
+        return hit
+    async with _prompt_load_lock:
+        hit = cached_filled_prompts(customer_id=customer_id, language="sv", module=module)
+        if hit is not None:
+            return hit
+        async with session_factory() as session:
+            return await require_active_prompts(
+                session, customer_id=customer_id, module=module, language="sv"
+            )
 
 
 class LegalInterpretation(BaseModel):
@@ -93,10 +118,9 @@ class LlmLegalInterpreter:
         module = context.scope.module
         if customer_id is None or not module:
             raise ValueError("legal interpreter requires customer_id and module")
-        async with self._session_factory() as session:
-            prompts = await require_active_prompts(
-                session, customer_id=customer_id, module=module, language="sv"
-            )
+        prompts = await _load_interpret_prompts(
+            self._session_factory, customer_id=customer_id, module=module
+        )
         spans = {
             f"s{index}": paragraph
             for index, paragraph in enumerate(raw_text.split("\n\n"))

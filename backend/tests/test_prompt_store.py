@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import Configuration, Kund, PromptOverride
+from app.services import prompt_fields_store
 from app.services.kund_store import default_os_customer_id, ensure_default_kunder
 from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_catalog import default_prompts
@@ -164,3 +165,35 @@ async def test_require_prompts_for_language_is_scoped(session: AsyncSession):
         session, "sv", customer_id=os_id, module="politik"
     )
     assert prompts["oasis.env.empty_posts"] == default_prompts("sv")["oasis.env.empty_posts"]
+
+
+@pytest.mark.asyncio
+async def test_filled_prompts_stay_cached_until_overrides_change(session, monkeypatch):
+    os_id = await default_os_customer_id(session)
+    first = await filled_prompts(session, customer_id=os_id, language="sv", module="politik")
+    calls = 0
+    real_require = prompt_fields_store._require_kund
+
+    async def counting_kund(db, customer_id):
+        nonlocal calls
+        calls += 1
+        return await real_require(db, customer_id)
+
+    monkeypatch.setattr(prompt_fields_store, "_require_kund", counting_kund)
+    second = await filled_prompts(session, customer_id=os_id, language="sv", module="politik")
+    assert calls == 0
+    assert second["help.system"] == first["help.system"]
+    second["help.system"] = "muterad kopia"
+    untouched = await filled_prompts(session, customer_id=os_id, language="sv", module="politik")
+    assert untouched["help.system"] == first["help.system"]
+
+    await replace_prompt_overrides(
+        session,
+        customer_id=os_id,
+        language="sv",
+        prompts={"help.system": "Ny hjälp"},
+    )
+    await session.commit()
+    third = await filled_prompts(session, customer_id=os_id, language="sv", module="politik")
+    assert calls == 2
+    assert third["help.system"] == "Ny hjälp"
