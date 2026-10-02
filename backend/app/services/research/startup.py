@@ -267,12 +267,9 @@ async def _bind_initial(inputs: StartInputs, start: ResearchStart) -> ResearchSt
             )
             if question.id in seen:
                 index = seen[question.id]
-                prior = needs[index]
-                if prior.id == MAIN_NEED_ID:
-                    if not duplicate_main:
-                        prior = replace(prior, source_types=[], domains=[], modalities=[], capabilities=[])
+                if needs[index].id == MAIN_NEED_ID:
                     duplicate_main = True
-                needs[index] = _merge_requirements(prior, need)
+                needs[index] = _merge_requirements(needs[index], need)
                 continue
             seen[question.id] = len(needs)
             needs.append(replace(need, knowledge_question_id=question.id))
