@@ -499,3 +499,233 @@ direktskrivning på 6,25 respektive 2,46 sekunder. Vektorerna fanns redan före
 båda iterationerna; detta är en omskrivningsmätning, inte ett kallt researchflöde.
 Ingen helindexlistning eller radering kördes. Tiderna kan inte jämföras som hela
 researchtider med den tidigare inventeringskostnaden på 17,53 sekunder.
+
+## Isolerad Jev-screening på fryst underlag
+
+`test_jev_passages.py` verifierar full text, oförändrade innehållshashar,
+individuella frågebindningar, felaktiga svar, modellbyte och avbrott av väntande
+anrop. Samma nätverksförbud som resten av `research_reuse` gäller i CI.
+`jev_controls.py` innehåller fem syntetiska kontrollfall, inklusive sena domslut,
+rubriker, partsyrkanden, sammanblandning av två poster och motstridiga datum.
+Kontrollfallen beskriver inga verkliga rättsfall.
+
+Kör från backend med den riktiga miljökonfigurationen:
+
+```sh
+python scripts/check_jev_passages.py --live --input saved-assessment-input.json \
+  --output new-jev-report.json --repeat 2 --controls
+```
+
+Indata har `need.question` och `evidence` med serialiserade `ResearchEvidence`.
+Det är ett separat laboratorieläge; ingen databasanslutning öppnas och inga
+researchfrågor, dokument, vektorer, TTL eller produktionsinställningar ändras.
+Modell, endpoint och timeout kommer från ordinarie Jev-inställningar.
+`--concurrency N` väljer uttryckligen en annan samtidighet för experimentet.
+`--controls --controls-only` kör bara kontrollfallen. `--limit N` begränsar
+antalet granskningsgrupper för ett inledande funktionstest.
+
+Varianterna använder samma sex befintliga screeningfrågor:
+
+| Variant | Underlag och frågebindning |
+| --- | --- |
+| `compact` | Befintlig komprimering med 280 tecken, ett anrop per post |
+| `full` | Hela sparade utdraget, rättsanalysen och råtexten, ett anrop per post |
+| `batched_refs` | Två hela poster i gemensamt underlag; varje fråga pekar på sitt evidens-ID |
+| `batched` | Diagnostisk variant som även upprepar hela målposten i varje fråga |
+
+Standardordningen är `compact full batched_refs`; nästa iteration kör omvänd
+ordning. `--variants compact batched_refs` väljer två specifika varianter.
+En grupp med två poster innehåller tolv frågor, inte två. Exakta dubbletter
+grupperas med produktionens befintliga funktion och dubblettkopplingarna sparas.
+Inga nya prompttexter eller alternativa modeller används.
+
+Rapporten innehåller underlagets SHA, frågor och begärans SHA, varje anrops
+status, svarad modell, rapporterade tokens och fullständiga poäng. Vid API- eller
+schemafel avbryts körningen, väntande anrop avslutas och rapporten markeras
+`incomplete`. Det finns inga automatiska omförsök eller ersättningsresultat.
+En befintlig rapportfil skrivs inte över. `completed` betyder att mätningen
+genomförts; kontrollfallens separata `checks` avgör om bedömningarna var rätt.
+
+### Första live-experimentet 2026-10-02
+
+79 frysta evidensposter om 36 § avtalslagen gav 77 granskningsgrupper. Samma
+konfigurerade `openjev-latest`, svarad modell `openjev-0.1`, samtidighet åtta
+och timeout fem sekunder användes. En komplett jämförelse gav:
+
+| Variant | Tid | Anrop | Rapporterade indatatokens |
+| --- | ---: | ---: | ---: |
+| `compact` | 9,28 s | 77 | 47 132 |
+| `batched_refs` | 17,07 s | 39 | 285 847 |
+
+Nästa iteration av grupperingen avbröts med HTTP 429: åtta anrop hann lyckas,
+ett gav fel och trettio avbröts. Ett tidigare fulltextexperiment vid samtidighet
+åtta gav också HTTP 429. Ett separat experiment vid samtidighet ett fick
+timeout i fulltextvarianten. Detta är inte stabila medianer eller bevis på att
+gruppering i sig är långsammare: både textmängd och frågebindning ändras, och
+hela fulltextvarianten saknar en komplett tidsmätning.
+
+Kontrollerna kördes två gånger med samtidighet ett. Det sena domslutet missades
+av `compact` båda gångerna och hittades av båda fulltextvarianterna båda
+gångerna. Alla tre avvisade rubriken och partsyrkandet utan domslut. Den
+optimerade grupperingen höll isär svarsstöd och rubrik även i samma anrop.
+För en uttrycklig datumkonflikt flaggade den bara den andra posten i båda
+iterationerna; individuella anrop saknar den andra posten att jämföra mot.
+Två slumpmässigt grupperade poster ersätter inte en övergripande
+motsägelsebedömning av allt tillgängligt underlag.
+
+Full text avser allt som redan är sparat, inklusive befintliga markeringar om
+trunkerade källor; experimentet återskapar inte saknade domskäl. De verkliga
+77 posterna har inga manuellt granskade facit i detta experiment. Därför ger
+ändrade screeningpoäng ingen mätning av juridisk träffsäkerhet eller slutlig
+svarstillräcklighet. Ingen variant införs i produktion på dessa resultat.
+Ett fortsatt experiment bör använda avgränsade textpassager med verifierbar
+full täckning och en separat jämförelse av motstridiga fakta.
+
+### Avgränsade passager och separata faktapar
+
+`scripts/check_jev_windows.py` kör nästa experiment på samma frysta underlag:
+
+```sh
+python scripts/check_jev_windows.py --live --input saved-assessment-input.json \
+  --output new-window-report.json --repeat 2
+```
+
+`--controls-only` kör de nio syntetiska kontrollfallen. Samtidighet och timeout
+kommer från ordinarie inställningar; `--concurrency 1` väljer uttryckligen en
+separat mätning med ett anrop i taget. De tre varianterna är `compact_rank`,
+`excerpt_windows` och `source_windows`; `--variants` väljer en delmängd.
+
+Här mäts endast relevans och direkt svarsstöd, med samma två befintliga
+frågedefinitioner i alla tre varianter. Tiderna avser denna komponent, inte
+alla sex screeningfrågor, slutlig tillräcklighetsbedömning eller en research.
+`excerpt_windows` täcker hela det sparade utdraget. `source_windows` täcker
+`legal_result.raw_text` för juridiskt analyserade poster och `excerpt` för
+övriga poster. Det senare skickar inte den strukturerade rättsanalysen; ett
+komplett textfält är inte samma underlag som föregående fulltextvariant.
+
+Passagernas kärnor är högst 1 200 Python-tecken och täcker textfältet exakt
+utan luckor eller dubblerade kärnpositioner. Bedömningens textvy innehåller
+även upp till 160 tecken före och efter kärnan. Originaltexten återskapas och
+verifieras före anrop; varken blanksteg, radslut, Unicode eller canonical SHA
+normaliseras. Rapporten binder kärn- och kontextpositioner till originalets
+text-SHA och befintliga innehållshash. Dessa är laboratoriets vyer, inte nya
+ingestion-chunks eller embeddings. Varje batch håller ordinarie teckenbudget
+och högst sexton frågor. En för stor passage ger fel utan avklippning.
+
+Relevans och svarsstöd för en post hämtas från samma bästa passage. Poäng från
+olika passager får inte kombineras till ett påhittat stöd. Alla passagepoäng
+sparas för granskning. Detta ger svarskandidater, inte ett automatiskt beslut
+om att forskningsfrågan är besvarad. Ingen beständig bedömningscache införs.
+
+För motsägelser prövas explicit utpekade faktapar separat i båda riktningarna,
+med hela målposten och hela jämförelseposten. Kontrollfallen omfattar
+motstridiga aktuella datum, överensstämmande datum, historiska versioner och
+olika avtal. Paret måste få plats i budgeten. Detta testar Jevs bedömning av
+givna faktapar; experimentet upptäcker inte automatiskt alla relevanta faktapar
+i de verkliga 77 posterna och ändrar inte Graph v2:s TTL eller invalidation.
+
+`test_jev_windows.py` verifierar exakt rekonstruktion, källfält, budget,
+frågebindningar, sammanhängande poäng, faktapar och att diagnostik bevarar
+HTTP-felet samt redigerar bort API-nyckeln. Externa anrop mockas och sockets
+blockeras även för dessa tester. API-fel avbryter och lämnar rapporten
+`incomplete`; ingen variant används som ersättning för en annan.
+
+#### Kort backoff vid HTTP 429
+
+`--retry-429` aktiverar ett separat, uttryckligt experiment med begränsade
+omförsök mot samma tjänst, modell och oförändrade anrop. Utan flaggan gäller
+fortfarande ett försök per anrop. Produktionsklienten ändras inte.
+
+Högst fyra HTTP-försök görs per logiskt anrop. Grundväntan mellan försöken är
+0,5, 1 och 2 sekunder, med upp till 0,2 sekunders jitter. `Retry-After`, både
+antal sekunder och HTTP-datum, respekteras som minsta väntan. En gemensam paus
+stoppar nya anrop från experimentets klient; redan pågående anrop kan
+fortfarande avslutas. Högst tjugo sekunders sammanlagd väntan tillåts per
+logiskt anrop, även när ett annat parallellt anrop förlänger pausen. En längre
+begärd väntan ger ett tydligt fel utan ett för tidigt omförsök. Timeout per
+HTTP-försök kommer fortfarande från ordinarie inställningar.
+
+```sh
+python scripts/check_jev_windows.py --live --input saved-assessment-input.json \
+  --output new-backoff-report.json --repeat 2 --concurrency 8 \
+  --variants compact_rank excerpt_windows --retry-429
+```
+
+Alla väntetider ingår i variantens uppmätta tid och anropets latens.
+`requests` räknar logiska anrop; `http_attempts` redovisar de faktiska
+HTTP-försöken separat, tillsammans med `backoff_waits`, `scheduled_retries`,
+`retry_policy` och fortsatt feldiagnostik. Väntetiderna per parallellt anrop
+överlappar och ska inte summeras som total väggtid. Slutligt HTTP 429,
+överskriden väntbudget, felaktig `Retry-After`, övriga HTTP-fel, timeout och
+ogiltiga svar avbryter experimentet med en `incomplete` rapport.
+
+`test_jev_backoff.py` mockar tjänsten och väntan. Testerna verifierar
+oförändrad begäran, försöks- och väntgränser, båda `Retry-After`-formaten,
+gemensam paus, avbrott och att latensmätningen inkluderar väntan. Inga
+databasanslutningar används i detta experiment.
+
+#### Andra live-experimentet 2026-10-02
+
+En komplett jämförelse vid samtidighet ett och samma femsekunderstimeout gav:
+
+| Variant | Tid | Anrop | Passager | Täckta kärntecken | Indatatokens |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Korta utdrag, två frågor | 61,18 s | 77 | – | – | 35 582 |
+| Hela utdrag i passager | 59,35 s | 70 | 194 | 192 306 | 191 944 |
+| Rå källtext i passager | 125,97 s | 141 | 349 | 376 838 | 369 178 |
+
+Vid upprepning i omvänd ordning tog utdragspassagerna 58,68 s; den efterföljande
+korta varianten avbröts med timeout. Det finns därför bara en komplett
+seriemätning av den korta varianten. Råtextvarianten har inte upprepats.
+
+Vid samtidighet åtta tog den korta varianten med två frågor 9,44 s. Den
+efterföljande passagevarianten avbröts med HTTP 429 efter 51 lyckade anrop.
+Ett senare isolerat prov av enbart utdragspassagerna genomförde alla 70 anrop
+på 9,15 s. Det visar ungefär samma tidsordning för betydligt mer text, men
+ingen säker tidsvinst eller stabil kapacitet för sammanhängande körningar.
+De mindre passagerna avskaffar inte API-begränsningen. Felens exakta kvotorsak
+är inte fastställd; det enstaka diagnostiska anropet gav 200 utan kvotheaders.
+
+De nio kontrollfallen kördes två gånger. Båda passagevarianterna klarade alla
+tolv märkta bedömningar av svarsstöd per variant, inklusive domslut först i
+tredje passagen. Den korta varianten missade de två sena domsluten i båda
+iterationerna. En separat granskning av tolv passagepoäng från det tredje
+fönstret visade korrekt svarsstöd i rätt passage och avvisade de tidigare
+passagerna. Faktaparsbedömningen klarade sexton av sexton riktade kontroller,
+inklusive historiska förändringar och olika avtal. Ett negativt svar för olika
+avtal låg nära tröskeln (0,477 mot 0,5); kontrollfallen är ingen allmän
+kalibrering eller bevis på juridisk precision i de verkliga posterna.
+
+Detta stödjer fortsatt kvalitetstest av passagebedömningen, men ingen
+produktionsändring görs. Verkliga träffars riktighet, hantering av relevanta
+faktapar och hållbar API-kapacitet återstår att verifiera.
+
+#### Backoff-experimentet 2026-10-03
+
+Med samma frysta 79 poster, 77 granskningsgrupper, modell `openjev-0.1`,
+samtidighet åtta och femsekunderstimeout per HTTP-försök avslutades två
+iterationer. Ordningen vändes i den andra iterationen. Väntan ingår i tiderna:
+
+| Ordning | Variant | Tid | Logiska anrop | HTTP-försök | HTTP 429 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 1 | Korta utdrag | 9,94 s | 77 | 77 | 0 |
+| 2 | Hela utdrag i passager | 28,30 s | 70 | 79 | 9 |
+| 3 | Hela utdrag i passager | 19,18 s | 70 | 74 | 4 |
+| 4 | Korta utdrag | 33,35 s | 77 | 86 | 9 |
+
+Alla 294 logiska anrop lyckades efter totalt 316 HTTP-försök. Tjugo anrop
+behövde omförsök; två av dem fick 429 två gånger. Högst tre försök behövdes.
+Samtliga 22 svar med HTTP 429 angav `Retry-After: 5` och feltexten
+`Rate limit exceeded: 60 requests per minute per key.` Det är tjänstens
+uppgivna gräns, inte en oberoende verifiering av dess kvotberäkning.
+
+Ett föregående prov med endast sex sekunders sammanlagd väntbudget lyckades
+återhämta fyra anrop men avbröt nästa iteration när pausen förlängdes.
+Den ofullständiga rapporten bevarades; den slutliga tjugosekundersgränsen
+rymmer flera femsekunderspauser utan att göra försöken obegränsade.
+
+Backoff möjliggjorde alltså en komplett jämförelse vid 429, men tiderna är
+nu tydligt påverkade av kvoten. Resultatet visar varken stabil svarstid eller
+högre juridisk precision. Alla passager och anrop behöll samma underlag;
+inga alternativa modeller, kortare ersättningsutdrag eller uteblivna poster
+användes för att slutföra mätningen.
