@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona
 from app.schemas.domain import JobCreate
-from app.services.dd.company_mcp import ResearchToolHandler
+from app.services.expert_session_tools import ResearchToolHandler
 
 
 def _explicit_research_confirmation(message: str) -> bool:

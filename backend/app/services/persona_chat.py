@@ -34,6 +34,7 @@ from app.services.dd.company_mcp import CompanyMcpError
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
 from app.services.expert_async_tools import begin_library_tools
+from app.services.expert_memory_schedule import schedule_expert_memory_update
 from app.services.expert_tools import resolve_chat_tools
 from app.services.library_chat_fifo import trim_and_commit_library_chat
 from app.services.expertgranskning.memory import ExpertMemoryHit, get_expert_memory
@@ -44,7 +45,6 @@ from app.services.prompt_store import require_prompts_for_persona
 from app.services.run_tick_context import build_persona_feed_context
 
 logger = logging.getLogger(__name__)
-_memory_tasks: set[asyncio.Task[None]] = set()
 
 LibraryTurnWriteGuard = Callable[[AsyncSession], Awaitable[bool]]
 
@@ -244,60 +244,6 @@ async def remember_expert_chat_turn(
         )
         for hit in hits
     ]
-
-
-def schedule_expert_memory_update(
-    persona: Persona,
-    *,
-    message: str,
-    reply: str,
-    image_sha256: str | None,
-    source: Literal["persona_chat", "panel_chat", "expert_consult"] = "persona_chat",
-    session_id: str | None = None,
-) -> None:
-    """Write expert memory after the turn has returned. Failures stay in the log."""
-    if persona.kind != "expert":
-        return
-    customer_id = persona.customer_id
-    expert_id = persona_catalog_key(persona)
-    task = asyncio.create_task(
-        _update_expert_memory(
-            customer_id=customer_id,
-            expert_id=expert_id,
-            message=message,
-            reply=reply,
-            image_sha256=image_sha256,
-            source=source,
-            session_id=session_id,
-        ),
-        name=f"expert-memory:{persona.id}",
-    )
-    _memory_tasks.add(task)
-    task.add_done_callback(_memory_tasks.discard)
-
-
-async def _update_expert_memory(
-    *,
-    customer_id: int,
-    expert_id: str,
-    message: str,
-    reply: str,
-    image_sha256: str | None,
-    source: str,
-    session_id: str | None,
-) -> None:
-    try:
-        await get_expert_memory().add_chat_turn(
-            customer_id=customer_id,
-            expert_id=expert_id,
-            user_message=message,
-            assistant_message=reply,
-            source=source,
-            image_sha256=image_sha256,
-            session_id=session_id,
-        )
-    except Exception:
-        logger.exception("Expert memory update failed")
 
 
 def serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:

@@ -10,11 +10,11 @@ from app.llm import complete_structured, complete_text, stream_text
 from app.llm.vision_content import user_content_with_optional_image
 from app.schemas.domain import ChatMode, EditablePersona, FollowUpQuestions
 from app.services.actor_profiles import ActorToolHandler
-from app.services.dd.company_mcp import (
+from app.services.dd.company_mcp import complete_text_with_company_tools
+from app.services.expert_session_tools import (
     ConsultToolHandler,
     EvidenceToolHandler,
     ResearchToolHandler,
-    complete_text_with_company_tools,
 )
 from app.services.expert_async_tools import (
     acknowledge_expert_tools,
