@@ -126,7 +126,8 @@ combining all sources and derived evidence. It only writes `awaiting_ttl` work;
 research does not call Jev for TTL or wait for any review process. A separate
 bounded classifier chooses `soon`, `later`, or `never`, and an indexed candidate
 process promotes due schedules. No provider has TTL logic, and lagen.nu no longer
-calls graph-impact revalidation after write-back.
+calls graph-impact revalidation after write-back. Freeze does not enqueue
+Graph revalidation work.
 See [answer-review-ttl.md](answer-review-ttl.md) for semantics, retries, and commands.
 
 ## Need deadlines

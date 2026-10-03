@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -223,3 +224,31 @@ async def test_expired_worker_cannot_requeue_a_completed_newer_attempt(tmp_path)
         row = await session.get(GraphIngestWork, "race")
         assert row.status == "completed" and row.retry_at is None
     await engine.dispose()
+
+
+def test_graph_ingest_loop_does_not_process_revalidation():
+    import inspect
+
+    from app.services.graph_v2 import worker
+
+    source = inspect.getsource(worker)
+    assert "process_graph_work" in source
+    assert "revalidation" not in source
+    assert "process_question_revalidation_work" not in source
+
+
+async def test_run_graph_ingest_loop_only_calls_ingest(monkeypatch):
+    import asyncio
+
+    from app.services.graph_v2 import worker
+
+    calls: list[int] = []
+
+    async def fake_process(factory, limit=10):
+        calls.append(limit)
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(worker, "process_graph_work", fake_process)
+    with pytest.raises(asyncio.CancelledError):
+        await worker.run_graph_ingest_loop(object())
+    assert calls == [10]

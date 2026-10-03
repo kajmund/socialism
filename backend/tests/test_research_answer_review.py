@@ -1,12 +1,16 @@
 """Every provider and synthesized evidence use the same final-answer TTL boundary."""
 
+import importlib
+import inspect
 from datetime import UTC, datetime
 
+import pytest
 from sqlalchemy import select
 
 from app.database.answer_review import KnowledgeAnswerReview
 from app.services.execution import list_evidence_items
 from app.services.research import ResearchPlan, execute_attempt_research, research_evidence
+from app.services.research import answer_review as research_answer_review
 from app.services.research.answer_review import capture_answer_reviews
 from app.services.research.knowledge_question import research_question_key
 from tests.test_research_execution import (
@@ -69,6 +73,11 @@ async def test_generic_freeze_aggregates_sources_without_calling_jev(db, monkeyp
     again = (await session.execute(select(KnowledgeAnswerReview))).scalar_one()
     assert (again.id, again.created_at) == original
     assert [s.calls for s in sources] == [1, 1]
+    source = inspect.getsource(research_answer_review)
+    assert "_enqueue_graph_revalidation" not in source
+    assert "enqueue_question_revalidation" not in source
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("app.services.graph_v2.revalidation")
 
 
 async def test_empty_and_failed_sources_do_not_create_answer_versions(db):
