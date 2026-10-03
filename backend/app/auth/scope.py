@@ -18,12 +18,16 @@ def owner_user_id_from_job(job: Job) -> str | None:
 
 
 def job_visible_to_user(user: UserAccount, job: Job) -> bool:
-    owner_id = owner_user_id_from_job(job)
-    if owner_id is None:
-        return True
-    if user.role == "admin":
-        return True
-    return user.id == owner_id
+    return job_payload_visible_to_user(user, kind=job.kind, request=job.request, customer_id=job.customer_id)
+
+
+def job_payload_visible_to_user(user: UserAccount, *, kind: str, request: dict | None, customer_id: int | None) -> bool:
+    payload = request if isinstance(request, dict) else {}
+    owner = payload.get("owner_user_id")
+    if kind == "workspace_generation" or payload.get("workspace_id"):
+        customer_allowed = user.kund_id == customer_id if user.kund_id is not None else user.role == "admin"
+        return bool(owner) and str(owner) == user.id and customer_allowed
+    return not owner or user.role == "admin" or str(owner) == user.id
 
 
 def assert_job_owner_access(user: UserAccount, job: Job) -> None:

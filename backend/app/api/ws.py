@@ -48,6 +48,7 @@ from app.schemas.domain import (
     SpindoctorWidgetOut,
 )
 from app.services import jobs as jobs_service
+from app.services.job_watch import send_jobs_snapshot
 from app.services.customer_scope import customer_id_for_panel_session
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.watch import (
@@ -248,22 +249,9 @@ async def jobs_websocket(websocket: WebSocket) -> None:
             await _close_auth_error(websocket, exc)
             return
 
-        await job_hub.subscribe(websocket, customer_id=customer_id)
+        await job_hub.subscribe(websocket, customer_id=customer_id, user=user)
 
-        factory = jobs_service.job_session_factory()
-        async with factory() as session:
-            rows = await jobs_service.list_jobs(
-                session, limit=50, customer_id=customer_id
-            )
-            await websocket.send_json(
-                {
-                    "type": "jobs.snapshot",
-                    "jobs": [
-                        jobs_service.serialize_job(row).model_dump(mode="json")
-                        for row in rows
-                    ],
-                }
-            )
+        await send_jobs_snapshot(websocket, user, customer_id=customer_id)
         while True:
             # Keep the socket open; clients may send pings. Ignore payload.
             await websocket.receive_text()

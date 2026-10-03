@@ -1,8 +1,8 @@
 ---
 type: guide
 title: Använda SME-chatten
-description: Chatta med experter och expertpaneler i SME-produktens Messenger-liknande gränssnitt.
-tags: [personas, populationer]
+description: Arbeta med experter i text och live voice, granska källor och skapa dokument i samma arbetsyta.
+tags: [personas, populationer, grunddata]
 ---
 
 # Använda SME-chatten
@@ -20,13 +20,34 @@ En gul punkt längst till höger betyder att konversationen innehåller olästa 
 
 ## Chatta med en expert
 
-Välj experten i vänsterkolumnen, skriv i fältet **Aa** och skicka. Svaret visas i den högra kolumnen och sparas i konversationen. Chatten behåller de senaste 40 meddelandena. När ett nytt kommer in försvinner det äldsta.
+Välj experten i vänsterkolumnen, skriv i fältet **Aa** och skicka. Text och röst använder samma expert och samma arbetsyta. Chattens svar sparas tillsammans med arbetsytan.
 
 Du kan öppna en annan konversation medan experten arbetar. Svaret fortsätter att tas fram och markeras som oläst när det är klart.
 
-Förslag på följdfrågor visas som valbara knappar under konversationen. Om den aktiva modellen stöder bilder visas även **Bifoga bild** vid skrivfältet. Bilden förhandsvisas innan den skickas.
+Telefonknappen vid skrivfältet startar **live voice**. Tillåt mikrofonen i webbläsaren. Du kan stänga av mikrofonen, avbryta ett uppläst svar eller avsluta röstsamtalet. Du kan också skriva medan röstsamtalet är aktivt. Talade frågor och expertsvar visas i chatten. Dokument och sparade jobb ligger kvar när samtalet avslutas.
 
-Telefonikonen till höger om skrivfältet startar ett röstsamtal med den valda experten. En samtalsvy öppnas ovanpå chatten med expertens bild, samtalsstatus, tid, mikrofon, högtalare och en röd knapp för att lägga på. Tillåt mikrofonen när webbläsaren frågar. En kort ringsignal spelas innan experten svarar med sitt namn och en mörk manlig röst. Experten känner till din profil, ditt bolag och en kort sammanfattning av sina minnen från de senaste fyra timmarna. Under röstsamtalet kan experten använda samma valda bolags-, sök-, research- och profilverktyg som i textchatten. När experten behöver slå upp något säger hen först en kort egen mening, till exempel att hen tar reda på det. Uppslaget fortsätter i bakgrunden. Svaret kommer i nästa replik, eller som ett nytt meddelande om du väntar. Research kräver fortfarande att du uttryckligen bekräftar att den ska startas. Ljudet sparas inte. Varje färdigt samtalsvarv läggs in i chatten. Samma varv kan ge nya fakta i expertens minnen, men bara en gång — raderna i chatten skapar inte ett till minne. Telefonikonen visas inte för expertpaneler.
+Om mikrofonen nekas visar chatten ett fel och du kan fortsätta skriva. Om rösttjänsten saknar konfiguration visas det i chatten.
+
+## Arbeta med källor och presentationer
+
+Ladda upp dokument genom filväljaren i arbetsytan. Bearbetningen visas som ett bakgrundsjobb. Vänta tills dokumentet är läsbart innan du ber experten analysera det. Dokument som saknar textlager visar en kunskapslucka.
+
+Välj kunskapsområde i arbetsytans överkant: **Workspace**, **Allmän kunskap** eller **Research**. Det valda området följer med nästa fråga. Research behöver egna tillgängliga resultat; expertens minnen räknas inte som dokumentkällor.
+
+Arbetsytans vyer visar olika delar av samma uppgift:
+
+- **Evidens** visar källkort och stabila referensnummer.
+- **Dokument** öppnar källan vid rätt sida och markerar den hänvisade texten. Två dokument kan visas bredvid varandra med egen sida och förstoring.
+- **Jämförelse** visar jämförda uppgifter med källreferenser. Saknade uppgifter framgår.
+- **Relationer** visar händelser, villkor och konsekvenser som en graf. Tolkningar skiljs från källbelagda samband. Klicka på en referens för att öppna stödet.
+
+Du kan styra vyerna med rösten, till exempel ”öppna källan”, ”jämför de här uppgifterna” eller ”visa sambanden”. Experten bekräftar visningen efter att gränssnittet öppnat resultatet.
+
+## Skapa och revidera dokument
+
+Be experten skapa ett utkast utifrån arbetsytans källor. Utkastet skapas som ett jobb och öppnas när det är färdigt. Du kan redigera block och spara en ny revision, eller markera ett block och be experten ändra det med röst eller text.
+
+Varje sparad revision behåller sina källreferenser. Om dokumentet har ändrats sedan en revidering startade visas en revisionskonflikt så att den nyare texten kan granskas. **Word** och **PDF** exporterar den sparade revision som visas. PDF-export kräver att serverns dokumentkonvertering är tillgänglig.
 
 Knappen **Minnen** i chatthuvudet öppnar samma minneslogg som i expertchatten. Där kan du läsa, redigera, ta bort eller rensa expertens sparade minnen.
 

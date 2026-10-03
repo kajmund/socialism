@@ -31,6 +31,7 @@ type MessengerChatProps = {
   /** Optional muted line above the composer (e.g. memory save notice). */
   notice?: ReactNode
   /** Optional actions next to each bubble (delete/resend). */
+  renderContent?: (message: MessengerChatMessage) => ReactNode
   renderActions?: (message: MessengerChatMessage) => ReactNode
   suggestions?: string[]
   onSuggestion?: (question: string) => void
@@ -64,6 +65,7 @@ export function MessengerChat({
   placeholder,
   empty = null,
   notice = null,
+  renderContent,
   renderActions,
   suggestions = [],
   onSuggestion,
@@ -137,7 +139,7 @@ export function MessengerChat({
                     alt={t("chat.imageAlt")}
                   />
                 ) : null}
-                {m.content ? <ChatMarkdown text={m.content} /> : null}
+                {m.content ? renderContent ? renderContent(m) : <ChatMarkdown text={m.content} /> : null}
               </div>
             </div>
             {renderActions ? renderActions(m) : null}
@@ -235,6 +237,7 @@ export function MessengerChat({
         ) : null}
         <input
           ref={inputRef}
+          className="min-w-0"
           placeholder={placeholder}
           value={draft}
           disabled={disabled}

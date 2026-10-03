@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +28,7 @@ from app.services.expertgranskning.memory_view import (
     labeled_memory,
     serialize_memory_hit,
 )
+from app.services.public_expert_memory import clear_public_expert_memories, require_public_memory
 
 router = APIRouter(
     prefix="/expert-memory",
@@ -57,6 +58,7 @@ async def list_expert_memories(
         )
 
     kund_ids = list((await session.execute(select(Kund.id).order_by(Kund.id))).scalars())
+    await session.rollback()
     memories: list[ExpertMemoryOut] = []
     experts: list[ExpertMemoryExpertOut] = []
     for kund_id in kund_ids:
@@ -87,13 +89,11 @@ async def clear_expert_memories(
 ) -> Response:
     scoped = effective_customer_id(user, customer_id)
     cleaned_expert = (expert_id or "").strip() or None
-    memory = get_expert_memory()
-    if scoped is not None:
-        await memory.delete_all(customer_id=scoped, expert_id=cleaned_expert)
-        return Response(status_code=204)
-    kund_ids = list((await session.execute(select(Kund.id).order_by(Kund.id))).scalars())
+    kund_ids = ([scoped] if scoped is not None
+                else list((await session.execute(select(Kund.id).order_by(Kund.id))).scalars()))
+    await session.rollback()
     for kund_id in kund_ids:
-        await memory.delete_all(customer_id=kund_id, expert_id=cleaned_expert)
+        await clear_public_expert_memories(customer_id=kund_id, expert_id=cleaned_expert)
     return Response(status_code=204)
 
 
@@ -104,10 +104,9 @@ async def update_expert_memory(
     session: AsyncSession = Depends(get_session),
     _user: UserAccount = Depends(require_admin),
 ) -> ExpertMemoryOut:
+    await session.rollback()
+    existing = await require_public_memory(memory_id)
     memory = get_expert_memory()
-    existing = await memory.get(memory_id=memory_id)
-    if existing is None:
-        raise HTTPException(status_code=404, detail="Memory not found")
     updated = await memory.update(memory_id=memory_id, text=body.text)
     customer_id = customer_id_from_memory_user(updated.user_id or existing.user_id)
     if customer_id is None:
@@ -119,11 +118,11 @@ async def update_expert_memory(
 async def delete_expert_memory(
     memory_id: str,
     _user: UserAccount = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
 ) -> Response:
+    await session.rollback()
+    await require_public_memory(memory_id)
     memory = get_expert_memory()
-    existing = await memory.get(memory_id=memory_id)
-    if existing is None:
-        raise HTTPException(status_code=404, detail="Memory not found")
     await memory.delete(memory_id=memory_id)
     return Response(status_code=204)
 
@@ -134,13 +133,14 @@ async def _memories_for_customer(
     *,
     expert_id: str | None,
 ) -> tuple[list[ExpertMemoryOut], list[ExpertMemoryExpertOut]]:
+    directory = await expert_directory(session, customer_id=customer_id)
+    await session.rollback()
     memory = get_expert_memory()
     hits: list[ExpertMemoryHit]
     if expert_id:
         hits = await memory.list_all(customer_id=customer_id, expert_id=expert_id)
     else:
         hits = await memory.list_for_customer(customer_id=customer_id)
-    directory = await expert_directory(session, customer_id=customer_id)
     return (
         attach_expert_labels(hits, directory, customer_id=customer_id),
         directory_experts(directory, customer_id=customer_id),

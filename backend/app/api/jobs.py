@@ -28,6 +28,8 @@ async def create_job(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> JobOut:
+    if body.kind == "workspace_generation":
+        raise HTTPException(status_code=422, detail="use_workspace_tools_to_create_generation_jobs")
     try:
         customer_id = await customer_id_for_new_job(session, body)
     except ValueError as exc:

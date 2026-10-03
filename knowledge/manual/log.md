@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-10-04
+
+* **SME**: Expertchatten har en sparad arbetsyta för text och live voice. Där kan användaren ladda upp källor, öppna dokumentankare, jämföra uppgifter, visa relationsgrafer och skapa dokumentutkast med versionshistorik och Word/PDF-export. Bakgrundsjobb fortsätter efter avslutat röstsamtal. Rösttjänsten kräver ElevenLabs-konfiguration.
+
 ## 2026-10-03
 
 * **Research**: Giltiga färdiga resultat kan återanvändas för samma fråga och sammanhang. Närliggande frågor kontrolleras mot tidigare svar innan ny research behövs. Källor och bedömning visas från det tidigare underlaget.

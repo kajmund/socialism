@@ -12,6 +12,7 @@ import type {
 import { useLocale } from "@/i18n"
 
 type Props = {
+  compact?: boolean
   filter: SmeInboxFilter
   items: SmeInboxItem[]
   selected: SmeInboxItem | null
@@ -27,6 +28,7 @@ type Props = {
 const filters: SmeInboxFilter[] = ["all", "unread", "groups"]
 
 export function SmeConversationList({
+  compact = false,
   filter,
   items,
   selected,
@@ -67,6 +69,8 @@ export function SmeConversationList({
       minute: "2-digit",
     }).format(new Date(value))
   }
+
+  if (compact) return <aside className="flex h-full min-h-0 w-16 shrink-0 flex-col gap-3 overflow-y-auto border-r bg-white px-2 py-4 sm:w-20" aria-label={t("sme.chats")}>{filtered.map((item) => <button key={item.thread_id} type="button" title={`${item.name} · ${item.kompetensomrade ?? item.subtitle}`} aria-label={t("workspaceChat.activeExpert") + ": " + item.name} aria-pressed={selected?.thread_id === item.thread_id} className={`flex shrink-0 flex-col items-center gap-1 rounded-lg p-1 text-[10px] ${selected?.thread_id === item.thread_id ? "bg-db-gold-100 ring-1 ring-db-gold-500" : "hover:bg-db-ink-100"}`} onClick={() => onSelect(item)}>{item.thread_type === "panel" ? <span className="grid size-10 place-items-center rounded-lg bg-db-ink-950 text-db-gold-500"><UsersRound size={20} /></span> : <ExpertAvatar avatarUrl={item.avatar_url} name={item.name} className="grid size-10 place-items-center overflow-hidden rounded-lg bg-db-ink-950 text-db-gold-500" iconSize={20} />}<span className="w-full truncate">{item.name}</span></button>)}</aside>
 
   return (
     <aside className="flex h-full min-h-0 w-full flex-col border-r border-[color:var(--border-hairline)] bg-db-ink-0 md:w-[360px] lg:w-[400px]">
