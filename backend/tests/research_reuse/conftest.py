@@ -60,3 +60,9 @@ def no_source_work(monkeypatch):
     calls["chunk"] = Mock(side_effect=AssertionError("Unexpected chunking"))
     monkeypatch.setattr("app.services.knowledge.chunking.KnowledgeChunker.segment", calls["chunk"])
     return calls
+
+
+@pytest.fixture
+def result_jev(monkeypatch, reuse_db):
+    from tests.research_reuse.result_helpers import mock_result_jev
+    return mock_result_jev(monkeypatch, reuse_db)

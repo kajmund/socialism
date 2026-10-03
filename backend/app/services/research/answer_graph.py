@@ -187,22 +187,24 @@ async def _current_basis(session, basis, scope_key, now) -> bool:
         for item in basis
         if item.metadata.get("document_version_id")
     )
-    for ref in fact_ids:
-        fact = await session.get(GraphFact, ref)
-        if (
-            fact is None
-            or fact.scope_key not in ("shared", scope_key)
-            or not fact_is_current(fact, now)
-        ):
-            return False
-    for ref in version_ids:
-        version = await session.get(DocumentVersionRecord, ref)
-        if version is None or version.scope_key not in ("shared", scope_key):
-            return False
-        if version.superseded_at is not None or not current_interval(
-            version.valid_from, version.valid_to, now
-        ):
-            return False
+    facts = (await session.execute(select(
+        GraphFact.id, GraphFact.scope_key, GraphFact.status, GraphFact.valid_at, GraphFact.invalid_at,
+    ).where(GraphFact.id.in_(fact_ids)))).all()
+    if len(facts) != len(fact_ids) or any(
+        fact.scope_key not in ("shared", scope_key) or not fact_is_current(fact, now)
+        for fact in facts
+    ):
+        return False
+    versions = (await session.execute(select(
+        DocumentVersionRecord.id, DocumentVersionRecord.scope_key, DocumentVersionRecord.superseded_at,
+        DocumentVersionRecord.valid_from, DocumentVersionRecord.valid_to,
+    ).where(DocumentVersionRecord.id.in_(version_ids)))).all()
+    if len(versions) != len(version_ids) or any(
+        version.scope_key not in ("shared", scope_key) or version.superseded_at is not None
+        or not current_interval(version.valid_from, version.valid_to, now)
+        for version in versions
+    ):
+        return False
     return True
 
 

@@ -97,7 +97,6 @@ from app.services.research.completeness import (
     sanitize_completeness_draft,
 )
 from app.services.research.composition import (
-    resolve_injected_research_router,
     standard_available_source_types,
 )
 from app.services.research.fast_controller import (
@@ -124,6 +123,7 @@ from app.services.research.models import (
 )
 from app.services.research.need_normalization import ResearchNeedNormalizer
 from app.services.research.startup import StartInputs, resolve_start, persist_main_lookup
+from app.services.research.result_execution import resolve_router
 from app.services.research.need_prepare import prepare_need_reuse
 from app.services.research.need_retrieval import NeedReusePolicy, candidates_then_providers as _candidates_then_providers
 from app.services.research.plan import (
@@ -1162,13 +1162,7 @@ async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
     Assessor/follow-up/model/parsing/worker failure marks both Attempt and
     EvidenceSet failed without freezing.
     """
-    if router is None:
-        injected = resolve_injected_research_router(session)
-        if injected is not None:
-            router = injected
-            router_factory = None
-    if router is None and router_factory is None:
-        raise ResearchExecutionError("ResearchRouter is required")
+    router, router_factory = resolve_router(session, router, router_factory)
 
     attempt = await get_attempt(session, attempt_id)
     if attempt.status == "ready":
@@ -1197,8 +1191,10 @@ async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
         assessor=bound_assessor, graph=bound_graph,
         context=replace(research_context_from_run(run), attempt_id=attempt_id),
         allowed_source_types=_executable_source_types(router, case_id=case_id),
-        need_limit=need_limit, normalizer=need_normalizer,
+        need_limit=need_limit, normalizer=need_normalizer, lease_lost=lease_lost,
     ))
+    if start.reused_result is not None:
+        return start.reused_result
     plan = start.plan
     need_concurrency = _concurrency_limit(concurrency)
     claimed = resume
