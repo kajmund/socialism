@@ -13,7 +13,7 @@ from app.llm import set_tools_completer
 from app.services import jobs as jobs_service
 from app.services.dd.company_mcp import complete_text_with_company_tools
 from app.services.expert_tools import default_expert_tools
-from app.services.persona_chat import research_tool_handler_for_chat
+from app.services.expert_chat_research_tool import research_tool_handler_for_chat
 
 
 @pytest.fixture
