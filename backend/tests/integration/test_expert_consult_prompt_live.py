@@ -26,11 +26,8 @@ from app.llm.selection import resolve_llm_runtime
 from app.schemas.domain import EditablePersona
 from app.serializers import profile_from_dict
 from app.services.actor_profiles import actor_tool_specs
-from app.services.dd.company_mcp import (
-    _ALLABOLAG_SPECS,
-    _CONSULT_TOOL_SPEC,
-    _RESEARCH_TOOL_SPEC,
-)
+from app.services.dd.company_mcp import _ALLABOLAG_SPECS
+from app.services.expert_session_tools import CONSULT_TOOL_SPEC, RESEARCH_TOOL_SPEC
 from app.services.expert_tools import default_expert_tools, expert_tool_prompt_extra
 from app.services.llm_runtime_settings import refresh_prompt_runtime_cache
 from app.services.oasis_agent_tools import search_tool_specs
@@ -100,8 +97,8 @@ def _expert_tool_specs() -> list[dict]:
     return [
         *_ALLABOLAG_SPECS,
         *search_tool_specs(),
-        _RESEARCH_TOOL_SPEC,
-        _CONSULT_TOOL_SPEC,
+        RESEARCH_TOOL_SPEC,
+        CONSULT_TOOL_SPEC,
         *actor_tool_specs(),
     ]
 

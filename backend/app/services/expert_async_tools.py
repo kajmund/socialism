@@ -23,19 +23,17 @@ from app.services.actor_profiles import ACTOR_TOOL_IDS, ActorProfileTools, actor
 from app.services.district_context import area_block_for_name
 from app.services.dd.company_mcp import (
     COMPANY_TOOL_NAMES,
-    CONSULT_TOOL_NAME,
-    EVIDENCE_TOOL_NAME,
-    RESEARCH_TOOL_NAME,
     CompanyMcpClient,
     consult_calls_from_promise,
-    consult_tool_spec,
-    evidence_tool_spec,
     last_user_question,
     parse_tool_args,
-    research_tool_spec,
     run_company_tool,
     tool_calls_from_leaked_markup,
     visible_assistant_text,
+)
+from app.services.expert_session_tools import (
+    CONSULT_TOOL_NAME, EVIDENCE_TOOL_NAME, RESEARCH_TOOL_NAME,
+    consult_tool_spec, evidence_tool_spec, research_tool_spec,
 )
 from app.services.expert_chat_evidence import evidence_tool_handler_for_chat
 from app.services.expert_chat_research_tool import research_tool_handler_for_chat

@@ -11,12 +11,14 @@ from app.services.actor_profiles import (
 )
 from app.services.dd.company_mcp import (
     COMPANY_TOOL_NAMES,
+    company_tool_specs,
+    run_company_tool,
+)
+from app.services.expert_session_tools import (
     EVIDENCE_TOOL_NAME,
     RESEARCH_TOOL_NAME,
-    company_tool_specs,
     evidence_tool_spec,
     research_tool_spec,
-    run_company_tool,
 )
 from app.services.expert_chat_evidence import evidence_tool_handler_for_chat
 from app.services.expert_chat_research_tool import research_tool_handler_for_chat

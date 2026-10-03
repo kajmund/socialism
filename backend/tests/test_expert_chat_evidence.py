@@ -28,7 +28,7 @@ from app.services.expert_chat_evidence import (
     evidence_tool_handler_for_chat,
     reusable_expert_chat_evidence_context,
 )
-from app.services.persona_chat import _memory_tasks, schedule_expert_memory_update
+from app.services.expert_memory_schedule import memory_tasks, schedule_expert_memory_update
 from app.services.research.knowledge_question import identity_from_text
 
 
@@ -261,12 +261,15 @@ async def test_memory_update_is_scheduled_without_waiting(monkeypatch):
             started.set()
             await release.wait()
 
-    monkeypatch.setattr("app.services.persona_chat.get_expert_memory", lambda: Memory())
+    monkeypatch.setattr(
+        "app.services.expert_memory_schedule.get_expert_memory",
+        lambda: Memory(),
+    )
     persona = SimpleNamespace(kind="expert", customer_id=1, id="exp_1_jurist", name="Josef")
     schedule_expert_memory_update(persona, message="hej", reply="hej själv", image_sha256=None)
 
     await asyncio.wait_for(started.wait(), timeout=1)
     release.set()
-    pending = [task for task in _memory_tasks if not task.done()]
+    pending = [task for task in memory_tasks if not task.done()]
     if pending:
         await asyncio.gather(*pending)
