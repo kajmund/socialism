@@ -4,6 +4,7 @@ import {
   elevenLabsPongMessage,
   elevenLabsToolResultMessage,
   elevenLabsUserAudioMessage,
+  elevenLabsUserTextMessage,
   parseElevenLabsMessage,
   updateElevenLabsTranscripts,
 } from "@/components/chat/elevenlabsLiveProtocol"
@@ -22,6 +23,10 @@ import {
   encodePcm16Base64,
   pcmSampleRate,
 } from "@/components/chat/liveVoiceAudio"
+import {
+  isVoiceToolWake,
+  voiceToolWakeText,
+} from "@/components/chat/liveToolWake"
 
 export type LiveVoiceState =
   | "idle"
@@ -53,6 +58,7 @@ type LiveVoiceSessionOptions = {
   onStateChange: (state: LiveVoiceState) => void
   onError: (error: LiveVoiceError) => void
   onTurnComplete: (userMessage: string, assistantMessage: string) => void
+  onFollowUp: (assistantMessage: string) => void
   onToolCall: (
     call: LiveVoiceToolCall,
     userMessage: string,
@@ -69,6 +75,7 @@ type LiveVoiceAdapterEvent = {
   outputFormat: string | null
   ping: { eventId: number; pingMs: number | null } | null
   toolCalls: LiveVoiceToolCall[]
+  cancelledToolCallIds: string[]
   userTranscript: string
   assistantTranscript: string
   turnComplete: boolean
@@ -86,12 +93,17 @@ type LiveVoiceAdapter = {
   toolResultMessages: (
     responses: Array<{ id: string; name: string; result: string; isError?: boolean }>,
   ) => string[]
+  wakeMessage: (result: string) => string
   closeMessage: () => string | null
   pongMessage: (eventId: number) => string | null
   applyTranscript: (
     state: TranscriptState,
     event: LiveVoiceAdapterEvent,
-  ) => { state: TranscriptState; completed: TranscriptState | null }
+  ) => {
+    state: TranscriptState
+    completed: TranscriptState | null
+    orphanOutput: string | null
+  }
 }
 
 const geminiLiveAdapter: LiveVoiceAdapter = {
@@ -109,6 +121,7 @@ const geminiLiveAdapter: LiveVoiceAdapter = {
       outputFormat: null,
       ping: null,
       toolCalls: event.toolCalls,
+      cancelledToolCallIds: event.cancelledToolCallIds,
       userTranscript: event.inputTranscript,
       assistantTranscript: event.outputTranscript,
       turnComplete: event.turnComplete,
@@ -116,6 +129,7 @@ const geminiLiveAdapter: LiveVoiceAdapter = {
   },
   audioMessage: liveAudioMessage,
   toolResultMessages: (responses) => [liveToolResponseMessage(responses)],
+  wakeMessage: (result) => liveClientContentMessage(voiceToolWakeText(result)),
   closeMessage: () => JSON.stringify({ realtimeInput: { audioStreamEnd: true } }),
   pongMessage: () => null,
   applyTranscript: (state, event) =>
@@ -127,6 +141,7 @@ const geminiLiveAdapter: LiveVoiceAdapter = {
       outputTranscript: event.assistantTranscript,
       turnComplete: event.turnComplete,
       toolCalls: event.toolCalls,
+      cancelledToolCallIds: event.cancelledToolCallIds,
     }),
 }
 
@@ -150,6 +165,7 @@ const elevenlabsLiveAdapter: LiveVoiceAdapter = {
       outputFormat: event.outputFormat,
       ping: event.ping,
       toolCalls: event.toolCalls,
+      cancelledToolCallIds: [],
       userTranscript: event.userTranscript,
       assistantTranscript: event.assistantTranscript,
       turnComplete: false,
@@ -157,9 +173,13 @@ const elevenlabsLiveAdapter: LiveVoiceAdapter = {
   },
   audioMessage: elevenLabsUserAudioMessage,
   toolResultMessages: elevenLabsToolResultMessage,
+  wakeMessage: (result) => elevenLabsUserTextMessage(voiceToolWakeText(result)),
   closeMessage: () => null,
   pongMessage: elevenLabsPongMessage,
-  applyTranscript: updateElevenLabsTranscripts,
+  applyTranscript: (state, event) => ({
+    ...updateElevenLabsTranscripts(state, event),
+    orphanOutput: null,
+  }),
 }
 
 function adapterFor(provider: PersonaLiveSession["provider"]): LiveVoiceAdapter {
@@ -195,6 +215,11 @@ class LiveVoiceSessionImpl implements LiveVoiceSession {
     role: "user" | "assistant"
     content: string
   }> = []
+  private toolsInFlight = 0
+  private cancelledToolIds = new Set<string>()
+  private armMicAfterOpening = false
+  private queuedWake: string | null = null
+  private expectingWake = false
   private state: LiveVoiceState = "idle"
   private generation = 0
   private stopping = false
@@ -400,11 +425,15 @@ class LiveVoiceSessionImpl implements LiveVoiceSession {
           for (const readyMessage of adapter.afterReadyMessages(session)) {
             websocket.send(readyMessage)
           }
-          this.captureSource?.connect(this.captureNode!)
+          // The open mic interrupts the greeting and Gemini then closes the socket.
+          if (adapter.ringbackOnReady) {
+            this.armMicAfterOpening = true
+          } else {
+            this.captureSource?.connect(this.captureNode!)
+          }
         }
-        if (message.interrupted) {
-          this.clearPlayback()
-        }
+        for (const id of message.cancelledToolCallIds) this.cancelledToolIds.add(id)
+        if (message.interrupted) this.clearPlayback()
         const transcriptUpdate = adapter.applyTranscript(
           {
             input: this.inputTranscript,
@@ -416,46 +445,33 @@ class LiveVoiceSessionImpl implements LiveVoiceSession {
         this.outputTranscript = transcriptUpdate.state.output
         for (const chunk of message.audioChunks) this.enqueuePlayback(chunk)
         if (message.toolCalls.length > 0) {
-          const responses = await Promise.all(
-            message.toolCalls.map(async (call) => {
-              try {
-                const result = await this.options.onToolCall(
-                  call,
-                  this.inputTranscript.trim(),
-                  [...this.conversationHistory],
-                )
-                return { id: call.id, name: call.name, result }
-              } catch {
-                this.options.onToolError(call.name)
-                return {
-                  id: call.id,
-                  name: call.name,
-                  result: JSON.stringify({ error: "tool_execution_failed" }),
-                  isError: true,
-                }
-              }
-            }),
+          const userMessage = this.inputTranscript.trim()
+          void this.fulfillToolCalls(
+            websocket,
+            adapter,
+            message.toolCalls,
+            userMessage,
+            [...this.conversationHistory],
           )
-          if (
-            this.websocket === websocket &&
-            websocket.readyState === WebSocket.OPEN
-          ) {
-            for (const payload of adapter.toolResultMessages(responses)) {
-              websocket.send(payload)
-            }
-          }
         }
-        if (transcriptUpdate.completed) {
-          this.saveTranscriptPair(
-            transcriptUpdate.completed.input,
-            transcriptUpdate.completed.output,
-          )
+        this.takeTranscript(websocket, adapter, transcriptUpdate)
+        if (
+          this.armMicAfterOpening &&
+          message.turnComplete &&
+          this.state === "active" &&
+          this.websocket === websocket &&
+          websocket.readyState === WebSocket.OPEN
+        ) {
+          this.armMicAfterOpening = false
+          this.captureSource?.connect(this.captureNode!)
         }
       } catch {
         void this.fail("sessionFailed")
       }
     }
     websocket.onerror = () => {
+      // An error event while the socket is still open is not a dropped call.
+      if (websocket.readyState === WebSocket.OPEN) return
       void this.fail("connectionFailed")
     }
     websocket.onclose = () => {
@@ -463,6 +479,82 @@ class LiveVoiceSessionImpl implements LiveVoiceSession {
         void this.fail("connectionFailed")
       }
     }
+  }
+
+  private async fulfillToolCalls(
+    websocket: WebSocket,
+    adapter: LiveVoiceAdapter,
+    calls: LiveVoiceToolCall[],
+    userMessage: string,
+    history: Array<{ role: "user" | "assistant"; content: string }>,
+  ): Promise<void> {
+    this.toolsInFlight += 1
+    try {
+      const responses = await Promise.all(
+        calls.map(async (call) => {
+          try {
+            const result = await this.options.onToolCall(call, userMessage, history)
+            return { id: call.id, name: call.name, result }
+          } catch {
+            this.options.onToolError(call.name)
+            return {
+              id: call.id,
+              name: call.name,
+              result: JSON.stringify({ error: "tool_execution_failed" }),
+              isError: true as const,
+            }
+          }
+        }),
+      )
+      if (this.websocket !== websocket || websocket.readyState !== WebSocket.OPEN) return
+      const answered = responses.filter((response) => !this.cancelledToolIds.has(response.id))
+      const cancelled = responses.filter((response) => this.cancelledToolIds.has(response.id))
+      for (const response of responses) this.cancelledToolIds.delete(response.id)
+      if (answered.length > 0) {
+        for (const payload of adapter.toolResultMessages(answered)) websocket.send(payload)
+      }
+      if (cancelled.length === 0) return
+      this.queuedWake = cancelled.map((response) => response.result).join("\n\n")
+      if (!this.inputTranscript.trim() && !this.outputTranscript.trim()) {
+        this.sendQueuedWake(websocket, adapter)
+      }
+    } finally {
+      this.toolsInFlight = Math.max(0, this.toolsInFlight - 1)
+    }
+  }
+
+  private takeTranscript(
+    websocket: WebSocket,
+    adapter: LiveVoiceAdapter,
+    update: {
+      completed: { input: string; output: string } | null
+      orphanOutput: string | null
+    },
+  ): void {
+    if (update.completed) {
+      if (isVoiceToolWake(update.completed.input)) {
+        this.expectingWake = false
+        this.saveFollowUp(update.completed.output)
+      } else {
+        this.saveTranscriptPair(update.completed.input, update.completed.output)
+      }
+    } else if (update.orphanOutput && this.expectingWake) {
+      this.expectingWake = false
+      this.saveFollowUp(update.orphanOutput)
+    }
+    if (update.completed || update.orphanOutput) {
+      this.sendQueuedWake(websocket, adapter)
+    }
+  }
+
+  private sendQueuedWake(websocket: WebSocket, adapter: LiveVoiceAdapter): void {
+    if (!this.queuedWake || this.websocket !== websocket || websocket.readyState !== WebSocket.OPEN) {
+      return
+    }
+    const wake = this.queuedWake
+    this.queuedWake = null
+    this.expectingWake = true
+    websocket.send(adapter.wakeMessage(wake))
   }
 
   private enqueuePlayback(encoded: string): void {
@@ -571,6 +663,11 @@ class LiveVoiceSessionImpl implements LiveVoiceSession {
     this.inputTranscript = ""
     this.outputTranscript = ""
     this.conversationHistory = []
+    this.toolsInFlight = 0
+    this.cancelledToolIds.clear()
+    this.armMicAfterOpening = false
+    this.queuedWake = null
+    this.expectingWake = false
   }
 
   private setState(state: LiveVoiceState): void {
@@ -597,6 +694,12 @@ class LiveVoiceSessionImpl implements LiveVoiceSession {
     )
     this.conversationHistory = this.conversationHistory.slice(-50)
     this.options.onTurnComplete(userMessage, assistantMessage)
+  }
+
+  private saveFollowUp(assistantMessage: string): void {
+    this.conversationHistory.push({ role: "assistant", content: assistantMessage })
+    this.conversationHistory = this.conversationHistory.slice(-50)
+    this.options.onFollowUp(assistantMessage)
   }
 
   private isRinging(): boolean {

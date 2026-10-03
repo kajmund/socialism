@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import func, select
@@ -22,7 +24,11 @@ from app.services.execution.service import (
     freeze_evidence_set,
     mark_ready,
 )
-from app.services.expert_chat_evidence import reusable_expert_chat_evidence_context
+from app.services.expert_chat_evidence import (
+    evidence_tool_handler_for_chat,
+    reusable_expert_chat_evidence_context,
+)
+from app.services.expert_memory_schedule import memory_tasks, schedule_expert_memory_update
 from app.services.research.knowledge_question import identity_from_text
 
 
@@ -203,3 +209,67 @@ async def test_unfrozen_evidence_is_not_exposed_to_chat(session):
     )
 
     assert context == ""
+
+
+@pytest.mark.asyncio
+async def test_evidence_tool_returns_lookup_text(monkeypatch):
+    async def rendered(*_args, **kwargs):
+        assert kwargs["question"] == "förvärv"
+        assert kwargs["assume_caller_idle"] is False
+        return "FRYST EVIDENS"
+
+    monkeypatch.setattr(
+        "app.services.expert_chat_evidence.reusable_expert_chat_evidence_context",
+        rendered,
+    )
+    handle = evidence_tool_handler_for_chat(None, customer_id=1, prompts={})
+
+    assert await handle({"question": "förvärv"}) == "FRYST EVIDENS"
+
+
+@pytest.mark.asyncio
+async def test_evidence_tool_reports_a_miss(monkeypatch):
+    async def empty(*_args, **_kwargs):
+        return ""
+
+    monkeypatch.setattr(
+        "app.services.expert_chat_evidence.reusable_expert_chat_evidence_context",
+        empty,
+    )
+    handle = evidence_tool_handler_for_chat(None, customer_id=1, prompts={})
+
+    assert await handle({"question": "hej"}) == (
+        "Ingen tidigare fryst researchevidens matchar frågan."
+    )
+
+
+@pytest.mark.asyncio
+async def test_evidence_tool_requires_a_question():
+    handle = evidence_tool_handler_for_chat(None, customer_id=1, prompts={})
+
+    with pytest.raises(ValueError, match="lookup_research_evidence"):
+        await handle({"question": "  "})
+
+
+@pytest.mark.asyncio
+async def test_memory_update_is_scheduled_without_waiting(monkeypatch):
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    class Memory:
+        async def add_chat_turn(self, **_kwargs):
+            started.set()
+            await release.wait()
+
+    monkeypatch.setattr(
+        "app.services.expert_memory_schedule.get_expert_memory",
+        lambda: Memory(),
+    )
+    persona = SimpleNamespace(kind="expert", customer_id=1, id="exp_1_jurist", name="Josef")
+    schedule_expert_memory_update(persona, message="hej", reply="hej själv", image_sha256=None)
+
+    await asyncio.wait_for(started.wait(), timeout=1)
+    release.set()
+    pending = [task for task in memory_tasks if not task.done()]
+    if pending:
+        await asyncio.gather(*pending)

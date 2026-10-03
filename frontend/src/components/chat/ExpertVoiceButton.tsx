@@ -1,4 +1,5 @@
 import { Phone, PhoneOff } from "lucide-react"
+import type { PersonaMessage } from "@/api/personas"
 import { ExpertVoiceCallOverlay } from "@/components/chat/ExpertVoiceCallOverlay"
 import type { LiveVoiceError } from "@/components/chat/liveVoice"
 import { useLiveVoice } from "@/components/chat/useLiveVoice"
@@ -29,11 +30,13 @@ export function ExpertVoiceButton({
   expertName,
   avatarUrl,
   onErrorMessage,
+  onTranscript,
 }: {
   personaId: string | null
   expertName: string
   avatarUrl?: string | null
   onErrorMessage?: (message: string) => void
+  onTranscript: (personaId: string, messages: PersonaMessage[]) => void
 }) {
   const { t } = useLocale()
   const {
@@ -49,6 +52,7 @@ export function ExpertVoiceButton({
     onMemoryError: () => onErrorMessage?.(t("chat.voice.memorySaveFailed")),
     onToolError: (name) =>
       onErrorMessage?.(t("chat.voice.toolFailed", { name })),
+    onTranscript,
   })
   const running =
     state === "connecting" || state === "ringing" || state === "active"

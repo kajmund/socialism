@@ -139,11 +139,13 @@ export function savePersonaLiveMemory(
   id: string,
   body: {
     session_id: string
+    turn_id: string
     user_message: string
     assistant_message: string
+    follow_up?: boolean
   },
-): Promise<void> {
-  return api.post(`/personas/${id}/live-memory`, body)
+): Promise<PersonaMessage[]> {
+  return api.post<PersonaMessage[]>(`/personas/${id}/live-memory`, body)
 }
 
 export function runPersonaLiveTool(

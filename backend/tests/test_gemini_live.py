@@ -19,6 +19,7 @@ from app.services.gemini_live import (
     openai_to_gemini_tools,
 )
 from app.services.live_voice import LiveVoiceUnavailable, create_live_voice_session
+from app.services import live_voice_transcript
 from app.services.live_voice_context import recent_voice_memories
 from tests.conftest import USER_USER_ID, mint_access_token
 
@@ -112,6 +113,7 @@ async def test_live_token_for_expert_uses_server_built_prompt(
         "search_duckduckgo",
         "search_wiki",
         "start_research",
+        "lookup_research_evidence",
         "get_actor_context",
         "propose_actor_context_update",
     }
@@ -202,7 +204,7 @@ async def test_live_token_endpoint_maps_google_failure_to_bad_gateway(
 
 
 @pytest.mark.asyncio
-async def test_live_memory_is_written_as_background_work(
+async def test_live_memory_is_written_once_when_transcript_is_stored(
     client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -213,17 +215,20 @@ async def test_live_memory_is_written_as_background_work(
         captured.append({"persona_id": persona.id, **kwargs})
         return []
 
-    monkeypatch.setattr(personas_api, "remember_expert_chat_turn", fake_remember)
-    response = await client.post(
-        f"/personas/{expert['id']}/live-memory",
-        json={
-            "session_id": "voice-session-1",
-            "user_message": "Vad minns du från mötet?",
-            "assistant_message": "Jag minns att tidsplanen flyttades.",
-        },
-    )
+    monkeypatch.setattr(live_voice_transcript, "remember_expert_chat_turn", fake_remember)
+    payload = {
+        "session_id": "voice-session-1",
+        "turn_id": "turn-1",
+        "user_message": "Vad minns du från mötet?",
+        "assistant_message": "Jag minns att tidsplanen flyttades.",
+    }
+    response = await client.post(f"/personas/{expert['id']}/live-memory", json=payload)
+    duplicate = await client.post(f"/personas/{expert['id']}/live-memory", json=payload)
 
-    assert response.status_code == 202, response.text
+    assert response.status_code == 200, response.text
+    assert duplicate.status_code == 200, duplicate.text
+    assert [row["role"] for row in response.json()] == ["user", "assistant"]
+    assert duplicate.json() == response.json()
     assert captured == [
         {
             "persona_id": expert["id"],
@@ -233,6 +238,43 @@ async def test_live_memory_is_written_as_background_work(
             "session_id": "voice-session-1",
         }
     ]
+    listed = await client.get(f"/personas/{expert['id']}/messages")
+    assert listed.status_code == 200, listed.text
+    assert [(row["role"], row["content"]) for row in listed.json()] == [
+        ("user", "Vad minns du från mötet?"),
+        ("assistant", "Jag minns att tidsplanen flyttades."),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_live_follow_up_stores_only_the_expert(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    expert = await _create_expert(client)
+    captured: list[str] = []
+
+    async def fake_remember(_persona, **kwargs):
+        captured.append(kwargs["reply"])
+        return []
+
+    monkeypatch.setattr(live_voice_transcript, "remember_expert_chat_turn", fake_remember)
+    response = await client.post(
+        f"/personas/{expert['id']}/live-memory",
+        json={
+            "session_id": "voice-session-1",
+            "turn_id": "turn-follow",
+            "user_message": "Vad omsätter bolaget?",
+            "assistant_message": "Omsättningen är 12.",
+            "follow_up": True,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert [(row["role"], row["content"]) for row in response.json()] == [
+        ("assistant", "Omsättningen är 12."),
+    ]
+    assert captured == ["Omsättningen är 12."]
 
 
 @pytest.mark.asyncio

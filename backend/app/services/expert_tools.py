@@ -9,6 +9,7 @@ from app.services.prompt_catalog import render_prompt
 COMPANY_EXPERT_TOOLS = frozenset({"search_companies", "lookup_company", "validate_orgnr"})
 SEARCH_EXPERT_TOOLS = frozenset({"search_duckduckgo", "search_wiki"})
 RESEARCH_EXPERT_TOOLS = frozenset({"start_research"})
+EVIDENCE_EXPERT_TOOLS = frozenset({"lookup_research_evidence"})
 CONSULT_EXPERT_TOOLS = frozenset({"ask_expert"})
 
 DEFAULT_EXPERT_TOOL_IDS: tuple[str, ...] = (
@@ -18,6 +19,7 @@ DEFAULT_EXPERT_TOOL_IDS: tuple[str, ...] = (
     "search_duckduckgo",
     "search_wiki",
     "start_research",
+    "lookup_research_evidence",
     "ask_expert",
     "get_actor_context",
     "propose_actor_context_update",
@@ -67,7 +69,7 @@ def resolve_chat_tools(raw: list[str] | None, *, kind: str) -> list[str]:
 
 def panel_chat_tools(raw: list[str] | None) -> list[str]:
     """Company/search tools an expert may use in panel chat. No research initiation."""
-    excluded = RESEARCH_EXPERT_TOOLS | CONSULT_EXPERT_TOOLS
+    excluded = RESEARCH_EXPERT_TOOLS | EVIDENCE_EXPERT_TOOLS | CONSULT_EXPERT_TOOLS
     return [name for name in resolve_expert_tools(raw) if name not in excluded]
 
 
@@ -91,8 +93,12 @@ def expert_tool_prompt_extra(prompts: dict[str, str], tools: list[str]) -> str:
         parts.append(render_prompt(prompts, "chat.expert.search_tools"))
     if names & RESEARCH_EXPERT_TOOLS:
         parts.append(render_prompt(prompts, "chat.expert.research_tool"))
+    if names & EVIDENCE_EXPERT_TOOLS:
+        parts.append(render_prompt(prompts, "chat.expert.evidence_tool"))
     if names & CONSULT_EXPERT_TOOLS:
         parts.append(render_prompt(prompts, "chat.expert.consult_tool"))
     if names & {"get_actor_context", "propose_actor_context_update"}:
         parts.append(render_prompt(prompts, "chat.expert.actor_context"))
+    if parts:
+        parts.append(render_prompt(prompts, "chat.expert.tool_ack"))
     return "\n\n".join(parts)

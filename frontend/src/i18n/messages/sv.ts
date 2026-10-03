@@ -505,6 +505,7 @@ export const sv = {
       search_duckduckgo: "Webbsökning (DuckDuckGo)",
       search_wiki: "Wikipedia",
       start_research: "Starta research",
+      lookup_research_evidence: "Slå upp tidigare research",
       ask_expert: "Fråga en annan expert",
     },
   },
@@ -918,7 +919,8 @@ export const sv = {
       stopAria: "Avsluta röstsamtalet",
       connecting: "Ansluter röstsamtalet…",
       active: "Röstsamtalet är aktivt",
-      memorySaveFailed: "Röstsamtalet fortsätter, men minnet kunde inte sparas.",
+      memorySaveFailed:
+        "Röstsamtalet fortsätter, men repliken kunde inte sparas i chatten.",
       toolFailed: "Verktyget {name} kunde inte köras.",
       call: {
         dialogAria: "Röstsamtal med {name}",

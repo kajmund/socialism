@@ -260,6 +260,13 @@ export function useChatSocket({
             break
           }
           case "thread.message": {
+            if (
+              hello?.scope === "library" &&
+              typeof msg.mode === "string" &&
+              msg.mode !== hello.mode
+            ) {
+              break
+            }
             const rows = asDoneMessages(msg.messages)
             if (rows.length > 0) onDoneRef.current(rows, [])
             break
