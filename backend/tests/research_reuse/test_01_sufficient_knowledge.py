@@ -42,7 +42,7 @@ async def _execute(factory, source, assessor, forbidden_planners):
         assert items and all(item.provider == "graph_v2" for item in items)
         assert all(item.source_id == "doc-customer-1" for item in items)
         assert all(item.provenance["document_version_id"] == "version-customer-1" for item in items)
-        return [dict(item.provenance) for item in items]
+        return bool(row.input_snapshot.get("research_result_reuse"))
 
 
 async def test_sufficient_main_knowledge_and_saved_answer_skip_all_source_work(
@@ -71,13 +71,13 @@ async def test_sufficient_main_knowledge_and_saved_answer_skip_all_source_work(
     counts = await _stored_source_counts(graph_basis)
 
     for saved_answer in (False, True):
-        provenance = await _execute(graph_basis, source, assessor, forbidden)
-        assert any("answer_fact_id" in row for row in provenance) is saved_answer
+        reused = await _execute(graph_basis, source, assessor, forbidden)
+        assert reused is saved_answer
         assert await _stored_source_counts(graph_basis) == counts
 
-    assert assessor.assess.await_count == 2
+    assert assessor.assess.await_count == 1
     # Query embeddings are permitted. No document text may be embedded on this path.
-    assert [call.args[0] for call in embedding.embed.await_args_list] == [[MAIN], [MAIN]]
+    assert [call.args[0] for call in embedding.embed.await_args_list] == [[MAIN]]
     source.research.assert_not_awaited()
     for boundary in no_source_work.values():
         boundary.assert_not_called()

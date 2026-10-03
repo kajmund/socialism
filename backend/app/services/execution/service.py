@@ -64,6 +64,8 @@ from app.services.execution.snapshots import (
     require_json_object,
     snapshot_research_evidence,
 )
+from app.services.execution.evidence_scope import _load_evidence_set_for_run
+from app.services.execution.reuse_views import project_assessments, project_needs, project_completeness, project_executions, project_attempt_rows
 from app.services.research.assessment import (
     ResearchAssessmentDraft,
     need_assessment_to_json,
@@ -584,13 +586,13 @@ async def get_need_execution(session: AsyncSession, execution_id: str) -> Resear
 async def list_need_executions(
     session: AsyncSession, attempt_id: str
 ) -> list[ResearchNeedExecution]:
-    await get_attempt(session, attempt_id)
+    attempt = await get_attempt(session, attempt_id)
     result = await session.execute(
         select(ResearchNeedExecution)
         .where(ResearchNeedExecution.attempt_id == attempt_id)
         .order_by(ResearchNeedExecution.created_at, ResearchNeedExecution.research_need_id)
     )
-    return list(result.scalars().all())
+    return await project_executions(session, list(result.scalars().all()), [attempt])
 
 
 async def seed_need_executions(
@@ -682,21 +684,6 @@ async def fail_open_need_executions(
             row.started_at = now
     await session.flush()
     return rows
-
-
-async def _load_evidence_set_for_run(
-    session: AsyncSession,
-    *,
-    evidence_set_id: str,
-    run: ExecutionRun,
-) -> EvidenceSet:
-    evidence_set = await get_evidence_set(session, evidence_set_id)
-    if evidence_set.run_id != run.id:
-        raise ExecutionScopeError("Attempt may only attach an EvidenceSet from the same run")
-    evidence_run = await get_run(session, evidence_set.run_id)
-    if evidence_run.customer_id != run.customer_id:
-        raise ExecutionScopeError("Attempt may not attach an EvidenceSet owned by another customer")
-    return evidence_set
 
 
 def _assert_snapshots_mutable(attempt: ExecutionAttempt) -> None:
@@ -941,13 +928,13 @@ async def get_research_assessment(
 async def list_research_assessments(
     session: AsyncSession, attempt_id: str
 ) -> list[ResearchAssessment]:
-    await get_attempt(session, attempt_id)
+    attempt = await get_attempt(session, attempt_id)
     result = await session.execute(
         select(ResearchAssessment)
         .where(ResearchAssessment.attempt_id == attempt_id)
         .order_by(ResearchAssessment.assessment_pass, ResearchAssessment.created_at)
     )
-    return list(result.scalars().all())
+    return await project_assessments(session, list(result.scalars().all()), [attempt])
 
 
 async def list_latest_research_assessments(
@@ -965,7 +952,7 @@ async def list_latest_research_assessments(
         )
     )
     latest: dict[str, ResearchAssessment] = {}
-    for row in result.scalars().all():
+    for row in await project_attempt_rows(session, list(result.scalars()), attempt_ids, project_assessments):
         if row.attempt_id not in latest:
             latest[row.attempt_id] = row
     return latest
@@ -1148,7 +1135,7 @@ async def get_research_completeness_by_fingerprint(
 async def list_research_completeness_passes(
     session: AsyncSession, attempt_id: str
 ) -> list[ResearchCompletenessPass]:
-    await get_attempt(session, attempt_id)
+    attempt = await get_attempt(session, attempt_id)
     result = await session.execute(
         select(ResearchCompletenessPass)
         .where(ResearchCompletenessPass.attempt_id == attempt_id)
@@ -1157,7 +1144,7 @@ async def list_research_completeness_passes(
             ResearchCompletenessPass.created_at,
         )
     )
-    return list(result.scalars().all())
+    return await project_completeness(session, list(result.scalars().all()), [attempt])
 
 
 async def list_research_completeness_for_attempts(
@@ -1177,7 +1164,7 @@ async def list_research_completeness_for_attempts(
     grouped: dict[str, list[ResearchCompletenessPass]] = {
         attempt_id: [] for attempt_id in attempt_ids
     }
-    for row in result.scalars().all():
+    for row in await project_attempt_rows(session, list(result.scalars()), attempt_ids, project_completeness):
         grouped.setdefault(row.attempt_id, []).append(row)
     return grouped
 
@@ -1279,7 +1266,7 @@ def runtime_need_from_row(row: ResearchRuntimeNeed) -> RuntimeResearchNeed:
 
 
 async def list_runtime_needs(session: AsyncSession, attempt_id: str) -> list[ResearchRuntimeNeed]:
-    await get_attempt(session, attempt_id)
+    attempt = await get_attempt(session, attempt_id)
     result = await session.execute(
         select(ResearchRuntimeNeed)
         .where(ResearchRuntimeNeed.attempt_id == attempt_id)
@@ -1289,7 +1276,7 @@ async def list_runtime_needs(session: AsyncSession, attempt_id: str) -> list[Res
             ResearchRuntimeNeed.research_need_id,
         )
     )
-    return list(result.scalars().all())
+    return await project_needs(session, list(result.scalars().all()), [attempt])
 
 
 async def list_runtime_needs_for_attempts(
@@ -1308,7 +1295,7 @@ async def list_runtime_needs_for_attempts(
         )
     )
     grouped: dict[str, list[ResearchRuntimeNeed]] = {attempt_id: [] for attempt_id in attempt_ids}
-    for row in result.scalars().all():
+    for row in await project_attempt_rows(session, list(result.scalars()), attempt_ids, project_needs):
         grouped.setdefault(row.attempt_id, []).append(row)
     return grouped
 
@@ -1389,7 +1376,7 @@ async def list_research_assessments_for_attempts(
         )
     )
     grouped: dict[str, list[ResearchAssessment]] = {attempt_id: [] for attempt_id in attempt_ids}
-    for row in result.scalars().all():
+    for row in await project_attempt_rows(session, list(result.scalars()), attempt_ids, project_assessments):
         grouped.setdefault(row.attempt_id, []).append(row)
     return grouped
 

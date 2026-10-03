@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-10-03
+
+* **Research**: Giltiga färdiga resultat kan återanvändas för samma fråga och sammanhang. Närliggande frågor kontrolleras mot tidigare svar innan ny research behövs. Källor och bedömning visas från det tidigare underlaget.
+
 ## 2026-09-21
 
 * **LLM**: Under **Verktyg** → **LLM** skapar du namngivna konfigurationer (modell, temperatur, roll och capabilities). En av dem är default. Under **Konfigurationer** kan varje prompt använda default, en fast konfiguration eller Auto. Auto klassificerar uppgiften och matchar mot roll och capabilities.

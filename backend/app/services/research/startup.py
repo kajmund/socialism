@@ -1,7 +1,9 @@
 """Main-question reuse precedes decomposition; persist the resulting tree atomically."""
 
+from typing import TYPE_CHECKING
 from dataclasses import dataclass, field, replace
 import json
+import asyncio
 from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -14,6 +16,7 @@ from app.services.execution.service import (
     seed_need_executions,
 )
 from app.services.research.assessment import ResearchAssessor, ResearchAssessmentDraft
+from app.services.research.result_execution import reuse_completed_result
 from app.services.research.followup import (
     FollowUpResearchPlanner,
 )
@@ -42,6 +45,9 @@ from app.services.research.reuse_gate import (
     assess_reuse,
     fresh_evidence,
 )
+
+if TYPE_CHECKING:
+    from app.services.research.execution import AttemptResearchResult
 
 MAIN_NEED_ID = "research-main"
 
@@ -72,6 +78,7 @@ class StartInputs:
     allowed_source_types: tuple[str, ...]
     need_limit: int
     normalizer: ResearchNeedNormalizer | None
+    lease_lost: asyncio.Event | None = None
 
 
 @dataclass(frozen=True)
@@ -81,6 +88,7 @@ class ResearchStart:
     main_prepared: bool = False
     main_assessment: ResearchAssessmentDraft | None = None
     objective: ResearchObjective | None = None
+    reused_result: "AttemptResearchResult | None" = None
 
 
 async def resolve_start(
@@ -88,6 +96,9 @@ async def resolve_start(
 ) -> ResearchStart:
     from app.services.research.execution import _persist_start_snapshots, ResearchExecutionError
 
+    reused = await reuse_completed_result(session, attempt, inputs)
+    if reused.result is not None:
+        return ResearchStart(ResearchPlan(), reused_result=reused.result)
     if attempt.research_plan_snapshot is not None:
         plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
         _budget(plan, inputs.need_limit)
@@ -103,7 +114,7 @@ async def resolve_start(
             plan = await inputs.normalizer.normalize_plan(plan)
         start = ResearchStart(plan)
     else:
-        start = await _main_first(inputs)
+        start = await _main_first(inputs, reused.partial)
     await prepare_graph_questions(
         inputs.factory, inputs.graph, inputs.context, [need.question for need in start.plan.needs]
     )
@@ -115,7 +126,7 @@ async def resolve_start(
     return start
 
 
-async def _main_first(inputs: StartInputs) -> ResearchStart:
+async def _main_first(inputs: StartInputs, partial: list[ResearchEvidence]) -> ResearchStart:
     if inputs.objective is None:
         raise InvalidResearchObjectiveError(
             "research_objective is required when no ResearchPlan is supplied"
@@ -135,7 +146,11 @@ async def _main_first(inputs: StartInputs) -> ResearchStart:
             scope=tenant_question_scope(inputs.context.scope.customer_id),
         )
     root = replace(root, knowledge_question_id=canonical.id)
-    evidence = fresh_evidence(await lookup_question(inputs.factory, root, inputs.context))
+    from app.services.research.question_reuse import merge_reused_with_provider
+
+    evidence = fresh_evidence(merge_reused_with_provider(
+        partial, await lookup_question(inputs.factory, root, inputs.context)
+    ))
     assessment = await assess_reuse(inputs.assessor, root, evidence)
     if answer_is_sufficient(assessment):
         return ResearchStart(
