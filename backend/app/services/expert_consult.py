@@ -20,11 +20,14 @@ from app.services.expert_chat_evidence import (
     combine_expert_chat_context,
     reusable_expert_chat_evidence_context,
 )
+from app.services.consult_competence import (
+    COMPETENCE_NOUL_THRESHOLD,
+    rank_consult_competence,
+)
 from app.services.expert_tools import resolve_chat_tools
+from app.services.library_chat_fifo import trim_library_chat
 from app.services.expertgranskning.memory import get_expert_memory
-from app.services.panel.competency import assess_expert_competency
 from app.services.panel.expert_slots import profile_text_for_expert
-from app.services.panel.schemas import PanelExpertSlot, PanelSessionConfig
 from app.services.prompt_catalog import render_prompt
 
 ConsultToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
@@ -39,26 +42,6 @@ _MEMORY_SOURCES = frozenset(
         "research_receipt",
     }
 )
-
-
-def _slot(persona: Persona) -> PanelExpertSlot:
-    return PanelExpertSlot(
-        slot_id=persona.id,
-        label=persona.name,
-        profile=profile_text_for_expert(persona),
-        tools=[],
-    )
-
-
-def _config(question: str, slots: list[PanelExpertSlot]) -> PanelSessionConfig:
-    return PanelSessionConfig(
-        protocol="generic_panel",
-        module="dd",
-        topic=question,
-        brief=question,
-        locale="sv",
-        expert_slots=slots,
-    )
 
 
 async def _memory_context(
@@ -130,15 +113,6 @@ async def _consult(
     prompts: dict[str, str],
     question: str,
 ) -> str:
-    asker_slot = _slot(asker)
-    asker_decision = await assess_expert_competency(
-        asker_slot,
-        _config(question, [asker_slot]),
-        prompts,
-    )
-    if asker_decision.has_domain_competence:
-        raise ValueError("Du har själv kompetens att besvara frågan.")
-
     candidates = list(
         (
             await session.execute(
@@ -152,26 +126,24 @@ async def _consult(
             )
         ).scalars()
     )
+    ranked = [
+        (persona.id, profile_text_for_expert(persona))
+        for persona in (asker, *candidates)
+    ]
+    await session.commit()
+    scores = await rank_consult_competence(question=question, experts=ranked)
+    if scores[asker.id] >= COMPETENCE_NOUL_THRESHOLD:
+        raise ValueError("Du har själv kompetens att besvara frågan.")
     if not candidates:
         raise ValueError("Det finns ingen annan expert att fråga.")
-
-    slots = [_slot(candidate) for candidate in candidates]
-    config = _config(question, slots)
-    await session.commit()
-    decisions = await asyncio.gather(
-        *(assess_expert_competency(slot, config, prompts) for slot in slots)
-    )
     competent = [
-        (candidate, decision)
-        for candidate, decision in zip(candidates, decisions, strict=True)
-        if decision.has_domain_competence
+        (candidate, scores[candidate.id])
+        for candidate in candidates
+        if scores[candidate.id] >= COMPETENCE_NOUL_THRESHOLD
     ]
     if not competent:
         raise ValueError("Ingen annan expert har kompetens att besvara frågan.")
-    colleague, _decision = max(
-        competent,
-        key=lambda pair: pair[1].competence_score,
-    )
+    colleague = max(competent, key=lambda pair: pair[1])[0]
 
     memory_context, evidence_context = await asyncio.gather(
         _memory_context(colleague, question, prompts),
@@ -217,6 +189,7 @@ async def _consult(
         created_at=utcnow(),
     )
     session.add(row)
+    await trim_library_chat(session, colleague.id, mode)
     await session.commit()
     await session.refresh(row)
     await _remember_consult(

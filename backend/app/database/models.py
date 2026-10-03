@@ -13,8 +13,6 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
-)
-from sqlalchemy import (
     text as sql_text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -371,6 +369,8 @@ class PersonaMessage(Base):
         nullable=True,
         index=True,
     )
+    voice_turn_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    __table_args__ = (UniqueConstraint("persona_id", "voice_turn_id", "role", name="uq_vturn"),)
 
 
 class SmePanelMessage(Base):

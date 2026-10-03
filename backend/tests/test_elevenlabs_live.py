@@ -60,6 +60,18 @@ async def test_elevenlabs_signed_url_mints_session(
     def handler(request: httpx.Request) -> httpx.Response:
         captured["url"] = str(request.url)
         captured["api_key"] = request.headers["xi-api-key"]
+        if request.url.path.endswith("/convai/tools") and request.method == "GET":
+            return httpx.Response(200, json={"tools": []})
+        if request.url.path.endswith("/convai/tools") and request.method == "POST":
+            return httpx.Response(200, json={"id": "tool_lookup"})
+        if "/convai/agents/" in request.url.path and request.method == "GET":
+            return httpx.Response(
+                200,
+                json={"conversation_config": {"agent": {"prompt": {"tool_ids": []}}}},
+            )
+        if "/convai/agents/" in request.url.path and request.method == "PATCH":
+            captured["attached"] = request.read().decode()
+            return httpx.Response(200, json={})
         return httpx.Response(
             200,
             json={
@@ -88,6 +100,9 @@ async def test_elevenlabs_signed_url_mints_session(
             client=el_client,
         )
 
+    assert json.loads(str(captured["attached"]))["conversation_config"]["agent"]["prompt"][
+        "tool_ids"
+    ] == ["tool_lookup"]
     assert captured["api_key"] == "xi-test-key"
     assert "agent_id=agent_shell" in str(captured["url"])
     assert session.provider == "elevenlabs"
@@ -102,11 +117,13 @@ async def test_elevenlabs_signed_url_mints_session(
         "type": "conversation_initiation_client_data",
         "conversation_config_override": {
             "agent": {
-                "prompt": {"prompt": "Du är bolagsjuristen."},
+                "prompt": {
+                    "prompt": "Du är bolagsjuristen.",
+                    "tool_ids": ["tool_lookup"],
+                },
                 "first_message": "Öppna telefonsamtalet nu.",
                 "language": "sv",
             },
-            "tts": {"voice_id": "voice_swedish"},
         },
     }
 
@@ -122,7 +139,14 @@ async def test_elevenlabs_signed_url_includes_tool_ids_when_mapped(
         {"lookup_company": "tool_lookup", "search_wiki": "tool_wiki"},
     )
 
-    def handler(_request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "/convai/agents/" in request.url.path and request.method == "GET":
+            return httpx.Response(
+                200,
+                json={"conversation_config": {"agent": {"prompt": {"tool_ids": []}}}},
+            )
+        if "/convai/agents/" in request.url.path and request.method == "PATCH":
+            return httpx.Response(200, json={})
         return httpx.Response(
             200,
             json={"signed_url": "wss://api.elevenlabs.io/v1/convai/conversation?token=x"},
@@ -240,9 +264,22 @@ async def test_live_token_endpoint_uses_elevenlabs_when_configured(
     async def fake_signed_url(*, client: httpx.AsyncClient | None = None) -> str:
         return "wss://api.elevenlabs.io/v1/convai/conversation?token=ep"
 
+    async def fake_tool_ids(
+        tools: list[dict[str, object]],
+        *,
+        client: httpx.AsyncClient,
+    ) -> None:
+        assert tools
+        assert client is not None
+        return None
+
     monkeypatch.setattr(
         "app.services.elevenlabs_live.create_elevenlabs_signed_url",
         fake_signed_url,
+    )
+    monkeypatch.setattr(
+        "app.services.elevenlabs_live.client_tool_ids_for_session",
+        fake_tool_ids,
     )
     response = await client.post(f"/personas/{expert['id']}/live-token")
 

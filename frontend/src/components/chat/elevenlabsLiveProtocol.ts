@@ -187,6 +187,10 @@ export function elevenLabsPongMessage(eventId: number): string {
   return JSON.stringify({ type: "pong", event_id: eventId })
 }
 
+export function elevenLabsUserTextMessage(text: string): string {
+  return JSON.stringify({ type: "user_message", text })
+}
+
 export function elevenLabsToolResultMessage(
   responses: Array<{ id: string; name?: string; result: string; isError?: boolean }>,
 ): string[] {

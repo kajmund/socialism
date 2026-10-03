@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
 from types import SimpleNamespace
 from typing import Any, Self
@@ -21,6 +20,17 @@ from app.services.dd.bolagsapi_mcp import (
     mcp_tools_to_openai,
 )
 from app.services.dd.schemas import DdCandidateCompany
+from app.services.expert_session_tools import (
+    CONSULT_TOOL_NAME,
+    CONSULT_TOOL_SPEC as _CONSULT_TOOL_SPEC,
+    EVIDENCE_TOOL_NAME,
+    EVIDENCE_TOOL_SPEC as _EVIDENCE_TOOL_SPEC,
+    RESEARCH_TOOL_NAME,
+    RESEARCH_TOOL_SPEC as _RESEARCH_TOOL_SPEC,
+    ConsultToolHandler,
+    EvidenceToolHandler,
+    ResearchToolHandler,
+)
 from app.services.expert_tools import filter_openai_tools
 from app.services.help_chat import looks_like_leaked_tool_markup
 from app.services.oasis_agent_tools import (
@@ -50,52 +60,6 @@ _CONSULT_PROMISE_RE = re.compile(
 )
 
 COMPANY_TOOL_NAMES = frozenset({"search_companies", "lookup_company", "validate_orgnr"})
-RESEARCH_TOOL_NAME = "start_research"
-CONSULT_TOOL_NAME = "ask_expert"
-ResearchToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
-ConsultToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
-
-_RESEARCH_TOOL_SPEC: dict[str, Any] = {
-    "type": "function",
-    "function": {
-        "name": RESEARCH_TOOL_NAME,
-        "description": (
-            "Queue background research after the user has explicitly approved it. "
-            "Never call this merely to ask for approval."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "question": {
-                    "type": "string",
-                    "description": "Standalone general research question",
-                }
-            },
-            "required": ["question"],
-        },
-    },
-}
-
-_CONSULT_TOOL_SPEC: dict[str, Any] = {
-    "type": "function",
-    "function": {
-        "name": CONSULT_TOOL_NAME,
-        "description": (
-            "Ask a competent colleague when the question is outside your own "
-            "professional competence."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "question": {
-                    "type": "string",
-                    "description": "Standalone question for the colleague",
-                }
-            },
-            "required": ["question"],
-        },
-    },
-}
 
 _ALLABOLAG_SPECS: list[dict[str, Any]] = [
     {
@@ -164,14 +128,6 @@ def uses_bolagsapi() -> bool:
 
 def company_tool_specs() -> list[dict[str, Any]]:
     return [dict(spec) for spec in _ALLABOLAG_SPECS]
-
-
-def research_tool_spec() -> dict[str, Any]:
-    return dict(_RESEARCH_TOOL_SPEC)
-
-
-def consult_tool_spec() -> dict[str, Any]:
-    return dict(_CONSULT_TOOL_SPEC)
 
 
 def _orgnr_arg(arguments: dict[str, Any]) -> str:
@@ -373,6 +329,7 @@ async def run_company_tool_loop(  # noqa: C901, PLR0912, PLR0913, PLR0915
     with_search: bool = False,
     allowed_tools: frozenset[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    evidence_tool_handler: EvidenceToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
     prompt_key: str | None = None,
@@ -391,6 +348,8 @@ async def run_company_tool_loop(  # noqa: C901, PLR0912, PLR0913, PLR0915
             tools = [*tools, *search_tool_specs()]
         if research_tool_handler is not None:
             tools = [*tools, _RESEARCH_TOOL_SPEC]
+        if evidence_tool_handler is not None:
+            tools = [*tools, _EVIDENCE_TOOL_SPEC]
         if consult_tool_handler is not None:
             tools = [*tools, _CONSULT_TOOL_SPEC]
         if actor_tool_handler is not None:
@@ -451,6 +410,13 @@ async def run_company_tool_loop(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         tool_text = await research_tool_handler(arguments)
                         parsed = []
                     elif (
+                        allowed
+                        and name == EVIDENCE_TOOL_NAME
+                        and evidence_tool_handler is not None
+                    ):
+                        tool_text = await evidence_tool_handler(arguments)
+                        parsed = []
+                    elif (
                         allowed and name == CONSULT_TOOL_NAME and consult_tool_handler is not None
                     ):
                         tool_text = await consult_tool_handler(arguments)
@@ -483,6 +449,7 @@ async def complete_text_with_company_tools(
     *,
     allowed_tools: frozenset[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    evidence_tool_handler: EvidenceToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
     prompt_key: str | None = None,
@@ -498,6 +465,7 @@ async def complete_text_with_company_tools(
         with_search=True,
         allowed_tools=allowed_tools,
         research_tool_handler=research_tool_handler,
+        evidence_tool_handler=evidence_tool_handler,
         consult_tool_handler=consult_tool_handler,
         actor_tool_handler=actor_tool_handler,
         prompt_key=prompt_key,
