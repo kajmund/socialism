@@ -147,7 +147,7 @@ Constraints:
 
 ### Live voice
 
-Expert chat can open a live phone-style session. Audio never hits this API: `POST /personas/{id}/live-token` mints provider credentials; the browser talks PCM to the provider WebSocket. Tools and Mem0 stay on `POST /personas/{id}/live-tool` and `POST /personas/{id}/live-memory`. Expert-only (`kind != "expert"` → 404).
+Expert chat can open a live phone-style session. Audio never hits this API: `POST /personas/{id}/live-token` mints provider credentials; the browser talks PCM to the provider WebSocket. Tools stay on `POST /personas/{id}/live-tool`. The browser lets the expert say it is looking something up before that call returns. If the person keeps talking, the result is woven into a later turn; if the call is idle, the expert speaks the result on its own. `POST /personas/{id}/live-memory` stores the finished turn in the interview thread and extracts Mem0 once for that `turn_id`. A repeat of the same turn returns the existing messages and does not write memory again. Expert-only (`kind != "expert"` → 404).
 
 | Variable | Required | Default | Notes |
 | -------- | -------- | ------- | ----- |
@@ -157,14 +157,14 @@ Expert chat can open a live phone-style session. Audio never hits this API: `POS
 | `GEMINI_LIVE_VOICE` | no | `Algenib` | Prebuilt Gemini voice |
 | `ELEVENLABS_API_KEY` | **when `LIVE_VOICE_PROVIDER=elevenlabs`** | empty | Server-only. Missing key/agent/voice → 503 on mint |
 | `ELEVENLABS_AGENT_ID` | **when `LIVE_VOICE_PROVIDER=elevenlabs`** | empty | One private shell agent; prompt/`first_message` are overridden per call |
-| `ELEVENLABS_VOICE_ID` | **when `LIVE_VOICE_PROVIDER=elevenlabs`** | empty | TTS voice override. Enable voice overrides on the agent Security tab |
-| `ELEVENLABS_TOOL_IDS` | no | empty | JSON object mapping OpenAI tool names to ElevenLabs client tool ids. When set, every allowlisted expert tool must have an id (fail loud). Client tools must already exist on the agent (`expects_response: true`). When unset, v1 still executes `client_tool_call` via `/live-tool` (backend rejects disallowed names) |
+| `ELEVENLABS_VOICE_ID` | **when `LIVE_VOICE_PROVIDER=elevenlabs`** | empty | Kept on the session payload. Not sent as a per-call voice override: ElevenLabs closes that socket when the voice is a clone. The voice saved on the agent is the one that speaks |
+| `ELEVENLABS_TOOL_IDS` | no | empty | JSON object mapping OpenAI tool names to ElevenLabs client tool ids. When set, every allowlisted expert tool must have an id (fail loud). When unset, the server creates missing client tools (`expects_response: true`). Either way it attaches any missing id on the agent, then passes that id list on the call. ElevenLabs rejects a per-call tool that is not on the agent. The browser executes `client_tool_call` via `/live-tool` |
 | `ELEVENLABS_BASE_URL` | no | `https://api.elevenlabs.io` | |
 | `ELEVENLABS_SIGNED_URL_TTL_SECONDS` | no | `900` | Conservative `expires_at` on the session payload |
 
 Enable ElevenLabs: set `LIVE_VOICE_PROVIDER=elevenlabs` plus `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, and `ELEVENLABS_VOICE_ID`, then restart the backend. Gemini remains the path when `LIVE_VOICE_PROVIDER=gemini` (and `GOOGLE_API_KEY` is set). Do not add an ElevenLabs SDK — the frontend speaks the WebSocket protocol directly.
 
-On the ElevenLabs agent, enable Security overrides for system prompt, first message, voice, and (if using `ELEVENLABS_TOOL_IDS`) tools.
+On the ElevenLabs agent, enable Security overrides for system prompt and first message, and (if using `ELEVENLABS_TOOL_IDS`) tools. The agent's LLM is DeepSeek Flash (`deepseek-v41-flash`), saved on the agent. Per-call LLM override stays off. The speaking voice is the professional voice saved on the agent. An instant voice clone makes ElevenLabs close the socket and mark the agent unsafe, and a custom LLM is rejected with a cloned voice.
 
 HTTP access lines and uncaught ASGI exceptions (DeepSeek timeouts, tracebacks) go to **stdout** and to `backend/data/logs/app.log`. When the file hits `LOG_MAX_BYTES` it becomes `app.log.1` and a new `app.log` starts (`LOG_BACKUP_COUNT` files kept). Körning-loggar under `data/oasis/…` are separate.
 

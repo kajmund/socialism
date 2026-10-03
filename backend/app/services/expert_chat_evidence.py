@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,6 +50,7 @@ async def reusable_expert_chat_evidence_context(
     customer_id: int,
     question: str,
     prompts: dict[str, str],
+    assume_caller_idle: bool = True,
 ) -> str:
     """Return Graph v2 evidence that appeared in a frozen customer attempt.
 
@@ -57,7 +59,7 @@ async def reusable_expert_chat_evidence_context(
     """
     from app.services.research.execution import _session_factory
 
-    if session.in_transaction():
+    if assume_caller_idle and session.in_transaction():
         raise RuntimeError("Release chat input transaction before reading reusable Graph evidence")
     reused = await lookup_question(
         _session_factory(session),
@@ -106,3 +108,29 @@ async def _frozen_graph_refs(session, customer_id, candidates) -> set[tuple[str,
 
 def combine_expert_chat_context(*parts: str) -> str:
     return "\n\n".join(part.strip() for part in parts if part.strip())
+
+
+_NO_FROZEN_EVIDENCE = "Ingen tidigare fryst researchevidens matchar frågan."
+
+
+def evidence_tool_handler_for_chat(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    prompts: dict[str, str],
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    async def handle(arguments: dict[str, Any]) -> str:
+        question = str(arguments.get("question") or "").strip()
+        if not question:
+            raise ValueError("lookup_research_evidence kräver en fråga.")
+        # The chat turn may still hold a read transaction. The lookup opens its own sessions.
+        rendered = await reusable_expert_chat_evidence_context(
+            session,
+            customer_id=customer_id,
+            question=question,
+            prompts=prompts,
+            assume_caller_idle=False,
+        )
+        return rendered or _NO_FROZEN_EVIDENCE
+
+    return handle

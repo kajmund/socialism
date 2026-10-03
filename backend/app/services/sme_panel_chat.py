@@ -22,7 +22,7 @@ from app.schemas.sme import SmeMessageOut
 from app.serializers import profile_from_dict, utcnow
 from app.services.district_context import area_block_for_name
 from app.services.expert_tools import panel_chat_tools
-from app.services.persona_chat import expert_memory_context, remember_expert_chat_turn
+from app.services.persona_chat import expert_memory_context, schedule_expert_memory_update
 from app.services.prompt_store import require_prompts_for_persona
 from app.services.sme_panel_lease import (
     PanelLeaseHeartbeat,
@@ -166,14 +166,15 @@ async def run_panel_message(  # noqa: PLR0915
                 session.add(reply_row)
                 await session.flush()
                 created.append((reply_row, expert.name))
-                await remember_expert_chat_turn(
+            await session.commit()
+            for expert, reply in zip(experts, replies, strict=True):
+                schedule_expert_memory_update(
                     expert,
                     message=text,
                     reply=reply,
                     image_sha256=None,
                     source="panel_chat",
                 )
-            await session.commit()
         return [_message_out(row, name) for row, name in created]
     finally:
         await heartbeat.aclose()

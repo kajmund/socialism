@@ -16,6 +16,7 @@ export type GeminiLiveServerEvent = {
   outputTranscript: string
   turnComplete: boolean
   toolCalls: GeminiLiveToolCall[]
+  cancelledToolCallIds: string[]
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -37,6 +38,7 @@ export function updateGeminiLiveTranscripts(
 ): {
   state: GeminiLiveTranscriptState
   completed: GeminiLiveTranscriptState | null
+  orphanOutput: string | null
 } {
   const startsNewUserTurn = Boolean(event.inputTranscript && state.output)
   const next = {
@@ -45,7 +47,7 @@ export function updateGeminiLiveTranscripts(
       (event.interrupted || startsNewUserTurn ? "" : state.output) +
       event.outputTranscript,
   }
-  if (!event.turnComplete) return { state: next, completed: null }
+  if (!event.turnComplete) return { state: next, completed: null, orphanOutput: null }
   const completed = {
     input: next.input.trim(),
     output: next.output.trim(),
@@ -53,6 +55,7 @@ export function updateGeminiLiveTranscripts(
   return {
     state: { input: "", output: "" },
     completed: completed.input && completed.output ? completed : null,
+    orphanOutput: completed.input || !completed.output ? null : completed.output,
   }
 }
 
@@ -79,6 +82,10 @@ export function parseGeminiLiveMessage(raw: string): GeminiLiveServerEvent {
     ? toolCall.functionCalls
     : []
   const toolCalls: GeminiLiveToolCall[] = []
+  const cancellation = asRecord(message?.toolCallCancellation)
+  const cancelledToolCallIds = Array.isArray(cancellation?.ids)
+    ? cancellation.ids.filter((id): id is string => typeof id === "string")
+    : []
 
   for (const partValue of parts) {
     const part = asRecord(partValue)
@@ -117,6 +124,7 @@ export function parseGeminiLiveMessage(raw: string): GeminiLiveServerEvent {
         : "",
     turnComplete: serverContent?.turnComplete === true,
     toolCalls,
+    cancelledToolCallIds,
   }
 }
 

@@ -51,8 +51,10 @@ _CONSULT_PROMISE_RE = re.compile(
 
 COMPANY_TOOL_NAMES = frozenset({"search_companies", "lookup_company", "validate_orgnr"})
 RESEARCH_TOOL_NAME = "start_research"
+EVIDENCE_TOOL_NAME = "lookup_research_evidence"
 CONSULT_TOOL_NAME = "ask_expert"
 ResearchToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
+EvidenceToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
 ConsultToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
 
 _RESEARCH_TOOL_SPEC: dict[str, Any] = {
@@ -69,6 +71,27 @@ _RESEARCH_TOOL_SPEC: dict[str, Any] = {
                 "question": {
                     "type": "string",
                     "description": "Standalone general research question",
+                }
+            },
+            "required": ["question"],
+        },
+    },
+}
+
+_EVIDENCE_TOOL_SPEC: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": EVIDENCE_TOOL_NAME,
+        "description": (
+            "Look up previously frozen research evidence that matches a question. "
+            "Does not start new research."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "Standalone question to match against frozen research",
                 }
             },
             "required": ["question"],
@@ -168,6 +191,10 @@ def company_tool_specs() -> list[dict[str, Any]]:
 
 def research_tool_spec() -> dict[str, Any]:
     return dict(_RESEARCH_TOOL_SPEC)
+
+
+def evidence_tool_spec() -> dict[str, Any]:
+    return dict(_EVIDENCE_TOOL_SPEC)
 
 
 def consult_tool_spec() -> dict[str, Any]:
@@ -373,6 +400,7 @@ async def run_company_tool_loop(  # noqa: C901, PLR0912, PLR0913, PLR0915
     with_search: bool = False,
     allowed_tools: frozenset[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    evidence_tool_handler: EvidenceToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
     prompt_key: str | None = None,
@@ -391,6 +419,8 @@ async def run_company_tool_loop(  # noqa: C901, PLR0912, PLR0913, PLR0915
             tools = [*tools, *search_tool_specs()]
         if research_tool_handler is not None:
             tools = [*tools, _RESEARCH_TOOL_SPEC]
+        if evidence_tool_handler is not None:
+            tools = [*tools, _EVIDENCE_TOOL_SPEC]
         if consult_tool_handler is not None:
             tools = [*tools, _CONSULT_TOOL_SPEC]
         if actor_tool_handler is not None:
@@ -451,6 +481,13 @@ async def run_company_tool_loop(  # noqa: C901, PLR0912, PLR0913, PLR0915
                         tool_text = await research_tool_handler(arguments)
                         parsed = []
                     elif (
+                        allowed
+                        and name == EVIDENCE_TOOL_NAME
+                        and evidence_tool_handler is not None
+                    ):
+                        tool_text = await evidence_tool_handler(arguments)
+                        parsed = []
+                    elif (
                         allowed and name == CONSULT_TOOL_NAME and consult_tool_handler is not None
                     ):
                         tool_text = await consult_tool_handler(arguments)
@@ -483,6 +520,7 @@ async def complete_text_with_company_tools(
     *,
     allowed_tools: frozenset[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    evidence_tool_handler: EvidenceToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
     prompt_key: str | None = None,
@@ -498,6 +536,7 @@ async def complete_text_with_company_tools(
         with_search=True,
         allowed_tools=allowed_tools,
         research_tool_handler=research_tool_handler,
+        evidence_tool_handler=evidence_tool_handler,
         consult_tool_handler=consult_tool_handler,
         actor_tool_handler=actor_tool_handler,
         prompt_key=prompt_key,

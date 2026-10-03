@@ -3,6 +3,10 @@
 ## 2026-10-03
 
 * **Research**: Giltiga färdiga resultat kan återanvändas för samma fråga och sammanhang. Närliggande frågor kontrolleras mot tidigare svar innan ny research behövs. Källor och bedömning visas från det tidigare underlaget.
+* **Expertchatten / SME**: När experten behöver ett verktyg säger eller skriver hen först en kort egen mening om att hen tar reda på det. Uppslaget fortsätter i bakgrunden. Resultatet vävs in i nästa svar, eller kommer som ett nytt meddelande om du väntar.
+* **Expertchatten / SME**: Ett färdigt röstvarv syns i chatten. Experten får minnet av varvet en gång, även om samma varv sparas igen.
+* **Expertchatten / SME**: Chatten behåller de senaste 40 meddelandena. Ett nytt meddelande tar bort det äldsta.
+* **Expertchatten / SME**: Experten slår upp tidigare fryst research med verktyget **Slå upp tidigare research** när frågan behöver den. Uppslagningen sker inte längre automatiskt före varje svar. Nya minnen från chatten skrivs efter att svaret har kommit tillbaka.
 
 ## 2026-09-21
 
