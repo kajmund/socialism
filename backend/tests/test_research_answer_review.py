@@ -1,5 +1,6 @@
 """Every provider and synthesized evidence use the same final-answer TTL boundary."""
 
+import importlib
 import inspect
 from datetime import UTC, datetime
 
@@ -76,7 +77,7 @@ async def test_generic_freeze_aggregates_sources_without_calling_jev(db, monkeyp
     assert "_enqueue_graph_revalidation" not in source
     assert "enqueue_question_revalidation" not in source
     with pytest.raises(ModuleNotFoundError):
-        import app.services.graph_v2.revalidation  # noqa: F401
+        importlib.import_module("app.services.graph_v2.revalidation")
 
 
 async def test_empty_and_failed_sources_do_not_create_answer_versions(db):
