@@ -108,8 +108,9 @@ async def test_underlag_upload_list_get_is_owner_scoped(
 
     storage = get_object_storage()
     keys = set(storage.buckets["devbrains"])
+    workspace_id = body["workspace_id"]
     assert any(
-        key.startswith(f"expertgranskning/underlag/{USER_USER_ID}/{object_id}/") for key in keys
+        key.startswith(f"expertgranskning/workspaces/{workspace_id}/underlag/{object_id}/") for key in keys
     )
 
     listed = await client.get("/underlag", params={"module": "expertgranskning"})
@@ -315,7 +316,7 @@ async def test_underlag_move_delete_and_file_download(
     storage = get_object_storage()
     keys = set(storage.buckets.get("devbrains", {}))
     assert not any(
-        key.startswith(f"expertgranskning/underlag/{USER_USER_ID}/{object_id}/") for key in keys
+        f"/underlag/{object_id}/" in key for key in keys
     )
 
 
@@ -343,7 +344,7 @@ async def test_upload_docx_converts_to_pdf(user_client: AsyncClient, monkeypatch
         return b"%PDF-1.4\nfake-docx-pdf\n"
 
     monkeypatch.setattr(
-        "app.services.stored_objects.convert_docx_to_pdf_async",
+        "app.services.document_upload.convert_docx_to_pdf_async",
         fake_convert,
     )
     data = _minimal_docx("Hej från Word")

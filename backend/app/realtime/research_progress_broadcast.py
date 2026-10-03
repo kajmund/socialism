@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import WebSocket
@@ -20,12 +21,23 @@ class ResearchProgressBroadcastRegistry:
     def __init__(self) -> None:
         self._rooms: dict[str, set[WebSocket]] = {}
         self._socket_keys: dict[WebSocket, str] = {}
+        self._authorize: dict[WebSocket, Callable[[dict], Awaitable[bool]]] = {}
         self._lock = asyncio.Lock()
 
-    async def subscribe(self, attempt_id: str, websocket: WebSocket) -> None:
+    async def subscribe(
+        self,
+        attempt_id: str,
+        websocket: WebSocket,
+        *,
+        authorize: Callable[[dict], Awaitable[bool]] | None = None,
+    ) -> None:
         async with self._lock:
             self._rooms.setdefault(attempt_id, set()).add(websocket)
             self._socket_keys[websocket] = attempt_id
+            if authorize is not None:
+                self._authorize[websocket] = authorize
+            else:
+                self._authorize.pop(websocket, None)
 
     async def unsubscribe(self, websocket: WebSocket) -> None:
         async with self._lock:
@@ -33,25 +45,23 @@ class ResearchProgressBroadcastRegistry:
 
     async def publish(self, attempt_id: str, event: dict[str, Any]) -> None:
         async with self._lock:
-            sockets = list(self._rooms.get(attempt_id, ()))
+            sockets = [(ws, self._authorize.get(ws)) for ws in self._rooms.get(attempt_id, ())]
         if not sockets:
             return
         dead: list[WebSocket] = []
-        for ws in sockets:
+        for ws, authorize in sockets:
             if ws.client_state != WebSocketState.CONNECTED:
                 dead.append(ws)
                 continue
+            if authorize is not None and not await authorize(event):
+                continue
             try:
-                await asyncio.wait_for(
-                    ws.send_json(event), timeout=_SEND_TIMEOUT_SECONDS
-                )
+                await asyncio.wait_for(ws.send_json(event), timeout=_SEND_TIMEOUT_SECONDS)
             except TimeoutError:
                 logger.debug("Dropping research-progress WS client after send timeout")
                 dead.append(ws)
             except (WebSocketDisconnect, RuntimeError) as exc:
-                logger.debug(
-                    "Dropping research-progress WS client after send error: %s", exc
-                )
+                logger.debug("Dropping research-progress WS client after send error: %s", exc)
                 dead.append(ws)
         if dead:
             async with self._lock:
@@ -60,6 +70,7 @@ class ResearchProgressBroadcastRegistry:
 
     async def _drop_socket(self, websocket: WebSocket) -> None:
         attempt_id = self._socket_keys.pop(websocket, None)
+        self._authorize.pop(websocket, None)
         if attempt_id is None:
             return
         room = self._rooms.get(attempt_id)

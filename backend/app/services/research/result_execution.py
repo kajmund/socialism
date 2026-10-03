@@ -13,6 +13,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import ExecutionAttempt, ExecutionRun, EvidenceSet
+from app.database.workspace_ids import company_workspace_id
 from app.services.execution.reuse_reference import REUSE_KEY
 from app.observability.events import EVENT_DATASET_RESEARCH, log_event
 from app.services.research.models import ResearchEvidence, ResearchNeed, ResearchPlan, utc_now
@@ -169,7 +170,7 @@ async def reuse_completed_result(
 async def may_attach_reused_set(
     session: AsyncSession, attempt: ExecutionAttempt, evidence_set: EvidenceSet
 ) -> bool:
-    """Cross-run sharing is explicit and remains inside one customer/module/case."""
+    """Cross-run sharing retains customer, workspace, case and frozen selection."""
     reference = attempt.input_snapshot.get(REUSE_KEY)
     if not reference or reference.get("evidence_set_id") != evidence_set.id:
         return False
@@ -186,5 +187,23 @@ async def may_attach_reused_set(
         owned.customer_id == source.customer_id
         and owned.module == source.module
         and (owned.context.get("case_id") == source.context.get("case_id"))
+        and _same_workspace_basis(owned, source)
         and evidence_set.status == "frozen"
+    )
+
+
+def _same_workspace_basis(owned: ExecutionRun, source: ExecutionRun) -> bool:
+    owned_id, source_id = owned.context.get("workspace_id"), source.context.get("workspace_id")
+    normalized_owned = company_workspace_id(owned.customer_id) if owned_id is None else owned_id
+    normalized_source = company_workspace_id(source.customer_id) if source_id is None else source_id
+    if normalized_owned != normalized_source:
+        return False
+    if owned_id is None and source_id is None:
+        return True
+    owned_manifest = owned.context.get("document_manifest")
+    source_manifest = source.context.get("document_manifest")
+    return (
+        isinstance(owned_manifest, list)
+        and isinstance(source_manifest, list)
+        and owned_manifest == source_manifest
     )

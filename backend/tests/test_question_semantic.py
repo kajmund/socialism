@@ -126,7 +126,7 @@ async def test_semantic_question_match_never_crosses_customer_namespace(factory)
 
 
     assert second.id != first.id
-    assert second.scope.namespace == "tenant:2"
+    assert second.scope == tenant_question_scope(2)
 
 
 async def test_semantic_question_search_isolated_from_document_vectors(factory):

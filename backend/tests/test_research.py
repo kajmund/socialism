@@ -27,6 +27,8 @@ from app.services.knowledge.supabase_provider import (
     supabase_external_id,
 )
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
+from app.services.workspaces import company_workspace_id, ensure_company_workspace
+from tests.test_knowledge import _seed_document_grounding
 from app.services.research import (
     RESEARCH_SOURCE_TYPES,
     KnowledgeResearchSource,
@@ -220,8 +222,9 @@ async def _index_document(
         version="1",
         extra={"origin": "files", "version": "1"},
     )
-    session.add(row)
-    await session.flush()
+    await ensure_company_workspace(session, customer_id=customer_id)
+    await _seed_document_grounding(session, row)
+    await session.commit()
     return row
 
 
@@ -238,13 +241,16 @@ def _chunk(*, document_id: str, text: str, customer_id: int, case_id: str | None
         provider=SUPABASE_PROVIDER_ID,
         version="1",
         content_hash="hash-1",
-        metadata={"version": "1"},
+        metadata={"version": "1", "scope_type": "customer", "workspace_id": company_workspace_id(customer_id), "text_unit_id": f"unit-{document_id}", "document_version_id": f"version-{document_id}"},
     )
 
 
-def test_knowledge_adapter_refuses_unimplemented_domain_namespace():
-    with pytest.raises(ValueError, match="not a private-knowledge adapter"):
-        KnowledgeResearchSource(RecordingKnowledgeProvider(), source_type="domain_knowledge")
+async def test_domain_knowledge_refuses_private_hits():
+    provider = RecordingKnowledgeProvider([_hit()])
+    source = KnowledgeResearchSource(provider, source_type="domain_knowledge")
+    evidence = await source.research(_need("domain_knowledge"), _context())
+    assert [item.status for item in evidence] == ["not_found"]
+    assert provider.queries[0].filters == {"scope_type": "shared"}
 
 
 def test_source_type_taxonomy_matches_planned_research_plan():
@@ -370,8 +376,10 @@ def test_search_scope_never_changes_customer_id():
     assert customer_scope.customer_id == 7
     assert case_scope.case_id == "case-1"
     assert customer_scope.case_id is None
-    with pytest.raises(Exception, match="no Knowledge adapter"):
-        search_scope("domain_knowledge", context)
+    domain_scope = search_scope("domain_knowledge", context)
+    assert domain_scope.customer_id == 7
+    assert domain_scope.case_id is None
+    assert domain_scope.workspace_id is None
 
 
 async def test_customer_knowledge_cannot_read_other_customer():
@@ -533,28 +541,34 @@ async def test_unregistered_source_type_is_explicit_error():
     assert evidence[2].metadata["source_type"] == "web"
 
 
-def test_default_registry_exposes_only_lagen_nu_sources():
+def test_default_registry_exposes_legal_private_and_shared_sources():
     registry = build_research_registry(RecordingKnowledgeProvider())
     assert registry.registered_types() == [
         "swedish_law",
         "swedish_case_law",
         "swedish_preparatory_works",
+        "case_knowledge",
+        "customer_knowledge",
+        "domain_knowledge",
     ]
     assert registry.registered_evidence_natures() == (
         "swedish_law",
         "swedish_case_law",
         "swedish_preparatory_works",
+        "case_knowledge",
+        "customer_knowledge",
+        "domain_knowledge",
     )
     assert production_registered_source_types() == registry.registered_evidence_natures()
     assert ResearchRouter(registry).available_source_types() == (
         registry.registered_evidence_natures()
     )
-    assert registry.sources_for("domain_knowledge") == []
+    assert registry.sources_for("domain_knowledge")
     assert registry.sources_for("swedish_law")
     assert registry.sources_for("swedish_case_law")
     assert registry.sources_for("swedish_preparatory_works")
-    assert registry.sources_for("case_knowledge") == []
-    assert registry.sources_for("customer_knowledge") == []
+    assert registry.sources_for("case_knowledge")
+    assert registry.sources_for("customer_knowledge")
     assert registry.sources_for("web") == []
 
 
@@ -573,6 +587,9 @@ def test_build_research_registry_follows_standard_capability_descriptors():
         "swedish_law",
         "swedish_case_law",
         "swedish_preparatory_works",
+        "case_knowledge",
+        "customer_knowledge",
+        "domain_knowledge",
     )
 
 

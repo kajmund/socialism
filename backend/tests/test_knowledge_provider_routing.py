@@ -282,7 +282,7 @@ async def test_provenance_survives_capability_routing():
     assert item.metadata["document_id"] == "doc-memory"
 
 
-async def test_standard_registry_excludes_tenant_knowledge_providers():
+async def test_standard_registry_registers_grounded_private_knowledge_providers():
     provider = RecordingKnowledgeProvider([_hit()])
     registry = build_research_registry(provider)
     assert isinstance(registry, KnowledgeProviderCapabilityRegistry)
@@ -297,7 +297,9 @@ async def test_standard_registry_excludes_tenant_knowledge_providers():
         for entry in entries
         if entry.descriptor.access.adapter == "lagen_nu_research_source"
     ]
-    assert knowledge == []
+    assert [entry.source.source_type for entry in knowledge] == ["case_knowledge", "customer_knowledge", "domain_knowledge"]
+    assert all(entry.descriptor.authority["tenant_bound"] for entry in knowledge[:2])
+    assert knowledge[2].descriptor.authority["tenant_bound"] is False
     assert [entry.descriptor.provider_id for entry in lagen] == [
         "lagen_nu.swedish_law",
         "lagen_nu.swedish_case_law",
@@ -312,8 +314,10 @@ async def test_standard_registry_excludes_tenant_knowledge_providers():
         _need("case_knowledge"),
         _context(customer_id=4, case_id="case-1"),
     )
-    assert [item.status for item in evidence] == ["error"]
-    assert provider.queries == []
+    assert [item.status for item in evidence] == ["not_found"]
+    assert len(provider.queries) == 1
+    assert provider.queries[0].scope.customer_id == 4
+    assert provider.queries[0].scope.case_id == "case-1"
     source = KnowledgeResearchSource(provider, source_type="customer_knowledge")
     await source.research(_need("customer_knowledge"), _context(customer_id=7, case_id="case-1"))
     assert provider.queries[-1].scope.customer_id == 7

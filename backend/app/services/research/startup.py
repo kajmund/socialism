@@ -143,7 +143,7 @@ async def _main_first(inputs: StartInputs, partial: list[ResearchEvidence]) -> R
             session,
             graph=inputs.graph,
             question=root.question,
-            scope=tenant_question_scope(inputs.context.scope.customer_id),
+            scope=tenant_question_scope(inputs.context.scope.customer_id, inputs.context.scope.workspace_id),
         )
     root = replace(root, knowledge_question_id=canonical.id)
     from app.services.research.question_reuse import merge_reused_with_provider
@@ -268,7 +268,7 @@ async def _bind_initial(inputs: StartInputs, start: ResearchStart) -> ResearchSt
     from app.services.research.question_iteration import resolve_or_create_knowledge_question
     from app.services.research.knowledge_question import tenant_question_scope
 
-    scope = tenant_question_scope(inputs.context.scope.customer_id)
+    scope = tenant_question_scope(inputs.context.scope.customer_id, inputs.context.scope.workspace_id)
     seen = {}
     needs = []
     duplicate_main = False
