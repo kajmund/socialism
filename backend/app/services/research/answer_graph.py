@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.graph_v2 import GraphFact, GraphNode
 from app.database.models import DocumentVersionRecord, EvidenceSet, KnowledgeQuestionRow
+from app.services.graph_v2.dependencies import attach_question_dependency
 from app.services.graph_v2.questions import question_node
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
@@ -93,8 +94,6 @@ async def publish_answer(
             },
         ),
     )
-    from app.services.graph_v2.revalidation import attach_question_dependency
-
     dependencies = {ref for item in basis for ref in item.metadata.get("graph_fact_ids", [])}
     for ref in dependencies:
         await attach_question_dependency(session, question_node_id=source.id, fact_id=ref)
