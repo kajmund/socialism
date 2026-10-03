@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import {
   getSuggestedQuestions,
   listPersonaMessages,
+  type PersonaMessage,
 } from "@/api/personas"
 import {
   getSmeExpertTurn,
@@ -13,6 +14,7 @@ import {
   type SmeInboxItem,
   type SmeMessage,
 } from "@/api/sme"
+import { latestChatMessages } from "@/components/chat/chatWindow"
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher"
 import { useLocale } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -163,7 +165,7 @@ export function SmeMessengerPage() {
         : listSmePanelMessages(selected.thread_id)
     request
       .then((rows) => {
-        if (!cancelled) setMessages(rows)
+        if (!cancelled) setMessages(latestChatMessages(rows))
       })
       .catch((error: unknown) => {
         if (!cancelled) setChatError(errorMessage(error, t("sme.chatError")))
@@ -230,10 +232,12 @@ export function SmeMessengerPage() {
       const active = selectedRef.current
       if (active?.thread_type === "expert" && active.thread_id === threadId) {
         setMessages(
-          rows.map((row) => ({
-            ...row,
-            persona_id: row.role === "assistant" ? threadId : null,
-          })),
+          latestChatMessages(
+            rows.map((row) => ({
+              ...row,
+              persona_id: row.role === "assistant" ? threadId : null,
+            })),
+          ),
         )
         void markSmeThreadRead("expert", threadId).then(() =>
           loadInbox(filterRef.current),
@@ -290,10 +294,12 @@ export function SmeMessengerPage() {
       const active = selectedRef.current
       if (active?.thread_type === "expert" && active.thread_id === threadId) {
         setMessages(
-          rows.map((row) => ({
-            ...row,
-            persona_id: row.role === "assistant" ? threadId : null,
-          })),
+          latestChatMessages(
+            rows.map((row) => ({
+              ...row,
+              persona_id: row.role === "assistant" ? threadId : null,
+            })),
+          ),
         )
         void markSmeThreadRead("expert", threadId).then(() =>
           loadInbox(filterRef.current),
@@ -385,6 +391,49 @@ export function SmeMessengerPage() {
       timers.current.clear()
     }
   }, [])
+
+  function appendVoiceTranscript(personaId: string, saved: PersonaMessage[]) {
+    if (saved.length === 0) return
+    const active = selectedRef.current
+    const viewing =
+      active?.thread_type === "expert" && active.thread_id === personaId
+    if (viewing) {
+      setMessages((rows) => {
+        const known = new Set(rows.map((message) => message.id))
+        const added = saved.flatMap((message): SmeMessage[] =>
+          known.has(message.id)
+            ? []
+            : [
+                {
+                  id: message.id,
+                  role: message.role,
+                  content: message.content,
+                  created_at: message.created_at,
+                  persona_id: message.role === "assistant" ? personaId : null,
+                  persona_name: null,
+                  image_sha256: message.image_sha256,
+                },
+              ],
+        )
+        return latestChatMessages(added.length === 0 ? rows : [...rows, ...added])
+      })
+      void markSmeThreadRead("expert", personaId).catch(() => undefined)
+    }
+    const last = saved[saved.length - 1]
+    if (!last) return
+    setInbox((rows) =>
+      rows.map((row) =>
+        row.thread_type === "expert" && row.thread_id === personaId
+          ? {
+              ...row,
+              preview: last.content,
+              last_message_at: last.created_at,
+              unread_count: viewing ? 0 : row.unread_count + 1,
+            }
+          : row,
+      ),
+    )
+  }
 
   function selectThread(item: SmeInboxItem) {
     setSelected(item)
@@ -529,6 +578,7 @@ export function SmeMessengerPage() {
               ? () => openExpertEditor(selected)
               : undefined
           }
+          onVoiceTranscript={appendVoiceTranscript}
         />
       </main>
       {expertEditor ? (

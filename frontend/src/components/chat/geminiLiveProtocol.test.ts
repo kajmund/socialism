@@ -69,6 +69,7 @@ describe("Gemini Live protocol", () => {
       outputTranscript: "Hej",
       turnComplete: true,
       toolCalls: [],
+      cancelledToolCallIds: [],
     })
   })
 
@@ -87,6 +88,12 @@ describe("Gemini Live protocol", () => {
       }),
     )
 
+    expect(
+      parseGeminiLiveMessage(
+        JSON.stringify({ toolCallCancellation: { ids: ["call-1", 2] } }),
+      ).cancelledToolCallIds,
+    ).toEqual(["call-1"])
+    expect(event.cancelledToolCallIds).toEqual([])
     expect(event.toolCalls).toEqual([
       {
         id: "call-1",
@@ -124,6 +131,7 @@ describe("Gemini Live protocol", () => {
         outputTranscript: "",
         turnComplete: false,
         toolCalls: [],
+        cancelledToolCallIds: [],
       },
     )
     const interrupted = updateGeminiLiveTranscripts(newTurn.state, {
@@ -134,6 +142,7 @@ describe("Gemini Live protocol", () => {
       outputTranscript: "",
       turnComplete: false,
       toolCalls: [],
+      cancelledToolCallIds: [],
     })
     expect(interrupted.state).toEqual({
       input: "Jag heter Erik och projektet heter Aurora",
@@ -148,6 +157,7 @@ describe("Gemini Live protocol", () => {
       outputTranscript: "Jag kommer ihåg det.",
       turnComplete: true,
       toolCalls: [],
+      cancelledToolCallIds: [],
     })
     expect(completed.completed).toEqual({
       input: "Jag heter Erik och projektet heter Aurora",

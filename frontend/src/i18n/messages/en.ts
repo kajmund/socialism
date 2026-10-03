@@ -507,6 +507,7 @@ export const en: LocalizedTree<SvMessages> = {
       search_duckduckgo: "Web search (DuckDuckGo)",
       search_wiki: "Wikipedia",
       start_research: "Start research",
+      lookup_research_evidence: "Look up previous research",
       ask_expert: "Ask another expert",
     },
   },
@@ -920,7 +921,8 @@ export const en: LocalizedTree<SvMessages> = {
       stopAria: "End the voice call",
       connecting: "Connecting the voice call…",
       active: "The voice call is active",
-      memorySaveFailed: "The voice call continues, but the memory could not be saved.",
+      memorySaveFailed:
+        "The voice call continues, but the turn could not be saved in the chat.",
       toolFailed: "The {name} tool could not be run.",
       call: {
         dialogAria: "Voice call with {name}",

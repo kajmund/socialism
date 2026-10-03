@@ -3,6 +3,7 @@ import {
   createPersonaLiveToken,
   runPersonaLiveTool,
   savePersonaLiveMemory,
+  type PersonaMessage,
 } from "@/api/personas"
 import {
   createLiveVoiceSession,
@@ -16,6 +17,7 @@ type UseLiveVoiceOptions = {
   onError: (error: LiveVoiceError) => void
   onMemoryError: () => void
   onToolError: (name: string) => void
+  onTranscript: (personaId: string, messages: PersonaMessage[]) => void
 }
 
 export function useLiveVoice({
@@ -23,6 +25,7 @@ export function useLiveVoice({
   onError,
   onMemoryError,
   onToolError,
+  onTranscript,
 }: UseLiveVoiceOptions): {
   state: LiveVoiceState
   toggle: () => void
@@ -41,9 +44,11 @@ export function useLiveVoice({
   const onErrorRef = useRef(onError)
   const onMemoryErrorRef = useRef(onMemoryError)
   const onToolErrorRef = useRef(onToolError)
+  const onTranscriptRef = useRef(onTranscript)
   onErrorRef.current = onError
   onMemoryErrorRef.current = onMemoryError
   onToolErrorRef.current = onToolError
+  onTranscriptRef.current = onTranscript
   const state =
     snapshot.personaId === personaId && personaId
       ? snapshot.state
@@ -52,6 +57,7 @@ export function useLiveVoice({
   useEffect(() => {
     if (!personaId) return
     let disposed = false
+    let lastUserMessage = ""
     const sessionId = crypto.randomUUID()
     const session = createLiveVoiceSession({
       getSession: () => createPersonaLiveToken(personaId),
@@ -62,13 +68,34 @@ export function useLiveVoice({
         if (!disposed) onErrorRef.current(error)
       },
       onTurnComplete: (userMessage, assistantMessage) => {
+        lastUserMessage = userMessage
         void savePersonaLiveMemory(personaId, {
           session_id: sessionId,
+          turn_id: crypto.randomUUID(),
           user_message: userMessage,
           assistant_message: assistantMessage,
-        }).catch(() => {
-          if (!disposed) onMemoryErrorRef.current()
         })
+          .then((messages) => {
+            onTranscriptRef.current(personaId, messages)
+          })
+          .catch(() => {
+            if (!disposed) onMemoryErrorRef.current()
+          })
+      },
+      onFollowUp: (assistantMessage) => {
+        void savePersonaLiveMemory(personaId, {
+          session_id: sessionId,
+          turn_id: crypto.randomUUID(),
+          user_message: lastUserMessage.trim() || assistantMessage,
+          assistant_message: assistantMessage,
+          follow_up: true,
+        })
+          .then((messages) => {
+            onTranscriptRef.current(personaId, messages)
+          })
+          .catch(() => {
+            if (!disposed) onMemoryErrorRef.current()
+          })
       },
       onToolCall: async (call, userMessage, history) => {
         const response = await runPersonaLiveTool(personaId, {

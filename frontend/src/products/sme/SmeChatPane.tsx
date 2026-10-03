@@ -4,6 +4,7 @@ import { ArrowLeft, UsersRound } from "lucide-react"
 import { ExpertAvatar } from "@/components/experts/ExpertAvatar"
 import { useEffect, useState } from "react"
 import { uploadMessageImageRaw } from "@/api/messages"
+import type { PersonaMessage } from "@/api/personas"
 import type { SmeInboxItem, SmeMessage } from "@/api/sme"
 import { ExpertVoiceButton } from "@/components/chat/ExpertVoiceButton"
 import { MessengerChat } from "@/components/chat/MessengerChat"
@@ -26,6 +27,7 @@ type Props = {
   onSend: (message: string, imageSha256?: string | null) => boolean
   onBack: () => void
   onOpenExpertEditor?: () => void
+  onVoiceTranscript: (personaId: string, messages: PersonaMessage[]) => void
 }
 
 export function SmeChatPane({
@@ -41,6 +43,7 @@ export function SmeChatPane({
   onSend,
   onBack,
   onOpenExpertEditor,
+  onVoiceTranscript,
 }: Props) {
   const { refreshProfile } = useAuth()
   const { t } = useLocale()
@@ -182,6 +185,7 @@ export function SmeChatPane({
               expertName={thread.name}
               avatarUrl={thread.avatar_url}
               onErrorMessage={setVoiceError}
+              onTranscript={onVoiceTranscript}
             />
           ) : undefined
         }

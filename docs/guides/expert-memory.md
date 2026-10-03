@@ -19,6 +19,8 @@ Mem0 innehåller extraherade långtidsminnen.
 ## Skriv- och läsvägar
 
 - Expertchat skriver text- och bildturner och söker relevanta minnen före svar.
+  Ett avslutat röstvarv sparas också ordagrant i `persona_messages`. Mem0 skrivs
+  en gång för det varvets `turn_id`, inte en gång till för att raderna ligger i chatten.
 - Expertkonsultation skriver `expert_consult` för både den frågande och den
   svarande experten. Båda minnena innehåller den omformulerade frågan, vem som
   frågade respektive svarade och kollegans svar.

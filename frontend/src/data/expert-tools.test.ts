@@ -12,6 +12,7 @@ describe("normalizeExpertTools", () => {
     expect(normalizeExpertTools(null)).toEqual([...DEFAULT_EXPERT_TOOLS])
     expect(DEFAULT_EXPERT_TOOLS).toContain("start_research")
     expect(DEFAULT_EXPERT_TOOLS).toContain("ask_expert")
+    expect(DEFAULT_EXPERT_TOOLS).toContain("lookup_research_evidence")
   })
 
   it("keeps an explicit empty selection", () => {

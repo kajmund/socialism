@@ -33,6 +33,7 @@ import {
 } from "@/api/personas"
 import { useAuth } from "@/auth/AuthProvider"
 import { ChatMessageActions } from "@/components/chat/ChatMessageActions"
+import { latestChatMessages } from "@/components/chat/chatWindow"
 import { ExpertVoiceButton } from "@/components/chat/ExpertVoiceButton"
 import { MessengerChat } from "@/components/chat/MessengerChat"
 import { useLlmCapabilities } from "@/components/chat/useLlmCapabilities"
@@ -296,7 +297,7 @@ function Editor({
   } = useChatSocket({
     hello: chatHello,
     onDone: (rows, memories) => {
-      setMessages(doneToPersonaMessages(rows, icMode))
+      setMessages(latestChatMessages(doneToPersonaMessages(rows, icMode)))
       setOptimisticUser(null)
       setOptimisticImageUrl(null)
       if (kind === "expert") setSavedMemories(memories ?? [])
@@ -334,7 +335,7 @@ function Editor({
     listPersonaMessages(personaId, icMode)
       .then((rows) => {
         if (!cancelled) {
-          setMessages(rows)
+          setMessages(latestChatMessages(rows))
           setOptimisticUser(null)
           setOptimisticImageUrl(null)
         }
@@ -420,7 +421,7 @@ function Editor({
           message: lastUser.content,
           image_sha256: lastUser.image_sha256,
         })
-        setMessages(result.messages)
+        setMessages(latestChatMessages(result.messages))
         setSuggestions(result.suggestions ?? [])
         if (kind === "expert") setSavedMemories(result.saved_memories ?? [])
       } else {
@@ -508,7 +509,7 @@ function Editor({
         })
         setConfirmDeleteMessageId(null)
         try {
-          setMessages(await listPersonaMessages(personaId, icMode))
+          setMessages(latestChatMessages(await listPersonaMessages(personaId, icMode)))
         } catch {
           // local heal above is enough
         }
@@ -533,6 +534,18 @@ function Editor({
         expertName={persona.name}
         avatarUrl={avatarUrl}
         onErrorMessage={onToast}
+        onTranscript={(id, rows) => {
+          if (id !== personaId) return
+          if (icMode !== "interview") {
+            setIcMode("interview")
+            return
+          }
+          setMessages((prev) => {
+            const known = new Set(prev.map((message) => message.id))
+            const added = rows.filter((message) => !known.has(message.id))
+            return latestChatMessages(added.length === 0 ? prev : [...prev, ...added])
+          })
+        }}
       />
     ) : undefined
 
@@ -558,7 +571,7 @@ function Editor({
     setRestBusy(true)
     try {
       const result = await resendPersonaMessage(personaId, messageId)
-      setMessages(result.messages)
+      setMessages(latestChatMessages(result.messages))
       setOptimisticUser(null)
       setSuggestions(result.suggestions ?? [])
       if (kind === "expert") setSavedMemories(result.saved_memories ?? [])

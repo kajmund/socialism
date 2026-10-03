@@ -12,8 +12,14 @@ from app.schemas.domain import ChatMode, EditablePersona, FollowUpQuestions
 from app.services.actor_profiles import ActorToolHandler
 from app.services.dd.company_mcp import (
     ConsultToolHandler,
+    EvidenceToolHandler,
     ResearchToolHandler,
     complete_text_with_company_tools,
+)
+from app.services.expert_async_tools import (
+    acknowledge_expert_tools,
+    active_library_tools,
+    tool_result_extra,
 )
 from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
 from app.services.prompt_catalog import render_prompt
@@ -219,6 +225,7 @@ async def reply_as_persona(  # noqa: PLR0913
     user_image_sha256: str | None = None,
     tools: list[str] | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    evidence_tool_handler: EvidenceToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
 ) -> str:
@@ -245,6 +252,7 @@ async def reply_as_persona(  # noqa: PLR0913
             messages,
             allowed_tools=frozenset(allowed),
             research_tool_handler=research_tool_handler,
+            evidence_tool_handler=evidence_tool_handler,
             consult_tool_handler=consult_tool_handler,
             actor_tool_handler=actor_tool_handler,
             prompt_key=_chat_prompt_key(mode),
@@ -269,6 +277,7 @@ async def stream_reply_as_persona(  # noqa: PLR0913
     tools: list[str] | None = None,
     user_image_sha256: str | None = None,
     research_tool_handler: ResearchToolHandler | None = None,
+    evidence_tool_handler: EvidenceToolHandler | None = None,
     consult_tool_handler: ConsultToolHandler | None = None,
     actor_tool_handler: ActorToolHandler | None = None,
 ) -> AsyncIterator[str]:
@@ -277,6 +286,10 @@ async def stream_reply_as_persona(  # noqa: PLR0913
     combined_extra = extra_system
     if extra:
         combined_extra = f"{extra_system}\n\n{extra}".strip() if extra_system else extra
+    scope = active_library_tools()
+    if scope is not None and scope.pending_result:
+        rendered = tool_result_extra(prompts, scope.pending_result)
+        combined_extra = f"{combined_extra}\n\n{rendered}".strip() if combined_extra else rendered
     messages = _chat_messages(
         profile,
         mode,
@@ -290,11 +303,24 @@ async def stream_reply_as_persona(  # noqa: PLR0913
         profile_kind=profile_kind,
         user_image_sha256=user_image_sha256,
     )
+    if allowed and scope is not None:
+        ack = await acknowledge_expert_tools(
+            messages,
+            allowed_tools=frozenset(allowed),
+            prompts=prompts,
+            prompt_key=_chat_prompt_key(mode),
+        )
+        if ack.calls:
+            scope.defer(ack.calls)
+        if ack.text:
+            yield ack.text
+        return
     if allowed:
         reply = await complete_text_with_company_tools(
             messages,
             allowed_tools=frozenset(allowed),
             research_tool_handler=research_tool_handler,
+            evidence_tool_handler=evidence_tool_handler,
             consult_tool_handler=consult_tool_handler,
             actor_tool_handler=actor_tool_handler,
             prompt_key=_chat_prompt_key(mode),

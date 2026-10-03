@@ -30,17 +30,12 @@ from app.schemas.domain import (
     PersonaMessageOut,
 )
 from app.serializers import format_date, profile_from_dict, utcnow
-from app.services.actor_profiles import ActorProfileTools
 from app.services.dd.company_mcp import CompanyMcpError
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
-from app.services.expert_chat_evidence import (
-    combine_expert_chat_context,
-    reusable_expert_chat_evidence_context,
-)
-from app.services.expert_chat_research_tool import research_tool_handler_for_chat
-from app.services.expert_consult import consult_handler_for_persona
+from app.services.expert_async_tools import begin_library_tools
 from app.services.expert_tools import resolve_chat_tools
+from app.services.library_chat_fifo import trim_and_commit_library_chat
 from app.services.expertgranskning.memory import ExpertMemoryHit, get_expert_memory
 from app.services.expertgranskning.memory_view import serialize_memory_hit
 from app.services.oasis_run import previous_attempts
@@ -49,6 +44,7 @@ from app.services.prompt_store import require_prompts_for_persona
 from app.services.run_tick_context import build_persona_feed_context
 
 logger = logging.getLogger(__name__)
+_memory_tasks: set[asyncio.Task[None]] = set()
 
 LibraryTurnWriteGuard = Callable[[AsyncSession], Awaitable[bool]]
 
@@ -169,7 +165,7 @@ async def _commit_library_message(
         raise ChatTurnError("stale_expert_turn", status_code=409)
     row.sme_expert_turn_request_id = sme_expert_turn_request_id
     session.add(row)
-    await session.commit()
+    await trim_and_commit_library_chat(session, row.persona_id, row.mode)
 
 
 def _history_triples(rows: list[PersonaMessage]) -> list[tuple[str, str, str | None]]:
@@ -250,6 +246,60 @@ async def remember_expert_chat_turn(
     ]
 
 
+def schedule_expert_memory_update(
+    persona: Persona,
+    *,
+    message: str,
+    reply: str,
+    image_sha256: str | None,
+    source: Literal["persona_chat", "panel_chat", "expert_consult"] = "persona_chat",
+    session_id: str | None = None,
+) -> None:
+    """Write expert memory after the turn has returned. Failures stay in the log."""
+    if persona.kind != "expert":
+        return
+    customer_id = persona.customer_id
+    expert_id = persona_catalog_key(persona)
+    task = asyncio.create_task(
+        _update_expert_memory(
+            customer_id=customer_id,
+            expert_id=expert_id,
+            message=message,
+            reply=reply,
+            image_sha256=image_sha256,
+            source=source,
+            session_id=session_id,
+        ),
+        name=f"expert-memory:{persona.id}",
+    )
+    _memory_tasks.add(task)
+    task.add_done_callback(_memory_tasks.discard)
+
+
+async def _update_expert_memory(
+    *,
+    customer_id: int,
+    expert_id: str,
+    message: str,
+    reply: str,
+    image_sha256: str | None,
+    source: str,
+    session_id: str | None,
+) -> None:
+    try:
+        await get_expert_memory().add_chat_turn(
+            customer_id=customer_id,
+            expert_id=expert_id,
+            user_message=message,
+            assistant_message=reply,
+            source=source,
+            image_sha256=image_sha256,
+            session_id=session_id,
+        )
+    except Exception:
+        logger.exception("Expert memory update failed")
+
+
 def serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
     asked_by = row.asked_by if row.asked_by in {"doctor", "human"} else None
     return PersonaMessageOut(
@@ -265,6 +315,19 @@ def serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
         asked_by=asked_by,  # type: ignore[arg-type]
         image_sha256=row.image_sha256,
     )
+
+
+async def _library_history(
+    session: AsyncSession,
+    persona_id: str,
+    mode: ChatMode,
+) -> list[tuple[str, str, str | None]]:
+    rows = await session.execute(
+        select(PersonaMessage)
+        .where(*library_chat_filter(persona_id, mode))
+        .order_by(PersonaMessage.id.asc())
+    )
+    return _history_triples(list(rows.scalars().all()))
 
 
 def library_chat_filter(persona_id: str, mode: ChatMode):
@@ -389,127 +452,109 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
         memory_context = await expert_memory_context(
             persona, message, prompts, image_sha256=image_sha256
         )
-        evidence_context = ""
-        if persona.kind == "expert":
-            evidence_context = await reusable_expert_chat_evidence_context(
-                session,
-                customer_id=persona.customer_id,
-                question=message,
-                prompts=prompts,
-            )
         chat_tools = resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
         with_tools = _library_chat_uses_tools(persona)
-        research_tool_handler = None
-        if persona.kind == "expert" and "start_research" in chat_tools:
-            research_tool_handler = research_tool_handler_for_chat(
-                session,
-                persona=persona,
-                history=history,
-                user_message=message,
-            )
-        consult_tool_handler = consult_handler_for_persona(
-            session,
-            persona=persona,
-            mode=mode,
-            prompts=prompts,
-        )
-
-        user_row = PersonaMessage(
+        scope = begin_library_tools(
             persona_id=persona_id,
             mode=mode,
-            role="user",
-            content=message,
-            image_sha256=image_sha256,
-            created_at=utcnow(),
+            actor_user_id=actor_user_id,
+            history=history,
+            user_message=message,
+            enabled=with_tools,
         )
-        await _commit_library_message(
-            session,
-            user_row,
-            sme_expert_turn_request_id=sme_expert_turn_request_id,
-            persist_guard=persist_guard,
-        )
-
-        actor_handler = (
-            ActorProfileTools(
-                session,
-                user_id=actor_user_id,
-                customer_id=persona.customer_id,
-                conversation=f"expert:{persona_id}:{mode}",
-            )
-            if actor_user_id and persona.kind == "expert"
-            else None
-        )
-        parts: list[str] = []
+        saved_reply = False
         try:
-            stream = stream_reply_as_persona(
-                profile,
-                mode,
-                history,
-                message,
-                prompts=prompts,
-                area_block=area_block,
-                profile_kind=persona.kind,
-                tools=chat_tools,
-                extra_system=combine_expert_chat_context(memory_context, evidence_context),
-                user_image_sha256=image_sha256,
-                research_tool_handler=research_tool_handler,
-                consult_tool_handler=consult_tool_handler,
-                actor_tool_handler=actor_handler,
+            if with_tools:
+                await scope.enter()
+                history = await _library_history(session, persona_id, mode)
+                scope.history = history
+                await session.commit()
+            user_row = PersonaMessage(
+                persona_id=persona_id,
+                mode=mode,
+                role="user",
+                content=message,
+                image_sha256=image_sha256,
+                created_at=utcnow(),
             )
-            async with asyncio.timeout(_llm_reply_timeout_seconds(with_tools=with_tools)):
-                async for chunk in stream:
-                    parts.append(chunk)
-                    yield chunk
-        except (CompanyMcpError, ValueError) as exc:
-            await _discard_user_message(session, user_row)
-            status = 502 if isinstance(exc, CompanyMcpError) else 400
-            raise ChatTurnError(str(exc), status_code=status) from exc
-        except (TimeoutError, APITimeoutError) as exc:
-            await _discard_user_message(session, user_row)
-            raise ChatTurnError("LLM request timed out", status_code=504) from exc
-        except asyncio.CancelledError:
-            await _discard_user_message(session, user_row)
-            raise
-        except Exception:
-            await _discard_user_message(session, user_row)
-            raise
+            await _commit_library_message(
+                session,
+                user_row,
+                sme_expert_turn_request_id=sme_expert_turn_request_id,
+                persist_guard=persist_guard,
+            )
+            parts: list[str] = []
+            try:
+                stream = stream_reply_as_persona(
+                    profile,
+                    mode,
+                    history,
+                    message,
+                    prompts=prompts,
+                    area_block=area_block,
+                    profile_kind=persona.kind,
+                    tools=chat_tools,
+                    extra_system=memory_context,
+                    user_image_sha256=image_sha256,
+                )
+                async with asyncio.timeout(_llm_reply_timeout_seconds(with_tools=with_tools)):
+                    async for chunk in stream:
+                        parts.append(chunk)
+                        yield chunk
+            except (CompanyMcpError, ValueError) as exc:
+                await _discard_user_message(session, user_row)
+                status = 502 if isinstance(exc, CompanyMcpError) else 400
+                raise ChatTurnError(str(exc), status_code=status) from exc
+            except (TimeoutError, APITimeoutError) as exc:
+                await _discard_user_message(session, user_row)
+                raise ChatTurnError("LLM request timed out", status_code=504) from exc
+            except asyncio.CancelledError:
+                await _discard_user_message(session, user_row)
+                raise
+            except Exception:
+                await _discard_user_message(session, user_row)
+                raise
 
-        reply = "".join(parts).strip()
-        if not reply:
-            await _discard_user_message(session, user_row)
-            raise ChatTurnError("Empty reply from model", status_code=502)
+            reply = "".join(parts).strip()
+            if not reply:
+                await _discard_user_message(session, user_row)
+                raise ChatTurnError("Empty reply from model", status_code=502)
 
-        assistant_row = PersonaMessage(
-            persona_id=persona_id,
-            mode=mode,
-            role="assistant",
-            content=reply,
-            created_at=utcnow(),
-        )
-        await _commit_library_message(
-            session,
-            assistant_row,
-            sme_expert_turn_request_id=sme_expert_turn_request_id,
-            persist_guard=persist_guard,
-        )
-        saved_memories = await remember_expert_chat_turn(
-            persona,
-            message=message,
-            reply=reply,
-            image_sha256=image_sha256,
-        )
-
-        all_rows = await session.execute(
-            select(PersonaMessage)
-            .where(*library_chat_filter(persona_id, mode))
-            .order_by(PersonaMessage.id.asc())
-        )
-        messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
-        yield PersonaChatResponse(
-            reply=reply,
-            messages=messages,
-            saved_memories=saved_memories,
-        )
+            assistant_row = PersonaMessage(
+                persona_id=persona_id,
+                mode=mode,
+                role="assistant",
+                content=reply,
+                created_at=utcnow(),
+            )
+            await _commit_library_message(
+                session,
+                assistant_row,
+                sme_expert_turn_request_id=sme_expert_turn_request_id,
+                persist_guard=persist_guard,
+            )
+            schedule_expert_memory_update(
+                persona,
+                message=message,
+                reply=reply,
+                image_sha256=image_sha256,
+            )
+            all_rows = await session.execute(
+                select(PersonaMessage)
+                .where(*library_chat_filter(persona_id, mode))
+                .order_by(PersonaMessage.id.asc())
+            )
+            messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
+            await session.commit()
+            saved_reply = True
+            response = PersonaChatResponse(
+                reply=reply,
+                messages=messages,
+                saved_memories=[],
+            )
+        finally:
+            await scope.finish(deliver=saved_reply)
+        yield response
 
 
 async def stream_run_interview_turn(  # noqa: PLR0913, PLR0915
@@ -721,7 +766,6 @@ async def library_follow_up_questions(
     mode: ChatMode,
 ) -> list[str]:
     """Follow-up chips for the library thread.
-
     Missing persona or active prompts still fail. LLM/parse errors omit chips
     (same as after a successful reply) so opening the composer is not a 500.
     Concurrent callers for the same thread share one LLM call so opening the
