@@ -4,7 +4,7 @@ import { Fragment, type ReactNode } from "react"
  * Lightweight chat markdown: headings, hr, **bold**, *italic*, newlines, lists.
  * No HTML passthrough — only React text nodes + tags.
  */
-export function ChatMarkdown({ text }: { text: string }) {
+export function ChatMarkdown({ text, renderReference }: { text: string; renderReference?: (number: number) => ReactNode }) {
   const lines = text.replace(/\r\n/g, "\n").split("\n")
   const blocks: ReactNode[] = []
   let i = 0
@@ -24,7 +24,7 @@ export function ChatMarkdown({ text }: { text: string }) {
       const Tag = heading.tag
       blocks.push(
         <Tag key={`h-${key++}`} className={`chat-md-h chat-md-${heading.tag}`}>
-          {renderInline(heading.text, `h-${key}`)}
+          {renderInline(heading.text, `h-${key}`, renderReference)}
         </Tag>,
       )
       i += 1
@@ -35,7 +35,7 @@ export function ChatMarkdown({ text }: { text: string }) {
       const items: ReactNode[] = []
       while (i < lines.length && isBulletLine(lines[i])) {
         items.push(
-          <li key={`li-${key++}`}>{renderInline(stripBullet(lines[i]), `i-${key}`)}</li>,
+          <li key={`li-${key++}`}>{renderInline(stripBullet(lines[i]), `i-${key}`, renderReference)}</li>,
         )
         i += 1
       }
@@ -65,7 +65,7 @@ export function ChatMarkdown({ text }: { text: string }) {
         {para.map((row, idx) => (
           <Fragment key={`r-${key}-${idx}`}>
             {idx > 0 ? <br /> : null}
-            {renderInline(row, `r-${key}-${idx}`)}
+            {renderInline(row, `r-${key}-${idx}`, renderReference)}
           </Fragment>
         ))}
       </p>,
@@ -96,10 +96,10 @@ function stripBullet(line: string): string {
   return line.replace(/^\s*[-*]\s+/, "")
 }
 
-function renderInline(text: string, keyPrefix: string): ReactNode[] {
+function renderInline(text: string, keyPrefix: string, renderReference?: (number: number) => ReactNode): ReactNode[] {
   const nodes: ReactNode[] = []
   // **bold** then *italic* — bold first so nested asterisks don't collide.
-  const re = /\*\*(.+?)\*\*|\*(.+?)\*/g
+  const re = /\*\*(.+?)\*\*|\*(.+?)\*|\[(\d+)\]/g
   let last = 0
   let match: RegExpExecArray | null
   let n = 0
@@ -112,6 +112,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     } else if (match[2] != null) {
       nodes.push(<em key={`${keyPrefix}-e-${n++}`}>{match[2]}</em>)
     }
+    else if (match[3] != null) { nodes.push(<Fragment key={`${keyPrefix}-ref-${n++}`}>{renderReference ? renderReference(Number(match[3])) : match[0]}</Fragment>) }
     last = match.index + match[0].length
   }
   if (last < text.length) nodes.push(text.slice(last))

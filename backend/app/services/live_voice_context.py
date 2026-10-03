@@ -9,6 +9,7 @@ from app.services.actor_profiles import ActorProfileTools
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.expertgranskning.memory import ExpertMemoryHit, get_expert_memory
 from app.services.prompt_catalog import render_prompt
+from app.services.workspace_memory_scope import is_private_workspace_memory
 
 LIVE_MEMORY_WINDOW = timedelta(hours=4)
 
@@ -35,7 +36,8 @@ def recent_voice_memories(
     recent = [
         hit
         for hit in hits
-        if (timestamp := _memory_timestamp(hit)) is not None and timestamp >= cutoff
+        if not is_private_workspace_memory(hit)
+        and (timestamp := _memory_timestamp(hit)) is not None and timestamp >= cutoff
     ]
     return sorted(
         recent,

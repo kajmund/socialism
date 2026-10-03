@@ -1,31 +1,10 @@
-"""Prompt field registry: keys, UI labels, and default texts per language.
-
-Placeholders in templates:
-  {local_context}  — district/area block from the active configuration catalog
-  {requirements}   — demographic/attribute requirement lines
-  {surname_block}  — optional taken-surnames block (may be empty)
-  {voice_block}    — optional previous-persona block
-  {free_text}      — user free text
-  {count}          — number of personas
-  {candidate_index}, {candidate_count}
-  {demo_block}     — optional fixed demography block
-  {persona_block}  — formatted persona profile lines
-  {chat_mode}, {transcript}, {name}  — follow-up question suggestions / role lock
-  {first_name}, {actor_context}, {memory_summary} — Gemini Live voice context
-  {type_label}     — message type label
-  {page_text}
-  {angle_instruction}, {context_block}, {source_material}
-  {day}, {tick_number}
-  {display}, {type_label}  — injector
-  {pack_list}, {other}
-  {underlag_text} — extracted underlag body for expert suggestions
-  {candidates_json} {document_text} {truncated} — lagen.nu selector
-  $num_followers, $posts, … — OASIS string.Template variables
-"""
+"""Prompt catalog keys, UI labels and DB-seeded defaults per language."""
 
 from __future__ import annotations
 
 from typing import Literal, TypedDict
+
+from app.services.workspace_prompt_defaults import workspace_prompt_fields
 
 from app.services.expert_chat_prompts import expert_chat_prompt_fields
 from app.services.research_assessment_prompt import SYSTEM_SV as ASSESSMENT_SYSTEM_SV
@@ -3626,6 +3605,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
 PROMPT_FIELDS.extend(
     [*graph_fact_prompt_fields(), *coverage_prompt_fields(), *expert_chat_prompt_fields()]
 )
+
+PROMPT_FIELDS.extend(workspace_prompt_fields(_f))
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)
 PROMPT_KEY_SET: frozenset[str] = frozenset(PROMPT_KEYS)

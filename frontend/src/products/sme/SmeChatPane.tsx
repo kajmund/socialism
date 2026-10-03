@@ -1,221 +1,33 @@
+import { useRef, useState, type ReactNode } from "react"
+import { Mic, MicOff, Paperclip, Phone, PhoneOff } from "lucide-react"
 import { useAuth } from "@/auth/AuthProvider"
-import { ProfileProposals } from "@/components/profiles/ProfileProposals"
-import { ArrowLeft, UsersRound } from "lucide-react"
-import { ExpertAvatar } from "@/components/experts/ExpertAvatar"
-import { useEffect, useState } from "react"
-import { uploadMessageImageRaw } from "@/api/messages"
-import type { PersonaMessage } from "@/api/personas"
-import type { SmeInboxItem, SmeMessage } from "@/api/sme"
-import { ExpertVoiceButton } from "@/components/chat/ExpertVoiceButton"
+import type { SmeInboxItem } from "@/api/sme"
+import type { SourceReference, WorkspaceMessage } from "@/api/workspaces"
 import { MessengerChat } from "@/components/chat/MessengerChat"
-import { useLlmCapabilities } from "@/components/chat/useLlmCapabilities"
+import { ChatMarkdown } from "@/components/chat/ChatMarkdown"
+import { ExpertAvatar } from "@/components/experts/ExpertAvatar"
+import { ProfileProposals } from "@/components/profiles/ProfileProposals"
 import { useLocale } from "@/i18n"
-import { ApiError } from "@/lib/api"
-import { SmeExpertMemoryButton } from "@/products/sme/SmeExpertMemoryButton"
-import { SmeExpertToolsButton } from "@/products/sme/SmeExpertToolsButton"
+import { SmeExpertMemoryButton } from "./SmeExpertMemoryButton"
+import { SmeExpertToolsButton } from "./SmeExpertToolsButton"
+import { workspaceThreadKey } from "./workspaceChatLogic"
+import type { VoiceState } from "./useWorkspaceConversation"
 
-type Props = {
-  thread: SmeInboxItem | null
-  messages: SmeMessage[]
-  loading: boolean
-  sending: boolean
-  typing: boolean
-  streamText: string | null
-  error: string | null
-  ready: boolean
-  suggestions: string[]
-  onSend: (message: string, imageSha256?: string | null) => boolean
-  onBack: () => void
-  onOpenExpertEditor?: () => void
-  onVoiceTranscript: (personaId: string, messages: PersonaMessage[]) => void
-}
-
-export function SmeChatPane({
-  thread,
-  messages,
-  loading,
-  sending,
-  typing,
-  streamText,
-  error,
-  ready,
-  suggestions,
-  onSend,
-  onBack,
-  onOpenExpertEditor,
-  onVoiceTranscript,
-}: Props) {
-  const { refreshProfile } = useAuth()
-  const { t } = useLocale()
-  const [draft, setDraft] = useState("")
-  const [pendingImageSha, setPendingImageSha] = useState<string | null>(null)
-  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null)
-  const [imageBusy, setImageBusy] = useState(false)
-  const [imageError, setImageError] = useState<string | null>(null)
-  const [voiceError, setVoiceError] = useState<string | null>(null)
-  const { allowImageAttach, imageAccept } = useLlmCapabilities()
-
-  useEffect(() => {
-    setDraft("")
-    setPendingImageSha(null)
-    setPendingImageUrl(null)
-    setImageError(null)
-    setVoiceError(null)
-  }, [thread?.thread_id, thread?.thread_type])
-
-  useEffect(
-    () => () => {
-      if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl)
-    },
-    [pendingImageUrl],
-  )
-
-  function send() {
-    if (!onSend(draft, pendingImageSha)) return
-    setDraft("")
-    setPendingImageSha(null)
-    setPendingImageUrl(null)
-    setImageError(null)
-  }
-
-  function clearPendingImage() {
-    setPendingImageSha(null)
-    setPendingImageUrl(null)
-  }
-
-  async function pickImage(file: File) {
-    if (sending || imageBusy) return
-    setImageBusy(true)
-    setImageError(null)
-    try {
-      const { entry } = await uploadMessageImageRaw(file)
-      setPendingImageSha(entry.sha256)
-      setPendingImageUrl(URL.createObjectURL(file))
-    } catch (err) {
-      setImageError(
-        err instanceof ApiError ? err.message : t("chat.imageUploadError"),
-      )
-    } finally {
-      setImageBusy(false)
-    }
-  }
-
-  if (!thread) {
-    return (
-      <section className="hidden min-w-0 flex-1 items-center justify-center bg-db-ink-50 text-center text-sm text-[color:var(--text-muted)] md:flex">
-        <p className="max-w-sm font-[var(--font-body)]">
-          {t("sme.selectConversation")}
-        </p>
-      </section>
-    )
-  }
-
-  return (
-    <section className="flex h-full min-w-0 flex-1 flex-col bg-db-ink-0">
-      <header className="flex h-[72px] shrink-0 items-center gap-3 border-b border-[color:var(--border-hairline)] bg-db-ink-0 px-4">
-        <button
-          type="button"
-          className="grid size-9 place-items-center rounded-[var(--radius-md)] text-[color:var(--text-body)] hover:bg-db-ink-100 md:hidden"
-          aria-label={t("sme.back")}
-          onClick={onBack}
-        >
-          <ArrowLeft size={21} />
-        </button>
-        {thread.thread_type === "expert" ? (
-          <button
-            type="button"
-            className="shrink-0 transition-opacity hover:opacity-90"
-            aria-label={t("sme.expertEditorAria", { name: thread.name })}
-            onClick={() => onOpenExpertEditor?.()}
-          >
-            <ExpertAvatar
-              avatarUrl={thread.avatar_url}
-              name={thread.name}
-              className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] bg-db-ink-950 text-db-gold-500"
-              iconSize={20}
-            />
-          </button>
-        ) : (
-          <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] bg-db-ink-950 text-db-gold-500">
-            <UsersRound size={20} aria-hidden="true" />
-          </span>
-        )}
-        <span className="min-w-0 flex-1">
-          <strong className="block truncate font-[var(--font-display)] text-base font-medium text-[color:var(--text-body)]">
-            {thread.name}
-          </strong>
-          <span className="block truncate text-xs text-[color:var(--text-muted)]">
-            {thread.thread_type === "panel"
-              ? t("sme.groupMembers", { count: thread.member_names.length })
-              : t("sme.activeNow")}
-          </span>
-        </span>
-        {thread.thread_type === "expert" ? (
-          <div className="flex items-center gap-1">
-            <SmeExpertToolsButton
-              key={`tools:${thread.thread_id}`}
-              personaId={thread.thread_id}
-            />
-            <SmeExpertMemoryButton
-              key={`memory:${thread.thread_id}`}
-              personaId={thread.thread_id}
-              name={thread.name}
-            />
-          </div>
-        ) : null}
-      </header>
-      <MessengerChat
-        className="sme-messenger-chat"
-        messages={messages.map((message) => ({
-          ...message,
-          speakerName: message.persona_name,
-        }))}
-        typing={typing}
-        streamText={streamText}
-        draft={draft}
-        onDraftChange={setDraft}
-        onSend={send}
-        busy={sending || imageBusy}
-        ready={ready}
-        placeholder={t("sme.messagePlaceholder")}
-        inputAction={
-          thread.thread_type === "expert" ? (
-            <ExpertVoiceButton
-              personaId={thread.thread_id}
-              expertName={thread.name}
-              avatarUrl={thread.avatar_url}
-              onErrorMessage={setVoiceError}
-              onTranscript={onVoiceTranscript}
-            />
-          ) : undefined
-        }
-        suggestions={thread.thread_type === "expert" ? suggestions : []}
-        onSuggestion={(question) => {
-          if (onSend(question, null)) setDraft("")
-        }}
-        allowImageAttach={
-          thread.thread_type === "expert" && allowImageAttach
-        }
-        imageAccept={imageAccept}
-        pendingImageUrl={pendingImageUrl}
-        onPickImage={(file) => void pickImage(file)}
-        onClearImage={clearPendingImage}
-        empty={
-          <div className="bub them">
-            {loading ? t("sme.loading") : t("personas.composer.askToStart")}
-          </div>
-        }
-        notice={<>
-          <div className="max-h-72 overflow-auto"><ProfileProposals conversation={thread.thread_type === "expert" ? `expert:${thread.thread_id}:interview` : `panel:${thread.thread_id}`} refreshKey={messages.length} onSaved={refreshProfile} /></div>
-          {voiceError || imageError || error ? (
-            <span className="text-destructive" role="alert">
-              {voiceError || imageError || error}
-            </span>
-          ) : !ready && thread.thread_type === "expert" ? (
-            t("sme.reconnecting")
-          ) : null}
-        </>}
-      />
-    </section>
-  )
+export function SmeChatPane({ workspaceId, thread, messages, references, loading, sending, preview, error, status, voice, muted, notice, onSend, onVoice, onMute, onIngest, onOpen, onEdit, onActivity }: {
+  workspaceId: string; thread: SmeInboxItem | null; messages: WorkspaceMessage[]; references: SourceReference[]
+  loading: boolean; sending: boolean; preview: string | null; error: string | null; status: VoiceState; voice: boolean; muted: boolean; notice?: ReactNode
+  onSend: (text: string) => Promise<void>; onVoice: () => void; onMute: () => void; onIngest: () => void; onOpen: (id: string) => void; onEdit: () => void; onActivity: () => void
+}) {
+  const { t } = useLocale(); const { refreshProfile } = useAuth()
+  const drafts = useRef(new Map<string, string>())
+  const [, render] = useState(0)
+  const draftKey = workspaceThreadKey(workspaceId, thread?.thread_type ?? "expert", thread?.thread_id ?? "")
+  const draft = drafts.current.get(draftKey) ?? ""
+  function setDraft(text: string) { drafts.current.set(draftKey, text); render((value) => value + 1); onActivity() }
+  async function send() { const text = draft.trim(); if (!text) return; await onSend(text); setDraft("") }
+  if (!thread) return <section className="grid h-full min-w-0 flex-1 place-items-center p-5 text-sm text-muted-foreground">{t("sme.selectConversation")}</section>
+  return <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-white">
+    <header className="flex h-[72px] shrink-0 items-center gap-3 border-b border-[color:var(--border-hairline)] px-4"><button type="button" className="shrink-0" aria-label={t("sme.expertEditorAria", { name: thread.name })} onClick={onEdit}><ExpertAvatar avatarUrl={thread.avatar_url} name={thread.name} className="grid size-10 place-items-center overflow-hidden rounded-xl bg-db-ink-950 text-db-gold-500" iconSize={20} /></button><span className="min-w-0 flex-1"><strong className="block truncate text-sm font-semibold">{thread.name}</strong><span className="block text-xs text-muted-foreground" role="status">{t(`workspaceChat.${status}`)}</span></span><SmeExpertToolsButton personaId={thread.thread_id} /><SmeExpertMemoryButton personaId={thread.thread_id} name={thread.name} /></header>
+    <MessengerChat className="sme-messenger-chat" messages={messages.map((message) => ({ ...message, role: message.role === "agent" ? "assistant" as const : "user" as const }))} draft={draft} onDraftChange={setDraft} onSend={() => { void send().catch(() => undefined) }} busy={sending} placeholder={t("sme.messagePlaceholder")} streamText={preview} renderContent={(message) => <ChatMarkdown text={message.content} renderReference={(number) => { const reference = references.find((row) => row.number === number); return reference ? <button type="button" className="mx-0.5 inline-grid min-w-5 place-items-center rounded bg-db-ink-950 px-1 text-xs font-bold text-db-gold-500" aria-label={t("workspaceChat.source", { number })} onClick={() => onOpen(reference.reference_id)}>{number}</button> : <span className="text-destructive" title={t("workspaceChat.referenceUnavailable")}>[{number}]</span> }} />} inputAction={<div className="flex items-center gap-1"><button type="button" className="grid size-8 place-items-center rounded border" aria-label={t("workspaceChat.addSource")} onClick={onIngest}><Paperclip size={16} /></button>{voice ? <button type="button" className="grid size-8 place-items-center rounded border" aria-label={t(muted ? "workspaceChat.unmute" : "workspaceChat.mute")} onClick={onMute}>{muted ? <MicOff size={16} /> : <Mic size={16} />}</button> : null}<button type="button" disabled={status === "connecting"} className={`grid size-8 place-items-center rounded border ${voice ? "border-db-gold-500 bg-db-gold-100 text-db-gold-700" : ""}`} aria-label={t(voice ? "workspaceChat.voiceStop" : "workspaceChat.voiceStart")} aria-pressed={voice} onClick={onVoice}>{voice ? <PhoneOff size={16} /> : <Phone size={16} />}</button></div>} empty={<div className="bub them">{loading ? t("sme.loading") : t("personas.composer.askToStart")}</div>} notice={<><div className="max-h-40 overflow-auto"><ProfileProposals conversation={`expert:${thread.thread_id}:interview`} refreshKey={messages.length} onSaved={refreshProfile} /></div>{preview ? <span className="text-xs text-muted-foreground">{t("workspaceChat.preliminary")}</span> : null}{notice}{error ? <span className="text-destructive" role="alert">{error}</span> : null}</>} />
+  </section>
 }

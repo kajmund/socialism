@@ -164,7 +164,8 @@ def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():  # noqa
     document_knowledge_keys = {
         key for key in all_keys if key.startswith("document_knowledge.")
     }
-    shared_with_dd = spinndoctor_keys | document_knowledge_keys | {"panel.expert.system"}
+    workspace_keys = {key for key in all_keys if key.startswith("workspace.")}
+    shared_with_dd = spinndoctor_keys | document_knowledge_keys | workspace_keys | {"panel.expert.system"}
     assert shared_with_dd <= ratts_keys
     assert ratts_keys.isdisjoint(dd_keys - shared_with_dd)
     assert {

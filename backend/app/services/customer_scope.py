@@ -84,7 +84,16 @@ async def customer_id_for_new_report(
     return await default_os_customer_id(session)
 
 
-async def customer_id_for_new_job(session: AsyncSession, body: JobCreate) -> int:  # noqa: C901, PLR0911, PLR0912
+async def customer_id_for_new_job(session: AsyncSession, body: JobCreate) -> int:
+    if body.kind == "workspace_generation":
+        from app.services.workspace_generation import WorkspaceGenerationRequest, validate_generation_job
+
+        workspace = await validate_generation_job(session, WorkspaceGenerationRequest.model_validate(body.request))
+        return workspace.customer_id
+    return await _standard_job_customer_id(session, body)
+
+
+async def _standard_job_customer_id(session: AsyncSession, body: JobCreate) -> int:  # noqa: C901, PLR0911, PLR0912
     if body.kind == "population_generate":
         payload = PopulationGenerateJobRequest.model_validate(body.request)
         if payload.kind == "expert_panel":

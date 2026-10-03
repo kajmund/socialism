@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Persona
 from app.schemas.domain import ExpertMemoryExpertOut, ExpertMemoryOut
 from app.services.expertgranskning.memory import ExpertMemoryHit, memory_image_sha256
+from app.services.workspace_memory_scope import is_private_workspace_memory
 
 _EXPERT_KEY_RE = re.compile(r"[^a-z0-9]+")
 
@@ -73,6 +74,8 @@ def attach_expert_labels(
 ) -> list[ExpertMemoryOut]:
     rows: list[ExpertMemoryOut] = []
     for hit in hits:
+        if is_private_workspace_memory(hit):
+            continue
         name, persona_id = directory.get((customer_id, hit.expert_id), ("", None))
         rows.append(
             serialize_memory_hit(

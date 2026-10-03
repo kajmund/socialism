@@ -6,6 +6,8 @@ import asyncio
 import logging
 from typing import Any
 
+from app.auth.scope import job_payload_visible_to_user
+from app.database.models import UserAccount
 from fastapi import WebSocket
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
@@ -33,12 +35,24 @@ def _customer_id_from_event(event: dict[str, Any]) -> int | None:
     return None
 
 
+def _job_visible(event: dict, user: UserAccount | None) -> bool:
+    if event.get("type") != "job.updated":
+        return True
+    job = event.get("job")
+    if not isinstance(job, dict):
+        return False
+    request = job.get("request") or {}
+    if user is None:
+        return job.get("kind") != "workspace_generation" and not request.get("workspace_id")
+    return job_payload_visible_to_user(user, kind=str(job.get("kind")), request=request, customer_id=job.get("customer_id"))
+
+
 class EventHub:
     """Broadcast JSON events to sockets, optionally scoped by customer_id."""
 
     def __init__(self, *, name: str) -> None:
         self._name = name
-        self._sockets: dict[WebSocket, int | None] = {}
+        self._sockets: dict[WebSocket, tuple[int | None, UserAccount | None]] = {}
         self._lock = asyncio.Lock()
 
     async def subscribe(
@@ -46,9 +60,10 @@ class EventHub:
         websocket: WebSocket,
         *,
         customer_id: int | None = None,
+        user: UserAccount | None = None,
     ) -> None:
         async with self._lock:
-            self._sockets[websocket] = customer_id
+            self._sockets[websocket] = customer_id, user
 
     async def unsubscribe(self, websocket: WebSocket) -> None:
         async with self._lock:
@@ -70,8 +85,8 @@ class EventHub:
         if not targets:
             return
         dead: list[WebSocket] = []
-        for ws, scope in targets:
-            if not self._matches_scope(scope, event_customer_id):
+        for ws, (scope, user) in targets:
+            if not self._matches_scope(scope, event_customer_id) or not _job_visible(event, user):
                 continue
             if ws.client_state != WebSocketState.CONNECTED:
                 dead.append(ws)
