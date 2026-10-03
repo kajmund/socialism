@@ -1,8 +1,7 @@
 """Legacy claim/event revalidation retained only for the cutover test suite.
 
-Production research code must not call this module for Graph v2. Graph v2
-revalidation lives in ``app.services.graph_v2.revalidation`` and is keyed by
-fact edges, exact TextUnit/episode provenance, and question dependencies.
+Production research code must not call this module. Frozen answers are marked
+for a separate TTL review; Graph v2 question/fact revalidation queues are gone.
 """
 
 from __future__ import annotations

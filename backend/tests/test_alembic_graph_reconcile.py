@@ -46,7 +46,47 @@ def test_deployed_research_marker_upgrades_without_replaying_claim_migrations(
         }
         assert {
             "graph_nodes", "graph_facts", "graph_ingest_work", "knowledge_answer_reviews",
-            "graph_fact_question_dependencies", "graph_fact_revalidations",
-            "graph_question_revalidation_work", "graph_embedding_cache",
+            "graph_fact_question_dependencies", "graph_embedding_cache",
             "shared_text_chunks",
         } <= names
+        assert "graph_fact_revalidations" not in names
+        assert "graph_question_revalidation_work" not in names
+
+
+def _table_names(db: Path) -> set[str]:
+    with sqlite3.connect(db) as connection:
+        return {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+
+
+def test_head_drops_unused_graph_revalidation_queues(tmp_path: Path, monkeypatch) -> None:
+    db = tmp_path / "revalidation-drop.sqlite"
+    url = f"sqlite:///{db}"
+    monkeypatch.setenv("DATABASE_URL", url)
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+
+    command.upgrade(config, "e8c2f4a1b6d0")
+    before = _table_names(db)
+    assert {
+        "graph_fact_revalidations",
+        "graph_question_revalidation_work",
+        "graph_fact_question_dependencies",
+        "graph_ingest_work",
+        "knowledge_answer_reviews",
+    } <= before
+
+    command.upgrade(config, "head")
+    after = _table_names(db)
+    assert "graph_fact_revalidations" not in after
+    assert "graph_question_revalidation_work" not in after
+    assert {
+        "graph_fact_question_dependencies",
+        "graph_ingest_work",
+        "knowledge_answer_reviews",
+    } <= after
+    assert ScriptDirectory.from_config(config).get_current_head() == (
+        "142_drop_graph_revalidation_queues"
+    )

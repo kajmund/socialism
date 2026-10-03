@@ -2,7 +2,7 @@
 
 import asyncio
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import func, select
@@ -11,16 +11,12 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.graph_v2 import (
-    GraphFact, GraphFactQuestionDependency, GraphFactRelation, GraphFactRevalidation,
+    GraphFact, GraphFactQuestionDependency, GraphFactRelation,
     GraphFactSource, GraphNode,
 )
 from app.database.models import Kund
+from app.services.graph_v2.dependencies import attach_question_dependency
 from app.services.graph_v2.retrieval import hybrid_facts, neighbourhood
-from app.services.graph_v2.revalidation import (
-    attach_question_dependency,
-    enqueue_question_revalidation,
-    process_question_revalidation_work,
-)
 from app.services.graph_v2.temporal import invalidate_fact
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
@@ -188,7 +184,7 @@ async def test_legacy_weak_node_candidates_require_exact_context(session):
     assert other_context.id != legacy.id
 
 
-async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session):
+async def test_question_dependency_snapshots_fact_provenance(session):
     subject, target = await node(session, "Case X"), await node(session, "Outcome")
     question = await resolve_node(session, NodeInput(
         node_type="core.question", name="Can the outcome be changed?",
@@ -204,11 +200,6 @@ async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session
     changed, _ = await resolve_fact(
         session, fact(subject, target, "Adjustment granted", ref="unit-2"), judge=Distinct(),
     )
-    changed.created_at = original.created_at + timedelta(seconds=1)
-    await enqueue_question_revalidation(
-        session, customer_id=1, question_node_id=question.id, evidence_set_id="frozen-set-1",
-    )
-    assert await process_question_revalidation_work(session) == {"completed": 0, "waiting": 1}
     dependency = await attach_question_dependency(
         session, question_node_id=question.id, fact_id=original.id,
     )
@@ -222,19 +213,18 @@ async def test_graph_revalidation_is_fact_provenance_and_question_scoped(session
         {"kind": "episode", "ref": "unit-3"},
     ]
     await attach_question_dependency(session, question_node_id=question.id, fact_id=changed.id)
-    assert await process_question_revalidation_work(session) == {"completed": 1, "waiting": 0}
-    pending = list((await session.scalars(select(GraphFactRevalidation))).all())
-    assert len(pending) == 1
-    assert pending[0].question_node_id == question.id
-    assert pending[0].trigger_fact_id == changed.id
-    assert pending[0].dependent_fact_id == original.id
-    assert pending[0].trigger_provenance == [{"kind": "episode", "ref": "unit-2"}]
-    assert pending[0].dependent_provenance == [
-        {"kind": "episode", "ref": "unit-1"},
-        {"kind": "episode", "ref": "unit-3"},
-    ]
-    assert await process_question_revalidation_work(session) == {"completed": 0, "waiting": 0}
     assert await session.scalar(select(func.count()).select_from(GraphFactQuestionDependency)) == 2
+
+
+def test_graph_revalidation_queue_models_are_removed():
+    import app.database.graph_v2 as graph_models
+
+    assert not hasattr(graph_models, "GraphFactRevalidation")
+    assert not hasattr(graph_models, "GraphQuestionRevalidationWork")
+    assert "graph_fact_revalidations" not in Base.metadata.tables
+    assert "graph_question_revalidation_work" not in Base.metadata.tables
+    assert "graph_fact_question_dependencies" in Base.metadata.tables
+    assert "graph_ingest_work" in Base.metadata.tables
 
 
 def test_legacy_event_revalidation_is_not_public_knowledge_api():

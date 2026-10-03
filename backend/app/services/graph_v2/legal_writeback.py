@@ -12,7 +12,7 @@ from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
 from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
 from app.services.graph_v2.errors import PermanentGraphError
 from app.services.graph_v2.questions import question_node
-from app.services.graph_v2.revalidation import attach_question_dependency
+from app.services.graph_v2.dependencies import attach_question_dependency
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_exact_fact, resolve_fact, resolve_node
 from app.services.knowledge.claims import KnowledgeClaim
