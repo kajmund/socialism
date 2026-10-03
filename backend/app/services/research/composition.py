@@ -6,7 +6,6 @@ from collections.abc import Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.services.knowledge import (
     SUPABASE_PROVIDER_ID,
     OpenAIEmbeddingProvider,
@@ -27,7 +26,6 @@ from app.services.research.models import ResearchError
 from app.services.research.need_normalization import ResearchNeedNormalizer
 from app.services.research.planner import ResearchPlanner
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
-from app.services.research.question_semantic import SemanticQuestionIdentityMatcher
 from app.services.research.registry import (
     build_research_registry,
     production_registered_source_types,
@@ -195,17 +193,8 @@ def build_standard_research_router(session: AsyncSession) -> ResearchRouter:
 
 
 def build_standard_question_graph() -> SqlQuestionEvidenceGraph:
-    if _vector_store_factory is None:
-        return SqlQuestionEvidenceGraph()
-    return SqlQuestionEvidenceGraph(
-        matcher=SemanticQuestionIdentityMatcher(
-            vector_store=_vector_store_factory(),
-            embeddings=research_embeddings(),
-            version=settings.research_question_embedding_version,
-            threshold=settings.research_question_semantic_match_threshold,
-            limit=settings.research_question_semantic_match_limit,
-        )
-    )
+    # Embeddings rank candidates; only Jev may authorize reuse of a different question.
+    return SqlQuestionEvidenceGraph()
 
 
 def resolve_research_assessor() -> ResearchAssessor | None:

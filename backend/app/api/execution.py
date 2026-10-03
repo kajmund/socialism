@@ -88,7 +88,6 @@ from app.services.execution.service import (
     list_attempt_results,
     list_evidence_items,
     list_evidence_quality,
-    list_evidence_summaries,
     list_research_assessments,
     list_research_assessments_for_attempts,
     list_research_completeness_for_attempts,
@@ -104,6 +103,9 @@ from app.services.panel.attempt_execution import (
 )
 from app.services.prompt_store import require_active_prompts
 from app.services.execution.research_overview import need_assessment_view
+from app.services.research.result_execution import may_attach_reused_set
+from app.services.execution.reuse_views import (overview_assessments, overview_needs, overview_items, project_needs, project_executions,
+    reuse_evidence_summaries as list_evidence_summaries)
 from app.services.research.assessment import need_assessment_from_json
 from app.services.research.completeness import (
     ResearchCompletenessError,
@@ -425,7 +427,7 @@ async def _attached_evidence(
         return None
     try:
         evidence_set = await get_evidence_set(session, attempt.evidence_set_id)
-        if evidence_set.run_id != run.id:
+        if evidence_set.run_id != run.id and not await may_attach_reused_set(session, attempt, evidence_set):
             raise ExecutionScopeError("Attempt evidence must belong to the same run")
         evidence_run = await get_run(session, evidence_set.run_id)
         if evidence_run.customer_id != run.customer_id:
@@ -875,20 +877,6 @@ def _overview_source_count(items: list[EvidenceSetItem]) -> int:
     )
 
 
-def _items_for_need(
-    items_by_set: dict[str, list[EvidenceSetItem]],
-    need_ids_by_item: dict[str, set[str]],
-    *,
-    evidence_set_id: str | None,
-    research_need_id: str,
-) -> list[EvidenceSetItem]:
-    if not evidence_set_id:
-        return []
-    return [
-        item
-        for item in items_by_set.get(evidence_set_id, [])
-        if research_need_id in need_ids_by_item.get(item.id, set())
-    ]
 
 
 @router.get(
@@ -1054,10 +1042,10 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
     items_by_set: dict[str, list[EvidenceSetItem]] = {}
     for item in evidence_items:
         items_by_set.setdefault(item.evidence_set_id, []).append(item)
-    assessment_by_attempt = {row.attempt_id: row for row in assessments}
+    assessment_by_attempt = await overview_assessments(session, assessments, [attempt, *children])
 
     need_attempt_ids = list(dict.fromkeys([attempt_id, *child_ids]))
-    runtime_needs = list(
+    runtime_needs = await project_needs(session, list(
         (
             await session.execute(
                 select(ResearchRuntimeNeed)
@@ -1069,12 +1057,8 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
                 )
             )
         ).scalars()
-    )
-    need_by_question = {
-        (need.attempt_id, need.knowledge_question_id): need
-        for need in runtime_needs
-        if need.knowledge_question_id
-    }
+    ), [attempt, *children])
+    need_by_question = overview_needs(runtime_needs)
     represented_needs: set[tuple[str, str]] = set()
     completed_question_ids = {row.id for row, _, _ in question_rows if row.status == "completed"}
     questions: list[ResearchQuestionOverviewOut] = []
@@ -1085,8 +1069,8 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
         )
         if need is not None:
             represented_needs.add((need.attempt_id, need.research_need_id))
-        items = _items_for_need(
-            items_by_set,
+        items = await overview_items(
+            session, child or attempt, items_by_set,
             need_ids_by_item,
             evidence_set_id=child.evidence_set_id if child else attempt.evidence_set_id,
             research_need_id=need.research_need_id if need else "",
@@ -1149,7 +1133,7 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
         for row, _question, specific_text in question_rows
         if row.execution_attempt_id
     }
-    need_executions = list(
+    need_executions = await project_executions(session, list(
         (
             await session.execute(
                 select(ResearchNeedExecution).where(
@@ -1157,7 +1141,7 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
                 )
             )
         ).scalars()
-    )
+    ), [attempt, *children])
     execution_by_need = {(row.attempt_id, row.research_need_id): row for row in need_executions}
     evidence_set_by_attempt = {
         child.id: child.evidence_set_id for child in children if child.evidence_set_id
@@ -1171,8 +1155,8 @@ async def get_attempt_research_overview(  # noqa: C901, PLR0912, PLR0915
         raw_status = execution.status if execution is not None else "pending"
         if raw_status not in {"running", "completed", "failed"}:
             raw_status = "pending"
-        need_items = _items_for_need(
-            items_by_set,
+        need_items = await overview_items(
+            session, child_by_id.get(need.attempt_id) or attempt, items_by_set,
             need_ids_by_item,
             evidence_set_id=evidence_set_by_attempt.get(need.attempt_id),
             research_need_id=need.research_need_id,

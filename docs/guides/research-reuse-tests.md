@@ -729,3 +729,71 @@ nu tydligt påverkade av kvoten. Resultatet visar varken stabil svarstid eller
 högre juridisk precision. Alla passager och anrop behöll samma underlag;
 inga alternativa modeller, kortare ersättningsutdrag eller uteblivna poster
 användes för att slutföra mätningen.
+
+## Återanvänd färdigt resultat före evidenssökning
+
+`test_completed_result.py` och `test_result_navigation.py` ingår i samma separata
+CI-grupp. En exakt fråga och samma materiella kontext återanvänder den tidigare
+frysta EvidenceSet-referensen. Varken modellbedömning, frågeembedding, ingestion,
+TTL-klassificering, expertminnespublicering eller en ny freeze körs. Bindningen
+är en jämför-och-sätt-uppdatering av den nya Attempt-raden, med en logghändelse
+`research.result.reused`. Researchens vanliga DAG-statusar är separata från denna
+återanvändningspost. Inga evidens-, kvalitets-, bedömnings- eller progressrader
+kopieras. API:t visar bedömningen genom läsprojektioner från det refererade svaret.
+Korsning av kund, modul eller ärende är förbjuden även vid delning mellan körningar.
+
+Jämförelsen bevarar materiell objektivkontext och Run-kontext. Flyktiga fråge-ID
+ersätts med SpecificQuestion-text och dess materiella kontext; expert-ID används
+inte som svarsinnehåll.
+Kanonisk identitet är deterministisk. Embeddings får hitta kandidater men får
+inte slå ihop två olika frågor till samma kanoniska identitet.
+
+Vid närliggande frågor används högst åtta startnoder, tre hopp, 48 kanter och
+åtta svarskandidater. Jev bedömer en hel frontier åt gången och varje kandidats
+frågetäckning separat. En säker negativ kantbedömning stänger bara den kanten;
+andra startnoder finns kvar. Cykler ger inga återbesök. FULL med tillräcklig
+konfidens återanvänder samma underlag; PARTIAL matar befintlig evidens till den
+ordinarie bedömningen och luckplaneringen. Oklara beslut ger ingen direkt
+resultatåteranvändning. API-, embedding- och Jev-fel propagerar utan alternativa
+modeller, providers eller heuristiska svar.
+
+Jev jämför den tidigare **redan bedömda frågans täckning**, kontext och bedömning,
+inte en ny juridisk analys av alla dess källtexter. Saknad eller invaliderad
+faktaproveniens, ersatta dokumentversioner och befintliga åldersregler kontrolleras
+innan återanvändning och igen efter Jev före bindningen. TTL-kandidater är
+omprövningspåminnelser, inte automatisk invalidering: deras tidsstämpel och status
+återställs aldrig genom reuse. Först explicit temporal invalidering ändrar
+faktans giltighet. Navigation och täckning använder databasägda promptfält
+`research.result_navigation` och `research.result_coverage`; båda ingår i normal
+seed/startup för dd, politik och expertgranskning.
+
+Testerna använder en verklig SQLite-pool med **en koppling**. De bevisar att
+exakt reuse med 77 evidensposter bara gör en UPDATE, att Jev/embedding inte
+behövs på den vägen, och att andra klienter kan läsa medan Jev arbetar eller
+avbryts. Gränser för källhämtning/chunkning/embedding av dokument mockas och
+nätverkssocklar är blockerade i CI. Modellernas juridiska precision verifieras
+inte av mockade flödestester.
+
+Isolerad mätning mot riktiga tjänster, utan att starta hela researchkedjan:
+
+```sh
+cd backend
+uv run python scripts/check_completed_research.py --live \
+  --attempt-id ATTEMPT_ID --repeat 3 --output /tmp/reuse-timings.json
+uv run python scripts/check_completed_research.py --live \
+  --attempt-id ATTEMPT_ID --need-id NEED_ID --question "Närliggande fråga" \
+  --repeat 3 --output /tmp/nearby-timings.json
+```
+
+Proben använder produktionsläsningen och konfigurerade tjänster. Den skapar
+ingen ny Attempt, EvidenceSet eller bedömning. Frågeembeddingens ordinarie cache
+kan uppdateras vid närliggande sökning. Varje upprepning redovisar vald befintlig
+referens, matchtyp, besökta kanter och tider för exakt läsning, embedding,
+navigation och täckningsbeslut.
+
+Ett läsprov 2026-10-03 återanvände huvudfrågans befintliga frysta underlag med
+77 evidensposter. Tre upprepningar tog 1,70 / 1,39 / 1,09 sekunder. Efter att
+beroendenas giltighetsfält laddats i två samlade frågor tog ett avslutande prov
+0,61 sekunder. Ingen embedding eller Jev-bedömning behövdes. Tiderna avser
+enbart uppslag och giltighetskontroll; de är inte tider för en hel research.
+Närliggande frågors faktiska modellprecision har inte mätts i detta prov.

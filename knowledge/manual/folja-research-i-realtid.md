@@ -49,6 +49,15 @@ En experts fråga visas tillsammans med sin bedömning och sina källor i samma 
 
 Längst ner finns en **teknisk händelselogg** med tidsstämplade händelser — användbar om något verkar ha fastnat.
 
+## När ett tidigare svar återanvänds
+
+Har samma fråga redan besvarats i samma sammanhang kan researchen bli klar direkt
+med det tidigare underlaget. Källorna och bedömningen visas som vanligt. Systemet
+kontrollerar att underlaget fortfarande är giltigt. En närliggande fråga kan också
+använda ett tidigare svar efter en kontroll av att det täcker den nya frågan.
+Finns bara ett delvis användbart svar fortsätter researchen med det underlaget
+som grund för att undersöka luckorna.
+
 ## Relaterade guider
 
 - [Använda expertgranskning](anvanda-expertgranskning.md)
