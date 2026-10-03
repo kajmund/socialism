@@ -34,6 +34,7 @@ from app.services.research.question_execution import (
     QuestionResearchOutcome,
 )
 from app.services.research.question_graph import QuestionEvidenceGraph
+from app.services.execution.reuse_reference import REUSE_KEY
 
 
 class AttemptResearchQuestionWorker:
@@ -98,6 +99,9 @@ class AttemptResearchQuestionWorker:
                 f"research child Attempt {child_attempt_id} finished as {result.status}"
             )
         async with self._factory() as session:
+            child = await get_attempt(session, child_attempt_id)
+            if REUSE_KEY in child.input_snapshot:
+                return QuestionResearchOutcome(execution_attempt_id=child_attempt_id)
             memories = await publish_research_question_knowledge(
                 session,
                 research_question_id=question.id,

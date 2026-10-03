@@ -2,6 +2,8 @@
 
 import json
 
+from app.services.graph_v2.result_prompts import result_reuse_prompt_fields
+
 
 def graph_fact_prompt_fields() -> list[dict]:
     question = {
@@ -49,4 +51,4 @@ def graph_fact_prompt_fields() -> list[dict]:
         "defaults": {"sv": json.dumps(node_question), "en": json.dumps(node_question)},
     }
     return [field, legal_report_field, node_field,
-            {**node_field, "key": "rattsunderlag.graph_node_resolution"}]
+            {**node_field, "key": "rattsunderlag.graph_node_resolution"}, *result_reuse_prompt_fields()]
