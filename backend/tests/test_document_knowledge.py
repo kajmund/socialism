@@ -247,7 +247,10 @@ async def test_document_ingest_generates_anchored_items_and_case_knowledge(  # n
                     ),
                 )
             )
-            assert any(hit.metadata.get("knowledge_kind") == "document_item" for hit in hits)
+            assert any(hit.metadata.get("discovery_kind") == "document_item" for hit in hits)
+            assert all(hit.document_id == uploaded["id"] for hit in hits)
+            assert all(hit.metadata.get("document_version_id") for hit in hits)
+            assert all("Avtalet galler fran 1 januari 2027." in hit.excerpt for hit in hits)
 
         listed = await user_client.get(f"/underlag/{uploaded['id']}/knowledge")
         assert listed.status_code == 200

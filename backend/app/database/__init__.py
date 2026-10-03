@@ -1,5 +1,6 @@
 from app.database.answer_review import KnowledgeAnswerReview
 from app.database import graph_v2 as graph_v2
+from app.database import workspaces as workspaces
 from app.database.base import Base
 from app.database.models import (
     CatalogList,

@@ -18,6 +18,7 @@ from app.services.research.models import (
     ResearchNeed,
 )
 from app.services.research.models import research_evidence
+from app.services.research.workspace_grounding import passages_allowed
 
 
 class GraphResearchError(ResearchError):
@@ -42,6 +43,8 @@ def _scope_allowed(scope: str, fact: GraphFact) -> bool:
 
 
 def _context_allowed(extra: dict, context: ResearchContext, *, require_case: bool = False) -> bool:
+    if context.scope.workspace_id is not None:
+        return True
     case_id = extra.get("knowledge_case_id") or extra.get("case_id")
     module = extra.get("knowledge_module") or extra.get("module")
     if require_case and not case_id:
@@ -103,6 +106,8 @@ async def grounded_fact_evidence(
             raise GraphResearchError(f"Graph fact {fact.id} has missing source document/version")
         if not _valid_grounding(fact, document, version, passages):
             raise GraphResearchError(f"Graph fact {fact.id} has inconsistent source grounding")
+        if not await passages_allowed(session, passages, context):
+            continue
         if _usable_source(
             document=document,
             version=version,
@@ -139,7 +144,7 @@ def _valid_grounding(fact, document, version, passages) -> bool:
 
 def _usable_source(*, document, version, passages, need, context, now) -> bool:
     return (
-        _evidence_nature(document) in need.source_types
+        _evidence_nature(document, need) in need.source_types
         and version.superseded_at is None
         and current_interval(version.valid_from, version.valid_to, now)
         and _context_allowed(
@@ -150,7 +155,11 @@ def _usable_source(*, document, version, passages, need, context, now) -> bool:
     )
 
 
-def _evidence_nature(document: CanonicalDocumentRecord) -> str:
+def _evidence_nature(document: CanonicalDocumentRecord, need: ResearchNeed | None = None) -> str:
+    if document.source_type in ("uploaded_file", "shared_reference"):
+        if document.scope_key == "shared":
+            return "domain_knowledge"
+        return "case_knowledge" if need and "case_knowledge" in need.source_types else "customer_knowledge"
     if document.source_type != LAGEN_NU_PROVIDER_ID:
         return document.source_type
     nature = document.extra.get("evidence_nature")
@@ -170,7 +179,7 @@ def _to_evidence(
     fresh = age >= 0 and (max_age_seconds is None or age <= max_age_seconds)
     return research_evidence(
         research_need_id=need.id,
-        source_type=_evidence_nature(document),
+        source_type=_evidence_nature(document, need),
         status="found",
         title=document.title,
         excerpt="\n\n".join(unit.text for unit in passages),
@@ -186,6 +195,10 @@ def _to_evidence(
             "document_ids": [document.id],
             "document_version_ids": [version.id],
             "document_version_id": version.id,
+            "scope_type": document.scope_type,
+            "customer_id": document.customer_id,
+            "source_object_id": document.source_object_id,
+            "workspace_id": document.extra.get("workspace_id"),
             "reuse": {
                 "origin": "persistent_knowledge",
                 "freshness": "fresh" if fresh else "stale",

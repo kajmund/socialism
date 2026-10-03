@@ -93,7 +93,7 @@ async def prepare_graph_questions(
         return
     if context.scope.customer_id is None:
         raise ValueError("Canonical question preparation requires customer_id")
-    scope = tenant_question_scope(context.scope.customer_id)
+    scope = tenant_question_scope(context.scope.customer_id, context.scope.workspace_id)
     for text in dict.fromkeys(questions):
         question = await prepare_sql_question(factory, graph, text, scope)
         graph.prepared[(scope.namespace, identity_from_text(text).identity_key)] = question
@@ -112,13 +112,17 @@ async def prepare_domain_graph(
     factory: async_sessionmaker[AsyncSession],
     customer_id: int,
     questions: Sequence[str],
+    workspace_id: str | None = None,
 ) -> SqlQuestionEvidenceGraph:
     from app.services.research.composition import build_standard_question_graph
     from app.services.knowledge.models import KnowledgeScope
 
     graph = build_standard_question_graph()
     await prepare_graph_questions(
-        factory, graph, ResearchContext(scope=KnowledgeScope(customer_id=customer_id)), questions
+        factory,
+        graph,
+        ResearchContext(scope=KnowledgeScope(customer_id=customer_id, workspace_id=workspace_id)),
+        questions,
     )
     return graph
 
@@ -133,13 +137,14 @@ async def prepare_outcome_graph(
     async with factory() as session:
         run = await get_run(session, (await get_attempt(session, attempt_id)).run_id)
         customer_id = run.customer_id
+        workspace_id = run.context.get("workspace_id")
     questions = [
         child.question
         for outcome in outcomes
         if not isinstance(outcome, BaseException)
         for child in outcome.follow_ups
     ]
-    return await prepare_domain_graph(factory, customer_id, questions)
+    return await prepare_domain_graph(factory, customer_id, questions, workspace_id)
 
 
 @dataclass(frozen=True)
@@ -163,10 +168,14 @@ async def prepare_public_writeback(
     graph: QuestionEvidenceGraph,
     need: ResearchNeed,
     evidence: Sequence[ResearchEvidence],
+    *,
+    context: ResearchContext,
 ) -> None:
     from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
     from app.services.research.knowledge_question import evidence_visibility
 
+    if context.scope.customer_id is not None:
+        return
     if not isinstance(graph, SqlQuestionEvidenceGraph):
         return
     if not any(

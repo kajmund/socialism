@@ -124,6 +124,9 @@ from app.services.research.planner import (
 )
 from app.services.research.progress import list_research_progress_events
 from app.services.research_worker import accept_attempt_research
+from app.services.workspace_api_scope import (require_context_workspace,
+    require_execution_attempt as _require_attempt, require_execution_run as _require_run,
+    scoped_research_context)
 
 router = APIRouter(prefix="/execution", tags=["execution"])
 
@@ -391,33 +394,6 @@ def _evidence_set_out(
     )
 
 
-async def _require_run(
-    session: AsyncSession,
-    user: UserAccount,
-    run_id: str,
-) -> ExecutionRun:
-    try:
-        run = await get_run(session, run_id)
-    except ExecutionNotFoundError as exc:
-        raise _http_for_execution_error(exc) from exc
-    assert_kund_access(user, run.customer_id)
-    return run
-
-
-async def _require_attempt(
-    session: AsyncSession,
-    user: UserAccount,
-    attempt_id: str,
-) -> tuple[ExecutionAttempt, ExecutionRun]:
-    try:
-        attempt = await get_attempt(session, attempt_id)
-        run = await get_run(session, attempt.run_id)
-    except ExecutionNotFoundError as exc:
-        raise _http_for_execution_error(exc) from exc
-    assert_kund_access(user, run.customer_id)
-    return attempt, run
-
-
 async def _attached_evidence(
     session: AsyncSession,
     attempt: ExecutionAttempt,
@@ -530,6 +506,7 @@ async def post_execution_run(
     user: UserAccount = Depends(get_current_user),
 ) -> ExecutionRunOut:
     assert_kund_access(user, body.customer_id)
+    await require_context_workspace(session, user, body.customer_id, body.context)
     try:
         run = await create_run(
             session,
@@ -623,7 +600,7 @@ async def post_execution_attempt(
             objective_snapshot = research_objective_to_snapshot(
                 ResearchObjective(
                     objective=require_research_objective(body.research_objective),
-                    context=dict(body.research_context),
+                    context=scoped_research_context(run, dict(body.research_context)),
                 )
             )
         attempt = await create_attempt(
@@ -734,13 +711,13 @@ async def post_attempt_research(  # noqa: PLR0917
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> AttemptResearchOut:
-    attempt, _run = await _require_attempt(session, user, attempt_id)
+    attempt, run = await _require_attempt(session, user, attempt_id)
     try:
         status = await accept_attempt_research(
             session,
             attempt_id=attempt.id,
             research_objective=body.research_objective,
-            research_context=dict(body.research_context),
+            research_context=scoped_research_context(run, dict(body.research_context)),
             research_plan=(None if body.research_plan is None else body.research_plan.model_dump()),
         )
         attempt = await get_attempt(session, attempt_id)

@@ -20,12 +20,12 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.config import settings
+from app.database.transaction_state import has_pending_writes
 from app.database.models import (
     DocumentKnowledgeAnchor,
     DocumentKnowledgeItem,
     DocumentKnowledgeItemTextUnit,
     DocumentKnowledgeRevision,
-    Job,
     KnowledgeDocumentRecord,
     StoredObject,
 )
@@ -34,24 +34,12 @@ from app.llm.structured_retry import StructuredOutputError
 from app.serializers import format_date, utcnow
 from app.services.knowledge import (
     SUPABASE_PROVIDER_ID,
-    EmbeddedKnowledgeChunk,
-    KnowledgeChunk,
-    KnowledgeIngestService,
-    KnowledgeScope,
-    OpenAIEmbeddingProvider,
-    SupabaseKnowledgeProvider,
-)
-from app.services.knowledge.persistence import (
-    current_text_units,
-    persist_segmented_document,
-    text_unit_from_record,
+    OpenAIEmbeddingProvider as OpenAIEmbeddingProvider,
 )
 from app.services.knowledge.supabase_provider import supabase_external_id
 from app.services.knowledge.units import TextUnit
-from app.services.object_storage import KIND_UNDERLAG
-from app.services.prompt_store import render_prompt, require_active_prompts
+from app.services.prompt_store import render_prompt
 from app.services.research.composition import require_knowledge_vector_store
-from app.services.stored_objects import read_stored_bytes
 from app.services.underlag_schemas import (
     DocumentKnowledgeAnchorWrite,
     DocumentKnowledgeItemUpdate,
@@ -295,15 +283,18 @@ async def delete_document_vectors(session: AsyncSession, source_object_id: str) 
         .all()
     )
     indexed_rows = [
-        row
+        row.document_id
         for row in rows
         if row.version is not None or row.document_id.startswith(DOCUMENT_ITEM_VECTOR_PREFIX)
     ]
+    if has_pending_writes(session):
+        raise RuntimeError("Vector deletion requires a clean input transaction")
+    await session.rollback()
     if not indexed_rows:
         return
     vector_store = require_knowledge_vector_store()
-    for row in indexed_rows:
-        await vector_store.delete_document(row.document_id)
+    for document_id in indexed_rows:
+        await vector_store.delete_document(document_id)
 
 
 async def run_document_ingest_job(
@@ -311,146 +302,9 @@ async def run_document_ingest_job(
     *,
     job_id: str,
 ) -> dict[str, object]:
-    try:
-        return await _run_document_ingest_job(factory, job_id=job_id)
-    except Exception as exc:
-        async with factory() as session:
-            job = await session.get(Job, job_id)
-            if job is not None:
-                payload = DocumentIngestJobRequest.model_validate(job.request or {})
-                source = await session.get(StoredObject, payload.object_id)
-                if source is not None:
-                    source.knowledge_status = "failed"
-                    source.knowledge_error = (str(exc) or exc.__class__.__name__)[:2000]
-                    await session.commit()
-        raise
+    from app.services.document_ingest_job import run_document_ingest_job as run_job
 
-
-async def _run_document_ingest_job(
-    factory: async_sessionmaker[AsyncSession],
-    *,
-    job_id: str,
-) -> dict[str, object]:
-    async with factory() as session:
-        job = await session.get(Job, job_id)
-        if job is None:
-            raise ValueError(f"Job not found: {job_id}")
-        payload = DocumentIngestJobRequest.model_validate(job.request or {})
-        source = await session.get(StoredObject, payload.object_id)
-        if (
-            source is None
-            or source.kind != KIND_UNDERLAG
-            or source.customer_id != job.customer_id
-            or source.owner_user_id != payload.owner_user_id
-        ):
-            raise ValueError("Underlag not found for document ingest")
-        source.knowledge_status = "running"
-        source.knowledge_error = None
-        raw_record = await _upsert_raw_document_record(session, source)
-        is_reingest = raw_record.version is not None
-        await session.commit()
-
-        vector_store = require_knowledge_vector_store()
-        embeddings = OpenAIEmbeddingProvider.from_settings()
-        provider = SupabaseKnowledgeProvider(
-            session,
-            vector_store=vector_store,
-            embeddings=embeddings,
-        )
-        result = await KnowledgeIngestService(
-            provider=provider,
-            vector_store=vector_store,
-            embeddings=embeddings,
-        ).ingest_document(
-            document_id=raw_record.document_id,
-            scope=KnowledgeScope(
-                customer_id=source.customer_id,
-                case_id=source.id,
-                module=source.module,
-            ),
-            source_type="uploaded_file",
-            canonical_uri=f"stored-object:{source.id}",
-        )
-        source.extraction_status = _extraction_status(result.status)
-        source.extracted_text = _extracted_text(result.extracted)
-        raw_record.version = result.content_hash
-        raw_record.extra = {
-            **dict(raw_record.extra or {}),
-            "content_hash": result.content_hash,
-        }
-        if result.status != "indexed" or result.extracted is None or result.segmented is None:
-            source.knowledge_status = result.status
-            source.knowledge_error = result.message
-            await session.commit()
-            if result.status == "failed":
-                raise RuntimeError(result.message or "Document ingest failed")
-            return {
-                "object_id": source.id,
-                "status": result.status,
-                "chunks_indexed": result.chunks_indexed,
-                "items_created": 0,
-            }
-
-        persisted = await persist_segmented_document(
-            session,
-            customer_id=source.customer_id,
-            source_object_id=source.id,
-            segmented=result.segmented,
-        )
-        # Vectors and TextUnits already exist outside this transaction. Persist
-        # them before optional LLM enrichment so a later generation failure
-        # cannot leave an untracked index.
-        await session.commit()
-        units = [
-            text_unit_from_record(row)
-            for row in await current_text_units(session, persisted.document.id)
-        ]
-
-        prompts = await require_active_prompts(
-            session,
-            customer_id=source.customer_id,
-            module=source.module,
-            language="sv",
-        )
-        data, _content_type = await read_stored_bytes(source)
-        generation = await generate_document_knowledge(
-            units=units,
-            prompts=prompts,
-        )
-        accepted = await asyncio.to_thread(
-            _accepted_generated_items,
-            generation.items,
-            units=units,
-            pdf_bytes=data if source.content_type == "application/pdf" else None,
-        )
-        # A transient enrichment failure must not discard earlier generated
-        # knowledge on re-ingest. Replace it only when at least one batch
-        # completed, or when all batches completed successfully with no items.
-        replace_generated = (
-            generation.successful_batches > 0 or generation.failed_batches == 0
-        )
-        rows: list[DocumentKnowledgeItem] = []
-        if replace_generated:
-            await _archive_generated_items(session, source, mark_manual_stale=is_reingest)
-            rows = await _persist_generated_items(session, source=source, items=accepted)
-            await _index_generated_items(session, source=source, items=rows)
-        partial = generation.failed_batches > 0
-        source.knowledge_status = "partial" if partial else "ready"
-        source.knowledge_error = (
-            f"{generation.failed_batches} of {generation.total_batches} "
-            "document-knowledge batches failed"
-            if partial
-            else None
-        )
-        await session.commit()
-        return {
-            "object_id": source.id,
-            "status": source.knowledge_status,
-            "chunks_indexed": result.chunks_indexed,
-            "items_created": len(rows),
-            "successful_batches": generation.successful_batches,
-            "failed_batches": generation.failed_batches,
-        }
+    return await run_job(factory, job_id=job_id)
 
 
 async def generate_document_knowledge(
@@ -595,14 +449,14 @@ def supporting_text_unit_ids(
     exact_quote: str | None,
     units: Sequence[_Passage],
 ) -> list[str]:
-    quote = _normalized(exact_quote or "")
-    matches = [unit for unit in units if quote and quote in _normalized(unit.text)]
+    quote = " ".join((exact_quote or "").split())
+    matches = [unit for unit in units if quote and quote in " ".join(unit.text.split())]
     if locator:
         located = [unit for unit in matches if unit.locator == locator]
         if located:
             matches = located
-        elif not matches:
-            matches = [unit for unit in units if unit.locator == locator]
+        else:
+            matches = []
     return [unit.id for unit in matches]
 
 
@@ -739,6 +593,7 @@ async def _upsert_raw_document_record(
                 "knowledge_kind": "document_chunk",
                 "source_object_id": source.id,
                 "filename": source.filename,
+                "workspace_id": source.workspace_id,
             },
         )
         session.add(record)
@@ -777,7 +632,9 @@ async def _archive_generated_items(
         item.revision += 1
         item.updated_at = utcnow()
         session.add(_revision_row(item, changed_by_user_id=None))
-        await _remove_item_vector(session, item.id)
+        record = await session.get(KnowledgeDocumentRecord, item_vector_document_id(item.id))
+        if record is not None:
+            await session.delete(record)
 
 
 async def _persist_generated_items(
@@ -839,18 +696,9 @@ async def _index_generated_items(
     source: StoredObject,
     items: Sequence[DocumentKnowledgeItem],
 ) -> None:
-    searchable = [item for item in items if item.kind in {"fact", "qa"}]
-    if not searchable:
-        return
-    embeddings = OpenAIEmbeddingProvider.from_settings()
-    vectors = await embeddings.embed([_embedding_text(item) for item in searchable])
-    if len(vectors) != len(searchable):
-        raise RuntimeError("EmbeddingProvider returned an unexpected document item count")
-    chunks: list[EmbeddedKnowledgeChunk] = []
-    for item, vector in zip(searchable, vectors, strict=True):
-        await _upsert_item_record(session, source=source, item=item)
-        chunks.append(EmbeddedKnowledgeChunk(chunk=_item_chunk(source, item), embedding=vector))
-    await require_knowledge_vector_store().upsert_chunks(chunks)
+    from app.services.document_item_index import index_items
+
+    await index_items(session, source=source, items=items)
 
 
 async def _sync_item_vector(
@@ -859,99 +707,15 @@ async def _sync_item_vector(
     source: StoredObject,
     item: DocumentKnowledgeItem,
 ) -> None:
-    if item.status != "active" or item.kind not in {"fact", "qa"}:
-        await _remove_item_vector(session, item.id)
-        return
-    embeddings = OpenAIEmbeddingProvider.from_settings()
-    vectors = await embeddings.embed([_embedding_text(item)])
-    if len(vectors) != 1:
-        raise RuntimeError("EmbeddingProvider returned an unexpected document item count")
-    await _upsert_item_record(session, source=source, item=item)
-    await require_knowledge_vector_store().replace_document_chunks(
-        item_vector_document_id(item.id),
-        [EmbeddedKnowledgeChunk(chunk=_item_chunk(source, item), embedding=vectors[0])],
-    )
+    from app.services.document_item_index import sync_item
 
-
-async def _upsert_item_record(
-    session: AsyncSession,
-    *,
-    source: StoredObject,
-    item: DocumentKnowledgeItem,
-) -> KnowledgeDocumentRecord:
-    document_id = item_vector_document_id(item.id)
-    row = await session.get(KnowledgeDocumentRecord, document_id)
-    anchor = item.anchors[0] if item.anchors else None
-    extra = {
-        "knowledge_kind": "document_item",
-        "document_knowledge_item_id": item.id,
-        "source_document_id": source.id,
-        "source_object_id": source.id,
-        "item_kind": item.kind,
-        "origin": item.origin,
-        "page_number": anchor.page_number if anchor else None,
-        "anchor_type": anchor.anchor_type if anchor else None,
-    }
-    if row is None:
-        row = KnowledgeDocumentRecord(
-            document_id=document_id,
-            provider=SUPABASE_PROVIDER_ID,
-            external_id=f"document-knowledge-item:{item.id}",
-            customer_id=source.customer_id,
-            source_object_id=source.id,
-            case_id=source.id,
-            module=source.module,
-            title=item.title,
-            mime_type="application/vnd.socialism.document-knowledge+json",
-            storage_bucket=source.bucket,
-            storage_key=source.object_key,
-            version=str(item.revision),
-            extra=extra,
-        )
-        session.add(row)
-    else:
-        row.title = item.title
-        row.version = str(item.revision)
-        row.extra = extra
-    await session.flush()
-    return row
+    await sync_item(session, source=source, item=item)
 
 
 async def _remove_item_vector(session: AsyncSession, item_id: str) -> None:
-    document_id = item_vector_document_id(item_id)
-    row = await session.get(KnowledgeDocumentRecord, document_id)
-    if row is None:
-        return
-    await require_knowledge_vector_store().delete_document(document_id)
-    await session.delete(row)
+    from app.services.document_item_index import remove_item
 
-
-def _item_chunk(source: StoredObject, item: DocumentKnowledgeItem) -> KnowledgeChunk:
-    anchor = item.anchors[0] if item.anchors else None
-    document_id = item_vector_document_id(item.id)
-    return KnowledgeChunk(
-        document_id=document_id,
-        chunk_id=f"revision:{item.revision}",
-        text=_display_text(item),
-        customer_id=source.customer_id,
-        case_id=source.id,
-        module=source.module,
-        title=item.title,
-        locator=anchor.locator if anchor else None,
-        provider=SUPABASE_PROVIDER_ID,
-        version=str(item.revision),
-        content_hash=None,
-        metadata={
-            "knowledge_kind": "document_item",
-            "document_knowledge_item_id": item.id,
-            "source_document_id": source.id,
-            "source_object_id": source.id,
-            "item_kind": item.kind,
-            "origin": item.origin,
-            "page_number": anchor.page_number if anchor else None,
-            "anchor_type": anchor.anchor_type if anchor else None,
-        },
-    )
+    await remove_item(session, item_id)
 
 
 def _display_text(item: DocumentKnowledgeItem) -> str:
@@ -973,15 +737,9 @@ async def _replace_text_unit_links(
     item: DocumentKnowledgeItem,
     unit_ids: Sequence[str],
 ) -> None:
-    ids = [unit_id for unit_id in unit_ids if unit_id]
-    if not ids:
-        units = await current_text_units(session, item.source_object_id)
-        anchor = item.anchors[0] if item.anchors else None
-        ids = supporting_text_unit_ids(
-            locator=anchor.locator if anchor else None,
-            exact_quote=anchor.exact_text if anchor else None,
-            units=units,
-        )
+    from app.services.document_item_grounding import validated_unit_ids
+
+    ids = await validated_unit_ids(session, item, unit_ids)
     if item.id:
         await session.execute(
             delete(DocumentKnowledgeItemTextUnit).where(

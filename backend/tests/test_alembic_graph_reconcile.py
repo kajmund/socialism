@@ -88,5 +88,5 @@ def test_head_drops_unused_graph_revalidation_queues(tmp_path: Path, monkeypatch
         "knowledge_answer_reviews",
     } <= after
     assert ScriptDirectory.from_config(config).get_current_head() == (
-        "148_expert_async_tool_prompts"
+        "150_workspace_chat_prompts"
     )

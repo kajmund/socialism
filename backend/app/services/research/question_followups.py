@@ -36,7 +36,7 @@ async def prepare_iterative_follow_ups(
     customer_id = context.scope.customer_id
     if customer_id is None:
         return list(accepted)
-    scope = tenant_question_scope(customer_id)
+    scope = tenant_question_scope(customer_id, context.scope.workspace_id)
     from app.services.research.question_prepare import prepare_graph_questions
     from app.services.research.execution import _session_factory
 

@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-10-04
+
+* **Workspace-chatten**: Företagets workspace är standard. Klienter kan få egna workspaces med separata konversationer och dokument. Filikonen laddar upp avtal och andra underlag; researchikonen öppnar frågedialogen med ett uttryckligt dokumentval. Status och citerade originalpassager visas i chatten.
+
 ## 2026-10-03
 
 * **Research**: Giltiga färdiga resultat kan återanvändas för samma fråga och sammanhang. Närliggande frågor kontrolleras mot tidigare svar innan ny research behövs. Källor och bedömning visas från det tidigare underlaget.

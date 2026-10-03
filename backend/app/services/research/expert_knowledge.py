@@ -25,8 +25,8 @@ from app.services.execution.service import new_id
 from app.services.expertgranskning.memory import get_expert_memory
 from app.services.research.knowledge_question import (
     KnowledgeQuestion,
-    KnowledgeQuestionScope,
     evidence_visibility,
+    question_scope_from_namespace,
     stable_evidence_ref,
 )
 from app.services.research.models import utc_now
@@ -45,6 +45,12 @@ class ExpertKnowledgeMemory:
     question: str
     knowledge_question_id: str
     source_attempt_id: str
+    workspace_id: str | None = None
+
+
+def _require_unscoped_memory(run: ExecutionRun) -> None:
+    if "workspace_id" in run.context:
+        raise ValueError("Workspace research cannot publish tenant-wide expert memory")
 
 
 async def publish_research_question_knowledge(
@@ -78,6 +84,7 @@ async def publish_research_question_knowledge(
     if loaded is None:
         raise ValueError(f"Research question not found: {research_question_id}")
     question, canonical_row, specific, _parent, run = loaded
+    _require_unscoped_memory(run)
     if question.execution_attempt_id is None:
         raise ValueError("Research question has no child Attempt")
     child = await session.get(ExecutionAttempt, question.execution_attempt_id)
@@ -195,6 +202,11 @@ async def publish_completed_attempt_knowledge(
     graph: QuestionEvidenceGraph,
 ) -> list[ExpertKnowledgeMemory]:
     """Publish every completed DAG question, including researched follow-ups."""
+    from app.services.execution.service import get_attempt, get_run
+
+    _require_unscoped_memory(
+        await get_run(session, (await get_attempt(session, attempt_id)).run_id)
+    )
     question_ids = list(
         (
             await session.execute(
@@ -226,6 +238,8 @@ async def publish_completed_attempt_knowledge(
 
 
 async def remember_published_question(memories: list[ExpertKnowledgeMemory]) -> None:
+    if any(receipt.workspace_id is not None for receipt in memories):
+        raise ValueError("Workspace research cannot publish tenant-wide expert memory")
     memory = get_expert_memory()
     for receipt in memories:
         await memory.add_research_receipt(
@@ -243,9 +257,8 @@ def _canonical_question(row: KnowledgeQuestionRow) -> KnowledgeQuestion:
         identity_key=row.identity_key,
         normalized_text=row.normalized_text,
         display_text=row.display_text,
-        scope=KnowledgeQuestionScope(
-            visibility=row.visibility,  # type: ignore[arg-type]
-            customer_id=row.customer_id,
+        scope=question_scope_from_namespace(
+            row.namespace, visibility=row.visibility, customer_id=row.customer_id
         ),
         embedding_model=row.embedding_model,
         embedding_version=row.embedding_version,

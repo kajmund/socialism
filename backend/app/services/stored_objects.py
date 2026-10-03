@@ -17,7 +17,6 @@ from app.services.object_storage import (
     KIND_REPORT_SLOTS,
     KIND_REPORT_SOURCE_PDF,
     KIND_UNDERLAG,
-    UNDERLAG_DOCX_TYPE,
     ObjectStorageError,
     bucket_name,
     delete_object,
@@ -27,9 +26,7 @@ from app.services.object_storage import (
     put_object,
     safe_filename,
     validate_annual_report,
-    validate_underlag,
 )
-from app.services.underlag_pdf import UnderlagPdfConversionError, convert_docx_to_pdf_async
 
 
 def serialize_stored_object(row: StoredObject) -> dict:
@@ -54,6 +51,7 @@ def serialize_underlag(row: StoredObject, *, include_text: bool) -> dict:
         "content_type": row.content_type,
         "size_bytes": row.size_bytes,
         "module": row.module,
+        "workspace_id": row.workspace_id,
         "owner_user_id": row.owner_user_id,
         "folder_id": row.folder_id,
         "extraction_status": row.extraction_status,
@@ -264,13 +262,17 @@ async def list_underlag(
     owner_user_id: str,
     module: str | None,
     folder_id: str | None = None,
+    workspace_id: str | None = None,
 ) -> list[StoredObject]:
     filters = [
         StoredObject.customer_id == customer_id,
-        StoredObject.owner_user_id == owner_user_id,
         StoredObject.kind == KIND_UNDERLAG,
     ]
-    if module is not None:
+    if workspace_id is not None:
+        filters.append(StoredObject.workspace_id == workspace_id)
+    else:
+        filters.append(StoredObject.owner_user_id == owner_user_id)
+    if module is not None and workspace_id is None:
         filters.append(StoredObject.module == module)
         filters.append(StoredObject.folder_id == folder_id)
     result = await session.execute(
@@ -289,51 +291,15 @@ async def upload_underlag(  # noqa: PLR0913
     content_type: str,
     data: bytes,
     folder_id: str | None = None,
+    workspace_id: str | None = None,
 ) -> StoredObject:
-    resolved_type = validate_underlag(filename, content_type, data)
-    name = safe_filename(filename)
-    store_data = data
-    store_type = resolved_type
-    if resolved_type == UNDERLAG_DOCX_TYPE:
-        try:
-            store_data = await convert_docx_to_pdf_async(data, filename=name)
-        except UnderlagPdfConversionError as exc:
-            raise ValueError(str(exc)) from exc
-        store_type = "application/pdf"
-        name = f"{Path(name).stem or 'document'}.pdf"
-    if folder_id is not None:
-        await own_underlag_folder(
-            await get_underlag_folder(session, folder_id),
-            customer_id=customer_id,
-            owner_user_id=owner_user_id,
-            module=module,
-        )
-    _kund, bucket = await kund_bucket(session, customer_id)
-    object_id = secrets.token_hex(16)
-    key = f"{module_prefix(module)}/underlag/{owner_user_id}/{object_id}/{name}"
-    await put_object(bucket, key, store_data, store_type)
-    row = StoredObject(
-        id=object_id,
-        customer_id=customer_id,
-        module=module,
-        kind=KIND_UNDERLAG,
-        bucket=bucket,
-        object_key=key,
-        filename=name,
-        content_type=store_type,
-        size_bytes=len(store_data),
-        owner_user_id=owner_user_id,
-        folder_id=folder_id,
-        extracted_text=None,
-        extraction_status="pending",
-        knowledge_status="pending",
-        knowledge_error=None,
-        knowledge_job_id=None,
-        created_at=utcnow(),
-    )
-    session.add(row)
-    await session.flush()
-    return row
+    from app.services.document_upload import UnderlagUpload, upload_document
+
+    return await upload_document(session, UnderlagUpload(
+        customer_id=customer_id, owner_user_id=owner_user_id, module=module,
+        filename=filename, content_type=content_type, data=data,
+        folder_id=folder_id, workspace_id=workspace_id,
+    ))
 
 
 async def move_underlag(

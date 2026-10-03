@@ -13,6 +13,7 @@ from storage3.types import MetadataConfiguration, VectorData, VectorObject
 
 from app.config import Settings
 from app.services.knowledge.provider import KnowledgeVectorStoreError
+from app.services.knowledge.vector_reference_metadata import decode_reference_lists, encode_reference_lists
 from app.services.knowledge.vector_store import VectorBucketClient, VectorBucketRecord
 
 _BATCH_SIZE = 500
@@ -238,6 +239,7 @@ def _record_metadata(record: VectorBucketRecord) -> dict[str, str | bool | float
         for key, value in record.metadata.items()
         if isinstance(value, (str, bool, float, int)) and value is not None
     }
+    metadata.update(encode_reference_lists(record.metadata))
     metadata.update(
         {
             "document_id": record.document_id,
@@ -274,6 +276,7 @@ def _record_metadata(record: VectorBucketRecord) -> dict[str, str | bool | float
 
 def _record_from_match(match: Any) -> VectorBucketRecord:
     metadata = dict(match.metadata or {})
+    decode_reference_lists(metadata)
     distance = match.distance
     data = getattr(match, "data", None)
     embedding = list(data.float32) if data is not None and getattr(data, "float32", None) else []

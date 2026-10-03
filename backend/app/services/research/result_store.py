@@ -21,6 +21,7 @@ from app.services.research.answer_graph import (
     _context_matches,
     _current_basis,
 )
+from app.services.research.workspace_grounding import basis_workspace_allowed
 from app.services.research.graph_grounding import GraphResearchError, fact_is_current
 from app.services.research.knowledge_question import knowledge_question_identity_key
 from app.services.research.models import ResearchContext, ResearchEvidence, ResearchNeed
@@ -139,7 +140,7 @@ async def load_saved_answer(
         row.get("sufficient") and refs.intersection(row.get("supporting_evidence_ids", []))
         for row in assessed
     )
-    if not supported or not basis or not await _current_basis(session, basis, fact.scope_key, now):
+    if not supported or not basis or not await basis_workspace_allowed(session, basis, context) or not await _current_basis(session, basis, fact.scope_key, now):
         return None
     question_node = await session.get(GraphNode, fact.source_id)
     if question_node is None or question_node.scope_key != fact.scope_key:
