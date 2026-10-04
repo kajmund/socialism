@@ -8,25 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import UserAccount
 from app.database.workspaces import WorkspaceChat
 from app.services.expert_session_tools import RESEARCH_TOOL_NAME
-from app.services.workspace_chats import list_chat_files
+from app.services.workspace_parent_documents import available_documents
 
 
 async def document_inventory(
     session: AsyncSession, user: UserAccount, chat: WorkspaceChat
 ) -> str:
-    files = await list_chat_files(session, user, chat)
-    return json.dumps(
-        [
-            {
-                "source_object_id": source.id,
-                "filename": source.filename,
-                "workspace_id": source.workspace_id,
-                "knowledge_status": source.knowledge_status,
-            }
-            for source in files
-        ],
-        ensure_ascii=False,
-    )
+    return json.dumps(await available_documents(session, user, chat), ensure_ascii=False)
 
 
 def workspace_research_tool_spec() -> dict[str, Any]:

@@ -11,6 +11,7 @@ from app.services.workspace.search import search_general, search_workspace
 from app.services.workspace.research_links import job_bound_to_canvas, sync_research_links
 from app.services.workspace.generation_tools import source_context, queue_generation, _start_research
 from app.services.workspace.tool_arguments import SearchArguments, ReadArguments, IngestArguments, JobArguments, GenerationArguments, ReviseArguments, ExportArguments, ChartArguments, ResearchArguments
+from app.services.workspace_parent_documents import voice_document_inventory
 
 @dataclass
 class ToolContext:
@@ -25,7 +26,9 @@ async def context(context: ToolContext, arguments: dict) -> dict:
     session = context.session
     workspace = context.workspace
     operation = context.operation
-    return {"status": "completed", "workspace": await workspace_out(session, workspace), "turn_context": operation.context_snapshot}
+    value = await workspace_out(session, workspace)
+    value["available_documents"] = await voice_document_inventory(session, workspace, context.user)
+    return {"status": "completed", "workspace": value, "turn_context": operation.context_snapshot}
 
 
 async def search(context: ToolContext, arguments: dict) -> dict:
