@@ -62,7 +62,7 @@ export function SmeExpertInterviewButton({ expertId, expertName, workspaceKind, 
       <DialogContent showCloseButton={false} style={{ minHeight: 0 }} className="theme-admin flex h-[min(90dvh,800px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <DialogHeader className="flex-row items-start border-b px-4 py-3">
           <div className="min-w-0 flex-1"><DialogTitle>{t("sme.companyInterview")} · {expertName}</DialogTitle><DialogDescription className="mt-1">{t("sme.companyInterviewIntro")}</DialogDescription></div>
-          <DialogClose render={<AdminButton variant="secondary" size="sm">{null}</AdminButton>}>{t("common.close")}</DialogClose>
+          <DialogClose render={<AdminButton variant="secondary" size="sm" aria-label={t("common.close")}>{t("common.close")}</AdminButton>}>{t("common.close")}</DialogClose>
         </DialogHeader>
         {openedFor === identity && companyId != null ? <Suspense fallback={<p role="status" className="p-4 text-sm text-muted-foreground">{t("sme.loading")}</p>}>
           <PersonaComposerPage key={identity} kind="expert" personaId={expertId} customerId={companyId} embedded embeddedInterview workspaceChatEnabled={false} Shell={InterviewShell} onSaved={() => onSaved?.()} />

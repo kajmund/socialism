@@ -21,6 +21,7 @@ describe("workspace conversation state", () => {
     expect(workspaceErrorMessage(new ApiError("elevenlabs_voice_unavailable", { status: 503 }), translate, "voiceWorkspaceChat.sessionError")).toBe("voiceWorkspaceChat.sessionError")
     expect(workspaceErrorMessage(new ApiError("workspace_reference_stale", { status: 409 }), translate)).toBe("voiceWorkspaceChat.stale")
     expect(workspaceErrorMessage(new ApiError("workspace_revision_conflict", { status: 409 }), translate)).toBe("voiceWorkspaceChat.conflict")
+    expect(workspaceErrorMessage(new ApiError("private_document_requires_workspace", { status: 409 }), translate)).toBe("voiceWorkspaceChat.privateDocumentScope")
   })
   it("isolates drafts for the same expert in different workspaces", () => {
     expect(workspaceThreadKey("workspace-a", "expert", "same-expert")).not.toBe(workspaceThreadKey("workspace-b", "expert", "same-expert"))

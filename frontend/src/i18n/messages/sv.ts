@@ -84,6 +84,7 @@ export const sv = {
     "sourceCount": "{count} underlag",
     "artifactCount": "{count} resultat",
     "referenceUnavailable": "Källhänvisningen finns inte i arbetsytan.",
+    "privateDocumentScope": "Välj Workspace för att läsa företagets eller kundens privata dokument.",
     "noExperts": "Inga experter är tillgängliga.",
     "uploading": "Laddar upp…",
     "processing": "Bearbetar",
