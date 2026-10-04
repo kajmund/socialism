@@ -39,7 +39,6 @@ from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier, DdRes
 from app.services.document_knowledge import (
     DOCUMENT_INGEST_JOB_KIND,
     DocumentIngestJobRequest,
-    run_document_ingest_job,
 )
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
@@ -243,7 +242,6 @@ async def create_job(session: AsyncSession, body: JobCreate) -> Job:  # noqa: C9
     )
     session.add(job)
     await session.commit()
-    await session.refresh(job)
     await publish_job(job)
     return job
 
@@ -276,7 +274,6 @@ async def _mark_job_running(job_id: str) -> str | None:
             return None
         await _sync_rattsunderlag_session(session, job, "running")
         await session.commit()
-        await session.refresh(job)
         await publish_job(job)
         return job.kind
 
@@ -296,18 +293,10 @@ async def _execute_job_kind(job_id: str, kind: str) -> None:
         await run_rattsunderlag_research_job(job_id)
     elif kind == WORD_JOB_KIND:
         await run_word_paragraph_review_for_job(job_id)
-    elif kind == "expert_chat_research":
-        from app.services.expert_chat_research import run_expert_chat_research_job
+    elif kind in {"expert_chat_research", "workspace_research", DOCUMENT_INGEST_JOB_KIND}:
+        from app.services.job_research_runner import run_research_job
 
-        factory = job_session_factory()
-        result = await run_expert_chat_research_job(factory, job_id=job_id)
-        async with factory() as session:
-            await _succeed(session, job_id, result)
-    elif kind == DOCUMENT_INGEST_JOB_KIND:
-        factory = job_session_factory()
-        result = await run_document_ingest_job(factory, job_id=job_id)
-        async with factory() as session:
-            await _succeed(session, job_id, result)
+        await run_research_job(job_id, kind)
     else:
         factory = job_session_factory()
         async with factory() as session:
@@ -380,7 +369,6 @@ async def _fail(session: AsyncSession, job_id: str, message: str) -> None:
     job.updated_at = utcnow()
     await _sync_rattsunderlag_session(session, job, "failed", error=job.error)
     await session.commit()
-    await session.refresh(job)
     await publish_job(job)
     if job.kind == WORD_JOB_KIND:
         await publish_expertgranskning_finished(job_id, status="failed", error=job.error)
@@ -397,7 +385,6 @@ async def _succeed(session: AsyncSession, job_id: str, result: dict) -> None:
     job.updated_at = utcnow()
     await _sync_rattsunderlag_session(session, job, "succeeded")
     await session.commit()
-    await session.refresh(job)
     await publish_job(job)
 
 
@@ -899,6 +886,7 @@ async def resume_failed_job(session: AsyncSession, job: Job) -> Job:
     refreshed = await session.get(Job, job.id)
     if refreshed is None:
         raise ValueError(f"Job not found: {job.id}")
+    await session.commit()
     await publish_job(refreshed)
     return refreshed
 
@@ -929,7 +917,6 @@ async def set_job_archived(session: AsyncSession, job: Job, archived: bool) -> J
         job.archived_at = None
     job.updated_at = utcnow()
     await session.commit()
-    await session.refresh(job)
     await publish_job(job)
     return job
 
@@ -958,7 +945,6 @@ async def archive_finished_jobs(
         job.updated_at = now
     await session.commit()
     for job in rows:
-        await session.refresh(job)
         await publish_job(job)
     return rows
 

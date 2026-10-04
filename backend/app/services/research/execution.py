@@ -73,7 +73,7 @@ from app.services.execution.service import (
     seed_need_executions,
     set_attempt_snapshots,
 )
-from app.services.knowledge.models import KnowledgeScope
+from app.services.research.workspace_context import research_context_from_run
 from app.services.research.answer_review import complete_research_freeze
 from app.services.research.assessment import (
     AssessableEvidence,
@@ -195,25 +195,6 @@ class AttemptResearchResult:
     found_count: int
     not_found_count: int
     error_count: int
-
-
-def research_context_from_run(run: ExecutionRun) -> ResearchContext:
-    """Tenant scope comes from the Run only. Callers cannot override it."""
-    raw = run.context if isinstance(run.context, dict) else {}
-    case_id = raw.get("case_id")
-    if case_id is not None:
-        text = str(case_id).strip()
-        case_id = text or None
-    else:
-        case_id = None
-    knowledge_module = str(raw.get("knowledge_module") or run.module).strip()
-    return ResearchContext(
-        scope=KnowledgeScope(
-            customer_id=run.customer_id,
-            case_id=case_id,
-            module=knowledge_module,
-        )
-    )
 
 
 def _counts(items: list[EvidenceSetItem]) -> tuple[int, int, int]:

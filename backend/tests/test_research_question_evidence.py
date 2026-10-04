@@ -356,7 +356,7 @@ async def test_private_tenant_evidence_cannot_cross_customers(db, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_public_legacy_evidence_links_are_not_a_retrieval_path(db, monkeypatch):
+async def test_public_source_does_not_promote_customer_question_or_serve_other_customer(db, monkeypatch):
     monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 86_400)
     session, _factory = db
     graph = InMemoryQuestionEvidenceGraph()
@@ -383,8 +383,7 @@ async def test_public_legacy_evidence_links_are_not_a_retrieval_path(db, monkeyp
         identity_from_text("Vad gäller skattesatsen?"),
         public_question_scope(),
     )
-    assert public_q is not None
-    assert public_q.scope.visibility == "public"
+    assert public_q is None
     assert source_b.calls == 1
     excerpts = {item.excerpt for item in items}
     assert excerpts == {"should not run"}

@@ -29,7 +29,9 @@ from app.api import (
     sme_ws,
     spindoctor,
     underlag,
+    workspace_chats,
     users,
+    workspaces,
     ws,
 )
 from app.config import settings
@@ -157,6 +159,8 @@ def create_app() -> FastAPI:
     app.include_router(configurations.router)
     app.include_router(kunder.router)
     app.include_router(users.router)
+    app.include_router(workspaces.router)
+    app.include_router(workspace_chats.router)
     app.include_router(modules.router)
     app.include_router(catalog.router)
     app.include_router(personas.router)

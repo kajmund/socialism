@@ -44,5 +44,5 @@ async def candidates_then_providers(
         router_factory=router_factory,
     )
     merged = merge_reused_with_provider(reused, provider)
-    await prepare_public_writeback(factory, policy.graph, need, merged)
+    await prepare_public_writeback(factory, policy.graph, need, merged, context=context)
     return merged

@@ -109,16 +109,31 @@ def scope_filters(
     filters: Mapping[str, str | int | float | bool] | None = None,
 ) -> dict[str, Any]:
     require_scope(scope)
+    if (filters or {}).get("scope_type") == "shared":
+        return _shared_filters(filters or {})
     merged: dict[str, Any] = {"customer_id": scope.customer_id}
-    if scope.case_id is not None:
+    if scope.workspace_id is not None:
+        merged["workspace_id"] = {"$in": list(scope.readable_workspace_ids or (scope.workspace_id,))}
+    elif scope.case_id is not None:
         merged["case_id"] = scope.case_id
-    if scope.module is not None:
+    if scope.workspace_id is None:
+        from app.services.workspaces import company_workspace_id
+
+        merged["workspace_id"] = company_workspace_id(scope.customer_id)
+    if scope.workspace_id is None and scope.module is not None:
         merged["module"] = scope.module
     for key, value in (filters or {}).items():
-        if key in {"customer_id", "case_id", "module"}:
+        if key in {"customer_id", "case_id", "module", "workspace_id"}:
             raise KnowledgeVectorStoreError(f"KnowledgeQuery filter cannot override scope: {key}")
         merged[key] = value
     return merged
+
+
+def _shared_filters(filters: Mapping[str, str | int | float | bool]) -> dict[str, Any]:
+    forbidden = {"customer_id", "case_id", "module", "workspace_id"}.intersection(filters)
+    if forbidden:
+        raise KnowledgeVectorStoreError("Shared search cannot override a tenant scope")
+    return dict(filters)
 
 
 def record_in_scope(record: VectorBucketRecord, scope: KnowledgeScope) -> bool:
@@ -132,6 +147,7 @@ def record_in_scope(record: VectorBucketRecord, scope: KnowledgeScope) -> bool:
         case_id=_optional_str(meta.get("case_id")),
         module=_optional_str(meta.get("module")),
         scope_type=owned_tenant.scope_type,
+        workspace_id=_optional_str(meta.get("workspace_id")),
     )
     return scope_allows(owned=owned, requested=scope)
 
@@ -142,6 +158,7 @@ def chunk_in_scope(chunk: KnowledgeChunk, scope: KnowledgeScope) -> bool:
         case_id=chunk.case_id,
         module=chunk.module,
         scope_type=chunk.scope_type,
+        workspace_id=_optional_str(chunk.metadata.get("workspace_id")),
     )
     return scope_allows(owned=owned, requested=scope)
 
@@ -308,7 +325,8 @@ class MemoryKnowledgeVectorStore:
             chunk = item.chunk
             if not chunk_in_scope(chunk, query.query.scope):
                 continue
-            if any(chunk.metadata.get(key) != value for key, value in query.query.filters.items()):
+            metadata = {**chunk.metadata, "scope_type": chunk.scope_type}
+            if any(metadata.get(key) != value for key, value in query.query.filters.items()):
                 continue
             score = cosine_score(query.embedding, item.embedding)
             if score <= 0:

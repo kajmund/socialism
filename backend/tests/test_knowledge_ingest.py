@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import KnowledgeDocumentRecord, Kund
+from app.database.models import KnowledgeDocumentRecord, Kund, StoredObject
 from app.services.knowledge.chunking import KnowledgeChunker, make_chunk_id
 from app.services.knowledge.embeddings import EmbeddingSpec, OpenAIEmbeddingProvider
 from app.services.knowledge.extractors import DOCX_MIME, MARKDOWN_MIME, DefaultTextExtractor
@@ -36,6 +36,7 @@ from app.services.knowledge.supabase_provider import (
 from app.services.knowledge.units import hash_text
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.object_storage import put_object
+from app.services.workspaces import company_workspace_id, ensure_company_workspace
 from tests.knowledge_fakes import FakeEmbeddingProvider
 
 KNOWLEDGE_ROOT = Path(__file__).resolve().parents[1] / "app" / "services" / "knowledge"
@@ -88,7 +89,7 @@ class TrackingProvider:
 
 
 def _scope(*, customer_id: int, case_id: str | None = "case-1", module: str | None = "dd") -> KnowledgeScope:
-    return KnowledgeScope(customer_id=customer_id, case_id=case_id, module=module)
+    return KnowledgeScope(customer_id=customer_id, case_id=case_id, module=module, workspace_id=company_workspace_id(customer_id))
 
 
 async def _customer(session: AsyncSession, slug: str) -> Kund:
@@ -111,11 +112,19 @@ async def _index_document(  # noqa: PLR0913
     bucket: str = "acme",
     version: str = "1",
 ) -> KnowledgeDocumentRecord:
+    workspace = await ensure_company_workspace(session, customer_id=customer_id)
+    session.add(StoredObject(
+        id=document_id, customer_id=customer_id, workspace_id=workspace.id,
+        module=module or "dd", kind="underlag", bucket=bucket, object_key=key,
+        filename=title, content_type=mime_type, size_bytes=1,
+    ))
+    await session.flush()
     row = KnowledgeDocumentRecord(
         document_id=document_id,
         provider=SUPABASE_PROVIDER_ID,
         external_id=supabase_external_id(bucket, key),
         customer_id=customer_id,
+        source_object_id=document_id,
         case_id=case_id,
         module=module,
         title=title,
@@ -123,10 +132,10 @@ async def _index_document(  # noqa: PLR0913
         storage_bucket=bucket,
         storage_key=key,
         version=version,
-        extra={"origin": "files"},
+        extra={"origin": "files", "workspace_id": workspace.id, "source_object_id": document_id},
     )
     session.add(row)
-    await session.flush()
+    await session.commit()
     return row
 
 
@@ -608,7 +617,7 @@ async def test_extraction_failure_leaves_old_vectors(session: AsyncSession):
     assert [hit.document_id for hit in hits] == ["doc-pdf"]
 
 
-async def test_embedding_failure_leaves_old_vectors(session: AsyncSession):
+async def test_embedding_failure_does_not_make_stale_vector_current(session: AsyncSession):
     kund = await _customer(session, "acme")
     await _index_document(
         session,
@@ -628,17 +637,17 @@ async def test_embedding_failure_leaves_old_vectors(session: AsyncSession):
 
     await put_object("acme", "dd/files/brief.txt", b"ny text om cykelbanor", "text/plain")
     embeddings.fail = True
-    failed = await service.ingest_document(document_id="doc-txt", scope=_scope(customer_id=kund.id))
-    assert failed.status == "failed"
+    with pytest.raises(RuntimeError, match="embedding failed"):
+        await service.ingest_document(document_id="doc-txt", scope=_scope(customer_id=kund.id))
     assert {item.chunk.chunk_id for item in store.chunks} == old_ids
     embeddings.fail = False
     hits = await provider.search(
         KnowledgeQuery(query="skattesats", scope=_scope(customer_id=kund.id))
     )
-    assert [hit.document_id for hit in hits] == ["doc-txt"]
+    assert hits == []
 
 
-async def test_successful_reindex_replaces_old_chunks(session: AsyncSession):
+async def test_successful_reindex_preserves_history_and_retrieves_current_chunks(session: AsyncSession):
     kund = await _customer(session, "acme")
     await _index_document(
         session,
@@ -659,7 +668,7 @@ async def test_successful_reindex_replaces_old_chunks(session: AsyncSession):
     await put_object("acme", "dd/files/brief.txt", b"ny text om cykelbanor", "text/plain")
     second = await service.ingest_document(document_id="doc-txt", scope=_scope(customer_id=kund.id))
     assert second.status == "indexed"
-    new_ids = {item.chunk.chunk_id for item in store.chunks}
+    new_ids = {item.chunk.chunk_id for item in store.chunks if item.chunk.metadata["document_version_id"] == second.document_version_id}
     assert new_ids
     assert old_ids.isdisjoint(new_ids)
     assert await provider.search(
@@ -685,15 +694,14 @@ async def test_vector_store_and_embeddings_are_replaceable(session: AsyncSession
     class AlternateStore(MemoryKnowledgeVectorStore):
         def __init__(self) -> None:
             super().__init__()
-            self.replaced: list[str] = []
+            self.indexed: list[str] = []
 
-        async def replace_document_chunks(
+        async def upsert_chunks(
             self,
-            document_id: str,
             chunks: Sequence[EmbeddedKnowledgeChunk],
         ) -> None:
-            self.replaced.append(document_id)
-            await super().replace_document_chunks(document_id, chunks)
+            self.indexed.extend(item.chunk.document_id for item in chunks)
+            await super().upsert_chunks(chunks)
 
     store = AlternateStore()
     embeddings = FakeEmbeddingProvider()
@@ -704,7 +712,7 @@ async def test_vector_store_and_embeddings_are_replaceable(session: AsyncSession
         embeddings=embeddings,
     ).ingest_document(document_id="doc-txt", scope=_scope(customer_id=kund.id))
     assert result.status == "indexed"
-    assert store.replaced == ["doc-txt"]
+    assert store.indexed == ["doc-txt"]
     assert embeddings.calls
 
 

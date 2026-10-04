@@ -13,7 +13,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import KnowledgeDocumentRecord, Kund
+from app.database.models import (
+    CanonicalDocumentRecord,
+    DocumentVersionRecord,
+    KnowledgeDocumentRecord,
+    Kund,
+    StoredObject,
+    TextUnitRecord,
+)
+from app.database.text_units import SharedTextChunkRecord
 from app.services.knowledge.models import (
     EmbeddedKnowledgeChunk,
     EmbeddedKnowledgeQuery,
@@ -48,9 +56,12 @@ from app.services.knowledge.vector_store import (
     record_in_scope,
 )
 from app.services.object_storage import get_object, get_object_storage, put_object
+from app.services.knowledge.units import hash_text
+from app.services.workspaces import company_workspace_id, ensure_company_workspace
 from tests.knowledge_fakes import FakeEmbeddingProvider, fake_embed_text
 
 KNOWLEDGE_ROOT = Path(__file__).resolve().parents[1] / "app" / "services" / "knowledge"
+SOURCE_TEXT = "Kommunens skattesats, vindkraft och cykelbana finns i detta underlag."
 
 _FORBIDDEN_IMPORT_PREFIXES = (
     "app.services.panel",
@@ -88,6 +99,8 @@ async def _customer(session: AsyncSession, slug: str) -> Kund:
     kund = Kund(name=slug, slug=slug, available_modules=["dd"])
     session.add(kund)
     await session.flush()
+    await ensure_company_workspace(session, customer_id=kund.id)
+    await session.commit()
     return kund
 
 
@@ -118,9 +131,38 @@ async def _index_document(  # noqa: PLR0913
         version="1",
         extra=extra or {"origin": "files"},
     )
-    session.add(row)
-    await session.flush()
+    await _seed_document_grounding(session, row)
+    await session.commit()
     return row
+
+
+async def _seed_document_grounding(session: AsyncSession, row: KnowledgeDocumentRecord) -> None:
+    source_id = row.case_id or row.document_id
+    row.source_object_id = source_id
+    session.add(row)
+    session.add(StoredObject(
+        id=source_id, customer_id=row.customer_id, workspace_id=company_workspace_id(row.customer_id),
+        module=row.module or "dd", kind="underlag", bucket=row.storage_bucket, object_key=row.storage_key,
+        filename=row.title, content_type="application/pdf", size_bytes=len(SOURCE_TEXT),
+        extraction_status="ok", knowledge_status="ready", extracted_text=SOURCE_TEXT,
+    ))
+    scope = {"scope_type": "customer", "scope_key": f"customer:{row.customer_id}", "customer_id": row.customer_id}
+    content_hash = hash_text(SOURCE_TEXT)
+    if await session.get(SharedTextChunkRecord, content_hash) is None:
+        session.add(SharedTextChunkRecord(content_hash=content_hash, text=SOURCE_TEXT))
+    session.add(CanonicalDocumentRecord(
+        id=row.document_id, source_object_id=source_id, source_type="uploaded_file",
+        canonical_uri=row.external_id, title=row.title, **scope,
+    ))
+    session.add(DocumentVersionRecord(
+        id=f"version-{row.document_id}", document_id=row.document_id, content_hash=content_hash,
+        version="1", mime_type="application/pdf", **scope,
+    ))
+    session.add(TextUnitRecord(
+        id=f"unit-{row.document_id}", document_id=row.document_id,
+        document_version_id=f"version-{row.document_id}", ordinal=0,
+        content_hash=content_hash, locator="p1", **scope,
+    ))
 
 
 def _scope(
@@ -152,7 +194,12 @@ def _chunk(  # noqa: PLR0913
         provider=SUPABASE_PROVIDER_ID,
         version="1",
         content_hash="hash-1",
-        metadata=metadata or {},
+        metadata={
+            "workspace_id": company_workspace_id(customer_id),
+            "text_unit_id": f"unit-{document_id}",
+            "document_version_id": f"version-{document_id}",
+            **(metadata or {}),
+        },
     )
 
 
@@ -305,7 +352,7 @@ async def test_known_document_resolves_to_generic_document(session: AsyncSession
     assert doc.external_id == "acme/dd/files/brief.pdf"
     assert doc.title == "Brief"
     assert doc.mime_type == "application/pdf"
-    assert doc.scope == _scope(customer_id=kund.id)
+    assert doc.scope == KnowledgeScope(customer_id=kund.id, case_id="case-1", module="dd", workspace_id=company_workspace_id(kund.id))
     assert doc.version == "1"
     assert doc.document_id != doc.external_id
 
@@ -411,7 +458,9 @@ async def test_vector_search_returns_normalized_knowledge_hit(session: AsyncSess
     assert hit.document_id == "doc-brief"
     assert hit.provider == "supabase"
     assert hit.title == "Brief"
-    assert "vindkraft" in hit.excerpt
+    assert hit.excerpt == SOURCE_TEXT
+    assert hit.metadata["text_unit_id"] == "unit-doc-brief"
+    assert hit.metadata["document_version_id"] == "version-doc-brief"
     assert hit.locator == "p1"
     assert hit.external_id == "acme/dd/files/brief.pdf"
 
@@ -546,7 +595,7 @@ def test_vector_record_scope_accepts_integral_supabase_metadata_number():
         chunk_id="c1",
         text="text",
         title="title",
-        metadata={"customer_id": 7.0, "module": "expertgranskning"},
+        metadata={"customer_id": 7.0, "module": "expertgranskning", "workspace_id": company_workspace_id(7)},
     )
     assert record_in_scope(
         record,
@@ -720,6 +769,7 @@ async def test_search_overfetches_when_top_hits_are_not_visible(session: AsyncSe
                 title="Brief",
                 excerpt="skattesats valid",
                 locator="p1",
+                metadata={"text_unit_id": "unit-doc-valid", "document_version_id": "version-doc-valid"},
             ),
         ]
     )
@@ -745,6 +795,7 @@ async def test_search_stops_when_first_page_fills_limit(session: AsyncSession):
                 title="Brief",
                 excerpt="skattesats valid",
                 locator="p1",
+                metadata={"text_unit_id": "unit-doc-valid", "document_version_id": "version-doc-valid"},
             ),
             KnowledgeHit(
                 document_id="doc-extra",

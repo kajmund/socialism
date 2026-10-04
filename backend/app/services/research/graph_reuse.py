@@ -92,6 +92,10 @@ async def lookup_graph_evidence(
 
 
 def _fact_context_allowed(fact: GraphFact, context: ResearchContext) -> bool:
+    from app.services.research.workspace_grounding import fact_workspace_allowed
+
+    if not fact_workspace_allowed(fact, context):
+        return False
     case_id = fact.attributes.get("knowledge_case_id") or fact.attributes.get("case_id")
     module = fact.attributes.get("knowledge_module") or fact.attributes.get("module")
     return (case_id is None or case_id == context.scope.case_id) and (

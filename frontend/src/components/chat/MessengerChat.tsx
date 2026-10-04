@@ -32,10 +32,14 @@ type MessengerChatProps = {
   notice?: ReactNode
   /** Optional actions next to each bubble (delete/resend). */
   renderActions?: (message: MessengerChatMessage) => ReactNode
+  /** Optional rich renderer for a message body, such as linked research citations. */
+  renderMessageContent?: (message: MessengerChatMessage) => ReactNode
   suggestions?: string[]
   onSuggestion?: (question: string) => void
   className?: string
   messagesClassName?: string
+  /** Workspace attachments and research progress displayed inside the thread. */
+  threadContent?: ReactNode
   /** When false, hide the image attach control entirely. */
   allowImageAttach?: boolean
   imageAccept?: string
@@ -65,10 +69,12 @@ export function MessengerChat({
   empty = null,
   notice = null,
   renderActions,
+  renderMessageContent,
   suggestions = [],
   onSuggestion,
   className,
   messagesClassName,
+  threadContent,
   allowImageAttach = false,
   imageAccept = "image/jpeg,image/png,image/gif,image/webp",
   pendingImageUrl = null,
@@ -137,7 +143,7 @@ export function MessengerChat({
                     alt={t("chat.imageAlt")}
                   />
                 ) : null}
-                {m.content ? <ChatMarkdown text={m.content} /> : null}
+                {m.content ? renderMessageContent?.(m) ?? <ChatMarkdown text={m.content} /> : null}
               </div>
             </div>
             {renderActions ? renderActions(m) : null}
@@ -187,6 +193,7 @@ export function MessengerChat({
             ))}
           </div>
         ) : null}
+        {threadContent}
       </div>
       {notice ? <div className="chat-memory-notice">{notice}</div> : null}
       {pendingImageUrl ? (

@@ -33,6 +33,8 @@ const apiPrefixes = [
   'users',
   'kunder',
   'execution',
+  'workspaces',
+  'workspace-chats',
 ] as const
 
 /** Browser reloads send Accept: text/html; API calls send application/json. */

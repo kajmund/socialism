@@ -1,10 +1,7 @@
 """Prompt field registry: keys, UI labels, and default texts per language.
 
 Placeholders in templates:
-  {local_context}  — district/area block from the active configuration catalog
-  {requirements}   — demographic/attribute requirement lines
-  {surname_block}  — optional taken-surnames block (may be empty)
-  {voice_block}    — optional previous-persona block
+  {local_context}, {requirements}, {surname_block}, {voice_block} — persona context
   {free_text}      — user free text
   {count}          — number of personas
   {candidate_index}, {candidate_count}
@@ -32,6 +29,7 @@ from app.services.research_assessment_prompt import SYSTEM_SV as ASSESSMENT_SYST
 from app.services.research_assessment_prompt import SYSTEM_EN as ASSESSMENT_SYSTEM_EN
 from app.services.graph_v2.prompts import graph_fact_prompt_fields
 from app.services.research_coverage_prompts import coverage_prompt_fields
+from app.services.workspace_chat_prompts import workspace_prompt_fields
 
 ConfigurationLanguage = Literal["sv", "en", "nb"]
 PromptSection = Literal[
@@ -3624,7 +3622,8 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
     ),
 ]
 PROMPT_FIELDS.extend(
-    [*graph_fact_prompt_fields(), *coverage_prompt_fields(), *expert_chat_prompt_fields()]
+    [*graph_fact_prompt_fields(), *coverage_prompt_fields(),
+     *expert_chat_prompt_fields(), *workspace_prompt_fields()]
 )
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)

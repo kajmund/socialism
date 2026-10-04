@@ -539,7 +539,7 @@ def test_production_introspection_exposes_lagen_nu_natures():
     assert "swedish_case_law" in offered
     assert "swedish_preparatory_works" in offered
     assert "web" not in offered
-    assert "domain_knowledge" not in offered
+    assert "domain_knowledge" in offered
 
 
 def test_planner_sees_legal_natures_from_registry_not_a_hardcoded_list():
@@ -1566,28 +1566,28 @@ async def test_wrong_source_hits_are_not_used_for_swedish_law():
     assert [name for name, _args in client.calls] == ["resolve_citation", "search"]
 
 
-async def test_standard_registry_excludes_tenant_providers():
+async def test_standard_registry_registers_scoped_document_providers():
     provider = RecordingKnowledgeProvider()
     registry = build_research_registry(provider)
     knowledge = [
-        entry
-        for entry in registry.registered_providers()
-        if entry.descriptor.access.adapter == "knowledge_research_source"
+        entry for entry in registry.registered_providers() if entry.descriptor.access.adapter == "knowledge_research_source"
     ]
     lagen = [
-        entry
-        for entry in registry.registered_providers()
-        if entry.descriptor.access.adapter == LAGEN_NU_ADAPTER
+        entry for entry in registry.registered_providers() if entry.descriptor.access.adapter == LAGEN_NU_ADAPTER
     ]
-    assert knowledge == []
+    assert {entry.source.source_type for entry in knowledge} == {"case_knowledge", "customer_knowledge", "domain_knowledge"}
+    assert all(entry.descriptor.authority["tenant_bound"] is (entry.source.source_type != "domain_knowledge")
+               for entry in knowledge)
     assert len(lagen) == 3
     assert all(entry.source.provider_id == LAGEN_NU_PROVIDER_ID for entry in lagen)
     evidence = await ResearchRouter(registry).execute_need(
         _need("case_knowledge"),
         _context(customer_id=4, case_id="case-1"),
     )
-    assert [item.status for item in evidence] == ["error"]
-    assert provider.queries == []
+    assert [item.status for item in evidence] == ["not_found"]
+    assert len(provider.queries) == 1
+    assert (provider.queries[0].scope.customer_id, provider.queries[0].scope.case_id) == (4, "case-1")
+    assert provider.queries[0].filters == {"scope_type": "customer"}
 
 
 def test_adapter_is_programmatic():

@@ -22,6 +22,7 @@ from app.services.knowledge.models import (
     KnowledgeDocument,
     KnowledgeScope,
 )
+from app.services.knowledge.materialized_document import persisted_segment
 from app.services.knowledge.persistence import (
     current_text_units,
     get_canonical_document_by_identity,
@@ -60,6 +61,8 @@ async def ingest_extracted_source(  # noqa: PLR0913
     persist_scope = require_persist_scope(scope=scope, customer_id=customer_id)
     if document.scope.tenant != persist_scope:
         raise ValueError("ingest document scope does not match persist scope")
+    if persist_scope.scope_type == "shared" and source_object_id is not None:
+        raise ValueError("Customer-owned stored objects cannot be ingested as global knowledge")
     if extracted.status != "ok" or not any(block.text.strip() for block in extracted.blocks):
         return KnowledgeIngestResult(
             document_id=document.document_id,
@@ -105,6 +108,7 @@ async def ingest_extracted_source(  # noqa: PLR0913
         source_object_id=source_object_id,
         segmented=segmented,
     )
+    segmented = await persisted_segment(session, segmented, persisted.version)
     # Release the row lock and the pool connection before embedding. The
     # research session otherwise holds both until the need finishes, then
     # rolls the insert back when it closes.
@@ -113,11 +117,7 @@ async def ingest_extracted_source(  # noqa: PLR0913
         # A matching content hash reuses the SQL version. The current vector
         # index can still be empty after an index switch, so write the
         # persisted TextUnits when this index does not already have them.
-        units = [
-            text_unit_from_record(row)
-            for row in await current_text_units(session, resolved_document.document_id)
-        ]
-        await session.commit()
+        units = list(segmented.text_units)
         if not units:
             raise RuntimeError(
                 f"reused document {resolved_document.document_id} has no current TextUnits"
@@ -226,6 +226,7 @@ async def _current_index_inputs(
             scope=KnowledgeScope(
                 customer_id=tenant.customer_id,
                 scope_type=tenant.scope_type,
+                workspace_id=(row.extra or {}).get("workspace_id"),
             ),
             version=version.version,
             source_type=row.source_type,
