@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { Conversation as ConversationInstance, Callbacks } from "@elevenlabs/client"
 import { voiceWorkspaces, type ChatSession, type WorkspaceMessage, type WorkspaceState, type ToolResult } from "@/api/voiceWorkspaces"
 import { useLocale } from "@/i18n"
-import { clientArguments, workspaceErrorMessage } from "./workspaceChatLogic"
+import { clientArguments, isCurrentConversation, workspaceErrorMessage } from "./workspaceChatLogic"
 
 export type VoiceState = "disconnected" | "connecting" | "listening" | "speaking" | "paused" | "error"
 const clientNames = ["open_ingest_picker", "show_evidence", "show_document", "focus_anchor", "show_comparison", "show_relations", "show_knowledge", "show_artifact"]
@@ -45,7 +45,7 @@ export function useWorkspaceConversation(props: {
     setStatus("connecting")
     const task = (async () => {
       const session = await voiceWorkspaces.start(workspaceId, expertId, mode, locale)
-      const isCurrent = () => generation.current === currentGeneration
+      const isCurrent = () => isCurrentConversation(currentGeneration, generation.current, { workspaceId, expertId }, latest.current)
       if (!isCurrent()) { await voiceWorkspaces.end(workspaceId, session.session_id); throw new Error(t("voiceWorkspaceChat.sessionError")) }
       let resolveBound!: () => void
       const bound = new Promise<void>((resolve) => { resolveBound = resolve })

@@ -2,6 +2,10 @@ import { ApiError } from "@/lib/http"
 import type { MessageKey } from "@/i18n"
 import type { WorkspaceMessage, WorkspaceState } from "@/api/voiceWorkspaces"
 
+export function isCurrentConversation(expectedGeneration: number, currentGeneration: number, expected: { workspaceId: string | null; expertId: string | null }, current: { workspaceId: string | null; expertId: string | null }): boolean {
+  return expectedGeneration === currentGeneration && expected.workspaceId === current.workspaceId && expected.expertId === current.expertId
+}
+
 export function upsertTranscript(messages: WorkspaceMessage[], message: WorkspaceMessage): WorkspaceMessage[] {
   const index = messages.findIndex((row) => row.session_id === message.session_id && row.event_key === message.event_key)
   if (index < 0) return [...messages, message]
