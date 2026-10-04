@@ -51,9 +51,11 @@ def argument_schema(name: str) -> dict:
         return TOOL_ARGUMENT_MODELS[name].model_json_schema()
     if name in {"open_ingest_picker", "get_workspace_context"}:
         properties = {}
-    elif name in {"show_document", "focus_anchor"}:
+    elif name == "show_document":
         properties = {"reference_id": {"type": "string"}, "source_id": {"type": "string"},
                       "page": {"type": "integer", "minimum": 1}}
+    elif name == "focus_anchor":
+        properties = {"reference_id": {"type": "string"}}
     elif name in {"show_evidence", "show_knowledge"}:
         properties = {"reference_ids": {"type": "array", "items": {"type": "string"}}}
     elif name == "show_relations":
@@ -63,6 +65,8 @@ def argument_schema(name: str) -> dict:
     result = {"type": "object", "properties": properties, "additionalProperties": False}
     if name in {"show_artifact", "show_comparison", "show_relations"}:
         result["required"] = ["artifact_id"]
+    if name == "focus_anchor":
+        result["required"] = ["reference_id"]
     return result
 
 
