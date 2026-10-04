@@ -12,9 +12,10 @@ from app.llm import complete_text, complete_with_tools
 from app.database.models import Persona, UserAccount
 from app.database.workspaces import Workspace, WorkspaceChat, WorkspaceChatMessage
 from app.schemas.workspace_chat import WorkspaceResearchRequest
-from app.services.expert_session_tools import RESEARCH_TOOL_NAME, research_tool_spec
+from app.services.expert_session_tools import RESEARCH_TOOL_NAME
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
+from app.services.workspace_chat_documents import document_inventory, workspace_research_tool_spec
 from app.services.workspace_chats import require_chat
 from app.services.workspace_research_start import queue_workspace_research
 
@@ -33,7 +34,9 @@ async def chat_turn_lock(chat_id: str):
         lock.release()
 
 
-async def _turn_messages(session: AsyncSession, chat: WorkspaceChat) -> list[dict]:
+async def _turn_messages(
+    session: AsyncSession, user: UserAccount, chat: WorkspaceChat
+) -> list[dict]:
     workspace = await session.get(Workspace, chat.workspace_id)
     persona = await session.get(Persona, chat.persona_id) if chat.persona_id else None
     prompts = await require_active_prompts(
@@ -47,6 +50,7 @@ async def _turn_messages(session: AsyncSession, chat: WorkspaceChat) -> list[dic
         workspace_name=workspace.name,
         assistant_name=identity,
         profile=profile,
+        available_documents=await document_inventory(session, user, chat),
     )
     rows = list(
         await session.scalars(
@@ -72,7 +76,11 @@ async def _run_tool_calls(session, user, chat, reply, *, messages) -> str:
     call = calls[0]
     try:
         arguments = json.loads(call.function.arguments)
-        request = WorkspaceResearchRequest(question=arguments["question"], entrypoint="tool")
+        request = WorkspaceResearchRequest(
+            question=arguments["question"],
+            source_object_ids=arguments.get("source_object_ids"),
+            entrypoint="tool",
+        )
     except (ValueError, KeyError, TypeError) as exc:
         raise HTTPException(status_code=502, detail="invalid_research_tool_arguments") from exc
     job = await queue_workspace_research(session, user, chat, request)
@@ -127,12 +135,12 @@ async def workspace_chat_turn(
         if not chat.title:
             chat.title = content.strip()[:120]
         await session.flush()
-        messages = await _turn_messages(session, chat)
+        messages = await _turn_messages(session, user, chat)
         # Materialize ORM fields before deliberately releasing the input transaction.
         user_id, customer_id = user.id, chat.customer_id
         await session.commit()
         completion = await complete_with_tools(
-            messages, [research_tool_spec()], prompt_key="chat.workspace.system"
+            messages, [workspace_research_tool_spec()], prompt_key="chat.workspace.system"
         )
         user, chat = await _current_chat(session, user_id, chat_id, customer_id)
         reply = completion

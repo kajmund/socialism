@@ -30,7 +30,9 @@ Om mikrofonen nekas visar chatten ett fel och du kan fortsätta skriva. Om röst
 
 ## Arbeta med källor och presentationer
 
-Ladda upp dokument genom filväljaren i arbetsytan. Bearbetningen visas som ett bakgrundsjobb. Vänta tills dokumentet är läsbart innan du ber experten analysera det. Dokument som saknar textlager visar en kunskapslucka.
+Chatten kan upptäcka dokument som redan finns i företagets och den valda kundens arbetsyta. Be exempelvis ”läs kvittot” eller ”sammanfatta avtalet”. Experten väljer det relevanta dokumentet och behöver inte be dig ladda upp det igen.
+
+Ladda upp nya dokument genom filväljaren i arbetsytan. Bearbetningen visas som ett bakgrundsjobb. Vänta tills dokumentet är läsbart innan du ber experten analysera det. Dokument som saknar textlager visar en kunskapslucka. Om bearbetningen avbryts visas ett fel; filen räknas inte som färdig kunskap.
 
 Välj kunskapsområde i arbetsytans överkant: **Workspace**, **Allmän kunskap** eller **Research**. Det valda området följer med nästa fråga. Research behöver egna tillgängliga resultat; expertens minnen räknas inte som dokumentkällor.
 
