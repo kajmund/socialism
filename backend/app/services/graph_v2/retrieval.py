@@ -17,12 +17,14 @@ class FactHit:
     hop: int
 
 
-def _visible(customer_id: int):
+def _visible(customer_id: int | None):
+    if customer_id is None:
+        return GraphFact.scope_key == "shared"
     return GraphFact.scope_key.in_((f"customer:{customer_id}", "shared"))
 
 
 async def hybrid_facts(
-    session: AsyncSession, *, customer_id: int, query: str,
+    session: AsyncSession, *, customer_id: int | None, query: str,
     embedding: list[float] | None = None, embedding_model: str | None = None,
     limit: int = 20,
 ) -> list[FactHit]:
@@ -67,7 +69,7 @@ async def hybrid_facts(
 
 
 async def _semantic_candidates(
-    session: AsyncSession, *, customer_id: int, embedding: list[float],
+    session: AsyncSession, *, customer_id: int | None, embedding: list[float],
     model: str | None, limit: int,
 ) -> list[GraphFact]:
     if session.bind and session.bind.dialect.name == "postgresql":
@@ -79,7 +81,7 @@ async def _semantic_candidates(
             ORDER BY (embedding::text)::vector <=> CAST(:query AS vector)
             LIMIT :limit
         """), {
-            "owned": f"customer:{customer_id}", "model": model,
+            "owned": "shared" if customer_id is None else f"customer:{customer_id}", "model": model,
             "dimension": len(embedding), "query": str(embedding), "limit": limit,
         })).all())
         rows = {row.id: row for row in (await session.scalars(
@@ -101,7 +103,7 @@ def _cosine(first: list[float] | None, second: list[float] | None) -> float:
 
 
 async def neighbourhood(
-    session: AsyncSession, *, customer_id: int, seeds: list[str],
+    session: AsyncSession, *, customer_id: int | None, seeds: list[str],
     max_hops: int = 2, limit: int = 100,
 ) -> list[FactHit]:
     if max_hops < 1 or max_hops > 4 or limit < 1:
