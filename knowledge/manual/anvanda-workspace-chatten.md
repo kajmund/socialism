@@ -9,7 +9,7 @@ tags: [grunddata, jobb, personas]
 
 Öppna **Workspace-chatt** i SME-chatten eller i chatten med en sparad expert. Företagets workspace används när du inte har valt något annat. Där samlar du företagets egna policies, mallar och gemensamma kunskap.
 
-**Expertchattar** behåller telefonen, minnet, verktygsvalet, bildbilagorna och följdfrågorna. I expertens redigeringsvy finns det vanliga samtalet under **Intervju**. Välj **Workspace-chatt** när du vill arbeta med dokument och research i företagets eller en klients workspace.
+I expertens redigeringsvy finns det vanliga samtalet under **Intervju**. Välj **Workspace-chatt** när du vill arbeta med dokument och research i företagets eller en klients workspace.
 
 ## Välj workspace och konversation
 
