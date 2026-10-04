@@ -1074,6 +1074,7 @@ export function UnderlagPickerModal({
                               setSelectedAnchor(anchor)
                               setFocusAnchors([anchor])
                             }}
+                            onClearSelection={handleClearDocumentSelection}
                             onError={handlePdfError}
                             onReady={handlePdfReady}
                           />
