@@ -679,20 +679,20 @@ async def get_suggested_questions(
 
 @router.get("/{persona_id}/memories", response_model=ExpertMemoryListOut)
 async def list_persona_memories(
-    persona_id: str,
+    persona_id: str, *,
     session: AsyncSession = Depends(get_session),
-    user: UserAccount = Depends(get_current_user),
+    user: UserAccount = Depends(get_current_user), workspace_id: str | None = Query(default=None),
 ) -> ExpertMemoryListOut:
-    return await memory_api.list_memories(session, persona_id, user)
+    return await memory_api.list_memories(session, persona_id, user, workspace_id=workspace_id)
 
 
 @router.delete("/{persona_id}/memories", status_code=204)
 async def clear_persona_memories(
-    persona_id: str,
+    persona_id: str, *,
     session: AsyncSession = Depends(get_session),
-    user: UserAccount = Depends(get_current_user),
+    user: UserAccount = Depends(get_current_user), workspace_id: str | None = Query(default=None),
 ) -> None:
-    await memory_api.clear_memories(session, persona_id, user)
+    await memory_api.clear_memories(session, persona_id, user, workspace_id=workspace_id)
 
 
 @router.patch("/{persona_id}/memories/{memory_id}", response_model=ExpertMemoryOut)
@@ -701,19 +701,19 @@ async def update_persona_memory(
     memory_id: str,
     body: ExpertMemoryUpdate, *,
     session: AsyncSession = Depends(get_session),
-    user: UserAccount = Depends(get_current_user),
+    user: UserAccount = Depends(get_current_user), workspace_id: str | None = Query(default=None),
 ) -> ExpertMemoryOut:
-    return await memory_api.update_memory(session, persona_id, user, memory_id=memory_id, text=body.text)
+    return await memory_api.update_memory(session, persona_id, user, memory_id=memory_id, text=body.text, workspace_id=workspace_id)
 
 
 @router.delete("/{persona_id}/memories/{memory_id}", status_code=204)
 async def delete_persona_memory(
     persona_id: str,
-    memory_id: str,
+    memory_id: str, *,
     session: AsyncSession = Depends(get_session),
-    user: UserAccount = Depends(get_current_user),
+    user: UserAccount = Depends(get_current_user), workspace_id: str | None = Query(default=None),
 ) -> None:
-    await memory_api.delete_memory(session, persona_id, user, memory_id=memory_id)
+    await memory_api.delete_memory(session, persona_id, user, memory_id=memory_id, workspace_id=workspace_id)
 
 
 @router.get("/{persona_id}/messages", response_model=list[PersonaMessageOut])
