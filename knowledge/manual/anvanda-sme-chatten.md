@@ -14,9 +14,9 @@ När din kund har produkten **SME** öppnas chatten direkt efter inloggning. Den
 - **Alla** visar både enskilda experter och expertpaneler.
 - **Olästa** visar experter och expertpaneler som har nya svar.
 - **Grupper** visar bara expertpaneler.
-- Sökfältet filtrerar den lista som är öppen.
+- Förstoringsglaset i vänsterkolumnen öppnar chattlistan med sökning och filter. Sökfältet filtrerar den lista som är öppen.
 
-En gul punkt längst till höger betyder att konversationen innehåller olästa expertsvar. När du öppnar konversationen markeras de som lästa.
+En gul markering visar antalet olästa expertsvar. När du öppnar konversationen markeras de som lästa. Förhandsvisning, tid och lässtatus för enskilda experter gäller den privata chatt du har valt.
 
 I den smala expertlistan öppnar sökikonen en dialog med sökfält, filter och förhandsvisningar. Dialogen visar vilket workspace konversationerna hör till.
 
@@ -24,7 +24,7 @@ I den smala expertlistan öppnar sökikonen en dialog med sökfält, filter och 
 
 Välj först företagets eller kundens arbetsyta och därefter en privat chatt och expert. Administratörer väljer även kund. Skriv i fältet **Aa** och skicka. Text och röst använder samma expert och samma arbetsyta. Chattens svar sparas tillsammans med arbetsytan.
 
-Du kan öppna en annan konversation medan experten arbetar. Svaret fortsätter att tas fram och markeras som oläst när det är klart.
+När du byter expert eller privat chatt avslutas det aktuella samtalet. Redan sparade meddelanden ligger kvar. Dokumentjobb som har startats fortsätter även när samtalet avslutas.
 
 Telefonknappen vid skrivfältet startar **live voice**. Tillåt mikrofonen i webbläsaren. Du kan stänga av mikrofonen, avbryta ett uppläst svar eller avsluta röstsamtalet. Du kan också skriva medan röstsamtalet är aktivt. Talade frågor och expertsvar visas i chatten. Dokument och sparade jobb ligger kvar när samtalet avslutas.
 
@@ -75,7 +75,7 @@ I företagets workspace öppnar **Intervju** expertens tidigare samtal i en dial
 
 Öppna **Grupper** och välj en expertpanel. När du skickar en fråga svarar panelens experter var för sig. Expertens namn visas ovanför respektive svar.
 
-På en mindre skärm visas en kolumn åt gången. Använd tillbaka-knappen i chatthuvudet för att återgå till listan.
+På en mindre skärm visas chatten eller arbetsytan åt gången. Växla med **Chatt** och **Workspace** och öppna chattlistan med förstoringsglaset.
 
 ## Användarmenyn
 

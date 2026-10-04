@@ -197,8 +197,9 @@ async def patch_workspace(session: AsyncSession, workspace: VoiceWorkspace, *, e
         values["state"] = state.model_dump()
     if title is not None:
         values["title"] = title.strip()
-    result = await session.execute(update(VoiceWorkspace).where(VoiceWorkspace.id == workspace.id, VoiceWorkspace.revision == expected_revision).values(**values))
-    if result.rowcount != 1:
+    result = await session.execute(update(VoiceWorkspace).where(VoiceWorkspace.id == workspace.id,
+        VoiceWorkspace.revision == expected_revision).values(**values).returning(VoiceWorkspace.id))
+    if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=409, detail="workspace_revision_conflict")
     await session.refresh(workspace)
     return workspace
@@ -231,11 +232,12 @@ async def accept_operation(session: AsyncSession, workspace: VoiceWorkspace, *, 
         id=operation_id, workspace_id=workspace.id, idempotency_key=idempotency_key,
         payload_hash=digest, tool_name=tool_name, status="accepted",
         context_snapshot=context_snapshot or {"revision": workspace.revision, "state": dict(workspace.state)},
-        result={}).on_conflict_do_nothing(index_elements=["workspace_id", "idempotency_key"]))
+        result={}).on_conflict_do_nothing(index_elements=["workspace_id", "idempotency_key"]).returning(WorkspaceOperation.id))
+    inserted_id = result.scalar_one_or_none()
     operation = (await session.execute(query)).scalar_one()
     if operation.payload_hash != digest:
         raise HTTPException(status_code=409, detail="workspace_idempotency_conflict")
-    return operation, result.rowcount == 1
+    return operation, inserted_id == operation_id
 
 
 
@@ -247,8 +249,9 @@ async def publish_artifact_revision(session: AsyncSession, artifact: WorkspaceAr
     next_revision = expected_revision + 1
     result = await session.execute(update(WorkspaceArtifact).where(WorkspaceArtifact.id == artifact.id,
                                                                  WorkspaceArtifact.revision == expected_revision).values(
-        revision=next_revision, content=content, title=title or artifact.title, status="ready", error=None, updated_at=datetime.now(UTC)))
-    if result.rowcount != 1:
+        revision=next_revision, content=content, title=title or artifact.title, status="ready", error=None,
+        updated_at=datetime.now(UTC)).returning(WorkspaceArtifact.id))
+    if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=409, detail="artifact_revision_conflict")
     session.add(WorkspaceArtifactRevision(artifact_id=artifact.id, revision=next_revision,
                                          title=title or artifact.title, content=content))

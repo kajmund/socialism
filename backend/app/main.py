@@ -32,6 +32,7 @@ from app.api import (
     workspace_chats,
     users,
     voice_workspaces,
+    voice_workspace_inbox,
     workspace_exports,
     workspace_conversations,
     workspaces,
@@ -178,6 +179,7 @@ def create_app() -> FastAPI:
     app.include_router(sme.router)
     app.include_router(sme_ws.router)
     app.include_router(voice_workspaces.router)
+    app.include_router(voice_workspace_inbox.router)
     app.include_router(workspace_exports.router)
     app.include_router(workspace_conversations.router)
     app.include_router(embeddings.router)

@@ -74,6 +74,7 @@ async def reserve_conversation(session: AsyncSession, *, workspace_id: str, user
         status="starting", expires_at=datetime.now(UTC) + timedelta(seconds=settings.elevenlabs_session_ttl_seconds),
         prompt_version=snapshot.prompt_version, agent_version="", agent_id="")
     session.add(row)
+    await session.flush()
     session.add(WorkspaceConversationEvent(session_id=row.id, event_key="session-context", kind="init",
         payload={"workspace_state": state.model_dump(), "workspace_revision": workspace.revision}))
     history = await thread_messages(session, workspace=workspace, expert_id=request.expert_id)
