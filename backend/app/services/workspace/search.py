@@ -10,13 +10,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.graph_v2 import GraphFact, GraphFactSource
-from app.database.models import DocumentVersionRecord, KnowledgeDocumentRecord, StoredObject
-from app.database.workspace_models import Workspace, WorkspaceSource
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, StoredObject
+from app.database.workspace_models import VoiceWorkspace, WorkspaceSource
 from app.services.document_knowledge import (
-    _normalized, _page_number, _quote_rects, list_document_knowledge, serialize_document_knowledge_item,
+    _normalized, _page_number, _quote_rects,
 )
 from app.services.knowledge.embeddings import OpenAIEmbeddingProvider, require_embedding_vectors
 from app.services.knowledge.models import EmbeddedKnowledgeQuery, KnowledgeQuery, KnowledgeScope
+from app.services.knowledge.document_grounding import grounded_hits
 from app.services.knowledge.provider import SUPABASE_PROVIDER_ID
 from app.services.object_storage import get_object
 from app.services.research.composition import require_knowledge_vector_store
@@ -24,6 +25,7 @@ from app.services.research.graph_reuse import GraphQueryEmbedding, lookup_graph_
 from app.services.research.models import RESEARCH_SOURCE_TYPES, ResearchContext, ResearchNeed
 from app.services.workspace.service import require_source
 from app.services.workspace.sources import citation, reference_out, source_version
+from app.services.workspaces import resolve_readable_workspace_ids
 
 
 @dataclass(frozen=True)
@@ -35,11 +37,15 @@ class SourceInput:
     content_type: str
     bucket: str
     key: str
+    document_version_ids: tuple[str, ...]
 
 
-def _materialize(source: StoredObject) -> SourceInput:
+async def _materialize(session: AsyncSession, source: StoredObject) -> SourceInput:
+    versions = await session.scalars(select(DocumentVersionRecord.id).join(
+        CanonicalDocumentRecord, CanonicalDocumentRecord.id == DocumentVersionRecord.document_id).where(
+        CanonicalDocumentRecord.source_object_id == source.id, DocumentVersionRecord.superseded_at.is_(None)))
     return SourceInput(source.id, source_version(source), source.extracted_text, source.filename,
-                       source.content_type, source.bucket, source.object_key)
+                       source.content_type, source.bucket, source.object_key, tuple(versions))
 
 
 def _pdf_quote_rects(data: bytes, page: int, quote: str) -> list[dict]:
@@ -56,7 +62,9 @@ async def _external_search(sources: list[SourceInput], query: KnowledgeQuery) ->
     output = []
     for source in sources:
         scoped = KnowledgeQuery(query=query.query, limit=query.limit * 8,
-            scope=KnowledgeScope(customer_id=query.scope.customer_id, case_id=source.id, module=query.scope.module))
+            scope=KnowledgeScope(customer_id=query.scope.customer_id, case_id=source.id, module=query.scope.module,
+                workspace_id=query.scope.workspace_id, readable_workspace_ids=query.scope.readable_workspace_ids,
+                allowed_source_object_ids=(source.id,), allowed_document_version_ids=source.document_version_ids))
         hits = await store.search(EmbeddedKnowledgeQuery(query=scoped, embedding=vectors[0]))
         for hit in hits:
             rects = []
@@ -69,44 +77,44 @@ async def _external_search(sources: list[SourceInput], query: KnowledgeQuery) ->
     return output
 
 
-async def _hit_reference(session: AsyncSession, workspace: Workspace, found: tuple):
+async def _hit_reference(session: AsyncSession, workspace: VoiceWorkspace, found: tuple):
     source_input, hit, rects = found
     source = await require_source(session, workspace, source_input.id)
     if source_version(source) != source_input.version:
         raise HTTPException(status_code=409, detail="workspace_source_changed_during_search")
-    indexed = await session.get(KnowledgeDocumentRecord, hit.document_id)
-    if (hit.provider != SUPABASE_PROVIDER_ID or indexed is None or indexed.provider != SUPABASE_PROVIDER_ID
-            or indexed.customer_id != workspace.customer_id or indexed.case_id != source.id
-            or indexed.module != workspace.module or indexed.source_object_id != source.id):
+    if hit.provider != SUPABASE_PROVIDER_ID:
         return None
-    items = await list_document_knowledge(session, source_object_id=source.id)
-    item_id = hit.metadata.get("document_knowledge_item_id")
-    item = next((row for row in items if row.id == item_id and row.status == "active"), None)
-    if item_id and item is None:
-        raise HTTPException(status_code=409, detail="knowledge_item_stale")
-    if item is not None:
-        value = serialize_document_knowledge_item(item)
-        anchor = value["anchors"][0] if value["anchors"] else {}
-        snapshot = {"title": item.title, "excerpt": item.content, "item_id": item.id, "item_revision": item.revision}
-    else:
-        if not hit.excerpt or _normalized(hit.excerpt) not in _normalized(source.extracted_text or ""):
-            raise HTTPException(status_code=409, detail="source_excerpt_stale")
-        anchor = {"anchor_type": "text", "page_number": _page_number(hit.locator or ""),
-                  "locator": hit.locator, "exact_text": hit.excerpt, "rects": rects}
-        snapshot = {"title": hit.title or source.filename, "excerpt": hit.excerpt, "kind": "document_chunk"}
+    readable = await resolve_readable_workspace_ids(session, customer_id=workspace.customer_id,
+        user_id=workspace.owner_user_id, workspace_id=workspace.workspace_id)
+    scope = KnowledgeScope(customer_id=workspace.customer_id, module=workspace.module,
+        workspace_id=workspace.workspace_id, readable_workspace_ids=tuple(readable),
+        allowed_source_object_ids=(source.id,), allowed_document_version_ids=source_input.document_version_ids)
+    passages = await grounded_hits(session, hit, scope)
+    if not passages:
+        return None
+    passage = passages[0]
+    if not passage.excerpt or _normalized(passage.excerpt) not in _normalized(source.extracted_text or ""):
+        raise HTTPException(status_code=409, detail="source_excerpt_stale")
+    anchor = {"anchor_type": "text", "page_number": _page_number(passage.locator or ""),
+              "locator": passage.locator, "exact_text": passage.excerpt, "rects": rects}
+    snapshot = {"title": passage.title or source.filename, "excerpt": passage.excerpt,
+                "kind": "document_chunk", **passage.metadata}
     return await citation(session, workspace, kind="underlag", source_id=source.id,
                           version=source_input.version, anchor=anchor, snapshot=snapshot)
 
 
-async def search_workspace(session: AsyncSession, workspace: Workspace, query: str, limit: int) -> dict:
+async def search_workspace(session: AsyncSession, workspace: VoiceWorkspace, query: str, limit: int) -> dict:
     members = list((await session.scalars(select(WorkspaceSource).where(WorkspaceSource.workspace_id == workspace.id))).all())
     sources = [await require_source(session, workspace, member.source_id) for member in members]
-    readable = [_materialize(source) for source in sources if source.knowledge_status in {"ready", "partial"} and source.extracted_text]
+    readable = [await _materialize(session, source) for source in sources if source.knowledge_status in {"ready", "partial"} and source.extracted_text]
     gaps = [{"source_id": source.id, "status": source.knowledge_status, "detail": source.knowledge_error}
             for source in sources if source.knowledge_status != "ready"]
     if not readable:
         return {"items": [], "gaps": gaps}
-    scoped = KnowledgeQuery(query=query, limit=limit, scope=KnowledgeScope(customer_id=workspace.customer_id, module=workspace.module))
+    parent_ids = await resolve_readable_workspace_ids(session, customer_id=workspace.customer_id,
+        user_id=workspace.owner_user_id, workspace_id=workspace.workspace_id)
+    scoped = KnowledgeQuery(query=query, limit=limit, scope=KnowledgeScope(customer_id=workspace.customer_id,
+        module=workspace.module, workspace_id=workspace.workspace_id, readable_workspace_ids=tuple(parent_ids)))
     await session.commit()
     found = await _external_search(readable, scoped)
     refs = []
@@ -127,16 +135,20 @@ async def _query_embedding(query: str) -> GraphQueryEmbedding:
     return GraphQueryEmbedding(embeddings.model, embeddings.dimension, vectors[0])
 
 
-async def search_general(session: AsyncSession, workspace: Workspace, query: str, limit: int) -> dict:
+async def search_general(session: AsyncSession, workspace: VoiceWorkspace, query: str, limit: int) -> dict:
     present = await session.scalar(select(GraphFact.id).join(GraphFactSource, GraphFactSource.fact_id == GraphFact.id).where(
         GraphFact.scope_key.in_(("shared", f"customer:{workspace.customer_id}")),
         GraphFact.status == "active", GraphFactSource.source_kind == "text_unit").limit(1))
     customer_id = workspace.customer_id
+    parent_ids = await resolve_readable_workspace_ids(session, customer_id=customer_id,
+        user_id=workspace.owner_user_id, workspace_id=workspace.workspace_id)
+    scope = KnowledgeScope(customer_id=customer_id, module=workspace.module, workspace_id=workspace.workspace_id,
+                           readable_workspace_ids=tuple(parent_ids))
     await session.commit()
     embedding = await _query_embedding(query) if present is not None else None
     candidates = await lookup_graph_evidence(session,
         need=ResearchNeed(id="workspace_search", question=query, why_needed="", source_types=list(RESEARCH_SOURCE_TYPES)),
-        context=ResearchContext(scope=KnowledgeScope(customer_id=customer_id)), query_embedding=embedding, limit=limit)
+        context=ResearchContext(scope=scope), query_embedding=embedding, limit=limit)
     refs = []
     for item in candidates:
         version = await session.get(DocumentVersionRecord, item.metadata["document_version_id"])

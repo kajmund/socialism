@@ -16,7 +16,7 @@ class WorkspaceConversationSession(Base):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspace_chats.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("voice_workspaces.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("user_accounts.id", ondelete="CASCADE"), index=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("kunder.id", ondelete="RESTRICT"), index=True)
     expert_id: Mapped[str] = mapped_column(ForeignKey("personas.id", ondelete="CASCADE"), index=True)

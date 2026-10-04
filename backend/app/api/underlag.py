@@ -1,4 +1,4 @@
-"""Personal underlag uploads — kund bucket, one owner path per user."""
+"""Personal underlag, explicitly scoped to the selected workspace."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.auth.scope import customer_id_for_user
-from app.database.models import StoredObject, UserAccount
+from app.database.models import UserAccount
 from app.database.session import get_session
 from app.modules.registry import MODULE_REGISTRY
 from app.schemas.domain import JobCreate
@@ -22,14 +22,12 @@ from app.services.document_knowledge import (
     serialize_document_knowledge_item,
     update_document_knowledge,
 )
-from app.services.object_storage import KIND_UNDERLAG, MAX_UNDERLAG_BYTES, ObjectStorageError
+from app.services.object_storage import MAX_UNDERLAG_BYTES, ObjectStorageError
 from app.services.stored_objects import (
     create_underlag_folder,
     delete_stored_object,
-    get_stored_object,
     get_underlag_folder,
     list_all_underlag_folders,
-    list_underlag,
     list_underlag_folders,
     move_underlag,
     own_underlag_folder,
@@ -37,6 +35,13 @@ from app.services.stored_objects import (
     serialize_underlag,
     serialize_underlag_folder,
     upload_underlag,
+)
+from app.services.personal_underlag_scope import (
+    detach_underlag,
+    list_personal_underlag,
+    personal_underlag,
+    personal_workspace,
+    require_company_folders,
 )
 from app.services.underlag_schemas import (
     DocumentKnowledgeItemOut,
@@ -58,25 +63,18 @@ def _require_module(module: str) -> str:
     return module
 
 
-def _own_underlag(row: StoredObject | None, *, customer_id: int, user_id: str) -> StoredObject:
-    if (
-        row is None
-        or row.kind != KIND_UNDERLAG
-        or row.customer_id != customer_id
-        or row.owner_user_id != user_id
-    ):
-        raise HTTPException(status_code=404, detail="File not found")
-    return row
-
-
 @router.post("/folders", response_model=UnderlagFolderOut, status_code=201)
 async def post_underlag_folder(
     body: UnderlagFolderCreate,
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> UnderlagFolderOut:
     module = _require_module(body.module)
-    customer_id = await customer_id_for_user(session, user)
+    workspace = await personal_workspace(session, user, workspace_id)
+    require_company_folders(workspace)
+    customer_id = workspace.customer_id
     try:
         row = await create_underlag_folder(
             session,
@@ -97,11 +95,15 @@ async def post_underlag_folder(
 @router.get("/folders", response_model=list[UnderlagFolderOut])
 async def get_underlag_folders(
     module: str = Query(...),
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> list[UnderlagFolderOut]:
     module = _require_module(module)
-    customer_id = await customer_id_for_user(session, user)
+    workspace = await personal_workspace(session, user, workspace_id)
+    require_company_folders(workspace)
+    customer_id = workspace.customer_id
     folders = await list_all_underlag_folders(
         session,
         customer_id=customer_id,
@@ -115,16 +117,29 @@ async def get_underlag_folders(
 async def get_underlag_list(
     module: str | None = Query(None),
     folder_id: str | None = Query(None),
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> UnderlagListingOut:
     scoped_module = _require_module(module) if module is not None else None
-    customer_id = await customer_id_for_user(session, user)
+    workspace = await personal_workspace(session, user, workspace_id)
+    customer_id = workspace.customer_id
+    if workspace.kind != "company":
+        if folder_id is not None:
+            require_company_folders(workspace)
+        rows = await list_personal_underlag(
+            session, workspace=workspace, user_id=user.id, module=scoped_module, folder_id=None
+        )
+        return UnderlagListingOut(
+            folders=[],
+            files=[UnderlagOut(**serialize_underlag(row, include_text=False)) for row in rows],
+        )
     if scoped_module is None:
-        rows = await list_underlag(
+        rows = await list_personal_underlag(
             session,
-            customer_id=customer_id,
-            owner_user_id=user.id,
+            workspace=workspace,
+            user_id=user.id,
             module=None,
             folder_id=None,
         )
@@ -150,10 +165,10 @@ async def get_underlag_list(
         module=scoped_module,
         parent_id=folder_id,
     )
-    rows = await list_underlag(
+    rows = await list_personal_underlag(
         session,
-        customer_id=customer_id,
-        owner_user_id=user.id,
+        workspace=workspace,
+        user_id=user.id,
         module=scoped_module,
         folder_id=folder_id,
     )
@@ -165,26 +180,30 @@ async def get_underlag_list(
 
 
 @router.post("", response_model=UnderlagOut, status_code=201)
-async def post_underlag(  # noqa: PLR0917
+async def post_underlag(
     module: str = Query(...),
     folder_id: str | None = Query(None),
     file: UploadFile = File(...),
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> UnderlagOut:
     module = _require_module(module)
+    user_id = user.id
     customer_id = await customer_id_for_user(session, user)
     raw = await file.read(MAX_UNDERLAG_BYTES + 1)
     try:
         row = await upload_underlag(
             session,
             customer_id=customer_id,
-            owner_user_id=user.id,
+            owner_user_id=user_id,
             module=module,
             filename=file.filename or "file",
             content_type=file.content_type or "application/octet-stream",
             data=raw,
             folder_id=folder_id,
+            workspace_id=workspace_id,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -198,7 +217,7 @@ async def post_underlag(  # noqa: PLR0917
             JobCreate(
                 kind=DOCUMENT_INGEST_JOB_KIND,
                 label=f"Dokumentförståelse: {row.filename[:80]}",
-                request={"object_id": row.id, "owner_user_id": user.id},
+                request={"object_id": row.id, "owner_user_id": user_id, "workspace_id": row.workspace_id},
             ),
         )
     except ValueError as exc:
@@ -212,30 +231,25 @@ async def post_underlag(  # noqa: PLR0917
 @router.get("/{object_id}", response_model=UnderlagOut)
 async def get_underlag(
     object_id: str,
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> UnderlagOut:
-    customer_id = await customer_id_for_user(session, user)
-    row = _own_underlag(
-        await get_stored_object(session, object_id),
-        customer_id=customer_id,
-        user_id=user.id,
-    )
+    row = await personal_underlag(session, user, object_id, workspace_id)
     return UnderlagOut(**serialize_underlag(row, include_text=True))
 
 
 @router.get("/{object_id}/file")
 async def get_underlag_file(
     object_id: str,
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> Response:
-    customer_id = await customer_id_for_user(session, user)
-    row = _own_underlag(
-        await get_stored_object(session, object_id),
-        customer_id=customer_id,
-        user_id=user.id,
-    )
+    row = await personal_underlag(session, user, object_id, workspace_id)
+    row = await detach_underlag(session, row)
     try:
         data, content_type = await read_stored_bytes(row)
     except ObjectStorageError as exc:
@@ -251,15 +265,14 @@ async def get_underlag_file(
 async def patch_underlag(
     object_id: str,
     body: UnderlagMove,
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> UnderlagOut:
-    customer_id = await customer_id_for_user(session, user)
-    row = _own_underlag(
-        await get_stored_object(session, object_id),
-        customer_id=customer_id,
-        user_id=user.id,
-    )
+    row = await personal_underlag(session, user, object_id, workspace_id)
+    workspace = await personal_workspace(session, user, workspace_id)
+    require_company_folders(workspace)
     try:
         row = await move_underlag(session, row, folder_id=body.folder_id)
     except LookupError as exc:
@@ -271,15 +284,13 @@ async def patch_underlag(
 @router.delete("/{object_id}", status_code=204)
 async def delete_underlag(
     object_id: str,
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> Response:
-    customer_id = await customer_id_for_user(session, user)
-    row = _own_underlag(
-        await get_stored_object(session, object_id),
-        customer_id=customer_id,
-        user_id=user.id,
-    )
+    row = await personal_underlag(session, user, object_id, workspace_id)
+    row = await detach_underlag(session, row)
     try:
         await delete_document_vectors(session, row.id)
         await delete_stored_object(session, row)
@@ -295,15 +306,12 @@ async def delete_underlag(
 )
 async def get_underlag_knowledge(
     object_id: str,
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> list[DocumentKnowledgeItemOut]:
-    customer_id = await customer_id_for_user(session, user)
-    row = _own_underlag(
-        await get_stored_object(session, object_id),
-        customer_id=customer_id,
-        user_id=user.id,
-    )
+    row = await personal_underlag(session, user, object_id, workspace_id)
     items = await list_document_knowledge(session, source_object_id=row.id)
     return [DocumentKnowledgeItemOut(**serialize_document_knowledge_item(item)) for item in items]
 
@@ -316,15 +324,12 @@ async def get_underlag_knowledge(
 async def post_underlag_knowledge(
     object_id: str,
     body: DocumentKnowledgeItemWrite,
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> DocumentKnowledgeItemOut:
-    customer_id = await customer_id_for_user(session, user)
-    row = _own_underlag(
-        await get_stored_object(session, object_id),
-        customer_id=customer_id,
-        user_id=user.id,
-    )
+    row = await personal_underlag(session, user, object_id, workspace_id)
     if row.extraction_status != "ok":
         raise HTTPException(status_code=409, detail="Document text is not ready")
     item = await create_manual_document_knowledge(
@@ -341,19 +346,16 @@ async def post_underlag_knowledge(
     "/{object_id}/knowledge/{item_id}",
     response_model=DocumentKnowledgeItemOut,
 )
-async def put_underlag_knowledge(  # noqa: PLR0917
+async def put_underlag_knowledge(
     object_id: str,
     item_id: str,
     body: DocumentKnowledgeItemUpdate,
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> DocumentKnowledgeItemOut:
-    customer_id = await customer_id_for_user(session, user)
-    row = _own_underlag(
-        await get_stored_object(session, object_id),
-        customer_id=customer_id,
-        user_id=user.id,
-    )
+    row = await personal_underlag(session, user, object_id, workspace_id)
     item = await get_document_knowledge_item(
         session,
         source_object_id=row.id,
@@ -376,15 +378,12 @@ async def put_underlag_knowledge(  # noqa: PLR0917
 async def delete_underlag_knowledge(
     object_id: str,
     item_id: str,
+    *,
+    workspace_id: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> Response:
-    customer_id = await customer_id_for_user(session, user)
-    row = _own_underlag(
-        await get_stored_object(session, object_id),
-        customer_id=customer_id,
-        user_id=user.id,
-    )
+    row = await personal_underlag(session, user, object_id, workspace_id)
     item = await get_document_knowledge_item(
         session,
         source_object_id=row.id,

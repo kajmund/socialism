@@ -134,7 +134,6 @@ async def run_expert_chat_research_job(
         if research_planner is None:
             raise RuntimeError("Research planner is required for expert chat")
         await session.commit()
-        await session.refresh(job)
         # Lazy import: jobs.py imports this module from its worker dispatch.
         from app.services.jobs import publish_job
 

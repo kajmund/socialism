@@ -80,7 +80,7 @@ export function PdfKnowledgeViewer({
     async function renderPages() {
       const first = pageNumber ?? 1
       const last = pageNumber ?? pdf.numPages
-      if (first < 1 || last > pdf.numPages) throw new Error(t("workspaceChat.presentationError"))
+      if (first < 1 || last > pdf.numPages) throw new Error(t("voiceWorkspaceChat.presentationError"))
       for (let pageNumber = first; pageNumber <= last; pageNumber += 1) {
         if (cancelled) return
         const page = await pdf.getPage(pageNumber)
@@ -162,7 +162,7 @@ export function PdfKnowledgeViewer({
     }
     firstMarker?.scrollIntoView({ behavior: "smooth", block: "center" })
     if (rendered > 0 && root.dataset.renderComplete === "true") {
-      if (focusAnchors.length > 0 && !firstMarker) onError(t("workspaceChat.presentationError"))
+      if (focusAnchors.length > 0 && !firstMarker) onError(t("voiceWorkspaceChat.presentationError"))
       else onReady?.()
     }
   }, [focusAnchors, onError, onReady, rendered, t])

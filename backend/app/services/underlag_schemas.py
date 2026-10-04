@@ -23,6 +23,7 @@ KnowledgeAnchorType = Literal["text", "image", "chart", "table"]
 
 class UnderlagOut(BaseModel):
     id: str
+    workspace_id: str | None = None
     kind: str
     filename: str
     content_type: str

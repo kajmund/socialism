@@ -2,13 +2,13 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import UserAccount
-from app.database.workspace_models import Workspace, WorkspaceArtifact, WorkspaceOperation, WorkspaceResearch
+from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifact, WorkspaceOperation
 from app.schemas.workspace import WorkspaceState
 from app.services.workspace.service import artifact_out, new_id, require_expert, require_source
 from app.services.workspace.sources import citation, read_reference, source_version
 from app.services.workspace.tool_arguments import ResearchArguments
 
-async def source_context(session: AsyncSession, workspace: Workspace, source_refs: list[str], source_ids: list[str]) -> list[dict]:
+async def source_context(session: AsyncSession, workspace: VoiceWorkspace, source_refs: list[str], source_ids: list[str]) -> list[dict]:
     refs = list(source_refs)
     for source_id in source_ids:
         source = await require_source(session, workspace, source_id)
@@ -29,7 +29,7 @@ async def source_context(session: AsyncSession, workspace: Workspace, source_ref
     return result
 
 
-async def queue_generation(session: AsyncSession, workspace: Workspace, user: UserAccount, operation: WorkspaceOperation,
+async def queue_generation(session: AsyncSession, workspace: VoiceWorkspace, user: UserAccount, operation: WorkspaceOperation,
                            *, kind: str, arguments: dict, artifact: WorkspaceArtifact | None = None) -> dict:
     from app.services.workspace_generation import queue_workspace_generation
     if artifact is None:
@@ -42,7 +42,7 @@ async def queue_generation(session: AsyncSession, workspace: Workspace, user: Us
     return {**result, "artifact_id": artifact.id, "artifact": artifact_out(artifact)}
 
 
-async def _start_research(session: AsyncSession, workspace: Workspace, user: UserAccount,
+async def _start_research(session: AsyncSession, workspace: VoiceWorkspace, user: UserAccount,
                           operation: WorkspaceOperation, *, args: ResearchArguments) -> dict:
     if not args.confirmed:
         raise HTTPException(status_code=409, detail="research_confirmation_required")
@@ -53,17 +53,17 @@ async def _start_research(session: AsyncSession, workspace: Workspace, user: Use
     from app.services.expert_tools import resolve_expert_tools
     if "start_research" not in resolve_expert_tools(expert.tools):
         raise HTTPException(status_code=403, detail="workspace_expert_tool_not_allowed")
-    from app.services.execution.service import create_attempt, create_run
-    from app.services.research_worker import accept_attempt_research
-    run = await create_run(session, customer_id=workspace.customer_id, module=workspace.module, title=args.objective[:255],
-        context={"workspace_id": workspace.id, "owner_user_id": user.id, "expert_id": state.expert_id})
-    attempt = await create_attempt(session, run_id=run.id, attempt_type="workspace_research",
-        input_snapshot={"objective": args.objective}, configuration_snapshot={"expert_id": state.expert_id})
-    session.add(WorkspaceResearch(workspace_id=workspace.id, attempt_id=attempt.id))
-    result = {"status": "queued", "run_id": run.id, "attempt_id": attempt.id, "job_id": None,
-              "operation_id": operation.id, "progress_url": f"/execution/attempts/{attempt.id}/progress-events"}
-    operation.status, operation.result = "queued", result
-    # Existing durable research claims own this lifecycle, including their recovery.
-    await accept_attempt_research(session, attempt_id=attempt.id, research_objective=args.objective,
-                                 research_context={"workspace_id": workspace.id, "owner_user_id": user.id}, research_plan=None)
-    return result
+    from app.schemas.workspace_chat import WorkspaceResearchRequest
+    from app.services.workspace.containers import require_container
+    from app.services.workspace_research_start import prepare_workspace_research
+    chat = await require_container(session, workspace, user)
+    selected = args.source_object_ids
+    if selected is None and state.documents:
+        selected = [document.source_id for document in state.documents]
+    job = await prepare_workspace_research(session, user, chat, WorkspaceResearchRequest(
+        question=args.objective, source_object_ids=selected, entrypoint="tool",
+    ))
+    job.request = {**job.request, "voice_workspace_id": workspace.id,
+                   "expert_id": state.expert_id, "operation_id": operation.id}
+    return {"status": "queued", "run_id": None, "attempt_id": None, "job_id": job.id,
+            "operation_id": operation.id, "progress_url": f"/jobs/{job.id}"}

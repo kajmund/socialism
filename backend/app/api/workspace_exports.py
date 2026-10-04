@@ -15,7 +15,7 @@ from app.services.underlag_pdf import UnderlagPdfConversionError, convert_docx_t
 from app.services.workspace.service import require_artifact, require_workspace
 from app.services.workspace_export import export_revision_docx
 
-router = APIRouter(prefix="/workspaces", tags=["workspaces"])
+router = APIRouter(prefix="/voice-workspaces", tags=["workspaces"])
 
 
 @router.get("/{workspace_id}/artifacts/{artifact_id}/exports/{format}")

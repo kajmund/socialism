@@ -71,6 +71,7 @@ async def execute_expert_tool(session: AsyncSession, *, provider: WorkspaceConve
         result = await _run_selected_tool(session, persona, user, args, context={
             "session_id": session_id, "user_message": user_message,
             "history": history, "prompts": prompts, "owner_id": user.id,
+            "workspace_parent_id": workspace.workspace_id,
         })
         return {"status": "completed", "operation_id": operation_id, "tool_name": args.name, "result": result}
     finally:
@@ -85,6 +86,7 @@ async def _run_selected_tool(session: AsyncSession, persona: Persona, user: User
         result = await expert_consult_handler_for_chat(
             session, asker=persona, mode="interview", prompts=context["prompts"],
             workspace_owner_id=context["owner_id"],
+            workspace_parent_id=context["workspace_parent_id"],
         )(args.arguments)
     else:
         result = await run_live_voice_tool(

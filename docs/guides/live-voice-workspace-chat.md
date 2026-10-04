@@ -11,24 +11,17 @@ Set backend configuration from `backend/.env.example`:
 - `ELEVENLABS_LLM`: explicitly selected ElevenLabs model. Unavailable/deprecated models fail; automatic backup is disabled.
 - `ELEVENLABS_SESSION_TTL_SECONDS`: local session lifetime, separate from provider connection-token lifetime.
 
-Run Alembic to head before starting the service. Migration 149 adds owner-scoped workspaces, sources, stable references, versioned artifacts, idempotent operations, native deployments and conversation events. PostgreSQL uses the existing backend service connection; the new tables are closed to Supabase client roles by RLS. SQLite supports the same model for local tests.
+Run Alembic to head before starting the service. Migration 151 adds owner-scoped voice workspaces, sources, stable references, versioned artifacts, idempotent operations, native deployments and conversation events. PostgreSQL uses the existing backend service connection; the new tables are closed to Supabase client roles by RLS. SQLite supports the same model for local tests.
 
 PDF export reuses the existing LibreOffice conversion service. Install LibreOffice on the backend host and set `LIBREOFFICE_BIN` if it is not on PATH. Word exports are generated directly as OOXML and need no new runtime library.
 
-## Activation prerequisite
+## Activation
 
-A read-only audit of the configured database on 2026-10-04 found `alembic_version = 147_expert_async_tool_prompts`. That revision is absent from the current migration graph and its reachable Git history. The canonical chain is `146_lookup_research_evidence_tool` → `147_persona_message_voice_turn` → `148_expert_async_tool_prompts` → `149_live_voice_workspaces`. An ordinary upgrade cannot resolve the current database marker.
+The application uses the company/client workspace and private chat model introduced by migrations 149–150. Migration 151 adds the owner-bound voice canvas and its source references, artifacts, operations and conversation sessions. Each voice canvas binds a parent workspace and a private core chat; membership is checked on every access and again after external work. The existing company/client APIs and chat/document/research behavior remain available. Voice APIs use `/voice-workspaces`, alongside the company/client `/workspaces` APIs.
 
-The inspected effects of canonical 147–148 are already present: `persona_messages.voice_turn_id` is nullable `varchar(64)`, with `uq_vturn UNIQUE (persona_id, voice_turn_id, role)`; there is no `provider_turn_id` column. Both new tool-ack/result prompt fields are active and match the catalog in Swedish, English and Norwegian. The four prompt defaults updated by 148 also match, and no overrides retain its exact previous text. This verifies those migration effects, not the complete schema or ancestry through 146. No workspace tables exist yet.
+A read-only audit on 2026-10-04 verified the canonical schema, prompt updates, parent IDs and migration-owner/runtime privileges. The earlier unresolvable marker `147_expert_async_tool_prompts` had already been corrected to canonical 148, and the project subsequently applied 149–150. No marker correction is needed for voice activation. The application schema/data backup is stored locally with restricted permissions, outside Git. Apply only the pending migration 151 using the owner credential `MIGRATION_DATABASE_URL`, then verify all eleven new tables, their parent/chat constraints, RLS and runtime DML access.
 
-Before activation:
-
-1. Stop application writers and take a restorable database backup. Recover the old revision's deployment/migration record and compare a restored copy against the complete canonical schema through 148, including constraints and prompt data. Do not infer equivalence from the similar revision name alone.
-2. If that audit confirms the database is fully equivalent to 148, have the operator approve a **version-marker-only reconciliation to `148_expert_async_tool_prompts`**. The repair must handle the unresolvable old marker explicitly; ordinary `alembic stamp` may also reject it. Do not rerun 147 against its existing column, stamp 149, or add a compatibility migration. If the full audit identifies differences, resolve those differences before reconciling the marker.
-3. From the checked-out backend, run `alembic upgrade head` with the configured `MIGRATION_DATABASE_URL` owner connection. This is the separate schema change that creates the eleven workspace tables in 149. Runtime `DATABASE_URL` is not the migration credential. The audited URLs target the same database with distinct roles; the runtime role has RLS bypass and direct SELECT/INSERT/UPDATE/DELETE grants in the migration owner's public-schema table defaults, while the migration role owns the inspected tables. Migration 149 preserves those direct runtime grants when revoking client-role and PUBLIC access; RLS bypass alone would not grant table access.
-4. Verify the marker is `149_live_voice_workspaces`, all eleven tables and their constraints exist, the runtime role can use them, and RLS plus revoked `PUBLIC`/`anon`/`authenticated` access remains intact. Then start the application and perform the live acceptance checks below.
-
-The audit used read-only transactions. It did not stamp, migrate, modify prompts, or write test data to the configured database.
+The separate runtime role has direct SELECT/INSERT/UPDATE/DELETE grants in the migration owner's public-schema table defaults. Migration 151 preserves those grants while revoking PUBLIC/anon/authenticated access. RLS bypass alone would not grant table access. All private voice history and memory remain scoped to the owner and selected parent workspace; changing or revoking membership changes access immediately.
 
 ## Prompt and deployment lifecycle
 
@@ -42,7 +35,7 @@ Workspace state persists selected expert, knowledge scope, document tabs, indepe
 
 Provider deployment, bootstrap, lookup, memory and export each release database connections before external calls. One-connection pool regressions verify this while the external service is pending.
 
-Finalized transcript events are persisted into workspace-bound expert history, separate from public library interviews. Corrections replace the original interrupted reply instead of appending a duplicate. Existing shared customer/expert memory remains readable. Completed workspace turns and consultations write to a separate customer/expert/owner namespace so private document content cannot merge into shared memory. Workspace memory never supplies source citations. Legacy history, admin memory lists and job broadcasts must enforce the same separation.
+Finalized transcript events are persisted into workspace-bound expert history, separate from public library interviews. Corrections replace the original interrupted reply instead of appending a duplicate. Existing shared customer/expert memory remains readable. Completed workspace turns and consultations write to a separate customer/expert/owner/parent-workspace namespace so private document content cannot merge into shared memory. Workspace memory never supplies source citations. Legacy history, admin memory lists and job broadcasts must enforce the same separation.
 
 References capture a stable number, source/version, exact anchor and immutable snapshot. Search, comparison, graph and document content use those same IDs. Source changes make old references stale; generation validates references before queueing and never invents location coordinates. Unsupported graph conclusions must be marked as interpretations. Document and presentation source text is untrusted input.
 
@@ -53,5 +46,7 @@ Client tools acknowledge presentation only after the requested view/anchor is re
 ## Verification
 
 Run backend pytest, frontend lint/tests/build and `make knowledge-validate`. The default test suite mocks provider HTTP and LLM boundaries and makes no ElevenLabs calls. Live acceptance requires configured provider credentials, browser microphone access, and provider permission to create private agents/tools/procedures: run both text and WebRTC voice, switch expert/workspace, interrupt an answer, upload/read a source, show its anchor, create/revise/export a draft and confirm no stale callback affects the new session.
+
+A real provider smoke published four native procedures and 21 client tools, completed a private text → authenticated local tool → provider reply roundtrip, persisted its history, and minted a private voice token for the same published version. Temporary provider resources were removed. Tool cleanup uses the provider's documented `force=true` only for deployment-owned tool IDs, because agent deletion alone can leave branch dependencies. Browser microphone/audio acceptance is a separate runtime check.
 
 The reference UI and detailed acceptance criteria are in [the implementation spec](../specs/live-voice-workspace-chat.md).

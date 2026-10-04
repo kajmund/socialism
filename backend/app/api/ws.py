@@ -20,8 +20,6 @@ from app.auth.scope import (
 )
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import (
-    ExecutionAttempt,
-    ExecutionRun,
     Job,
     PanelSession,
     Persona,
@@ -33,11 +31,10 @@ from app.database.models import (
     UserAccount,
 )
 from app.realtime.expertgranskning_broadcast import expertgranskning_broadcast
-from app.realtime.hub import job_hub, report_hub
+from app.realtime.hub import report_hub
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
 from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.realtime.panel_broadcast import panel_broadcast
-from app.realtime.research_progress_broadcast import research_progress_broadcast
 from app.realtime.run_broadcast import run_broadcast
 from app.schemas.domain import (
     ChatMode,
@@ -48,7 +45,6 @@ from app.schemas.domain import (
     SpindoctorWidgetOut,
 )
 from app.services import jobs as jobs_service
-from app.services.job_watch import send_jobs_snapshot
 from app.services.customer_scope import customer_id_for_panel_session
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.watch import (
@@ -64,10 +60,6 @@ from app.services.persona_chat import (
     stream_run_interview_turn,
 )
 from app.services.report_realtime import list_reports, serialize_report
-from app.services.research.progress import (
-    list_research_progress_events,
-    progress_event_to_dict,
-)
 from app.services.run_watch import build_run_replay_payload
 from app.services.spindoctor_chat import (
     SpindoctorChatTurnError,
@@ -128,23 +120,10 @@ class PanelWatchHello(BaseModel):
     session_id: str = Field(min_length=1)
 
 
-class ResearchWatchHello(BaseModel):
-    type: Literal["hello"] = "hello"
-    scope: Literal["research_watch"]
-    attempt_id: str = Field(min_length=1)
-    after_sequence: int = Field(default=0, ge=0)
-
-
 class ExpertgranskningWatchHello(BaseModel):
     type: Literal["hello"] = "hello"
     scope: Literal["expertgranskning_watch"]
     job_id: str = Field(min_length=1)
-
-
-class JobsWatchHello(BaseModel):
-    type: Literal["hello"] = "hello"
-    scope: Literal["jobs_watch"]
-    customer_id: int | None = None
 
 
 class ReportsWatchHello(BaseModel):
@@ -226,46 +205,14 @@ async def _assert_panel_ws_access(
 
 @router.websocket("/ws/jobs")
 async def jobs_websocket(websocket: WebSocket) -> None:
-    await websocket.accept()
-    user = await _authenticate_websocket(websocket)
-    if user is None:
-        return
-    try:
-        raw = await websocket.receive_json()
-        if not isinstance(raw, dict):
-            await _send_error(websocket, "Expected JSON object")
-            await websocket.close(code=1003)
-            return
-        try:
-            hello = JobsWatchHello.model_validate(raw)
-        except ValidationError as exc:
-            await _send_error(websocket, str(exc.errors()[0]["msg"]))
-            await websocket.close(code=1003)
-            return
+    from app.api.workspace_job_watch import watch_workspace_jobs
 
-        try:
-            customer_id = effective_customer_id(user, hello.customer_id)
-        except HTTPException as exc:
-            await _close_auth_error(websocket, exc)
-            return
-
-        await job_hub.subscribe(websocket, customer_id=customer_id, user=user)
-
-        await send_jobs_snapshot(websocket, user, customer_id=customer_id)
-        while True:
-            # Keep the socket open; clients may send pings. Ignore payload.
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        pass
-    except Exception:
-        logger.exception("Jobs watch WebSocket failed")
-        try:
-            await _send_error(websocket, "WebSocket error")
-            await websocket.close(code=1011)
-        except Exception:  # noqa: BLE001
-            pass
-    finally:
-        await job_hub.unsubscribe(websocket)
+    await watch_workspace_jobs(
+        websocket,
+        authenticate=_authenticate_websocket,
+        send_error=_send_error,
+        close_auth_error=_close_auth_error,
+    )
 
 
 @router.websocket("/ws/reports")
@@ -299,19 +246,15 @@ async def reports_websocket(websocket: WebSocket) -> None:
         async with factory() as session:
             from app.services.stored_objects import report_ids_with_source_pdf
 
-            rows = await list_reports(
-                session, limit=50, customer_id=customer_id
-            )
-            with_pdf = await report_ids_with_source_pdf(
-                session, [row.id for row in rows]
-            )
+            rows = await list_reports(session, limit=50, customer_id=customer_id)
+            with_pdf = await report_ids_with_source_pdf(session, [row.id for row in rows])
             await websocket.send_json(
                 {
                     "type": "reports.snapshot",
                     "reports": [
-                        serialize_report(
-                            row, has_source_pdf=row.id in with_pdf
-                        ).model_dump(mode="json")
+                        serialize_report(row, has_source_pdf=row.id in with_pdf).model_dump(
+                            mode="json"
+                        )
                         for row in rows
                     ],
                 }
@@ -356,9 +299,7 @@ async def runs_websocket(websocket: WebSocket) -> None:
             result = await session.execute(
                 select(Run)
                 .where(Run.id == hello.run_id)
-                .options(
-                    selectinload(Run.population).selectinload(Population.members)
-                )
+                .options(selectinload(Run.population).selectinload(Population.members))
             )
             run = result.scalar_one_or_none()
             if run is None:
@@ -400,72 +341,14 @@ async def runs_websocket(websocket: WebSocket) -> None:
 
 @router.websocket("/ws/research")
 async def research_websocket(websocket: WebSocket) -> None:
-    await websocket.accept()
-    user = await _authenticate_websocket(websocket)
-    if user is None:
-        return
-    hello: ResearchWatchHello | None = None
-    try:
-        raw = await websocket.receive_json()
-        if not isinstance(raw, dict):
-            await _send_error(websocket, "Expected JSON object")
-            await websocket.close(code=1003)
-            return
-        try:
-            hello = ResearchWatchHello.model_validate(raw)
-        except ValidationError as exc:
-            await _send_error(websocket, str(exc.errors()[0]["msg"]))
-            await websocket.close(code=1003)
-            return
+    from app.api.workspace_research_watch import watch_workspace_research
 
-        factory = jobs_service.job_session_factory()
-        async with factory() as session:
-            attempt = await session.get(ExecutionAttempt, hello.attempt_id)
-            if attempt is None:
-                await _send_error(websocket, f"Attempt {hello.attempt_id} not found")
-                await websocket.close(code=1003)
-                return
-            run = await session.get(ExecutionRun, attempt.run_id)
-            if run is None:
-                await _send_error(websocket, f"Attempt {hello.attempt_id} not found")
-                await websocket.close(code=1003)
-                return
-            try:
-                assert_kund_access(user, run.customer_id)
-            except HTTPException as exc:
-                await _close_auth_error(websocket, exc)
-                return
-            attempt_id = attempt.id
-
-        # Subscribe before the persisted snapshot so a transition committed
-        # between query and subscribe cannot vanish from both replay and live.
-        await research_progress_broadcast.subscribe(attempt_id, websocket)
-        async with factory() as session:
-            missed = await list_research_progress_events(
-                session, attempt_id, after_sequence=hello.after_sequence
-            )
-        await websocket.send_json(
-            {
-                "type": "research.progress.replay",
-                "attempt_id": attempt_id,
-                "after_sequence": hello.after_sequence,
-                "events": [progress_event_to_dict(row) for row in missed],
-            }
-        )
-
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        pass
-    except Exception:
-        logger.exception("Research progress watch WebSocket failed")
-        try:
-            await _send_error(websocket, "WebSocket error")
-            await websocket.close(code=1011)
-        except Exception:  # noqa: BLE001
-            pass
-    finally:
-        await research_progress_broadcast.unsubscribe(websocket)
+    await watch_workspace_research(
+        websocket,
+        authenticate=_authenticate_websocket,
+        send_error=_send_error,
+        close_auth_error=_close_auth_error,
+    )
 
 
 @router.websocket("/ws/panels")
@@ -565,9 +448,7 @@ async def expertgranskning_websocket(websocket: WebSocket) -> None:
         async with factory() as session:
             job = await session.get(Job, hello.job_id)
             assert job is not None
-            actions = await load_word_actions(
-                session, job.id, customer_id=job.customer_id
-            )
+            actions = await load_word_actions(session, job.id, customer_id=job.customer_id)
             replay = build_expertgranskning_replay_payload(job, actions)
         await websocket.send_json(replay)
 
@@ -723,9 +604,7 @@ async def chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR0911, 
                             {
                                 "type": "done",
                                 "reply": done_help.reply,
-                                "messages": [
-                                    m.model_dump(mode="json") for m in done_help.messages
-                                ],
+                                "messages": [m.model_dump(mode="json") for m in done_help.messages],
                             }
                         )
                         continue
@@ -751,17 +630,13 @@ async def chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR0911, 
                             else:
                                 await websocket.send_json({"type": "token", "text": item})
                         if done_spin is None:
-                            await _send_error(
-                                websocket, "Spinndoktor turn produced no reply"
-                            )
+                            await _send_error(websocket, "Spinndoktor turn produced no reply")
                             continue
                         await websocket.send_json(
                             {
                                 "type": "done",
                                 "reply": done_spin.reply,
-                                "messages": [
-                                    m.model_dump(mode="json") for m in done_spin.messages
-                                ],
+                                "messages": [m.model_dump(mode="json") for m in done_spin.messages],
                             }
                         )
                         continue
@@ -769,9 +644,7 @@ async def chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR0911, 
                     done: PersonaChatResponse | None = None
                     library_hello = hello if isinstance(hello, LibraryHello) else None
                     if library_hello is not None:
-                        stream: AsyncIterator[
-                            str | PersonaChatResponse
-                        ] = stream_library_chat_turn(
+                        stream: AsyncIterator[str | PersonaChatResponse] = stream_library_chat_turn(
                             session,
                             persona_id=library_hello.persona_id,
                             mode=library_hello.mode,
@@ -800,19 +673,15 @@ async def chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR0911, 
                                         "type": "done",
                                         "reply": done.reply,
                                         "messages": [
-                                            m.model_dump(mode="json")
-                                            for m in done.messages
+                                            m.model_dump(mode="json") for m in done.messages
                                         ],
                                         "saved_memories": [
-                                            m.model_dump(mode="json")
-                                            for m in done.saved_memories
+                                            m.model_dump(mode="json") for m in done.saved_memories
                                         ],
                                     }
                                 )
                             else:
-                                await websocket.send_json(
-                                    {"type": "token", "text": item}
-                                )
+                                await websocket.send_json({"type": "token", "text": item})
                     finally:
                         await stream.aclose()
                     if done is None:

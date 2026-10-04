@@ -68,9 +68,9 @@ async def test_url_fetch_and_object_storage_release_connection(single_connection
 async def test_vector_embedding_and_search_release_connection(single_connection, monkeypatch):
     factory, ids = single_connection
     async with factory() as session:
-        from app.database.workspace_models import Workspace
-        workspace = await session.get(Workspace, ids[1])
-        source = StoredObject(id="source-one", customer_id=1, owner_user_id=ids[0], module="dd", kind="underlag",
+        from app.database.workspace_models import VoiceWorkspace
+        workspace = await session.get(VoiceWorkspace, ids[1])
+        source = StoredObject(id="source-one", workspace_id=workspace.workspace_id, customer_id=1, owner_user_id=ids[0], module="dd", kind="underlag",
             bucket="workspace-test", object_key="source.txt", filename="source.txt", content_type="text/plain",
             size_bytes=6, extraction_status="ok", extracted_text="Source", knowledge_status="ready")
         session.add(source)
@@ -130,7 +130,7 @@ async def test_caller_pending_writes_are_never_committed(single_connection):
 @pytest.mark.asyncio
 async def test_general_graph_embedding_release_and_tenant_scope(single_connection, monkeypatch):
     factory, ids = single_connection
-    from app.database.workspace_models import Workspace
+    from app.database.workspace_models import VoiceWorkspace
     from app.database.models import DocumentVersionRecord
     from app.services.workspace.sources import read_reference
     from tests.test_research_graph_v2_reuse import seed_fact, Embeddings
@@ -140,7 +140,7 @@ async def test_general_graph_embedding_release_and_tenant_scope(single_connectio
         await seed_fact(session, scope="shared")
         await seed_fact(session, scope="customer:1")
         await seed_fact(session, scope="customer:2")
-        workspace = await session.get(Workspace, ids[1])
+        workspace = await session.get(VoiceWorkspace, ids[1])
         workspace.state = {**workspace.state, "knowledge_scope": "general"}
         await session.commit()
     class CheckedEmbeddings(Embeddings):
@@ -151,7 +151,7 @@ async def test_general_graph_embedding_release_and_tenant_scope(single_connectio
     result = await command(factory, ids, name="search_knowledge", args={"query": "36 § avtalslagen senare lagändringar"})
     assert {item["source_id"] for item in result["items"]} == {"version-shared", "version-customer-1"}
     async with factory() as session:
-        workspace = await session.get(Workspace, ids[1])
+        workspace = await session.get(VoiceWorkspace, ids[1])
         item = next(item for item in result["items"] if item["source_id"] == "version-customer-1")
         assert not (await read_reference(session, workspace, item["reference_id"]))["stale"]
         from datetime import UTC, datetime

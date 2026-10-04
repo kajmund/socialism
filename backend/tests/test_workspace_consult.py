@@ -72,6 +72,7 @@ async def test_consult_memory_and_broadcast_release_connection_and_private_scope
             return await expert_consult.expert_consult_handler_for_chat(
                 session, asker=loaded, mode="interview", prompts=default_prompts("sv"),
                 workspace_owner_id="owner" if private else None,
+                workspace_parent_id="parent" if private else None,
             )({"question": "Vad innebär detta privata villkor?"})
 
     task = asyncio.create_task(run())
@@ -89,13 +90,69 @@ async def test_consult_memory_and_broadcast_release_connection_and_private_scope
             assert not events and not messages
             assert {row["source"] for row in memory.adds} == {WORKSPACE_MEMORY_SOURCE}
             assert {row["expert_id"] for row in memory.adds} == {
-                workspace_memory_expert_id(asker, "owner"), workspace_memory_expert_id(colleague, "owner"),
+                workspace_memory_expert_id(asker, "owner", workspace_parent_id="parent"), workspace_memory_expert_id(colleague, "owner", workspace_parent_id="parent"),
             }
         else:
             assert len(events) == 2 and len(messages) == 1
             assert {row["source"] for row in memory.adds} == {"expert_consult"}
     finally:
         release.set()
+        if not task.done():
+            await task
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_consult_evidence_finishes_db_phase_before_memory_read(client_db, tmp_path, monkeypatch):
+    engine, factory, asker, colleague = await _consult_database(client_db[1], tmp_path)
+    evidence_entered, release_evidence = asyncio.Event(), asyncio.Event()
+    memory_entered, release_memory = asyncio.Event(), asyncio.Event()
+    memory = RecordingMemory()
+
+    async def evidence(*_args, **_kwargs):
+        async with factory() as reader:
+            assert await reader.get(Persona, colleague.id)
+            evidence_entered.set()
+            await release_evidence.wait()
+        return ""
+
+    async def search(**_kwargs):
+        assert engine.pool.checkedout() == 0
+        memory_entered.set()
+        await release_memory.wait()
+        return []
+
+    async def rank(**_kwargs):
+        return {asker.id: 0.1, colleague.id: 0.9}
+
+    async def reply(*_args, **_kwargs):
+        return "Answer"
+
+    monkeypatch.setattr(memory, "search", search)
+    set_expert_memory_factory(lambda: memory)
+    monkeypatch.setattr(expert_consult, "reusable_expert_chat_evidence_context", evidence)
+    monkeypatch.setattr(expert_consult, "rank_consult_competence", rank)
+    monkeypatch.setattr(expert_consult, "reply_as_persona", reply)
+
+    async def run():
+        async with factory() as session:
+            loaded = await session.get(Persona, asker.id)
+            return await expert_consult.expert_consult_handler_for_chat(session, asker=loaded, mode="interview",
+                prompts=default_prompts("sv"), workspace_owner_id="owner", workspace_parent_id="parent")({"question": "Private question"})
+
+    task = asyncio.create_task(run())
+    try:
+        await asyncio.wait_for(evidence_entered.wait(), 2)
+        assert not memory_entered.is_set()
+        release_evidence.set()
+        await asyncio.wait_for(memory_entered.wait(), 2)
+        async with factory() as reader:
+            assert await reader.get(Persona, colleague.id)
+        release_memory.set()
+        assert "Answer" in await task
+    finally:
+        release_evidence.set()
+        release_memory.set()
         if not task.done():
             await task
         await engine.dispose()

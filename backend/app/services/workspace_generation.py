@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.models import Job, UserAccount
-from app.database.workspace_models import Workspace, WorkspaceArtifact, WorkspaceOperation
+from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifact, WorkspaceOperation
 from app.llm import complete_structured_retry
 from app.serializers import utcnow
 from app.services.prompt_store import render_prompt, require_active_prompts
@@ -21,7 +21,9 @@ WORKSPACE_GENERATION_JOB_KIND = "workspace_generation"
 
 class WorkspaceGenerationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    voice_workspace_id: str
     workspace_id: str
+    chat_id: str
     artifact_id: str
     operation_id: str
     owner_user_id: str
@@ -80,7 +82,7 @@ class GeneratedRelations(BaseModel):
 
 async def queue_workspace_generation(
     session: AsyncSession,
-    workspace: Workspace,
+    workspace: VoiceWorkspace,
     user: UserAccount,
     artifact: WorkspaceArtifact,
     *,
@@ -89,9 +91,11 @@ async def queue_workspace_generation(
 ) -> dict:
     """Create job in the caller's transaction; scheduling happens after commit."""
     if workspace.owner_user_id != user.id or artifact.workspace_id != workspace.id:
-        raise ValueError("Workspace generation ownership mismatch")
+        raise ValueError("VoiceWorkspace generation ownership mismatch")
     payload = WorkspaceGenerationRequest(
-        workspace_id=workspace.id,
+        voice_workspace_id=workspace.id,
+        workspace_id=workspace.workspace_id,
+        chat_id=workspace.chat_id,
         artifact_id=artifact.id,
         operation_id=operation.id,
         owner_user_id=user.id,
@@ -121,8 +125,8 @@ async def queue_workspace_generation(
     return {"artifact_id": artifact.id, "job_id": job.id, "status": "queued"}
 
 
-async def validate_generation_job(session: AsyncSession, payload: WorkspaceGenerationRequest) -> Workspace:
-    workspace = await session.get(Workspace, payload.workspace_id)
+async def validate_generation_job(session: AsyncSession, payload: WorkspaceGenerationRequest) -> VoiceWorkspace:
+    workspace = await session.get(VoiceWorkspace, payload.voice_workspace_id)
     artifact = await session.get(WorkspaceArtifact, payload.artifact_id)
     operation = await session.get(WorkspaceOperation, payload.operation_id)
     user = await session.get(UserAccount, payload.owner_user_id)
@@ -131,21 +135,23 @@ async def validate_generation_job(session: AsyncSession, payload: WorkspaceGener
         or workspace.owner_user_id != user.id
         or artifact.workspace_id != workspace.id
         or operation.workspace_id != workspace.id
+        or payload.workspace_id != workspace.workspace_id
+        or payload.chat_id != workspace.chat_id
     ):
-        raise ValueError("Workspace generation not found")
+        raise ValueError("VoiceWorkspace generation not found")
     from app.services.workspace.service import require_workspace
     await require_workspace(session, workspace.id, user)
     await _validate_generation_sources(session, workspace, payload.arguments.get("source_context", []))
     return workspace
 
 
-async def _validate_generation_sources(session: AsyncSession, workspace: Workspace, sources: list[dict]) -> None:
+async def _validate_generation_sources(session: AsyncSession, workspace: VoiceWorkspace, sources: list[dict]) -> None:
     from app.services.workspace.sources import read_reference
     for snapshot in sources:
         current = await read_reference(session, workspace, snapshot["reference_id"])
         if current["stale"] or any(current[key] != snapshot[key] for key in (
                 "reference_id", "number", "source_id", "source_version", "anchor", "snapshot")):
-            raise ValueError("Workspace generation source has changed")
+            raise ValueError("VoiceWorkspace generation source has changed")
 
 
 def _validate_relations(content: dict, check_refs) -> list[str]:
@@ -214,7 +220,7 @@ async def run_workspace_generation_job(
     async with factory() as session:
         job = await session.get(Job, job_id)
         if job is None:
-            raise ValueError("Workspace generation job not found")
+            raise ValueError("VoiceWorkspace generation job not found")
         payload = WorkspaceGenerationRequest.model_validate(job.request)
         workspace = await validate_generation_job(session, payload)
         artifact = await session.get(WorkspaceArtifact, payload.artifact_id)
@@ -251,7 +257,7 @@ async def run_workspace_generation_job(
         operation = await session.get(WorkspaceOperation, payload.operation_id)
         assert artifact is not None and operation is not None
         if artifact.job_id != job_id:
-            raise ValueError("Workspace generation has been superseded")
+            raise ValueError("VoiceWorkspace generation has been superseded")
         await publish_artifact_revision(
             session, artifact, expected_revision=payload.expected_revision,
             content=content, title=title,

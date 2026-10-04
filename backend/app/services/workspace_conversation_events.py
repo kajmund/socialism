@@ -5,14 +5,14 @@ import json
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import Persona, PersonaMessage
+from app.database.models import Persona, PersonaMessage, UserAccount
 from app.database.workspace_conversations import WorkspaceConversationEvent, WorkspaceConversationSession
-from app.database.workspace_models import Workspace
+from app.database.workspace_models import VoiceWorkspace
 from app.schemas.workspace import WorkspaceState
 from app.services.workspace_memory_context import workspace_memory_context
 from app.services.prompt_store import require_active_prompts
 from app.services.workspace.service import validate_state
-from app.services.workspace_conversations import find_event, redact_text
+from app.services.workspace_conversations import find_event, redact_text, require_conversation
 from app.services.workspace_conversation_memory import synchronize_memory
 
 
@@ -24,7 +24,7 @@ def check_redelivery(existing: WorkspaceConversationEvent, request) -> None:
 
 
 async def store_user_context(session: AsyncSession, provider: WorkspaceConversationSession, request, payload: dict) -> dict:
-    workspace = await session.get(Workspace, provider.workspace_id)
+    workspace = await session.get(VoiceWorkspace, provider.workspace_id)
     state = WorkspaceState.model_validate(request.context_snapshot if request.context_snapshot is not None else workspace.state)
     if state.expert_id != provider.expert_id:
         raise HTTPException(409, "workspace_conversation_expert_changed")
@@ -35,12 +35,14 @@ async def store_user_context(session: AsyncSession, provider: WorkspaceConversat
 
 
 async def user_memory_input(session: AsyncSession, provider: WorkspaceConversationSession, event_key: str, payload: dict) -> dict:
-    workspace = await session.get(Workspace, provider.workspace_id)
+    workspace = await session.get(VoiceWorkspace, provider.workspace_id)
     prompts = await require_active_prompts(session, customer_id=provider.customer_id, module=workspace.module, language=provider.language)
     persona = await session.get(Persona, provider.expert_id)
     session.expunge(persona)
     return {"persona": persona, "prompts": prompts, "query": payload["text"], "owner_id": provider.user_id,
-            "context": {"turn_event_key": event_key, "state": payload["workspace_state"],
+            "workspace_parent_id": workspace.workspace_id,
+            "context": {"voice_workspace_id": workspace.id, "workspace_id": workspace.workspace_id,
+                        "chat_id": workspace.chat_id, "turn_event_key": event_key, "state": payload["workspace_state"],
                         "revision": payload["workspace_revision"]}}
 
 
@@ -87,9 +89,13 @@ async def prepare_event(session: AsyncSession, provider: WorkspaceConversationSe
 
 async def enrich_user_context(session: AsyncSession, provider_id: str, event_key: str, prepared: dict) -> str:
     memories = await workspace_memory_context(prepared["persona"], prepared["query"], prepared["prompts"],
-                                              owner_id=prepared["owner_id"])
+                                              owner_id=prepared["owner_id"], workspace_parent_id=prepared["workspace_parent_id"])
     context = json.dumps({**prepared["context"], "expert_memory": memories}, ensure_ascii=False)
-    provider = await session.get(WorkspaceConversationSession, provider_id)
+    owner = await session.get(UserAccount, prepared["owner_id"], populate_existing=True)
+    if owner is None:
+        raise HTTPException(404, "workspace_conversation_not_found")
+    provider = await require_conversation(session, session_id=provider_id,
+        workspace_id=prepared["context"]["voice_workspace_id"], user=owner)
     event = await find_event(session, provider, event_key)
     # Literal events remain durable if the session was superseded during Mem0.
     if provider.status != "active":

@@ -158,12 +158,12 @@ def knowledge_adapter_descriptor(
 ) -> KnowledgeProviderDescriptor:
     return KnowledgeProviderDescriptor(
         provider_id=f"{retrieval_provider_id}.{source_type}",
-        domains=frozenset({"tenant"}),
+        domains=frozenset({"*"}),
         modalities=frozenset({"text"}),
         capabilities=frozenset({"search"}),
         evidence_natures=frozenset({source_type}),
         authority={
-            "tenant_bound": True,
+            "tenant_bound": source_type != "domain_knowledge",
             "requires_case": source_type == "case_knowledge",
             "retrieval_provider": retrieval_provider_id,
         },
@@ -174,7 +174,7 @@ def knowledge_adapter_descriptor(
 
 def matches_axis_filters(descriptor: KnowledgeProviderDescriptor, constraints: NeedConstraints) -> bool:
     return (
-        _intersects_if_required(descriptor.domains, constraints.domains)
+        ("*" in descriptor.domains or _intersects_if_required(descriptor.domains, constraints.domains))
         and _intersects_if_required(descriptor.modalities, constraints.modalities)
         and _intersects_if_required(descriptor.capabilities, constraints.capabilities)
     )

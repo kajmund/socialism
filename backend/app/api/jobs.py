@@ -7,16 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.auth.scope import (
-    assert_job_owner_access,
     assert_kund_access,
     effective_customer_id,
-    job_visible_to_user,
 )
 from app.database.models import UserAccount
 from app.database.session import get_session
 from app.schemas.domain import JobArchiveUpdate, JobCreate, JobOut, JobStatus
 from app.services import jobs as jobs_service
 from app.services.customer_scope import customer_id_for_new_job
+from app.services.workspace_api_scope import (
+    archive_visible_workspace_jobs, require_job_scope, validate_new_workspace_job, visible_workspace_jobs,
+)
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -35,6 +36,7 @@ async def create_job(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     assert_kund_access(user, customer_id)
+    await validate_new_workspace_job(session, user, customer_id, body)
     try:
         job = await jobs_service.create_job(session, body)
     except ValueError as exc:
@@ -63,11 +65,7 @@ async def list_jobs(  # noqa: PLR0917
         include_archived=include_archived or archived_only,
         archived_only=archived_only,
     )
-    return [
-        jobs_service.serialize_job(row)
-        for row in rows
-        if job_visible_to_user(user, row)
-    ]
+    return [jobs_service.serialize_job(row) for row in await visible_workspace_jobs(session, user, rows)]
 
 
 @router.post("/archive-finished", response_model=list[JobOut])
@@ -76,11 +74,7 @@ async def archive_finished_jobs(
     user: UserAccount = Depends(get_current_user),
 ) -> list[JobOut]:
     customer_id = effective_customer_id(user, None)
-    rows = await jobs_service.archive_finished_jobs(
-        session,
-        customer_id=customer_id,
-        include_job=lambda job: job_visible_to_user(user, job),
-    )
+    rows = await archive_visible_workspace_jobs(session, user, customer_id)
     return [jobs_service.serialize_job(row) for row in rows]
 
 
@@ -90,11 +84,7 @@ async def resume_job(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> JobOut:
-    job = await jobs_service.get_job(session, job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
-    assert_kund_access(user, job.customer_id)
-    assert_job_owner_access(user, job)
+    job = await require_job_scope(session, user, job_id)
     try:
         job = await jobs_service.resume_failed_job(session, job)
     except ValueError as exc:
@@ -109,11 +99,7 @@ async def rerun_job(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> JobOut:
-    job = await jobs_service.get_job(session, job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
-    assert_kund_access(user, job.customer_id)
-    assert_job_owner_access(user, job)
+    job = await require_job_scope(session, user, job_id)
     try:
         created = await jobs_service.rerun_finished_job(session, job)
     except ValueError as exc:
@@ -129,11 +115,7 @@ async def patch_job(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> JobOut:
-    job = await jobs_service.get_job(session, job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
-    assert_kund_access(user, job.customer_id)
-    assert_job_owner_access(user, job)
+    job = await require_job_scope(session, user, job_id)
     try:
         job = await jobs_service.set_job_archived(session, job, body.archived)
     except ValueError as exc:
@@ -147,9 +129,5 @@ async def get_job(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> JobOut:
-    job = await jobs_service.get_job(session, job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
-    assert_kund_access(user, job.customer_id)
-    assert_job_owner_access(user, job)
+    job = await require_job_scope(session, user, job_id)
     return jobs_service.serialize_job(job)

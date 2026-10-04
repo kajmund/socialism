@@ -1,1 +1,1 @@
-"""Workspace persistence and authorized source/tool adapters."""
+"""VoiceWorkspace persistence and authorized source/tool adapters."""

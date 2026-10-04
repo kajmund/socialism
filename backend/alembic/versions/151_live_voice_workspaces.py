@@ -2,12 +2,12 @@
 from alembic import op
 import sqlalchemy as sa
 
-revision = "149_live_voice_workspaces"
-down_revision = "148_expert_async_tool_prompts"
+revision = "151_live_voice_workspaces"
+down_revision = "150_workspace_chat_prompts"
 branch_labels = None
 depends_on = None
 
-TABLES = ['workspace_agent_deployments', 'workspace_chats', 'workspace_artifacts', 'workspace_conversation_sessions', 'workspace_expert_threads', 'workspace_operations', 'workspace_references', 'workspace_artifact_revisions', 'workspace_conversation_events', 'workspace_research', 'workspace_sources']
+TABLES = ['workspace_agent_deployments', 'voice_workspaces', 'workspace_artifacts', 'workspace_conversation_sessions', 'workspace_expert_threads', 'workspace_operations', 'workspace_references', 'workspace_artifact_revisions', 'workspace_conversation_events', 'workspace_research', 'workspace_sources']
 
 
 def upgrade():
@@ -26,8 +26,10 @@ def upgrade():
     )
     op.create_index('ix_workspace_agent_deployments_customer_id', 'workspace_agent_deployments', ['customer_id'], unique=False)
     op.create_index('ix_workspace_agent_deployments_expert_id', 'workspace_agent_deployments', ['expert_id'], unique=False)
-    op.create_table('workspace_chats',
+    op.create_table('voice_workspaces',
         sa.Column('id', sa.String(36), nullable=False, primary_key=True),
+        sa.Column('workspace_id', sa.String(64), sa.ForeignKey('workspaces.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('chat_id', sa.String(64), sa.ForeignKey('workspace_chats.id', ondelete='CASCADE'), nullable=False),
         sa.Column('customer_id', sa.Integer(), sa.ForeignKey('kunder.id', ondelete='RESTRICT'), nullable=False, primary_key=False),
         sa.Column('owner_user_id', sa.String(64), sa.ForeignKey('user_accounts.id', ondelete='CASCADE'), nullable=False, primary_key=False),
         sa.Column('creation_key', sa.String(160), nullable=False),
@@ -40,12 +42,15 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, primary_key=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, primary_key=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.UniqueConstraint('owner_user_id', 'creation_key', name='uq_workspace_creation_key'),
+        sa.UniqueConstraint('chat_id', name='uq_voice_workspace_chat'),
     )
-    op.create_index('ix_workspace_chats_customer_id', 'workspace_chats', ['customer_id'], unique=False)
-    op.create_index('ix_workspace_chats_owner_user_id', 'workspace_chats', ['owner_user_id'], unique=False)
+    op.create_index('ix_voice_workspaces_workspace_id', 'voice_workspaces', ['workspace_id'], unique=False)
+    op.create_index('ix_voice_workspaces_chat_id', 'voice_workspaces', ['chat_id'], unique=False)
+    op.create_index('ix_voice_workspaces_customer_id', 'voice_workspaces', ['customer_id'], unique=False)
+    op.create_index('ix_voice_workspaces_owner_user_id', 'voice_workspaces', ['owner_user_id'], unique=False)
     op.create_table('workspace_artifacts',
         sa.Column('id', sa.String(36), nullable=False, primary_key=True),
-        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('workspace_chats.id', ondelete='CASCADE'), nullable=False, primary_key=False),
+        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('voice_workspaces.id', ondelete='CASCADE'), nullable=False, primary_key=False),
         sa.Column('kind', sa.String(24), nullable=False, primary_key=False),
         sa.Column('title', sa.String(255), nullable=False, primary_key=False),
         sa.Column('status', sa.String(24), nullable=False, primary_key=False),
@@ -59,7 +64,7 @@ def upgrade():
     op.create_index('ix_workspace_artifacts_workspace_id', 'workspace_artifacts', ['workspace_id'], unique=False)
     op.create_table('workspace_conversation_sessions',
         sa.Column('id', sa.String(36), nullable=False, primary_key=True),
-        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('workspace_chats.id', ondelete='CASCADE'), nullable=False, primary_key=False),
+        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('voice_workspaces.id', ondelete='CASCADE'), nullable=False, primary_key=False),
         sa.Column('user_id', sa.String(64), sa.ForeignKey('user_accounts.id', ondelete='CASCADE'), nullable=False, primary_key=False),
         sa.Column('customer_id', sa.Integer(), sa.ForeignKey('kunder.id', ondelete='RESTRICT'), nullable=False, primary_key=False),
         sa.Column('expert_id', sa.String(64), sa.ForeignKey('personas.id', ondelete='CASCADE'), nullable=False, primary_key=False),
@@ -82,13 +87,13 @@ def upgrade():
     op.create_index('ix_workspace_conversation_sessions_user_id', 'workspace_conversation_sessions', ['user_id'], unique=False)
     op.create_index('ix_workspace_conversation_sessions_workspace_id', 'workspace_conversation_sessions', ['workspace_id'], unique=False)
     op.create_table('workspace_expert_threads',
-        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('workspace_chats.id', ondelete='CASCADE'), nullable=False, primary_key=True),
+        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('voice_workspaces.id', ondelete='CASCADE'), nullable=False, primary_key=True),
         sa.Column('expert_id', sa.String(64), sa.ForeignKey('personas.id', ondelete='CASCADE'), nullable=False, primary_key=True),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, primary_key=False, server_default=sa.text('CURRENT_TIMESTAMP')),
     )
     op.create_table('workspace_operations',
         sa.Column('id', sa.String(36), nullable=False, primary_key=True),
-        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('workspace_chats.id', ondelete='CASCADE'), nullable=False, primary_key=False),
+        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('voice_workspaces.id', ondelete='CASCADE'), nullable=False, primary_key=False),
         sa.Column('idempotency_key', sa.String(160), nullable=False, primary_key=False),
         sa.Column('payload_hash', sa.String(64), nullable=False, primary_key=False),
         sa.Column('tool_name', sa.String(64), nullable=False, primary_key=False),
@@ -102,7 +107,7 @@ def upgrade():
     op.create_index('ix_workspace_operations_workspace_id', 'workspace_operations', ['workspace_id'], unique=False)
     op.create_table('workspace_references',
         sa.Column('id', sa.String(36), nullable=False, primary_key=True),
-        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('workspace_chats.id', ondelete='CASCADE'), nullable=False, primary_key=False),
+        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('voice_workspaces.id', ondelete='CASCADE'), nullable=False, primary_key=False),
         sa.Column('number', sa.Integer(), nullable=False, primary_key=False),
         sa.Column('identity_key', sa.String(64), nullable=False, primary_key=False),
         sa.Column('kind', sa.String(24), nullable=False, primary_key=False),
@@ -134,13 +139,13 @@ def upgrade():
     )
     op.create_index('ix_workspace_conversation_events_session_id', 'workspace_conversation_events', ['session_id'], unique=False)
     op.create_table('workspace_research',
-        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('workspace_chats.id', ondelete='CASCADE'), nullable=False, primary_key=True),
+        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('voice_workspaces.id', ondelete='CASCADE'), nullable=False, primary_key=True),
         sa.Column('attempt_id', sa.String(64), sa.ForeignKey('execution_attempts.id', ondelete='CASCADE'), nullable=False, primary_key=True),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, primary_key=False, server_default=sa.text('CURRENT_TIMESTAMP')),
     )
     op.create_table('workspace_sources',
         sa.Column('source_url', sa.String(2048), nullable=True),
-        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('workspace_chats.id', ondelete='CASCADE'), nullable=False, primary_key=True),
+        sa.Column('workspace_id', sa.String(36), sa.ForeignKey('voice_workspaces.id', ondelete='CASCADE'), nullable=False, primary_key=True),
         sa.Column('source_id', sa.String(64), sa.ForeignKey('stored_objects.id', ondelete='CASCADE'), nullable=False, primary_key=True),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, primary_key=False, server_default=sa.text('CURRENT_TIMESTAMP')),
     )
@@ -162,5 +167,5 @@ def downgrade():
     op.drop_table('workspace_expert_threads')
     op.drop_table('workspace_conversation_sessions')
     op.drop_table('workspace_artifacts')
-    op.drop_table('workspace_chats')
+    op.drop_table('voice_workspaces')
     op.drop_table('workspace_agent_deployments')

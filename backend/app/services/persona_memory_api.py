@@ -13,13 +13,14 @@ from app.services.expertgranskning.memory import ExpertMemoryHit, get_expert_mem
 from app.services.expertgranskning.memory_view import attach_expert_labels, directory_experts, expert_directory, serialize_memory_hit
 from app.services.public_expert_memory import clear_public_expert_memories
 from app.services.workspace_memory_scope import is_private_workspace_memory, workspace_memory_expert_id
+from app.services.workspaces import list_workspaces
 
 
 @dataclass(frozen=True)
 class PersonaMemoryScope:
     customer_id: int
     expert_id: str
-    private_expert_id: str
+    private_expert_ids: frozenset[str]
     is_expert: bool
     directory: dict
 
@@ -31,10 +32,15 @@ async def input_scope(session: AsyncSession, persona_id: str, user: UserAccount,
     assert_kund_access(user, persona.customer_id)
     if expert_required and persona.kind != "expert":
         raise HTTPException(404, "Memory not found")
+    parents = (await list_workspaces(session, customer_id=persona.customer_id, user_id=user.id)
+               if persona.kind == "expert" else [])
     scope = PersonaMemoryScope(customer_id=persona.customer_id, expert_id=persona_catalog_key(persona),
-        private_expert_id=workspace_memory_expert_id(persona, user.id), is_expert=persona.kind == "expert",
+        private_expert_ids=frozenset(workspace_memory_expert_id(persona, user.id, workspace_parent_id=parent.id)
+                                    for parent in parents), is_expert=persona.kind == "expert",
         directory=await expert_directory(session, customer_id=persona.customer_id) if persona.kind == "expert" else {})
-    await session.rollback()
+    # The core workspace catalog may intentionally create the customer's
+    # required company workspace. This request owns that input phase.
+    await session.commit()
     return scope
 
 
@@ -45,9 +51,7 @@ async def list_memories(session: AsyncSession, persona_id: str, user: UserAccoun
     memory = get_expert_memory()
     hits = await memory.list_all(customer_id=scope.customer_id, expert_id=scope.expert_id)
     rows = attach_expert_labels(hits, scope.directory, customer_id=scope.customer_id)
-    private = await memory.list_all(customer_id=scope.customer_id, expert_id=scope.private_expert_id)
-    rows.extend(serialize_scoped_hit(hit, scope) for hit in private
-                if memory_belongs_to(hit, customer_id=scope.customer_id, expert_id=scope.private_expert_id))
+    rows.extend(serialize_scoped_hit(hit, scope) for hit in await private_memories(scope))
     rows.sort(key=lambda row: (row.updated_at or row.created_at or "", row.id), reverse=True)
     return ExpertMemoryListOut(customer_id=scope.customer_id, count=len(rows), memories=rows,
                               experts=directory_experts(scope.directory, customer_id=scope.customer_id))
@@ -57,9 +61,17 @@ async def clear_memories(session: AsyncSession, persona_id: str, user: UserAccou
     scope = await input_scope(session, persona_id, user)
     await clear_public_expert_memories(customer_id=scope.customer_id, expert_id=scope.expert_id)
     memory = get_expert_memory()
-    for hit in await memory.list_all(customer_id=scope.customer_id, expert_id=scope.private_expert_id):
-        if memory_belongs_to(hit, customer_id=scope.customer_id, expert_id=scope.private_expert_id):
-            await memory.delete(memory_id=hit.id)
+    for hit in await private_memories(scope):
+        await memory.delete(memory_id=hit.id)
+
+
+async def private_memories(scope: PersonaMemoryScope) -> list[ExpertMemoryHit]:
+    memory = get_expert_memory()
+    hits = []
+    for expert_id in sorted(scope.private_expert_ids):
+        rows = await memory.list_all(customer_id=scope.customer_id, expert_id=expert_id)
+        hits.extend(hit for hit in rows if memory_belongs_to(hit, customer_id=scope.customer_id, expert_id=expert_id))
+    return hits
 
 
 def serialize_scoped_hit(hit: ExpertMemoryHit, scope: PersonaMemoryScope) -> ExpertMemoryOut:
@@ -69,7 +81,11 @@ def serialize_scoped_hit(hit: ExpertMemoryHit, scope: PersonaMemoryScope) -> Exp
 
 async def require_scoped_hit(memory_id: str, scope: PersonaMemoryScope) -> ExpertMemoryHit:
     hit = await get_expert_memory().get(memory_id=memory_id)
-    expert_id = scope.private_expert_id if hit and is_private_workspace_memory(hit) else scope.expert_id
+    expert_id = scope.expert_id
+    if hit and is_private_workspace_memory(hit):
+        if hit.expert_id not in scope.private_expert_ids:
+            raise HTTPException(404, "Memory not found")
+        expert_id = hit.expert_id
     if hit is None or not memory_belongs_to(hit, customer_id=scope.customer_id, expert_id=expert_id):
         raise HTTPException(404, "Memory not found")
     return hit

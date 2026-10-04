@@ -4,14 +4,28 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
-from app.auth.scope import job_payload_visible_to_user
-from app.database.models import UserAccount
 from fastapi import WebSocket
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
+from app.auth.scope import job_payload_visible_to_user
+from app.database.models import UserAccount
+
 logger = logging.getLogger(__name__)
+
+
+def _job_visible(event: dict, user: UserAccount | None, *, authorized: bool) -> bool:
+    if event.get("type") != "job.updated":
+        return True
+    job = event.get("job", {})
+    request = job.get("request") or {}
+    if user is None:
+        return authorized or not (job.get("kind") == "workspace_generation" or request.get("workspace_id"))
+    return job_payload_visible_to_user(
+        user, kind=job.get("kind", ""), request=request, customer_id=job.get("customer_id")
+    )
 
 
 def _customer_id_from_event(event: dict[str, Any]) -> int | None:
@@ -35,24 +49,14 @@ def _customer_id_from_event(event: dict[str, Any]) -> int | None:
     return None
 
 
-def _job_visible(event: dict, user: UserAccount | None) -> bool:
-    if event.get("type") != "job.updated":
-        return True
-    job = event.get("job")
-    if not isinstance(job, dict):
-        return False
-    request = job.get("request") or {}
-    if user is None:
-        return job.get("kind") != "workspace_generation" and not request.get("workspace_id")
-    return job_payload_visible_to_user(user, kind=str(job.get("kind")), request=request, customer_id=job.get("customer_id"))
-
-
 class EventHub:
     """Broadcast JSON events to sockets, optionally scoped by customer_id."""
 
     def __init__(self, *, name: str) -> None:
         self._name = name
-        self._sockets: dict[WebSocket, tuple[int | None, UserAccount | None]] = {}
+        self._sockets: dict[WebSocket, int | None] = {}
+        self._authorize: dict[WebSocket, Callable[[dict], Awaitable[bool]]] = {}
+        self._users: dict[WebSocket, UserAccount] = {}
         self._lock = asyncio.Lock()
 
     async def subscribe(
@@ -60,14 +64,23 @@ class EventHub:
         websocket: WebSocket,
         *,
         customer_id: int | None = None,
+        authorize: Callable[[dict], Awaitable[bool]] | None = None,
         user: UserAccount | None = None,
     ) -> None:
         async with self._lock:
-            self._sockets[websocket] = customer_id, user
+            self._sockets[websocket] = customer_id
+            if user is not None:
+                self._users[websocket] = user
+            if authorize is not None:
+                self._authorize[websocket] = authorize
+            else:
+                self._authorize.pop(websocket, None)
 
     async def unsubscribe(self, websocket: WebSocket) -> None:
         async with self._lock:
             self._sockets.pop(websocket, None)
+            self._authorize.pop(websocket, None)
+            self._users.pop(websocket, None)
 
     def _matches_scope(
         self,
@@ -81,15 +94,19 @@ class EventHub:
     async def publish(self, event: dict[str, Any]) -> None:
         event_customer_id = _customer_id_from_event(event)
         async with self._lock:
-            targets = list(self._sockets.items())
+            targets = [(ws, scope, self._authorize.get(ws), self._users.get(ws)) for ws, scope in self._sockets.items()]
         if not targets:
             return
         dead: list[WebSocket] = []
-        for ws, (scope, user) in targets:
-            if not self._matches_scope(scope, event_customer_id) or not _job_visible(event, user):
+        for ws, scope, authorize, user in targets:
+            if not self._matches_scope(scope, event_customer_id):
                 continue
             if ws.client_state != WebSocketState.CONNECTED:
                 dead.append(ws)
+                continue
+            if authorize is not None and not await authorize(event):
+                continue
+            if not _job_visible(event, user, authorized=authorize is not None):
                 continue
             try:
                 await ws.send_json(event)
@@ -100,6 +117,8 @@ class EventHub:
             async with self._lock:
                 for ws in dead:
                     self._sockets.pop(ws, None)
+                    self._authorize.pop(ws, None)
+                    self._users.pop(ws, None)
 
 
 # Back-compat alias used by jobs.

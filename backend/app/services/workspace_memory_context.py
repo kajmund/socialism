@@ -7,9 +7,10 @@ from app.services.prompt_store import render_prompt
 from app.services.workspace_memory_scope import WORKSPACE_MEMORY_SOURCE, workspace_memory_expert_id
 
 
-async def workspace_memory_context(persona: Persona, query: str, prompts: dict[str, str], *, owner_id: str) -> str:
+async def workspace_memory_context(persona: Persona, query: str, prompts: dict[str, str], *,
+                                   owner_id: str, workspace_parent_id: str) -> str:
     shared = await expert_memory_context(persona, query, prompts)
-    private_key = workspace_memory_expert_id(persona, owner_id)
+    private_key = workspace_memory_expert_id(persona, owner_id, workspace_parent_id=workspace_parent_id)
     private = await get_expert_memory().search(customer_id=persona.customer_id,
         expert_id=private_key, query=query,
         sources=frozenset({WORKSPACE_MEMORY_SOURCE}))

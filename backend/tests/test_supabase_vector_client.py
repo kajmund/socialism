@@ -117,6 +117,41 @@ async def test_live_client_gets_at_most_100_keys_per_request():
     assert [len(batch) for batch in index.get_batches] == [100, 1]
 
 
+@pytest.mark.parametrize("method", ["get", "query"])
+async def test_qa_source_references_roundtrip_through_scalar_storage_metadata(method):
+    index = FakeIndex()
+    client = SupabaseStorageVectorClient(index)
+    references = {"text_unit_ids": ["unit-1", "unit-2"], "document_version_ids": ["version-1"]}
+    record = replace(_record(), metadata={
+        "customer_id": 7, "workspace_id": "workspace-1", "item_revision": 2,
+        "document_knowledge_item_id": "qa-1", "document_version_id": "version-1",
+        **references,
+    })
+    await client.upsert([record])
+    stored = index.put_batches[0][0]
+    assert stored.metadata["text_unit_ids"] == '["unit-1","unit-2"]'
+    match = VectorMatch(key=stored.key, metadata=stored.metadata, data=stored.data)
+    if method == "get":
+        index.get_vectors = [match]
+        retrieved = await client.get(document_id=record.document_id, chunk_ids=[record.chunk_id])
+    else:
+        async def query(_vector, **_kwargs):
+            return SimpleNamespace(vectors=[match])
+        index.query = query
+        retrieved = await client.query(vector=record.embedding, filters={"customer_id": 7}, limit=4)
+    assert retrieved[0].metadata == {**stored.metadata, **references}
+
+
+@pytest.mark.parametrize("value", ["not-json", '["unit-1",4]', '{"unit":"unit-1"}'])
+async def test_invalid_source_reference_metadata_is_rejected(value):
+    index = FakeIndex()
+    index.get_vectors = [VectorMatch(key="invalid", metadata={
+        "document_id": "doc-1", "chunk_id": "chunk-1", "text_unit_ids": value,
+    })]
+    with pytest.raises(KnowledgeVectorStoreError, match="source-reference"):
+        await SupabaseStorageVectorClient(index).get(document_id="doc-1", chunk_ids=["chunk-1"])
+
+
 async def test_live_client_queries_with_scope_filters_and_normalizes_score():
     index = FakeIndex()
     client = SupabaseStorageVectorClient(index)

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.provider import KnowledgeProvider
+from app.services.knowledge.provider import SUPABASE_PROVIDER_ID
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.passage_router import JevPassageRouter
 from app.services.lagen_nu.registration import (
@@ -40,7 +41,12 @@ def default_standard_capability_descriptors() -> tuple[KnowledgeProviderDescript
 
     ``build_research_registry`` and planner availability both read this set.
     """
-    return lagen_nu_capability_descriptors()
+    return (
+        *lagen_nu_capability_descriptors(),
+        knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "case_knowledge"),
+        knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "customer_knowledge"),
+        knowledge_adapter_descriptor(SUPABASE_PROVIDER_ID, "domain_knowledge"),
+    )
 
 
 def set_standard_capability_descriptors(

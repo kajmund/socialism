@@ -29,7 +29,7 @@ from app.services.expert_chat_evidence import (
     reusable_expert_chat_evidence_context,
 )
 from app.services.expert_memory_schedule import memory_tasks, schedule_expert_memory_update
-from app.services.research.knowledge_question import identity_from_text
+from app.services.research.knowledge_question import identity_from_text, tenant_question_scope
 
 
 @pytest.fixture
@@ -88,7 +88,7 @@ async def _store_answer(
         identity_key=identity.identity_key,
         normalized_text=identity.normalized_text,
         display_text=identity.display_text,
-        namespace=f"tenant:{customer_id}",
+        namespace=tenant_question_scope(customer_id).namespace,
         visibility="tenant",
         customer_id=customer_id,
     )

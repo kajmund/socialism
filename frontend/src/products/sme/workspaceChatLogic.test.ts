@@ -1,15 +1,15 @@
 import { ApiError } from "@/lib/http"
 import { describe, expect, it } from "vitest"
-import type { WorkspaceMessage, WorkspaceState } from "@/api/workspaces"
+import type { WorkspaceMessage, WorkspaceState } from "@/api/voiceWorkspaces"
 import { clientArguments, openWorkspaceDocument, upsertTranscript, workspaceThreadKey, workspaceErrorMessage } from "./workspaceChatLogic"
 const state: WorkspaceState = { language: "sv", knowledge_scope: "workspace", view: "relations", documents: [{ source_id: "first", page: 3, zoom: 1.5 }, { source_id: "second", page: 7, zoom: 0.8 }], split_source_ids: ["first", "second"], research_attempt_ids: [], selection: { node_id: "event" } }
 const message: WorkspaceMessage = { id: 10, role: "agent", content: "The complete response", session_id: "session-a", event_key: "agent:4", created_at: "2026-10-04T12:00:00Z" }
 describe("workspace conversation state", () => {
   it("explains provider errors and stale sources without exposing machine codes", () => {
     const translate = (key: string) => key
-    expect(workspaceErrorMessage(new ApiError("elevenlabs_voice_unavailable", { status: 503 }), translate, "workspaceChat.sessionError")).toBe("workspaceChat.sessionError")
-    expect(workspaceErrorMessage(new ApiError("workspace_reference_stale", { status: 409 }), translate)).toBe("workspaceChat.stale")
-    expect(workspaceErrorMessage(new ApiError("workspace_revision_conflict", { status: 409 }), translate)).toBe("workspaceChat.conflict")
+    expect(workspaceErrorMessage(new ApiError("elevenlabs_voice_unavailable", { status: 503 }), translate, "voiceWorkspaceChat.sessionError")).toBe("voiceWorkspaceChat.sessionError")
+    expect(workspaceErrorMessage(new ApiError("workspace_reference_stale", { status: 409 }), translate)).toBe("voiceWorkspaceChat.stale")
+    expect(workspaceErrorMessage(new ApiError("workspace_revision_conflict", { status: 409 }), translate)).toBe("voiceWorkspaceChat.conflict")
   })
   it("isolates drafts for the same expert in different workspaces", () => {
     expect(workspaceThreadKey("workspace-a", "expert", "same-expert")).not.toBe(workspaceThreadKey("workspace-b", "expert", "same-expert"))

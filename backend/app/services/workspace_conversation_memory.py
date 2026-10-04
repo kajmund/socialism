@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona, PersonaMessage
 from app.database.workspace_conversations import WorkspaceConversationEvent, WorkspaceConversationSession
+from app.database.workspace_models import VoiceWorkspace
 from app.services.expertgranskning.memory import get_expert_memory, memory_belongs_to
 from app.services.workspace_memory_scope import WORKSPACE_MEMORY_SOURCE, workspace_memory_expert_id
 
@@ -32,11 +33,14 @@ async def claim_memory(session: AsyncSession, provider_id: str, event_key: str) 
         await session.rollback()
         return None
     persona = await session.get(Persona, provider.expert_id)
+    workspace = await session.get(VoiceWorkspace, provider.workspace_id)
     claim = str(uuid4())
     prepared = {"event_id": event.id, "claim": claim, "digest": digest, "persona": persona,
                 "user_text": previous.content if previous else "", "assistant_text": assistant.content,
-                "memory_ids": event.payload.get("memory_ids", []), "scope": f"{provider_id}:{event_key}",
-                "memory_expert_id": workspace_memory_expert_id(persona, provider.user_id)}
+                "memory_ids": event.payload.get("memory_ids", []),
+                "scope": f"workspace:{workspace.workspace_id}:chat:{workspace.chat_id}:native:{provider_id}:{event_key}",
+                "memory_expert_id": workspace_memory_expert_id(persona, provider.user_id,
+                                                               workspace_parent_id=workspace.workspace_id)}
     event.payload = {**event.payload, "memory_claim": claim, "memory_state": "processing",
                      "memory_lease_until": (datetime.now(UTC) + timedelta(minutes=5)).isoformat()}
     session.expunge(persona)

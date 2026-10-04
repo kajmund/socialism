@@ -20,7 +20,7 @@ En gul punkt längst till höger betyder att konversationen innehåller olästa 
 
 ## Chatta med en expert
 
-Välj experten i vänsterkolumnen, skriv i fältet **Aa** och skicka. Text och röst använder samma expert och samma arbetsyta. Chattens svar sparas tillsammans med arbetsytan.
+Välj först företagets eller kundens arbetsyta och därefter en privat chatt och expert. Administratörer väljer även kund. Skriv i fältet **Aa** och skicka. Text och röst använder samma expert och samma arbetsyta. Chattens svar sparas tillsammans med arbetsytan.
 
 Du kan öppna en annan konversation medan experten arbetar. Svaret fortsätter att tas fram och markeras som oläst när det är klart.
 

@@ -66,5 +66,6 @@ class ChartArguments(ToolArguments):
 
 
 class ResearchArguments(ToolArguments):
-    objective: str = Field(min_length=1, max_length=10000)
+    objective: str = Field(min_length=1, max_length=4000)
     confirmed: bool = False
+    source_object_ids: list[str] | None = Field(default=None, max_length=100)

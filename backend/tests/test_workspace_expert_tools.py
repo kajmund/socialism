@@ -7,8 +7,9 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.database.base import Base
-from app.database.models import Persona, UserAccount
-from app.database.workspace_models import Workspace
+from app.database.models import Kund, Persona, UserAccount
+from app.database.workspaces import Workspace, WorkspaceChat
+from app.database.workspace_models import VoiceWorkspace
 from app.services import workspace_expert_tools as tools
 from tests.conftest import ADMIN_USER_ID, TEST_CUSTOMER_ID
 
@@ -25,7 +26,7 @@ def test_expert_schema_includes_only_selected_tools_and_workspace_owns_research(
 @pytest.mark.asyncio
 async def test_disabled_expert_tool_never_reaches_external_boundary(client_db, monkeypatch):
     client, factory = client_db
-    workspace = (await client.post("/workspaces", json={"title": "Avtal", "idempotency_key": str(uuid4())})).json()
+    workspace = (await client.post("/voice-workspaces?customer_id=1", json={"title": "Avtal", "idempotency_key": str(uuid4())})).json()
     async def forbidden(*_args, **_kwargs):
         raise AssertionError("disabled tool executed")
     monkeypatch.setattr(tools, "run_live_voice_tool", forbidden)
@@ -43,7 +44,7 @@ async def test_disabled_expert_tool_never_reaches_external_boundary(client_db, m
 @pytest.mark.parametrize("fails", [False, True])
 async def test_selected_expert_tool_replay_never_repeats_external_call(client_db, monkeypatch, fails):
     client, factory = client_db
-    workspace = (await client.post("/workspaces", json={"title": "Avtal", "idempotency_key": str(uuid4())})).json()
+    workspace = (await client.post("/voice-workspaces?customer_id=1", json={"title": "Avtal", "idempotency_key": str(uuid4())})).json()
     calls = []
 
     async def remote(_session, **kwargs):
@@ -78,11 +79,11 @@ async def test_selected_expert_tool_replay_never_repeats_external_call(client_db
 @pytest.mark.asyncio
 async def test_selected_lookup_returns_connection_while_remote_pending(client_db, tmp_path, monkeypatch):
     client, source_factory = client_db
-    workspace = (await client.post("/workspaces", json={"title": "Avtal", "idempotency_key": str(uuid4())})).json()
+    workspace = (await client.post("/voice-workspaces?customer_id=1", json={"title": "Avtal", "idempotency_key": str(uuid4())})).json()
     async with source_factory() as session:
         session.add(Persona(id="expert", customer_id=TEST_CUSTOMER_ID, kind="expert", name="Expert", occ="Jurist", district="", profile={}, tools=["search_wiki"]))
         await session.commit()
-        pairs = [(Workspace, workspace["id"]), (Persona, "expert"), (UserAccount, ADMIN_USER_ID)]
+        pairs = [(Kund, 1), (Workspace, workspace["workspace_id"]), (WorkspaceChat, workspace["chat_id"]), (VoiceWorkspace, workspace["id"]), (Persona, "expert"), (UserAccount, ADMIN_USER_ID)]
         copies = []
         for model, key in pairs:
             row = await session.get(model, key)
@@ -115,7 +116,7 @@ async def test_selected_lookup_returns_connection_while_remote_pending(client_db
     try:
         await asyncio.wait_for(waiting.wait(), 2)
         async with factory() as reader:
-            assert await reader.get(Workspace, workspace["id"]) is not None
+            assert await reader.get(VoiceWorkspace, workspace["id"]) is not None
     finally:
         release.set()
         result = await task

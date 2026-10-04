@@ -36,6 +36,7 @@ import { ChatMessageActions } from "@/components/chat/ChatMessageActions"
 import { latestChatMessages } from "@/components/chat/chatWindow"
 import { ExpertVoiceButton } from "@/components/chat/ExpertVoiceButton"
 import { MessengerChat } from "@/components/chat/MessengerChat"
+import { WorkspaceChatPanel } from "@/components/workspaces/WorkspaceChatPanel"
 import { useLlmCapabilities } from "@/components/chat/useLlmCapabilities"
 import {
   doneToPersonaMessages,
@@ -249,6 +250,7 @@ function Editor({
   const { intl } = useLocale()
   const [mode, setMode] = useState<"work" | "present">("work")
   const [icMode, setIcMode] = useState<ChatMode>("interview")
+  const [workspaceChatOpen, setWorkspaceChatOpen] = useState(kind === "expert")
   const [layersOpen, setLayersOpen] = useState(true)
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -922,18 +924,19 @@ function Editor({
               <div className="ic-switch">
                 <button
                   type="button"
-                  className={icMode === "character" ? "on" : ""}
-                  onClick={() => setIcMode("character")}
+                  className={!workspaceChatOpen && icMode === "character" ? "on" : ""}
+                  onClick={() => { setWorkspaceChatOpen(false); setIcMode("character") }}
                 >
                   {t("personas.composer.inCharacter")}
                 </button>
                 <button
                   type="button"
-                  className={icMode === "interview" ? "on" : ""}
-                  onClick={() => setIcMode("interview")}
+                  className={!workspaceChatOpen && icMode === "interview" ? "on" : ""}
+                  onClick={() => { setWorkspaceChatOpen(false); setIcMode("interview") }}
                 >
                   {t("personas.composer.interviewTab")}
                 </button>
+                {kind === "expert" && personaId ? <button type="button" className={workspaceChatOpen ? "on" : ""} onClick={() => setWorkspaceChatOpen(true)}>{t("workspaceChat.title")}</button> : null}
               </div>
             </div>
             <div className="chat-top-actions">
@@ -966,7 +969,7 @@ function Editor({
               </AdminButton>
             </div>
           </div>
-          <MessengerChat
+          {workspaceChatOpen && kind === "expert" && personaId ? <WorkspaceChatPanel key={personaId} personaId={personaId} personaName={persona.name} /> : <MessengerChat
             messages={messages}
             optimisticUser={optimisticUser}
             optimisticImageUrl={optimisticImageUrl}
@@ -1011,7 +1014,7 @@ function Editor({
                   )
                 : undefined
             }
-          />
+          />}
         </div>
         ) : null}
       </div>

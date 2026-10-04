@@ -7,7 +7,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.database.base import Base
-from app.database.models import EvidencePassage, KnowledgeQuestionEvidenceLink, Kund
+from app.database.models import EvidencePassage, KnowledgeQuestionEvidenceLink, KnowledgeQuestionRow, Kund
 from app.database.sqlite import async_engine_kwargs, register_sqlite_pragmas
 from app.services.execution import add_evidence_items, create_evidence_set, create_run
 from app.services.knowledge.models import KnowledgeScope
@@ -101,8 +101,10 @@ async def test_writeback_references_persisted_passage(db, kind, explicit_hash):
             db, graph=graph, need=need, context=context, evidence=[evidence]
         )
     links = (await db.scalars(select(KnowledgeQuestionEvidenceLink))).all()
-    assert len(links) == 2
+    assert len(links) == 1
     assert {link.visibility for link in links} == {"public"}
+    questions = list(await db.scalars(select(KnowledgeQuestionRow)))
+    assert all(question.visibility == "tenant" for question in questions)
     assert {link.passage_id for link in links} == {stored[0].passage_id}
     assert await db.scalar(select(func.count()).select_from(EvidencePassage)) == 1
 
@@ -120,7 +122,7 @@ async def test_writeback_references_persisted_passage(db, kind, explicit_hash):
         )
         assert second_stored[0].passage_id != stored[0].passage_id
         links = (await db.scalars(select(KnowledgeQuestionEvidenceLink))).all()
-        assert len(links) == 4
+        assert len(links) == 2
         assert {link.passage_id for link in links} == {
             stored[0].passage_id,
             second_stored[0].passage_id,

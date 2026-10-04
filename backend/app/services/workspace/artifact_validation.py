@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.workspace_models import Workspace, WorkspaceArtifact
+from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifact
 from app.services.workspace.sources import read_reference
 
 
@@ -111,7 +111,7 @@ def _references(value: object) -> set[str]:
 
 
 async def validate_artifact_content(session: AsyncSession, artifact: WorkspaceArtifact, content: dict) -> None:
-    workspace = await session.get(Workspace, artifact.workspace_id)
+    workspace = await session.get(VoiceWorkspace, artifact.workspace_id)
     if workspace is None:
         raise HTTPException(status_code=404, detail="workspace_not_found")
     validators = {"document": _document, "comparison": _comparison, "relations": _relations}

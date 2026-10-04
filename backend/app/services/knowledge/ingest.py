@@ -6,10 +6,12 @@ import hashlib
 from dataclasses import dataclass
 from typing import Literal
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.services.knowledge.chunking import KnowledgeChunker, text_unit_to_chunk
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.extractors import DefaultTextExtractor, ExtractedDocument, TextExtractor
-from app.services.knowledge.models import EmbeddedKnowledgeChunk, KnowledgeScope, require_scope
+from app.services.knowledge.models import EmbeddedKnowledgeChunk, KnowledgeDocument, KnowledgeScope, require_scope
 from app.services.knowledge.provider import KnowledgeNotFoundError, KnowledgeProvider
 from app.services.knowledge.units import SegmentedDocument
 from app.services.knowledge.vector_store import KnowledgeVectorStore
@@ -75,6 +77,20 @@ class KnowledgeIngestService:
                 extracted=extracted,
             )
 
+        session = getattr(self._provider, "shared_db_session", None)
+        if isinstance(session, AsyncSession):
+            from app.services.knowledge.canonical_ingest import ingest_extracted_source
+
+            return await ingest_extracted_source(
+                session, extracted=extracted, document=document,
+                source_type=source_type or document.source_type or "uploaded_file",
+                canonical_uri=canonical_uri or document.canonical_uri or f"{document.provider}:{document.external_id}",
+                content_hash=content_hash, customer_id=document.scope.customer_id,
+                source_object_id=document.metadata.get("source_object_id"),
+                embeddings=self._embeddings, vector_store=self._vector_store,
+                chunker=self._chunker,
+            )
+
         segmented = self._chunker.segment(
             extracted,
             document,
@@ -82,10 +98,22 @@ class KnowledgeIngestService:
             source_type=source_type,
             canonical_uri=canonical_uri,
         )
+        return await self._index_segmented(
+            segmented=segmented, document=document, extracted=extracted, content_hash=content_hash,
+        )
+
+    async def _index_segmented(
+        self,
+        *,
+        segmented: SegmentedDocument,
+        document: KnowledgeDocument,
+        extracted: ExtractedDocument,
+        content_hash: str,
+    ) -> KnowledgeIngestResult:
         chunks = [text_unit_to_chunk(unit, document) for unit in segmented.text_units]
         if not chunks:
             return _result(
-                document_id,
+                document.document_id,
                 "empty",
                 content_hash,
                 extracted=extracted,
@@ -96,7 +124,7 @@ class KnowledgeIngestService:
             vectors = await self._embeddings.embed([unit.text for unit in segmented.text_units])
         except Exception as exc:  # noqa: BLE001 — keep the previous index searchable
             return _result(
-                document_id,
+                document.document_id,
                 "failed",
                 content_hash,
                 message=str(exc),
@@ -106,7 +134,7 @@ class KnowledgeIngestService:
 
         if len(vectors) != len(chunks):
             return _result(
-                document_id,
+                document.document_id,
                 "failed",
                 content_hash,
                 message=(
@@ -120,9 +148,9 @@ class KnowledgeIngestService:
             EmbeddedKnowledgeChunk(chunk=chunk, embedding=vector)
             for chunk, vector in zip(chunks, vectors, strict=True)
         ]
-        await self._vector_store.replace_document_chunks(document_id, embedded)
+        await self._vector_store.replace_document_chunks(document.document_id, embedded)
         return KnowledgeIngestResult(
-            document_id=document_id,
+            document_id=document.document_id,
             status="indexed",
             chunks_indexed=len(embedded),
             content_hash=content_hash,
