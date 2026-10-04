@@ -9,7 +9,7 @@ export type PdfSelectionFragment = {
 export function pdfSelectionText(fragments: PdfSelectionFragment[]): string {
   const lines: { y: number; fragments: PdfSelectionFragment[] }[] = []
   for (const fragment of [...fragments].sort((a, b) => a.y - b.y || a.x - b.x)) {
-    if (!fragment.text.trim()) continue
+    if (!fragment.text) continue
     let line = lines.find((row) => Math.abs(row.y - fragment.y) <= 3)
     if (!line) { line = { y: fragment.y, fragments: [] }; lines.push(line) }
     line.fragments.push(fragment)
