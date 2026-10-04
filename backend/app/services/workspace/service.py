@@ -138,18 +138,8 @@ async def _validate_selection(session: AsyncSession, workspace: VoiceWorkspace, 
     if selection.reference_id:
         await _validate_reference_selection(session, workspace, state)
     if selection.source_id:
-        source = await require_source(session, workspace, selection.source_id)
-        if selection.anchor is None:
-            raise HTTPException(status_code=422, detail="selection_anchor_required")
-        from app.services.workspace.sources import citation, source_version
-        from app.services.document_knowledge import _normalized
-        exact_text = selection.anchor.exact_text or ""
-        if not exact_text or _normalized(exact_text) not in _normalized(source.extracted_text or ""):
-            raise HTTPException(status_code=409, detail="selection_anchor_stale")
-        reference = await citation(session, workspace, kind="underlag", source_id=source.id,
-            version=source_version(source), anchor=selection.anchor.model_dump(),
-            snapshot={"title": source.filename, "excerpt": exact_text})
-        selection.reference_id = reference.id
+        from app.services.workspace.selection_verification import validate_source_selection
+        await validate_source_selection(session, workspace, selection)
     if selection.artifact_id:
         artifact = await require_artifact(session, workspace, selection.artifact_id)
         content = artifact.content
@@ -177,6 +167,8 @@ async def _validate_reference_selection(session: AsyncSession, workspace: VoiceW
         raise HTTPException(status_code=409, detail="workspace_reference_stale")
     if selection.anchor is None:
         return
+    from app.services.workspace.selection_verification import validate_pdf_reference
+    await validate_pdf_reference(session, workspace, reference, selection.anchor)
     anchor = selection.anchor.model_dump()
     quote = anchor.get("exact_text") or ""
     if (not quote or _normalized(quote) not in _normalized(reference.snapshot.get("excerpt") or "")

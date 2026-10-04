@@ -208,7 +208,7 @@ export function PdfKnowledgeViewer({
       part.selectNodeContents(node)
       if (range.compareBoundaryPoints(Range.START_TO_START, part) > 0) part.setStart(range.startContainer, range.startOffset)
       if (range.compareBoundaryPoints(Range.END_TO_END, part) < 0) part.setEnd(range.endContainer, range.endOffset)
-      if (part.collapsed || !part.toString().trim()) continue
+      if (part.collapsed || !part.toString()) continue
       const position = part.getBoundingClientRect(), scale = pdfWidth / bounds.width
       fragments.push({ text: part.toString(), x: (position.left - bounds.left) * scale, y: (position.top - bounds.top) * scale, width: position.width * scale })
       selectedRects.push(...Array.from(part.getClientRects()))
