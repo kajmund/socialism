@@ -51,6 +51,8 @@ Workspace search retrieves original PDF bytes once per selected source. Q&A disc
 
 PDF quote geometry uses visual reading order rather than draw-command order. Matching requires one unique contiguous sequence of whole words, preserves punctuation and applies the existing case and whitespace normalization. An absent, partial-word or repeated quote, or a wrong page, produces no marker. Geometry belongs to the citation anchor identity, so a new search can create a correctly localized reference without rewriting an older citation.
 
+Manual PDF selections verify the characters at the selected page rectangles against the original PDF. A selection within one column can be valid even when the flattened page text interleaves another column. Exact normalized text must match those original positions; changed anchors are verified again, and unverifiable text, page or geometry is rejected. Successful verification creates an immutable version-bound reference, reused for unchanged selections during zoom and other state changes. The read transaction ends before object storage and PDF parsing; workspace access and source version are checked again afterward, before saving the reference and state.
+
 ## Verification
 
 Run backend pytest, frontend lint/tests/build and `make knowledge-validate`. The default test suite mocks provider HTTP and LLM boundaries and makes no ElevenLabs calls. Live acceptance requires configured provider credentials, browser microphone access, and provider permission to create private agents/tools/procedures: run both text and WebRTC voice, switch expert/workspace, interrupt an answer, upload/read a source, show its anchor, create/revise/export a draft and confirm no stale callback affects the new session.

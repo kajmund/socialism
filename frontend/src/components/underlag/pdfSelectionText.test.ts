@@ -28,4 +28,11 @@ describe("PDF selection text", () => {
     ])).toBe("arking 96,00 SEK (25%)")
     expect(pdfSelectionText([])).toBe("")
   })
+  it("keeps a literal space even when its glyph is narrower than the word-gap tolerance", () => {
+    expect(pdfSelectionText([
+      { text: "small", x: 10, y: 10, width: 20 },
+      { text: " ", x: 30, y: 10, width: 2 },
+      { text: "space", x: 32, y: 10, width: 20 },
+    ])).toBe("small space")
+  })
 })

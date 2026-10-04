@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user
 from app.database.models import UserAccount
 from app.database.session import get_session
+from app.database.transaction_state import has_pending_writes
 from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifactRevision, WorkspaceOperation, WorkspaceSource
 from app.schemas.workspace import WorkspaceArtifactPatch, WorkspaceCreate, WorkspacePatch, WorkspaceSourceAdd, WorkspaceToolRequest
 from app.services import jobs as jobs_service
@@ -72,8 +73,18 @@ async def get_workspace(workspace_id: str, *, session: AsyncSession = Depends(ge
 
 @router.patch("/{workspace_id}")
 async def update_workspace(workspace_id: str, body: WorkspacePatch, *, session: AsyncSession = Depends(get_session), user: UserAccount = Depends(get_current_user)) -> dict:
+    if has_pending_writes(session):
+        raise RuntimeError("Workspace changes require a clean transaction")
     workspace = await require_workspace(session, workspace_id, user)
-    operation, accepted = await accept_operation(session, workspace, tool_name="update_workspace", arguments=body.model_dump(exclude={"idempotency_key", "expected_revision"}),
+    arguments = body.model_dump(exclude={"idempotency_key", "expected_revision"})
+    existing = await session.scalar(select(WorkspaceOperation.id).where(
+        WorkspaceOperation.workspace_id == workspace_id, WorkspaceOperation.idempotency_key == body.idempotency_key))
+    if existing is None:
+        if workspace.revision != body.expected_revision:
+            raise HTTPException(status_code=409, detail="workspace_revision_conflict")
+        from app.services.workspace.selection_verification import prepare_pdf_selection
+        workspace = await prepare_pdf_selection(session, workspace, user, body.state)
+    operation, accepted = await accept_operation(session, workspace, tool_name="update_workspace", arguments=arguments,
         expected_revision=body.expected_revision, idempotency_key=body.idempotency_key)
     if not accepted:
         return operation.result
