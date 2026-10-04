@@ -40,7 +40,10 @@ export function workspaceThreadKey(workspaceId: string, threadType: string, thre
 export function workspaceErrorMessage(error: unknown, t: (key: MessageKey) => string, fallback: MessageKey = "voiceWorkspaceChat.operationError"): string {
   const message = error instanceof Error ? error.message : ""
   if (message === "private_document_requires_workspace") return t("voiceWorkspaceChat.privateDocumentScope")
-  if (/stale|source_version|anchor_source_conflict/.test(message)) return t("voiceWorkspaceChat.stale")
+  if (message === "selection_anchor_stale") return t("voiceWorkspaceChat.selectionUnverified")
+  if (message === "source_excerpt_stale") return t("voiceWorkspaceChat.sourceExcerptUnverified")
+  if (message === "document_anchor_source_conflict") return t("voiceWorkspaceChat.presentationError")
+  if (message === "workspace_reference_stale" || message === "workspace_source_changed_during_search") return t("voiceWorkspaceChat.stale")
   if (error instanceof ApiError) {
     if (error.status === 409) return t("voiceWorkspaceChat.conflict")
     if (error.status === 404) return t("voiceWorkspaceChat.referenceUnavailable")
