@@ -29,7 +29,9 @@ from app.api import (
     sme_ws,
     spindoctor,
     underlag,
+    workspace_chats,
     users,
+    voice_workspaces,
     workspace_exports,
     workspace_conversations,
     workspaces,
@@ -160,6 +162,8 @@ def create_app() -> FastAPI:
     app.include_router(configurations.router)
     app.include_router(kunder.router)
     app.include_router(users.router)
+    app.include_router(workspaces.router)
+    app.include_router(workspace_chats.router)
     app.include_router(modules.router)
     app.include_router(catalog.router)
     app.include_router(personas.router)
@@ -173,7 +177,7 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(sme.router)
     app.include_router(sme_ws.router)
-    app.include_router(workspaces.router)
+    app.include_router(voice_workspaces.router)
     app.include_router(workspace_exports.router)
     app.include_router(workspace_conversations.router)
     app.include_router(embeddings.router)

@@ -96,7 +96,7 @@ async def create_general_question(
     canonical = await graph.upsert_question(
         session,
         identity_from_text(draft.question),
-        tenant_question_scope(run.customer_id),
+        tenant_question_scope(run.customer_id, run.context.get("workspace_id")),
     )
     result = await session.execute(
         select(ResearchQuestion).where(

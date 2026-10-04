@@ -43,6 +43,8 @@ class WorkspaceState(BaseModel):
 class WorkspaceCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     idempotency_key: str = Field(min_length=1, max_length=160)
+    workspace_id: str | None = Field(default=None, max_length=64)
+    chat_id: str | None = Field(default=None, max_length=64)
     title: str = Field(min_length=1, max_length=255)
     module: str = "dd"
     language: Literal["sv", "en", "nb"] = "sv"

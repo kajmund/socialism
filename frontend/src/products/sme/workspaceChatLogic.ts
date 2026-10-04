@@ -1,6 +1,6 @@
 import { ApiError } from "@/lib/http"
 import type { MessageKey } from "@/i18n"
-import type { WorkspaceMessage, WorkspaceState } from "@/api/workspaces"
+import type { WorkspaceMessage, WorkspaceState } from "@/api/voiceWorkspaces"
 
 export function upsertTranscript(messages: WorkspaceMessage[], message: WorkspaceMessage): WorkspaceMessage[] {
   const index = messages.findIndex((row) => row.session_id === message.session_id && row.event_key === message.event_key)
@@ -33,12 +33,12 @@ export function workspaceThreadKey(workspaceId: string, threadType: string, thre
   return JSON.stringify([workspaceId, threadType, threadId])
 }
 
-export function workspaceErrorMessage(error: unknown, t: (key: MessageKey) => string, fallback: MessageKey = "workspaceChat.operationError"): string {
+export function workspaceErrorMessage(error: unknown, t: (key: MessageKey) => string, fallback: MessageKey = "voiceWorkspaceChat.operationError"): string {
   const message = error instanceof Error ? error.message : ""
-  if (/stale|source_version|anchor_source_conflict/.test(message)) return t("workspaceChat.stale")
+  if (/stale|source_version|anchor_source_conflict/.test(message)) return t("voiceWorkspaceChat.stale")
   if (error instanceof ApiError) {
-    if (error.status === 409) return t("workspaceChat.conflict")
-    if (error.status === 404) return t("workspaceChat.referenceUnavailable")
+    if (error.status === 409) return t("voiceWorkspaceChat.conflict")
+    if (error.status === 404) return t("voiceWorkspaceChat.referenceUnavailable")
     return t(fallback)
   }
   if (!message || /^(?:[a-z0-9]+_[a-z0-9_]+|HTTP \d|Invalid tool|Missing |Network request|Request timed)/.test(message)) return t(fallback)

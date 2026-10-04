@@ -3,18 +3,19 @@ from dataclasses import dataclass
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Job, UserAccount
-from app.database.workspace_models import Workspace, WorkspaceArtifact, WorkspaceArtifactRevision, WorkspaceOperation, WorkspaceResearch
+from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifact, WorkspaceArtifactRevision, WorkspaceOperation, WorkspaceResearch
 from app.schemas.workspace import WorkspaceState
 from app.services.workspace.service import add_source, artifact_out, new_id, publish_artifact_revision, require_artifact, require_source, workspace_out
 from app.services.workspace.sources import read_reference, search_research
 from app.services.workspace.search import search_general, search_workspace
+from app.services.workspace.research_links import job_bound_to_canvas, sync_research_links
 from app.services.workspace.generation_tools import source_context, queue_generation, _start_research
 from app.services.workspace.tool_arguments import SearchArguments, ReadArguments, IngestArguments, JobArguments, GenerationArguments, ReviseArguments, ExportArguments, ChartArguments, ResearchArguments
 
 @dataclass
 class ToolContext:
     session: AsyncSession
-    workspace: Workspace
+    workspace: VoiceWorkspace
     user: UserAccount
     operation: WorkspaceOperation
     state: WorkspaceState
@@ -80,6 +81,7 @@ async def job(context: ToolContext, arguments: dict) -> dict:
     workspace = context.workspace
     user = context.user
     args = JobArguments.model_validate(arguments)
+    await sync_research_links(session, workspace)
     if args.attempt_id:
         if await session.get(WorkspaceResearch, (workspace.id, args.attempt_id)) is None:
             raise HTTPException(status_code=404, detail="workspace_research_not_found")
@@ -90,8 +92,13 @@ async def job(context: ToolContext, arguments: dict) -> dict:
     if job is None or job.customer_id != workspace.customer_id:
         raise HTTPException(status_code=404, detail="workspace_job_not_found")
     request = job.request or {}
-    if request.get("workspace_id") != workspace.id:
-        await require_source(session, workspace, str(request.get("object_id") or ""))
+    if request.get("voice_workspace_id") is not None:
+        if not job_bound_to_canvas(job, workspace):
+            raise HTTPException(status_code=404, detail="workspace_job_not_found")
+    else:
+        source = await require_source(session, workspace, str(request.get("object_id") or ""))
+        if request.get("workspace_id") != source.workspace_id:
+            raise HTTPException(status_code=404, detail="workspace_job_not_found")
     if request.get("owner_user_id") and request["owner_user_id"] != user.id:
         raise HTTPException(status_code=404, detail="workspace_job_not_found")
     return {"status": "completed", "job_id": job.id, "job_status": job.status, "result": job.result, "error": job.error}

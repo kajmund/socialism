@@ -8,10 +8,15 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.database.base import Base
 
 
-class Workspace(Base):
-    __tablename__ = "workspace_chats"
-    __table_args__ = (UniqueConstraint("owner_user_id", "creation_key", name="uq_workspace_creation_key"),)
+class VoiceWorkspace(Base):
+    __tablename__ = "voice_workspaces"
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "creation_key", name="uq_workspace_creation_key"),
+        UniqueConstraint("chat_id", name="uq_voice_workspace_chat"),
+    )
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    chat_id: Mapped[str] = mapped_column(ForeignKey("workspace_chats.id", ondelete="CASCADE"), index=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("kunder.id", ondelete="RESTRICT"), index=True)
     owner_user_id: Mapped[str] = mapped_column(ForeignKey("user_accounts.id", ondelete="CASCADE"), index=True)
     creation_key: Mapped[str] = mapped_column(String(160))
@@ -28,21 +33,21 @@ class Workspace(Base):
 class WorkspaceSource(Base):
     __tablename__ = "workspace_sources"
     source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspace_chats.id", ondelete="CASCADE"), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("voice_workspaces.id", ondelete="CASCADE"), primary_key=True)
     source_id: Mapped[str] = mapped_column(ForeignKey("stored_objects.id", ondelete="CASCADE"), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class WorkspaceExpertThread(Base):
     __tablename__ = "workspace_expert_threads"
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspace_chats.id", ondelete="CASCADE"), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("voice_workspaces.id", ondelete="CASCADE"), primary_key=True)
     expert_id: Mapped[str] = mapped_column(ForeignKey("personas.id", ondelete="CASCADE"), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class WorkspaceResearch(Base):
     __tablename__ = "workspace_research"
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspace_chats.id", ondelete="CASCADE"), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("voice_workspaces.id", ondelete="CASCADE"), primary_key=True)
     attempt_id: Mapped[str] = mapped_column(ForeignKey("execution_attempts.id", ondelete="CASCADE"), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -54,7 +59,7 @@ class WorkspaceReference(Base):
         UniqueConstraint("workspace_id", "number", name="uq_workspace_reference_number"),
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspace_chats.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("voice_workspaces.id", ondelete="CASCADE"), index=True)
     number: Mapped[int] = mapped_column(Integer)
     identity_key: Mapped[str] = mapped_column(String(64))
     kind: Mapped[str] = mapped_column(String(24))
@@ -68,7 +73,7 @@ class WorkspaceReference(Base):
 class WorkspaceArtifact(Base):
     __tablename__ = "workspace_artifacts"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspace_chats.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("voice_workspaces.id", ondelete="CASCADE"), index=True)
     kind: Mapped[str] = mapped_column(String(24))
     title: Mapped[str] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(24), default="queued")
@@ -93,7 +98,7 @@ class WorkspaceOperation(Base):
     __tablename__ = "workspace_operations"
     __table_args__ = (UniqueConstraint("workspace_id", "idempotency_key", name="uq_workspace_operation_key"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspace_chats.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("voice_workspaces.id", ondelete="CASCADE"), index=True)
     idempotency_key: Mapped[str] = mapped_column(String(160))
     payload_hash: Mapped[str] = mapped_column(String(64))
     tool_name: Mapped[str] = mapped_column(String(64))

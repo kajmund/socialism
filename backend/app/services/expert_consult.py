@@ -133,10 +133,11 @@ async def _publish_consult(
 
 
 async def _consult_memory(persona: Persona, question: str, prompts: dict[str, str],
-                          owner_id: str | None) -> str:
+                          owner_id: str | None, *, workspace_parent_id: str | None) -> str:
     if owner_id:
         from app.services.workspace_memory_context import workspace_memory_context
-        return await workspace_memory_context(persona, question, prompts, owner_id=owner_id)
+        return await workspace_memory_context(persona, question, prompts, owner_id=owner_id,
+                                               workspace_parent_id=workspace_parent_id)
     return await _memory_context(persona, question, prompts)
 
 
@@ -148,6 +149,7 @@ async def _consult(
     prompts: dict[str, str],
     question: str,
     workspace_owner_id: str | None = None,
+    workspace_parent_id: str | None = None,
 ) -> str:
     candidates = list(
         (
@@ -184,14 +186,11 @@ async def _consult(
         raise ValueError("Ingen annan expert har kompetens att besvara frågan.")
     colleague = max(competent, key=lambda pair: pair[1])[0]
 
-    memory_context, evidence_context = await asyncio.gather(
-        _consult_memory(colleague, question, prompts, workspace_owner_id),
-        reusable_expert_chat_evidence_context(
-            session,
-            customer_id=colleague.customer_id,
-            question=question,
-            prompts=prompts,
-        ),
+    evidence_context = await reusable_expert_chat_evidence_context(
+        session, customer_id=colleague.customer_id, question=question, prompts=prompts,
+    )
+    memory_context = await _consult_memory(
+        colleague, question, prompts, workspace_owner_id, workspace_parent_id=workspace_parent_id,
     )
     colleague_instruction = render_prompt(
         prompts,
@@ -216,7 +215,7 @@ async def _consult(
     if workspace_owner_id:
         from app.services.workspace_consult import remember_workspace_consult
         await remember_workspace_consult(asker, colleague, owner_id=workspace_owner_id,
-                                         question=question, answer=answer)
+                                         workspace_parent_id=workspace_parent_id, question=question, answer=answer)
     else:
         await _publish_consult(session, asker=asker, colleague=colleague, mode=mode,
                               prompts=prompts, question=question, answer=answer)
@@ -243,7 +242,10 @@ def expert_consult_handler_for_chat(
     mode: ChatMode,
     prompts: dict[str, str],
     workspace_owner_id: str | None = None,
+    workspace_parent_id: str | None = None,
 ) -> ConsultToolHandler:
+    if bool(workspace_owner_id) != bool(workspace_parent_id):
+        raise ValueError("Private consultation requires its owner and parent workspace")
     async def handle(arguments: dict[str, Any]) -> str:
         question = str(arguments.get("question") or "").strip()
         if not question:
@@ -255,6 +257,7 @@ def expert_consult_handler_for_chat(
             prompts=prompts,
             question=question,
             workspace_owner_id=workspace_owner_id,
+            workspace_parent_id=workspace_parent_id,
         )
 
     return handle

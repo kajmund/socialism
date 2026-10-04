@@ -22,6 +22,7 @@ from app.services.research.knowledge_question import (
     KnowledgeQuestionScope,
     QuestionIdentity,
     QuestionIdentityMatcher,
+    question_scope_from_namespace,
 )
 from app.services.research.question_graph import (
     ANSWERED_BY,
@@ -210,7 +211,8 @@ def _question_from_row(row: KnowledgeQuestionRow) -> KnowledgeQuestion:
         identity_key=row.identity_key,
         normalized_text=row.normalized_text,
         display_text=row.display_text,
-        scope=KnowledgeQuestionScope(
+        scope=question_scope_from_namespace(
+            row.namespace,
             visibility=row.visibility,  # type: ignore[arg-type]
             customer_id=row.customer_id,
         ),

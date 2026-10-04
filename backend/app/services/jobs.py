@@ -38,7 +38,6 @@ from app.services.dd.schemas import DdCandidateCompany, DdResearchDossier, DdRes
 from app.services.document_knowledge import (
     DOCUMENT_INGEST_JOB_KIND,
     DocumentIngestJobRequest,
-    run_document_ingest_job,
 )
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
@@ -267,18 +266,10 @@ async def _execute_job_kind(job_id: str, kind: str) -> None:
         await run_rattsunderlag_research_job(job_id)
     elif kind == WORD_JOB_KIND:
         await run_word_paragraph_review_for_job(job_id)
-    elif kind == "expert_chat_research":
-        from app.services.expert_chat_research import run_expert_chat_research_job
+    elif kind in {"expert_chat_research", "workspace_research", DOCUMENT_INGEST_JOB_KIND}:
+        from app.services.job_research_runner import run_research_job
 
-        factory = job_session_factory()
-        result = await run_expert_chat_research_job(factory, job_id=job_id)
-        async with factory() as session:
-            await _succeed(session, job_id, result)
-    elif kind == DOCUMENT_INGEST_JOB_KIND:
-        factory = job_session_factory()
-        result = await run_document_ingest_job(factory, job_id=job_id)
-        async with factory() as session:
-            await _succeed(session, job_id, result)
+        await run_research_job(job_id, kind)
     elif kind == WORKSPACE_GENERATION_JOB_KIND:
         factory = job_session_factory()
         result = await run_workspace_generation_job(factory, job_id=job_id)
@@ -875,6 +866,7 @@ async def resume_failed_job(session: AsyncSession, job: Job) -> Job:
     refreshed = await session.get(Job, job.id)
     if refreshed is None:
         raise ValueError(f"Job not found: {job.id}")
+    await session.commit()
     await publish_job(refreshed)
     return refreshed
 

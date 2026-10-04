@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
 
+from app.database.workspace_ids import company_workspace_id
+
 from app.services.knowledge.scope import (
     SCOPE_SHARED,
     KnowledgeTenantScope,
@@ -32,32 +34,32 @@ class KnowledgeQuestionError(ResearchError, ValueError):
 class KnowledgeQuestionScope:
     """Persistent knowledge namespace. Distinct from ResearchContext execution scope.
 
-    ``public`` is a global namespace. ``tenant`` is one customer. Later customers
-    get ``tenant:{id}`` without rewriting public rows.
+    ``public`` is global. Private identities belong to one organisation workspace.
     """
 
     visibility: KnowledgeVisibility
     customer_id: int | None = None
+    workspace_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.visibility not in KNOWLEDGE_VISIBILITIES:
-            raise KnowledgeQuestionError(
-                f"Unknown KnowledgeQuestion visibility: {self.visibility}"
-            )
+            raise KnowledgeQuestionError(f"Unknown KnowledgeQuestion visibility: {self.visibility}")
         if self.visibility == "tenant" and self.customer_id is None:
-            raise KnowledgeQuestionError(
-                "tenant KnowledgeQuestion requires customer_id"
-            )
+            raise KnowledgeQuestionError("tenant KnowledgeQuestion requires customer_id")
         if self.visibility == "public" and self.customer_id is not None:
-            raise KnowledgeQuestionError(
-                "public KnowledgeQuestion cannot carry customer_id"
-            )
+            raise KnowledgeQuestionError("public KnowledgeQuestion cannot carry customer_id")
+        if self.visibility == "public" and self.workspace_id is not None:
+            raise KnowledgeQuestionError("public KnowledgeQuestion cannot carry workspace_id")
+        if self.visibility == "tenant" and self.workspace_id is None:
+            object.__setattr__(self, "workspace_id", company_workspace_id(self.customer_id))
+        if self.workspace_id is not None and (not self.workspace_id or ":" in self.workspace_id):
+            raise KnowledgeQuestionError("KnowledgeQuestion workspace_id is invalid")
 
     @property
     def namespace(self) -> str:
         if self.visibility == "public":
             return PUBLIC_NAMESPACE
-        return f"tenant:{self.customer_id}"
+        return f"tenant:{self.customer_id}:workspace:{self.workspace_id}"
 
     @property
     def tenant(self) -> KnowledgeTenantScope:
@@ -159,18 +161,48 @@ def knowledge_question_identity_key(question: str) -> str:
     return research_question_key(knowledge_question_text(question))
 
 
-def tenant_question_scope(customer_id: int) -> KnowledgeQuestionScope:
-    return KnowledgeQuestionScope(visibility="tenant", customer_id=customer_id)
+def tenant_question_scope(
+    customer_id: int, workspace_id: str | None = None
+) -> KnowledgeQuestionScope:
+    return KnowledgeQuestionScope(
+        visibility="tenant",
+        customer_id=customer_id,
+        workspace_id=workspace_id
+        if workspace_id is not None
+        else company_workspace_id(customer_id),
+    )
 
 
 def public_question_scope() -> KnowledgeQuestionScope:
     return KnowledgeQuestionScope(visibility="public")
 
 
-def lookup_scopes(customer_id: int) -> tuple[KnowledgeQuestionScope, ...]:
-    """Tenant namespace plus public. Never another customer."""
+def lookup_scopes(
+    customer_id: int, workspace_id: str | None = None
+) -> tuple[KnowledgeQuestionScope, ...]:
+    """Current workspace, company knowledge and public; never a sibling client."""
     require_persist_scope(customer_id=customer_id)
-    return (tenant_question_scope(customer_id), public_question_scope())
+    active, common = (
+        tenant_question_scope(customer_id, workspace_id),
+        tenant_question_scope(customer_id),
+    )
+    private = (active,) if active == common else (active, common)
+    return (*private, public_question_scope())
+
+
+def question_scope_from_namespace(
+    namespace: str, *, visibility: KnowledgeVisibility, customer_id: int | None
+) -> KnowledgeQuestionScope:
+    if visibility == "public":
+        scope = KnowledgeQuestionScope(visibility="public", customer_id=customer_id)
+    else:
+        prefix = f"tenant:{customer_id}:workspace:"
+        if not namespace.startswith(prefix):
+            raise KnowledgeQuestionError("KnowledgeQuestion namespace does not match its customer")
+        scope = tenant_question_scope(customer_id, namespace[len(prefix) :])
+    if namespace != scope.namespace:
+        raise KnowledgeQuestionError("KnowledgeQuestion namespace does not match its scope")
+    return scope
 
 
 def question_scope_from_tenant(scope: KnowledgeTenantScope) -> KnowledgeQuestionScope:
@@ -204,9 +236,7 @@ def stable_evidence_ref(
 ) -> str:
     """Need-independent reference. Documents stay in EvidenceSet storage."""
     excerpt_hash = hashlib.sha256((excerpt or "").encode("utf-8")).hexdigest()
-    payload = "\x1f".join(
-        (provider or "", source_id or "", locator or "", excerpt_hash)
-    )
+    payload = "\x1f".join((provider or "", source_id or "", locator or "", excerpt_hash))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 

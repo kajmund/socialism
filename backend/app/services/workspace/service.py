@@ -1,4 +1,4 @@
-"""Workspace authorization, compare-and-swap state and artifact publication."""
+"""VoiceWorkspace authorization, compare-and-swap state and artifact publication."""
 
 from __future__ import annotations
 
@@ -8,21 +8,23 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.scope import customer_id_for_user
 from app.database.models import ExecutionAttempt, Persona, StoredObject, UserAccount
 from app.database.workspace_models import (
-    Workspace, WorkspaceArtifact, WorkspaceArtifactRevision, WorkspaceExpertThread,
+    VoiceWorkspace, WorkspaceArtifact, WorkspaceArtifactRevision, WorkspaceExpertThread,
     WorkspaceOperation, WorkspaceReference, WorkspaceResearch, WorkspaceSource,
 )
 from app.modules.registry import MODULE_REGISTRY
 from app.schemas.workspace import WorkspaceState
-from app.services.object_storage import KIND_UNDERLAG
 from app.services.stored_objects import serialize_underlag
+from app.services.workspace_chats import require_chat_file
+from app.services.workspace.containers import WorkspaceContainer, creation_chat, require_container
+from app.services.workspaces import require_workspace_customer
+from app.services.workspace.research_links import sync_research_links as sync_research_links
 
 
 def new_id() -> str:
@@ -33,25 +35,28 @@ def fingerprint(value: object) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
 
 
-async def require_workspace(session: AsyncSession, workspace_id: str, user: UserAccount) -> Workspace:
-    row = await session.get(Workspace, workspace_id)
-    customer_id = await customer_id_for_user(session, user)
-    if row is None or row.owner_user_id != user.id or row.customer_id != customer_id:
+async def require_workspace(session: AsyncSession, workspace_id: str, user: UserAccount) -> VoiceWorkspace:
+    row = await session.get(VoiceWorkspace, workspace_id)
+    if row is None or row.owner_user_id != user.id:
         raise HTTPException(status_code=404, detail="workspace_not_found")
+    await require_container(session, row, user)
     return row
 
 
-async def require_source(session: AsyncSession, workspace: Workspace, source_id: str, *, member: bool = True) -> StoredObject:
-    source = await session.get(StoredObject, source_id)
-    if (source is None or source.kind != KIND_UNDERLAG or source.customer_id != workspace.customer_id
-            or source.owner_user_id != workspace.owner_user_id or source.module != workspace.module):
+async def require_source(session: AsyncSession, workspace: VoiceWorkspace, source_id: str, *, member: bool = True) -> StoredObject:
+    user = await session.get(UserAccount, workspace.owner_user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="workspace_source_not_found")
+    chat = await require_container(session, workspace, user)
+    source = await require_chat_file(session, user, chat, source_id)
+    if source.module != workspace.module:
         raise HTTPException(status_code=404, detail="workspace_source_not_found")
     if member and await session.get(WorkspaceSource, (workspace.id, source_id)) is None:
         raise HTTPException(status_code=404, detail="workspace_source_not_found")
     return source
 
 
-async def require_expert(session: AsyncSession, workspace: Workspace, expert_id: str) -> Persona:
+async def require_expert(session: AsyncSession, workspace: VoiceWorkspace, expert_id: str) -> Persona:
     expert = await session.get(Persona, expert_id)
     if expert is None or expert.customer_id != workspace.customer_id or expert.kind != "expert":
         raise HTTPException(status_code=404, detail="workspace_expert_not_found")
@@ -59,41 +64,56 @@ async def require_expert(session: AsyncSession, workspace: Workspace, expert_id:
 
 
 async def create_workspace(session: AsyncSession, user: UserAccount, *, title: str, module: str,
-                           idempotency_key: str | None = None, language: str = "sv") -> Workspace:
+                           idempotency_key: str | None = None, language: str = "sv",
+                           container: WorkspaceContainer | None = None) -> VoiceWorkspace:
     if module not in MODULE_REGISTRY:
         raise HTTPException(status_code=422, detail="unknown_module")
-    customer_id = await customer_id_for_user(session, user)
+    container = container or WorkspaceContainer()
+    customer_id = await require_workspace_customer(session, user, container.customer_id)
     creation_key = idempotency_key or new_id()
-    payload_hash = fingerprint({"title": title, "module": module, "language": language})
+    payload_hash = fingerprint({"title": title, "module": module, "language": language,
+        "workspace_id": container.workspace_id, "chat_id": container.chat_id, "customer_id": customer_id})
+    existing = await session.scalar(select(VoiceWorkspace).where(VoiceWorkspace.owner_user_id == user.id,
+                                                                VoiceWorkspace.creation_key == creation_key))
+    if existing is not None:
+        await require_container(session, existing, user)
+        if existing.creation_payload_hash != payload_hash:
+            raise HTTPException(status_code=409, detail="workspace_idempotency_conflict")
+        return existing
+    chat = await creation_chat(session, user, container, title=title, module=module, creation_key=creation_key)
+    linked = await session.scalar(select(VoiceWorkspace).where(VoiceWorkspace.chat_id == chat.id))
+    if linked is not None:
+        return await require_workspace(session, linked.id, user)
     insert = sqlite_insert if session.get_bind().dialect.name == "sqlite" else pg_insert
-    await session.execute(insert(Workspace).values(id=new_id(), customer_id=customer_id,
+    await session.execute(insert(VoiceWorkspace).values(id=new_id(), customer_id=customer_id,
+        workspace_id=chat.workspace_id, chat_id=chat.id,
         owner_user_id=user.id, creation_key=creation_key, creation_payload_hash=payload_hash,
         title=title.strip(), module=module, state=WorkspaceState(language=language).model_dump(), revision=0,
-        next_reference_number=1).on_conflict_do_nothing(index_elements=["owner_user_id", "creation_key"]))
-    workspace = await session.scalar(select(Workspace).where(Workspace.owner_user_id == user.id,
-                                                            Workspace.creation_key == creation_key))
-    if workspace.customer_id != customer_id:
-        raise HTTPException(status_code=404, detail="workspace_not_found")
-    if workspace.creation_payload_hash != payload_hash:
+        next_reference_number=1).on_conflict_do_nothing())
+    workspace = await session.scalar(select(VoiceWorkspace).where(VoiceWorkspace.owner_user_id == user.id,
+        or_(VoiceWorkspace.creation_key == creation_key, VoiceWorkspace.chat_id == chat.id)))
+    if workspace.creation_key != creation_key:
+        return await require_workspace(session, workspace.id, user)
+    if workspace.customer_id != customer_id or workspace.creation_payload_hash != payload_hash:
         raise HTTPException(status_code=409, detail="workspace_idempotency_conflict")
     return workspace
 
 
-async def require_artifact(session: AsyncSession, workspace: Workspace, artifact_id: str) -> WorkspaceArtifact:
+async def require_artifact(session: AsyncSession, workspace: VoiceWorkspace, artifact_id: str) -> WorkspaceArtifact:
     artifact = await session.get(WorkspaceArtifact, artifact_id)
     if artifact is None or artifact.workspace_id != workspace.id:
         raise HTTPException(status_code=404, detail="workspace_artifact_not_found")
     return artifact
 
 
-async def require_reference(session: AsyncSession, workspace: Workspace, reference_id: str) -> WorkspaceReference:
+async def require_reference(session: AsyncSession, workspace: VoiceWorkspace, reference_id: str) -> WorkspaceReference:
     reference = await session.get(WorkspaceReference, reference_id)
     if reference is None or reference.workspace_id != workspace.id:
         raise HTTPException(status_code=404, detail="workspace_reference_not_found")
     return reference
 
 
-async def validate_state(session: AsyncSession, workspace: Workspace, state: WorkspaceState) -> None:
+async def validate_state(session: AsyncSession, workspace: VoiceWorkspace, state: WorkspaceState) -> None:
     if state.expert_id:
         await require_expert(session, workspace, state.expert_id)
         if await session.get(WorkspaceExpertThread, (workspace.id, state.expert_id)) is None:
@@ -113,7 +133,7 @@ async def validate_state(session: AsyncSession, workspace: Workspace, state: Wor
     await _validate_selection(session, workspace, state)
 
 
-async def _validate_selection(session: AsyncSession, workspace: Workspace, state: WorkspaceState) -> None:
+async def _validate_selection(session: AsyncSession, workspace: VoiceWorkspace, state: WorkspaceState) -> None:
     selection = state.selection
     if selection is None:
         return
@@ -149,7 +169,7 @@ async def _validate_selection(session: AsyncSession, workspace: Workspace, state
         raise HTTPException(status_code=422, detail="selection_requires_artifact")
 
 
-async def _validate_reference_selection(session: AsyncSession, workspace: Workspace, state: WorkspaceState) -> None:
+async def _validate_reference_selection(session: AsyncSession, workspace: VoiceWorkspace, state: WorkspaceState) -> None:
     from app.services.document_knowledge import _normalized
     from app.services.workspace.sources import citation, read_reference
     selection = state.selection
@@ -170,8 +190,8 @@ async def _validate_reference_selection(session: AsyncSession, workspace: Worksp
     selection.reference_id = selected.id
 
 
-async def patch_workspace(session: AsyncSession, workspace: Workspace, *, expected_revision: int,
-                          state: WorkspaceState | None = None, title: str | None = None) -> Workspace:
+async def patch_workspace(session: AsyncSession, workspace: VoiceWorkspace, *, expected_revision: int,
+                          state: WorkspaceState | None = None, title: str | None = None) -> VoiceWorkspace:
     if state is not None:
         await validate_state(session, workspace, state)
     values: dict = {"revision": expected_revision + 1, "updated_at": datetime.now(UTC)}
@@ -179,14 +199,14 @@ async def patch_workspace(session: AsyncSession, workspace: Workspace, *, expect
         values["state"] = state.model_dump()
     if title is not None:
         values["title"] = title.strip()
-    result = await session.execute(update(Workspace).where(Workspace.id == workspace.id, Workspace.revision == expected_revision).values(**values))
+    result = await session.execute(update(VoiceWorkspace).where(VoiceWorkspace.id == workspace.id, VoiceWorkspace.revision == expected_revision).values(**values))
     if result.rowcount != 1:
         raise HTTPException(status_code=409, detail="workspace_revision_conflict")
     await session.refresh(workspace)
     return workspace
 
 
-async def add_source(session: AsyncSession, workspace: Workspace, source_id: str, *, source_url: str | None = None) -> StoredObject:
+async def add_source(session: AsyncSession, workspace: VoiceWorkspace, source_id: str, *, source_url: str | None = None) -> StoredObject:
     source = await require_source(session, workspace, source_id, member=False)
     if await session.get(WorkspaceSource, (workspace.id, source_id)) is None:
         session.add(WorkspaceSource(workspace_id=workspace.id, source_id=source_id, source_url=source_url))
@@ -194,7 +214,7 @@ async def add_source(session: AsyncSession, workspace: Workspace, source_id: str
     return source
 
 
-async def accept_operation(session: AsyncSession, workspace: Workspace, *, tool_name: str,
+async def accept_operation(session: AsyncSession, workspace: VoiceWorkspace, *, tool_name: str,
                            arguments: dict, idempotency_key: str, expected_revision: int | None = None,
                            context_snapshot: dict | None = None) -> tuple[WorkspaceOperation, bool]:
     digest = fingerprint({"tool": tool_name, "arguments": arguments, "expected_revision": expected_revision})
@@ -245,25 +265,28 @@ def artifact_out(artifact: WorkspaceArtifact) -> dict:
             "job_id": artifact.job_id, "error": artifact.error}
 
 
-async def workspace_out(session: AsyncSession, workspace: Workspace) -> dict:
+async def workspace_out(session: AsyncSession, workspace: VoiceWorkspace) -> dict:
+    queued_research = await sync_research_links(session, workspace)
     sources = list((await session.execute(select(StoredObject).join(WorkspaceSource, WorkspaceSource.source_id == StoredObject.id)
-                                         .where(WorkspaceSource.workspace_id == workspace.id, StoredObject.owner_user_id == workspace.owner_user_id,
-                                                StoredObject.customer_id == workspace.customer_id))).scalars())
+                                         .where(WorkspaceSource.workspace_id == workspace.id, StoredObject.customer_id == workspace.customer_id))).scalars())
+    sources = [await require_source(session, workspace, row.id) for row in sources]
     artifacts = list((await session.execute(select(WorkspaceArtifact).where(WorkspaceArtifact.workspace_id == workspace.id)
                                            .order_by(WorkspaceArtifact.created_at))).scalars())
     refs = list((await session.execute(select(WorkspaceReference).where(WorkspaceReference.workspace_id == workspace.id)
                                       .order_by(WorkspaceReference.number))).scalars())
     attempts = list((await session.scalars(select(ExecutionAttempt).join(WorkspaceResearch, WorkspaceResearch.attempt_id == ExecutionAttempt.id)
         .where(WorkspaceResearch.workspace_id == workspace.id).order_by(ExecutionAttempt.created_at))).all())
-    return {"id": workspace.id, "title": workspace.title, "module": workspace.module, "revision": workspace.revision,
+    return {"id": workspace.id, "workspace_id": workspace.workspace_id, "chat_id": workspace.chat_id,
+            "customer_id": workspace.customer_id, "title": workspace.title, "module": workspace.module, "revision": workspace.revision,
             "state": workspace.state, "sources": [serialize_underlag(row, include_text=False) for row in sources],
             "artifacts": [artifact_out(row) for row in artifacts],
-            "research": [{"attempt_id": row.id, "run_id": row.run_id, "status": row.status,
-                          "progress_url": f"/execution/attempts/{row.id}/progress-events"} for row in attempts],
+            "research": queued_research + [{"job_id": None, "attempt_id": row.id, "run_id": row.run_id, "status": row.status,
+                          "progress_url": f"/execution/attempts/{row.id}/progress-events"} for row in attempts
+                          if row.id not in {item["attempt_id"] for item in queued_research}],
             "references": [await _reference_summary(session, workspace, ref) for ref in refs]}
 
 
-async def _reference_summary(session: AsyncSession, workspace: Workspace, ref: WorkspaceReference) -> dict:
+async def _reference_summary(session: AsyncSession, workspace: VoiceWorkspace, ref: WorkspaceReference) -> dict:
     from app.services.workspace.sources import read_reference, reference_out
     try:
         return await read_reference(session, workspace, ref.id)

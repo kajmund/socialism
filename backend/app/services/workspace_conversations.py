@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.models import PersonaMessage, UserAccount
 from app.database.workspace_conversations import WorkspaceConversationEvent, WorkspaceConversationSession
-from app.database.workspace_models import Workspace
+from app.database.workspace_models import VoiceWorkspace
 from app.schemas.workspace import WorkspaceState
 from app.services.elevenlabs_agents import ElevenLabsAgentsClient
 from app.services.workspace_memory_context import workspace_memory_context
@@ -51,7 +51,7 @@ async def require_conversation(session: AsyncSession, *, session_id: str, worksp
 
 async def reserve_conversation(session: AsyncSession, *, workspace_id: str, user: UserAccount, request) -> dict:
     workspace = await require_workspace(session, workspace_id, user)
-    await session.execute(select(Workspace).where(Workspace.id == workspace.id).with_for_update())
+    await session.execute(select(VoiceWorkspace).where(VoiceWorkspace.id == workspace.id).with_for_update())
     # Reload after acquiring the generation lock: another bootstrap may have
     # committed while this request waited for the row.
     await session.refresh(workspace)
@@ -78,7 +78,9 @@ async def reserve_conversation(session: AsyncSession, *, workspace_id: str, user
     history = await thread_messages(session, workspace=workspace, expert_id=request.expert_id)
     prepared = {"session_id": row.id, "snapshot": snapshot, "persona": persona, "owner_id": user.id,
                 "query": history[-1]["content"] if history else workspace.title,
-                "context": {"workspace_id": workspace.id, "revision": workspace.revision, "state": state.model_dump(),
+                "workspace_parent_id": workspace.workspace_id,
+                "context": {"voice_workspace_id": workspace.id, "workspace_id": workspace.workspace_id,
+                            "chat_id": workspace.chat_id, "revision": workspace.revision, "state": state.model_dump(),
                             "expert_id": request.expert_id, "history": history[-40:]}}
     session.expunge(persona)
     await session.commit()
@@ -88,7 +90,10 @@ async def reserve_conversation(session: AsyncSession, *, workspace_id: str, user
 async def activate_conversation(session: AsyncSession, prepared: dict, deployment: dict, connection: dict) -> dict:
     row = (await session.execute(select(WorkspaceConversationSession).where(
         WorkspaceConversationSession.id == prepared["session_id"]).with_for_update())).scalar_one()
-    workspace = await session.get(Workspace, row.workspace_id)
+    owner = await session.get(UserAccount, prepared["owner_id"], populate_existing=True)
+    if owner is None:
+        raise HTTPException(404, "workspace_conversation_not_found")
+    workspace = await require_workspace(session, row.workspace_id, owner)
     if row.status != "starting" or workspace.state.get("expert_id") != row.expert_id or aware(row.expires_at) <= datetime.now(UTC):
         await session.rollback()
         raise HTTPException(409, "workspace_conversation_superseded")
@@ -119,7 +124,8 @@ async def start_conversation(session: AsyncSession, *, workspace_id: str, user: 
         connection = await client.connection(agent_id=deployment["agent_id"],
                                              agent_version=deployment["agent_version"], mode=request.mode)
         memories = await workspace_memory_context(prepared["persona"], prepared["query"],
-                                                  prepared["snapshot"].prompts, owner_id=prepared["owner_id"])
+                                                  prepared["snapshot"].prompts, owner_id=prepared["owner_id"],
+                                                  workspace_parent_id=prepared["workspace_parent_id"])
         prepared["context"]["expert_memory"] = memories
         result = await activate_conversation(session, prepared, deployment, connection)
         completed = True
@@ -129,7 +135,7 @@ async def start_conversation(session: AsyncSession, *, workspace_id: str, user: 
             await abandon_conversation(session, prepared["session_id"])
 
 
-async def thread_messages(session: AsyncSession, *, workspace: Workspace, expert_id: str, limit: int = 200) -> list[dict]:
+async def thread_messages(session: AsyncSession, *, workspace: VoiceWorkspace, expert_id: str, limit: int = 200) -> list[dict]:
     await require_expert(session, workspace, expert_id)
     stmt = (select(PersonaMessage, WorkspaceConversationEvent, WorkspaceConversationSession)
             .join(WorkspaceConversationEvent, WorkspaceConversationEvent.message_id == PersonaMessage.id)

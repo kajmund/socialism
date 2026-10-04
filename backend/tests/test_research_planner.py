@@ -572,6 +572,9 @@ def test_production_registered_source_types_match_standard_registry():
         "swedish_law",
         "swedish_case_law",
         "swedish_preparatory_works",
+        "case_knowledge",
+        "customer_knowledge",
+        "domain_knowledge",
     )
     assert types == tuple(
         next(iter(descriptor.evidence_natures))
@@ -616,8 +619,7 @@ async def test_factory_path_offers_standard_capability_natures_without_caller_se
     assert planner.available_source_types_calls
     offered = planner.available_source_types_calls[0]
     assert "swedish_law" in offered
-    assert "case_knowledge" not in offered
-    assert "customer_knowledge" not in offered
+    assert {"case_knowledge", "customer_knowledge", "domain_knowledge"}.issubset(offered)
     assert bound_sessions
     assert session not in bound_sessions
     assert sources[0].calls == 1

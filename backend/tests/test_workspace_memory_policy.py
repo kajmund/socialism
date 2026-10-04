@@ -4,8 +4,12 @@ import asyncio
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import delete
 
 from app.database.models import Persona
+from app.database.workspace_models import VoiceWorkspace
+from app.database.workspaces import WorkspaceMembership
+from app.services.workspaces import create_client_workspace
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.expertgranskning.memory import ExpertMemoryHit, memory_user_id, set_expert_memory_factory
 from app.services.live_voice_context import recent_voice_memories
@@ -68,9 +72,10 @@ async def private_memory_store(single_connection_provider):
     client, factory, workspace_id, expert_id, _ = conversation
     async with factory() as db:
         persona = await db.get(Persona, expert_id)
+        workspace = await db.get(VoiceWorkspace, workspace_id)
         shared_key = persona_catalog_key(persona)
-        own_key = workspace_memory_expert_id(persona, ADMIN_USER_ID)
-        other_key = workspace_memory_expert_id(persona, USER_USER_ID)
+        own_key = workspace_memory_expert_id(persona, ADMIN_USER_ID, workspace_parent_id=workspace.workspace_id)
+        other_key = workspace_memory_expert_id(persona, USER_USER_ID, workspace_parent_id=workspace.workspace_id)
         name = persona.name
     async def probe():
         assert engine.pool.checkedout() == 0
@@ -158,18 +163,57 @@ def test_legacy_voice_summary_excludes_private_source_and_namespace():
 @pytest.mark.asyncio
 async def test_workspace_context_does_not_accept_foreign_namespace(monkeypatch):
     persona = Persona(id="exp_1_legal", customer_id=1, name="Legal", kind="expert", profile={})
-    own_key = workspace_memory_expert_id(persona, ADMIN_USER_ID)
-    other_key = workspace_memory_expert_id(persona, USER_USER_ID)
+    own_key = workspace_memory_expert_id(persona, ADMIN_USER_ID, workspace_parent_id="parent-one")
+    other_key = workspace_memory_expert_id(persona, USER_USER_ID, workspace_parent_id="parent-one")
     class Memory(ListingMemory):
         async def search(self, **kwargs):
             if kwargs["expert_id"] == "legal":
                 assert "workspace_chat" not in kwargs["sources"]
                 return [memory_hit("public", "legal")]
             return self.hits
+    sibling_key = workspace_memory_expert_id(persona, ADMIN_USER_ID, workspace_parent_id="parent-two")
     memory = Memory([memory_hit("own", own_key, source="workspace_chat"),
+        memory_hit("sibling", sibling_key, source="workspace_chat"),
         memory_hit("foreign", other_key, source="workspace_chat"),
         memory_hit("wrong-customer", own_key, source="workspace_chat", customer_id=2)])
     set_expert_memory_factory(lambda: memory)
-    context = await workspace_memory_context(persona, "this", {"chat.expert.memory": "{memories}"}, owner_id=ADMIN_USER_ID)
+    context = await workspace_memory_context(persona, "this", {"chat.expert.memory": "{memories}"}, owner_id=ADMIN_USER_ID, workspace_parent_id="parent-one")
     assert "Fact public" in context and "Fact own" in context
-    assert "Fact foreign" not in context and "Fact wrong-customer" not in context
+    assert "Fact foreign" not in context and "Fact wrong-customer" not in context and "Fact sibling" not in context
+
+
+@pytest.mark.asyncio
+async def test_private_memories_follow_current_parent_membership(private_memory_store, user_token):
+    client, memory, conversation, _name = private_memory_store
+    async with conversation[1]() as session:
+        persona = await session.get(Persona, conversation[3])
+        first = await create_client_workspace(session, customer_id=1, user_id=USER_USER_ID, name="Client A")
+        second = await create_client_workspace(session, customer_id=1, user_id=USER_USER_ID, name="Client B")
+        memory.hits.extend([
+            memory_hit("client-a", workspace_memory_expert_id(persona, USER_USER_ID, workspace_parent_id=first.id), source="workspace_chat"),
+            memory_hit("client-b", workspace_memory_expert_id(persona, USER_USER_ID, workspace_parent_id=second.id), source="workspace_chat"),
+        ])
+        first_id, second_id = first.id, second.id
+        await session.execute(delete(WorkspaceMembership).where(WorkspaceMembership.workspace_id == second_id))
+        await session.commit()
+    client.headers["Authorization"] = "Bearer " + user_token
+    url = f"/personas/{conversation[3]}/memories"
+    before = {row["id"] for row in (await client.get(url)).json()["memories"]}
+    assert "client-a" in before and "client-b" not in before
+    async with conversation[1]() as session:
+        await session.execute(delete(WorkspaceMembership).where(WorkspaceMembership.workspace_id == first_id))
+        await session.commit()
+    after = {row["id"] for row in (await client.get(url)).json()["memories"]}
+    assert not {"client-a", "client-b"} & after
+    for method in ("PATCH", "DELETE"):
+        kwargs = {"json": {"text": "Forbidden"}} if method == "PATCH" else {}
+        assert (await client.request(method, url + "/client-a", **kwargs)).status_code == 404
+    assert (await client.delete(url)).status_code == 204
+    assert {"client-a", "client-b", "own"} <= {hit.id for hit in memory.hits}
+
+
+def test_private_memory_namespace_requires_parent():
+    persona = Persona(id="expert", customer_id=1, name="Expert", kind="expert", profile={})
+    with pytest.raises(ValueError, match="parent"):
+        workspace_memory_expert_id(persona, "owner", workspace_parent_id="")
+    assert workspace_memory_expert_id(persona, "owner", workspace_parent_id="a") != workspace_memory_expert_id(persona, "owner", workspace_parent_id="b")

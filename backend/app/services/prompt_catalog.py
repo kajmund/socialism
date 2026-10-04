@@ -4,13 +4,16 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict
 
-from app.services.workspace_prompt_defaults import workspace_prompt_fields
+from app.services.prompt_render import render_prompt as render_prompt
+
+from app.services.workspace_prompt_defaults import workspace_prompt_fields as voice_workspace_prompt_fields
 
 from app.services.expert_chat_prompts import expert_chat_prompt_fields
 from app.services.research_assessment_prompt import SYSTEM_SV as ASSESSMENT_SYSTEM_SV
 from app.services.research_assessment_prompt import SYSTEM_EN as ASSESSMENT_SYSTEM_EN
 from app.services.graph_v2.prompts import graph_fact_prompt_fields
 from app.services.research_coverage_prompts import coverage_prompt_fields
+from app.services.workspace_chat_prompts import workspace_prompt_fields
 
 ConfigurationLanguage = Literal["sv", "en", "nb"]
 PromptSection = Literal[
@@ -3603,10 +3606,11 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
     ),
 ]
 PROMPT_FIELDS.extend(
-    [*graph_fact_prompt_fields(), *coverage_prompt_fields(), *expert_chat_prompt_fields()]
+    [*graph_fact_prompt_fields(), *coverage_prompt_fields(),
+     *expert_chat_prompt_fields(), *workspace_prompt_fields()]
 )
 
-PROMPT_FIELDS.extend(workspace_prompt_fields(_f))
+PROMPT_FIELDS.extend(voice_workspace_prompt_fields(_f))
 
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)
 PROMPT_KEY_SET: frozenset[str] = frozenset(PROMPT_KEYS)
@@ -3638,13 +3642,3 @@ def normalize_prompts(
                 if stripped:
                     base[key] = stripped
     return {k: base[k] for k in PROMPT_KEYS}
-
-
-def render_prompt(prompts: dict[str, str], key: str, **kwargs: object) -> str:
-    text = prompts.get(key)
-    if text is None or not str(text).strip():
-        raise RuntimeError(f"Active configuration is missing prompt '{key}'")
-    try:
-        return str(text).format(**kwargs)
-    except KeyError as exc:
-        raise RuntimeError(f"Prompt '{key}' missing placeholder {exc}") from exc

@@ -43,7 +43,7 @@ Använd en konfigurerad väg per funktion. Ett fel ska visas tydligt och får in
 
 ## Gemensam session och arbetsläge
 
-Inför ett beständigt workspace med titel, kund, ägare samt kopplingar till underlag, expertthreads och artefakter. Användaren ska kunna skapa och återöppna ett workspace. Första leveransen använder befintlig åtkomst för kund och ägare; fler experter i ett workspace utvidgar inte dokumentens användarbehörigheter.
+Koppla en beständig privat röstcanvas med titel, kund och ägare till projektets befintliga företags- eller kundworkspace och privata chatt. Canvasen håller underlag, expertthreads och artefakter; den kan skapas och återöppnas. Åtkomst kräver både chattägarskap och aktuell medlemsbehörighet till föräldraarbetsytan. Fler experter i canvasen utvidgar inte användarens dokumentbehörigheter.
 
 Inför en beständig workspace session som binder workspace, autentiserad användare och kund, vald expertthread, lokal chattidentitet, ElevenLabs conversation ID, valt kunskapsområde, dokumentflikar, aktiv vy, markeringar, artefakter och pågående jobb. Arbetsläget ska ha en revision som ändras när användaren eller agenten ändrar det.
 
@@ -90,7 +90,7 @@ Backend ska utfärda åtkomst till den privata agenten först efter Socialism in
 
 Serverarbetets client tools anropar backend med användarens vanliga inloggningsbehörighet, lokal sessionsidentitet och det bundna ElevenLabs conversation ID:t. Backend verifierar användare, kund, arbetsyta, expert, sessionsgeneration och giltighetstid för varje anrop. Anropet binds också till den sparade användarturens frysta arbetsläge. Leverantörens anslutningsuppgifter ska inte ge generell åtkomst till backend.
 
-Backend härleder behörigheten från den verifierade sessionen. Agentvalda kund, workspace eller användar-ID:n är inte auktorisering. Varje objekt läses och ändras med serverns åtkomstkontroll; underlagets befintliga kontroll av både kund och `owner_user_id` ska bevaras. Källreferenser från Allmän kunskap och Research får bara göras tillgängliga om den inloggade användaren har tillgång till dem.
+Backend härleder behörigheten från den verifierade sessionen. Agentvalda kund, workspace eller användar-ID:n är inte auktorisering. Varje objekt läses och ändras med serverns åtkomstkontroll; underlagets befintliga kund- och arbetsytebehörighet ska bevaras, inklusive tillåtna delade företagsdokument; privat historik och artefakter kräver dessutom chattägarskap. Källreferenser från Allmän kunskap och Research får bara göras tillgängliga om den inloggade användaren har tillgång till dem.
 
 Vid expertbyte eller avslutad agentsession återkallas dess serverregistrerade verktygsbehörighet. Nya anrop med den gamla behörigheten ska nekas även om tokenens tidsgräns ännu inte passerats. Redan mottagna beständiga jobb får slutföras under sin ursprungliga objektåtkomst. Jobbhändelser sparas till rätt workspace och expertthread; kontextuppdateringar skickas bara till en aktuell behörig anslutning.
 

@@ -15,7 +15,7 @@ from app.database.models import Persona, PersonaMessage, PromptField, PromptOver
 from app.database.base import Base
 from app.database.session import get_session
 from app.database.workspace_conversations import WorkspaceConversationEvent, WorkspaceConversationSession
-from app.database.workspace_models import Workspace
+from app.database.workspace_models import VoiceWorkspace
 from app.services.elevenlabs_agents import ElevenLabsAgentsClient, ElevenLabsError, get_elevenlabs_client
 from app.services.prompt_fields_store import clear_prompt_cache
 from app.services.expertgranskning.memory import set_expert_memory_factory
@@ -71,7 +71,7 @@ async def provider(client_db, monkeypatch):
         client._transport.app.dependency_overrides[get_elevenlabs_client] = mock_client
         async with factory() as db:
             expert = (await db.execute(select(Persona).where(Persona.kind == "expert", Persona.customer_id == 1))).scalars().first()
-        created = await client.post("/workspaces", json={"title": "Workspace fixture", "idempotency_key": str(uuid4())})
+        created = await client.post("/voice-workspaces?customer_id=1", json={"title": "VoiceWorkspace fixture", "idempotency_key": str(uuid4())})
         assert created.status_code == 201, created.text
         workspace_id = created.json()["id"]
         yield client, factory, workspace_id, expert.id, requests
@@ -173,7 +173,7 @@ async def test_session_tool_uses_frozen_user_selection_and_stable_operation_iden
     url = f"/workspace-chat/{workspace_id}/sessions/{connection['session_id']}/events"
     assert (await client.post(url, json={"event_key": "u1", "kind": "user", "text": "Visa relationerna"})).status_code == 200
     async with factory() as db:
-        workspace = await db.get(Workspace, workspace_id)
+        workspace = await db.get(VoiceWorkspace, workspace_id)
         workspace.state = {**workspace.state, "view": "relations"}
         workspace.revision += 1
         await db.commit()
@@ -232,7 +232,7 @@ async def single_connection_provider(provider, tmp_path):
 
 async def probe_connection(factory, workspace_id):
     async with factory() as reader:
-        assert await reader.get(Workspace, workspace_id) is not None
+        assert await reader.get(VoiceWorkspace, workspace_id) is not None
 
 
 def probing_memory(factory, workspace_id, gate, boundary):
@@ -403,7 +403,7 @@ async def test_delayed_tool_uses_its_original_user_turn(provider, monkeypatch):
     url = f"/workspace-chat/{workspace_id}/sessions/{connection['session_id']}/events"
     await client.post(url, json={"event_key": "u1", "kind": "user", "text": "Visa den här."})
     async with factory() as db:
-        workspace = await db.get(Workspace, workspace_id)
+        workspace = await db.get(VoiceWorkspace, workspace_id)
         workspace.state = {**workspace.state, "view": "relations"}
         workspace.revision += 1
         await db.commit()

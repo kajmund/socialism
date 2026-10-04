@@ -40,11 +40,12 @@ async def project_groups(
         .limit(1)
     )
     graph = SqlQuestionEvidenceGraph()
+    scope = tenant_question_scope(run.customer_id, run.context.get("workspace_id"))
     objective = (attempt.research_objective_snapshot or {}).get("objective")
     for key, basis in groups.items():
         canonical = await session.scalar(
             select(KnowledgeQuestionRow).where(
-                KnowledgeQuestionRow.scope_key == f"customer:{run.customer_id}",
+                KnowledgeQuestionRow.namespace == scope.namespace,
                 KnowledgeQuestionRow.identity_key == key,
             )
         )
@@ -52,7 +53,7 @@ async def project_groups(
             question = await graph.upsert_question(
                 session,
                 identity_from_text(basis["question"]),
-                tenant_question_scope(run.customer_id),
+                scope,
             )
             canonical = await session.get(KnowledgeQuestionRow, question.id)
         refs = {

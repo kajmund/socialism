@@ -1,4 +1,4 @@
-import type { SourceReference, WorkspaceChart } from "@/api/workspaces"
+import type { SourceReference, WorkspaceChart } from "@/api/voiceWorkspaces"
 import { SpinndoktorChartSvg } from "@/components/reports/spinndoctorGrid/SpinndoktorChartSvg"
 import { WorkspaceReferences } from "./WorkspaceReferences"
 

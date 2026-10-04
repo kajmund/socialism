@@ -10,7 +10,7 @@ import pytest
 from starlette.websockets import WebSocketState
 
 from app.auth.scope import job_visible_to_user
-from app.database.models import Job, StoredObject, UserAccount
+from app.database.models import Job, Kund, StoredObject, UserAccount
 from app.database.workspace_models import WorkspaceArtifactRevision, WorkspaceReference, WorkspaceSource
 from app.llm import set_structured_completer
 from app.realtime.hub import EventHub
@@ -26,7 +26,7 @@ def hold_jobs(monkeypatch):
 
 
 async def create_workspace(client, headers=None):
-    response = await client.post("/workspaces", headers=headers, json={"title": "Audit", "idempotency_key": str(uuid4())})
+    response = await client.post("/voice-workspaces?customer_id=1", headers=headers, json={"title": "Audit", "idempotency_key": str(uuid4())})
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -37,13 +37,13 @@ async def test_generation_revalidates_every_input_before_llm(client_db, change):
     client, factory = client_db
     workspace = await create_workspace(client)
     async with factory() as session:
-        session.add(StoredObject(id="source-audit", customer_id=1, owner_user_id=ADMIN_USER_ID, module="dd", kind="underlag",
+        session.add(StoredObject(id="source-audit", workspace_id=workspace["workspace_id"], customer_id=1, owner_user_id=ADMIN_USER_ID, module="dd", kind="underlag",
             bucket="audit", object_key="source.txt", filename="source.txt", content_type="text/plain", size_bytes=6,
             extraction_status="ok", extracted_text="Source", knowledge_status="ready"))
         session.add(WorkspaceSource(workspace_id=workspace["id"], source_id="source-audit"))
         await session.commit()
-    read = await client.post(f"/workspaces/{workspace['id']}/tools/read_source", json={"idempotency_key": "read", "arguments": {"source_id": "source-audit"}})
-    queued = await client.post(f"/workspaces/{workspace['id']}/tools/create_document", json={"idempotency_key": "generate",
+    read = await client.post(f"/voice-workspaces/{workspace['id']}/tools/read_source", json={"idempotency_key": "read", "arguments": {"source_id": "source-audit"}})
+    queued = await client.post(f"/voice-workspaces/{workspace['id']}/tools/create_document", json={"idempotency_key": "generate",
         "arguments": {"source_refs": [read.json()["reference_id"]], "instructions": "Use the source"}})
     assert queued.status_code == 200, queued.text
     job_id = queued.json()["job_id"]
@@ -75,7 +75,7 @@ async def test_generation_checks_current_customer_binding_before_llm(client_db, 
     client, factory = client_db
     headers = {"Authorization": f"Bearer {user_token}"}
     workspace = await create_workspace(client, headers)
-    queued = await client.post(f"/workspaces/{workspace['id']}/tools/create_document", headers=headers,
+    queued = await client.post(f"/voice-workspaces/{workspace['id']}/tools/create_document", headers=headers,
         json={"idempotency_key": "generate", "arguments": {"instructions": "Draft"}})
     assert queued.status_code == 200, queued.text
     async with factory() as session:
@@ -137,7 +137,7 @@ async def test_job_list_and_detail_hide_another_users_workspace_from_admin(clien
     client, _factory = client_db
     headers = {"Authorization": f"Bearer {user_token}"}
     workspace = await create_workspace(client, headers)
-    queued = await client.post(f"/workspaces/{workspace['id']}/tools/create_document", headers=headers,
+    queued = await client.post(f"/voice-workspaces/{workspace['id']}/tools/create_document", headers=headers,
         json={"idempotency_key": "generate", "arguments": {"instructions": "Private"}})
     job_id = queued.json()["job_id"]
     assert (await client.get(f"/jobs/{job_id}")).status_code == 403
@@ -154,7 +154,7 @@ async def test_url_origin_is_persisted_and_inherited_by_new_citations(client_db,
     async def fetch(_url):
         return b"Remote source", "text/plain", "source.txt", "https://example.test/final-source"
     monkeypatch.setattr(ingest, "fetch_source_url", fetch)
-    imported = await client.post(f"/workspaces/{workspace['id']}/tools/ingest_source", json={"idempotency_key": "url",
+    imported = await client.post(f"/voice-workspaces/{workspace['id']}/tools/ingest_source", json={"idempotency_key": "url",
         "arguments": {"url": "https://example.test/source"}})
     assert imported.status_code == 200, imported.text
     source_id = imported.json()["source_id"]
@@ -164,7 +164,7 @@ async def test_url_origin_is_persisted_and_inherited_by_new_citations(client_db,
         source = await session.get(StoredObject, source_id)
         source.extracted_text, source.extraction_status = "Remote source", "ok"
         await session.commit()
-    read = await client.post(f"/workspaces/{workspace['id']}/tools/read_source", json={"idempotency_key": "new-citation", "arguments": {"source_id": source_id}})
+    read = await client.post(f"/voice-workspaces/{workspace['id']}/tools/read_source", json={"idempotency_key": "new-citation", "arguments": {"source_id": source_id}})
     assert read.status_code == 200, read.text
     assert read.json()["snapshot"]["source_url"] == "https://example.test/final-source"
 
@@ -180,7 +180,7 @@ async def test_job_state_events_release_single_connection_before_broadcast(tmp_p
         await connection.run_sync(Base.metadata.create_all)
     async with factory() as session:
         session.add(Job(id="job-event", customer_id=1, kind="workspace_generation", status="pending", label="Draft",
-            request={"workspace_id": "ws", "artifact_id": "a", "operation_id": "op", "owner_user_id": "owner",
+            request={"voice_workspace_id": "ws", "workspace_id": "parent", "chat_id": "chat", "artifact_id": "a", "operation_id": "op", "owner_user_id": "owner",
                      "expected_revision": 0, "arguments": {}}, created_at=utcnow(), updated_at=utcnow()))
         await session.commit()
     states = []
@@ -214,14 +214,18 @@ async def test_job_snapshot_filters_owners_and_releases_pool_before_socket(tmp_p
     from app.database.base import Base
     from app.serializers import utcnow
     from app.services.job_watch import send_jobs_snapshot
+    from app.database.workspaces import Workspace as CoreWorkspace
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/snapshot.db", pool_size=1, max_overflow=0, pool_timeout=0.3)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     async with factory() as session:
+        session.add(Kund(id=1, name="Customer", slug="customer", available_modules=[]))
+        session.add(UserAccount(id="admin", email="admin@example.test", role="admin"))
+        session.add(CoreWorkspace(id="parent", customer_id=1, name="Company", kind="company"))
         for owner in ("admin", "other"):
             session.add(Job(id=f"job-{owner}", customer_id=1, kind="workspace_generation", status="pending", label="Draft",
-                request={"workspace_id": owner, "owner_user_id": owner, "source_context": "private"}, created_at=utcnow(), updated_at=utcnow()))
+                request={"workspace_id": "parent", "owner_user_id": owner, "source_context": "private"}, created_at=utcnow(), updated_at=utcnow()))
         await session.commit()
     events = []
     class CheckedSocket:

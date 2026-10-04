@@ -1,4 +1,4 @@
-"""Workspace-owned three-phase upload and URL import transactions."""
+"""VoiceWorkspace-owned three-phase upload and URL import transactions."""
 
 import secrets
 from dataclasses import dataclass
@@ -9,7 +9,8 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Job, Kund, StoredObject
-from app.database.workspace_models import Workspace, WorkspaceOperation
+from app.database.workspace_models import VoiceWorkspace, WorkspaceOperation
+from app.database.workspaces import WorkspaceChatMessage
 from app.serializers import utcnow
 from app.services.document_knowledge import DOCUMENT_INGEST_JOB_KIND
 from app.services.object_storage import (
@@ -17,7 +18,7 @@ from app.services.object_storage import (
     put_object, safe_filename, validate_underlag,
 )
 from app.services.underlag_pdf import convert_docx_to_pdf_async
-from app.services.workspace.service import add_source
+from app.services.workspace.service import add_source, require_workspace
 from app.services.workspace.url_ingest import SourceImportError, fetch_source_url
 
 
@@ -26,6 +27,8 @@ class StorageTarget:
     bucket: str
     owner_user_id: str
     module: str
+    workspace_id: str
+    chat_id: str
 
 
 @dataclass(frozen=True)
@@ -42,36 +45,42 @@ async def _store(target: StorageTarget, value: UploadInput) -> dict:
         data = await convert_docx_to_pdf_async(data, filename=name)
         content_type, name = "application/pdf", f"{Path(name).stem}.pdf"
     object_id = secrets.token_hex(16)
-    key = f"{module_prefix(target.module)}/underlag/{target.owner_user_id}/{object_id}/{name}"
+    key = f"{module_prefix(target.module)}/workspaces/{target.workspace_id}/chats/{target.chat_id}/underlag/{object_id}/{name}"
     await ensure_bucket(target.bucket)
     await put_object(target.bucket, key, data, content_type)
     return {"id": object_id, "bucket": target.bucket, "object_key": key, "filename": name,
             "content_type": content_type, "size_bytes": len(data)}
 
 
-async def _persist(session: AsyncSession, workspace: Workspace, stored: dict, *, source_url: str | None = None) -> dict:
-    await session.refresh(workspace)
-    source = StoredObject(**stored, customer_id=workspace.customer_id, owner_user_id=workspace.owner_user_id,
+async def _persist(session: AsyncSession, workspace: VoiceWorkspace, stored: dict, *, source_url: str | None = None) -> dict:
+    from app.database.models import UserAccount
+    user = await session.get(UserAccount, workspace.owner_user_id)
+    workspace = await require_workspace(session, workspace.id, user)
+    source = StoredObject(**stored, workspace_id=workspace.workspace_id, customer_id=workspace.customer_id, owner_user_id=workspace.owner_user_id,
         module=workspace.module, kind=KIND_UNDERLAG, extraction_status="pending", knowledge_status="pending", created_at=utcnow())
     session.add(source)
     await session.flush()
     job = Job(id=f"job_{secrets.token_hex(8)}", customer_id=workspace.customer_id,
         kind=DOCUMENT_INGEST_JOB_KIND, status="pending", label=source.filename,
-        request={"workspace_id": workspace.id, "object_id": source.id, "owner_user_id": workspace.owner_user_id},
+        request={"voice_workspace_id": workspace.id, "workspace_id": workspace.workspace_id,
+                 "chat_id": workspace.chat_id, "object_id": source.id, "owner_user_id": workspace.owner_user_id},
         created_at=utcnow(), updated_at=utcnow())
     session.add(job)
     await session.flush()
     source.knowledge_job_id = job.id
+    session.add(WorkspaceChatMessage(chat_id=workspace.chat_id, role="user", content=source.filename,
+                                     attachment_object_id=source.id, job_id=job.id))
     await add_source(session, workspace, source.id, source_url=source_url)
     return {"status": "queued", "source_id": source.id, "job_id": job.id, "ingest_status": source.knowledge_status}
 
 
-async def ingest(session: AsyncSession, workspace: Workspace, operation: WorkspaceOperation,
+async def ingest(session: AsyncSession, workspace: VoiceWorkspace, operation: WorkspaceOperation,
                  *, upload: UploadInput | None = None, url: str | None = None) -> dict:
     customer = await session.get(Kund, workspace.customer_id)
     if customer is None:
         raise HTTPException(status_code=404, detail="workspace_customer_not_found")
-    target = StorageTarget(bucket_name(customer.slug), workspace.owner_user_id, workspace.module)
+    target = StorageTarget(bucket_name(customer.slug), workspace.owner_user_id, workspace.module,
+                           workspace.workspace_id, workspace.chat_id)
     operation_id = operation.id
     operation.status = "running"
     # The request's command transaction owns only this accepted operation.
@@ -105,5 +114,5 @@ async def ingest(session: AsyncSession, workspace: Workspace, operation: Workspa
     return operation.result
 
 
-async def ingest_url(session: AsyncSession, workspace: Workspace, operation: WorkspaceOperation, *, url: str) -> dict:
+async def ingest_url(session: AsyncSession, workspace: VoiceWorkspace, operation: WorkspaceOperation, *, url: str) -> dict:
     return await ingest(session, workspace, operation, url=url)

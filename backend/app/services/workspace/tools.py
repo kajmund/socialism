@@ -23,7 +23,7 @@ async def execute_workspace_tool(session: AsyncSession, *, workspace_id: str, us
                                  tool_name: str, arguments: dict, idempotency_key: str,
                                  agent_session=None) -> dict:
     if session.new or session.dirty or session.deleted:
-        raise RuntimeError("Workspace commands require their own clean transaction")
+        raise RuntimeError("VoiceWorkspace commands require their own clean transaction")
     workspace = await require_workspace(session, workspace_id, user)
     _validate_agent(workspace, user, agent_session)
     turn_state = getattr(agent_session, "turn_state", None) if agent_session is not None else None
@@ -37,7 +37,7 @@ async def execute_workspace_tool(session: AsyncSession, *, workspace_id: str, us
         return operation.result or {"operation_id": operation.id, "status": operation.status}
     if agent_session is not None:
         if tool_name == "start_research":
-            from app.services.persona_chat import _assistant_offered_research, _explicit_research_confirmation
+            from app.services.expert_chat_research_tool import _assistant_offered_research, _explicit_research_confirmation
             if not (_explicit_research_confirmation(getattr(agent_session, "turn_user_text", ""))
                     and _assistant_offered_research(getattr(agent_session, "turn_previous_agent_text", ""))):
                 raise HTTPException(status_code=409, detail="research_confirmation_required")

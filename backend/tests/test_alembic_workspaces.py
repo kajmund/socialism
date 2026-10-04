@@ -1,4 +1,4 @@
-"""Migration149 supports isolated upgrades/downgrades and closed Postgres roles."""
+"""Migration151 supports isolated upgrades/downgrades and closed Postgres roles."""
 
 from io import StringIO
 from pathlib import Path
@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, inspect, text
 from app.database.base import Base
 
 TABLES = {
-    "workspace_chats", "workspace_sources", "workspace_expert_threads", "workspace_research",
+    "voice_workspaces", "workspace_sources", "workspace_expert_threads", "workspace_research",
     "workspace_references", "workspace_artifacts", "workspace_artifact_revisions", "workspace_operations",
     "workspace_conversation_sessions", "workspace_conversation_events", "workspace_agent_deployments",
 }
@@ -20,14 +20,14 @@ def config() -> Config:
     return Config(str(Path(__file__).parents[1] / "alembic.ini"))
 
 
-def test_sqlite_workspace_upgrade_from_148_and_downgrade(tmp_path, monkeypatch):
+def test_sqlite_workspace_upgrade_from_150_and_downgrade(tmp_path, monkeypatch):
     database_url = f"sqlite:///{tmp_path}/workspace-migration.db"
     monkeypatch.setenv("MIGRATION_DATABASE_URL", database_url)
-    command.upgrade(config(), "148_expert_async_tool_prompts")
+    command.upgrade(config(), "150_workspace_chat_prompts")
     engine = create_engine(database_url)
     before = set(inspect(engine).get_table_names())
     assert not before.intersection(TABLES)
-    command.upgrade(config(), "149_live_voice_workspaces")
+    command.upgrade(config(), "151_live_voice_workspaces")
     inspector = inspect(engine)
     assert TABLES <= set(inspector.get_table_names())
     for name in TABLES:
@@ -36,11 +36,13 @@ def test_sqlite_workspace_upgrade_from_148_and_downgrade(tmp_path, monkeypatch):
     with engine.begin() as connection:
         connection.execute(text("INSERT INTO kunder(id,name,slug,available_modules) VALUES(42,'QA','qa','[]')"))
         connection.execute(text("INSERT INTO user_accounts(id,email,role,kund_id) VALUES('qa-user','qa@example.test','user',42)"))
-        connection.execute(text("INSERT INTO workspace_chats(id,customer_id,owner_user_id,title,module,state,creation_key,creation_payload_hash) VALUES('qa-ws',42,'qa-user','QA','dd','{}','creation','hash')"))
-        assert connection.execute(text("SELECT revision,next_reference_number FROM workspace_chats")).one() == (0, 1)
-    command.downgrade(config(), "148_expert_async_tool_prompts")
+        connection.execute(text("INSERT INTO workspaces(id,customer_id,name,kind) VALUES('qa-parent',42,'QA','client')"))
+        connection.execute(text("INSERT INTO workspace_chats(id,customer_id,workspace_id,owner_user_id,module,title) VALUES('qa-chat',42,'qa-parent','qa-user','dd','QA')"))
+        connection.execute(text("INSERT INTO voice_workspaces(id,workspace_id,chat_id,customer_id,owner_user_id,title,module,state,creation_key,creation_payload_hash) VALUES('qa-ws','qa-parent','qa-chat',42,'qa-user','QA','dd','{}','creation','hash')"))
+        assert connection.execute(text("SELECT revision,next_reference_number FROM voice_workspaces")).one() == (0, 1)
+    command.downgrade(config(), "150_workspace_chat_prompts")
     assert set(inspect(engine).get_table_names()) == before
-    command.upgrade(config(), "149_live_voice_workspaces")
+    command.upgrade(config(), "151_live_voice_workspaces")
     assert TABLES <= set(inspect(engine).get_table_names())
     engine.dispose()
 
@@ -51,7 +53,7 @@ def test_postgres_offline_sql_enables_rls_and_revokes_client_roles(monkeypatch):
     output = StringIO()
     migration_config = config()
     migration_config.output_buffer = output
-    command.upgrade(migration_config, "148_expert_async_tool_prompts:149_live_voice_workspaces", sql=True)
+    command.upgrade(migration_config, "150_workspace_chat_prompts:151_live_voice_workspaces", sql=True)
     sql = output.getvalue()
     for table in TABLES:
         assert f'ALTER TABLE public."{table}" ENABLE ROW LEVEL SECURITY' in sql

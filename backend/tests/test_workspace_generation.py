@@ -6,8 +6,9 @@ from zipfile import ZipFile
 import pytest
 from sqlalchemy import select
 
-from app.database.models import Job, UserAccount
-from app.database.workspace_models import Workspace, WorkspaceArtifact, WorkspaceArtifactRevision, WorkspaceOperation
+from app.database.models import Job, Kund, UserAccount
+from app.database.workspaces import Workspace, WorkspaceChat
+from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifact, WorkspaceArtifactRevision, WorkspaceOperation
 from app.llm import set_structured_completer
 from app.services import jobs
 from app.services.workspace_export import export_revision_docx
@@ -19,8 +20,8 @@ def document(text="Förvärvsanalys", refs=None):
 
 
 async def queue_document(client):
-    workspace = (await client.post("/workspaces", json={"title": "Förvärv", "module": "dd", "idempotency_key": str(uuid4())})).json()
-    result = await client.post(f"/workspaces/{workspace['id']}/tools/create_document", json={
+    workspace = (await client.post("/voice-workspaces?customer_id=1", json={"title": "Förvärv", "module": "dd", "idempotency_key": str(uuid4())})).json()
+    result = await client.post(f"/voice-workspaces/{workspace['id']}/tools/create_document", json={
         "idempotency_key": "draft-one", "arguments": {"title": "Utkast", "instructions": "Skriv ett öppet utkast"},
     })
     assert result.status_code == 200, result.text
@@ -37,7 +38,7 @@ async def test_persisted_generation_publishes_revision_and_replays_job(client_db
         assert result["status"] == "queued"
         async with factory() as session:
             assert (await session.get(WorkspaceArtifact, result["artifact_id"])).revision == 0
-        replay = await client.post(f"/workspaces/{workspace['id']}/tools/create_document", json={
+        replay = await client.post(f"/voice-workspaces/{workspace['id']}/tools/create_document", json={
             "idempotency_key": "draft-one", "arguments": {"title": "Utkast", "instructions": "Skriv ett öppet utkast"},
         })
         assert replay.json()["job_id"] == result["job_id"]
@@ -58,7 +59,7 @@ async def test_persisted_generation_publishes_revision_and_replays_job(client_db
             snapshot = await session.get(WorkspaceArtifactRevision, (artifact.id, 1))
             assert snapshot.content == document()
             assert len(list((await session.execute(select(WorkspaceArtifact))).scalars())) == 1
-        exported = await client.get(f"/workspaces/{workspace['id']}/artifacts/{result['artifact_id']}/exports/docx?revision=1")
+        exported = await client.get(f"/voice-workspaces/{workspace['id']}/artifacts/{result['artifact_id']}/exports/docx?revision=1")
         assert exported.status_code == 200
         assert exported.headers["X-Artifact-Revision"] == "1"
         assert b"document.xml" in exported.content
@@ -117,7 +118,7 @@ async def test_relations_publish_interpretations_but_reject_unsupported_facts(cl
     from app.services.workspace.service import publish_artifact_revision
 
     client, factory = client_db
-    workspace = (await client.post("/workspaces", json={"title": "Relations", "idempotency_key": str(uuid4())})).json()
+    workspace = (await client.post("/voice-workspaces?customer_id=1", json={"title": "Relations", "idempotency_key": str(uuid4())})).json()
     content = GeneratedRelations.model_validate({
         "nodes": [{"id": "hypothesis", "label": "Möjlig risk", "kind": "interpretation", "source_refs": []},
                   {"id": "consequence", "label": "Möjlig konsekvens", "kind": "interpretation", "source_refs": []}],
@@ -172,7 +173,7 @@ async def test_generation_releases_single_connection_while_llm_pending(client_db
         await connection.run_sync(Base.metadata.create_all)
     async with source_factory() as source:
         job = await source.get(Job, result["job_id"])
-        pairs = [(Workspace, workspace["id"]), (Job, job.id), (UserAccount, job.request["owner_user_id"]),
+        pairs = [(Kund, 1), (Workspace, workspace["workspace_id"]), (WorkspaceChat, workspace["chat_id"]), (VoiceWorkspace, workspace["id"]), (Job, job.id), (UserAccount, job.request["owner_user_id"]),
                  (WorkspaceArtifact, result["artifact_id"]), (WorkspaceOperation, result["operation_id"])]
         copies = []
         for model, key in pairs:
@@ -198,7 +199,7 @@ async def test_generation_releases_single_connection_while_llm_pending(client_db
     try:
         await asyncio.wait_for(waiting.wait(), 2)
         async with factory() as reader:
-            assert await reader.get(Workspace, workspace["id"]) is not None
+            assert await reader.get(VoiceWorkspace, workspace["id"]) is not None
     finally:
         release.set()
         await task
