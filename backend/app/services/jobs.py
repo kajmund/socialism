@@ -39,6 +39,7 @@ from app.services.document_knowledge import (
     DOCUMENT_INGEST_JOB_KIND,
     DocumentIngestJobRequest,
 )
+from app.services.document_ingest_status import reconcile_failed_document_ingest
 from app.services.expertgranskning import WORD_JOB_KIND
 from app.services.expertgranskning.schemas import ExpertgranskningWordJobRequest
 from app.services.expertgranskning.watch import publish_expertgranskning_finished
@@ -966,10 +967,8 @@ async def _fail_standard_interrupted_jobs(  # noqa: C901, PLR0912
         update(Job)
         .where(Job.status.in_(("pending", "running")))
         .values(
-            status="failed",
-            error=message,
-            finished_at=now,
-            updated_at=now,
+            status="failed", error=message,
+            finished_at=now, updated_at=now,
         )
     )
     if run_ids:
@@ -1003,6 +1002,7 @@ async def _fail_standard_interrupted_jobs(  # noqa: C901, PLR0912
         panel.status = "failed"
         panel.error = message
         panel.updated_at = now
+    await reconcile_failed_document_ingest(session, message=message)
     await session.commit()
     for report in failed_reports:
         await publish_report(report, session=session)
