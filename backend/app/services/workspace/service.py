@@ -49,8 +49,6 @@ async def require_source(session: AsyncSession, workspace: VoiceWorkspace, sourc
         raise HTTPException(status_code=404, detail="workspace_source_not_found")
     chat = await require_container(session, workspace, user)
     source = await require_chat_file(session, user, chat, source_id)
-    if source.module != workspace.module:
-        raise HTTPException(status_code=404, detail="workspace_source_not_found")
     if member and await session.get(WorkspaceSource, (workspace.id, source_id)) is None:
         raise HTTPException(status_code=404, detail="workspace_source_not_found")
     return source
