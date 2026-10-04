@@ -15,7 +15,7 @@ from app.services.workspace.service import (
     accept_operation, artifact_out, create_workspace, fingerprint, patch_workspace,
     require_artifact, require_workspace, workspace_out,
 )
-from app.services.workspace.sources import read_reference
+from app.services.workspace.sources import read_reference, source_version
 from app.services.workspace.tools import execute_workspace_tool
 from app.services.workspace.ingest import UploadInput, ingest
 from app.services.workspace.containers import WorkspaceContainer
@@ -150,8 +150,18 @@ async def get_workspace_source_file(workspace_id: str, source_id: str, *, sessio
     workspace = await require_workspace(session, workspace_id, user)
     source = await require_source(session, workspace, source_id)
     bucket, key, filename, mime = source.bucket, source.object_key, source.filename, source.content_type
+    owner_id, version = user.id, source_version(source)
     await session.rollback()
     data, _stored_mime = await get_object(bucket, key)
+    owner = await session.get(UserAccount, owner_id, populate_existing=True)
+    if owner is None:
+        raise HTTPException(status_code=404, detail="workspace_not_found")
+    workspace = await require_workspace(session, workspace_id, owner)
+    source = await require_source(session, workspace, source_id)
+    if (source_version(source) != version
+            or (source.bucket, source.object_key, source.filename, source.content_type) != (bucket, key, filename, mime)):
+        raise HTTPException(status_code=409, detail="workspace_source_changed_during_read")
+    await session.rollback()
     return Response(data, media_type=mime,
                     headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(filename)}"})
 

@@ -17,6 +17,7 @@ from app.database.workspace_models import VoiceWorkspace
 from app.schemas.workspace import WorkspaceState
 from app.services.elevenlabs_agents import ElevenLabsAgentsClient
 from app.services.workspace_memory_context import workspace_memory_context
+from app.services.workspace_parent_documents import voice_document_inventory
 from app.services.workspace.service import require_expert, require_workspace, validate_state
 from app.services.workspace_agent_deployment import (
     deploy_agent_snapshot, prepare_agent_snapshot,
@@ -81,7 +82,8 @@ async def reserve_conversation(session: AsyncSession, *, workspace_id: str, user
                 "workspace_parent_id": workspace.workspace_id,
                 "context": {"voice_workspace_id": workspace.id, "workspace_id": workspace.workspace_id,
                             "chat_id": workspace.chat_id, "revision": workspace.revision, "state": state.model_dump(),
-                            "expert_id": request.expert_id, "history": history[-40:]}}
+                            "expert_id": request.expert_id, "history": history[-40:],
+                            "available_documents": await voice_document_inventory(session, workspace, user)}}
     session.expunge(persona)
     await session.commit()
     return prepared
@@ -97,6 +99,7 @@ async def activate_conversation(session: AsyncSession, prepared: dict, deploymen
     if row.status != "starting" or workspace.state.get("expert_id") != row.expert_id or aware(row.expires_at) <= datetime.now(UTC):
         await session.rollback()
         raise HTTPException(409, "workspace_conversation_superseded")
+    prepared["context"]["available_documents"] = await voice_document_inventory(session, workspace, owner)
     row.agent_id, row.agent_version = deployment["agent_id"], deployment["agent_version"]
     row.conversation_id, row.status = connection["conversation_id"], "active"
     result = {"session_id": row.id, "generation": row.generation, "expires_at": aware(row.expires_at).isoformat(),

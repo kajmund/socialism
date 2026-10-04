@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 
-from app.services.workspace_chat_prompts import workspace_prompt_fields
+from app.services.prompt_catalog import PROMPT_FIELDS
 
 
 @pytest.fixture
@@ -56,43 +56,51 @@ def _overrides(connection) -> list[tuple]:
 
 
 @pytest.mark.parametrize("custom_language", ["sv", "en", "nb"])
+@pytest.mark.parametrize("key", [
+    "chat.workspace.system",
+    "workspace.voice.system",
+    "workspace.voice.tool.get_workspace_context",
+    "workspace.voice.tool.ingest_source",
+])
 def test_document_inventory_upgrade_preserves_custom_prompts_and_reverses_defaults(
-    document_prompt_migration, custom_language,
+    document_prompt_migration, custom_language, key,
 ):
     migration, connection = document_prompt_migration
+    old = migration._OLD if key == migration._KEY else migration._VOICE_OLD[key]
+    new = migration._NEW if key == migration._KEY else migration._VOICE_NEW[key]
     defaults = next(
         field["defaults"]
-        for field in workspace_prompt_fields()
-        if field["key"] == migration._KEY
+        for field in PROMPT_FIELDS
+        if field["key"] == key
     )
-    assert defaults == migration._NEW
-    original = {**migration._OLD, custom_language: "customer default"}
+    assert defaults == new
+    original = {**old, custom_language: "customer default"}
     connection.execute(
         sa.text("INSERT INTO prompt_fields VALUES (1,:key,:sv,:en,:nb)"),
-        {"key": migration._KEY, **original},
+        {"key": key, **original},
     )
     connection.execute(
         sa.text("INSERT INTO prompt_fields VALUES (2,'other',:sv,:en,:nb)"),
-        migration._OLD,
+        old,
     )
     for language in ("sv", "en", "nb"):
         connection.execute(
             sa.text("INSERT INTO prompt_overrides VALUES (:field,:customer,:language,:text)"),
             [
-                {"field": 1, "customer": 1, "language": language, "text": migration._OLD[language]},
+                {"field": 1, "customer": 1, "language": language, "text": old[language]},
                 {"field": 1, "customer": 2, "language": language, "text": "customer override"},
-                {"field": 2, "customer": 1, "language": language, "text": migration._OLD[language]},
+                {"field": 2, "customer": 1, "language": language, "text": old[language]},
             ],
         )
     before_overrides = _overrides(connection)
 
     migration.upgrade()
     migration.upgrade()
-    assert _defaults(connection, migration._KEY) == tuple(
+    assert _defaults(connection, key) == tuple(
         "customer default" if language == custom_language else defaults[language]
         for language in ("sv", "en", "nb")
     )
-    assert _defaults(connection, "other") == tuple(migration._OLD.values())
+    assert _defaults(connection, "other") == tuple(old.values())
     assert _overrides(connection) == [
         (field, customer, language, defaults[language] if field == customer == 1 else text)
         for field, customer, language, text in before_overrides
@@ -100,6 +108,6 @@ def test_document_inventory_upgrade_preserves_custom_prompts_and_reverses_defaul
 
     migration.downgrade()
     migration.downgrade()
-    assert _defaults(connection, migration._KEY) == tuple(original.values())
-    assert _defaults(connection, "other") == tuple(migration._OLD.values())
+    assert _defaults(connection, key) == tuple(original.values())
+    assert _defaults(connection, "other") == tuple(old.values())
     assert _overrides(connection) == before_overrides
