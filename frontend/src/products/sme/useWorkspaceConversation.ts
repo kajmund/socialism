@@ -30,7 +30,7 @@ export function useWorkspaceConversation(props: {
      active.current = null
     setVoice(false); setMuted(false); mutedRef.current = false; setStatus("disconnected"); latest.current.onPreview(null)
     if (!previous) return
-    previous.connection.setVolume({ volume: 0 }); previous.connection.setMicMuted(true)
+    if (previous.mode === "voice") { previous.connection.setVolume({ volume: 0 }); previous.connection.setMicMuted(true) }
     await drained
     const outcomes = await Promise.allSettled([previous.connection.endSession(), voiceWorkspaces.end(previous.workspaceId, previous.session.session_id)])
     for (const result of outcomes) if (result.status === "rejected") latest.current.onError(workspaceErrorMessage(result.reason, t, "voiceWorkspaceChat.sessionError"))
@@ -104,11 +104,12 @@ export function useWorkspaceConversation(props: {
         const credentials = mode === "voice" ? { conversationToken: session.conversation_token ?? requiredCredential(), connectionType: "webrtc" as const, textOnly: false } : { signedUrl: session.signed_url ?? requiredCredential(), connectionType: "websocket" as const, textOnly: true }
         const { Conversation } = await import("@elevenlabs/client")
         connection = await Conversation.startSession({ ...credentials, ...callbacks, clientTools, userId: session.session_id, dynamicVariables: session.dynamic_variables })
-        connection.setVolume({ volume: 0 })
+        if (mode === "voice") connection.setVolume({ volume: 0 })
         if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.sessionError"))
         await voiceWorkspaces.bind(workspaceId, session.session_id, connection.getId())
         if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.sessionError"))
-        connection.sendContextualUpdate(session.context); resolveBound(); connection.setVolume({ volume: 1 })
+        connection.sendContextualUpdate(session.context); resolveBound()
+        if (mode === "voice") connection.setVolume({ volume: 1 })
         const connected = connection
         const current: Active = { connection, session, workspaceId, mode, send: async (text) => {
           const snapshot = latest.current.snapshot()
