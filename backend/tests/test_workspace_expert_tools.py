@@ -1,5 +1,6 @@
 from uuid import uuid4
 import asyncio
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -7,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.database.base import Base
-from app.database.models import Kund, Persona, UserAccount
+from app.database.models import ActorContextProposal, Kund, Persona, UserAccount
 from app.database.workspaces import Workspace, WorkspaceChat
 from app.database.workspace_models import VoiceWorkspace
 from app.services import workspace_expert_tools as tools
@@ -21,6 +22,33 @@ def test_expert_schema_includes_only_selected_tools_and_workspace_owns_research(
     assert {row["properties"]["name"]["const"] for row in schema["oneOf"]} == {"search_wiki", "ask_expert"}
     persona.tools = []
     assert tools.expert_tool_schema(persona)["properties"]["name"]["enum"] == []
+
+
+@pytest.mark.asyncio
+async def test_profile_proposals_belong_to_canvas_and_expert(client_db):
+    client, factory = client_db
+    canvases = [(await client.post("/voice-workspaces?customer_id=1", json={
+        "title": "Avtal", "idempotency_key": str(uuid4())})).json() for _ in range(2)]
+    async with factory() as session:
+        session.add(Persona(id="expert", customer_id=TEST_CUSTOMER_ID, kind="expert", name="Expert",
+                            occ="Jurist", district="", profile={}, tools=["propose_actor_context_update"]))
+        await session.commit()
+        proposals = []
+        for canvas in canvases:
+            user = await session.get(UserAccount, ADMIN_USER_ID)
+            original = user.job_title
+            provider = SimpleNamespace(workspace_id=canvas["id"], expert_id="expert", id=str(uuid4()))
+            result = await tools.execute_expert_tool(session, provider=provider, user=user, arguments={
+                "name": "propose_actor_context_update",
+                "arguments": {"target": "current_user", "changes": {"job_title": "Canvas test role"}}},
+                idempotency_key="profile")
+            proposal = json.loads(result["result"])
+            assert proposal["conversation"] == f"voice-workspace:{canvas['id']}:expert:expert"
+            assert not proposal["saved"]
+            proposals.append(await session.get(ActorContextProposal, proposal["id"]))
+            assert (await session.get(UserAccount, ADMIN_USER_ID, populate_existing=True)).job_title == original
+        assert proposals[0].id != proposals[1].id
+        assert proposals[0].conversation != proposals[1].conversation
 
 
 @pytest.mark.asyncio

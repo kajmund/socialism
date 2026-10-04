@@ -1,10 +1,21 @@
 import { ApiError } from "@/lib/http"
 import { describe, expect, it } from "vitest"
 import type { WorkspaceMessage, WorkspaceState } from "@/api/voiceWorkspaces"
-import { clientArguments, openWorkspaceDocument, upsertTranscript, workspaceThreadKey, workspaceErrorMessage } from "./workspaceChatLogic"
+import { clientArguments, isCurrentConversation, openWorkspaceDocument, upsertTranscript, workspaceThreadKey, workspaceErrorMessage } from "./workspaceChatLogic"
 const state: WorkspaceState = { language: "sv", knowledge_scope: "workspace", view: "relations", documents: [{ source_id: "first", page: 3, zoom: 1.5 }, { source_id: "second", page: 7, zoom: 0.8 }], split_source_ids: ["first", "second"], research_attempt_ids: [], selection: { node_id: "event" } }
 const message: WorkspaceMessage = { id: 10, role: "agent", content: "The complete response", session_id: "session-a", event_key: "agent:4", created_at: "2026-10-04T12:00:00Z" }
 describe("workspace conversation state", () => {
+  it("accepts callbacks only for the current generation and chat scope", () => {
+    const scope = { workspaceId: "canvas-a", expertId: "expert-a" }
+    expect(isCurrentConversation(2, 2, scope, scope)).toBe(true)
+    expect(isCurrentConversation(2, 3, scope, scope)).toBe(false)
+  })
+  it("rejects an old workspace or expert before effect cleanup advances the generation", () => {
+    const scope = { workspaceId: "canvas-a", expertId: "expert-a" }
+    expect(isCurrentConversation(2, 2, scope, { ...scope, workspaceId: "canvas-b" })).toBe(false)
+    expect(isCurrentConversation(2, 2, scope, { ...scope, expertId: "expert-b" })).toBe(false)
+    expect(isCurrentConversation(2, 2, scope, { workspaceId: null, expertId: null })).toBe(false)
+  })
   it("explains provider errors and stale sources without exposing machine codes", () => {
     const translate = (key: string) => key
     expect(workspaceErrorMessage(new ApiError("elevenlabs_voice_unavailable", { status: 503 }), translate, "voiceWorkspaceChat.sessionError")).toBe("voiceWorkspaceChat.sessionError")
