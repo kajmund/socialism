@@ -14,15 +14,15 @@ När din kund har produkten **SME** öppnas chatten direkt efter inloggning. Den
 - **Alla** visar både enskilda experter och expertpaneler.
 - **Olästa** visar experter och expertpaneler som har nya svar.
 - **Grupper** visar bara expertpaneler.
-- Sökfältet filtrerar den lista som är öppen.
+- Förstoringsglaset i vänsterkolumnen öppnar chattlistan med sökning och filter. Sökfältet filtrerar den lista som är öppen.
 
-En gul punkt längst till höger betyder att konversationen innehåller olästa expertsvar. När du öppnar konversationen markeras de som lästa.
+En gul markering visar antalet olästa expertsvar. När du öppnar konversationen markeras de som lästa. Förhandsvisning, tid och lässtatus för enskilda experter gäller den privata chatt du har valt.
 
 ## Chatta med en expert
 
 Välj först företagets eller kundens arbetsyta och därefter en privat chatt och expert. Administratörer väljer även kund. Skriv i fältet **Aa** och skicka. Text och röst använder samma expert och samma arbetsyta. Chattens svar sparas tillsammans med arbetsytan.
 
-Du kan öppna en annan konversation medan experten arbetar. Svaret fortsätter att tas fram och markeras som oläst när det är klart.
+När du byter expert eller privat chatt avslutas det aktuella samtalet. Redan sparade meddelanden ligger kvar. Dokumentjobb som har startats fortsätter även när samtalet avslutas.
 
 Telefonknappen vid skrivfältet startar **live voice**. Tillåt mikrofonen i webbläsaren. Du kan stänga av mikrofonen, avbryta ett uppläst svar eller avsluta röstsamtalet. Du kan också skriva medan röstsamtalet är aktivt. Talade frågor och expertsvar visas i chatten. Dokument och sparade jobb ligger kvar när samtalet avslutas.
 
@@ -49,7 +49,9 @@ Be experten skapa ett utkast utifrån arbetsytans källor. Utkastet skapas som e
 
 Varje sparad revision behåller sina källreferenser. Om dokumentet har ändrats sedan en revidering startade visas en revisionskonflikt så att den nyare texten kan granskas. **Word** och **PDF** exporterar den sparade revision som visas. PDF-export kräver att serverns dokumentkonvertering är tillgänglig.
 
-Knappen **Minnen** i chatthuvudet öppnar samma minneslogg som i expertchatten. Där kan du läsa, redigera, ta bort eller rensa expertens sparade minnen.
+Knappen **Minnen** i chatthuvudet öppnar expertens minneslogg. Privata minnen gäller den valda arbetsytan. Där kan du läsa, redigera, ta bort eller rensa de minnen som visas.
+
+I företagets arbetsyta öppnar **Intervju** expertens tidigare företagsintervjuer. Där finns även bildfrågor och förslag på följdfrågor. Stäng dialogen för att återgå till den privata chatten och dokumentvyn.
 
 Verktygsikonen i samma chatthuvud öppnar expertchattens verktygsval. Kryssa i vilka bolags-, sök-, research- och kollegieverktyg experten får använda. Ändringen sparas direkt för experten. En expert som saknar ett verktyg använder det inte i chatten. **Slå upp tidigare research** hämtar fryst research som redan finns för kunden när experten behöver den. Den startar ingen ny research.
 
@@ -67,7 +69,7 @@ Om flera researchbehov hittar samma exakta källavsnitt visas det som en gemensa
 
 Öppna **Grupper** och välj en expertpanel. När du skickar en fråga svarar panelens experter var för sig. Expertens namn visas ovanför respektive svar.
 
-På en mindre skärm visas en kolumn åt gången. Använd tillbaka-knappen i chatthuvudet för att återgå till listan.
+På en mindre skärm visas chatten eller arbetsytan åt gången. Växla med **Chatt** och **Workspace** och öppna chattlistan med förstoringsglaset.
 
 ## Användarmenyn
 
