@@ -107,6 +107,18 @@ async def _run_tool_calls(session, user, chat, reply, *, messages) -> str:
     return await complete_text(messages, prompt_key="chat.workspace.system")
 
 
+async def _current_chat(
+    session: AsyncSession, user_id: str, chat_id: str, customer_id: int
+) -> tuple[UserAccount, WorkspaceChat]:
+    # External waits can outlive account, owner or membership changes.
+    session.expire_all()
+    user = await session.get(UserAccount, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="chat_not_found")
+    chat = await require_chat(session, user, chat_id, customer_id)
+    return user, chat
+
+
 async def workspace_chat_turn(
     session: AsyncSession,
     user: UserAccount,
@@ -125,16 +137,20 @@ async def workspace_chat_turn(
         await session.flush()
         messages = await _turn_messages(session, user, chat)
         # Materialize ORM fields before deliberately releasing the input transaction.
+        user_id, customer_id = user.id, chat.customer_id
         await session.commit()
         completion = await complete_with_tools(
             messages, [workspace_research_tool_spec()], prompt_key="chat.workspace.system"
         )
+        user, chat = await _current_chat(session, user_id, chat_id, customer_id)
         reply = completion
         text = (
             await _run_tool_calls(session, user, chat, reply, messages=messages)
             if reply.tool_calls
             else reply.content
         )
+        if reply.tool_calls:
+            user, chat = await _current_chat(session, user_id, chat_id, customer_id)
         if not text or not text.strip():
             raise HTTPException(status_code=502, detail="empty_chat_reply")
         session.add(WorkspaceChatMessage(chat_id=chat.id, role="assistant", content=text.strip()))
