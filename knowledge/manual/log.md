@@ -2,6 +2,7 @@
 
 ## 2026-10-04
 
+* **PDF-markeringar**: Ett vanligt klick i dokumentet tar bort den aktiva markeringen. Dra över texten för att markera ett nytt avsnitt.
 * **Dokumentvisning**: En PDF kan öppnas även när hänvisningen gäller hela dokumentet. Citat följer läsordningen på sidan och måste kunna lokaliseras entydigt innan en markering bekräftas; dokumentet ligger kvar vid markeringsfel. En ny evidenssökning kan ge markeringspositioner till ett äldre citat.
 * **Underlag**: **Försök igen** återupptar en misslyckad bearbetning av samma uppladdade original, till exempel efter en serveromstart.
 
