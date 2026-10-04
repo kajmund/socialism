@@ -34,6 +34,8 @@ I expertens redigeringsvy trycker du på filikonen i **Workspace-chatt**. Där k
 
 I SME visas underlagen och deras status ovanför chatten. Vänta på **Klart** innan du ber experten analysera filen. I biblioteket märks företagets underlag **Företagets gemensamma underlag** när du arbetar i ett klientworkspace.
 
+Om bearbetningen har misslyckats kan du välja **Försök igen** vid filen. Samma uppladdade original bearbetas på nytt; du behöver inte ladda upp det igen.
+
 ## Ställ en researchfråga
 
 I SME väljer du **Starta research** i arbetsytans övre rad. I expertens redigeringsvy trycker du på researchikonen vid meddelandefältet. En dialog öppnas med det aktuella workspacet, ett fält för researchfrågan och dokument som du kan välja som underlag.

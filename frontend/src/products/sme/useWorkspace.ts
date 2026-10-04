@@ -82,6 +82,7 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
     const verified = await voiceWorkspaces.reference(value!.id, referenceId)
     if (verified.stale) throw new Error(t("voiceWorkspaceChat.stale"))
     if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.presentationError"))
+    setError(null)
     const key = `source:${reference.source_id}:${reference.reference_id}`
     if (reference.source_kind !== "underlag") { ready.current.delete(key); await change((state) => ({ ...state, view: "documents", active_artifact_id: null, selection: { reference_id: referenceId } }), isCurrent); await wait(key); return }
     ready.current.delete(key)
