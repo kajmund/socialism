@@ -148,12 +148,14 @@ async def get_workspace_source(workspace_id: str, source_id: str, *, session: As
     from app.services.stored_objects import serialize_underlag
     from app.services.workspace.service import require_source
     workspace = await require_workspace(session, workspace_id, user)
-    return serialize_underlag(await require_source(session, workspace, source_id), include_text=True)
+    source = await require_source(session, workspace, source_id)
+    return {**serialize_underlag(source, include_text=True), "source_version": source_version(source)}
 
 
 @router.get("/{workspace_id}/sources/{source_id}/file")
 async def get_workspace_source_file(workspace_id: str, source_id: str, *, session: AsyncSession = Depends(get_session),
                                     user: UserAccount = Depends(get_current_user)):
+    from hashlib import sha256
     from urllib.parse import quote
     from fastapi import Response
     from app.services.object_storage import get_object
@@ -174,7 +176,9 @@ async def get_workspace_source_file(workspace_id: str, source_id: str, *, sessio
         raise HTTPException(status_code=409, detail="workspace_source_changed_during_read")
     await session.rollback()
     return Response(data, media_type=mime,
-                    headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(filename)}"})
+                    headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(filename)}",
+                             "X-Workspace-Source-Version": version,
+                             "X-Workspace-File-Sha256": sha256(data).hexdigest()})
 
 
 @router.post("/{workspace_id}/tools/{tool_name}")

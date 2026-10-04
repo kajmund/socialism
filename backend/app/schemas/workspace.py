@@ -19,6 +19,8 @@ class WorkspaceSelection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     reference_id: str | None = None
     source_id: str | None = None
+    source_version: str | None = Field(default=None, min_length=64, max_length=64)
+    source_file_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     anchor: DocumentKnowledgeAnchorWrite | None = None
     artifact_id: str | None = None
     artifact_revision: int | None = Field(default=None, ge=1)

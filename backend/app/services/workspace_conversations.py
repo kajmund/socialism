@@ -39,8 +39,13 @@ def redact_text(text: str) -> str:
 async def require_conversation(session: AsyncSession, *, session_id: str, workspace_id: str,
                                user: UserAccount, active: bool = True) -> WorkspaceConversationSession:
     workspace = await require_workspace(session, workspace_id, user)
+    # Every session path uses canvas -> provider, including tools that create citations.
+    await session.execute(select(VoiceWorkspace).where(VoiceWorkspace.id == workspace.id).with_for_update())
+    await session.refresh(workspace)
+    workspace = await require_workspace(session, workspace_id, user)
     row = (await session.execute(select(WorkspaceConversationSession).where(
-        WorkspaceConversationSession.id == session_id).with_for_update())).scalar_one_or_none()
+        WorkspaceConversationSession.id == session_id).with_for_update()
+        .execution_options(populate_existing=True))).scalar_one_or_none()
     if row is None or row.workspace_id != workspace.id or row.user_id != user.id or row.customer_id != workspace.customer_id:
         raise HTTPException(404, "workspace_conversation_not_found")
     if active and (row.status != "active" or aware(row.expires_at) <= datetime.now(UTC)):

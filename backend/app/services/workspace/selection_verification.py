@@ -2,6 +2,7 @@
 
 import asyncio
 from dataclasses import dataclass
+from hashlib import sha256
 from io import BytesIO
 from math import isfinite
 
@@ -31,6 +32,14 @@ class SelectionInput:
     key: str
     version: str
     mime: str
+
+
+@dataclass(frozen=True)
+class PDFSelectionProof:
+    original: SelectionInput
+    anchor: dict
+    quote: str
+    file_sha256: str
 
 
 def _binding(workspace: VoiceWorkspace) -> tuple[str, str, int, str]:
@@ -101,7 +110,7 @@ async def _selection_source(session, workspace, selection):
     return source, reference
 
 
-async def _fresh_source(session: AsyncSession, original: SelectionInput) -> tuple[VoiceWorkspace, StoredObject]:
+async def refresh_selection_source(session: AsyncSession, original: SelectionInput) -> tuple[VoiceWorkspace, StoredObject]:
     actor = await session.get(UserAccount, original.actor_id, populate_existing=True)
     workspace = await session.get(VoiceWorkspace, original.workspace_id, populate_existing=True)
     if actor is None or workspace is None or _binding(workspace) != original.binding:
@@ -123,36 +132,81 @@ async def _fresh_source(session: AsyncSession, original: SelectionInput) -> tupl
     return workspace, source
 
 
-async def prepare_pdf_selection(session: AsyncSession, workspace: VoiceWorkspace, user: UserAccount,
-                                state: WorkspaceState | None) -> VoiceWorkspace:
+async def capture_selection_input(session: AsyncSession, workspace: VoiceWorkspace, user: UserAccount,
+                                  state: WorkspaceState) -> SelectionInput | None:
+    selection = state.selection
+    if selection is None or selection.anchor is None:
+        return None
+    source, reference = await _selection_source(session, workspace, selection)
+    if source is None:
+        return None
+    version = source_version(source)
+    if selection.source_version is not None and selection.source_version != version:
+        raise HTTPException(status_code=409, detail="workspace_reference_stale")
+    bound = reference is not None and (source.content_type != "application/pdf" or
+        (_verified_anchor(selection.anchor, reference) and bool(reference.snapshot.get("source_file_sha256"))))
+    if selection.source_version is None and not bound:
+        raise HTTPException(status_code=409, detail="selection_anchor_stale")
+    if source.content_type == "application/pdf" and selection.source_file_sha256 is None and not bound:
+        raise HTTPException(status_code=409, detail="selection_anchor_stale")
+    return SelectionInput(workspace.id, user.id, _binding(workspace), source.id,
+        source.bucket, source.object_key, version, source.content_type)
+
+
+async def prove_pdf_selection(session: AsyncSession, workspace: VoiceWorkspace, user: UserAccount,
+                              state: WorkspaceState | None, *, require_file_hash: bool = False) -> PDFSelectionProof | None:
     if has_pending_writes(session):
         raise RuntimeError("PDF selection verification requires a clean transaction")
     selection = state.selection if state else None
     if selection is None or selection.anchor is None:
-        return workspace
+        return None
     source, reference = await _selection_source(session, workspace, selection)
     if source is None or source.content_type != "application/pdf":
-        return workspace
+        return None
     _rectangles(selection.anchor)
     if reference is not None:
-        if _verified_anchor(selection.anchor, reference):
-            return workspace
+        bound_hash = reference.snapshot.get("source_file_sha256")
+        if (_verified_anchor(selection.anchor, reference) and
+                (not require_file_hash or (bound_hash and selection.source_file_sha256 in (None, bound_hash)))):
+            return None
         _parent_quote(reference, selection.anchor)
     original = SelectionInput(workspace.id, user.id, _binding(workspace), source.id,
         source.bucket, source.object_key, source_version(source), source.content_type)
     await session.rollback()
     data, _mime = await get_object(original.bucket, original.key)
+    file_sha256 = sha256(data).hexdigest()
+    if selection.source_file_sha256 is not None and selection.source_file_sha256 != file_sha256:
+        raise HTTPException(status_code=409, detail="workspace_reference_stale")
     quote = await asyncio.to_thread(selected_pdf_quote, data, selection.anchor)
-    workspace, source = await _fresh_source(session, original)
+    return PDFSelectionProof(original, selection.anchor.model_dump(), quote, file_sha256)
+
+
+async def materialize_pdf_selection(session: AsyncSession, state: WorkspaceState,
+                                    proof: PDFSelectionProof) -> VoiceWorkspace:
+    workspace, source = await refresh_selection_source(session, proof.original)
+    selection = state.selection
+    if selection is None or selection.anchor is None:
+        raise RuntimeError("PDF proof requires its captured selection")
     if selection.reference_id:
         reference = await require_reference(session, workspace, selection.reference_id)
         _parent_quote(reference, selection.anchor)
-    selection.anchor.exact_text = quote
+    selection.anchor = DocumentKnowledgeAnchorWrite.model_validate(proof.anchor)
+    selection.anchor.exact_text = proof.quote
+    selection.source_file_sha256 = proof.file_sha256
     reference = await citation(session, workspace, kind="underlag", source_id=source.id,
         version=source_version(source), anchor=selection.anchor.model_dump(),
-        snapshot={"title": source.filename, "excerpt": quote, "selection_verified": True})
+        snapshot={"title": source.filename, "excerpt": proof.quote, "selection_verified": True,
+                  "source_file_sha256": proof.file_sha256})
     selection.reference_id = reference.id
     return workspace
+
+
+async def prepare_pdf_selection(session: AsyncSession, workspace: VoiceWorkspace, user: UserAccount,
+                                state: WorkspaceState | None) -> VoiceWorkspace:
+    proof = await prove_pdf_selection(session, workspace, user, state)
+    if proof is None:
+        return workspace
+    return await materialize_pdf_selection(session, state, proof)
 
 
 async def validate_pdf_reference(session: AsyncSession, workspace: VoiceWorkspace, reference: WorkspaceReference,
