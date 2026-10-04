@@ -5,12 +5,12 @@ import json
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 
 from app.database.models import Job, Persona
 from app.database.workspace_models import VoiceWorkspace
 from app.services import jobs
-from app.database.workspace_conversations import WorkspaceConversationSession
+from app.database.workspace_conversations import WorkspaceConversationEvent, WorkspaceConversationSession
 from app.database.workspaces import WorkspaceMembership
 from app.services.expertgranskning.memory import set_expert_memory_factory
 from tests.conftest import NoopExpertMemory, USER_USER_ID
@@ -104,3 +104,17 @@ async def test_native_research_requires_persisted_confirmation_and_queues_core_j
             assert job.request["workspace_id"] == canvas.workspace_id and job.request["chat_id"] == canvas.chat_id
             assert job.request["voice_workspace_id"] == canvas_id and job.request["document_manifest"] == []
             assert len(list(await session.scalars(select(Job)))) == 1
+
+
+async def test_bootstrap_persists_parent_before_initial_event_with_foreign_keys(single_connection_provider):
+    conversation, engine = single_connection_provider
+    async with engine.connect() as connection:
+        await connection.execute(text("PRAGMA foreign_keys=ON"))
+        assert await connection.scalar(text("PRAGMA foreign_keys")) == 1
+    result = await bootstrap(conversation, "text")
+    async with conversation[1]() as session:
+        parent = await session.get(WorkspaceConversationSession, result["session_id"])
+        initial = await session.scalar(select(WorkspaceConversationEvent).where(
+            WorkspaceConversationEvent.session_id == result["session_id"], WorkspaceConversationEvent.kind == "init"))
+        assert parent.status == "active" and initial is not None
+        assert initial.payload["workspace_state"]["expert_id"] == parent.expert_id
