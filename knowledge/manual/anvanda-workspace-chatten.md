@@ -63,3 +63,5 @@ Markerad text följer läsordningen i PDF:en. Om markeringen inte kan verifieras
 Markeringar i dokument med flera kolumner kontrolleras mot texten på de markerade positionerna i originalet. Du kan därför markera ett avsnitt i en kolumn även om dokumentets sparade text blandar rader från flera kolumner.
 
 Du kan markera flera rader eller en del av ett ord. Skillnader i hur mellanrum visas ska inte hindra en giltig markering; texten kontrolleras fortfarande mot originalet.
+
+När du markerar text under ett röstsamtal väntar kopplingen till ditt yttrande på att markeringen har verifierats och sparats. Om du sedan markerar en annan passage behåller yttrandet kopplingen till den tidigare markeringen.
