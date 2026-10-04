@@ -149,10 +149,10 @@ async def test_general_graph_embedding_release_and_tenant_scope(single_connectio
             return await super().embed(texts)
     monkeypatch.setattr(search.OpenAIEmbeddingProvider, "from_settings", CheckedEmbeddings)
     result = await command(factory, ids, name="search_knowledge", args={"query": "36 § avtalslagen senare lagändringar"})
-    assert {item["source_id"] for item in result["items"]} == {"version-shared", "version-customer-1"}
+    assert {item["source_id"] for item in result["items"]} == {"version-shared"}
     async with factory() as session:
         workspace = await session.get(VoiceWorkspace, ids[1])
-        item = next(item for item in result["items"] if item["source_id"] == "version-customer-1")
+        item = result["items"][0]
         assert not (await read_reference(session, workspace, item["reference_id"]))["stale"]
         from datetime import UTC, datetime
         version = await session.get(DocumentVersionRecord, item["source_id"])
