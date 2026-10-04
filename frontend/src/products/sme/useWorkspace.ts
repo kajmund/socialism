@@ -62,7 +62,7 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
       const value = await voiceWorkspaces.update(previous.id, previous.revision, update(previous.state))
       if (epoch !== generation.current) throw new Error(t("voiceWorkspaceChat.presentationError"))
       if (!isCurrent()) { if (current.current?.id === value.id) apply({ ...value, state: current.current.state }); throw new Error(t("voiceWorkspaceChat.presentationError")) }
-      apply(value); onContext.current(`Workspace state updated: ${JSON.stringify(value.state)}`)
+      apply(value); setError(null); onContext.current(`Workspace state updated: ${JSON.stringify(value.state)}`)
       return value
     })
     const settled = task.finally(() => { if (epoch === generation.current) { pendingChanges.current = Math.max(0, pendingChanges.current - 1); if (!pendingChanges.current && current.current) turnSnapshot.current = { revision: current.current.revision, state: current.current.state } } })
