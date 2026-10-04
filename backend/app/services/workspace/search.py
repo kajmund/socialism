@@ -9,7 +9,6 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.graph_v2 import GraphFact, GraphFactSource
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, StoredObject
 from app.database.workspace_models import VoiceWorkspace, WorkspaceSource
 from app.services.document_knowledge import (
@@ -21,9 +20,10 @@ from app.services.knowledge.document_grounding import grounded_hits
 from app.services.knowledge.provider import SUPABASE_PROVIDER_ID
 from app.services.object_storage import get_object
 from app.services.research.composition import require_knowledge_vector_store
-from app.services.research.graph_reuse import GraphQueryEmbedding, lookup_graph_evidence
+from app.services.research.graph_reuse import GraphQueryEmbedding
 from app.services.research.models import RESEARCH_SOURCE_TYPES, ResearchContext, ResearchNeed
 from app.services.workspace.service import require_source
+from app.services.workspace.shared_graph import lookup_shared_graph_evidence, shared_graph_has_evidence
 from app.services.workspace.sources import citation, reference_out, source_version
 from app.services.workspaces import resolve_readable_workspace_ids
 
@@ -137,17 +137,11 @@ async def _query_embedding(query: str) -> GraphQueryEmbedding:
 
 
 async def search_general(session: AsyncSession, workspace: VoiceWorkspace, query: str, limit: int) -> dict:
-    present = await session.scalar(select(GraphFact.id).join(GraphFactSource, GraphFactSource.fact_id == GraphFact.id).where(
-        GraphFact.scope_key.in_(("shared", f"customer:{workspace.customer_id}")),
-        GraphFact.status == "active", GraphFactSource.source_kind == "text_unit").limit(1))
-    customer_id = workspace.customer_id
-    parent_ids = await resolve_readable_workspace_ids(session, customer_id=customer_id,
-        user_id=workspace.owner_user_id, workspace_id=workspace.workspace_id)
-    scope = KnowledgeScope(customer_id=customer_id, module=workspace.module, workspace_id=workspace.workspace_id,
-                           readable_workspace_ids=tuple(parent_ids))
+    present = await shared_graph_has_evidence(session)
+    scope = KnowledgeScope(customer_id=workspace.customer_id, module=workspace.module)
     await session.commit()
-    embedding = await _query_embedding(query) if present is not None else None
-    candidates = await lookup_graph_evidence(session,
+    embedding = await _query_embedding(query) if present else None
+    candidates = await lookup_shared_graph_evidence(session,
         need=ResearchNeed(id="workspace_search", question=query, why_needed="", source_types=list(RESEARCH_SOURCE_TYPES)),
         context=ResearchContext(scope=scope), query_embedding=embedding, limit=limit)
     refs = []

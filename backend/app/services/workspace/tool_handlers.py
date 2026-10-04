@@ -9,7 +9,7 @@ from app.services.workspace.service import add_source, artifact_out, new_id, pub
 from app.services.workspace.sources import read_reference, search_research
 from app.services.workspace.search import search_general, search_workspace
 from app.services.workspace.research_links import job_bound_to_canvas, sync_research_links
-from app.services.workspace.generation_tools import source_context, queue_generation, _start_research
+from app.services.workspace.generation_tools import artifact_source_refs, source_context, queue_generation, require_shared_reference, require_source_scope, _start_research
 from app.services.workspace.tool_arguments import SearchArguments, ReadArguments, IngestArguments, JobArguments, GenerationArguments, ReviseArguments, ExportArguments, ChartArguments, ResearchArguments
 from app.services.workspace_parent_documents import voice_document_inventory
 
@@ -55,10 +55,14 @@ async def read(context: ToolContext, arguments: dict) -> dict:
     workspace = context.workspace
     args = ReadArguments.model_validate(arguments)
     if args.reference_id:
+        if context.state.knowledge_scope == "general":
+            await require_shared_reference(session, workspace, args.reference_id)
         return {"status": "completed", **await read_reference(session, workspace, args.reference_id)}
     if args.source_id is None:
         raise HTTPException(status_code=422, detail="source_or_reference_required")
     source = await require_source(session, workspace, args.source_id)
+    if context.state.knowledge_scope == "general":
+        raise HTTPException(status_code=409, detail="private_document_requires_workspace")
     refs = await source_context(session, workspace, [], [source.id])
     return {"status": "completed", **await read_reference(session, workspace, refs[0]["reference_id"]),
             "text": (source.extracted_text or "")[:20000], "ingest_status": source.knowledge_status}
@@ -117,7 +121,8 @@ async def generate(context: ToolContext, arguments: dict) -> dict:
     kind = {"create_document": "document", "compare_sources": "comparison", "get_relations": "relations"}[tool_name]
     values = args.model_dump()
     values["language"] = context.language
-    values["source_context"] = await source_context(session, workspace, args.source_refs, args.source_ids)
+    values["source_context"] = await source_context(session, workspace, args.source_refs, args.source_ids,
+        shared_only=context.state.knowledge_scope == "general")
     if kind != "document" and not values["source_context"]:
         raise HTTPException(status_code=422, detail="cited_sources_required")
     return await queue_generation(session, workspace, user, operation, kind=kind, arguments=values)
@@ -142,6 +147,8 @@ async def revise(context: ToolContext, arguments: dict) -> dict:
         raise HTTPException(status_code=409, detail="artifact_revision_conflict")
     if args.block_id and not any(block.get("id") == args.block_id for block in artifact.content.get("blocks", [])):
         raise HTTPException(status_code=404, detail="artifact_block_not_found")
+    refs = artifact_source_refs(artifact.content) + artifact_source_refs(args.content or {})
+    await require_source_scope(session, workspace, refs, [], shared_only=context.state.knowledge_scope == "general")
     if args.content is not None:
         if args.block_id:
             from app.services.workspace_generation import _validate_selected_revision
@@ -155,8 +162,8 @@ async def revise(context: ToolContext, arguments: dict) -> dict:
         raise HTTPException(status_code=422, detail="revision_instructions_required")
     values = args.model_dump()
     values["language"] = context.language
-    values["source_context"] = await source_context(session, workspace,
-        list({ref for block in artifact.content.get("blocks", []) for ref in block.get("source_refs", [])}), [])
+    values["source_context"] = await source_context(session, workspace, refs, [],
+        shared_only=context.state.knowledge_scope == "general")
     values["base_content"] = artifact.content
     return await queue_generation(session, workspace, user, operation, kind="document", artifact=artifact, arguments=values)
 
@@ -176,7 +183,7 @@ async def chart(context: ToolContext, arguments: dict) -> dict:
     session = context.session
     workspace = context.workspace
     args = ChartArguments.model_validate(arguments)
-    await source_context(session, workspace, args.source_refs, [])
+    await source_context(session, workspace, args.source_refs, [], shared_only=context.state.knowledge_scope == "general")
     artifact = WorkspaceArtifact(id=new_id(), workspace_id=workspace.id, kind="chart", title=args.title,
                                  revision=0, status="queued", content={})
     session.add(artifact)
