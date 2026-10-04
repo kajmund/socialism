@@ -4,6 +4,7 @@ import { useLocale } from "@/i18n"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { openWorkspaceDocument, requiredString, workspaceErrorMessage } from "./workspaceChatLogic"
 import { workspaceFocusReference } from "./workspaceDocumentFocus"
+import { captureWorkspaceTurn, type WorkspaceTurnSnapshot } from "./workspaceTurnSnapshot"
 
 export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const { t, locale } = useLocale()
@@ -14,8 +15,8 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const [knowledge, setKnowledge] = useState<KnowledgeResult>({ items: [], gaps: [] })
   const [picker, setPicker] = useState(false)
   const current = useRef<Workspace | null>(null)
-  const turnSnapshot = useRef<{ revision: number; state: WorkspaceState } | null>(null)
-  const pendingChanges = useRef(0)
+  const turnSnapshot = useRef<Promise<WorkspaceTurnSnapshot | null>>(Promise.resolve(null))
+  const pendingTurn = useRef(false)
   const generation = useRef(0)
   const queue = useRef(Promise.resolve())
   const ready = useRef(new Set<string>())
@@ -24,10 +25,10 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const report = useCallback((caught: unknown) => setError(workspaceErrorMessage(caught, t, "voiceWorkspaceChat.operationError")), [t])
   const labels = useRef(t), errors = useRef(report)
   labels.current = t; errors.current = report
-  const apply = useCallback((value: Workspace) => { current.current = value; turnSnapshot.current = { revision: value.revision, state: pendingChanges.current && turnSnapshot.current ? turnSnapshot.current.state : value.state }; setWorkspace(value) }, [])
+  const apply = useCallback((value: Workspace) => { current.current = value; if (!pendingTurn.current) turnSnapshot.current = captureWorkspaceTurn(value); setWorkspace(value) }, [])
   const select = useCallback(async (id: string) => {
     const request = ++generation.current
-    current.current = null; turnSnapshot.current = null; pendingChanges.current = 0; setWorkspace(null); ready.current.clear(); setKnowledge({ items: [], gaps: [] }); setError(null)
+    current.current = null; turnSnapshot.current = Promise.resolve(null); pendingTurn.current = false; setWorkspace(null); ready.current.clear(); setKnowledge({ items: [], gaps: [] }); setError(null)
     for (const waiter of pending.current.values()) { window.clearTimeout(waiter.timer); waiter.reject(new Error(labels.current("voiceWorkspaceChat.presentationError"))) }
     pending.current.clear()
     const value = await voiceWorkspaces.get(id)
@@ -37,7 +38,7 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   useEffect(() => {
     let cancelled = false
     generation.current += 1
-    current.current = null; turnSnapshot.current = null; pendingChanges.current = 0
+    current.current = null; turnSnapshot.current = Promise.resolve(null); pendingTurn.current = false
     setWorkspace(null); setList([]); setKnowledge({ items: [], gaps: [] }); setPicker(false); setError(null); ready.current.clear()
     for (const waiter of pending.current.values()) { window.clearTimeout(waiter.timer); waiter.reject(new Error(labels.current("voiceWorkspaceChat.presentationError"))) }
     pending.current.clear()
@@ -54,20 +55,24 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
     return value
   }, [apply])
   const change = useCallback((update: (state: WorkspaceState) => WorkspaceState, isCurrent: () => boolean = () => true): Promise<Workspace> => {
-    const id = current.current?.id, epoch = generation.current
-    if (current.current && isCurrent()) { const previous = turnSnapshot.current?.state ?? current.current.state; turnSnapshot.current = { revision: current.current.revision, state: update(previous) }; pendingChanges.current += 1 }
+    if (!current.current || !isCurrent()) return Promise.reject(new Error(t("voiceWorkspaceChat.loadError")))
+    const id = current.current.id, epoch = generation.current
+    pendingTurn.current = true
     const task = queue.current.then(async () => {
       const previous = current.current
       if (!previous || previous.id !== id || epoch !== generation.current || !isCurrent()) throw new Error(t("voiceWorkspaceChat.loadError"))
       const value = await voiceWorkspaces.update(previous.id, previous.revision, update(previous.state))
       if (epoch !== generation.current) throw new Error(t("voiceWorkspaceChat.presentationError"))
       if (!isCurrent()) { if (current.current?.id === value.id) apply({ ...value, state: current.current.state }); throw new Error(t("voiceWorkspaceChat.presentationError")) }
-      apply(value); setError(null); onContext.current(`Workspace state updated: ${JSON.stringify(value.state)}`)
+      apply(value); setError(null)
+      try { onContext.current(`Workspace state updated: ${JSON.stringify(value.state)}`) } catch (error) { report(error) }
       return value
     })
-    const settled = task.finally(() => { if (epoch === generation.current) { pendingChanges.current = Math.max(0, pendingChanges.current - 1); if (!pendingChanges.current && current.current) turnSnapshot.current = { revision: current.current.revision, state: current.current.state } } })
-    queue.current = settled.then(() => undefined, report)
-    return settled
+    const snapshot = captureWorkspaceTurn(task)
+    turnSnapshot.current = snapshot
+    void snapshot.then(() => { if (epoch === generation.current && turnSnapshot.current === snapshot) pendingTurn.current = false }, () => undefined)
+    queue.current = task.then(() => undefined, report)
+    return task
   }, [apply, report, t])
   const create = useCallback(async (title: string) => { if (!parentId) throw new Error(t("voiceWorkspaceChat.loadError")); const epoch = generation.current; const value = await voiceWorkspaces.create(title, locale, { workspaceId: parentId, customerId }); if (epoch !== generation.current) return; setList((rows) => [value, ...rows]); await select(value.id) }, [locale, parentId, customerId, select, t])
   const markReady = useCallback((key: string) => { ready.current.add(key); const waiter = pending.current.get(key); if (waiter) { window.clearTimeout(waiter.timer); pending.current.delete(key); waiter.resolve() } }, [])
