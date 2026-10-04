@@ -68,6 +68,7 @@ export const en: LocalizedTree<SvMessages> = {
     "loadError": "The workspace could not be loaded.",
     "operationError": "The action could not be completed.",
     "presentationError": "The source could not be displayed or highlighted.",
+    "anchorPositionRequired": "The document can be displayed, but the passage has no exact position to highlight. Find the passage in the evidence first.",
     "sessionError": "The conversation could not connect.",
     "voiceStart": "Start voice conversation",
     "voiceStop": "End voice conversation",

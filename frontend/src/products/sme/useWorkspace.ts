@@ -3,6 +3,7 @@ import { voiceWorkspaces, type KnowledgeResult, type VoiceWorkspaceParent, type 
 import { useLocale } from "@/i18n"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { openWorkspaceDocument, requiredString, workspaceErrorMessage } from "./workspaceChatLogic"
+import { workspaceFocusReference } from "./workspaceDocumentFocus"
 
 export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const { t, locale } = useLocale()
@@ -103,6 +104,11 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
     if (!value) throw new Error(t("voiceWorkspaceChat.loadError"))
     ensureCurrent()
     if (name === "show_document" || name === "focus_anchor") {
+      if (name === "focus_anchor") {
+        try { workspaceFocusReference(value, args.reference_id) }
+        catch { const message = t("voiceWorkspaceChat.anchorPositionRequired"); setError(message); throw new Error(message) }
+      }
+      setError(null)
       if (typeof args.reference_id === "string") await open(args.reference_id, isCurrent)
       else {
         const sourceId = requiredString(args, "source_id")
