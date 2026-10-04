@@ -1,5 +1,18 @@
-import type { SourceReference, Workspace } from "@/api/voiceWorkspaces"
+import type { SourceReference, Workspace, WorkspaceState } from "@/api/voiceWorkspaces"
 import { pdfAnchorKind } from "@/components/underlag/pdfAnchorPresentation"
+
+export function clearWorkspaceDocumentSelection(state: WorkspaceState, sourceId: string, references: SourceReference[]): WorkspaceState {
+  const document = state.documents.find((row) => row.source_id === sourceId)
+  const selectedReferenceId = state.selection?.reference_id
+  const selectedSourceId = state.selection?.source_id ?? references.find((row) => row.reference_id === selectedReferenceId)?.source_id
+  const clearSelection = selectedSourceId === sourceId || (selectedReferenceId != null && selectedReferenceId === document?.reference_id)
+  if (!clearSelection && document?.reference_id == null) return state
+  return {
+    ...state,
+    selection: clearSelection ? null : state.selection,
+    documents: state.documents.map((row) => row.source_id === sourceId && row.reference_id != null ? { ...row, reference_id: null } : row),
+  }
+}
 
 export function workspaceFocusReference(workspace: Pick<Workspace, "references" | "sources">, referenceId: unknown): SourceReference {
   const reference = workspace.references.find((row) => row.reference_id === referenceId)

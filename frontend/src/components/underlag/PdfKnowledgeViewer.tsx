@@ -13,6 +13,7 @@ import type {
 } from "@/api/underlag"
 import { useLocale } from "@/i18n"
 import { pdfAnchorKind, pdfAnchorRectangles, pdfPresentationStatus } from "./pdfAnchorPresentation"
+import { pdfSelectionGesture } from "./pdfSelectionGesture"
 
 GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -21,6 +22,7 @@ export function PdfKnowledgeViewer({
   focusAnchors,
   selectionActive,
   onSelection,
+  onClearSelection,
   onError,
   pageNumber,
   zoom = 1,
@@ -32,6 +34,7 @@ export function PdfKnowledgeViewer({
   focusAnchors: DocumentKnowledgeAnchor[]
   selectionActive: boolean
   onSelection: (anchor: DocumentKnowledgeAnchor) => void
+  onClearSelection: () => void
   onError: (message: string) => void
   pageNumber?: number
   zoom?: number
@@ -42,6 +45,7 @@ export function PdfKnowledgeViewer({
   const { t } = useLocale()
   const viewportRef = useRef<HTMLDivElement>(null)
   const pagesRef = useRef<HTMLDivElement>(null)
+  const gestureRef = useRef<{ x: number; y: number; moved: boolean } | null>(null)
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
   const [width, setWidth] = useState(0)
   const [rendered, setRendered] = useState(0)
@@ -218,7 +222,28 @@ export function PdfKnowledgeViewer({
     <div
       ref={viewportRef}
       className="h-full overflow-auto bg-db-ink-950/5 px-2 py-4"
-      onMouseUp={captureSelection}
+      onMouseDown={(event) => {
+        gestureRef.current = event.button === 0 && event.target instanceof Node && pagesRef.current?.contains(event.target) && closestPage(event.target)
+          ? { x: event.clientX, y: event.clientY, moved: false } : null
+      }}
+      onMouseMove={(event) => {
+        const gesture = gestureRef.current
+        if (gesture && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) >= 3) gesture.moved = true
+      }}
+      onPointerCancel={() => { gestureRef.current = null }}
+      onDragStart={() => { gestureRef.current = null }}
+      onMouseUp={(event) => {
+        const gesture = gestureRef.current
+        gestureRef.current = null
+        const action = pdfSelectionGesture({ button: event.button, started: gesture !== null, moved: gesture?.moved === true || (gesture !== null && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) >= 3), clickCount: event.detail, shiftKey: event.shiftKey })
+        if (action === "select") { captureSelection(); return }
+        if (action !== "clear") return
+        const root = pagesRef.current
+        root?.querySelectorAll("[data-document-anchor-highlight]").forEach((node) => node.remove())
+        const selection = window.getSelection()
+        if (selection && ((selection.anchorNode && root?.contains(selection.anchorNode)) || (selection.focusNode && root?.contains(selection.focusNode)))) selection.removeAllRanges()
+        onClearSelection()
+      }}
     >
       <div ref={pagesRef} className="flex min-h-full flex-col gap-4" />
     </div>
