@@ -21,12 +21,20 @@ export function PdfKnowledgeViewer({
   selectionActive,
   onSelection,
   onError,
+  pageNumber,
+  zoom = 1,
+  onReady,
+  onPageCount,
 }: {
   url: string
   focusAnchors: DocumentKnowledgeAnchor[]
   selectionActive: boolean
   onSelection: (anchor: DocumentKnowledgeAnchor) => void
   onError: (message: string) => void
+  pageNumber?: number
+  zoom?: number
+  onReady?: () => void
+  onPageCount?: (count: number) => void
 }) {
   const { t } = useLocale()
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -48,7 +56,7 @@ export function PdfKnowledgeViewer({
     const task = getDocument(url)
     void task.promise
       .then((pdf) => {
-        if (!cancelled) setDocument(pdf)
+        if (!cancelled) { setDocument(pdf); onPageCount?.(pdf.numPages) }
       })
       .catch((error: unknown) => {
         if (!cancelled) onError(error instanceof Error ? error.message : t("underlag.previewPdfError"))
@@ -58,7 +66,7 @@ export function PdfKnowledgeViewer({
       setDocument(null)
       void task.destroy()
     }
-  }, [onError, t, url])
+  }, [onError, onPageCount, t, url])
 
   useEffect(() => {
     const root = pagesRef.current
@@ -67,20 +75,25 @@ export function PdfKnowledgeViewer({
     const rootNode = root
     let cancelled = false
     rootNode.replaceChildren()
+    rootNode.dataset.renderComplete = "false"
 
     async function renderPages() {
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const first = pageNumber ?? 1
+      const last = pageNumber ?? pdf.numPages
+      if (first < 1 || last > pdf.numPages) throw new Error(t("voiceWorkspaceChat.presentationError"))
+      for (let pageNumber = first; pageNumber <= last; pageNumber += 1) {
         if (cancelled) return
         const page = await pdf.getPage(pageNumber)
         const baseViewport = page.getViewport({ scale: 1 })
         const available = Math.max(240, width - 32)
-        const scale = Math.min(2, available / baseViewport.width)
+        const scale = Math.min(2, available / baseViewport.width) * zoom
         const viewport = page.getViewport({ scale })
         const wrapper = window.document.createElement("div")
         wrapper.className = "pdf-page relative mx-auto bg-white shadow-sm"
         wrapper.dataset.pageNumber = String(pageNumber)
         wrapper.style.width = `${viewport.width}px`
         wrapper.style.height = `${viewport.height}px`
+        wrapper.style.setProperty("--total-scale-factor", String(scale * page.userUnit))
 
         const canvas = window.document.createElement("canvas")
         canvas.className = "absolute inset-0 block"
@@ -111,7 +124,7 @@ export function PdfKnowledgeViewer({
           viewport,
         }).render()
       }
-      if (!cancelled) setRendered((value) => value + 1)
+      if (!cancelled) { rootNode.dataset.renderComplete = "true"; setRendered((value) => value + 1) }
     }
 
     void renderPages().catch((error: unknown) => {
@@ -121,7 +134,7 @@ export function PdfKnowledgeViewer({
       cancelled = true
       rootNode.replaceChildren()
     }
-  }, [document, onError, t, width])
+  }, [document, onError, pageNumber, t, width, zoom])
 
   useEffect(() => {
     const root = pagesRef.current
@@ -134,7 +147,8 @@ export function PdfKnowledgeViewer({
         `[data-page-number="${anchor.page_number}"]`,
       )
       if (!page) continue
-      for (const rect of anchor.rects) {
+      const rectangles = anchor.rects.length ? anchor.rects : textRectangles(page, anchor.exact_text)
+      for (const rect of rectangles) {
         const marker = window.document.createElement("div")
         marker.dataset.documentAnchorHighlight = "true"
         marker.className = "pointer-events-none absolute z-20 rounded-sm bg-db-gold-500/60 mix-blend-multiply ring-1 ring-db-gold-700"
@@ -147,7 +161,11 @@ export function PdfKnowledgeViewer({
       }
     }
     firstMarker?.scrollIntoView({ behavior: "smooth", block: "center" })
-  }, [focusAnchors, rendered])
+    if (rendered > 0 && root.dataset.renderComplete === "true") {
+      if (focusAnchors.length > 0 && !firstMarker) onError(t("voiceWorkspaceChat.presentationError"))
+      else onReady?.()
+    }
+  }, [focusAnchors, onError, onReady, rendered, t])
 
   useEffect(() => {
     if (selectionActive) return
@@ -195,12 +213,41 @@ export function PdfKnowledgeViewer({
   return (
     <div
       ref={viewportRef}
-      className="h-full overflow-y-auto bg-db-ink-950/5 px-2 py-4"
+      className="h-full overflow-auto bg-db-ink-950/5 px-2 py-4"
       onMouseUp={captureSelection}
     >
       <div ref={pagesRef} className="flex min-h-full flex-col gap-4" />
     </div>
   )
+}
+
+function textRectangles(page: HTMLElement, exactText: string | null): DocumentAnchorRect[] {
+  if (!exactText) return []
+  const spans = Array.from(page.querySelectorAll<HTMLElement>(".textLayer span"))
+  const normalized = (text: string) => text.replace(/\s+/g, " ").trim()
+  const needle = normalized(exactText)
+  const text = spans.map((span) => normalized(span.textContent ?? "")).join(" ")
+  const start = text.indexOf(needle)
+  if (start < 0) return []
+  const end = start + needle.length, bounds = page.getBoundingClientRect()
+  let offset = 0
+  return spans.flatMap((span) => {
+    const raw = span.textContent ?? "", length = normalized(raw).length
+    const localStart = Math.max(0, start - offset), localEnd = Math.min(length, end - offset)
+    offset += length + 1
+    if (localStart >= localEnd || !span.firstChild || span.firstChild.nodeType !== Node.TEXT_NODE) return []
+    const positions: number[] = []
+    let gap = false
+    for (let i = 0; i < raw.length; i += 1) {
+      if (/\s/.test(raw[i])) { gap = true; continue }
+      if (gap && positions.length) positions.push(i - 1)
+      positions.push(i); gap = false
+    }
+    const range = window.document.createRange()
+    range.setStart(span.firstChild, positions[localStart])
+    range.setEnd(span.firstChild, positions[localEnd - 1] + 1)
+    return Array.from(range.getClientRects()).map((rect) => ({ x: clamp((rect.left - bounds.left) / bounds.width), y: clamp((rect.top - bounds.top) / bounds.height), width: clamp(rect.width / bounds.width), height: clamp(rect.height / bounds.height) }))
+  })
 }
 
 function closestPage(node: Node): HTMLElement | null {

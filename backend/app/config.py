@@ -32,6 +32,9 @@ class Settings(BaseSettings):
 
     database_url: str
 
+    elevenlabs_llm: str = "gpt-4.1"
+    elevenlabs_session_ttl_seconds: int = Field(default=3600, ge=300, le=14400)
+
     @field_validator("database_url", mode="before")
     @classmethod
     def normalize_database_url(cls, value: object) -> str:
@@ -98,7 +101,7 @@ class Settings(BaseSettings):
     gemini_live_new_session_ttl_seconds: int = Field(default=60, ge=30, le=300)
     # Expert live voice. No automatic fallback between providers.
     live_voice_provider: LiveVoiceProviderName = "gemini"
-    elevenlabs_api_key: str = ""
+    elevenlabs_api_key: str = Field(default="", repr=False)
     elevenlabs_agent_id: str = ""
     elevenlabs_voice_id: str = ""
     elevenlabs_base_url: str = "https://api.elevenlabs.io"

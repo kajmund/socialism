@@ -35,8 +35,13 @@ export function listExpertMemories(params?: {
   return api.get<ExpertMemoryList>("/expert-memory", params)
 }
 
-export function listPersonaMemories(personaId: string): Promise<ExpertMemoryList> {
-  return api.get<ExpertMemoryList>(`/personas/${personaId}/memories`)
+function personaMemoryPath(personaId: string, memoryId?: string, workspaceId?: string): string {
+  const path = `/personas/${personaId}/memories${memoryId ? `/${memoryId}` : ""}`
+  return workspaceId ? `${path}?${new URLSearchParams({ workspace_id: workspaceId })}` : path
+}
+
+export function listPersonaMemories(personaId: string, workspaceId?: string): Promise<ExpertMemoryList> {
+  return api.get<ExpertMemoryList>(personaMemoryPath(personaId, undefined, workspaceId))
 }
 
 export function updateExpertMemory(memoryId: string, text: string): Promise<ExpertMemory> {
@@ -51,12 +56,13 @@ export function updatePersonaMemory(
   personaId: string,
   memoryId: string,
   text: string,
+  workspaceId?: string,
 ): Promise<ExpertMemory> {
-  return api.patch<ExpertMemory>(`/personas/${personaId}/memories/${memoryId}`, { text })
+  return api.patch<ExpertMemory>(personaMemoryPath(personaId, memoryId, workspaceId), { text })
 }
 
-export function deletePersonaMemory(personaId: string, memoryId: string): Promise<void> {
-  return api.delete(`/personas/${personaId}/memories/${memoryId}`)
+export function deletePersonaMemory(personaId: string, memoryId: string, workspaceId?: string): Promise<void> {
+  return api.delete(personaMemoryPath(personaId, memoryId, workspaceId))
 }
 
 export function clearExpertMemories(params?: {
@@ -66,6 +72,6 @@ export function clearExpertMemories(params?: {
   return api.delete("/expert-memory", params)
 }
 
-export function clearPersonaMemories(personaId: string): Promise<void> {
-  return api.delete(`/personas/${personaId}/memories`)
+export function clearPersonaMemories(personaId: string, workspaceId?: string): Promise<void> {
+  return api.delete(personaMemoryPath(personaId, undefined, workspaceId))
 }

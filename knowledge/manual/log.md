@@ -2,6 +2,7 @@
 
 ## 2026-10-04
 
+* **SME**: Expertchatten har en sparad arbetsyta för text och live voice. Där kan användaren ladda upp källor, öppna dokumentankare, jämföra uppgifter, visa relationsgrafer och skapa dokumentutkast med versionshistorik och Word/PDF-export. Bakgrundsjobb fortsätter efter avslutat röstsamtal. Rösttjänsten kräver ElevenLabs-konfiguration.
 * **Workspace-chatten**: Företagets workspace är standard. Klienter kan få egna workspaces med separata konversationer och dokument. Filikonen laddar upp avtal och andra underlag; researchikonen öppnar frågedialogen med ett uttryckligt dokumentval. Status och citerade originalpassager visas i chatten.
 
 ## 2026-10-03

@@ -105,6 +105,42 @@ async def _remember_consult(
     )
 
 
+async def _publish_consult(
+    session: AsyncSession, *, asker: Persona, colleague: Persona, mode: ChatMode,
+    prompts: dict[str, str], question: str, answer: str,
+) -> None:
+    announcement = render_prompt(prompts, "chat.expert.consult_announce",
+                                 asker_name=asker.name, question=question, answer=answer)
+    row = PersonaMessage(persona_id=colleague.id, mode=mode, role="assistant",
+                         content=announcement, created_at=utcnow())
+    session.add(row)
+    await trim_library_chat(session, colleague.id, mode)
+    await session.commit()
+    await _remember_consult(asker, colleague, question=question, answer=answer)
+    rows = list((await session.execute(select(PersonaMessage).where(
+        PersonaMessage.persona_id == colleague.id, PersonaMessage.mode == mode,
+        PersonaMessage.run_id.is_(None)).order_by(PersonaMessage.id.asc()))).scalars())
+    messages = [_serialized_message(message) for message in rows]
+    await session.commit()
+    await library_chat_broadcast.publish(colleague.customer_id, colleague.id, {
+        "type": "thread.message", "thread_type": "expert", "thread_id": colleague.id,
+        "messages": messages,
+    })
+    await library_chat_broadcast.publish(asker.customer_id, asker.id, {
+        "type": "consult.answered", "thread_type": "expert", "thread_id": asker.id,
+        "colleague_id": colleague.id, "colleague_name": colleague.name,
+    })
+
+
+async def _consult_memory(persona: Persona, question: str, prompts: dict[str, str],
+                          owner_id: str | None, *, workspace_parent_id: str | None) -> str:
+    if owner_id:
+        from app.services.workspace_memory_context import workspace_memory_context
+        return await workspace_memory_context(persona, question, prompts, owner_id=owner_id,
+                                               workspace_parent_id=workspace_parent_id)
+    return await _memory_context(persona, question, prompts)
+
+
 async def _consult(
     session: AsyncSession,
     *,
@@ -112,6 +148,8 @@ async def _consult(
     mode: ChatMode,
     prompts: dict[str, str],
     question: str,
+    workspace_owner_id: str | None = None,
+    workspace_parent_id: str | None = None,
 ) -> str:
     candidates = list(
         (
@@ -130,6 +168,9 @@ async def _consult(
         (persona.id, profile_text_for_expert(persona))
         for persona in (asker, *candidates)
     ]
+    for persona in (asker, *candidates):
+        if persona in session:
+            session.expunge(persona)
     await session.commit()
     scores = await rank_consult_competence(question=question, experts=ranked)
     if scores[asker.id] >= COMPETENCE_NOUL_THRESHOLD:
@@ -145,14 +186,11 @@ async def _consult(
         raise ValueError("Ingen annan expert har kompetens att besvara frågan.")
     colleague = max(competent, key=lambda pair: pair[1])[0]
 
-    memory_context, evidence_context = await asyncio.gather(
-        _memory_context(colleague, question, prompts),
-        reusable_expert_chat_evidence_context(
-            session,
-            customer_id=colleague.customer_id,
-            question=question,
-            prompts=prompts,
-        ),
+    evidence_context = await reusable_expert_chat_evidence_context(
+        session, customer_id=colleague.customer_id, question=question, prompts=prompts,
+    )
+    memory_context = await _consult_memory(
+        colleague, question, prompts, workspace_owner_id, workspace_parent_id=workspace_parent_id,
     )
     colleague_instruction = render_prompt(
         prompts,
@@ -174,65 +212,13 @@ async def _consult(
         tools=[],
         extra_system=extra_system,
     )
-    announcement = render_prompt(
-        prompts,
-        "chat.expert.consult_announce",
-        asker_name=asker.name,
-        question=question,
-        answer=answer,
-    )
-    row = PersonaMessage(
-        persona_id=colleague.id,
-        mode=mode,
-        role="assistant",
-        content=announcement,
-        created_at=utcnow(),
-    )
-    session.add(row)
-    await trim_library_chat(session, colleague.id, mode)
-    await session.commit()
-    await session.refresh(row)
-    await _remember_consult(
-        asker,
-        colleague,
-        question=question,
-        answer=answer,
-    )
-
-    rows = list(
-        (
-            await session.execute(
-                select(PersonaMessage)
-                .where(
-                    PersonaMessage.persona_id == colleague.id,
-                    PersonaMessage.mode == mode,
-                    PersonaMessage.run_id.is_(None),
-                )
-                .order_by(PersonaMessage.id.asc())
-            )
-        ).scalars()
-    )
-    await library_chat_broadcast.publish(
-        colleague.customer_id,
-        colleague.id,
-        {
-            "type": "thread.message",
-            "thread_type": "expert",
-            "thread_id": colleague.id,
-            "messages": [_serialized_message(message) for message in rows],
-        },
-    )
-    await library_chat_broadcast.publish(
-        asker.customer_id,
-        asker.id,
-        {
-            "type": "consult.answered",
-            "thread_type": "expert",
-            "thread_id": asker.id,
-            "colleague_id": colleague.id,
-            "colleague_name": colleague.name,
-        },
-    )
+    if workspace_owner_id:
+        from app.services.workspace_consult import remember_workspace_consult
+        await remember_workspace_consult(asker, colleague, owner_id=workspace_owner_id,
+                                         workspace_parent_id=workspace_parent_id, question=question, answer=answer)
+    else:
+        await _publish_consult(session, asker=asker, colleague=colleague, mode=mode,
+                              prompts=prompts, question=question, answer=answer)
     return json.dumps(
         {
             "colleague_id": colleague.id,
@@ -255,7 +241,11 @@ def expert_consult_handler_for_chat(
     asker: Persona,
     mode: ChatMode,
     prompts: dict[str, str],
+    workspace_owner_id: str | None = None,
+    workspace_parent_id: str | None = None,
 ) -> ConsultToolHandler:
+    if bool(workspace_owner_id) != bool(workspace_parent_id):
+        raise ValueError("Private consultation requires its owner and parent workspace")
     async def handle(arguments: dict[str, Any]) -> str:
         question = str(arguments.get("question") or "").strip()
         if not question:
@@ -266,6 +256,8 @@ def expert_consult_handler_for_chat(
             mode=mode,
             prompts=prompts,
             question=question,
+            workspace_owner_id=workspace_owner_id,
+            workspace_parent_id=workspace_parent_id,
         )
 
     return handle

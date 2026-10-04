@@ -119,6 +119,7 @@ async def list_chat_files(
                 StoredObject.kind == "underlag",
             )
             .order_by(StoredObject.created_at.desc(), StoredObject.id)
+            .execution_options(populate_existing=True)
         )
     )
 

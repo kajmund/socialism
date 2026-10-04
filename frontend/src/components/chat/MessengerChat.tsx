@@ -242,6 +242,7 @@ export function MessengerChat({
         ) : null}
         <input
           ref={inputRef}
+          className="min-w-0"
           placeholder={placeholder}
           value={draft}
           disabled={disabled}

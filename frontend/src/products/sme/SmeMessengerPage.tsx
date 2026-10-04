@@ -1,561 +1,89 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import {
-  type PersonaMessage,
-} from "@/api/personas"
-import {
-  getSmeExpertTurn,
-  listSmeInbox,
-  listSmePanelMessages,
-  markSmeThreadRead,
-  sendSmePanelMessage,
-  type SmeInboxFilter,
-  type SmeInboxItem,
-  type SmeMessage,
-} from "@/api/sme"
-import { latestChatMessages } from "@/components/chat/chatWindow"
-import { WorkspaceChatPanel } from "@/components/workspaces/WorkspaceChatPanel"
+import { Plus } from "lucide-react"
+import { listSmeInbox, markSmeThreadRead, type SmeInboxFilter, type SmeInboxItem } from "@/api/sme"
+import { voiceWorkspaces, type KnowledgeScope, type WorkspaceMessage } from "@/api/voiceWorkspaces"
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher"
+import { AdminButton } from "@/components/ui/admin-button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useLocale } from "@/i18n"
-import { ApiError } from "@/lib/api"
-import { SmeChatPane } from "@/products/sme/SmeChatPane"
-import { SmeConversationList } from "@/products/sme/SmeConversationList"
-import { SmeExpertEditorModal } from "@/products/sme/SmeExpertEditorModal"
-import { SmeJobsButton } from "@/products/sme/SmeJobsButton"
-import { SmeResearchJobsButton } from "@/products/sme/SmeResearchJobsButton"
-import { SmeUserMenu } from "@/products/sme/SmeUserMenu"
-import {
-  smeTurnRecoveryAction,
-  type SmeExpertTurnLookup,
-} from "@/products/sme/smeTurnRecovery"
-import { useSmeChatSocket } from "@/products/sme/useSmeChatSocket"
-
-type PendingExpertTurn = {
-  requestId: string
-  threadId: string
-  message: string
-  imageSha256?: string | null
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback
-}
+import { SmePanelPane } from "./SmePanelPane"
+import { SmeChatPane } from "./SmeChatPane"
+import { SmeConversationList } from "./SmeConversationList"
+import { SmeExpertEditorModal } from "./SmeExpertEditorModal"
+import { SmeExpertInterviewButton } from "./SmeExpertInterviewButton"
+import { SmeIngestDialog } from "./SmeIngestDialog"
+import { SmeJobsButton } from "./SmeJobsButton"
+import { SmeResearchJobsButton } from "./SmeResearchJobsButton"
+import { SmeUserMenu } from "./SmeUserMenu"
+import { SmeResearchDialog } from "./SmeResearchDialog"
+import { SmeWorkspaceSelector, type SmeWorkspaceParent } from "./SmeWorkspaceSelector"
+import { WorkspaceResearch } from "./WorkspaceResearch"
+import { WorkspaceCanvas } from "./WorkspaceCanvas"
+import { useWorkspace } from "./useWorkspace"
+import { useWorkspaceConversation } from "./useWorkspaceConversation"
+import { useVoiceWorkspaceInbox } from "./useVoiceWorkspaceInbox"
+import { upsertTranscript, workspaceErrorMessage } from "./workspaceChatLogic"
 
 export function SmeMessengerPage() {
   const { locale, setLocale, t } = useLocale()
-  const [filter, setFilter] = useState<SmeInboxFilter>("all")
-  const [workspaceMode, setWorkspaceMode] = useState(true)
-  const [inbox, setInbox] = useState<SmeInboxItem[]>([])
+  const [parent, setParent] = useState<SmeWorkspaceParent | null>(null)
+  const model = useWorkspace(parent)
+  const { workspace, change: changeWorkspace, current: workspaceCurrent, report: reportWorkspace } = model
+  const workspaceId = workspace?.id ?? null, savedExpertId = workspace?.state.expert_id ?? null
+  const [metadata, setMetadata] = useState<SmeInboxItem[]>([])
+  const [filter, setFilter] = useState<SmeInboxFilter>("all"), [search, setSearch] = useState("")
   const [selected, setSelected] = useState<SmeInboxItem | null>(null)
-  const [messages, setMessages] = useState<SmeMessage[]>([])
-  const [, setSuggestions] = useState<string[]>([])
-  const [search, setSearch] = useState("")
-  const [loadingInbox, setLoadingInbox] = useState(true)
-  const [loadingMessages, setLoadingMessages] = useState(false)
-  const [pendingThreads, setPendingThreads] = useState<Set<string>>(new Set())
-  const [, setStreamByThread] = useState<Record<string, string>>(
-    {},
-  )
-  const [inboxError, setInboxError] = useState<string | null>(null)
+  const [messages, setMessages] = useState<WorkspaceMessage[]>([])
+  const [preview, setPreview] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false), [sending, setSending] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
-  const [expertEditor, setExpertEditor] = useState<{
-    id: string
-    name: string
-  } | null>(null)
-  const initialSelectionDone = useRef(false)
-  const selectedRef = useRef<SmeInboxItem | null>(null)
-  const filterRef = useRef<SmeInboxFilter>("all")
-  const pendingExpertTurnsRef = useRef<Map<string, PendingExpertTurn>>(
-    new Map(),
-  )
-  const pollTimersRef = useRef<Map<string, number>>(new Map())
-  const recoverPendingRef = useRef<() => void>(() => undefined)
-  const resendRef = useRef<
-    (
-      requestId: string,
-      threadId: string,
-      message: string,
-      imageSha256?: string | null,
-    ) => boolean
-  >(() => false)
-  selectedRef.current = selected
-  filterRef.current = filter
-
-  function threadKey(thread: SmeInboxItem): string {
-    return `${thread.thread_type}:${thread.thread_id}`
-  }
-
-  function setThreadPending(thread: SmeInboxItem, pending: boolean) {
-    setThreadKeyPending(threadKey(thread), pending)
-  }
-
-  function setThreadKeyPending(key: string, pending: boolean) {
-    setPendingThreads((current) => {
-      const next = new Set(current)
-      if (pending) next.add(key)
-      else next.delete(key)
-      return next
-    })
-  }
-
-  const loadInbox = useCallback(async (
-    nextFilter: SmeInboxFilter,
-    options?: { silent?: boolean },
-  ) => {
-    if (!options?.silent) setLoadingInbox(true)
-    try {
-      const rows = await listSmeInbox(nextFilter)
-      setInbox(rows)
-      setSelected((current) => {
-        if (!current) return current
-        return (
-          rows.find(
-            (row) =>
-              row.thread_type === current.thread_type &&
-              row.thread_id === current.thread_id,
-          ) ?? current
-        )
-      })
-      setExpertEditor((current) => {
-        if (!current) return current
-        const row = rows.find(
-          (item) => item.thread_type === "expert" && item.thread_id === current.id,
-        )
-        return row ? { id: row.thread_id, name: row.name } : current
-      })
-      setInboxError(null)
-      if (!initialSelectionDone.current) {
-        setSelected(rows[0] ?? null)
-        initialSelectionDone.current = true
-      }
-    } catch (error: unknown) {
-      setInboxError(errorMessage(error, t("sme.loadError")))
-    } finally {
-      if (!options?.silent) setLoadingInbox(false)
-    }
-  }, [t])
-
+  const [newOpen, setNewOpen] = useState(false), [mobileView, setMobileView] = useState<"chat" | "workspace">("chat")
+  const [visitedPanels, setVisitedPanels] = useState<string[]>([])
+  const [expertEditor, setExpertEditor] = useState<SmeInboxItem | null>(null)
+  const selectionWorkspace = useRef<string | null>(null)
+  const selectedId = selected?.thread_type === "expert" ? selected.thread_id : null
+  const nativeInbox = useVoiceWorkspaceInbox(workspaceId, selectedId, metadata)
+  const { items: inbox, selection: inboxSelection, historyLoaded: inboxHistoryLoaded, report: reportInbox } = nativeInbox
+  const loadInbox = useCallback(async () => { const rows = await listSmeInbox("all"); setMetadata(rows) }, [])
+  useEffect(() => { void loadInbox().catch(model.report) }, [loadInbox, model.report])
   useEffect(() => {
-    void loadInbox(filter)
-  }, [filter, loadInbox])
-
+    if (!workspaceId) return
+    const sameWorkspace = selectionWorkspace.current === workspaceId
+    selectionWorkspace.current = workspaceId
+    setSelected((previous) => sameWorkspace && previous
+      ? inbox.find((row) => row.thread_type === previous.thread_type && row.thread_id === previous.thread_id) ?? null
+      : inbox.find((row) => row.thread_type === "expert" && row.thread_id === savedExpertId) ?? inbox.find((row) => row.thread_type === "expert") ?? null)
+  }, [workspaceId, savedExpertId, inbox])
   useEffect(() => {
-    if (!selected || selected.thread_type === "expert") {
-      setMessages([])
-      setSuggestions([])
-      setLoadingMessages(false)
-      return
-    }
+    setMessages([]); setPreview(null); setChatError(null); setLoading(false)
+    if (!workspaceId || !selectedId) return
     let cancelled = false
-    const abort = new AbortController()
-    setLoadingMessages(true)
-    setChatError(null)
-    setSuggestions([])
-    const request = listSmePanelMessages(selected.thread_id)
-    request
-      .then((rows) => {
-        if (!cancelled) setMessages(latestChatMessages(rows))
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) setChatError(errorMessage(error, t("sme.chatError")))
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingMessages(false)
-      })
-    void markSmeThreadRead(selected.thread_type, selected.thread_id)
-      .then(() => {
-        if (!cancelled) {
-          setInbox((rows) =>
-            rows.map((row) =>
-              row.thread_type === selected.thread_type &&
-              row.thread_id === selected.thread_id
-                ? { ...row, unread_count: 0 }
-                : row,
-            ),
-          )
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) setChatError(errorMessage(error, t("sme.chatError")))
-      })
-    return () => {
-      cancelled = true
-      abort.abort()
-    }
-  }, [selected, t])
-
-  const clearExpertTurn = useCallback((requestId: string, threadId: string) => {
-    pendingExpertTurnsRef.current.delete(requestId)
-    const timer = pollTimersRef.current.get(requestId)
-    if (timer != null) {
-      window.clearInterval(timer)
-      pollTimersRef.current.delete(requestId)
-    }
-    const stillPending = [...pendingExpertTurnsRef.current.values()].some(
-      (turn) => turn.threadId === threadId,
-    )
-    if (!stillPending) {
-      setThreadKeyPending(`expert:${threadId}`, false)
-      setStreamByThread((current) => {
-        const next = { ...current }
-        delete next[threadId]
-        return next
-      })
-    }
-  }, [])
-
-  const applyExpertDone = useCallback(
-    (threadId: string, rows: SmeMessage[], requestId: string) => {
-      clearExpertTurn(requestId, threadId)
-      const active = selectedRef.current
-      if (active?.thread_type === "expert" && active.thread_id === threadId) {
-        setMessages(
-          latestChatMessages(
-            rows.map((row) => ({
-              ...row,
-              persona_id: row.role === "assistant" ? threadId : null,
-            })),
-          ),
-        )
-        void markSmeThreadRead("expert", threadId).then(() =>
-          loadInbox(filterRef.current),
-        )
-      } else {
-        void loadInbox(filterRef.current)
-      }
-    },
-    [clearExpertTurn, loadInbox],
-  )
-
-  const applyExpertError = useCallback(
-    (threadId: string | null, detail: string, requestId: string | null) => {
-      if (requestId && threadId) {
-        clearExpertTurn(requestId, threadId)
-      } else if (threadId) {
-        setThreadKeyPending(`expert:${threadId}`, false)
-        setStreamByThread((current) => {
-          const next = { ...current }
-          delete next[threadId]
-          return next
-        })
-      }
-      const active = selectedRef.current
-      if (!threadId || active?.thread_id === threadId) {
-        setMessages((rows) => rows.filter((row) => row.id >= 0))
-        setChatError(detail)
-      }
-    },
-    [clearExpertTurn],
-  )
-
-  const expertSocket = useSmeChatSocket({
-    onDisconnected: () => {
-      void loadInbox(filterRef.current)
-    },
-    onReady: () => {
-      recoverPendingRef.current()
-    },
-    onToken: (threadId, text) => {
-      setStreamByThread((current) => ({
-        ...current,
-        [threadId]: (current[threadId] ?? "") + text,
-      }))
-    },
-    onDone: applyExpertDone,
-    onSuggestions: (threadId, questions) => {
-      const active = selectedRef.current
-      if (active?.thread_type === "expert" && active.thread_id === threadId) {
-        setSuggestions(questions)
-      }
-    },
-    onThreadMessage: (threadId, rows) => {
-      const active = selectedRef.current
-      if (active?.thread_type === "expert" && active.thread_id === threadId) {
-        setMessages(
-          latestChatMessages(
-            rows.map((row) => ({
-              ...row,
-              persona_id: row.role === "assistant" ? threadId : null,
-            })),
-          ),
-        )
-        void markSmeThreadRead("expert", threadId).then(() =>
-          loadInbox(filterRef.current),
-        )
-      } else {
-        void loadInbox(filterRef.current)
-      }
-    },
-    onConsultAnswered: () => {
-      void loadInbox(filterRef.current)
-    },
-    onError: applyExpertError,
-  })
-
-  const recoverOneExpertTurn = useCallback(
-    async (pending: PendingExpertTurn) => {
-      let lookup: SmeExpertTurnLookup | null = null
-      try {
-        lookup = await getSmeExpertTurn(pending.requestId)
-      } catch (error: unknown) {
-        if (!(error instanceof ApiError) || error.status !== 404) {
-          return
-        }
-      }
-      const action = smeTurnRecoveryAction(lookup)
-      switch (action) {
-        case "wait":
-          if (!pollTimersRef.current.has(pending.requestId)) {
-            const timer = window.setInterval(() => {
-              void recoverOneExpertTurn(pending)
-            }, 1000)
-            pollTimersRef.current.set(pending.requestId, timer)
-          }
-          break
-        case "apply":
-          if (lookup) {
-            applyExpertDone(pending.threadId, lookup.messages, pending.requestId)
-          }
-          break
-        case "fail":
-          applyExpertError(
-            pending.threadId,
-            lookup?.error ?? t("sme.chatError"),
-            pending.requestId,
-          )
-          break
-        case "resend":
-          if (
-            !resendRef.current(
-              pending.requestId,
-              pending.threadId,
-              pending.message,
-              pending.imageSha256,
-            )
-          ) {
-            if (!pollTimersRef.current.has(pending.requestId)) {
-              const timer = window.setInterval(() => {
-                void recoverOneExpertTurn(pending)
-              }, 1000)
-              pollTimersRef.current.set(pending.requestId, timer)
-            }
-          }
-          break
-        default: {
-          const _exhaustive: never = action
-          return _exhaustive
-        }
-      }
-    },
-    [applyExpertDone, applyExpertError, t],
-  )
-
-  const recoverPendingExpertTurns = useCallback(async () => {
-    const pending = [...pendingExpertTurnsRef.current.values()]
-    await Promise.all(pending.map((turn) => recoverOneExpertTurn(turn)))
-  }, [recoverOneExpertTurn])
-
-  recoverPendingRef.current = () => {
-    void recoverPendingExpertTurns()
+    const selection = inboxSelection()
+    setLoading(true)
+    void voiceWorkspaces.messages(workspaceId, selectedId).then((result) => { if (!cancelled) { setMessages(result.messages); void inboxHistoryLoaded(selection).catch(reportInbox) } }).catch((error: unknown) => { if (!cancelled) setChatError(workspaceErrorMessage(error, t, "voiceWorkspaceChat.sessionError")) }).finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [workspaceId, selectedId, t, inboxSelection, inboxHistoryLoaded, reportInbox])
+  useEffect(() => { if (workspaceId && workspaceCurrent.current?.state.language !== locale) void changeWorkspace((state) => ({ ...state, language: locale })).catch(reportWorkspace) }, [workspaceId, locale, changeWorkspace, workspaceCurrent, reportWorkspace])
+  const conversation = useWorkspaceConversation({ workspaceId: workspace?.id ?? null, expertId: selected?.thread_type === "expert" ? selected.thread_id : null, snapshot: () => model.turnSnapshot.current ? structuredClone(model.turnSnapshot.current) : null, onMessage: (message) => { setMessages((current) => upsertTranscript(current, message)); void nativeInbox.persisted(message).catch(nativeInbox.report) }, onPreview: setPreview, onTool: (name, args, isCurrent) => { if (name !== "open_ingest_picker") setMobileView("workspace"); return model.tool(name, args, isCurrent) }, onServerResult: (name, result) => { if (name === "search_knowledge" && result.items && result.gaps) model.setKnowledge({ items: result.items, gaps: result.gaps }); void model.refresh().catch(model.report) }, onError: setChatError })
+  model.onContext.current = conversation.contextualUpdate
+  async function selectExpert(item: SmeInboxItem) { await conversation.stop(); setSelected(item); if (item.thread_type === "panel") { setVisitedPanels((ids) => ids.includes(item.thread_id) ? ids : [...ids, item.thread_id]); await markSmeThreadRead("panel", item.thread_id); await loadInbox() } else await model.change((state) => ({ ...state, expert_id: item.thread_id })) }
+  async function send(text: string) {
+    setSending(true); setChatError(null)
+    try { await model.queue.current; if (selected && model.current.current?.state.expert_id !== selected.thread_id) await model.change((state) => ({ ...state, expert_id: selected.thread_id })); await conversation.send(text) }
+    catch (error) { setChatError(workspaceErrorMessage(error, t, "voiceWorkspaceChat.sessionError")); throw error }
+    finally { setSending(false) }
   }
-  resendRef.current = expertSocket.resend
-
-  useEffect(() => {
-    const timers = pollTimersRef
-    return () => {
-      for (const timer of timers.current.values()) {
-        window.clearInterval(timer)
-      }
-      timers.current.clear()
-    }
-  }, [])
-
-  function appendVoiceTranscript(personaId: string, saved: PersonaMessage[]) {
-    if (saved.length === 0) return
-    const active = selectedRef.current
-    const viewing =
-      active?.thread_type === "expert" && active.thread_id === personaId
-    if (viewing) {
-      setMessages((rows) => {
-        const known = new Set(rows.map((message) => message.id))
-        const added = saved.flatMap((message): SmeMessage[] =>
-          known.has(message.id)
-            ? []
-            : [
-                {
-                  id: message.id,
-                  role: message.role,
-                  content: message.content,
-                  created_at: message.created_at,
-                  persona_id: message.role === "assistant" ? personaId : null,
-                  persona_name: null,
-                  image_sha256: message.image_sha256,
-                },
-              ],
-        )
-        return latestChatMessages(added.length === 0 ? rows : [...rows, ...added])
-      })
-      void markSmeThreadRead("expert", personaId).catch(() => undefined)
-    }
-    const last = saved[saved.length - 1]
-    if (!last) return
-    setInbox((rows) =>
-      rows.map((row) =>
-        row.thread_type === "expert" && row.thread_id === personaId
-          ? {
-              ...row,
-              preview: last.content,
-              last_message_at: last.created_at,
-              unread_count: viewing ? 0 : row.unread_count + 1,
-            }
-          : row,
-      ),
-    )
-  }
-
-  function selectThread(item: SmeInboxItem) {
-    setSelected(item)
-    setChatError(null)
-  }
-
-  function openExpertEditor(item: SmeInboxItem) {
-    if (item.thread_type !== "expert") return
-    setExpertEditor({ id: item.thread_id, name: item.name })
-  }
-
-  function changeFilter(next: SmeInboxFilter) {
-    setFilter(next)
-    setSelected(null)
-    setSearch("")
-  }
-
-  function send(message: string, imageSha256?: string | null): boolean {
-    if (!selected) return false
-    const thread = selected
-    if (pendingThreads.has(threadKey(thread))) return false
-    setChatError(null)
-    setSuggestions([])
-    setThreadPending(thread, true)
-    if (thread.thread_type === "expert") {
-      setMessages((rows) => [
-        ...rows,
-        {
-          id: -Date.now(),
-          role: "user",
-          content: message,
-          created_at: new Date().toISOString(),
-          persona_id: null,
-          persona_name: null,
-          image_sha256: imageSha256,
-        },
-      ])
-      const requestId = expertSocket.send(thread.thread_id, message, imageSha256)
-      if (!requestId) {
-        setThreadPending(thread, false)
-        setMessages((rows) => rows.filter((row) => row.id >= 0))
-        setChatError(t("chat.notConnected"))
-        return false
-      }
-      pendingExpertTurnsRef.current.set(requestId, {
-        requestId,
-        threadId: thread.thread_id,
-        message,
-        imageSha256,
-      })
-      return true
-    }
-    void sendSmePanelMessage(thread.thread_id, message)
-      .then(async (created) => {
-        const active = selectedRef.current
-        if (
-          active?.thread_type === "panel" &&
-          active.thread_id === thread.thread_id
-        ) {
-          setMessages((rows) => [...rows, ...created])
-          await markSmeThreadRead("panel", thread.thread_id)
-        }
-        await loadInbox(filterRef.current)
-      })
-      .catch((error: unknown) => {
-        const active = selectedRef.current
-        if (
-          active?.thread_type === "panel" &&
-          active.thread_id === thread.thread_id
-        ) {
-          setChatError(errorMessage(error, t("sme.chatError")))
-        }
-      })
-      .finally(() => setThreadPending(thread, false))
-    return true
-  }
-
-  const selectedPending = selected
-    ? pendingThreads.has(threadKey(selected))
-    : false
-
-  return (
-    <div className="theme-admin flex h-dvh min-h-0 flex-col bg-db-ink-50 font-sans text-[color:var(--text-body)]">
-      <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-y-2 bg-db-ink-950 px-4 py-2 text-db-ink-0 sm:px-6">
-        <img
-          src="/devbrains-logo-white.png"
-          alt="Devbrains"
-          className="h-8 w-auto"
-        />
-        <span className="mx-4 h-6 w-px bg-white/20" aria-hidden="true" />
-        <span className="hidden font-[var(--font-display)] text-sm font-medium tracking-wide text-white/80 sm:inline">
-          {t("sme.productName")}
-        </span>
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-1 sm:gap-2">
-          <button type="button" className={`rounded px-2 py-1.5 text-xs ${workspaceMode ? "bg-db-gold-500 text-db-ink-950" : "text-white/80 hover:bg-white/10"}`} aria-pressed={workspaceMode} onClick={() => setWorkspaceMode(true)}>{t("workspaceChat.title")}</button>
-          <button type="button" className={`rounded px-2 py-1.5 text-xs ${!workspaceMode ? "bg-db-gold-500 text-db-ink-950" : "text-white/80 hover:bg-white/10"}`} aria-pressed={!workspaceMode} onClick={() => setWorkspaceMode(false)}>{t("workspaceChat.experts")}</button>
-          <SmeResearchJobsButton />
-          <SmeJobsButton />
-          <LocaleSwitcher locale={locale} setLocale={setLocale} t={t} />
-          <SmeUserMenu />
-        </div>
-      </header>
-      <main className="flex min-h-0 flex-1">
-        {workspaceMode ? <WorkspaceChatPanel key="company" /> : <>
-        <div className={selected ? "hidden md:contents" : "contents"}>
-          <SmeConversationList
-            filter={filter}
-            items={inbox}
-            selected={selected}
-            search={search}
-            loading={loadingInbox}
-            error={inboxError}
-            onFilterChange={changeFilter}
-            onSearchChange={setSearch}
-            onSelect={selectThread}
-            onOpenExpertEditor={openExpertEditor}
-          />
-        </div>
-        {selected?.thread_type === "expert" ? <WorkspaceChatPanel key={selected.thread_id} personaId={selected.thread_id} personaName={selected.name} onBack={() => setSelected(null)} /> : <SmeChatPane
-          thread={selected}
-          messages={messages}
-          loading={loadingMessages}
-          sending={selectedPending}
-          typing={selectedPending}
-          streamText={null}
-          error={chatError}
-          ready
-          suggestions={[]}
-          onSend={send}
-          onBack={() => setSelected(null)}
-          onVoiceTranscript={appendVoiceTranscript}
-        />}
-        </>}
-      </main>
-      {expertEditor ? (
-        <SmeExpertEditorModal
-          open
-          expertId={expertEditor.id}
-          expertName={expertEditor.name}
-          onClose={() => setExpertEditor(null)}
-          onSaved={() => {
-            void loadInbox(filterRef.current, { silent: true })
-          }}
-        />
-      ) : null}
-    </div>
-  )
+  async function voice() { setChatError(null); try { if (conversation.voice) await conversation.stop(); else { if (selected && model.current.current?.state.expert_id !== selected.thread_id) await model.change((state) => ({ ...state, expert_id: selected.thread_id })); await conversation.start("voice") } } catch (error) { setChatError(workspaceErrorMessage(error, t, "voiceWorkspaceChat.sessionError")) } }
+  const sourceStatus = (status: string | null | undefined) => status === "ready" ? t("voiceWorkspaceChat.completed") : status === "partial" ? t("underlag.knowledge.partial") : status === "failed" ? t("voiceWorkspaceChat.failed") : status === "needs_ocr" ? t("voiceWorkspaceChat.readability") : status === "empty" ? t("underlag.status.empty") : t("voiceWorkspaceChat.processing")
+  const openReference = (id: string) => { setMobileView("workspace"); void model.open(id).catch(model.report) }
+  return <div className="theme-admin flex h-dvh min-h-0 flex-col bg-db-ink-50 font-sans text-[color:var(--text-body)]">
+    <header className="flex h-16 shrink-0 items-center bg-db-ink-950 px-4 text-white sm:px-6"><img src="/devbrains-logo-white.png" alt="Devbrains" className="h-6 w-auto sm:h-8" /><span className="mx-4 hidden h-6 w-px bg-white/20 sm:block" aria-hidden="true" /><span className="hidden text-sm text-white/80 sm:block">{t("sme.productName")}</span><div className="ml-auto flex items-center gap-1 sm:gap-2"><SmeResearchJobsButton /><SmeJobsButton /><LocaleSwitcher locale={locale} setLocale={setLocale} t={t} /><SmeUserMenu /></div></header>
+    <SmeWorkspaceSelector parent={parent} onChange={setParent} beforeChange={conversation.stop} />
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-white px-4 py-3"><select className="max-w-52 rounded-lg border bg-white px-3 py-2 text-sm font-medium" aria-label={t("voiceWorkspaceChat.select")} value={workspace?.id ?? ""} onChange={(event) => { void conversation.stop(); void model.select(event.target.value).catch(model.report) }}><option value="" disabled>{t("voiceWorkspaceChat.select")}</option>{model.list.map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}</select><button type="button" className="grid size-9 place-items-center rounded-lg border" aria-label={t("voiceWorkspaceChat.new")} disabled={!parent} onClick={() => setNewOpen(true)}><Plus size={17} /></button>{workspace ? <><span className="hidden text-xs text-muted-foreground sm:block">{t("voiceWorkspaceChat.sourceCount", { count: workspace.sources.length })}</span><AdminButton size="sm" variant="secondary" onClick={() => model.setPicker(true)}>{t("voiceWorkspaceChat.addSource")}</AdminButton>{parent ? <SmeResearchDialog key={workspace.id} workspace={workspace} parent={parent.workspace} onChanged={model.refresh} /> : null}<div className="ml-auto flex gap-1 rounded-lg bg-db-ink-100 p-1" role="group" aria-label={t("voiceWorkspaceChat.knowledge")}>{(["workspace", "general", "research"] as KnowledgeScope[]).map((scope) => <button key={scope} type="button" aria-pressed={workspace.state.knowledge_scope === scope} className={`rounded-md px-3 py-1.5 text-xs ${workspace.state.knowledge_scope === scope ? "bg-db-ink-950 font-medium text-db-gold-500" : "hover:bg-white"}`} onClick={() => { void model.change((state) => ({ ...state, knowledge_scope: scope })).catch(model.report) }}>{t(`voiceWorkspaceChat.${scope}`)}</button>)}</div></> : null}</div>
+    {model.error ? <div className="shrink-0 border-b border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive" role="alert">{model.error}</div> : null}
+    {workspace ? <><div className="flex shrink-0 gap-2 overflow-x-auto border-b bg-white px-4 py-2">{workspace.sources.map((source) => <button key={source.id} type="button" className="flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs" title={source.knowledge_error ?? sourceStatus(source.knowledge_status)} onClick={() => { setMobileView("workspace"); void model.tool("show_document", { source_id: source.id }).catch(model.report) }}><span className="max-w-40 truncate">{source.filename}</span><span className={source.knowledge_status === "failed" || source.knowledge_status === "needs_ocr" ? "text-destructive" : "text-muted-foreground"}>{sourceStatus(source.knowledge_status)}</span></button>)}{workspace.artifacts.map((artifact) => <button key={artifact.id} type="button" className="shrink-0 rounded-lg border border-db-gold-300 bg-db-gold-100 px-3 py-1.5 text-xs" title={artifact.error ?? artifact.title} disabled={artifact.status !== "ready"} onClick={() => { setMobileView("workspace"); void model.tool("show_artifact", { artifact_id: artifact.id }).catch(model.report) }}>{artifact.title} · {artifact.status === "ready" ? t("voiceWorkspaceChat.revision", { revision: artifact.revision }) : artifact.status === "failed" ? t("voiceWorkspaceChat.failed") : t("voiceWorkspaceChat.processing")}</button>)}</div><WorkspaceResearch workspace={workspace} onState={(change) => { void model.change(change).catch(model.report) }} /><div className="flex shrink-0 border-b bg-white p-1 md:hidden">{(["chat", "workspace"] as const).map((view) => <button key={view} type="button" className={`flex-1 rounded px-3 py-2 text-sm ${mobileView === view ? "bg-db-ink-950 text-white" : ""}`} onClick={() => setMobileView(view)}>{t(view === "chat" ? "voiceWorkspaceChat.showChat" : "voiceWorkspaceChat.showWorkspace")}</button>)}</div>
+      <main className="flex min-h-0 flex-1"><SmeConversationList compact scopeLabel={parent?.workspace.name} filter={filter} items={inbox} selected={selected} search={search} loading={nativeInbox.loading} error={nativeInbox.error} onFilterChange={setFilter} onSearchChange={setSearch} onSelect={(item) => { void selectExpert(item).catch(model.report) }} onOpenExpertEditor={setExpertEditor} /><div className={`${mobileView === "chat" ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 border-r md:flex md:w-[34%] md:min-w-[310px] md:max-w-[470px] md:flex-none`}>{visitedPanels.map((id) => { const panel = inbox.find((row) => row.thread_id === id && row.thread_type === "panel"); return panel ? <div key={id} className={selected?.thread_type === "panel" && selected.thread_id === id ? "flex min-h-0 min-w-0 flex-1" : "hidden"}><SmePanelPane thread={panel} /></div> : null })}<div className={selected?.thread_type === "panel" ? "hidden" : "flex min-h-0 min-w-0 flex-1"}><SmeChatPane workspaceId={workspace.id} parentWorkspaceId={workspace.workspace_id} headerAction={parent && selected?.thread_type === "expert" ? <SmeExpertInterviewButton expertId={selected.thread_id} expertName={selected.name} workspaceKind={parent.workspace.kind} customerId={workspace.customer_id} beforeOpen={conversation.stop} onSaved={() => { void loadInbox().catch(model.report) }} /> : undefined} thread={selected?.thread_type === "panel" ? null : selected} messages={messages} references={workspace.references} loading={loading} sending={sending} preview={preview} error={chatError} status={conversation.status} voice={conversation.voice} muted={conversation.muted} onSend={send} onVoice={() => void voice()} onMute={conversation.toggleMute} onIngest={() => model.setPicker(true)} onOpen={openReference} onEdit={() => setExpertEditor(selected)} onActivity={conversation.userActivity} notice={workspace.sources.some((source) => source.knowledge_status !== "ready") ? <span className="block text-xs text-muted-foreground">{workspace.sources.filter((source) => source.knowledge_status !== "ready").map((source) => `${source.filename}: ${sourceStatus(source.knowledge_status)}`).join(" · ")}</span> : undefined} /></div></div><div className={`${mobileView === "workspace" ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 md:flex`}><WorkspaceCanvas workspace={workspace} knowledge={model.knowledge} onState={(change) => { void model.change(change).catch(model.report) }} onOpen={openReference} onReady={model.markReady} onError={model.presentationError} onSaved={model.saved} onSearch={(query) => { void model.search(query).catch(model.report) }} /></div></main><SmeIngestDialog workspace={workspace} open={model.picker} onOpenChange={model.setPicker} onChanged={model.refresh} onError={model.report} onReady={() => model.markReady("ingest-picker")} /></> : <main className="grid min-h-0 flex-1 place-items-center p-6 text-sm text-muted-foreground">{t("voiceWorkspaceChat.empty")}</main>}
+    <Dialog open={newOpen} onOpenChange={setNewOpen}><DialogContent className="theme-admin max-w-md"><DialogHeader><DialogTitle>{t("voiceWorkspaceChat.new")}</DialogTitle></DialogHeader><form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); const title = String(new FormData(event.currentTarget).get("title") ?? "").trim(); if (title) void model.create(title).then(() => setNewOpen(false)).catch(model.report) }}><input className="rounded border p-3 text-sm" name="title" required maxLength={255} aria-label={t("voiceWorkspaceChat.name")} placeholder={t("voiceWorkspaceChat.name")} /><AdminButton type="submit">{t("voiceWorkspaceChat.create")}</AdminButton></form></DialogContent></Dialog>
+    {expertEditor ? <SmeExpertEditorModal open expertId={expertEditor.thread_id} expertName={expertEditor.name} onClose={() => setExpertEditor(null)} onSaved={() => { void loadInbox().catch(model.report) }} /> : null}
+  </div>
 }
