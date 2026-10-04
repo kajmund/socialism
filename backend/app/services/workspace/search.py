@@ -31,6 +31,7 @@ from app.services.workspaces import resolve_readable_workspace_ids
 @dataclass(frozen=True)
 class SourceInput:
     id: str
+    module: str
     version: str
     text: str
     filename: str
@@ -44,7 +45,7 @@ async def _materialize(session: AsyncSession, source: StoredObject) -> SourceInp
     versions = await session.scalars(select(DocumentVersionRecord.id).join(
         CanonicalDocumentRecord, CanonicalDocumentRecord.id == DocumentVersionRecord.document_id).where(
         CanonicalDocumentRecord.source_object_id == source.id, DocumentVersionRecord.superseded_at.is_(None)))
-    return SourceInput(source.id, source_version(source), source.extracted_text, source.filename,
+    return SourceInput(source.id, source.module, source_version(source), source.extracted_text, source.filename,
                        source.content_type, source.bucket, source.object_key, tuple(versions))
 
 
@@ -62,7 +63,7 @@ async def _external_search(sources: list[SourceInput], query: KnowledgeQuery) ->
     output = []
     for source in sources:
         scoped = KnowledgeQuery(query=query.query, limit=query.limit * 8,
-            scope=KnowledgeScope(customer_id=query.scope.customer_id, case_id=source.id, module=query.scope.module,
+            scope=KnowledgeScope(customer_id=query.scope.customer_id, case_id=source.id, module=source.module,
                 workspace_id=query.scope.workspace_id, readable_workspace_ids=query.scope.readable_workspace_ids,
                 allowed_source_object_ids=(source.id,), allowed_document_version_ids=source.document_version_ids))
         hits = await store.search(EmbeddedKnowledgeQuery(query=scoped, embedding=vectors[0]))
@@ -86,7 +87,7 @@ async def _hit_reference(session: AsyncSession, workspace: VoiceWorkspace, found
         return None
     readable = await resolve_readable_workspace_ids(session, customer_id=workspace.customer_id,
         user_id=workspace.owner_user_id, workspace_id=workspace.workspace_id)
-    scope = KnowledgeScope(customer_id=workspace.customer_id, module=workspace.module,
+    scope = KnowledgeScope(customer_id=workspace.customer_id, module=source.module,
         workspace_id=workspace.workspace_id, readable_workspace_ids=tuple(readable),
         allowed_source_object_ids=(source.id,), allowed_document_version_ids=source_input.document_version_ids)
     passages = await grounded_hits(session, hit, scope)
