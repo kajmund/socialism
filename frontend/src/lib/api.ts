@@ -63,6 +63,9 @@ export const api = {
     return call<T>(path, { method: "DELETE", query })
   },
   async getBlob(path: string): Promise<Blob> {
+    return (await api.getBlobWithHeaders(path)).blob
+  },
+  async getBlobWithHeaders(path: string): Promise<{ blob: Blob; headers: Headers }> {
     const token = await accessToken()
     const headers: Record<string, string> = { Accept: "*/*" }
     if (token) headers.Authorization = `Bearer ${token}`
@@ -84,6 +87,6 @@ export const api = {
       }
       throw new ApiError(detail, { status: response.status })
     }
-    return response.blob()
+    return { blob: await response.blob(), headers: response.headers }
   },
 }

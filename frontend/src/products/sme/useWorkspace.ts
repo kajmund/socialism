@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { voiceWorkspaces, type KnowledgeResult, type VoiceWorkspaceParent, type Workspace, type WorkspaceArtifact, type WorkspaceState, type WorkspaceSummary } from "@/api/voiceWorkspaces"
+import { voiceWorkspaces, type KnowledgeResult, type VoiceWorkspaceParent, type Workspace, type WorkspaceArtifact, type WorkspaceSelection, type WorkspaceState, type WorkspaceSummary } from "@/api/voiceWorkspaces"
 import { useLocale } from "@/i18n"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { openWorkspaceDocument, requiredString, workspaceErrorMessage } from "./workspaceChatLogic"
 import { workspaceFocusReference } from "./workspaceDocumentFocus"
 import { captureWorkspaceTurn, type WorkspaceTurnSnapshot } from "./workspaceTurnSnapshot"
+import { captureDocumentTurn, clearLocalDocumentSelection, localSelectionMatchesReference, type LocalDocumentSelection } from "./workspaceLocalSelection"
 
 export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const { t, locale } = useLocale()
@@ -14,21 +15,32 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const [error, setError] = useState<string | null>(null)
   const [knowledge, setKnowledge] = useState<KnowledgeResult>({ items: [], gaps: [] })
   const [picker, setPicker] = useState(false)
+  const [localSelection, setLocalSelection] = useState<LocalDocumentSelection | null>(null)
+  const localSelectionRef = useRef<LocalDocumentSelection | null>(null)
   const current = useRef<Workspace | null>(null)
   const turnSnapshot = useRef<Promise<WorkspaceTurnSnapshot | null>>(Promise.resolve(null))
   const pendingTurn = useRef(false)
   const generation = useRef(0)
   const queue = useRef(Promise.resolve())
   const ready = useRef(new Set<string>())
-  const pending = useRef(new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: number }>())
+  const pending = useRef(new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: number; selectionSensitive: boolean }>())
   const onContext = useRef<(text: string) => void>(() => undefined)
   const report = useCallback((caught: unknown) => setError(workspaceErrorMessage(caught, t, "voiceWorkspaceChat.operationError")), [t])
   const labels = useRef(t), errors = useRef(report)
   labels.current = t; errors.current = report
   const apply = useCallback((value: Workspace) => { current.current = value; if (!pendingTurn.current) turnSnapshot.current = captureWorkspaceTurn(value); setWorkspace(value) }, [])
+  const selectDocument = useCallback((sourceId: string, selection: WorkspaceSelection | null) => {
+    if (!current.current) return
+    localSelectionRef.current = selection ? { sourceId, selection: structuredClone(selection), clearedSourceIds: localSelectionRef.current?.clearedSourceIds?.filter((id) => id !== sourceId) }
+      : clearLocalDocumentSelection(current.current.state, current.current.references, localSelectionRef.current, sourceId)
+    setLocalSelection(localSelectionRef.current)
+    for (const [key, waiter] of pending.current) if (waiter.selectionSensitive) { window.clearTimeout(waiter.timer); pending.current.delete(key); waiter.reject(new Error(labels.current("voiceWorkspaceChat.selectionChanged"))) }
+  }, [])
+  const snapshot = useCallback(() => captureDocumentTurn(turnSnapshot.current, localSelectionRef.current), [])
   const select = useCallback(async (id: string) => {
     const request = ++generation.current
     current.current = null; turnSnapshot.current = Promise.resolve(null); pendingTurn.current = false; setWorkspace(null); ready.current.clear(); setKnowledge({ items: [], gaps: [] }); setError(null)
+    localSelectionRef.current = null; setLocalSelection(null)
     for (const waiter of pending.current.values()) { window.clearTimeout(waiter.timer); waiter.reject(new Error(labels.current("voiceWorkspaceChat.presentationError"))) }
     pending.current.clear()
     const value = await voiceWorkspaces.get(id)
@@ -39,6 +51,7 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
     let cancelled = false
     generation.current += 1
     current.current = null; turnSnapshot.current = Promise.resolve(null); pendingTurn.current = false
+    localSelectionRef.current = null; setLocalSelection(null)
     setWorkspace(null); setList([]); setKnowledge({ items: [], gaps: [] }); setPicker(false); setError(null); ready.current.clear()
     for (const waiter of pending.current.values()) { window.clearTimeout(waiter.timer); waiter.reject(new Error(labels.current("voiceWorkspaceChat.presentationError"))) }
     pending.current.clear()
@@ -77,22 +90,27 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const create = useCallback(async (title: string) => { if (!parentId) throw new Error(t("voiceWorkspaceChat.loadError")); const epoch = generation.current; const value = await voiceWorkspaces.create(title, locale, { workspaceId: parentId, customerId }); if (epoch !== generation.current) return; setList((rows) => [value, ...rows]); await select(value.id) }, [locale, parentId, customerId, select, t])
   const markReady = useCallback((key: string) => { ready.current.add(key); const waiter = pending.current.get(key); if (waiter) { window.clearTimeout(waiter.timer); pending.current.delete(key); waiter.resolve() } }, [])
   const presentationError = useCallback((key: string, message: string) => { ready.current.delete(key); setError(message); const waiter = pending.current.get(key); if (waiter) { window.clearTimeout(waiter.timer); pending.current.delete(key); waiter.reject(new Error(message)) } }, [])
-  const wait = useCallback((key: string) => ready.current.has(key) ? Promise.resolve() : new Promise<void>((resolve, reject) => { const existing = pending.current.get(key); if (existing) { window.clearTimeout(existing.timer); existing.reject(new Error(t("voiceWorkspaceChat.presentationError"))) } const timer = window.setTimeout(() => { pending.current.delete(key); reject(new Error(t("voiceWorkspaceChat.presentationError"))) }, 20_000); pending.current.set(key, { resolve, reject, timer }) }), [t])
+  const wait = useCallback((key: string, selectionSensitive = false) => ready.current.has(key) ? Promise.resolve() : new Promise<void>((resolve, reject) => { const existing = pending.current.get(key); if (existing) { window.clearTimeout(existing.timer); existing.reject(new Error(t("voiceWorkspaceChat.presentationError"))) } const timer = window.setTimeout(() => { pending.current.delete(key); reject(new Error(t("voiceWorkspaceChat.presentationError"))) }, 20_000); pending.current.set(key, { resolve, reject, timer, selectionSensitive }) }), [t])
   useEffect(() => () => { for (const waiter of pending.current.values()) { window.clearTimeout(waiter.timer); waiter.reject(new Error(t("voiceWorkspaceChat.presentationError"))) } }, [t])
-  const open = useCallback(async (referenceId: string, isCurrent: () => boolean = () => true) => {
+  const open = useCallback(async (referenceId: string, isCurrent: () => boolean = () => true, preserveLocal = false) => {
+    if (!preserveLocal) { localSelectionRef.current = null; setLocalSelection(null) }
+    const local = localSelectionRef.current
+    const active = () => isCurrent() && localSelectionRef.current === local
     const value = await refresh()
-    if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.presentationError"))
+    if (!active()) throw new Error(t("voiceWorkspaceChat.selectionChanged"))
     const reference = value?.references.find((row) => row.reference_id === referenceId)
     if (!reference) throw new Error(t("voiceWorkspaceChat.referenceUnavailable"))
+    if (local && !localSelectionMatchesReference(local, reference)) throw new Error(t("voiceWorkspaceChat.selectionChanged"))
     const verified = await voiceWorkspaces.reference(value!.id, referenceId)
     if (verified.stale) throw new Error(t("voiceWorkspaceChat.stale"))
-    if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.presentationError"))
+    if (!active()) throw new Error(t("voiceWorkspaceChat.selectionChanged"))
     setError(null)
     const key = `source:${reference.source_id}:${reference.reference_id}`
-    if (reference.source_kind !== "underlag") { ready.current.delete(key); await change((state) => ({ ...state, view: "documents", active_artifact_id: null, selection: { reference_id: referenceId } }), isCurrent); await wait(key); return }
+    if (reference.source_kind !== "underlag") { ready.current.delete(key); await change((state) => ({ ...state, view: "documents", active_artifact_id: null, selection: { reference_id: referenceId } }), active); if (!active()) throw new Error(t("voiceWorkspaceChat.selectionChanged")); await wait(key, true); return }
     ready.current.delete(key)
-    await change((state) => ({ ...openWorkspaceDocument(state, reference.source_id, reference.anchor?.page_number ?? 1), documents: openWorkspaceDocument(state, reference.source_id, reference.anchor?.page_number ?? 1).documents.map((row) => row.source_id === reference.source_id ? { ...row, reference_id: referenceId } : row), active_artifact_id: null, selection: { reference_id: referenceId } }), isCurrent)
-    await wait(key)
+    await change((state) => ({ ...openWorkspaceDocument(state, reference.source_id, reference.anchor?.page_number ?? 1), documents: openWorkspaceDocument(state, reference.source_id, reference.anchor?.page_number ?? 1).documents.map((row) => row.source_id === reference.source_id ? { ...row, reference_id: referenceId } : row), active_artifact_id: null, selection: { reference_id: referenceId } }), active)
+    if (!active()) throw new Error(t("voiceWorkspaceChat.selectionChanged"))
+    await wait(key, true)
   }, [change, refresh, t, wait])
   const search = useCallback(async (query: string) => {
     const value = current.current
@@ -115,7 +133,7 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
         catch { const message = t("voiceWorkspaceChat.anchorPositionRequired"); setError(message); throw new Error(message) }
       }
       setError(null)
-      if (typeof args.reference_id === "string") await open(args.reference_id, isCurrent)
+      if (typeof args.reference_id === "string") await open(args.reference_id, isCurrent, true)
       else {
         const sourceId = requiredString(args, "source_id")
         ready.current.delete(`source:${sourceId}:`)
@@ -140,5 +158,5 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const relevantJobs = jobs.filter((job) => job.request.voice_workspace_id === workspace?.id || workspace?.sources.some((source) => source.knowledge_job_id === job.id) || workspace?.research.some((research) => research.run_id === job.id || research.attempt_id === job.request.attempt_id))
   const jobContext = JSON.stringify(relevantJobs.map((job) => ({ id: job.id, status: job.status, error: job.error })))
   useEffect(() => { if (jobContext === "[]" || !current.current) return; void refresh().then((value) => { if (value) onContext.current(`Workspace background jobs updated: ${jobContext}`) }).catch(report) }, [jobContext, refresh, report])
-  return { workspace, list, knowledge, setKnowledge, error, picker, setPicker, setError, current, turnSnapshot, select, create, refresh, change, markReady, presentationError, open, search, tool, saved, report, onContext, queue }
+  return { workspace, list, knowledge, setKnowledge, error, picker, setPicker, setError, current, turnSnapshot, localSelection, selectDocument, snapshot, select, create, refresh, change, markReady, presentationError, open, search, tool, saved, report, onContext, queue }
 }
