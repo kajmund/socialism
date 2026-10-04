@@ -221,6 +221,8 @@ type EditorProps = {
   tools?: ExpertToolId[]
   onToolsChange?: (tools: ExpertToolId[]) => void
   layersOnly?: boolean
+  embeddedInterview?: boolean
+  workspaceChatEnabled?: boolean
   avatarUrl?: string | null
   onAvatarUrlChange?: (path: string | null) => void
 }
@@ -244,6 +246,8 @@ function Editor({
   tools = DEFAULT_EXPERT_TOOLS,
   onToolsChange,
   layersOnly = false,
+  embeddedInterview = false,
+  workspaceChatEnabled = true,
   avatarUrl = null,
   onAvatarUrlChange,
 }: EditorProps) {
@@ -251,7 +255,7 @@ function Editor({
   const [mode, setMode] = useState<"work" | "present">("work")
   const [icMode, setIcMode] = useState<ChatMode>("interview")
   const [workspaceChatOpen, setWorkspaceChatOpen] = useState(false)
-  const [layersOpen, setLayersOpen] = useState(true)
+  const [layersOpen, setLayersOpen] = useState(!embeddedInterview)
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [locks, setLocks] = useState<Record<string, boolean>>({
@@ -526,11 +530,11 @@ function Editor({
   }
 
   const messagePendingDelete = messages.find((m) => m.id === confirmDeleteMessageId)
-  const showMemoryUi = kind === "expert" && Boolean(personaId)
+  const showMemoryUi = !embeddedInterview && kind === "expert" && Boolean(personaId)
   const memoryNotice =
     showMemoryUi && savedMemories != null ? memoryNoticeText(savedMemories, t) : null
   const voiceAction =
-    kind === "expert" ? (
+    !embeddedInterview && kind === "expert" ? (
       <ExpertVoiceButton
         personaId={personaId}
         expertName={persona.name}
@@ -604,7 +608,7 @@ function Editor({
   return (
     <>
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="topbar">
+      {!embeddedInterview ? <div className="topbar">
         <div className="persona-id">
           {kind === "expert" && personaId ? (
             <PersonaAvatarPicker
@@ -727,7 +731,7 @@ function Editor({
             </Link>
           ) : null}
         </div>
-      </div>
+      </div> : null}
       {saved && (
         <div className="toast">
           <div className="ck">✓</div>{t("personas.composer.savedToast")}
@@ -741,7 +745,7 @@ function Editor({
         <div
           id="persona-layers"
           className={"layers-col" + (layersOpen || layersOnly ? "" : " is-collapsed")}
-          hidden={!layersOnly && !layersOpen}
+          hidden={embeddedInterview || (!layersOnly && !layersOpen)}
         >
           {kind === "expert" ? (
             <>
@@ -910,7 +914,7 @@ function Editor({
         <div className="chat-col">
           <div className="chat-top">
             <div className="chat-top-lead">
-              <button
+              {!embeddedInterview ? <button
                 type="button"
                 className="layers-toggle"
                 aria-expanded={layersOpen}
@@ -920,15 +924,15 @@ function Editor({
                 {layersOpen
                   ? t("personas.composer.collapseLayers")
                   : t("personas.composer.expandLayers")}
-              </button>
+              </button> : null}
               <div className="ic-switch">
-                <button
+                {!embeddedInterview ? <button
                   type="button"
                   className={!workspaceChatOpen && icMode === "character" ? "on" : ""}
                   onClick={() => { setWorkspaceChatOpen(false); setIcMode("character") }}
                 >
                   {t("personas.composer.inCharacter")}
-                </button>
+                </button> : null}
                 <button
                   type="button"
                   className={!workspaceChatOpen && icMode === "interview" ? "on" : ""}
@@ -936,7 +940,7 @@ function Editor({
                 >
                   {t("personas.composer.interviewTab")}
                 </button>
-                {kind === "expert" && personaId ? <button type="button" className={workspaceChatOpen ? "on" : ""} onClick={() => setWorkspaceChatOpen(true)}>{t("workspaceChat.title")}</button> : null}
+                {workspaceChatEnabled && kind === "expert" && personaId ? <button type="button" className={workspaceChatOpen ? "on" : ""} onClick={() => setWorkspaceChatOpen(true)}>{t("workspaceChat.title")}</button> : null}
               </div>
             </div>
             {!workspaceChatOpen ? <div className="chat-top-actions">
@@ -1320,6 +1324,8 @@ export type PersonaComposerPageProps = {
   Shell?: ComponentType<{ children: ReactNode }>
   customerId?: number
   embedded?: boolean
+  embeddedInterview?: boolean
+  workspaceChatEnabled?: boolean
   personaId?: string
   onSaved?: (detail: PersonaDetail) => void
   onAvatarChange?: (avatarUrl: string | null) => void
@@ -1331,6 +1337,8 @@ export function PersonaComposerPage({
   Shell = AdminShell,
   customerId,
   embedded = false,
+  embeddedInterview = false,
+  workspaceChatEnabled = true,
   personaId: personaIdProp,
   onSaved,
   onAvatarChange,
@@ -1740,7 +1748,9 @@ export function PersonaComposerPage({
               kind={kind}
               tools={tools}
               onToolsChange={setTools}
-              layersOnly={embedded}
+              layersOnly={embedded && !embeddedInterview}
+              embeddedInterview={embeddedInterview}
+              workspaceChatEnabled={workspaceChatEnabled && !embeddedInterview}
               avatarUrl={avatarUrl}
               onAvatarUrlChange={(path) => {
                 setAvatarUrl(path)

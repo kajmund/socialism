@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   MailOpen,
   MessageCircle,
@@ -10,9 +11,12 @@ import type {
   SmeInboxItem,
 } from "@/api/sme"
 import { useLocale } from "@/i18n"
+import { AdminButton } from "@/components/ui/admin-button"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 type Props = {
   compact?: boolean
+  scopeLabel?: string
   filter: SmeInboxFilter
   items: SmeInboxItem[]
   selected: SmeInboxItem | null
@@ -29,6 +33,7 @@ const filters: SmeInboxFilter[] = ["all", "unread", "groups"]
 
 export function SmeConversationList({
   compact = false,
+  scopeLabel,
   filter,
   items,
   selected,
@@ -41,10 +46,12 @@ export function SmeConversationList({
   onOpenExpertEditor,
 }: Props) {
   const { t, intl } = useLocale()
+  const [inboxOpen, setInboxOpen] = useState(false)
   const filtered = items.filter((item) =>
-    `${item.name} ${item.kompetensomrade} ${item.subtitle}`
-      .toLocaleLowerCase()
-      .includes(search.trim().toLocaleLowerCase()),
+    (filter === "all" || (filter === "unread" ? item.unread_count > 0 : item.thread_type === "panel")) &&
+    `${item.name} ${item.kompetensomrade} ${item.subtitle} ${item.preview}`
+      .toLocaleLowerCase(intl)
+      .includes(search.trim().toLocaleLowerCase(intl)),
   )
 
   function filterLabel(value: SmeInboxFilter): string {
@@ -70,7 +77,36 @@ export function SmeConversationList({
     }).format(new Date(value))
   }
 
-  if (compact) return <aside className="flex h-full min-h-0 w-16 shrink-0 flex-col gap-3 overflow-y-auto border-r bg-white px-2 py-4 sm:w-20" aria-label={t("sme.chats")}>{filtered.map((item) => <button key={item.thread_id} type="button" title={`${item.name} · ${item.kompetensomrade ?? item.subtitle}`} aria-label={t("voiceWorkspaceChat.activeExpert") + ": " + item.name} aria-pressed={selected?.thread_id === item.thread_id} className={`flex shrink-0 flex-col items-center gap-1 rounded-lg p-1 text-[10px] ${selected?.thread_id === item.thread_id ? "bg-db-gold-100 ring-1 ring-db-gold-500" : "hover:bg-db-ink-100"}`} onClick={() => onSelect(item)}>{item.thread_type === "panel" ? <span className="grid size-10 place-items-center rounded-lg bg-db-ink-950 text-db-gold-500"><UsersRound size={20} /></span> : <ExpertAvatar avatarUrl={item.avatar_url} name={item.name} className="grid size-10 place-items-center overflow-hidden rounded-lg bg-db-ink-950 text-db-gold-500" iconSize={20} />}<span className="w-full truncate">{item.name}</span></button>)}</aside>
+  if (compact) return <>
+    <aside className="flex h-full min-h-0 w-16 shrink-0 flex-col border-r bg-db-ink-0 sm:w-20" aria-label={t("sme.chats")}>
+      <button type="button" className="mx-auto my-3 grid size-10 shrink-0 place-items-center rounded-lg border hover:bg-db-ink-100" aria-label={t("sme.openInbox")} title={scopeLabel ? t("sme.inboxScope", { name: scopeLabel }) : t("sme.openInbox")} aria-haspopup="dialog" aria-expanded={inboxOpen} onClick={() => setInboxOpen(true)}>
+        <Search size={18} aria-hidden="true" />
+      </button>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 pb-4">
+        {loading ? <span role="status" className="text-center text-xs text-muted-foreground">{t("sme.loading")}</span> : null}
+        {error ? <button type="button" className="text-xs text-destructive" aria-label={error} onClick={() => setInboxOpen(true)}>{t("sme.loadError")}</button> : null}
+        {!loading && !error && !filtered.length ? <span className="text-center text-xs text-muted-foreground">{t("sme.empty")}</span> : null}
+        {filtered.map((item) => {
+          const active = selected?.thread_type === item.thread_type && selected.thread_id === item.thread_id
+          const readStatus = item.unread_count > 0 ? t("sme.unreadCount", { count: item.unread_count }) : t("sme.readConversation")
+          return <button key={`${item.thread_type}:${item.thread_id}`} type="button" title={[item.name, item.preview || item.subtitle, timeLabel(item.last_message_at), readStatus].filter(Boolean).join(" · ")} aria-label={`${item.name} · ${readStatus}`} aria-pressed={active} className={`relative flex shrink-0 flex-col items-center gap-1 rounded-lg p-1 text-[10px] ${active ? "bg-db-gold-100 ring-1 ring-db-gold-500" : "hover:bg-db-ink-100"}`} onClick={() => onSelect(item)}>
+            {item.thread_type === "panel" ? <span className="grid size-10 place-items-center rounded-lg bg-db-ink-950 text-db-gold-500"><UsersRound size={20} aria-hidden="true" /></span> : <ExpertAvatar avatarUrl={item.avatar_url} name={item.name} className="grid size-10 place-items-center overflow-hidden rounded-lg bg-db-ink-950 text-db-gold-500" iconSize={20} />}
+            <span className="w-full truncate">{item.name}</span>
+            {item.unread_count > 0 ? <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-db-gold-500 px-1 text-[10px] font-semibold text-db-ink-950" aria-label={readStatus}>{new Intl.NumberFormat(intl).format(item.unread_count)}</span> : null}
+          </button>
+        })}
+      </div>
+    </aside>
+    <Dialog open={inboxOpen} onOpenChange={setInboxOpen}>
+      <DialogContent showCloseButton={false} style={{ minHeight: 0 }} className="theme-admin flex h-[min(85dvh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[420px]">
+        <DialogHeader className="flex-row items-center border-b px-4 py-3">
+          <div className="min-w-0 flex-1"><DialogTitle>{t("sme.chats")}</DialogTitle>{scopeLabel ? <DialogDescription className="mt-1 truncate">{t("sme.inboxScope", { name: scopeLabel })}</DialogDescription> : null}</div>
+          <DialogClose render={<AdminButton variant="secondary" size="sm">{null}</AdminButton>}>{t("common.close")}</DialogClose>
+        </DialogHeader>
+        <SmeConversationList filter={filter} items={items} selected={selected} search={search} loading={loading} error={error} onFilterChange={onFilterChange} onSearchChange={onSearchChange} onSelect={(item) => { onSelect(item); setInboxOpen(false) }} onOpenExpertEditor={(item) => { setInboxOpen(false); onOpenExpertEditor(item) }} />
+      </DialogContent>
+    </Dialog>
+  </>
 
   return (
     <aside className="flex h-full min-h-0 w-full flex-col border-r border-[color:var(--border-hairline)] bg-db-ink-0 md:w-[360px] lg:w-[400px]">
@@ -101,6 +137,7 @@ export function SmeConversationList({
                   : "text-[color:var(--text-muted)] hover:bg-db-ink-100 hover:text-[color:var(--text-body)]"
               }`}
               onClick={() => onFilterChange(value)}
+              aria-pressed={filter === value}
             >
               {value === "all" ? (
                 <MessageCircle size={14} aria-hidden="true" />
