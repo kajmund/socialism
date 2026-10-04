@@ -12,6 +12,7 @@ from app.services.workspace.research_links import job_bound_to_canvas, sync_rese
 from app.services.workspace.generation_tools import artifact_source_refs, source_context, queue_generation, require_shared_reference, require_source_scope, _start_research
 from app.services.workspace.tool_arguments import SearchArguments, ReadArguments, IngestArguments, JobArguments, GenerationArguments, ReviseArguments, ExportArguments, ChartArguments, ResearchArguments
 from app.services.workspace_parent_documents import voice_document_inventory
+from app.services.workspace.source_ingest_retry import retry_failed_source
 
 @dataclass
 class ToolContext:
@@ -79,8 +80,7 @@ async def ingest(context: ToolContext, arguments: dict) -> dict:
         from app.services.workspace.ingest import ingest_url
         return await ingest_url(session, workspace, operation, url=args.url)
     source = await add_source(session, workspace, args.source_id)
-    return {"status": "completed", "source_id": source.id, "job_id": source.knowledge_job_id,
-            "ingest_status": source.knowledge_status}
+    return await retry_failed_source(session, workspace, source)
 
 
 async def job(context: ToolContext, arguments: dict) -> dict:

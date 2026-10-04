@@ -67,6 +67,8 @@ export const sv = {
     "operationError": "Åtgärden kunde inte utföras.",
     "presentationError": "Källan kunde inte visas eller markeras.",
     "anchorPositionRequired": "Dokumentet kan visas, men källavsnittet saknar en exakt position att markera. Sök fram avsnittet i evidensen först.",
+    "retry": "Försök igen",
+    "retrySource": "Bearbeta {name} igen",
     "sessionError": "Samtalet kunde inte anslutas.",
     "voiceStart": "Starta röstsamtal",
     "voiceStop": "Avsluta röstsamtal",
