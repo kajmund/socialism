@@ -59,3 +59,5 @@ Du kan öppna hela PDF:en utan att markera ett särskilt avsnitt. En markering k
 Klicka i PDF-dokumentet för att ta bort en aktiv markering. Dra över texten för att skapa en ny markering.
 
 Markerad text följer läsordningen i PDF:en. Om markeringen inte kan verifieras mot originalet får du ett meddelande om just markeringen. Meddelandet om att källan har ändrats visas när dokumentets version har ändrats. Ett tidigare felmeddelande försvinner när nästa åtgärd lyckas.
+
+Markeringar i dokument med flera kolumner kontrolleras mot texten på de markerade positionerna i originalet. Du kan därför markera ett avsnitt i en kolumn även om dokumentets sparade text blandar rader från flera kolumner.
