@@ -1,6 +1,7 @@
 import { api } from "@/lib/api"
 import type { DocumentKnowledgeAnchor, UnderlagFile } from "@/api/underlag"
 import type { SpindoctorChartType } from "@/api/spindoctorWidgets"
+import { requireVoiceWorkspace } from "./voiceWorkspaceResponse"
 
 export type KnowledgeScope = "workspace" | "general" | "research"
 export type WorkspaceView = "evidence" | "comparison" | "documents" | "relations"
@@ -112,9 +113,9 @@ export type ToolResult = {
 
 export const voiceWorkspaces = {
   list: (parent: VoiceWorkspaceParent) => api.get<WorkspaceSummary[]>("/voice-workspaces", { workspace_id: parent.workspaceId, customer_id: parent.customerId }),
-  create: (title: string, language: "sv" | "en", parent: VoiceWorkspaceParent) => api.post<Workspace>(`/voice-workspaces${parent.customerId == null ? "" : `?customer_id=${parent.customerId}`}`, { title, workspace_id: parent.workspaceId, module: "dd", language, idempotency_key: crypto.randomUUID() }),
-  get: (id: string) => api.get<Workspace>(`/voice-workspaces/${id}`),
-  update: (id: string, expectedRevision: number, state: WorkspaceState) => api.patch<Workspace>(`/voice-workspaces/${id}`, { expected_revision: expectedRevision, state, idempotency_key: crypto.randomUUID() }),
+  create: (title: string, language: "sv" | "en", parent: VoiceWorkspaceParent) => api.post<unknown>(`/voice-workspaces${parent.customerId == null ? "" : `?customer_id=${parent.customerId}`}`, { title, workspace_id: parent.workspaceId, module: "dd", language, idempotency_key: crypto.randomUUID() }).then(requireVoiceWorkspace),
+  get: (id: string) => api.get<unknown>(`/voice-workspaces/${id}`).then(requireVoiceWorkspace),
+  update: (id: string, expectedRevision: number, state: WorkspaceState) => api.patch<unknown>(`/voice-workspaces/${id}`, { expected_revision: expectedRevision, state, idempotency_key: crypto.randomUUID() }).then(requireVoiceWorkspace),
   attach: (id: string, sourceId: string) => api.post<ToolResult>(`/voice-workspaces/${id}/sources`, { source_id: sourceId, idempotency_key: crypto.randomUUID() }),
   upload: (id: string, file: File) => { const form = new FormData(); form.append("file", file); form.append("idempotency_key", crypto.randomUUID()); return api.postForm<ToolResult>(`/voice-workspaces/${id}/sources/upload`, form, { timeoutMs: 120_000 }) },
   source: (id: string, sourceId: string) => api.get<UnderlagFile>(`/voice-workspaces/${id}/sources/${sourceId}`),
