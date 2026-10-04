@@ -469,6 +469,61 @@ _VOICE_NEW = {'workspace.voice.system': {'sv': 'Du är {expert_name}. Expertprof
                                               'ny källa.'}}
 
 
+_ARGUMENT_KEY = "workspace.voice.tool_arguments"
+_ARGUMENT_FIELD = {
+    "key": _ARGUMENT_KEY,
+    "modules": ["dd", "politik", "expertgranskning"],
+    "section": "chat",
+    "label_sv": _ARGUMENT_KEY,
+    "label_en": _ARGUMENT_KEY,
+    "hint_sv": "{argument_schema}",
+    "hint_en": "{argument_schema}",
+    "default_sv": 'Skicka exakt ett argument på toppnivå: arguments_json. Värdet måste vara en '
+    'sträng som innehåller verktygets argumentobjekt serialiserat som JSON. Skicka '
+    'inte objektets fält direkt som toppnivåargument. För ett tomt objekt använder '
+    'du strängen "{{}}". Schema för objektet inuti arguments_json:\n{argument_schema}',
+    "default_en": 'Send exactly one top-level argument named arguments_json. Its value must be a '
+    'STRING containing the tool argument object serialized as JSON. Do not send '
+    'the object fields directly as top-level arguments. For an empty object use '
+    'the string "{{}}". Schema of the object inside arguments_json:\n{argument_schema}',
+    "default_nb": 'Skicka exakt ett argument på toppnivå: arguments_json. Värdet måste vara en '
+    'sträng som innehåller verktygets argumentobjekt serialiserat som JSON. Skicka '
+    'inte objektets fält direkt som toppnivåargument. För ett tomt objekt använder '
+    'du strängen "{{}}". Schema för objektet inuti arguments_json:\n{argument_schema}',
+    "active": True,
+    "llm_selection_mode": "default",
+    "llm_configuration_id": None,
+}
+
+
+def _argument_fields() -> sa.TableClause:
+    return sa.table("prompt_fields", sa.column("id", sa.Integer), *[
+        sa.column(name, {"modules": sa.JSON, "active": sa.Boolean,
+                         "llm_configuration_id": sa.Integer}.get(name, sa.Text))
+        for name in _ARGUMENT_FIELD
+    ])
+
+
+def _seed_arguments_prompt() -> None:
+    fields = _argument_fields()
+    connection = op.get_bind()
+    if connection.scalar(sa.select(fields.c.id).where(fields.c.key == _ARGUMENT_KEY)) is None:
+        connection.execute(fields.insert().values(**_ARGUMENT_FIELD))
+
+
+def _remove_arguments_prompt() -> None:
+    fields = _argument_fields()
+    connection = op.get_bind()
+    row = connection.execute(sa.select(fields).where(
+        fields.c.key == _ARGUMENT_KEY).with_for_update()).mappings().first()
+    if row is None or any(row[key] != value for key, value in _ARGUMENT_FIELD.items()):
+        return
+    overrides = sa.table("prompt_overrides", sa.column("prompt_field_id", sa.Integer))
+    connection.execute(fields.delete().where(fields.c.id == row["id"],
+        ~sa.exists(sa.select(overrides.c.prompt_field_id).where(
+            overrides.c.prompt_field_id == fields.c.id))))
+
+
 def _apply(source: dict[str, str], target: dict[str, str], *, key: str = _KEY) -> None:
     connection = op.get_bind()
     for language in ("sv", "en", "nb"):
@@ -496,6 +551,7 @@ def _apply(source: dict[str, str], target: dict[str, str], *, key: str = _KEY) -
 
 
 def upgrade() -> None:
+    _seed_arguments_prompt()
     _apply(_OLD, _NEW)
     for key in _VOICE_NEW:
         _apply(_VOICE_OLD[key], _VOICE_NEW[key], key=key)
@@ -505,3 +561,4 @@ def downgrade() -> None:
     _apply(_NEW, _OLD)
     for key in _VOICE_OLD:
         _apply(_VOICE_NEW[key], _VOICE_OLD[key], key=key)
+    _remove_arguments_prompt()

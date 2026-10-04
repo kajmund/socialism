@@ -66,11 +66,11 @@ def argument_schema(name: str) -> dict:
     return result
 
 
-def tool_config(name: str, description: str) -> dict:
+def tool_config(name: str, description: str, argument_description: str) -> dict:
     # ElevenLabs' schema subset cannot carry our full Pydantic schemas. Keep
     # the validated local contract explicit inside the JSON argument field.
     parameters = {"type": "object", "properties": {
-        "arguments_json": {"type": "string", "description": json.dumps(argument_schema(name), ensure_ascii=False)}},
+        "arguments_json": {"type": "string", "description": argument_description}},
         "required": ["arguments_json"]}
     return {"name": name, "description": description, "type": "client", "parameters": parameters,
             "execution_mode": "immediate", "interruption_mode": "allow", "tool_error_handling_mode": "passthrough",
@@ -95,13 +95,14 @@ def procedure_configs(prompts: dict[str, str], tool_ids: dict[str, str]) -> dict
 
 async def prepare_agent_snapshot(session: AsyncSession, *, persona: Persona, language: str, module: str) -> AgentSnapshot:
     prompts = await require_active_prompts(session, customer_id=persona.customer_id, module=module, language=language)
-    tools = {name: tool_config(name, render_prompt(prompts, PROMPT_PREFIX + "tool." + name))
+    tools = {name: tool_config(name, render_prompt(prompts, PROMPT_PREFIX + "tool." + name),
+                              tool_argument_description(prompts, argument_schema(name)))
              for name in (*SERVER_TOOLS, *CLIENT_TOOLS)}
     from app.services.workspace_expert_tools import expert_tool_schema
     expert_schema = expert_tool_schema(persona)
     if expert_schema["properties"]["name"].get("enum"):
-        config = tool_config("expert_tool", render_prompt(prompts, PROMPT_PREFIX + "tool.expert_tool"))
-        config["parameters"]["properties"]["arguments_json"]["description"] = json.dumps(expert_schema, ensure_ascii=False)
+        config = tool_config("expert_tool", render_prompt(prompts, PROMPT_PREFIX + "tool.expert_tool"),
+                             tool_argument_description(prompts, expert_schema))
         tools["expert_tool"] = config
     system = render_prompt(prompts, PROMPT_PREFIX + "system", expert_name=persona.name,
                            expert_profile=json.dumps(persona.profile, ensure_ascii=False))
@@ -115,6 +116,11 @@ async def prepare_agent_snapshot(session: AsyncSession, *, persona: Persona, lan
         **identity, prompt_version=version))).scalar_one_or_none()
     existing = deployment_values(row) if row else None
     return AgentSnapshot({**identity, "expert_name": persona.name}, version, prompts, system, tools, existing)
+
+
+def tool_argument_description(prompts: dict[str, str], schema: dict) -> str:
+    return render_prompt(prompts, PROMPT_PREFIX + "tool_arguments",
+                         argument_schema=json.dumps(schema, ensure_ascii=False))
 
 
 def deployment_values(row: WorkspaceAgentDeployment) -> dict:
