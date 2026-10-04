@@ -17,6 +17,7 @@ def failing_client(original, factory, workspace_id, *, stage, deleted):
         async def request(self, method, path, **kwargs):
             await probe_connection(factory, workspace_id)
             if method == "DELETE":
+                assert kwargs.get("params") == ({"force": True} if "/tools/" in path else None)
                 deleted.append(path)
                 return {}
             config = kwargs.get("body", {}).get("tool_config", {})
@@ -69,9 +70,10 @@ async def test_raced_snapshot_uses_cached_winner_and_cleans_unused_copy(single_c
     monkeypatch.setattr(deployment, "publish_agent_snapshot", published)
     deleted = []
     class Cleanup:
-        async def request(self, method, path):
+        async def request(self, method, path, **kwargs):
             assert engine.pool.checkedout() == 0
             await probe_connection(factory, workspace_id)
+            assert kwargs.get("params") == ({"force": True} if "/tools/" in path else None)
             deleted.append((method, path))
             return {}
     async with factory() as session:
@@ -85,7 +87,8 @@ async def test_cleanup_failure_is_explicit_and_still_attempts_remaining_tools():
     from app.services.workspace_agent_deployment import cleanup_deployment
     attempted = []
     class Cleanup:
-        async def request(self, _method, path):
+        async def request(self, _method, path, **kwargs):
+            assert kwargs.get("params") == ({"force": True} if "/tools/" in path else None)
             attempted.append(path)
             if "/agents/" in path:
                 raise ElevenLabsError("elevenlabs_request_failed")
