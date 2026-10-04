@@ -46,9 +46,14 @@ def _verified_anchor(anchor: DocumentKnowledgeAnchorWrite, reference: WorkspaceR
     return reference.snapshot.get("selection_verified") is True and _anchor_equal(anchor, reference)
 
 
+def _selection_characters(value: str) -> str:
+    # PDF.js and PDF parsers infer layout spaces differently; positions prove the original characters.
+    return "".join(value.casefold().split())
+
+
 def _parent_quote(reference: WorkspaceReference, anchor: DocumentKnowledgeAnchorWrite) -> None:
     quote = anchor.exact_text or ""
-    if (not quote or _normalized(quote) not in _normalized(reference.snapshot.get("excerpt") or "")
+    if (not quote or _selection_characters(quote) not in _selection_characters(reference.snapshot.get("excerpt") or "")
             or any(getattr(anchor, field) != reference.anchor.get(field) for field in ("page_number", "locator"))):
         raise HTTPException(status_code=409, detail="selection_anchor_stale")
 
@@ -77,7 +82,7 @@ def selected_pdf_quote(data: bytes, anchor: DocumentKnowledgeAnchorWrite) -> str
             and top <= (char["top"] + char["bottom"]) / (2 * page.height) <= bottom
             for left, top, right, bottom in rects)]
         quote = pdfplumber.utils.extract_text(chars, x_tolerance=3, y_tolerance=3) if chars else ""
-    if not quote or _normalized(quote) != _normalized(anchor.exact_text or ""):
+    if not quote or _selection_characters(quote) != _selection_characters(anchor.exact_text or ""):
         raise HTTPException(status_code=409, detail="selection_anchor_stale")
     return " ".join(quote.split())
 
