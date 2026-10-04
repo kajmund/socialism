@@ -16,7 +16,6 @@ from app.services.research.knowledge_question import (
     KnowledgeQuestion,
     evidence_visibility,
     identity_from_text,
-    public_question_scope,
     stable_evidence_ref,
     tenant_question_scope,
 )
@@ -188,7 +187,7 @@ async def canonicalize_research_need(
     return await graph.upsert_question(
         session,
         identity_from_text(need.question),
-        tenant_question_scope(customer_id),
+        tenant_question_scope(customer_id, context.scope.workspace_id),
     )
 
 
@@ -287,12 +286,10 @@ async def upsert_persisted_evidence(
         raise QuestionEvidenceGraphError("Question→Evidence upsert requires customer_id")
     identity = identity_from_text(need.question)
     tenant_question = await graph.upsert_question(
-        session, identity, tenant_question_scope(customer_id)
+        session, identity, tenant_question_scope(customer_id, context.scope.workspace_id)
     )
-    public_question: KnowledgeQuestion | None = None
     annotated: list[ResearchEvidence] = []
     for item in evidence:
-        visibility = evidence_visibility(item.metadata)
         ref = stable_evidence_ref(
             provider=item.provider,
             source_id=item.source_id,
@@ -312,20 +309,6 @@ async def upsert_persisted_evidence(
             )
             if tenant_link is not None:
                 await graph.upsert_answer(session, tenant_link)
-            if visibility == "public":
-                if public_question is None:
-                    public_question = await graph.upsert_question(
-                        session, identity, public_question_scope()
-                    )
-                public_link = evidence_to_link(
-                    public_question,
-                    item,
-                    context=context,
-                    source_attempt_id=source_attempt_id,
-                )
-                if public_link is not None:
-                    await graph.upsert_answer(session, public_link)
-                question_id = public_question.id
         if item.status == "found" and not _has_reuse_lineage(item):
             annotated.append(attach_fresh_lineage(item, question_id=question_id, evidence_ref=ref))
         else:

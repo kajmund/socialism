@@ -612,8 +612,7 @@ async def test_factory_path_offers_standard_capability_natures_to_completeness_r
     assert reviewer.available_source_types_calls
     offered = reviewer.available_source_types_calls[0]
     assert "swedish_law" in offered
-    assert "case_knowledge" not in offered
-    assert "customer_knowledge" not in offered
+    assert {"case_knowledge", "customer_knowledge", "domain_knowledge"}.issubset(offered)
     assert bound_sessions
     assert session not in bound_sessions
     assert sources[0].calls == 1
@@ -660,7 +659,7 @@ async def test_catalog_type_missing_from_capability_cannot_become_global_need(db
     assert session not in bound_sessions
     assert sources[0].calls == 1
     assert "web" not in reviewer.available_source_types_calls[0]
-    assert "domain_knowledge" not in reviewer.available_source_types_calls[0]
+    assert "domain_knowledge" in reviewer.available_source_types_calls[0]
 
 
 def test_question_fingerprint_includes_objective():

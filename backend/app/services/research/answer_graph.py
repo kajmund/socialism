@@ -30,6 +30,8 @@ from app.services.research.models import (
 )
 from app.services.research.question_reuse import classify_freshness, reuse_lineage
 
+from app.services.research.workspace_grounding import basis_workspace_allowed, manifest_matches
+
 ANSWER_PREDICATE = "research.answered_by"
 ANSWER_TYPE = "research.answer"
 BASIS = TypeAdapter(list[ResearchEvidence])
@@ -90,6 +92,8 @@ async def publish_answer(
             attributes={
                 "knowledge_module": context.scope.module,
                 "knowledge_case_id": context.scope.case_id,
+                "workspace_id": context.scope.workspace_id,
+                "document_version_ids": list(context.scope.allowed_document_version_ids or ()),
                 "answer_status": "sufficient" if assessment.get("sufficient") else "partial",
             },
         ),
@@ -148,6 +152,8 @@ async def lookup_answers(
         if node.scope_key != fact.scope_key:
             raise GraphResearchError("Graph answer crossed its tenant boundary")
         basis = BASIS.validate_python(node.attributes.get("basis"))
+        if not await basis_workspace_allowed(session, basis, context):
+            continue
         if not await _current_basis(session, basis, fact.scope_key, now):
             continue
         for item in basis:
@@ -162,7 +168,7 @@ async def lookup_answers(
 
 
 def _context_matches(fact: GraphFact, context: ResearchContext) -> bool:
-    return fact.attributes.get("knowledge_module") == context.scope.module and (
+    return manifest_matches(fact, context) and fact.attributes.get("knowledge_module") == context.scope.module and (
         fact.attributes.get("knowledge_case_id") == context.scope.case_id
     )
 

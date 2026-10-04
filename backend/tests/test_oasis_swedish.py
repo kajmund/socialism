@@ -97,6 +97,7 @@ async def test_to_text_prompt_gates_followers_and_follows_by_matching_flags():
     from oasis.social_agent import agent_environment as mod
 
     prompts = dict(default_prompts("sv"))
+    prompts["oasis.env.main"] = "$followers_env\n$follows_env\n$posts_env\n$groups_env"
     prompts["oasis.env.empty_followers"] = "EMPTY_FOLLOWERS"
     prompts["oasis.env.empty_follows"] = "EMPTY_FOLLOWS"
     apply_swedish_social_environment_prompts(prompts)
@@ -114,7 +115,9 @@ async def test_to_text_prompt_gates_followers_and_follows_by_matching_flags():
         include_follows=True,
     )
     assert "EMPTY_FOLLOWERS" in prompt
+    assert "FOLLOWERS_LIVE" not in prompt
     assert "FOLLOWS_LIVE" in prompt
+    assert "EMPTY_FOLLOWS" not in prompt
     self.get_followers_env.assert_not_called()
     self.get_follows_env.assert_called_once()
 
@@ -128,6 +131,8 @@ async def test_to_text_prompt_gates_followers_and_follows_by_matching_flags():
         include_follows=False,
     )
     assert "FOLLOWERS_LIVE" in prompt2
+    assert "EMPTY_FOLLOWERS" not in prompt2
     assert "EMPTY_FOLLOWS" in prompt2
+    assert "FOLLOWS_LIVE" not in prompt2
     self.get_followers_env.assert_called_once()
     self.get_follows_env.assert_not_called()

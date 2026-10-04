@@ -1169,8 +1169,8 @@ def test_research_websocket_subscribe_before_snapshot_keeps_race_write(
     attempt_id = loop.run_until_complete(_seed())
     real_subscribe = research_progress_broadcast.subscribe
 
-    async def _subscribe_then_write(subscribed_attempt_id: str, websocket) -> None:
-        await real_subscribe(subscribed_attempt_id, websocket)
+    async def _subscribe_then_write(subscribed_attempt_id: str, websocket, **kwargs) -> None:
+        await real_subscribe(subscribed_attempt_id, websocket, **kwargs)
         factory = jobs_service.job_session_factory()
         async with factory() as session:
             row = await append_research_progress_event(

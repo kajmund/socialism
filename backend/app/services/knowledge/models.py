@@ -29,6 +29,10 @@ class KnowledgeScope:
     case_id: str | None = None
     module: str | None = None
     scope_type: str = SCOPE_CUSTOMER
+    workspace_id: str | None = None
+    readable_workspace_ids: tuple[str, ...] = ()
+    allowed_source_object_ids: tuple[str, ...] | None = None
+    allowed_document_version_ids: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
         try:
@@ -137,12 +141,14 @@ def scope_of(
     case_id: str | None,
     module: str | None,
     scope_type: str = SCOPE_CUSTOMER,
+    workspace_id: str | None = None,
 ) -> KnowledgeScope:
     return KnowledgeScope(
         customer_id=customer_id,
         case_id=case_id,
         module=module,
         scope_type=scope_type,
+        workspace_id=workspace_id,
     )
 
 
@@ -151,6 +157,14 @@ def scope_allows(*, owned: KnowledgeScope, requested: KnowledgeScope) -> bool:
     require_scope(requested)
     if not visible_to(owned=owned.tenant, reader_customer_id=requested.customer_id):
         return False
+    if owned.scope_type == SCOPE_CUSTOMER and requested.workspace_id is not None:
+        allowed = requested.readable_workspace_ids or (requested.workspace_id,)
+        return owned.workspace_id in allowed
+    if owned.scope_type == SCOPE_CUSTOMER and owned.workspace_id is not None:
+        from app.services.workspaces import company_workspace_id
+
+        if owned.workspace_id != company_workspace_id(requested.customer_id):
+            return False
     return _field_allows(owned.case_id, requested.case_id) and _field_allows(
         owned.module, requested.module
     )

@@ -20,6 +20,7 @@ from app.services.research.knowledge_question import (
     KnowledgeQuestionScope,
     QuestionIdentity,
     QuestionIdentityMatcher,
+    question_scope_from_namespace,
 )
 from app.services.research.question_graph import (
     ANSWERED_BY,
@@ -187,7 +188,8 @@ def question_from_graphiti_node(node: GraphitiNode) -> KnowledgeQuestion:
         identity_key=str(attrs.get("identity_key") or ""),
         normalized_text=str(attrs.get("normalized_text") or ""),
         display_text=str(attrs.get("display_text") or node.name),
-        scope=KnowledgeQuestionScope(
+        scope=question_scope_from_namespace(
+            str(attrs.get("namespace") or ""),
             visibility=visibility,  # type: ignore[arg-type]
             customer_id=customer_id,
         ),

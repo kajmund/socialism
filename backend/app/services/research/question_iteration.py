@@ -28,6 +28,7 @@ from app.services.research.knowledge_question import (
     KnowledgeQuestionError,
     KnowledgeQuestionScope,
     identity_from_text,
+    question_scope_from_namespace,
     tenant_question_scope,
 )
 from app.services.research.models import ResearchContext
@@ -293,7 +294,7 @@ async def bind_runtime_needs_to_questions(
                 )
             ).scalars()
         )
-    scope = tenant_question_scope(customer_id)
+    scope = tenant_question_scope(customer_id, context.scope.workspace_id)
     rows = list(
         (
             await session.execute(
@@ -345,10 +346,7 @@ def question_from_row(row: KnowledgeQuestionRow) -> KnowledgeQuestion:
         identity_key=row.identity_key,
         normalized_text=row.normalized_text,
         display_text=row.display_text,
-        scope=KnowledgeQuestionScope(
-            visibility=row.visibility,  # type: ignore[arg-type]
-            customer_id=row.customer_id,
-        ),
+        scope=question_scope_from_namespace(row.namespace, visibility=row.visibility, customer_id=row.customer_id),
         embedding_model=row.embedding_model,
         embedding_version=row.embedding_version,
         embedding_dimension=row.embedding_dimension,

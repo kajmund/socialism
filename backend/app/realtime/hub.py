@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import WebSocket
@@ -39,6 +40,7 @@ class EventHub:
     def __init__(self, *, name: str) -> None:
         self._name = name
         self._sockets: dict[WebSocket, int | None] = {}
+        self._authorize: dict[WebSocket, Callable[[dict], Awaitable[bool]]] = {}
         self._lock = asyncio.Lock()
 
     async def subscribe(
@@ -46,13 +48,19 @@ class EventHub:
         websocket: WebSocket,
         *,
         customer_id: int | None = None,
+        authorize: Callable[[dict], Awaitable[bool]] | None = None,
     ) -> None:
         async with self._lock:
             self._sockets[websocket] = customer_id
+            if authorize is not None:
+                self._authorize[websocket] = authorize
+            else:
+                self._authorize.pop(websocket, None)
 
     async def unsubscribe(self, websocket: WebSocket) -> None:
         async with self._lock:
             self._sockets.pop(websocket, None)
+            self._authorize.pop(websocket, None)
 
     def _matches_scope(
         self,
@@ -66,15 +74,17 @@ class EventHub:
     async def publish(self, event: dict[str, Any]) -> None:
         event_customer_id = _customer_id_from_event(event)
         async with self._lock:
-            targets = list(self._sockets.items())
+            targets = [(ws, scope, self._authorize.get(ws)) for ws, scope in self._sockets.items()]
         if not targets:
             return
         dead: list[WebSocket] = []
-        for ws, scope in targets:
+        for ws, scope, authorize in targets:
             if not self._matches_scope(scope, event_customer_id):
                 continue
             if ws.client_state != WebSocketState.CONNECTED:
                 dead.append(ws)
+                continue
+            if authorize is not None and not await authorize(event):
                 continue
             try:
                 await ws.send_json(event)
@@ -85,6 +95,7 @@ class EventHub:
             async with self._lock:
                 for ws in dead:
                     self._sockets.pop(ws, None)
+                    self._authorize.pop(ws, None)
 
 
 # Back-compat alias used by jobs.
