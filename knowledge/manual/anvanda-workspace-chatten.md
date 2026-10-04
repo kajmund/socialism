@@ -55,3 +55,5 @@ Källorna visas vid researchresultatet. En dokumentkälla öppnar den citerade o
 Dokumentets genererade frågor och svar hjälper research att hitta relevanta avsnitt. Källhänvisningen går till originalpassagen som stöder uppgiften.
 
 Du kan öppna hela PDF:en utan att markera ett särskilt avsnitt. En markering kräver en källhänvisning som pekar ut den exakta passagen på en entydig plats i originalet. Om passagen inte kan lokaliseras visas ett fel, och PDF:en ligger kvar så att du kan läsa den. Sök fram avsnittet på fliken **Evidens** och öppna dess källhänvisning. Sök igen om en äldre hänvisning saknar markeringspositioner.
+
+Klicka i PDF-dokumentet för att ta bort en aktiv markering. Dra över texten för att skapa en ny markering.

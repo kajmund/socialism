@@ -6,7 +6,7 @@ const PdfKnowledgeViewer = lazy(() => import("@/components/underlag/PdfKnowledge
 import { useLocale } from "@/i18n"
 import { workspaceErrorMessage } from "./workspaceChatLogic"
 
-export function WorkspaceSourcePane({ workspace, sourceId, page, zoom, reference, onNavigate, onSelection, onReady, onError }: {
+export function WorkspaceSourcePane({ workspace, sourceId, page, zoom, reference, onNavigate, onSelection, onClearSelection, onReady, onError }: {
   workspace: Workspace
   sourceId: string
   page: number
@@ -14,6 +14,7 @@ export function WorkspaceSourcePane({ workspace, sourceId, page, zoom, reference
   reference?: SourceReference
   onNavigate: (page: number, zoom: number) => void
   onSelection: (anchor: DocumentKnowledgeAnchor) => void
+  onClearSelection: () => void
   onReady: (sourceId: string) => void
   onError: (sourceId: string, message: string) => void
 }) {
@@ -25,12 +26,18 @@ export function WorkspaceSourcePane({ workspace, sourceId, page, zoom, reference
   const [count, setCount] = useState(1)
   const source = workspace.sources.find((row) => row.id === sourceId)
   const localSource = source !== undefined
-  const [selectedFocus, setSelectedFocus] = useState<{ reference: SourceReference | undefined; anchor: DocumentKnowledgeAnchor } | null>(null)
-  const focus = useMemo(() => selectedFocus?.reference === reference && selectedFocus?.anchor.page_number === page ? [selectedFocus.anchor] : reference?.anchor ? [reference.anchor] : [], [page, reference, selectedFocus])
-  const callbacks = useRef({ onError, onReady })
-  callbacks.current = { onError, onReady }
+  const referenceId = reference?.reference_id
+  const [selectedFocus, setSelectedFocus] = useState<{ referenceId: string | undefined; page: number; revision: number; anchor: DocumentKnowledgeAnchor | null } | null>(null)
+  const localFocus = selectedFocus?.referenceId === referenceId && selectedFocus?.page === page && (selectedFocus.anchor === null || selectedFocus.revision === workspace.revision) ? selectedFocus : null
+  const dismissed = localFocus !== null && localFocus.anchor === null
+  const savedAnchor = workspace.state.selection?.source_id === sourceId ? workspace.state.selection.anchor : undefined
+  const suppressReferenceReady = referenceId !== undefined && (localFocus !== null || savedAnchor !== undefined)
+  const focus = useMemo(() => localFocus ? localFocus.anchor ? [localFocus.anchor] : [] : savedAnchor?.page_number === page ? [savedAnchor] : reference?.anchor ? [reference.anchor] : [], [localFocus, page, reference, savedAnchor])
+  useEffect(() => { setSelectedFocus(null) }, [referenceId, sourceId])
+  const callbacks = useRef({ onError, onReady, suppressReferenceReady })
+  callbacks.current = { onError, onReady, suppressReferenceReady }
   const reportError = useCallback((message: string) => { setError(message); callbacks.current.onError(sourceId, message) }, [sourceId])
-  const reportReady = useCallback(() => { setError(null); callbacks.current.onReady(sourceId) }, [sourceId])
+  const reportReady = useCallback(() => { setError(null); if (!callbacks.current.suppressReferenceReady) callbacks.current.onReady(sourceId) }, [sourceId])
   const remoteReferenceId = localSource ? undefined : reference?.reference_id
   const stale = reference?.stale === true
   const reportCount = useCallback((pages: number) => setCount(pages), [])
@@ -69,6 +76,6 @@ export function WorkspaceSourcePane({ workspace, sourceId, page, zoom, reference
       {url ? <><button type="button" aria-label={t("voiceWorkspaceChat.previousPage")} disabled={page <= 1} onClick={() => onNavigate(page - 1, zoom)}><ChevronLeft size={15} /></button><span>{t("voiceWorkspaceChat.page")} {page}/{count}</span><button type="button" aria-label={t("voiceWorkspaceChat.nextPage")} disabled={page >= count} onClick={() => onNavigate(page + 1, zoom)}><ChevronRight size={15} /></button><button type="button" aria-label={t("voiceWorkspaceChat.zoomOut")} disabled={zoom <= 0.5} onClick={() => onNavigate(page, zoom - 0.1)}><Minus size={15} /></button><span>{new Intl.NumberFormat(intl, { style: "percent" }).format(zoom)}</span><button type="button" aria-label={t("voiceWorkspaceChat.zoomIn")} disabled={zoom >= 2} onClick={() => onNavigate(page, zoom + 0.1)}><Plus size={15} /></button></> : null}
     </header>
     {error ? <p className="shrink-0 p-4 text-sm text-destructive" role="alert">{error}</p> : null}
-    {url ? <div className="min-h-0 flex-1"><Suspense fallback={<p className="p-4 text-sm">{t("underlag.previewPdfLoading")}</p>}><PdfKnowledgeViewer url={url} pageNumber={page} zoom={zoom} focusAnchors={focus} presentationRevision={workspace.revision} selectionActive onPageCount={reportCount} onReady={reportReady} onError={reportError} onSelection={(anchor) => { setSelectedFocus({ reference, anchor }); onSelection(anchor) }} /></Suspense></div> : text !== null ? <div ref={textRef} className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap bg-white p-6 text-sm leading-relaxed" onMouseUp={() => { const selection = window.getSelection(); if (selection?.anchorNode && selection.focusNode && textRef.current?.contains(selection.anchorNode) && textRef.current.contains(selection.focusNode) && selection.toString().trim()) onSelection({ anchor_type: "text", page_number: null, locator: null, rects: [], prefix_text: null, suffix_text: null, asset_id: null, ...reference?.anchor, exact_text: selection.toString() }) }}>{index < 0 ? text : <>{text?.slice(0, index)}<mark className="rounded bg-db-gold-300/70">{exact}</mark>{text?.slice(index + (exact?.length ?? 0))}</>}</div> : !error ? <p className="p-4 text-sm text-muted-foreground">{t("sme.loading")}</p> : null}
+    {url ? <div className="min-h-0 flex-1"><Suspense fallback={<p className="p-4 text-sm">{t("underlag.previewPdfLoading")}</p>}><PdfKnowledgeViewer url={url} pageNumber={page} zoom={zoom} focusAnchors={focus} presentationRevision={workspace.revision} selectionActive onPageCount={reportCount} onReady={reportReady} onError={reportError} onSelection={(anchor) => { setSelectedFocus({ referenceId, page, revision: workspace.revision, anchor }); onSelection(anchor) }} onClearSelection={() => { if (dismissed || focus.length === 0) return; setSelectedFocus({ referenceId, page, revision: workspace.revision, anchor: null }); onClearSelection() }} /></Suspense></div> : text !== null ? <div ref={textRef} className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap bg-white p-6 text-sm leading-relaxed" onMouseUp={() => { const selection = window.getSelection(); if (selection?.anchorNode && selection.focusNode && textRef.current?.contains(selection.anchorNode) && textRef.current.contains(selection.focusNode) && selection.toString().trim()) onSelection({ anchor_type: "text", page_number: null, locator: null, rects: [], prefix_text: null, suffix_text: null, asset_id: null, ...reference?.anchor, exact_text: selection.toString() }) }}>{index < 0 ? text : <>{text?.slice(0, index)}<mark className="rounded bg-db-gold-300/70">{exact}</mark>{text?.slice(index + (exact?.length ?? 0))}</>}</div> : !error ? <p className="p-4 text-sm text-muted-foreground">{t("sme.loading")}</p> : null}
   </section>
 }
