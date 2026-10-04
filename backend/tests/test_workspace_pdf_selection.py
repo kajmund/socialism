@@ -2,7 +2,7 @@
 
 import asyncio
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from io import BytesIO
 
 import pdfplumber
@@ -30,7 +30,7 @@ LEFT_LINES = ("Policy:", "Customer files stay private.", "Cite original evidence
 SOURCE_ID = "synthetic-column-policy"
 
 
-def _synthetic_pdf() -> bytes:
+def _synthetic_pdf(*, first_stream: str | None = None) -> bytes:
     streams = [
         "BT /F1 12 Tf 72 720 Td (Policy:) Tj ET\n"
         "BT /F1 12 Tf 330 720 Td (Unrelated fee: 43.50 SEK.) Tj ET\n"
@@ -40,6 +40,8 @@ def _synthetic_pdf() -> bytes:
         "BT /F1 12 Tf 330 700 Td (Independent payment date.) Tj ET\n",
         "BT /F1 12 Tf 72 720 Td (Other page without customer policy.) Tj ET\n",
     ]
+    if first_stream is not None:
+        streams[0] = first_stream
     objects = {
         1: "<< /Type /Catalog /Pages 2 0 R >>",
         2: "<< /Type /Pages /Kids [4 0 R 6 0 R] /Count 2 >>",
@@ -436,3 +438,88 @@ async def test_authorization_and_source_version_are_rechecked_after_storage_wait
         await task
     assert error.value.status_code == (409 if boundary == "source_changed" else 404)
     await _assert_no_selection_writes(pdf_case)
+
+
+def _layout_gap_pdf(gap: float = 2) -> bytes:
+    # The installed PDF.js inserts layout whitespace here; the source reader joins the glyphs.
+    return _synthetic_pdf(first_stream=(
+        "BT /F1 12 Tf 72 720 Td (foo) Tj ET\n"
+        f"BT /F1 12 Tf {88.68 + gap} 720 Td (bar) Tj ET\n"))
+
+
+def _character_anchor(data: bytes, quote: str, *, start: int = 0, end: int | None = None) -> DocumentKnowledgeAnchorWrite:
+    with pdfplumber.open(BytesIO(data)) as pdf:
+        page = pdf.pages[0]
+        chars = page.chars[start:end]
+        x0, x1 = min(char["x0"] for char in chars), max(char["x1"] for char in chars)
+        top, bottom = min(char["top"] for char in chars), max(char["bottom"] for char in chars)
+        return DocumentKnowledgeAnchorWrite(page_number=1, locator="page:1", exact_text=quote,
+            rects=[{"x": x0 / page.width, "y": top / page.height,
+                "width": (x1 - x0) / page.width, "height": (bottom - top) / page.height}])
+
+
+@pytest.mark.parametrize("gap", [1.5, 2, 2.5, 2.9])
+def test_pdfjs_inferred_layout_space_does_not_change_selected_original_characters(gap):
+    data = _layout_gap_pdf(gap)
+    with pdfplumber.open(BytesIO(data)) as pdf:
+        assert "".join(char["text"] for char in pdf.pages[0].chars) == "foobar"
+        assert pdf.pages[0].extract_text(x_tolerance=3, y_tolerance=3) == "foobar"
+    assert selection_verification.selected_pdf_quote(data, _character_anchor(data, "foo bar")) == "foobar"
+
+
+def test_partial_word_selection_can_contain_browser_inferred_space():
+    data = _layout_gap_pdf()
+    anchor = _character_anchor(data, "oo b", start=1, end=4)
+    assert selection_verification.selected_pdf_quote(data, anchor) == "oob"
+
+
+def test_parent_quote_accepts_layout_whitespace_distinct_subselection_before_position_proof():
+    anchor = _character_anchor(_layout_gap_pdf(), "oo b", start=1, end=4)
+    parent = WorkspaceReference(anchor={"page_number": 1, "locator": "page:1"}, snapshot={"excerpt": "foobar"})
+    selection_verification._parent_quote(parent, anchor)
+
+
+@pytest.mark.parametrize("quote", ["foo baz", "foo1 bar", "foo: bar", "bar foo", "foo ba", "fo bar"])
+def test_layout_whitespace_does_not_allow_changed_omitted_or_reordered_original_characters(quote):
+    data = _layout_gap_pdf()
+    with pytest.raises(HTTPException) as error:
+        selection_verification.selected_pdf_quote(data, _character_anchor(data, quote))
+    assert error.value.status_code == 409 and error.value.detail == "selection_anchor_stale"
+
+
+@pytest.mark.parametrize("quote", ["50.00SEK", "150,00SEK", "150.01SEK"])
+def test_layout_whitespace_does_not_allow_changed_amount_digits_or_punctuation(quote):
+    data = _synthetic_pdf(first_stream="BT /F1 12 Tf 72 720 Td (150.00 SEK) Tj ET\n")
+    with pytest.raises(HTTPException) as error:
+        selection_verification.selected_pdf_quote(data, _character_anchor(data, quote))
+    assert error.value.status_code == 409 and error.value.detail == "selection_anchor_stale"
+
+
+async def test_layout_subselection_preserves_original_quote_versions_and_private_pool_release(pdf_case, monkeypatch):
+    data = _layout_gap_pdf()
+    anchor = _character_anchor(data, "foo bar")
+    async with pdf_case.factory.begin() as session:
+        source = await session.get(StoredObject, SOURCE_ID)
+        source.extracted_text, source.size_bytes = "foobar", len(data)
+    case = replace(pdf_case, data=data, anchor=anchor.model_dump())
+    calls = _storage(case, monkeypatch)
+    selected = await _patch(case, _request(case))
+    first_id = selected["state"]["selection"]["reference_id"]
+    assert await _patch(case, _request(case)) == selected and len(calls) == 1
+    state = deepcopy(selected["state"])
+    state["selection"]["anchor"] = _character_anchor(data, "oo b", start=1, end=4).model_dump()
+    partial = await _patch(case, _request(case, key="layout-subselection", revision=1, state=state))
+    second_id = partial["state"]["selection"]["reference_id"]
+    assert first_id != second_id and len(calls) == 2
+    state = deepcopy(partial["state"])
+    state["documents"][0]["zoom"] = 1.75
+    zoomed = await _patch(case, _request(case, key="layout-zoom", revision=2, state=state))
+    assert zoomed["state"]["selection"]["reference_id"] == second_id and len(calls) == 2
+    async with case.factory() as session:
+        first = await session.get(WorkspaceReference, first_id)
+        second = await session.get(WorkspaceReference, second_id)
+        assert first.anchor["exact_text"] == first.snapshot["excerpt"] == "foobar"
+        assert second.anchor["exact_text"] == second.snapshot["excerpt"] == "oob"
+        assert first.source_version == second.source_version
+        assert first.snapshot["selection_verified"] is True and second.snapshot["selection_verified"] is True
+        assert await session.scalar(select(func.count()).select_from(WorkspaceReference)) == 2
