@@ -33,6 +33,8 @@ const apiPrefixes = [
   'users',
   'kunder',
   'execution',
+  'voice-workspaces',
+  'workspace-chat',
   'workspaces',
   'workspace-chats',
 ] as const

@@ -1,28 +1,12 @@
-"""Prompt field registry: keys, UI labels, and default texts per language.
-
-Placeholders in templates:
-  {local_context}, {requirements}, {surname_block}, {voice_block} — persona context
-  {free_text}      — user free text
-  {count}          — number of personas
-  {candidate_index}, {candidate_count}
-  {demo_block}     — optional fixed demography block
-  {persona_block}  — formatted persona profile lines
-  {chat_mode}, {transcript}, {name}  — follow-up question suggestions / role lock
-  {first_name}, {actor_context}, {memory_summary} — Gemini Live voice context
-  {type_label}     — message type label
-  {page_text}
-  {angle_instruction}, {context_block}, {source_material}
-  {day}, {tick_number}
-  {display}, {type_label}  — injector
-  {pack_list}, {other}
-  {underlag_text} — extracted underlag body for expert suggestions
-  {candidates_json} {document_text} {truncated} — lagen.nu selector
-  $num_followers, $posts, … — OASIS string.Template variables
-"""
+"""Prompt catalog keys, UI labels and DB-seeded defaults per language."""
 
 from __future__ import annotations
 
 from typing import Literal, TypedDict
+
+from app.services.prompt_render import render_prompt as render_prompt
+
+from app.services.workspace_prompt_defaults import workspace_prompt_fields as voice_workspace_prompt_fields
 
 from app.services.expert_chat_prompts import expert_chat_prompt_fields
 from app.services.research_assessment_prompt import SYSTEM_SV as ASSESSMENT_SYSTEM_SV
@@ -3626,6 +3610,8 @@ PROMPT_FIELDS.extend(
      *expert_chat_prompt_fields(), *workspace_prompt_fields()]
 )
 
+PROMPT_FIELDS.extend(voice_workspace_prompt_fields(_f))
+
 PROMPT_KEYS: tuple[str, ...] = tuple(f["key"] for f in PROMPT_FIELDS)
 PROMPT_KEY_SET: frozenset[str] = frozenset(PROMPT_KEYS)
 
@@ -3656,13 +3642,3 @@ def normalize_prompts(
                 if stripped:
                     base[key] = stripped
     return {k: base[k] for k in PROMPT_KEYS}
-
-
-def render_prompt(prompts: dict[str, str], key: str, **kwargs: object) -> str:
-    text = prompts.get(key)
-    if text is None or not str(text).strip():
-        raise RuntimeError(f"Active configuration is missing prompt '{key}'")
-    try:
-        return str(text).format(**kwargs)
-    except KeyError as exc:
-        raise RuntimeError(f"Prompt '{key}' missing placeholder {exc}") from exc

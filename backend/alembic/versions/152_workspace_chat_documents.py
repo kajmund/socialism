@@ -3,8 +3,8 @@
 import sqlalchemy as sa
 from alembic import op
 
-revision = "151_workspace_chat_documents"
-down_revision = "150_workspace_chat_prompts"
+revision = "152_workspace_chat_documents"
+down_revision = "151_live_voice_workspaces"
 branch_labels = None
 depends_on = None
 

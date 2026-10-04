@@ -11,7 +11,7 @@ from app.services.workspace_chat_prompts import workspace_prompt_fields
 
 @pytest.fixture
 def document_prompt_migration(monkeypatch):
-    path = Path(__file__).parents[1] / "alembic/versions/151_workspace_chat_documents.py"
+    path = Path(__file__).parents[1] / "alembic/versions/152_workspace_chat_documents.py"
     spec = importlib.util.spec_from_file_location("workspace_document_prompt_migration", path)
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)

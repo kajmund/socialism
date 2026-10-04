@@ -6,7 +6,6 @@ import asyncio
 import logging
 import secrets
 from collections.abc import Callable
-from datetime import UTC, datetime
 
 from pydantic import ValidationError
 from sqlalchemy import select, update
@@ -15,10 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.config import settings
 from app.database.models import DdCampaign, Job, PanelSession, Persona, Report, Run, StoredObject
 from app.database.session import SessionLocal
-from app.realtime.hub import job_hub
 from app.schemas.domain import (
     JobCreate,
-    JobOut,
     JobStatus,
     PopulationGenerateJobRequest,
     PopulationGenerateRequest,
@@ -27,6 +24,8 @@ from app.schemas.domain import (
 )
 from app.serializers import utcnow
 from app.services import population_generate as gen
+from app.services.job_events import publish_job
+from app.services.job_events import serialize_job as serialize_job
 from app.services.customer_scope import (
     customer_id_for_new_job,
     customer_id_for_panel_session,
@@ -67,6 +66,12 @@ from app.services.rattsunderlag.run_job import run_rattsunderlag_research_job
 from app.services.rattsunderlag.schemas import RattsunderlagResearchJobRequest
 from app.services.rattsunderlag.sessions import apply_job_status
 from app.services.report_realtime import publish_report
+from app.services.workspace_generation import (
+    WORKSPACE_GENERATION_JOB_KIND,
+    apply_workspace_job_status,
+    run_workspace_generation_job,
+    fail_interrupted_workspace_jobs,
+)
 
 logger = logging.getLogger(__name__)
 _simulation_job_semaphore: asyncio.Semaphore | None = None
@@ -105,39 +110,6 @@ def simulation_job_semaphore() -> asyncio.Semaphore:
         _simulation_job_semaphore = asyncio.Semaphore(limit)
         _simulation_job_semaphore_limit = limit
     return _simulation_job_semaphore
-
-
-def _dt(value: datetime | None) -> str | None:
-    if value is None:
-        return None
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=UTC)
-    return value.isoformat()
-
-
-def serialize_job(job: Job) -> JobOut:
-    return JobOut(
-        id=job.id,
-        customer_id=job.customer_id,
-        kind=job.kind,
-        status=job.status,  # type: ignore[arg-type]
-        label=job.label,
-        request=dict(job.request or {}),
-        result=dict(job.result) if job.result else None,
-        error=job.error,
-        created_at=_dt(job.created_at) or "",
-        started_at=_dt(job.started_at),
-        finished_at=_dt(job.finished_at),
-        archived_at=_dt(job.archived_at),
-        updated_at=_dt(job.updated_at) or "",
-    )
-
-
-async def publish_job(job: Job) -> None:
-    """Push a job.updated event to connected WebSocket clients."""
-    await job_hub.publish(
-        {"type": "job.updated", "job": serialize_job(job).model_dump(mode="json")}
-    )
 
 
 async def create_job(session: AsyncSession, body: JobCreate) -> Job:  # noqa: C901, PLR0912, PLR0915
@@ -273,6 +245,7 @@ async def _mark_job_running(job_id: str) -> str | None:
         if job is None:
             return None
         await _sync_rattsunderlag_session(session, job, "running")
+        await apply_workspace_job_status(session, job, "running")
         await session.commit()
         await publish_job(job)
         return job.kind
@@ -297,6 +270,11 @@ async def _execute_job_kind(job_id: str, kind: str) -> None:
         from app.services.job_research_runner import run_research_job
 
         await run_research_job(job_id, kind)
+    elif kind == WORKSPACE_GENERATION_JOB_KIND:
+        factory = job_session_factory()
+        result = await run_workspace_generation_job(factory, job_id=job_id)
+        async with factory() as session:
+            await _succeed(session, job_id, result)
     else:
         factory = job_session_factory()
         async with factory() as session:
@@ -368,6 +346,7 @@ async def _fail(session: AsyncSession, job_id: str, message: str) -> None:
     job.finished_at = utcnow()
     job.updated_at = utcnow()
     await _sync_rattsunderlag_session(session, job, "failed", error=job.error)
+    await apply_workspace_job_status(session, job, "failed", error=job.error)
     await session.commit()
     await publish_job(job)
     if job.kind == WORD_JOB_KIND:
@@ -384,6 +363,7 @@ async def _succeed(session: AsyncSession, job_id: str, result: dict) -> None:
     job.finished_at = utcnow()
     job.updated_at = utcnow()
     await _sync_rattsunderlag_session(session, job, "succeeded")
+    await apply_workspace_job_status(session, job, "succeeded")
     await session.commit()
     await publish_job(job)
 
@@ -949,7 +929,12 @@ async def archive_finished_jobs(
     return rows
 
 
-async def fail_interrupted_jobs(  # noqa: C901, PLR0912
+async def fail_interrupted_jobs(session: AsyncSession, *, message: str = "Avbrutet av serveromstart") -> int:
+    await fail_interrupted_workspace_jobs(session, message)
+    return await _fail_standard_interrupted_jobs(session, message=message)
+
+
+async def _fail_standard_interrupted_jobs(  # noqa: C901, PLR0912
     session: AsyncSession,
     *,
     message: str = "Avbrutet av serveromstart",
