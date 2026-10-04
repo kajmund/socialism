@@ -619,6 +619,7 @@ export function UnderlagPickerModal({
     (message: string) => setPdfError(message || t("underlag.previewPdfError")),
     [t],
   )
+  const handlePdfReady = useCallback(() => setPdfError(null), [])
   const handleClearDocumentSelection = useCallback(() => {
     setSelectedAnchor(null)
     setFocusAnchors([])
@@ -1052,12 +1053,11 @@ export function UnderlagPickerModal({
                 ) : showPdfPreview && underlagPreview ? (
                   <>
                     <div className="min-h-0 overflow-hidden rounded-md border border-[color:var(--border-hairline)] bg-muted/20">
+                      {pdfError ? (
+                        <p className="px-3 py-3 text-sm text-muted-foreground" role="alert">{pdfError}</p>
+                      ) : null}
                       {pdfLoading ? (
                         <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewPdfLoading")}</p>
-                      ) : pdfError ? (
-                        <p className="px-3 py-3 text-sm text-muted-foreground" role="alert">
-                          {pdfError}
-                        </p>
                       ) : pdfUrl ? (
                         <Suspense
                           fallback={
@@ -1075,11 +1075,12 @@ export function UnderlagPickerModal({
                               setFocusAnchors([anchor])
                             }}
                             onError={handlePdfError}
+                            onReady={handlePdfReady}
                           />
                         </Suspense>
-                      ) : (
+                      ) : !pdfError ? (
                         <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewPdfError")}</p>
-                      )}
+                      ) : null}
                     </div>
                     <DocumentKnowledgePanel
                       file={underlagPreview}

@@ -49,6 +49,8 @@ Direct reads create a whole-document reference (`locator=document`) without fabr
 
 Workspace search retrieves original PDF bytes once per selected source. Q&A discovery keeps its validated original quote and locator for the displayed citation; generated answer text cannot supply highlight coordinates. A failed document ingest can be retried explicitly through `ingest_source` or **Try again** beside the source. The retry queues the normal worker and atomically binds its new job to the same original source.
 
+PDF quote geometry uses visual reading order rather than draw-command order. Matching requires one unique contiguous sequence of whole words, preserves punctuation and applies the existing case and whitespace normalization. An absent, partial-word or repeated quote, or a wrong page, produces no marker. Geometry belongs to the citation anchor identity, so a new search can create a correctly localized reference without rewriting an older citation.
+
 ## Verification
 
 Run backend pytest, frontend lint/tests/build and `make knowledge-validate`. The default test suite mocks provider HTTP and LLM boundaries and makes no ElevenLabs calls. Live acceptance requires configured provider credentials, browser microphone access, and provider permission to create private agents/tools/procedures: run both text and WebRTC voice, switch expert/workspace, interrupt an answer, upload/read a source, show its anchor, create/revise/export a draft and confirm no stale callback affects the new session.
