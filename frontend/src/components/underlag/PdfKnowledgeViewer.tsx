@@ -14,6 +14,7 @@ import type {
 import { useLocale } from "@/i18n"
 import { pdfAnchorKind, pdfAnchorRectangles, pdfPresentationStatus } from "./pdfAnchorPresentation"
 import { pdfSelectionGesture } from "./pdfSelectionGesture"
+import { pdfSelectionText, type PdfSelectionFragment } from "./pdfSelectionText"
 
 GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -99,6 +100,7 @@ export function PdfKnowledgeViewer({
         const wrapper = window.document.createElement("div")
         wrapper.className = "pdf-page relative mx-auto bg-white shadow-sm"
         wrapper.dataset.pageNumber = String(pageNumber)
+        wrapper.dataset.pdfWidth = String(baseViewport.width)
         wrapper.style.width = `${viewport.width}px`
         wrapper.style.height = `${viewport.height}px`
         wrapper.style.setProperty("--total-scale-factor", String(scale * page.userUnit))
@@ -194,10 +196,26 @@ export function PdfKnowledgeViewer({
     const start = closestPage(range.startContainer)
     const end = closestPage(range.endContainer)
     if (!start || start !== end || !root.contains(start)) return
-    const exactText = selection.toString().split(/\s+/).join(" ").trim()
-    if (!exactText) return
     const bounds = start.getBoundingClientRect()
-    const rects: DocumentAnchorRect[] = Array.from(range.getClientRects())
+    const pdfWidth = Number(start.dataset.pdfWidth)
+    if (!(pdfWidth > 0) || !(bounds.width > 0)) return
+    const fragments: PdfSelectionFragment[] = []
+    const selectedRects: DOMRect[] = []
+    const walker = window.document.createTreeWalker(start.querySelector(".textLayer")!, NodeFilter.SHOW_TEXT)
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!range.intersectsNode(node)) continue
+      const part = window.document.createRange()
+      part.selectNodeContents(node)
+      if (range.compareBoundaryPoints(Range.START_TO_START, part) > 0) part.setStart(range.startContainer, range.startOffset)
+      if (range.compareBoundaryPoints(Range.END_TO_END, part) < 0) part.setEnd(range.endContainer, range.endOffset)
+      if (part.collapsed || !part.toString().trim()) continue
+      const position = part.getBoundingClientRect(), scale = pdfWidth / bounds.width
+      fragments.push({ text: part.toString(), x: (position.left - bounds.left) * scale, y: (position.top - bounds.top) * scale, width: position.width * scale })
+      selectedRects.push(...Array.from(part.getClientRects()))
+    }
+    const exactText = pdfSelectionText(fragments)
+    if (!exactText) return
+    const rects: DocumentAnchorRect[] = selectedRects
       .filter((rect) => rect.width > 0 && rect.height > 0)
       .flatMap((rect) => {
         const x = clamp((rect.left - bounds.left) / bounds.width), right = clamp((rect.right - bounds.left) / bounds.width)

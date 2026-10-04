@@ -66,6 +66,8 @@ export const sv = {
     "loadError": "Arbetsytan kunde inte laddas.",
     "operationError": "Åtgärden kunde inte utföras.",
     "presentationError": "Källan kunde inte visas eller markeras.",
+    "selectionUnverified": "Markeringen kunde inte kopplas till originaltexten. Markera texten igen.",
+    "sourceExcerptUnverified": "Källhänvisningens text kunde inte verifieras i originalet.",
     "anchorPositionRequired": "Dokumentet kan visas, men källavsnittet saknar en exakt position att markera. Sök fram avsnittet i evidensen först.",
     "retry": "Försök igen",
     "retrySource": "Bearbeta {name} igen",

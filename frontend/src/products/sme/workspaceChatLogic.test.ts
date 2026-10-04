@@ -20,8 +20,16 @@ describe("workspace conversation state", () => {
     const translate = (key: string) => key
     expect(workspaceErrorMessage(new ApiError("elevenlabs_voice_unavailable", { status: 503 }), translate, "voiceWorkspaceChat.sessionError")).toBe("voiceWorkspaceChat.sessionError")
     expect(workspaceErrorMessage(new ApiError("workspace_reference_stale", { status: 409 }), translate)).toBe("voiceWorkspaceChat.stale")
+    expect(workspaceErrorMessage(new ApiError("workspace_source_changed_during_search", { status: 409 }), translate)).toBe("voiceWorkspaceChat.stale")
     expect(workspaceErrorMessage(new ApiError("workspace_revision_conflict", { status: 409 }), translate)).toBe("voiceWorkspaceChat.conflict")
     expect(workspaceErrorMessage(new ApiError("private_document_requires_workspace", { status: 409 }), translate)).toBe("voiceWorkspaceChat.privateDocumentScope")
+  })
+  it("distinguishes unverified passages and source bindings from a changed source version", () => {
+    const translate = (key: string) => key
+    expect(workspaceErrorMessage(new ApiError("selection_anchor_stale", { status: 409 }), translate)).toBe("voiceWorkspaceChat.selectionUnverified")
+    expect(workspaceErrorMessage(new ApiError("source_excerpt_stale", { status: 409 }), translate)).toBe("voiceWorkspaceChat.sourceExcerptUnverified")
+    expect(workspaceErrorMessage(new ApiError("document_anchor_source_conflict", { status: 409 }), translate)).toBe("voiceWorkspaceChat.presentationError")
+    expect(workspaceErrorMessage(new ApiError("unrecognized_stale_error", { status: 503 }), translate)).toBe("voiceWorkspaceChat.operationError")
   })
   it("isolates drafts for the same expert in different workspaces", () => {
     expect(workspaceThreadKey("workspace-a", "expert", "same-expert")).not.toBe(workspaceThreadKey("workspace-b", "expert", "same-expert"))
