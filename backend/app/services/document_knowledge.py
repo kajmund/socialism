@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import secrets
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -38,6 +37,7 @@ from app.services.knowledge import (
 )
 from app.services.knowledge.supabase_provider import supabase_external_id
 from app.services.knowledge.units import TextUnit
+from app.services.pdf_quote_anchors import quote_rects as _quote_rects
 from app.services.prompt_store import render_prompt
 from app.services.research.composition import require_knowledge_vector_store
 from app.services.underlag_schemas import (
@@ -493,70 +493,6 @@ def _accepted_generated_items(
         if pdf is not None:
             pdf.close()
     return out
-
-
-def _quote_rects(
-    pdf: pdfplumber.PDF,
-    page_number: int,
-    quote: str,
-) -> list[dict[str, float]]:
-    if page_number < 1 or page_number > len(pdf.pages):
-        return []
-    page = pdf.pages[page_number - 1]
-    words = page.extract_words(use_text_flow=True, keep_blank_chars=False)
-    quote_tokens = _word_tokens(quote)
-    if not quote_tokens:
-        return []
-    tokens: list[str] = []
-    token_words: list[int] = []
-    for index, word in enumerate(words):
-        for token in _word_tokens(str(word.get("text") or "")):
-            tokens.append(token)
-            token_words.append(index)
-    start = _subsequence_start(tokens, quote_tokens)
-    if start is None:
-        return []
-    selected = words[token_words[start] : token_words[start + len(quote_tokens) - 1] + 1]
-    if not selected or not page.width or not page.height:
-        return []
-    lines: list[list[dict]] = []
-    for word in selected:
-        top = float(word["top"])
-        line = next(
-            (group for group in lines if abs(float(group[0]["top"]) - top) <= 3.0),
-            None,
-        )
-        if line is None:
-            line = []
-            lines.append(line)
-        line.append(word)
-    rects: list[dict[str, float]] = []
-    for line in lines:
-        x0 = min(float(word["x0"]) for word in line)
-        x1 = max(float(word["x1"]) for word in line)
-        top = min(float(word["top"]) for word in line)
-        bottom = max(float(word["bottom"]) for word in line)
-        rects.append(
-            {
-                "x": max(0.0, min(1.0, x0 / float(page.width))),
-                "y": max(0.0, min(1.0, top / float(page.height))),
-                "width": max(0.0001, min(1.0, (x1 - x0) / float(page.width))),
-                "height": max(0.0001, min(1.0, (bottom - top) / float(page.height))),
-            }
-        )
-    return rects
-
-
-def _subsequence_start(values: Sequence[str], needle: Sequence[str]) -> int | None:
-    width = len(needle)
-    for index in range(len(values) - width + 1):
-        if list(values[index : index + width]) == list(needle):
-            return index
-    return None
-
-
-def _word_tokens(text: str) -> list[str]:
-    return re.findall(r"\w+", text.casefold(), flags=re.UNICODE)
 
 
 def _normalized(text: str) -> str:

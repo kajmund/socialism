@@ -12,7 +12,7 @@ import type {
   DocumentAnchorRect,
 } from "@/api/underlag"
 import { useLocale } from "@/i18n"
-import { pdfAnchorKind, pdfPresentationStatus } from "./pdfAnchorPresentation"
+import { pdfAnchorKind, pdfAnchorRectangles, pdfPresentationStatus } from "./pdfAnchorPresentation"
 
 GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -152,7 +152,7 @@ export function PdfKnowledgeViewer({
         `[data-page-number="${anchor.page_number}"]`,
       )
       if (!page) continue
-      const rectangles = anchor.rects.length ? anchor.rects : textRectangles(page, anchor.exact_text)
+      const rectangles = pdfAnchorRectangles(anchor)
       if (rectangles.length > 0) matchedAnchors += 1
       for (const rect of rectangles) {
         const marker = window.document.createElement("div")
@@ -195,12 +195,11 @@ export function PdfKnowledgeViewer({
     const bounds = start.getBoundingClientRect()
     const rects: DocumentAnchorRect[] = Array.from(range.getClientRects())
       .filter((rect) => rect.width > 0 && rect.height > 0)
-      .map((rect) => ({
-        x: clamp((rect.left - bounds.left) / bounds.width),
-        y: clamp((rect.top - bounds.top) / bounds.height),
-        width: clamp(rect.width / bounds.width, 0.0001),
-        height: clamp(rect.height / bounds.height, 0.0001),
-      }))
+      .flatMap((rect) => {
+        const x = clamp((rect.left - bounds.left) / bounds.width), right = clamp((rect.right - bounds.left) / bounds.width)
+        const y = clamp((rect.top - bounds.top) / bounds.height), bottom = clamp((rect.bottom - bounds.top) / bounds.height)
+        return right > x && bottom > y ? [{ x, y, width: right - x, height: bottom - y }] : []
+      })
     const pageNumber = Number(start.dataset.pageNumber)
     if (!Number.isInteger(pageNumber) || pageNumber < 1 || rects.length === 0) return
     onSelection({
@@ -226,40 +225,11 @@ export function PdfKnowledgeViewer({
   )
 }
 
-function textRectangles(page: HTMLElement, exactText: string | null): DocumentAnchorRect[] {
-  if (!exactText) return []
-  const spans = Array.from(page.querySelectorAll<HTMLElement>(".textLayer span"))
-  const normalized = (text: string) => text.replace(/\s+/g, " ").trim()
-  const needle = normalized(exactText)
-  const text = spans.map((span) => normalized(span.textContent ?? "")).join(" ")
-  const start = text.indexOf(needle)
-  if (start < 0) return []
-  const end = start + needle.length, bounds = page.getBoundingClientRect()
-  let offset = 0
-  return spans.flatMap((span) => {
-    const raw = span.textContent ?? "", length = normalized(raw).length
-    const localStart = Math.max(0, start - offset), localEnd = Math.min(length, end - offset)
-    offset += length + 1
-    if (localStart >= localEnd || !span.firstChild || span.firstChild.nodeType !== Node.TEXT_NODE) return []
-    const positions: number[] = []
-    let gap = false
-    for (let i = 0; i < raw.length; i += 1) {
-      if (/\s/.test(raw[i])) { gap = true; continue }
-      if (gap && positions.length) positions.push(i - 1)
-      positions.push(i); gap = false
-    }
-    const range = window.document.createRange()
-    range.setStart(span.firstChild, positions[localStart])
-    range.setEnd(span.firstChild, positions[localEnd - 1] + 1)
-    return Array.from(range.getClientRects()).map((rect) => ({ x: clamp((rect.left - bounds.left) / bounds.width), y: clamp((rect.top - bounds.top) / bounds.height), width: clamp(rect.width / bounds.width), height: clamp(rect.height / bounds.height) }))
-  })
-}
-
 function closestPage(node: Node): HTMLElement | null {
   const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement
   return element?.closest<HTMLElement>("[data-page-number]") ?? null
 }
 
-function clamp(value: number, minimum = 0): number {
-  return Math.max(minimum, Math.min(1, value))
+function clamp(value: number): number {
+  return Math.max(0, Math.min(1, value))
 }

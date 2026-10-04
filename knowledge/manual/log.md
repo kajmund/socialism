@@ -2,7 +2,7 @@
 
 ## 2026-10-04
 
-* **Dokumentvisning**: En PDF kan öppnas även när hänvisningen gäller hela dokumentet. Exakta passager måste kunna lokaliseras innan en markering bekräftas; dokumentet ligger kvar vid markeringsfel.
+* **Dokumentvisning**: En PDF kan öppnas även när hänvisningen gäller hela dokumentet. Citat följer läsordningen på sidan och måste kunna lokaliseras entydigt innan en markering bekräftas; dokumentet ligger kvar vid markeringsfel. En ny evidenssökning kan ge markeringspositioner till ett äldre citat.
 * **Underlag**: **Försök igen** återupptar en misslyckad bearbetning av samma uppladdade original, till exempel efter en serveromstart.
 
 * **SME**: Expertchatten har en sparad arbetsyta för text och live voice. Där kan användaren ladda upp källor, öppna dokumentankare, jämföra uppgifter, visa relationsgrafer och skapa dokumentutkast med versionshistorik och Word/PDF-export. Bakgrundsjobb fortsätter efter avslutat röstsamtal. Rösttjänsten kräver ElevenLabs-konfiguration.
