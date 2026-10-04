@@ -6,6 +6,7 @@ import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
 
 const SOURCE_KEYS: Record<string, MessageKey> = {
+  workspace_chat: "experts.memory.sourceWorkspaceChat",
   persona_chat: "experts.memory.sourcePersonaChat",
   panel_chat: "experts.memory.sourcePanelChat",
   intent_interview: "experts.memory.sourceIntent",

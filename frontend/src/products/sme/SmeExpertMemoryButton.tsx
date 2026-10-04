@@ -15,9 +15,11 @@ import { ApiError } from "@/lib/api"
 export function SmeExpertMemoryButton({
   personaId,
   name,
+  parentWorkspaceId,
 }: {
   personaId: string
   name: string
+  parentWorkspaceId?: string
 }) {
   const { intl, t } = useLocale()
   const [open, setOpen] = useState(false)
@@ -30,7 +32,7 @@ export function SmeExpertMemoryButton({
     setLoading(true)
     setError(null)
     try {
-      const listed = await listPersonaMemories(personaId)
+      const listed = await listPersonaMemories(personaId, parentWorkspaceId)
       setMemories(listed.memories)
     } catch (err) {
       setError(
@@ -71,20 +73,20 @@ export function SmeExpertMemoryButton({
         error={error}
         formatWhen={formatWhen}
         onSave={async (row, text) => {
-          const updated = await updatePersonaMemory(personaId, row.id, text)
+          const updated = await updatePersonaMemory(personaId, row.id, text, parentWorkspaceId)
           setMemories((current) =>
             current.map((item) => (item.id === row.id ? updated : item)),
           )
           return updated
         }}
         onDelete={async (row) => {
-          await deletePersonaMemory(personaId, row.id)
+          await deletePersonaMemory(personaId, row.id, parentWorkspaceId)
           setMemories((current) =>
             current.filter((item) => item.id !== row.id),
           )
         }}
         onClearAll={async () => {
-          await clearPersonaMemories(personaId)
+          await clearPersonaMemories(personaId, parentWorkspaceId)
           setMemories([])
         }}
         onClose={() => setOpen(false)}

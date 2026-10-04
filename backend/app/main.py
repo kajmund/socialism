@@ -31,6 +31,10 @@ from app.api import (
     underlag,
     workspace_chats,
     users,
+    voice_workspaces,
+    voice_workspace_inbox,
+    workspace_exports,
+    workspace_conversations,
     workspaces,
     ws,
 )
@@ -174,6 +178,10 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(sme.router)
     app.include_router(sme_ws.router)
+    app.include_router(voice_workspaces.router)
+    app.include_router(voice_workspace_inbox.router)
+    app.include_router(workspace_exports.router)
+    app.include_router(workspace_conversations.router)
     app.include_router(embeddings.router)
     app.include_router(expert_memory.router)
     app.include_router(llm_settings.router)

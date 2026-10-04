@@ -10,7 +10,7 @@ from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, 
 from app.database.workspaces import WorkspaceChat, WorkspaceChatMessage
 from app.schemas.workspace_chat import WorkspaceResearchRequest
 from app.serializers import utcnow
-from app.services.workspace_chats import list_chat_files
+from app.services.workspace_chats import list_chat_files, require_chat
 from app.services.workspaces import resolve_readable_workspace_ids
 
 JOB_KIND = "workspace_research"
@@ -56,12 +56,13 @@ async def document_manifest(
     ]
 
 
-async def queue_workspace_research(
+async def prepare_workspace_research(
     session: AsyncSession,
     user: UserAccount,
     chat: WorkspaceChat,
     body: WorkspaceResearchRequest,
 ) -> Job:
+    chat = await require_chat(session, user, chat.id, chat.customer_id)
     question = body.question.strip()
     if not question:
         raise HTTPException(status_code=422, detail="research_question_required")
@@ -95,6 +96,16 @@ async def queue_workspace_research(
     session.add(job)
     await session.flush()
     session.add(WorkspaceChatMessage(chat_id=chat.id, role="user", content=question, job_id=job.id))
+    return job
+
+
+async def queue_workspace_research(
+    session: AsyncSession,
+    user: UserAccount,
+    chat: WorkspaceChat,
+    body: WorkspaceResearchRequest,
+) -> Job:
+    job = await prepare_workspace_research(session, user, chat, body)
     await session.commit()
     from app.services.jobs import enqueue_job
 
