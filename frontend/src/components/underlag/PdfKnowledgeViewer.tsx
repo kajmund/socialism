@@ -12,6 +12,7 @@ import type {
   DocumentAnchorRect,
 } from "@/api/underlag"
 import { useLocale } from "@/i18n"
+import { pdfAnchorKind, pdfPresentationStatus } from "./pdfAnchorPresentation"
 
 GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -25,6 +26,7 @@ export function PdfKnowledgeViewer({
   zoom = 1,
   onReady,
   onPageCount,
+  presentationRevision,
 }: {
   url: string
   focusAnchors: DocumentKnowledgeAnchor[]
@@ -35,6 +37,7 @@ export function PdfKnowledgeViewer({
   zoom?: number
   onReady?: () => void
   onPageCount?: (count: number) => void
+  presentationRevision?: number
 }) {
   const { t } = useLocale()
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -141,13 +144,15 @@ export function PdfKnowledgeViewer({
     if (!root) return
     root.querySelectorAll("[data-document-anchor-highlight]").forEach((node) => node.remove())
     let firstMarker: HTMLElement | null = null
+    let matchedAnchors = 0
     for (const anchor of focusAnchors) {
-      if (!anchor.page_number) continue
+      if (pdfAnchorKind(anchor) !== "page") continue
       const page = root.querySelector<HTMLElement>(
         `[data-page-number="${anchor.page_number}"]`,
       )
       if (!page) continue
       const rectangles = anchor.rects.length ? anchor.rects : textRectangles(page, anchor.exact_text)
+      if (rectangles.length > 0) matchedAnchors += 1
       for (const rect of rectangles) {
         const marker = window.document.createElement("div")
         marker.dataset.documentAnchorHighlight = "true"
@@ -161,11 +166,10 @@ export function PdfKnowledgeViewer({
       }
     }
     firstMarker?.scrollIntoView({ behavior: "smooth", block: "center" })
-    if (rendered > 0 && root.dataset.renderComplete === "true") {
-      if (focusAnchors.length > 0 && !firstMarker) onError(t("voiceWorkspaceChat.presentationError"))
-      else onReady?.()
-    }
-  }, [focusAnchors, onError, onReady, rendered, t])
+    const status = pdfPresentationStatus(focusAnchors, rendered > 0 && root.dataset.renderComplete === "true", matchedAnchors)
+    if (status === "anchor_missing") onError(t("voiceWorkspaceChat.presentationError"))
+    else if (status === "ready") onReady?.()
+  }, [focusAnchors, onError, onReady, presentationRevision, rendered, t])
 
   useEffect(() => {
     if (selectionActive) return
