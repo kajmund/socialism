@@ -86,6 +86,7 @@ export const en: LocalizedTree<SvMessages> = {
     "sourceCount": "{count} sources",
     "artifactCount": "{count} results",
     "referenceUnavailable": "The source reference is not in this workspace.",
+    "privateDocumentScope": "Select Workspace to read private company or client documents.",
     "noExperts": "No experts are available.",
     "uploading": "Uploading…",
     "processing": "Processing",
