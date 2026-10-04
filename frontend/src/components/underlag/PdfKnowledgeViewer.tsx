@@ -87,6 +87,7 @@ export function PdfKnowledgeViewer({
       for (let pageNumber = first; pageNumber <= last; pageNumber += 1) {
         if (cancelled) return
         const page = await pdf.getPage(pageNumber)
+        if (cancelled) return
         const baseViewport = page.getViewport({ scale: 1 })
         const available = Math.max(240, width - 32)
         const scale = Math.min(2, available / baseViewport.width) * zoom
