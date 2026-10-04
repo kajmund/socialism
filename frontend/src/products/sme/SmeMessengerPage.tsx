@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
+  getSuggestedQuestions,
+  listPersonaMessages,
   type PersonaMessage,
 } from "@/api/personas"
 import {
@@ -43,16 +45,16 @@ function errorMessage(error: unknown, fallback: string): string {
 export function SmeMessengerPage() {
   const { locale, setLocale, t } = useLocale()
   const [filter, setFilter] = useState<SmeInboxFilter>("all")
-  const [workspaceMode, setWorkspaceMode] = useState(true)
+  const [workspaceMode, setWorkspaceMode] = useState(false)
   const [inbox, setInbox] = useState<SmeInboxItem[]>([])
   const [selected, setSelected] = useState<SmeInboxItem | null>(null)
   const [messages, setMessages] = useState<SmeMessage[]>([])
-  const [, setSuggestions] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<string[]>([])
   const [search, setSearch] = useState("")
   const [loadingInbox, setLoadingInbox] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [pendingThreads, setPendingThreads] = useState<Set<string>>(new Set())
-  const [, setStreamByThread] = useState<Record<string, string>>(
+  const [streamByThread, setStreamByThread] = useState<Record<string, string>>(
     {},
   )
   const [inboxError, setInboxError] = useState<string | null>(null)
@@ -139,10 +141,9 @@ export function SmeMessengerPage() {
   }, [filter, loadInbox])
 
   useEffect(() => {
-    if (!selected || selected.thread_type === "expert") {
+    if (!selected) {
       setMessages([])
       setSuggestions([])
-      setLoadingMessages(false)
       return
     }
     let cancelled = false
@@ -150,7 +151,20 @@ export function SmeMessengerPage() {
     setLoadingMessages(true)
     setChatError(null)
     setSuggestions([])
-    const request = listSmePanelMessages(selected.thread_id)
+    const request =
+      selected.thread_type === "expert"
+        ? listPersonaMessages(selected.thread_id, "interview").then((rows) =>
+            rows.map<SmeMessage>((row) => ({
+              id: row.id,
+              role: row.role,
+              content: row.content,
+              created_at: row.created_at,
+              persona_id: row.role === "assistant" ? selected.thread_id : null,
+              persona_name: null,
+              image_sha256: row.image_sha256,
+            })),
+          )
+        : listSmePanelMessages(selected.thread_id)
     request
       .then((rows) => {
         if (!cancelled) setMessages(latestChatMessages(rows))
@@ -161,6 +175,17 @@ export function SmeMessengerPage() {
       .finally(() => {
         if (!cancelled) setLoadingMessages(false)
       })
+    if (selected.thread_type === "expert") {
+      void getSuggestedQuestions(selected.thread_id, "interview", {
+        signal: abort.signal,
+      })
+        .then((response) => {
+          if (!cancelled) setSuggestions(response.questions)
+        })
+        .catch(() => {
+          if (!cancelled) setSuggestions([])
+        })
+    }
     void markSmeThreadRead(selected.thread_type, selected.thread_id)
       .then(() => {
         if (!cancelled) {
@@ -529,20 +554,37 @@ export function SmeMessengerPage() {
             onOpenExpertEditor={openExpertEditor}
           />
         </div>
-        {selected?.thread_type === "expert" ? <WorkspaceChatPanel key={selected.thread_id} personaId={selected.thread_id} personaName={selected.name} onBack={() => setSelected(null)} /> : <SmeChatPane
+        <SmeChatPane
           thread={selected}
           messages={messages}
           loading={loadingMessages}
           sending={selectedPending}
-          typing={selectedPending}
-          streamText={null}
+          typing={
+            selectedPending &&
+            !(
+              selected?.thread_type === "expert" &&
+              streamByThread[selected.thread_id]
+            )
+          }
+          streamText={
+            selected?.thread_type === "expert"
+              ? streamByThread[selected.thread_id] ?? null
+              : null
+          }
           error={chatError}
-          ready
-          suggestions={[]}
+          ready={
+            selected?.thread_type === "expert" ? expertSocket.ready : true
+          }
+          suggestions={suggestions}
           onSend={send}
           onBack={() => setSelected(null)}
+          onOpenExpertEditor={
+            selected?.thread_type === "expert"
+              ? () => openExpertEditor(selected)
+              : undefined
+          }
           onVoiceTranscript={appendVoiceTranscript}
-        />}
+        />
         </>}
       </main>
       {expertEditor ? (

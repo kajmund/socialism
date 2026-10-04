@@ -250,7 +250,7 @@ function Editor({
   const { intl } = useLocale()
   const [mode, setMode] = useState<"work" | "present">("work")
   const [icMode, setIcMode] = useState<ChatMode>("interview")
-  const [workspaceChatOpen, setWorkspaceChatOpen] = useState(kind === "expert")
+  const [workspaceChatOpen, setWorkspaceChatOpen] = useState(false)
   const [layersOpen, setLayersOpen] = useState(true)
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -939,7 +939,7 @@ function Editor({
                 {kind === "expert" && personaId ? <button type="button" className={workspaceChatOpen ? "on" : ""} onClick={() => setWorkspaceChatOpen(true)}>{t("workspaceChat.title")}</button> : null}
               </div>
             </div>
-            <div className="chat-top-actions">
+            {!workspaceChatOpen ? <div className="chat-top-actions">
               {showMemoryUi ? (
                 <AdminButton
                   variant="secondary"
@@ -967,7 +967,7 @@ function Editor({
               >
                 ↻ {t("personas.composer.regenerateAnswer")}
               </AdminButton>
-            </div>
+            </div> : null}
           </div>
           {workspaceChatOpen && kind === "expert" && personaId ? <WorkspaceChatPanel key={personaId} personaId={personaId} personaName={persona.name} /> : <MessengerChat
             messages={messages}

@@ -9,6 +9,8 @@ tags: [grunddata, jobb, personas]
 
 Öppna **Workspace-chatt** i SME-chatten eller i chatten med en sparad expert. Företagets workspace används när du inte har valt något annat. Där samlar du företagets egna policies, mallar och gemensamma kunskap.
 
+**Expertchattar** behåller telefonen, minnet, verktygsvalet, bildbilagorna och följdfrågorna. I expertens redigeringsvy finns det vanliga samtalet under **Intervju**. Välj **Workspace-chatt** när du vill arbeta med dokument och research i företagets eller en klients workspace.
+
 ## Välj workspace och konversation
 
 Välj workspace i chattens överkant. **Nytt klientworkspace** skapar ett separat workspace för en klient. Ange klientens namn och välj **Skapa**.
@@ -37,6 +39,8 @@ Tryck på researchikonen vid meddelandefältet. En dialog öppnas med det aktuel
 Skriv frågan och kontrollera dokumentvalet. Dokument som fortfarande bearbetas eller har misslyckats hindrar starten om de är valda. Vänta tills de är klara eller välj uttryckligen bort dem. Välj **Starta research** för att starta ett bakgrundsjobb.
 
 Du kan också be om research i ett chattmeddelande. Chattens researchverktyg använder samma workspace och samma regler för källor och åtkomst.
+
+Du kan fråga om en befintlig fil direkt, till exempel **Läs kvittot och sammanfatta uppgifterna**. Chatten känner till filerna i workspacet och använder det relevanta dokumentet som underlag. Du behöver inte ladda upp en klar fil igen eller skriva ordet research. Andra filer som fortfarande bearbetas hindrar inte en fråga om det valda, klara dokumentet.
 
 ## Följ arbetet och läs källorna
 
