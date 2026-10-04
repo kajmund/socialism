@@ -33,6 +33,9 @@ async def test_active_database_transport_prompt_applies_to_native_and_expert_too
         assert schema["type"] == "object"
         if config["name"] == "expert_tool":
             assert "search_duckduckgo" in schema["properties"]["name"]["enum"]
+        if config["name"] == "focus_anchor":
+            assert schema["required"] == ["reference_id"]
+            assert set(schema["properties"]) == {"reference_id"}
 
 
 def test_native_transport_rejects_missing_database_prompt():

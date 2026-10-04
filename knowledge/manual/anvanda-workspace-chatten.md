@@ -34,6 +34,8 @@ I expertens redigeringsvy trycker du på filikonen i **Workspace-chatt**. Där k
 
 I SME visas underlagen och deras status ovanför chatten. Vänta på **Klart** innan du ber experten analysera filen. I biblioteket märks företagets underlag **Företagets gemensamma underlag** när du arbetar i ett klientworkspace.
 
+Om bearbetningen har misslyckats kan du välja **Försök igen** vid filen. Samma uppladdade original bearbetas på nytt; du behöver inte ladda upp det igen.
+
 ## Ställ en researchfråga
 
 I SME väljer du **Starta research** i arbetsytans övre rad. I expertens redigeringsvy trycker du på researchikonen vid meddelandefältet. En dialog öppnas med det aktuella workspacet, ett fält för researchfrågan och dokument som du kan välja som underlag.
@@ -51,3 +53,5 @@ I SME följer du research i arbetsytans researchrad och öppnar statusen för at
 Källorna visas vid researchresultatet. En dokumentkälla öppnar den citerade originalpassagen i den dokumentversion som användes. En global webbkällas länk öppnar källan i en ny flik.
 
 Dokumentets genererade frågor och svar hjälper research att hitta relevanta avsnitt. Källhänvisningen går till originalpassagen som stöder uppgiften.
+
+Du kan öppna hela PDF:en utan att markera ett särskilt avsnitt. En markering kräver en källhänvisning som pekar ut den exakta passagen. Om passagen inte kan lokaliseras visas ett fel, och PDF:en ligger kvar så att du kan läsa den. Sök fram avsnittet på fliken **Evidens** och öppna dess källhänvisning.

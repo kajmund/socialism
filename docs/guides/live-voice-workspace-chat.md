@@ -45,6 +45,10 @@ Generation uses persisted `workspace_generation` jobs and immutable artifact rev
 
 Client tools acknowledge presentation only after the requested view/anchor is rendered. Background completion is sent as a contextual update, never a synthetic user utterance. Ending a voice connection does not cancel generation or delete its workspace.
 
+Direct reads create a whole-document reference (`locator=document`) without fabricated page coordinates. PDF display accepts that reference after rendering, while `focus_anchor` requires a localized passage reference and a visible matching marker. An anchor failure leaves the rendered document available and is returned to the native tool caller. Reopening an already displayed source revalidates its presentation for the new workspace revision.
+
+Workspace search retrieves original PDF bytes once per selected source. Q&A discovery keeps its validated original quote and locator for the displayed citation; generated answer text cannot supply highlight coordinates. A failed document ingest can be retried explicitly through `ingest_source` or **Try again** beside the source. The retry queues the normal worker and atomically binds its new job to the same original source.
+
 ## Verification
 
 Run backend pytest, frontend lint/tests/build and `make knowledge-validate`. The default test suite mocks provider HTTP and LLM boundaries and makes no ElevenLabs calls. Live acceptance requires configured provider credentials, browser microphone access, and provider permission to create private agents/tools/procedures: run both text and WebRTC voice, switch expert/workspace, interrupt an answer, upload/read a source, show its anchor, create/revise/export a draft and confirm no stale callback affects the new session.
