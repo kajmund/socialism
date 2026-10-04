@@ -148,7 +148,11 @@ async def cleanup_deployment(client: ElevenLabsAgentsClient, deployment: dict) -
     resources.extend(("tools", identifier) for identifier in deployment.get("tool_ids", {}).values())
     for category, identifier in resources:
         try:
-            await client.request("DELETE", f"/v1/convai/{category}/{identifier}")
+            # Deleting an agent retains branch/version tool dependencies.
+            # These IDs belong only to this unused deployment, so remove them
+            # explicitly from those retained dependencies as well.
+            await client.request("DELETE", f"/v1/convai/{category}/{identifier}",
+                                 params={"force": True} if category == "tools" else None)
         except ElevenLabsError:
             failed = True
     if failed:
