@@ -2,6 +2,7 @@
 
 ## 2026-10-04
 
+* **PDF-markeringar**: Giltiga markeringar av flera rader och delar av ord avvisas inte på grund av skillnader i hur mellanrum läses. Markeringen kontrolleras mot originalets tecken på de valda positionerna.
 * **PDF med flera kolumner**: Egna markeringar verifieras mot originalets text på de markerade positionerna. Giltiga markeringar inom en kolumn kan sparas utan att andra kolumners text stör kontrollen.
 * **PDF-markeringar och felmeddelanden**: Markerad text följer dokumentets läsordning med mellanrum mellan orden. Verifieringsfel för en markering skiljs från en ändrad källa, och tidigare fel försvinner efter en lyckad åtgärd.
 * **PDF-markeringar**: Ett vanligt klick i dokumentet tar bort den aktiva markeringen. Dra över texten för att markera ett nytt avsnitt.
