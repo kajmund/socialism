@@ -1,14 +1,28 @@
 """Source-bound generation and durable research entry points."""
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database.models import UserAccount
+from app.database.models import DocumentVersionRecord, UserAccount
 from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifact, WorkspaceOperation
 from app.schemas.workspace import WorkspaceState
-from app.services.workspace.service import artifact_out, new_id, require_expert, require_source
+from app.services.workspace.service import artifact_out, new_id, require_expert, require_reference, require_source
 from app.services.workspace.sources import citation, read_reference, source_version
 from app.services.workspace.tool_arguments import ResearchArguments
 
-async def source_context(session: AsyncSession, workspace: VoiceWorkspace, source_refs: list[str], source_ids: list[str]) -> list[dict]:
+async def require_shared_reference(session: AsyncSession, workspace: VoiceWorkspace, reference_id: str) -> None:
+    ref = await require_reference(session, workspace, reference_id)
+    version = await session.get(DocumentVersionRecord, ref.source_id) if ref.kind == "graph" else None
+    if version is None or version.scope_key != "shared":
+        raise HTTPException(status_code=409, detail="private_document_requires_workspace")
+    await read_reference(session, workspace, reference_id)
+
+
+def artifact_source_refs(content: dict) -> list[str]:
+    return list({ref for block in content.get("blocks", []) for ref in block.get("source_refs", [])})
+
+
+async def source_context(session: AsyncSession, workspace: VoiceWorkspace, source_refs: list[str], source_ids: list[str],
+                         *, shared_only: bool = False) -> list[dict]:
+    await require_source_scope(session, workspace, source_refs, source_ids, shared_only=shared_only)
     refs = list(source_refs)
     for source_id in source_ids:
         source = await require_source(session, workspace, source_id)
@@ -27,6 +41,17 @@ async def source_context(session: AsyncSession, workspace: VoiceWorkspace, sourc
             raise HTTPException(status_code=409, detail="workspace_reference_stale")
         result.append({key: value[key] for key in ("reference_id", "number", "source_id", "source_version", "anchor", "snapshot")})
     return result
+
+
+async def require_source_scope(session: AsyncSession, workspace: VoiceWorkspace, source_refs: list[str], source_ids: list[str],
+                               *, shared_only: bool) -> None:
+    if not shared_only:
+        return
+    if source_ids:
+        await require_source(session, workspace, source_ids[0])
+        raise HTTPException(status_code=409, detail="private_document_requires_workspace")
+    for reference_id in dict.fromkeys(source_refs):
+        await require_shared_reference(session, workspace, reference_id)
 
 
 async def queue_generation(session: AsyncSession, workspace: VoiceWorkspace, user: UserAccount, operation: WorkspaceOperation,
