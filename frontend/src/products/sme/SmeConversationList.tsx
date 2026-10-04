@@ -101,7 +101,7 @@ export function SmeConversationList({
       <DialogContent showCloseButton={false} style={{ minHeight: 0 }} className="theme-admin flex h-[min(85dvh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[420px]">
         <DialogHeader className="flex-row items-center border-b px-4 py-3">
           <div className="min-w-0 flex-1"><DialogTitle>{t("sme.chats")}</DialogTitle>{scopeLabel ? <DialogDescription className="mt-1 truncate">{t("sme.inboxScope", { name: scopeLabel })}</DialogDescription> : null}</div>
-          <DialogClose render={<AdminButton variant="secondary" size="sm">{null}</AdminButton>}>{t("common.close")}</DialogClose>
+          <DialogClose render={<AdminButton variant="secondary" size="sm" aria-label={t("common.close")}>{t("common.close")}</AdminButton>}>{t("common.close")}</DialogClose>
         </DialogHeader>
         <SmeConversationList filter={filter} items={items} selected={selected} search={search} loading={loading} error={error} onFilterChange={onFilterChange} onSearchChange={onSearchChange} onSelect={(item) => { onSelect(item); setInboxOpen(false) }} onOpenExpertEditor={(item) => { setInboxOpen(false); onOpenExpertEditor(item) }} />
       </DialogContent>

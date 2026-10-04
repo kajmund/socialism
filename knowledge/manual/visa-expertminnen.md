@@ -23,10 +23,9 @@ Minnen sparas på samma språk som källan. Svenska samtal ger svenska minnen.
 
 ## I expertchatten
 
-När du pratar med en expert:
+I SME-chatten öppnar **Minnen** i chattens topp loggen för den valda experten i företagets eller klientens workspace som visas. Läsning, redigering, borttagning och **Rensa alla** gäller endast dessa minnen. Andra klienters workspace-minnen ingår inte. Byt workspace om du vill se expertens minnen för en annan klient.
 
-- **Minnen** i chattens topp öppnar samma logg för just den experten. Där kan du redigera eller ta bort enskilda minnen, eller **Rensa alla** för den experten.
-- Efter ett svar kan en liten rad under tråden visa om något sparades, till exempel *Sparat i minnet: …*. Om inget nytt faktum extraherades står det att inget nytt sparades.
+I expertens redigeringsvy öppnar **Minnen** expertens vanliga minneslogg. Den är skild från de privata workspace-minnena. Där kan du redigera eller ta bort enskilda minnen, eller **Rensa alla** i den loggen. Efter ett intervjusvar kan en liten rad under tråden visa om något sparades, till exempel *Sparat i minnet: …*. Om inget nytt faktum extraherades står det att inget nytt sparades.
 
 Rensar du chatten försvinner inte långtidsminnet. Det ligger kvar tills det skrivs över av ny, likvärdig information (till exempel Word-fynd för samma dokument).
 
