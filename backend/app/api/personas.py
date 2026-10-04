@@ -73,19 +73,12 @@ from app.serializers import (
 )
 from app.services.avatar_images import MAX_AVATAR_BYTES, normalize_avatar_image
 from app.services.dd.default_experts import ensure_default_expert_personas
-from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
 from app.services.expert_chat_evidence import evidence_tool_handler_for_chat
 from app.services.expert_chat_research_tool import research_tool_handler_for_chat
 from app.services.expert_consult import consult_handler_for_persona
 from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
-from app.services.expertgranskning.memory import get_expert_memory, memory_belongs_to
-from app.services.expertgranskning.memory_view import (
-    attach_expert_labels,
-    directory_experts,
-    expert_directory,
-    labeled_memory,
-)
+from app.services import persona_memory_api as memory_api
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
 from app.services.live_voice import (
     LiveVoiceProviderError,
@@ -169,18 +162,6 @@ async def _get_persona(session: AsyncSession, persona_id: str) -> Persona:
     persona = await session.get(Persona, persona_id)
     if persona is None:
         raise HTTPException(status_code=404, detail="Persona not found")
-    return persona
-
-
-async def _require_memory_expert(
-    session: AsyncSession,
-    persona_id: str,
-    user: UserAccount,
-) -> Persona:
-    persona = await _get_persona(session, persona_id)
-    assert_kund_access(user, persona.customer_id)
-    if persona.kind != "expert":
-        raise HTTPException(status_code=404, detail="Memory not found")
     return persona
 
 
@@ -702,27 +683,7 @@ async def list_persona_memories(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> ExpertMemoryListOut:
-    persona = await _get_persona(session, persona_id)
-    assert_kund_access(user, persona.customer_id)
-    if persona.kind != "expert":
-        return ExpertMemoryListOut(
-            customer_id=persona.customer_id,
-            count=0,
-            memories=[],
-        )
-    expert_id = persona_catalog_key(persona)
-    hits = await get_expert_memory().list_all(
-        customer_id=persona.customer_id,
-        expert_id=expert_id,
-    )
-    directory = await expert_directory(session, customer_id=persona.customer_id)
-    memories = attach_expert_labels(hits, directory, customer_id=persona.customer_id)
-    return ExpertMemoryListOut(
-        customer_id=persona.customer_id,
-        count=len(memories),
-        memories=memories,
-        experts=directory_experts(directory, customer_id=persona.customer_id),
-    )
+    return await memory_api.list_memories(session, persona_id, user)
 
 
 @router.delete("/{persona_id}/memories", status_code=204)
@@ -731,32 +692,18 @@ async def clear_persona_memories(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> None:
-    persona = await _require_memory_expert(session, persona_id, user)
-    await get_expert_memory().delete_all(
-        customer_id=persona.customer_id,
-        expert_id=persona_catalog_key(persona),
-    )
+    await memory_api.clear_memories(session, persona_id, user)
 
 
 @router.patch("/{persona_id}/memories/{memory_id}", response_model=ExpertMemoryOut)
-async def update_persona_memory(  # noqa: PLR0917
+async def update_persona_memory(
     persona_id: str,
     memory_id: str,
-    body: ExpertMemoryUpdate,
+    body: ExpertMemoryUpdate, *,
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> ExpertMemoryOut:
-    persona = await _require_memory_expert(session, persona_id, user)
-    memory = get_expert_memory()
-    existing = await memory.get(memory_id=memory_id)
-    if existing is None or not memory_belongs_to(
-        existing,
-        customer_id=persona.customer_id,
-        expert_id=persona_catalog_key(persona),
-    ):
-        raise HTTPException(status_code=404, detail="Memory not found")
-    updated = await memory.update(memory_id=memory_id, text=body.text)
-    return await labeled_memory(session, updated, customer_id=persona.customer_id)
+    return await memory_api.update_memory(session, persona_id, user, memory_id=memory_id, text=body.text)
 
 
 @router.delete("/{persona_id}/memories/{memory_id}", status_code=204)
@@ -766,16 +713,7 @@ async def delete_persona_memory(
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> None:
-    persona = await _require_memory_expert(session, persona_id, user)
-    memory = get_expert_memory()
-    existing = await memory.get(memory_id=memory_id)
-    if existing is None or not memory_belongs_to(
-        existing,
-        customer_id=persona.customer_id,
-        expert_id=persona_catalog_key(persona),
-    ):
-        raise HTTPException(status_code=404, detail="Memory not found")
-    await memory.delete(memory_id=memory_id)
+    await memory_api.delete_memory(session, persona_id, user, memory_id=memory_id)
 
 
 @router.get("/{persona_id}/messages", response_model=list[PersonaMessageOut])
@@ -934,7 +872,7 @@ async def delete_message(
         .where(
             PersonaMessage.id == message_id,
             PersonaMessage.persona_id == persona_id,
-            PersonaMessage.run_id.is_(None),
+            PersonaMessage.run_id.is_(None) & (PersonaMessage.mode != "workspace"),
         )
     )
     row = result.scalar_one_or_none()
