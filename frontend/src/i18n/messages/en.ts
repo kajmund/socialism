@@ -2697,6 +2697,13 @@ export const en: LocalizedTree<SvMessages> = {
     },
   },
   sme: {
+    openInbox: "Search and filter chats",
+    inboxScope: "Chats in {name}",
+    readConversation: "Read",
+    companyInterview: "Company expert interview",
+    companyInterviewAria: "Open the company expert interview with {name}",
+    companyInterviewIntro: "The company’s previous expert chat with its history, image attachments and follow-up questions.",
+    companyInterviewError: "Could not open the company expert interview.",
     productName: "SME",
     chats: "Chats",
     searchPlaceholder: "Search Messenger",

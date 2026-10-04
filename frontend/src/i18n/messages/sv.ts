@@ -2697,6 +2697,13 @@ export const sv = {
     },
   },
   sme: {
+    openInbox: "Sök och filtrera chattar",
+    inboxScope: "Chattar i {name}",
+    readConversation: "Läst",
+    companyInterview: "Företagets expertintervju",
+    companyInterviewAria: "Öppna företagets expertintervju med {name}",
+    companyInterviewIntro: "Företagets tidigare expertchatt med historik, bildbilagor och följdfrågor.",
+    companyInterviewError: "Kunde inte öppna företagets expertintervju.",
     productName: "SME",
     chats: "Chattar",
     searchPlaceholder: "Sök i Messenger",
