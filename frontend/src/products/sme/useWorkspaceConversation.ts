@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { Conversation as ConversationInstance, Callbacks } from "@elevenlabs/client"
-import { voiceWorkspaces, type ChatSession, type WorkspaceMessage, type WorkspaceState, type ToolResult } from "@/api/voiceWorkspaces"
+import { voiceWorkspaces, type ChatSession, type WorkspaceMessage, type ToolResult } from "@/api/voiceWorkspaces"
 import { useLocale } from "@/i18n"
+import type { WorkspaceTurnSnapshot } from "./workspaceTurnSnapshot"
 import { clientArguments, isCurrentConversation, workspaceErrorMessage } from "./workspaceChatLogic"
 
 export type VoiceState = "disconnected" | "connecting" | "listening" | "speaking" | "paused" | "error"
@@ -10,7 +11,7 @@ const serverNames = ["get_workspace_context", "ingest_source", "get_job_status",
 type Active = { connection: ConversationInstance; session: ChatSession; workspaceId: string; mode: "voice" | "text"; send: (text: string) => Promise<void>; drain: () => Promise<void> }
 export function useWorkspaceConversation(props: {
   workspaceId: string | null; expertId: string | null
-  snapshot: () => { revision: number; state: WorkspaceState } | null
+  snapshot: () => Promise<WorkspaceTurnSnapshot | null>
   onMessage: (message: WorkspaceMessage) => void; onPreview: (text: string | null) => void
   onTool: (name: string, args: Record<string, unknown>, isCurrent: () => boolean) => Promise<unknown>; onServerResult?: (name: string, result: ToolResult) => void; onError: (message: string) => void
 }) {
@@ -23,17 +24,22 @@ export function useWorkspaceConversation(props: {
   const generation = useRef(0)
   const active = useRef<Active | null>(null)
   const starting = useRef<Promise<Active> | null>(null)
+  const closing = useRef(Promise.resolve())
   const mutedRef = useRef(false)
   const stop = useCallback(async () => {
     const previous = active.current; const drained = previous?.drain()
     generation.current += 1; starting.current = null
      active.current = null
     setVoice(false); setMuted(false); mutedRef.current = false; setStatus("disconnected"); latest.current.onPreview(null)
-    if (!previous) return
+    if (!previous) { await closing.current; return }
     if (previous.mode === "voice") { previous.connection.setVolume({ volume: 0 }); previous.connection.setMicMuted(true) }
-    await drained
-    const outcomes = await Promise.allSettled([previous.connection.endSession(), voiceWorkspaces.end(previous.workspaceId, previous.session.session_id)])
-    for (const result of outcomes) if (result.status === "rejected") latest.current.onError(workspaceErrorMessage(result.reason, t, "voiceWorkspaceChat.sessionError"))
+    const teardown = (async () => {
+      await drained
+      const outcomes = await Promise.allSettled([previous.connection.endSession(), voiceWorkspaces.end(previous.workspaceId, previous.session.session_id)])
+      for (const result of outcomes) if (result.status === "rejected") latest.current.onError(workspaceErrorMessage(result.reason, t, "voiceWorkspaceChat.sessionError"))
+    })()
+    closing.current = teardown
+    await teardown
   }, [t])
   useEffect(() => { void stop(); return () => { void stop() } }, [workspaceId, expertId, stop])
   const start = useCallback(async (mode: "voice" | "text"): Promise<Active> => {
@@ -41,6 +47,7 @@ export function useWorkspaceConversation(props: {
     if (active.current?.mode === mode && active.current.connection.isOpen()) return active.current
     if (starting.current) return starting.current
     await stop()
+    if (starting.current) return starting.current
     const currentGeneration = generation.current
     setStatus("connecting")
     const task = (async () => {
@@ -51,21 +58,25 @@ export function useWorkspaceConversation(props: {
       const bound = new Promise<void>((resolve) => { resolveBound = resolve })
       let connection: ConversationInstance | null = null
       let persistence = Promise.resolve()
+      let userPersistence = Promise.resolve()
       const seen = new Set<string>(), pendingText: string[] = []
       let lastUserKey: string | null = null
       let lastAgentKey: string | null = null, sequence = 0, partial = "", agentTurn = 0, localMessageSequence = 0
       let speaking = false, interrupted = false
-      const persist = (eventKey: string, kind: "user" | "agent" | "correction" | "complete", text: string, originalEventKey?: string, snapshot = latest.current.snapshot()) => {
+      const persist = (eventKey: string, kind: "user" | "agent" | "correction" | "complete", text: string, originalEventKey?: string) => {
         if (!isCurrent() || seen.has(eventKey)) return Promise.resolve()
+        const capturedSnapshot = kind === "user" ? latest.current.snapshot() : null
         seen.add(eventKey)
         if (kind !== "complete") latest.current.onMessage({ id: -(Date.now() * 1000 + ++localMessageSequence), role: kind === "user" ? "user" : "agent", content: text, created_at: new Date().toISOString(), event_key: originalEventKey ?? eventKey, session_id: session.session_id })
         const action = persistence.then(async () => {
           await bound
+          const snapshot = await capturedSnapshot
           const result = await voiceWorkspaces.event(workspaceId, session.session_id, { event_key: eventKey, kind, text, original_event_key: originalEventKey, ...(kind === "user" && snapshot ? { workspace_revision: snapshot.revision, context_snapshot: structuredClone(snapshot.state) } : {}) })
           if (!isCurrent()) return
           if (kind !== "complete") latest.current.onMessage({ id: result.message_id, role: kind === "user" ? "user" : "agent", content: text, created_at: new Date().toISOString(), event_key: originalEventKey ?? eventKey, session_id: session.session_id })
           if (kind === "user" && result.context) connection?.sendContextualUpdate(result.context)
         })
+        if (kind === "user") userPersistence = action
         persistence = action.catch((error: unknown) => { if (isCurrent()) latest.current.onError(workspaceErrorMessage(error, t, "voiceWorkspaceChat.sessionError")) })
         return action
       }
@@ -86,11 +97,12 @@ export function useWorkspaceConversation(props: {
         onIncomingEvent: (event: unknown) => { if (isCurrent() && event && typeof event === "object" && "type" in event && event.type === "agent_response_complete" && mode === "text") void complete().catch(() => undefined) },
         onModeChange: ({ mode: nextMode }) => { if (!isCurrent()) return; if (mode === "voice" && speaking && nextMode === "listening" && !interrupted) void complete().catch(() => undefined); speaking = nextMode === "speaking"; setStatus(mutedRef.current ? "paused" : nextMode) },
         onError: (message) => { if (isCurrent()) { setStatus("error"); latest.current.onError(workspaceErrorMessage(new Error(message), t, "voiceWorkspaceChat.sessionError")) } },
-        onDisconnect: () => { if (isCurrent()) { generation.current += 1; setStatus("disconnected"); setVoice(false); active.current = null; latest.current.onPreview(null); void persistence.finally(() => voiceWorkspaces.end(workspaceId, session.session_id)).catch((error: unknown) => latest.current.onError(workspaceErrorMessage(error, t, "voiceWorkspaceChat.sessionError"))) } },
+        onDisconnect: () => { if (isCurrent()) { generation.current += 1; setStatus("disconnected"); setVoice(false); active.current = null; latest.current.onPreview(null); closing.current = persistence.finally(() => voiceWorkspaces.end(workspaceId, session.session_id)).catch((error: unknown) => latest.current.onError(workspaceErrorMessage(error, t, "voiceWorkspaceChat.sessionError"))) } },
       }
       const clientTools = Object.fromEntries([...clientNames, ...serverNames].map((name) => [name, async (raw: unknown) => {
-        const turn = agentTurn, turnKey = lastUserKey, turnPersistence = persistence
+        const turn = agentTurn, turnKey = lastUserKey, turnPersistence = userPersistence, transcriptPersistence = persistence
         await bound; await turnPersistence
+        await transcriptPersistence
         if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.sessionError"))
         const args = clientArguments(raw)
         const result = serverNames.includes(name)
@@ -112,8 +124,7 @@ export function useWorkspaceConversation(props: {
         if (mode === "voice") connection.setVolume({ volume: 1 })
         const connected = connection
         const current: Active = { connection, session, workspaceId, mode, send: async (text) => {
-          const snapshot = latest.current.snapshot()
-          agentTurn += 1; lastUserKey = `text:${crypto.randomUUID()}`; await persist(lastUserKey, "user", text, undefined, snapshot)
+          agentTurn += 1; lastUserKey = `text:${crypto.randomUUID()}`; await persist(lastUserKey, "user", text)
           if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.sessionError"))
           pendingText.push(text); connected.sendUserMessage(text)
         }, drain: () => persistence }
