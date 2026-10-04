@@ -8,6 +8,7 @@ from app.database.models import Persona, UserAccount
 from app.database.workspace_conversations import WorkspaceConversationSession
 from app.services.expert_session_tools import consult_tool_spec
 from app.services.expert_tools import resolve_expert_tools
+from app.services.actor_profiles import ACTOR_TOOL_IDS, ActorProfileTools
 from app.services.live_voice_tools import live_voice_tool_specs, run_live_voice_tool
 from app.services.prompt_store import require_prompts_for_persona
 from app.database.workspace_models import WorkspaceOperation
@@ -72,6 +73,7 @@ async def execute_expert_tool(session: AsyncSession, *, provider: WorkspaceConve
             "session_id": session_id, "user_message": user_message,
             "history": history, "prompts": prompts, "owner_id": user.id,
             "workspace_parent_id": workspace.workspace_id,
+            "conversation": f"voice-workspace:{workspace.id}:expert:{persona.id}",
         })
         return {"status": "completed", "operation_id": operation_id, "tool_name": args.name, "result": result}
     finally:
@@ -80,7 +82,10 @@ async def execute_expert_tool(session: AsyncSession, *, provider: WorkspaceConve
 
 async def _run_selected_tool(session: AsyncSession, persona: Persona, user: UserAccount,
                              args: ExpertToolArguments, *, context: dict) -> str:
-    if args.name == "ask_expert":
+    if args.name in ACTOR_TOOL_IDS:
+        result = await ActorProfileTools(session, user_id=user.id, customer_id=persona.customer_id,
+                                         conversation=context["conversation"])(args.name, args.arguments)
+    elif args.name == "ask_expert":
         from app.services.expert_consult import expert_consult_handler_for_chat
 
         result = await expert_consult_handler_for_chat(
