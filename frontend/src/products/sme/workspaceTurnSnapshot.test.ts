@@ -12,7 +12,7 @@ function deferred<T>() {
 
 function verified(revision: number, reference: string, quote = "foobar"): WorkspaceTurnSnapshot {
   return {
-    revision,
+    workspaceId: "canvas", revision,
     state: {
       language: "sv", knowledge_scope: "workspace", view: "documents", expert_id: "expert",
       documents: [{ source_id: "synthetic-pdf", page: 1, zoom: 1, reference_id: reference }],
@@ -80,6 +80,13 @@ describe("captureWorkspaceTurn", () => {
     captured.state.selection!.anchor!.exact_text = "Changed local copy"
     expect(server.state.documents[0].page).toBe(1)
     expect(server.state.selection!.anchor!.exact_text).toBe("foobar")
+  })
+
+  it("binds a canonical workspace response to its canvas ID", async () => {
+    const value = verified(7, "verified-a")
+    const captured = await captureWorkspaceTurn({ id: "canvas-a", revision: value.revision, state: value.state })
+    expect(captured.workspaceId).toBe("canvas-a")
+    expect(captured.state).toEqual(value.state)
   })
 
   it("also clones an already committed snapshot", async () => {

@@ -54,14 +54,20 @@ Källorna visas vid researchresultatet. En dokumentkälla öppnar den citerade o
 
 Dokumentets genererade frågor och svar hjälper research att hitta relevanta avsnitt. Källhänvisningen går till originalpassagen som stöder uppgiften.
 
-Du kan öppna hela PDF:en utan att markera ett särskilt avsnitt. En markering kräver en källhänvisning som pekar ut den exakta passagen på en entydig plats i originalet. Om passagen inte kan lokaliseras visas ett fel, och PDF:en ligger kvar så att du kan läsa den. Sök fram avsnittet på fliken **Evidens** och öppna dess källhänvisning. Sök igen om en äldre hänvisning saknar markeringspositioner.
+Du kan öppna hela PDF:en utan att markera ett särskilt avsnitt. När du öppnar ett citat behöver dess källhänvisning peka ut den exakta passagen på en entydig plats i originalet. Om passagen inte kan lokaliseras visas ett fel, och PDF:en ligger kvar så att du kan läsa den. Sök fram avsnittet på fliken **Evidens** och öppna dess källhänvisning. Sök igen om en äldre hänvisning saknar markeringspositioner.
 
-Klicka i PDF-dokumentet för att ta bort en aktiv markering. Dra över texten för att skapa en ny markering.
+## Markera en passage och ställ en fråga
 
-Markerad text följer läsordningen i PDF:en. Om markeringen inte kan verifieras mot originalet får du ett meddelande om just markeringen. Meddelandet om att källan har ändrats visas när dokumentets version har ändrats. Ett tidigare felmeddelande försvinner när nästa åtgärd lyckas.
+Dra över text i PDF:en eller textdokumentet för att välja den passage som nästa fråga ska gälla. Din egen markering är ett lokalt utkast tills du skickar frågan. Att markera, byta markering eller ta bort den sparar ingen ny källhänvisning.
+
+Klicka i dokumentet för att ta bort den aktiva markeringen. Du kan sedan dra över texten för att välja ett nytt avsnitt. Markeringen ligger kvar när du navigerar i arbetsytan, zoomar eller uppdaterar dess innehåll. Om du laddar om webbsidan försvinner en markering som ännu inte har använts i en fråga.
+
+När du skickar en textfråga låses den aktuella markeringen och dokumentversionen till just den frågan. I ett röstsamtal sker det när din färdiga replik kommer in i chatten. Behåll därför rätt markering tills repliken syns. Om du byter markering medan frågan behandlas gäller den nya markeringen nästa fråga; den tidigare frågans passage ändras inte.
+
+Den valda passagen kontrolleras mot originalet. Frågan och dess verifierade källhänvisning sparas tillsammans. Originalfilen, den inlästa dokumenttexten och dokumentets genererade frågor och svar ändras inte av markeringen. Företagets och klienternas underlag behåller samma privata workspace som tidigare.
+
+Markerad text följer läsordningen i PDF:en. Om markeringen inte kan verifieras när frågan skickas får du ett meddelande om just markeringen. Meddelandet om att källan har ändrats visas när dokumentets version har ändrats sedan du valde passagen. Ett tidigare felmeddelande försvinner när nästa åtgärd lyckas.
 
 Markeringar i dokument med flera kolumner kontrolleras mot texten på de markerade positionerna i originalet. Du kan därför markera ett avsnitt i en kolumn även om dokumentets sparade text blandar rader från flera kolumner.
 
 Du kan markera flera rader eller en del av ett ord. Skillnader i hur mellanrum visas ska inte hindra en giltig markering; texten kontrolleras fortfarande mot originalet.
-
-När du markerar text under ett röstsamtal väntar kopplingen till ditt yttrande på att markeringen har verifierats och sparats. Om du sedan markerar en annan passage behåller yttrandet kopplingen till den tidigare markeringen.

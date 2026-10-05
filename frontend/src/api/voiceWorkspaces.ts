@@ -24,6 +24,8 @@ export type WorkspaceSelection = {
   node_id?: string
   edge_id?: string
   source_id?: string
+  source_version?: string
+  source_file_sha256?: string
   anchor?: DocumentKnowledgeAnchor
 }
 export type WorkspaceState = {
@@ -124,8 +126,9 @@ export const voiceWorkspaces = {
   update: (id: string, expectedRevision: number, state: WorkspaceState) => api.patch<unknown>(`/voice-workspaces/${id}`, { expected_revision: expectedRevision, state, idempotency_key: crypto.randomUUID() }).then(requireVoiceWorkspace),
   attach: (id: string, sourceId: string) => api.post<ToolResult>(`/voice-workspaces/${id}/sources`, { source_id: sourceId, idempotency_key: crypto.randomUUID() }),
   upload: (id: string, file: File) => { const form = new FormData(); form.append("file", file); form.append("idempotency_key", crypto.randomUUID()); return api.postForm<ToolResult>(`/voice-workspaces/${id}/sources/upload`, form, { timeoutMs: 120_000 }) },
-  source: (id: string, sourceId: string) => api.get<UnderlagFile>(`/voice-workspaces/${id}/sources/${sourceId}`),
+  source: (id: string, sourceId: string) => api.get<UnderlagFile & { source_version: string }>(`/voice-workspaces/${id}/sources/${sourceId}`),
   sourceFile: (id: string, sourceId: string) => api.getBlob(`/voice-workspaces/${id}/sources/${sourceId}/file`),
+  sourceFileWithVersion: (id: string, sourceId: string) => api.getBlobWithHeaders(`/voice-workspaces/${id}/sources/${sourceId}/file`).then(({ blob, headers }) => ({ blob, sourceVersion: requireSourceVersion(headers.get("X-Workspace-Source-Version")), sourceFileSha256: requireSourceFileSha256(headers.get("X-Workspace-File-Sha256")) })),
   reference: (id: string, referenceId: string) => api.get<SourceReference>(`/voice-workspaces/${id}/references/${referenceId}`),
   tool: (id: string, name: string, args: Record<string, unknown>, expectedRevision?: number) => api.post<ToolResult>(`/voice-workspaces/${id}/tools/${name}`, { idempotency_key: crypto.randomUUID(), expected_revision: expectedRevision, arguments: args }, name === "search_knowledge" ? { timeoutMs: 120_000 } : undefined),
   artifact: async (id: string, artifactId: string, revision?: number) => { const artifact = await api.get<WorkspaceArtifact>(`/voice-workspaces/${id}/artifacts/${artifactId}`); if (revision == null) return artifact; const historical = await api.get<Pick<WorkspaceArtifact, "revision" | "title" | "content">>(`/voice-workspaces/${id}/artifacts/${artifactId}/revisions/${revision}`); return { ...artifact, ...historical } },
@@ -139,4 +142,14 @@ export const voiceWorkspaces = {
   bind: (id: string, sessionId: string, conversationId: string) => api.post(`/workspace-chat/${id}/sessions/${sessionId}/bind`, { conversation_id: conversationId }),
   end: (id: string, sessionId: string) => api.delete(`/workspace-chat/${id}/sessions/${sessionId}`),
   event: (id: string, sessionId: string, event: { event_key: string; kind: "user" | "agent" | "correction" | "complete"; text: string; original_event_key?: string; workspace_revision?: number; context_snapshot?: WorkspaceState }) => api.post<{ message_id: number; duplicate: boolean; context?: string }>(`/workspace-chat/${id}/sessions/${sessionId}/events`, event),
+}
+
+export function requireSourceVersion(value: unknown): string {
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/.test(value)) throw new Error("workspace_source_version_missing")
+  return value
+}
+
+export function requireSourceFileSha256(value: unknown): string {
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/.test(value)) throw new Error("workspace_source_file_hash_missing")
+  return value
 }

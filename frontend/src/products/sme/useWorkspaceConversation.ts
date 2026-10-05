@@ -8,7 +8,7 @@ import { clientArguments, isCurrentConversation, workspaceErrorMessage } from ".
 export type VoiceState = "disconnected" | "connecting" | "listening" | "speaking" | "paused" | "error"
 const clientNames = ["open_ingest_picker", "show_evidence", "show_document", "focus_anchor", "show_comparison", "show_relations", "show_knowledge", "show_artifact"]
 const serverNames = ["get_workspace_context", "ingest_source", "get_job_status", "search_knowledge", "read_source", "start_research", "compare_sources", "get_relations", "render_chart", "create_document", "revise_document", "export_document", "expert_tool"]
-type Active = { connection: ConversationInstance; session: ChatSession; workspaceId: string; mode: "voice" | "text"; send: (text: string) => Promise<void>; drain: () => Promise<void> }
+type Active = { connection: ConversationInstance; session: ChatSession; workspaceId: string; expertId: string; mode: "voice" | "text"; send: (text: string, snapshot: Promise<WorkspaceTurnSnapshot | null>) => Promise<void>; drain: () => Promise<void> }
 export function useWorkspaceConversation(props: {
   workspaceId: string | null; expertId: string | null
   snapshot: () => Promise<WorkspaceTurnSnapshot | null>
@@ -63,14 +63,15 @@ export function useWorkspaceConversation(props: {
       let lastUserKey: string | null = null
       let lastAgentKey: string | null = null, sequence = 0, partial = "", agentTurn = 0, localMessageSequence = 0
       let speaking = false, interrupted = false
-      const persist = (eventKey: string, kind: "user" | "agent" | "correction" | "complete", text: string, originalEventKey?: string) => {
+      const persist = (eventKey: string, kind: "user" | "agent" | "correction" | "complete", text: string, originalEventKey?: string, submittedSnapshot?: Promise<WorkspaceTurnSnapshot | null>) => {
         if (!isCurrent() || seen.has(eventKey)) return Promise.resolve()
-        const capturedSnapshot = kind === "user" ? latest.current.snapshot() : null
+        const capturedSnapshot = kind === "user" ? submittedSnapshot ?? latest.current.snapshot() : null
         seen.add(eventKey)
         if (kind !== "complete") latest.current.onMessage({ id: -(Date.now() * 1000 + ++localMessageSequence), role: kind === "user" ? "user" : "agent", content: text, created_at: new Date().toISOString(), event_key: originalEventKey ?? eventKey, session_id: session.session_id })
         const action = persistence.then(async () => {
           await bound
           const snapshot = await capturedSnapshot
+          if (kind === "user" && (!snapshot || snapshot.workspaceId !== workspaceId || snapshot.state.expert_id !== expertId)) throw new Error(t("voiceWorkspaceChat.sessionError"))
           const result = await voiceWorkspaces.event(workspaceId, session.session_id, { event_key: eventKey, kind, text, original_event_key: originalEventKey, ...(kind === "user" && snapshot ? { workspace_revision: snapshot.revision, context_snapshot: structuredClone(snapshot.state) } : {}) })
           if (!isCurrent()) return
           if (kind !== "complete") latest.current.onMessage({ id: result.message_id, role: kind === "user" ? "user" : "agent", content: text, created_at: new Date().toISOString(), event_key: originalEventKey ?? eventKey, session_id: session.session_id })
@@ -123,8 +124,8 @@ export function useWorkspaceConversation(props: {
         connection.sendContextualUpdate(session.context); resolveBound()
         if (mode === "voice") connection.setVolume({ volume: 1 })
         const connected = connection
-        const current: Active = { connection, session, workspaceId, mode, send: async (text) => {
-          agentTurn += 1; lastUserKey = `text:${crypto.randomUUID()}`; await persist(lastUserKey, "user", text)
+        const current: Active = { connection, session, workspaceId, expertId, mode, send: async (text, snapshot) => {
+          agentTurn += 1; lastUserKey = `text:${crypto.randomUUID()}`; await persist(lastUserKey, "user", text, undefined, snapshot)
           if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.sessionError"))
           pendingText.push(text); connected.sendUserMessage(text)
         }, drain: () => persistence }
@@ -139,7 +140,16 @@ export function useWorkspaceConversation(props: {
     starting.current = task
     try { return await task } catch (error) { if (generation.current === currentGeneration) setStatus("error"); throw error } finally { if (generation.current === currentGeneration) starting.current = null }
   }, [expertId, locale, stop, t, workspaceId])
-  const send = useCallback(async (text: string) => { const current = active.current ?? await start("text"); await current.send(text) }, [start])
+  const send = useCallback(async (text: string, snapshot = latest.current.snapshot()) => {
+    const admittedGeneration = generation.current
+    const sameScope = () => latest.current.workspaceId === workspaceId && latest.current.expertId === expertId
+    const captured = await snapshot
+    if (!sameScope() || generation.current !== admittedGeneration || !captured || captured.workspaceId !== workspaceId || captured.state.expert_id !== expertId) throw new Error(t("voiceWorkspaceChat.sessionError"))
+    let current = active.current
+    if (!current) { const connecting = start("text"), connectingGeneration = generation.current; current = await connecting; if (generation.current !== connectingGeneration) throw new Error(t("voiceWorkspaceChat.sessionError")) }
+    if (!sameScope() || current !== active.current || current.workspaceId !== workspaceId || current.expertId !== expertId) throw new Error(t("voiceWorkspaceChat.sessionError"))
+    await current.send(text, Promise.resolve(captured))
+  }, [expertId, start, t, workspaceId])
   const contextualUpdate = useCallback((text: string) => { active.current?.connection.sendContextualUpdate(text) }, [])
   const userActivity = useCallback(() => { active.current?.connection.sendUserActivity() }, [])
   const toggleMute = useCallback(() => { if (active.current?.mode !== "voice") return; mutedRef.current = !mutedRef.current; active.current.connection.setMicMuted(mutedRef.current); setMuted(mutedRef.current); setStatus(mutedRef.current ? "paused" : "listening") }, [])

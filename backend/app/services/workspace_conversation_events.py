@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona, PersonaMessage, UserAccount
+from app.database.transaction_state import has_pending_writes
 from app.database.workspace_conversations import WorkspaceConversationEvent, WorkspaceConversationSession
 from app.database.workspace_models import VoiceWorkspace
 from app.schemas.workspace import WorkspaceState
@@ -15,6 +16,7 @@ from app.services.prompt_store import require_active_prompts
 from app.services.workspace.service import validate_state
 from app.services.workspace_conversations import find_event, redact_text, require_conversation
 from app.services.workspace_conversation_memory import synchronize_memory
+from app.services.workspace_event_selection import PreparedUserSelection, materialize_user_selection, prepare_user_selection
 
 
 def check_redelivery(existing: WorkspaceConversationEvent, request) -> None:
@@ -24,9 +26,11 @@ def check_redelivery(existing: WorkspaceConversationEvent, request) -> None:
         raise HTTPException(409, "workspace_event_key_conflict")
 
 
-async def store_user_context(session: AsyncSession, provider: WorkspaceConversationSession, request, payload: dict) -> dict:
+async def store_user_context(session: AsyncSession, provider: WorkspaceConversationSession, request, payload: dict, *,
+                             selection: PreparedUserSelection | None = None) -> dict:
     workspace = await session.get(VoiceWorkspace, provider.workspace_id)
-    state = WorkspaceState.model_validate(request.context_snapshot if request.context_snapshot is not None else workspace.state)
+    state = (await materialize_user_selection(session, selection) if selection is not None else
+             WorkspaceState.model_validate(request.context_snapshot if request.context_snapshot is not None else workspace.state))
     if state.expert_id != provider.expert_id:
         raise HTTPException(409, "workspace_conversation_expert_changed")
     await validate_state(session, workspace, state)
@@ -64,7 +68,8 @@ async def store_original_update(session: AsyncSession, provider: WorkspaceConver
     return original.message_id
 
 
-async def prepare_event(session: AsyncSession, provider: WorkspaceConversationSession, request) -> tuple[dict, dict | None]:
+async def prepare_event(session: AsyncSession, provider: WorkspaceConversationSession, request,
+                        selection: PreparedUserSelection | None = None) -> tuple[dict, dict | None]:
     existing = await find_event(session, provider, request.event_key)
     if existing:
         check_redelivery(existing, request)
@@ -80,7 +85,7 @@ async def prepare_event(session: AsyncSession, provider: WorkspaceConversationSe
         message_id = await store_original_update(session, provider, request, payload)
     else:
         if request.kind == "user":
-            memory_input = await store_user_context(session, provider, request, payload)
+            memory_input = await store_user_context(session, provider, request, payload, selection=selection)
         message = PersonaMessage(persona_id=provider.expert_id, mode="workspace",
                                  role="user" if request.kind == "user" else "assistant", content=content)
         session.add(message)
@@ -115,8 +120,14 @@ async def enrich_user_context(session: AsyncSession, provider_id: str, event_key
 
 
 async def persist_event(session: AsyncSession, *, provider: WorkspaceConversationSession, request) -> dict:
+    if has_pending_writes(session):
+        raise RuntimeError("Conversation events require a clean transaction")
     provider_id = provider.id
-    result, prepared = await prepare_event(session, provider, request)
+    selection = None
+    if request.kind == "user" and await find_event(session, provider, request.event_key) is None:
+        selection = await prepare_user_selection(session, provider, request)
+        provider = selection.provider
+    result, prepared = await prepare_event(session, provider, request, selection)
     # The transcript belongs to this request and survives external-memory
     # errors. Redelivery retries enrichment without duplicating chat rows.
     await session.commit()

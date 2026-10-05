@@ -40,6 +40,7 @@ export function workspaceThreadKey(workspaceId: string, threadType: string, thre
 export function workspaceErrorMessage(error: unknown, t: (key: MessageKey) => string, fallback: MessageKey = "voiceWorkspaceChat.operationError"): string {
   const message = error instanceof Error ? error.message : ""
   if (message === "private_document_requires_workspace") return t("voiceWorkspaceChat.privateDocumentScope")
+  if (message === "workspace_source_version_missing" || message === "workspace_source_file_hash_missing" || message === "selection_source_version_required") return t("voiceWorkspaceChat.sourceVersionMissing")
   if (message === "selection_anchor_stale") return t("voiceWorkspaceChat.selectionUnverified")
   if (message === "source_excerpt_stale") return t("voiceWorkspaceChat.sourceExcerptUnverified")
   if (message === "document_anchor_source_conflict") return t("voiceWorkspaceChat.presentationError")

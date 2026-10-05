@@ -30,6 +30,8 @@ async def citation(session: AsyncSession, workspace: VoiceWorkspace, *, kind: st
     if snapshot.get("selection_verified") is True:
         # A proved position must not reuse an older quote-only citation's identity.
         identity_fields["selection_verified"] = True
+        if snapshot.get("source_file_sha256"):
+            identity_fields["source_file_sha256"] = snapshot["source_file_sha256"]
     identity = fingerprint(identity_fields)
     await session.execute(update(VoiceWorkspace).where(VoiceWorkspace.id == workspace.id).values(
         next_reference_number=VoiceWorkspace.next_reference_number))

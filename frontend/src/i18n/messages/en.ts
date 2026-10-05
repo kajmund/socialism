@@ -68,6 +68,8 @@ export const en: LocalizedTree<SvMessages> = {
     "loadError": "The workspace could not be loaded.",
     "operationError": "The action could not be completed.",
     "presentationError": "The source could not be displayed or highlighted.",
+    "sourceVersionMissing": "The document version could not be verified. Open the document again.",
+    "selectionChanged": "The selection has changed. Your latest selection is preserved.",
     "selectionUnverified": "The selection could not be matched to the original text. Select the text again.",
     "sourceExcerptUnverified": "The source reference text could not be verified in the original.",
     "anchorPositionRequired": "The document can be displayed, but the passage has no exact position to highlight. Find the passage in the evidence first.",

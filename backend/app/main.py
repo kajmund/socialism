@@ -154,6 +154,7 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Workspace-Source-Version", "X-Workspace-File-Sha256"],
     )
     app.include_router(health.router)
     app.include_router(local_login.router)
