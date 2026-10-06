@@ -22,6 +22,7 @@ from app.schemas.domain import (
     format_date,
 )
 from app.services.expert_tools import resolve_chat_tools
+from app.services.live_voice import expert_live_voice
 from app.services.population_fingerprint import (
     compare_target_vs_achieved,
     dist_qa_rows,
@@ -66,6 +67,7 @@ def persona_avatar_url(persona: Persona) -> str | None:
 
 
 def serialize_library_persona(persona: Persona, pops: list[str]) -> LibraryPersona:
+    provider, voice = expert_live_voice(persona)
     return LibraryPersona(
         id=persona.id,
         kind=persona.kind,  # type: ignore[arg-type]
@@ -80,6 +82,8 @@ def serialize_library_persona(persona: Persona, pops: list[str]) -> LibraryPerso
         profile=profile_from_dict(persona.profile, persona.name),
         tools=resolve_chat_tools(persona.tools, kind=persona.kind),
         avatar_url=persona_avatar_url(persona),
+        live_voice_provider=provider,  # type: ignore[arg-type]
+        live_voice=voice,
     )
 
 

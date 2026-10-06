@@ -1,5 +1,5 @@
 import { AdminButton } from "@/components/ui/admin-button"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { type Proposal, profileFields, organizationFields } from "@/api/profiles"
 import { api, ApiError } from "@/lib/api"
 import { useLocale } from "@/i18n"
@@ -8,8 +8,20 @@ export function ProfileProposals({ onSaved, conversation, refreshKey = 0 }: { on
   const [items, setItems] = useState<Proposal[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<"error" | "loadError" | "conflict" | null>(null)
-  const reload = useCallback(async () => { const rows = await api.get<Proposal[]>("/me/profile-proposals"); setItems(conversation ? rows.filter((row) => row.conversation === conversation) : rows) }, [conversation])
-  useEffect(() => { setItems([]); void reload().catch(() => setError("loadError")) }, [reload, refreshKey])
+  const request = useRef(0)
+  const reload = useCallback(async () => {
+    const epoch = ++request.current
+    try {
+      const rows = await api.get<Proposal[]>("/me/profile-proposals")
+      if (epoch !== request.current) return
+      setError(null)
+      setItems(conversation ? rows.filter((row) => row.conversation === conversation) : rows)
+    } catch (err) {
+      if (epoch !== request.current) return
+      throw err
+    }
+  }, [conversation])
+  useEffect(() => { void reload().catch(() => setError("loadError")) }, [reload, refreshKey])
   async function decide(item: Proposal, decision: "approve" | "reject") {
     setBusy(item.id); setError(null)
     try {

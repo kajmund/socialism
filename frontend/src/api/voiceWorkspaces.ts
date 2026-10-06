@@ -103,6 +103,7 @@ export type WorkspaceChart = { title?: string; chart_type: SpindoctorChartType; 
 export type ToolResult = {
   operation_id: string
   status: "completed" | "queued"
+  reference_id?: string
   items?: SourceReference[]
   gaps?: KnowledgeGap[]
   stale?: boolean
@@ -130,7 +131,7 @@ export const voiceWorkspaces = {
   sourceFile: (id: string, sourceId: string) => api.getBlob(`/voice-workspaces/${id}/sources/${sourceId}/file`),
   sourceFileWithVersion: (id: string, sourceId: string) => api.getBlobWithHeaders(`/voice-workspaces/${id}/sources/${sourceId}/file`).then(({ blob, headers }) => ({ blob, sourceVersion: requireSourceVersion(headers.get("X-Workspace-Source-Version")), sourceFileSha256: requireSourceFileSha256(headers.get("X-Workspace-File-Sha256")) })),
   reference: (id: string, referenceId: string) => api.get<SourceReference>(`/voice-workspaces/${id}/references/${referenceId}`),
-  tool: (id: string, name: string, args: Record<string, unknown>, expectedRevision?: number) => api.post<ToolResult>(`/voice-workspaces/${id}/tools/${name}`, { idempotency_key: crypto.randomUUID(), expected_revision: expectedRevision, arguments: args }, name === "search_knowledge" ? { timeoutMs: 120_000 } : undefined),
+  tool: (id: string, name: string, args: Record<string, unknown>, expectedRevision?: number) => api.post<ToolResult>(`/voice-workspaces/${id}/tools/${name}`, { idempotency_key: crypto.randomUUID(), expected_revision: expectedRevision, arguments: args }, name === "search_knowledge" || name === "focus_passage" ? { timeoutMs: 120_000 } : undefined),
   artifact: async (id: string, artifactId: string, revision?: number) => { const artifact = await api.get<WorkspaceArtifact>(`/voice-workspaces/${id}/artifacts/${artifactId}`); if (revision == null) return artifact; const historical = await api.get<Pick<WorkspaceArtifact, "revision" | "title" | "content">>(`/voice-workspaces/${id}/artifacts/${artifactId}/revisions/${revision}`); return { ...artifact, ...historical } },
   saveArtifact: async (id: string, artifact: WorkspaceArtifact) => { const result = await api.patch<ToolResult>(`/voice-workspaces/${id}/artifacts/${artifact.id}`, { expected_revision: artifact.revision, title: artifact.title, content: artifact.content, idempotency_key: crypto.randomUUID() }); if (!result.artifact) throw new Error("Missing saved artifact"); return result.artifact },
   export: (id: string, artifactId: string, format: "pdf" | "docx", revision: number) => api.getBlob(`/voice-workspaces/${id}/artifacts/${artifactId}/exports/${format}?revision=${revision}`),

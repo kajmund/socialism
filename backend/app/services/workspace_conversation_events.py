@@ -11,7 +11,7 @@ from app.database.workspace_conversations import WorkspaceConversationEvent, Wor
 from app.database.workspace_models import VoiceWorkspace
 from app.schemas.workspace import WorkspaceState
 from app.services.workspace_memory_context import workspace_memory_context
-from app.services.workspace_parent_documents import voice_document_inventory
+from app.services.workspace_document_context import voice_document_context
 from app.services.prompt_store import require_active_prompts
 from app.services.workspace.service import validate_state
 from app.services.workspace_conversations import find_event, redact_text, require_conversation
@@ -46,13 +46,13 @@ async def user_memory_input(session: AsyncSession, provider: WorkspaceConversati
     owner = await session.get(UserAccount, provider.user_id)
     if owner is None:
         raise HTTPException(404, "workspace_conversation_not_found")
-    inventory = await voice_document_inventory(session, workspace, owner)
+    documents = await voice_document_context(session, workspace, owner)
     session.expunge(persona)
     return {"persona": persona, "prompts": prompts, "query": payload["text"], "owner_id": provider.user_id,
             "workspace_parent_id": workspace.workspace_id,
             "context": {"voice_workspace_id": workspace.id, "workspace_id": workspace.workspace_id,
                         "chat_id": workspace.chat_id, "turn_event_key": event_key, "state": payload["workspace_state"],
-                        "revision": payload["workspace_revision"], "available_documents": inventory}}
+                        "revision": payload["workspace_revision"], **documents}}
 
 
 async def store_original_update(session: AsyncSession, provider: WorkspaceConversationSession, request, payload: dict) -> int:
@@ -111,9 +111,8 @@ async def enrich_user_context(session: AsyncSession, provider_id: str, event_key
         await session.rollback()
         raise HTTPException(409, "workspace_conversation_superseded")
     workspace = await session.get(VoiceWorkspace, provider.workspace_id, populate_existing=True)
-    inventory = await voice_document_inventory(session, workspace, owner)
-    context = json.dumps({**prepared["context"], "available_documents": inventory,
-                          "expert_memory": memories}, ensure_ascii=False)
+    documents = await voice_document_context(session, workspace, owner)
+    context = json.dumps({**prepared["context"], **documents, "expert_memory": memories}, ensure_ascii=False)
     event.payload = {**event.payload, "context": context}
     await session.commit()
     return context

@@ -21,7 +21,7 @@ from app.database.workspace_models import (
 from app.modules.registry import MODULE_REGISTRY
 from app.schemas.workspace import WorkspaceState
 from app.services.stored_objects import serialize_underlag
-from app.services.workspace_chats import require_chat_file
+from app.services.workspace_chats import list_chat_files, require_chat_file
 from app.services.workspace.containers import WorkspaceContainer, creation_chat, require_container
 from app.services.workspaces import require_workspace_customer
 from app.services.workspace.research_links import sync_research_links as sync_research_links
@@ -258,17 +258,54 @@ def artifact_out(artifact: WorkspaceArtifact) -> dict:
             "job_id": artifact.job_id, "error": artifact.error}
 
 
+async def _member_sources(session: AsyncSession, workspace: VoiceWorkspace) -> list[StoredObject]:
+    joined = list((await session.execute(select(StoredObject).join(WorkspaceSource, WorkspaceSource.source_id == StoredObject.id)
+        .where(WorkspaceSource.workspace_id == workspace.id, StoredObject.customer_id == workspace.customer_id))).scalars())
+    if not joined:
+        return []
+    user = await session.get(UserAccount, workspace.owner_user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="workspace_source_not_found")
+    readable = {row.id: row for row in await list_chat_files(session, user, await require_container(session, workspace, user))}
+    sources = []
+    for row in joined:
+        source = readable.get(row.id)
+        if source is None:
+            raise HTTPException(status_code=404, detail="workspace_source_not_found")
+        sources.append(source)
+    return sources
+
+
+def _underlag_summaries(refs: list[WorkspaceReference], sources: list[StoredObject]) -> dict[str, dict]:
+    # Local import: workspace.sources imports this module.
+    from app.services.workspace.sources import reference_out, source_version
+    versions = {source.id: source_version(source) for source in sources}
+    summaries = {}
+    for ref in refs:
+        if ref.kind != "underlag":
+            continue
+        version = versions.get(ref.source_id)
+        if version is None:
+            summaries[ref.id] = {**reference_out(ref, stale=True), "unavailable": True}
+        else:
+            summaries[ref.id] = reference_out(ref, stale=version != ref.source_version)
+    return summaries
+
+
 async def workspace_out(session: AsyncSession, workspace: VoiceWorkspace) -> dict:
     queued_research = await sync_research_links(session, workspace)
-    sources = list((await session.execute(select(StoredObject).join(WorkspaceSource, WorkspaceSource.source_id == StoredObject.id)
-                                         .where(WorkspaceSource.workspace_id == workspace.id, StoredObject.customer_id == workspace.customer_id))).scalars())
-    sources = [await require_source(session, workspace, row.id) for row in sources]
+    sources = await _member_sources(session, workspace)
     artifacts = list((await session.execute(select(WorkspaceArtifact).where(WorkspaceArtifact.workspace_id == workspace.id)
                                            .order_by(WorkspaceArtifact.created_at))).scalars())
     refs = list((await session.execute(select(WorkspaceReference).where(WorkspaceReference.workspace_id == workspace.id)
                                       .order_by(WorkspaceReference.number))).scalars())
     attempts = list((await session.scalars(select(ExecutionAttempt).join(WorkspaceResearch, WorkspaceResearch.attempt_id == ExecutionAttempt.id)
         .where(WorkspaceResearch.workspace_id == workspace.id).order_by(ExecutionAttempt.created_at))).all())
+    underlag = _underlag_summaries(refs, sources)
+    references = []
+    for ref in refs:
+        summary = underlag.get(ref.id)
+        references.append(summary if summary is not None else await _reference_summary(session, workspace, ref))
     return {"id": workspace.id, "workspace_id": workspace.workspace_id, "chat_id": workspace.chat_id,
             "customer_id": workspace.customer_id, "title": workspace.title, "module": workspace.module, "revision": workspace.revision,
             "state": workspace.state, "sources": [serialize_underlag(row, include_text=False) for row in sources],
@@ -276,7 +313,7 @@ async def workspace_out(session: AsyncSession, workspace: VoiceWorkspace) -> dic
             "research": queued_research + [{"job_id": None, "attempt_id": row.id, "run_id": row.run_id, "status": row.status,
                           "progress_url": f"/execution/attempts/{row.id}/progress-events"} for row in attempts
                           if row.id not in {item["attempt_id"] for item in queued_research}],
-            "references": [await _reference_summary(session, workspace, ref) for ref in refs]}
+            "references": references}
 
 
 async def _reference_summary(session: AsyncSession, workspace: VoiceWorkspace, ref: WorkspaceReference) -> dict:

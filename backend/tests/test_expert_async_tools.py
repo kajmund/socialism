@@ -12,14 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.database.base import Base
 from app.database.models import Persona, PersonaMessage
 from app.llm import set_text_completer, set_tools_completer
+from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.schemas.domain import PersonaChatResponse
 from app.services.expert_async_tools import (
     PlannedCall,
+    ToolWork,
     _threads,
     begin_library_tools,
     reset_library_tool_threads,
     wait_library_tool_tasks,
 )
+from app.services.expert_tool_followup import _compose_followup
 from app.services.jobs import set_job_session_factory
 from app.services.persona_chat import stream_library_chat_turn
 from app.services.prompt_store import ensure_default_configurations
@@ -125,6 +128,80 @@ async def test_ack_returns_before_tool_and_idle_expert_writes_the_result(tmp_pat
         set_text_completer(None)
         set_job_session_factory(None)
         reset_library_tool_threads()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_workspace_followup_opens_the_named_document(tmp_path):
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path / 'open.db'}",
+        pool_size=1,
+        max_overflow=0,
+        pool_timeout=1,
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    events: list[dict] = []
+
+    async def capture(event: dict) -> None:
+        events.append(event)
+
+    async def tools(messages, specs=None):
+        names = [spec["function"]["name"] for spec in (specs or [])]
+        assert "show_document" in names
+        assert "search_knowledge" not in names
+        assert "Fråga aldrig om lov" in messages[-1]["content"]
+        return SimpleNamespace(
+            content="Avtalet är öppet.",
+            tool_calls=[_tool_call("show_document", '{"source_id":"avtal"}')],
+        )
+
+    set_job_session_factory(factory)
+    set_tools_completer(tools)
+    await library_chat_broadcast.subscribe_customer(1, capture)
+    try:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with factory() as session:
+            await ensure_default_configurations(session)
+            session.add(
+                Persona(
+                    id="e-open",
+                    customer_id=1,
+                    kind="expert",
+                    name="Avtalsexpert",
+                    age=50,
+                    occ="Jurist",
+                    district="Stockholm",
+                    profile={"name": "Avtalsexpert"},
+                )
+            )
+            await session.commit()
+        text = await _compose_followup(
+            ToolWork(
+                persona_id="e-open",
+                mode="interview",
+                actor_user_id=None,
+                history=[],
+                user_message="öppna avtalet med ateles som kund",
+                calls=(),
+                workspace_id="canvas",
+                workspace_state={"documents": []},
+            ),
+            '{"items":[{"source_id":"avtal","filename":"Avtal.pdf"}]}',
+        )
+        assert text == "Avtalet är öppet."
+        assert events == [{
+            "type": "workspace_tool",
+            "thread_type": "expert",
+            "thread_id": "e-open",
+            "mode": "interview",
+            "name": "show_document",
+            "arguments": {"source_id": "avtal"},
+        }]
+    finally:
+        await library_chat_broadcast.unsubscribe(capture)
+        set_tools_completer(None)
+        set_job_session_factory(None)
         await engine.dispose()
 
 

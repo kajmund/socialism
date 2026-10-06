@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import func, select
 
 from app.database.models import Job, Persona, StoredObject
-from app.database.workspace_models import WorkspaceOperation, WorkspaceResearch
+from app.database.workspace_models import WorkspaceOperation, WorkspaceResearch, WorkspaceSource
 from app.database.workspaces import WorkspaceChat, WorkspaceMembership
 from app.services import jobs
 from tests.conftest import USER_USER_ID
@@ -69,6 +69,29 @@ async def test_shared_member_source_allowed_cross_client_and_revoked_member_deni
         await session.commit()
     assert (await client.get(f"/voice-workspaces/{private['id']}", headers=headers)).status_code == 404
     assert (await client.get(f"/voice-workspaces/{private['id']}/sources/{source}/file", headers=headers)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_read_attaches_an_authorized_source_that_is_not_a_member_yet(client_db, user_token):
+    client, factory = client_db
+    headers = {"Authorization": f"Bearer {user_token}"}
+    parent = (await client.post("/workspaces", headers=headers, json={"name": "Selected client"})).json()["id"]
+    private = await create_voice(client, parent=parent, headers=headers)
+    colleague = await create_voice(client, parent=parent)
+    source = await source_upload(client, colleague)
+    async with factory() as session:
+        row = await session.get(StoredObject, source)
+        row.extracted_text, row.extraction_status = "A cited source", "ok"
+        await session.commit()
+    read = await client.post(
+        f"/voice-workspaces/{private['id']}/tools/read_source",
+        headers=headers,
+        json={"idempotency_key": "read-shared", "arguments": {"source_id": source}},
+    )
+    assert read.status_code == 200, read.text
+    assert read.json()["source_id"] == source
+    async with factory() as session:
+        assert await session.get(WorkspaceSource, (private["id"], source)) is not None
 
 
 @pytest.mark.asyncio

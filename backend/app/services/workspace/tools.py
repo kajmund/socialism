@@ -1,4 +1,5 @@
 """One authorized, idempotent server-tool path for UI and live voice calls."""
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -7,6 +8,8 @@ from app.database.models import UserAccount
 from app.schemas.workspace import WorkspaceState
 from app.services.workspace.service import accept_operation, require_workspace
 from app.services.workspace.tool_handlers import HANDLERS, ToolContext
+
+_turn_state: ContextVar[WorkspaceState | None] = ContextVar("workspace_tool_turn_state", default=None)
 
 
 def _validate_agent(workspace, user, agent_session) -> None:
@@ -26,7 +29,8 @@ async def execute_workspace_tool(session: AsyncSession, *, workspace_id: str, us
         raise RuntimeError("VoiceWorkspace commands require their own clean transaction")
     workspace = await require_workspace(session, workspace_id, user)
     _validate_agent(workspace, user, agent_session)
-    turn_state = getattr(agent_session, "turn_state", None) if agent_session is not None else None
+    session_state = getattr(agent_session, "turn_state", None) if agent_session is not None else None
+    turn_state = session_state if session_state is not None else _turn_state.get()
     turn_context = None if turn_state is None else {
         "revision": getattr(agent_session, "turn_revision", workspace.revision),
         "state": WorkspaceState.model_validate(turn_state).model_dump(),

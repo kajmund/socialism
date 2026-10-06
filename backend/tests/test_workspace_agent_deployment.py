@@ -3,7 +3,7 @@
 import pytest
 
 from app.database.models import Persona
-from app.services.elevenlabs_agents import ElevenLabsAgentsClient, ElevenLabsError, get_elevenlabs_client
+from app.services.elevenlabs_agents import ElevenLabsError
 from app.services.workspace_agent_deployment import deploy_agent_snapshot, prepare_agent_snapshot, save_agent_deployment
 from tests.test_workspace_conversations import (
     provider as provider,
@@ -12,43 +12,14 @@ from tests.test_workspace_conversations import (
 )
 
 
-def failing_client(original, factory, workspace_id, *, stage, deleted):
-    class Client(ElevenLabsAgentsClient):
-        async def request(self, method, path, **kwargs):
-            await probe_connection(factory, workspace_id)
-            if method == "DELETE":
-                assert kwargs.get("params") == ({"force": True} if "/tools/" in path else None)
-                deleted.append(path)
-                return {}
-            config = kwargs.get("body", {}).get("tool_config", {})
-            if ((stage == "tool" and config.get("name") == "get_job_status")
-                    or (stage == "procedure" and path.endswith("/procedures"))
-                    or (stage == "publish" and method == "PATCH")):
-                raise ElevenLabsError("elevenlabs_request_failed")
-            return await super().request(method, path, **kwargs)
-    async def dependency():
-        async for native in original():
-            yield Client(native.http)
-    return dependency
-
-
 @pytest.mark.asyncio
-@pytest.mark.parametrize("stage", ["tool", "procedure", "publish"])
-async def test_publish_failure_cleans_known_resources_without_db_connection(single_connection_provider, stage):
+async def test_session_uses_configured_agent_without_creating_one(single_connection_provider):
     fixture, _ = single_connection_provider
-    client, factory, workspace_id, expert_id, requests = fixture
-    app, deleted = client._transport.app, []
-    original = app.dependency_overrides[get_elevenlabs_client]
-    app.dependency_overrides[get_elevenlabs_client] = failing_client(original, factory, workspace_id, stage=stage, deleted=deleted)
+    client, _factory, workspace_id, expert_id, requests = fixture
     response = await client.post(f"/workspace-chat/{workspace_id}/sessions", json={"expert_id": expert_id, "mode": "text"})
-    assert response.status_code == 502
-    assert response.json() == {"detail": "elevenlabs_request_failed"}
-    tool_names = [body["tool_config"]["name"] for method, path, body in requests
-                  if method == "POST" and path == "/v1/convai/tools"]
-    assert {path for path in deleted if "/tools/" in path} == {"/v1/convai/tools/tool-" + name for name in tool_names}
-    if stage != "tool":
-        assert deleted[0] == "/v1/convai/agents/agent-fixture"
-    app.dependency_overrides[get_elevenlabs_client] = original
+    assert response.status_code == 200, response.text
+    assert response.json()["agent_id"] == "agent-fixture"
+    assert [path for _method, path, _body in requests if path == "/v1/convai/agents/create"] == []
 
 
 @pytest.mark.asyncio

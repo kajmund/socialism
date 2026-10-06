@@ -22,6 +22,7 @@ from app.llm.chat import (
 )
 from app.llm.vision_content import validate_chat_turn_images
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
+from app.schemas.workspace import WorkspaceState
 from app.schemas.domain import (
     ChatMode,
     EditablePersona,
@@ -34,13 +35,18 @@ from app.services.dd.company_mcp import CompanyMcpError
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
 from app.services.expert_async_tools import begin_library_tools
+from app.services.expert_memory_context import expert_memory_context
 from app.services.expert_memory_schedule import schedule_expert_memory_update
 from app.services.expert_tools import resolve_chat_tools
 from app.services.library_chat_fifo import trim_and_commit_library_chat
-from app.services.expertgranskning.memory import ExpertMemoryHit, get_expert_memory
+from app.services.expertgranskning.memory import get_expert_memory
 from app.services.expertgranskning.memory_view import serialize_memory_hit
+from app.services.library_workspace_turn import (
+    chat_tools_for_turn,
+    finish_workspace_turn,
+    prepare_workspace_chat,
+)
 from app.services.oasis_run import previous_attempts
-from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_prompts_for_persona
 from app.services.run_tick_context import build_persona_feed_context
 
@@ -170,49 +176,6 @@ async def _commit_library_message(
 
 def _history_triples(rows: list[PersonaMessage]) -> list[tuple[str, str, str | None]]:
     return [(row.role, row.content, row.image_sha256) for row in rows]
-
-
-async def expert_memory_context(
-    persona: Persona,
-    message: str,
-    prompts: dict[str, str],
-    *,
-    image_sha256: str | None = None,
-) -> str:
-    if persona.kind != "expert":
-        return ""
-    hits = await get_expert_memory().search(
-        customer_id=persona.customer_id,
-        expert_id=persona_catalog_key(persona),
-        query=message,
-        image_sha256=image_sha256,
-        sources=frozenset(
-            {
-                "persona_chat",
-                "panel_chat",
-                "expert_consult",
-                "intent_interview",
-                "word_findings",
-                "research_receipt",
-            }
-        ),
-    )
-    if not hits:
-        return ""
-    memories = "\n".join(_expert_memory_context_line(hit) for hit in hits)
-    return render_prompt(prompts, "chat.expert.memory", memories=memories)
-
-
-def _expert_memory_context_line(hit: ExpertMemoryHit) -> str:
-    if hit.source != "research_receipt":
-        return f"- {hit.text}"
-    question_id = str(hit.metadata.get("knowledge_question_id") or "unknown")
-    attempt_id = str(hit.metadata.get("source_attempt_id") or "unknown")
-    return (
-        "- [research_receipt; "
-        f"knowledge_question_id={question_id}; source_attempt_id={attempt_id}] "
-        f"{hit.text}"
-    )
 
 
 async def remember_expert_chat_turn(
@@ -370,6 +333,9 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
     sme_expert_turn_request_id: str | None = None,
     actor_user_id: str | None = None,
     persist_guard: LibraryTurnWriteGuard | None = None,
+    workspace_id: str | None = None,
+    workspace_state: WorkspaceState | None = None,
+    on_client_tools: Callable[[list[dict[str, Any]]], Awaitable[None]] | None = None,
 ) -> AsyncIterator[str | PersonaChatResponse]:
     """Yield token strings, then PersonaChatResponse.
 
@@ -394,12 +360,23 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             validate_chat_turn_images(history, message, image_sha256)
         except ValueError as exc:
             raise ChatTurnError(str(exc)) from exc
+        resolved_tools = resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
+        workspace_extra, workspace_specs, stored_state = await prepare_workspace_chat(
+            session,
+            prompts=prompts,
+            workspace_id=workspace_id,
+            workspace_state=workspace_state,
+            actor_user_id=actor_user_id,
+            tool_names=resolved_tools,
+        )
         await session.commit()
         memory_context = await expert_memory_context(
             persona, message, prompts, image_sha256=image_sha256
         )
-        chat_tools = resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
-        with_tools = _library_chat_uses_tools(persona)
+        if workspace_extra:
+            memory_context = f"{memory_context}\n\n{workspace_extra}".strip() if memory_context else workspace_extra
+        chat_tools = chat_tools_for_turn(resolved_tools, workspace=bool(workspace_specs))
+        with_tools = _library_chat_uses_tools(persona) or bool(workspace_specs)
         scope = begin_library_tools(
             persona_id=persona_id,
             mode=mode,
@@ -407,6 +384,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             history=history,
             user_message=message,
             enabled=with_tools,
+            workspace=None if workspace_id is None or stored_state is None else (workspace_id, stored_state),
         )
         saved_reply = False
         try:
@@ -441,6 +419,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
                     profile_kind=persona.kind,
                     tools=chat_tools,
                     extra_system=memory_context,
+                    extra_tools=workspace_specs,
                     user_image_sha256=image_sha256,
                 )
                 async with asyncio.timeout(_llm_reply_timeout_seconds(with_tools=with_tools)):
@@ -461,6 +440,10 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
                 await _discard_user_message(session, user_row)
                 raise
 
+            await finish_workspace_turn(
+                session, scope, on_client_tools, workspace_id=workspace_id,
+                actor_user_id=actor_user_id, message=message, history=history,
+            )
             reply = "".join(parts).strip()
             if not reply:
                 await _discard_user_message(session, user_row)

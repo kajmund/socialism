@@ -24,6 +24,22 @@ async def test_active_database_transport_prompt_applies_to_native_and_expert_too
     assert "expert_tool" in snapshot.tools
     for config in snapshot.tools.values():
         parameters = config["parameters"]
+        if config["name"] == "search_knowledge":
+            assert parameters["required"] == ["query"]
+            assert set(parameters["properties"]) == {"query"}
+            continue
+        if config["name"] == "read_source":
+            assert set(parameters["properties"]) == {"source_id", "reference_id"}
+            continue
+        if config["name"] == "focus_anchor":
+            assert parameters["required"] == ["source_id", "quote"]
+            assert set(parameters["properties"]) == {"source_id", "quote"}
+            continue
+        if config["name"] == "show_document":
+            assert parameters["required"] == ["source_id"]
+            assert set(parameters["properties"]) == {"source_id", "reference_id", "page"}
+            assert parameters["properties"]["page"]["type"] == "number"
+            continue
         assert parameters["required"] == ["arguments_json"]
         assert set(parameters["properties"]) == {"arguments_json"}
         argument = parameters["properties"]["arguments_json"]
@@ -33,9 +49,6 @@ async def test_active_database_transport_prompt_applies_to_native_and_expert_too
         assert schema["type"] == "object"
         if config["name"] == "expert_tool":
             assert "search_duckduckgo" in schema["properties"]["name"]["enum"]
-        if config["name"] == "focus_anchor":
-            assert schema["required"] == ["reference_id"]
-            assert set(schema["properties"]) == {"reference_id"}
 
 
 def test_native_transport_rejects_missing_database_prompt():

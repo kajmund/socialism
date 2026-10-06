@@ -18,6 +18,7 @@ from pydantic import (
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import Kund, Persona, UserAccount
 from app.realtime.library_chat_broadcast import library_chat_broadcast
+from app.schemas.workspace import WorkspaceState
 from app.services import jobs as jobs_service
 from app.services.persona_chat import ChatTurnError, library_follow_up_questions
 from app.services.sme_expert_turns import (
@@ -41,6 +42,8 @@ class SmeExpertSend(BaseModel):
     thread_id: str = Field(min_length=1, max_length=64)
     message: str = Field(max_length=10_000)
     image_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+    workspace_id: str | None = Field(default=None, min_length=1, max_length=64)
+    workspace_state: WorkspaceState | None = None
 
     @field_validator("message")
     @classmethod
@@ -51,6 +54,8 @@ class SmeExpertSend(BaseModel):
     def require_message_or_image(self) -> SmeExpertSend:
         if not self.message and not self.image_sha256:
             raise ValueError("message is required")
+        if (self.workspace_id is None) != (self.workspace_state is None):
+            raise ValueError("workspace_required")
         return self
 
 
@@ -61,6 +66,11 @@ async def _authenticate(websocket: WebSocket) -> UserAccount:
             session,
             websocket.query_params.get("access_token"),
         )
+
+
+async def _send_workspace_tools(emit, envelope: dict, calls: list[dict]) -> None:
+    for call in calls:
+        await emit({"type": "workspace_tool", **call, **envelope})
 
 
 @router.websocket("/ws/sme")
@@ -226,6 +236,9 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
                 fence=fence,
                 token=token,
                 on_token=on_token,
+                workspace_id=send.workspace_id,
+                workspace_state=send.workspace_state,
+                on_client_tools=lambda calls: _send_workspace_tools(emit, envelope, calls),
             )
             async with factory() as session:
                 questions = await library_follow_up_questions(
