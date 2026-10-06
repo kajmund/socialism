@@ -16,6 +16,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.expert_live_voices import persona_update_data, register_live_voices, voice_for_token
 from app.auth.dependencies import get_current_user
 from app.auth.scope import (
     assert_kund_access,
@@ -87,7 +88,7 @@ from app.services.live_voice import (
 )
 from app.services.live_voice_context import build_live_voice_context
 from app.services.library_chat_fifo import load_library_chat, trim_and_commit_library_chat
-from app.services.live_voice_tools import live_voice_tool_specs, run_live_voice_tool
+from app.services.live_voice_tools import run_live_voice_tool
 from app.services.live_voice_transcript import (
     LiveVoiceTranscriptRequest,
     publish_live_voice_turn,
@@ -118,6 +119,7 @@ from app.services.stored_objects import get_stored_object, read_stored_bytes
 from app.services.underlag_extract import ensure_underlag_extracted
 
 router = APIRouter(prefix="/personas", tags=["personas"])
+register_live_voices(router)
 PERSONA_AVATAR_BUCKET = "persona-avatars"
 
 
@@ -338,22 +340,18 @@ async def create_persona_live_token(
     )
     allowed_tools = resolve_chat_tools(persona.tools, kind=persona.kind)
     tool_context = expert_tool_prompt_extra(prompts, allowed_tools)
-    extra_system = "\n\n".join(
-        part for part in (live_context, tool_context) if part.strip()
-    )
+    extra_system = "\n\n".join(part for part in (live_context, tool_context) if part.strip())
     system_instruction = build_chat_system_prompt(
-        profile,
-        "interview",
-        prompts=prompts,
-        area_block=area_block,
-        extra_system=extra_system,
-        profile_kind="expert",
+        profile, "interview", prompts=prompts, area_block=area_block,
+        extra_system=extra_system, profile_kind="expert",
     )
+    provider_name, voice, tool_specs = voice_for_token(persona)
+    await session.rollback()
     try:
         return await create_live_voice_session(
             system_instruction,
             initial_turn=initial_turn,
-            tools=live_voice_tool_specs(persona),
+            tools=tool_specs, provider=provider_name, voice=voice,
         )
     except LiveVoiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -579,7 +577,7 @@ async def create_persona(  # noqa: PLR0912
         quote=quote,
         origin=body.origin,
         profile=profile.model_dump(),
-        tools=resolve_chat_tools(body.tools, kind=body.kind),
+        tools=resolve_chat_tools(body.tools, kind=body.kind), live_voice_provider=body.live_voice_provider, live_voice=body.live_voice,
         updated_at=utcnow(),
     )
     session.add(persona)
@@ -597,7 +595,7 @@ async def update_persona(
 ) -> PersonaDetail:
     persona = await _get_persona(session, persona_id)
     assert_kund_access(user, persona.customer_id)
-    data = body.model_dump(exclude_unset=True)
+    data = persona_update_data(persona, body.model_dump(exclude_unset=True))
     profile = data.pop("profile", None)
     tools_set = "tools" in data
     tools = data.pop("tools", None)
@@ -636,7 +634,7 @@ async def duplicate_persona(
         quote=source.quote,
         origin=source.origin,
         profile=dict(source.profile or blank_profile(source.name).model_dump()),
-        tools=list(source.tools) if source.tools is not None else source.tools,
+        tools=list(source.tools) if source.tools is not None else source.tools, live_voice_provider=source.live_voice_provider, live_voice=source.live_voice,
         updated_at=utcnow(),
     )
     session.add(persona)

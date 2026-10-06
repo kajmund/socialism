@@ -7,7 +7,7 @@ import pdfplumber
 import pytest
 
 from app.services.document_knowledge import _quote_rects
-from app.services.pdf_quote_anchors import quote_rects
+from app.services.pdf_quote_anchors import first_quote_page, quote_rects
 from app.services.workspace.search import _pdf_quote_rects
 
 QUOTE = "Period: 2031-02-03 09:00 2031-02-03 10:00"
@@ -96,6 +96,15 @@ def test_quote_cannot_end_inside_word_or_change_punctuation(quote):
 
 def test_identical_quotes_on_same_page_fail_closed_without_position_discriminator():
     assert _pdf_quote_rects(_synthetic_pdf(amount_line="50 SEK 50 SEK"), 2, "50 SEK") == []
+
+
+def test_repeated_phrase_still_marks_the_first_occurrence():
+    with pdfplumber.open(BytesIO(_synthetic_pdf())) as pdf:
+        located = first_quote_page(pdf, "2031-02-03")
+        assert located is not None
+        page, rects = located
+        assert page == 1 and rects
+        assert quote_rects(pdf, 1, "2031-02-03") == []
 
 
 @pytest.mark.parametrize("x0,x1,top,bottom,expected", [

@@ -40,7 +40,9 @@ class ElevenLabsAgentsClient:
         return value
 
     async def connection(self, *, agent_id: str, agent_version: str, mode: str) -> dict:
-        params = {"agent_id": agent_id, "version_id": agent_version}
+        params = {"agent_id": agent_id}
+        if agent_version:
+            params["version_id"] = agent_version
         if mode == "voice":
             result = await self.request("GET", "/v1/convai/conversation/token", params=params)
             return {"connection_type": "webrtc", "conversation_token": require_string(result, "token"),

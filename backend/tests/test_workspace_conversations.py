@@ -27,6 +27,7 @@ async def provider(client_db, monkeypatch):
     client, factory = client_db
     monkeypatch.setattr(settings, "elevenlabs_api_key", "private-test-key-never-persist")
     monkeypatch.setattr(settings, "elevenlabs_voice_id", "voice-fixture")
+    monkeypatch.setattr(settings, "elevenlabs_agent_id", "agent-fixture")
     requests = []
     procedures = {}
     connection_sequence = 0
@@ -39,15 +40,17 @@ async def provider(client_db, monkeypatch):
         if path == "/v1/convai/llm/list":
             result = {"llms": [{"llm": settings.elevenlabs_llm, "deprecation_info": None}]}
         elif path == "/v1/convai/tools":
-            assert body["tool_config"]["type"] == "client"
-            result = {"id": "tool-" + body["tool_config"]["name"]}
+            result = {"tools": []} if request.method == "GET" else {"id": "tool-" + body["tool_config"]["name"]}
+            assert request.method == "GET" or body["tool_config"]["type"] == "client"
         elif path == "/v1/convai/agents/create":
             assert body["platform_settings"]["auth"]["enable_auth"]
             assert body["conversation_config"]["agent"]["prompt"]["backup_llm_config"] == {"preference": "disabled"}
             assert body["conversation_config"]["agent"]["prompt"]["knowledge_base"] == []
             result = {"agent_id": "agent-fixture"}
         elif request.method == "GET" and path == "/v1/convai/agents/agent-fixture":
-            result = {"main_branch_id": "branch-fixture"}
+            result = {"main_branch_id": "branch-fixture", "conversation_config": {"agent": {
+                "prompt": {"prompt": "", "llm": "stale-dashboard-model", "tool_ids": ["tool-existing"]}},
+                "tts": {"voice_id": "stale-voice"}}}
         elif path.endswith("/procedures"):
             key = "procedure-" + body["name"]
             procedures[key] = {"version_id": "v1"}
@@ -101,7 +104,8 @@ async def test_private_text_voice_generation_and_revocation(provider):
     text = await bootstrap(provider, "text")
     assert voice["connection_type"] == "webrtc" and text["connection_type"] == "websocket"
     assert text["generation"] == voice["generation"] + 1
-    assert sum(path == "/v1/convai/agents/create" for _, path, _ in requests) == 1
+    assert voice["agent_id"] == text["agent_id"] == "agent-fixture"
+    assert sum(path == "/v1/convai/agents/create" for _, path, _ in requests) == 0
     denied = await client.post(tool_url(provider, voice), json=tool_body(voice))
     assert denied.status_code == 401
     wrong = {**tool_body(text), "conversation_id": "unrelated-provider-conversation"}
@@ -328,7 +332,7 @@ async def test_late_correction_updates_completed_transcript_and_memory(provider)
 
 
 @pytest.mark.asyncio
-async def test_prompt_override_publishes_new_immutable_native_version(provider):
+async def test_prompt_override_keeps_the_configured_agent(provider):
     client, factory, workspace_id, _, requests = provider
     first = await bootstrap(provider)
     async with factory() as db:
@@ -339,9 +343,16 @@ async def test_prompt_override_publishes_new_immutable_native_version(provider):
     clear_prompt_cache()
     second = await bootstrap(provider)
     assert first["prompt_version"] != second["prompt_version"]
-    configs = [body for _, path, body in requests if path == "/v1/convai/agents/create"]
-    assert len(configs) == 2
-    assert configs[-1]["conversation_config"]["agent"]["prompt"]["prompt"].startswith("Testversion för ")
+    assert first["agent_id"] == second["agent_id"] == "agent-fixture"
+    assert sum(path == "/v1/convai/agents/create" for _, path, _ in requests) == 0
+    patches = [body for method, path, body in requests if method == "PATCH" and path == "/v1/convai/agents/agent-fixture" and body and "conversation_config" in body]
+    applied = patches[-1]["conversation_config"]
+    assert applied["agent"]["prompt"]["llm"] == settings.elevenlabs_llm
+    assert applied["agent"]["prompt"]["prompt"].startswith("Testversion")
+    assert "tool-read_source" in applied["agent"]["prompt"]["tool_ids"]
+    assert "tool-search_knowledge" in applied["agent"]["prompt"]["tool_ids"]
+    assert "tool-existing" not in applied["agent"]["prompt"]["tool_ids"]
+    assert applied["tts"]["voice_id"] == settings.elevenlabs_voice_id
     denied = await client.post(tool_url(provider, first), json=tool_body(first))
     assert denied.status_code == 401
     assert second["generation"] > first["generation"]
@@ -353,6 +364,9 @@ async def test_provider_failure_leaves_failed_generation_and_no_credentials(prov
     client, factory, workspace_id, _, _ = provider
     class FailingClient:
         async def request(self, *_args, **_kwargs):
+            raise ElevenLabsError("elevenlabs_request_failed")
+
+        async def connection(self, **_kwargs):
             raise ElevenLabsError("elevenlabs_request_failed")
     async def failed():
         yield FailingClient()

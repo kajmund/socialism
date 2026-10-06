@@ -3,11 +3,9 @@ import type { Conversation as ConversationInstance, Callbacks } from "@elevenlab
 import { voiceWorkspaces, type ChatSession, type WorkspaceMessage, type ToolResult } from "@/api/voiceWorkspaces"
 import { useLocale } from "@/i18n"
 import type { WorkspaceTurnSnapshot } from "./workspaceTurnSnapshot"
-import { clientArguments, isCurrentConversation, workspaceErrorMessage } from "./workspaceChatLogic"
+import { clientArguments, clientToolFailure, expertProxyToolNames, isCurrentConversation, isWorkspaceServerTool, workspaceClientToolNames, workspaceErrorMessage, workspaceServerToolNames, workspaceSessionTool } from "./workspaceChatLogic"
 
 export type VoiceState = "disconnected" | "connecting" | "listening" | "speaking" | "paused" | "error"
-const clientNames = ["open_ingest_picker", "show_evidence", "show_document", "focus_anchor", "show_comparison", "show_relations", "show_knowledge", "show_artifact"]
-const serverNames = ["get_workspace_context", "ingest_source", "get_job_status", "search_knowledge", "read_source", "start_research", "compare_sources", "get_relations", "render_chart", "create_document", "revise_document", "export_document", "expert_tool"]
 type Active = { connection: ConversationInstance; session: ChatSession; workspaceId: string; expertId: string; mode: "voice" | "text"; send: (text: string, snapshot: Promise<WorkspaceTurnSnapshot | null>) => Promise<void>; drain: () => Promise<void> }
 export function useWorkspaceConversation(props: {
   workspaceId: string | null; expertId: string | null
@@ -100,18 +98,23 @@ export function useWorkspaceConversation(props: {
         onError: (message) => { if (isCurrent()) { setStatus("error"); latest.current.onError(workspaceErrorMessage(new Error(message), t, "voiceWorkspaceChat.sessionError")) } },
         onDisconnect: () => { if (isCurrent()) { generation.current += 1; setStatus("disconnected"); setVoice(false); active.current = null; latest.current.onPreview(null); closing.current = persistence.finally(() => voiceWorkspaces.end(workspaceId, session.session_id)).catch((error: unknown) => latest.current.onError(workspaceErrorMessage(error, t, "voiceWorkspaceChat.sessionError"))) } },
       }
-      const clientTools = Object.fromEntries([...clientNames, ...serverNames].map((name) => [name, async (raw: unknown) => {
+      const clientTools = Object.fromEntries([...workspaceClientToolNames, ...workspaceServerToolNames, ...expertProxyToolNames].map((name) => [name, async (raw: unknown) => {
         const turn = agentTurn, turnKey = lastUserKey, turnPersistence = userPersistence, transcriptPersistence = persistence
         await bound; await turnPersistence
         await transcriptPersistence
         if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.sessionError"))
-        const args = clientArguments(raw)
-        const result = serverNames.includes(name)
-          ? await voiceWorkspaces.sessionTool(workspaceId, session.session_id, name, connection?.getId() ?? requiredCredential(), turn, turnKey, args)
-          : await latest.current.onTool(name, args, isCurrent)
-        if (serverNames.includes(name) && isCurrent()) latest.current.onServerResult?.(name, result as ToolResult)
-        if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.sessionError"))
-        return JSON.stringify(result)
+        try {
+          const routed = workspaceSessionTool(name, clientArguments(raw))
+          const result = isWorkspaceServerTool(routed.endpoint)
+            ? await voiceWorkspaces.sessionTool(workspaceId, session.session_id, routed.endpoint, connection?.getId() ?? requiredCredential(), turn, turnKey, routed.arguments)
+            : await latest.current.onTool(name, routed.arguments, isCurrent)
+          if (isWorkspaceServerTool(name) && isCurrent()) latest.current.onServerResult?.(name, result as ToolResult)
+          if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.sessionError"))
+          return JSON.stringify(result)
+        } catch (error) {
+          if (!isCurrent()) throw error
+          return clientToolFailure(error)
+        }
       }]))
       try {
         const credentials = mode === "voice" ? { conversationToken: session.conversation_token ?? requiredCredential(), connectionType: "webrtc" as const, textOnly: false } : { signedUrl: session.signed_url ?? requiredCredential(), connectionType: "websocket" as const, textOnly: true }
@@ -145,11 +148,11 @@ export function useWorkspaceConversation(props: {
     const sameScope = () => latest.current.workspaceId === workspaceId && latest.current.expertId === expertId
     const captured = await snapshot
     if (!sameScope() || generation.current !== admittedGeneration || !captured || captured.workspaceId !== workspaceId || captured.state.expert_id !== expertId) throw new Error(t("voiceWorkspaceChat.sessionError"))
-    let current = active.current
-    if (!current) { const connecting = start("text"), connectingGeneration = generation.current; current = await connecting; if (generation.current !== connectingGeneration) throw new Error(t("voiceWorkspaceChat.sessionError")) }
+    const current = active.current
+    if (!current || current.mode !== "voice" || !current.connection.isOpen()) throw new Error(t("voiceWorkspaceChat.sessionError"))
     if (!sameScope() || current !== active.current || current.workspaceId !== workspaceId || current.expertId !== expertId) throw new Error(t("voiceWorkspaceChat.sessionError"))
     await current.send(text, Promise.resolve(captured))
-  }, [expertId, start, t, workspaceId])
+  }, [expertId, t, workspaceId])
   const contextualUpdate = useCallback((text: string) => { active.current?.connection.sendContextualUpdate(text) }, [])
   const userActivity = useCallback(() => { active.current?.connection.sendUserActivity() }, [])
   const toggleMute = useCallback(() => { if (active.current?.mode !== "voice") return; mutedRef.current = !mutedRef.current; active.current.connection.setMicMuted(mutedRef.current); setMuted(mutedRef.current); setStatus(mutedRef.current ? "paused" : "listening") }, [])

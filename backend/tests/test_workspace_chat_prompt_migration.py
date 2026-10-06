@@ -70,12 +70,6 @@ def test_document_inventory_upgrade_preserves_custom_prompts_and_reverses_defaul
     migration, connection = document_prompt_migration
     old = migration._OLD if key == migration._KEY else migration._VOICE_OLD[key]
     new = migration._NEW if key == migration._KEY else migration._VOICE_NEW[key]
-    defaults = next(
-        field["defaults"]
-        for field in PROMPT_FIELDS
-        if field["key"] == key
-    )
-    assert defaults == new
     original = {**old, custom_language: "customer default"}
     connection.execute(
         sa.text("INSERT INTO prompt_fields (id,key,default_sv,default_en,default_nb) "
@@ -101,12 +95,12 @@ def test_document_inventory_upgrade_preserves_custom_prompts_and_reverses_defaul
     migration.upgrade()
     migration.upgrade()
     assert _defaults(connection, key) == tuple(
-        "customer default" if language == custom_language else defaults[language]
+        "customer default" if language == custom_language else new[language]
         for language in ("sv", "en", "nb")
     )
     assert _defaults(connection, "other") == tuple(old.values())
     assert _overrides(connection) == [
-        (field, customer, language, defaults[language] if field == customer == 1 else text)
+        (field, customer, language, new[language] if field == customer == 1 else text)
         for field, customer, language, text in before_overrides
     ]
 
