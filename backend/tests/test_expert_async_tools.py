@@ -17,12 +17,12 @@ from app.schemas.domain import PersonaChatResponse
 from app.services.expert_async_tools import (
     PlannedCall,
     ToolWork,
-    _compose_followup,
     _threads,
     begin_library_tools,
     reset_library_tool_threads,
     wait_library_tool_tasks,
 )
+from app.services.expert_tool_followup import _compose_followup
 from app.services.jobs import set_job_session_factory
 from app.services.persona_chat import stream_library_chat_turn
 from app.services.prompt_store import ensure_default_configurations

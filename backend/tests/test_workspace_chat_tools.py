@@ -6,8 +6,8 @@ from app.services.expert_async_tools import (
     PlannedCall,
     ToolWork,
     _run_workspace_tool,
-    queue_document_open,
 )
+from app.services.expert_tool_followup import queue_document_open
 from app.services.workspace_chat_tools import workspace_openai_tools, workspace_turn_text
 
 
@@ -48,8 +48,7 @@ def test_display_tools_stay_on_the_client():
         actor_user_id="user",
         history=[],
         user_message="hej",
-        workspace_id="ws",
-        workspace_state={},
+        workspace=("ws", {}),
     )
     scope.defer([
         PlannedCall("1", "focus_anchor", {"reference_id": "ref"}),

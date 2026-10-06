@@ -20,6 +20,23 @@ _PARAGRAPHS = {
     "but not open. Confirm only after show_document returns completed. If several files could match, ask which one.",
 }
 _PARAGRAPHS["nb"] = _PARAGRAPHS["sv"]
+# 158 replaced this paragraph in the catalog. A fresh upgrade still has to find the text that is there.
+_LATER = {
+    "sv": "När användaren ber dig öppna ett dokument eller avtal och namnet står i ett filnamn i available_documents, "
+    "anropa show_document i samma tur med den source_id. Om användaren nämner en part, ett bolag eller ett ämne "
+    "som inte står i något filnamn, anropa search_knowledge med de orden innan du svarar. Filnamn visar inte att "
+    "innehållet saknas. När sökningen ger träffar i ett dokument, anropa show_document med träffens source_id. "
+    "Fråga vilken fil bara om sökningen träffar flera olika dokument. Fråga inte om du ska öppna det, och säg "
+    "inte att filen finns men inte är öppen. Bekräfta först när show_document har svarat completed.",
+    "en": "When the user asks you to open a document or contract and the name appears in a filename in "
+    "available_documents, call show_document in the same turn with that source_id. If the user names a party, "
+    "company or subject that is not in any filename, call search_knowledge with those words before you answer. "
+    "Filenames do not show that the content is missing. When the search hits one document, call show_document "
+    "with that hit's source_id. Ask which file only when the search hits several different documents. Do not "
+    "ask whether to open it, and do not say the file is available but not open. Confirm only after "
+    "show_document returns completed.",
+}
+_LATER["nb"] = _LATER["sv"]
 
 _TOOL = "workspace.voice.tool.show_document"
 _TOOL_OLD = {
@@ -37,11 +54,12 @@ def _catalog(key: str) -> dict[str, str]:
 
 
 def _previous_system(language: str) -> str:
-    paragraph = _PARAGRAPHS[language] + "\n"
     current = _catalog(_SYSTEM)[language]
-    if paragraph not in current:
-        raise RuntimeError("open document paragraph missing from workspace.voice.system")
-    return current.replace(paragraph, "", 1)
+    for paragraph in (_PARAGRAPHS[language], _LATER[language]):
+        needle = paragraph + "\n"
+        if needle in current:
+            return current.replace(needle, "", 1)
+    raise RuntimeError("open document paragraph missing from workspace.voice.system")
 
 
 def _apply(key: str, language: str, old: str, new: str) -> None:
