@@ -9,12 +9,13 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from fastapi import HTTPException
 from openai import APITimeoutError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database.models import Persona, PersonaMessage, Run
+from app.database.models import Persona, PersonaMessage, Run, UserAccount
 from app.llm.chat import (
     build_run_interview_prompt,
     stream_reply_as_persona,
@@ -22,6 +23,7 @@ from app.llm.chat import (
 )
 from app.llm.vision_content import validate_chat_turn_images
 from app.realtime.interview_broadcast import interview_broadcast, interview_key_tuple
+from app.schemas.workspace import WorkspaceState
 from app.schemas.domain import (
     ChatMode,
     EditablePersona,
@@ -33,7 +35,8 @@ from app.serializers import format_date, profile_from_dict, utcnow
 from app.services.dd.company_mcp import CompanyMcpError
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
-from app.services.expert_async_tools import begin_library_tools
+from app.services.expert_async_tools import LibraryToolScope, begin_library_tools, queue_document_open
+from app.services.workspace_document_context import source_for_open_request
 from app.services.expert_memory_schedule import schedule_expert_memory_update
 from app.services.expert_tools import resolve_chat_tools
 from app.services.library_chat_fifo import trim_and_commit_library_chat
@@ -42,6 +45,8 @@ from app.services.expertgranskning.memory_view import serialize_memory_hit
 from app.services.oasis_run import previous_attempts
 from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_prompts_for_persona
+from app.services.workspace.service import require_workspace
+from app.services.workspace_chat_tools import workspace_openai_tools, workspace_turn_text
 from app.services.run_tick_context import build_persona_feed_context
 
 logger = logging.getLogger(__name__)
@@ -360,6 +365,56 @@ def validate_interview_variant(
         )
 
 
+async def _prepare_workspace_chat(
+    session: AsyncSession,
+    *,
+    persona: Persona,
+    prompts: dict[str, str],
+    workspace_id: str | None,
+    workspace_state: WorkspaceState | None,
+    actor_user_id: str | None,
+) -> tuple[str, list[dict[str, Any]], dict | None]:
+    if workspace_id is None:
+        return "", [], None
+    if actor_user_id is None or workspace_state is None:
+        raise ChatTurnError("workspace_required", status_code=422)
+    actor = await session.get(UserAccount, actor_user_id)
+    if actor is None:
+        raise ChatTurnError("actor_not_found", status_code=404)
+    try:
+        await require_workspace(session, workspace_id, actor)
+    except HTTPException as exc:
+        raise ChatTurnError(str(exc.detail), status_code=exc.status_code) from exc
+    kept = [
+        name
+        for name in resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
+        if name != "start_research"
+    ]
+    return (
+        workspace_turn_text(prompts, workspace_state),
+        workspace_openai_tools(prompts, skip=frozenset(kept)),
+        workspace_state.model_dump(),
+    )
+
+
+async def _emit_workspace_client_tools(
+    scope: LibraryToolScope,
+    on_client_tools: Callable[[list[dict[str, Any]]], Awaitable[None]] | None,
+) -> None:
+    if on_client_tools is None or not scope.client_calls:
+        return
+    await on_client_tools(
+        [{"name": call.name, "arguments": call.arguments} for call in scope.client_calls]
+    )
+
+
+def _chat_tools_for_turn(persona: Persona, *, workspace: bool) -> list[str]:
+    names = resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
+    if not workspace:
+        return names
+    return [name for name in names if name != "start_research"]
+
+
 async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
     session: AsyncSession,
     *,
@@ -370,6 +425,9 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
     sme_expert_turn_request_id: str | None = None,
     actor_user_id: str | None = None,
     persist_guard: LibraryTurnWriteGuard | None = None,
+    workspace_id: str | None = None,
+    workspace_state: WorkspaceState | None = None,
+    on_client_tools: Callable[[list[dict[str, Any]]], Awaitable[None]] | None = None,
 ) -> AsyncIterator[str | PersonaChatResponse]:
     """Yield token strings, then PersonaChatResponse.
 
@@ -394,12 +452,22 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             validate_chat_turn_images(history, message, image_sha256)
         except ValueError as exc:
             raise ChatTurnError(str(exc)) from exc
+        workspace_extra, workspace_specs, stored_state = await _prepare_workspace_chat(
+            session,
+            persona=persona,
+            prompts=prompts,
+            workspace_id=workspace_id,
+            workspace_state=workspace_state,
+            actor_user_id=actor_user_id,
+        )
         await session.commit()
         memory_context = await expert_memory_context(
             persona, message, prompts, image_sha256=image_sha256
         )
-        chat_tools = resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
-        with_tools = _library_chat_uses_tools(persona)
+        if workspace_extra:
+            memory_context = f"{memory_context}\n\n{workspace_extra}".strip() if memory_context else workspace_extra
+        chat_tools = _chat_tools_for_turn(persona, workspace=bool(workspace_specs))
+        with_tools = _library_chat_uses_tools(persona) or bool(workspace_specs)
         scope = begin_library_tools(
             persona_id=persona_id,
             mode=mode,
@@ -407,6 +475,8 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             history=history,
             user_message=message,
             enabled=with_tools,
+            workspace_id=workspace_id,
+            workspace_state=stored_state,
         )
         saved_reply = False
         try:
@@ -441,6 +511,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
                     profile_kind=persona.kind,
                     tools=chat_tools,
                     extra_system=memory_context,
+                    extra_tools=workspace_specs,
                     user_image_sha256=image_sha256,
                 )
                 async with asyncio.timeout(_llm_reply_timeout_seconds(with_tools=with_tools)):
@@ -461,6 +532,16 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
                 await _discard_user_message(session, user_row)
                 raise
 
+            opened = await source_for_open_request(
+                session,
+                workspace_id=workspace_id,
+                actor_user_id=actor_user_id,
+                message=message,
+                history=history,
+            )
+            if opened:
+                queue_document_open(scope, opened)
+            await _emit_workspace_client_tools(scope, on_client_tools)
             reply = "".join(parts).strip()
             if not reply:
                 await _discard_user_message(session, user_row)

@@ -60,6 +60,14 @@ class PersonaAnecdoteOut(BaseModel):
         return text
 
 
+LiveVoiceProviderName = Literal["gemini", "elevenlabs"]
+
+
+class LiveVoiceOption(BaseModel):
+    id: str
+    name: str
+
+
 class LibraryPersona(BaseModel):
     id: str
     kind: PersonaKind = "persona"
@@ -74,13 +82,12 @@ class LibraryPersona(BaseModel):
     profile: EditablePersona
     tools: list[str] | None = None
     avatar_url: str | None = None
+    live_voice_provider: LiveVoiceProviderName = "gemini"
+    live_voice: str = ""
 
 
 class PersonaDetail(LibraryPersona):
     pass
-
-
-LiveVoiceProviderName = Literal["gemini", "elevenlabs"]
 
 
 class LiveVoiceAudioOut(BaseModel):
@@ -138,6 +145,8 @@ class PersonaCreate(BaseModel):
     origin: PersonaOrigin = "manuell"
     profile: EditablePersona | None = None
     tools: list[str] | None = None
+    live_voice_provider: LiveVoiceProviderName | None = None
+    live_voice: str | None = Field(default=None, max_length=128)
 
     @field_validator("tools")
     @classmethod
@@ -145,6 +154,14 @@ class PersonaCreate(BaseModel):
         if value is None:
             return None
         return normalize_expert_tools(value)
+
+    @field_validator("live_voice")
+    @classmethod
+    def strip_live_voice(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        return text or None
 
     @model_validator(mode="after")
     def require_age_for_persona_kind(self) -> Self:
@@ -163,6 +180,8 @@ class PersonaUpdate(BaseModel):
     origin: PersonaOrigin | None = None
     profile: EditablePersona | None = None
     tools: list[str] | None = None
+    live_voice_provider: LiveVoiceProviderName | None = None
+    live_voice: str | None = Field(default=None, max_length=128)
 
     @field_validator("tools")
     @classmethod
@@ -170,6 +189,14 @@ class PersonaUpdate(BaseModel):
         if value is None:
             return None
         return normalize_expert_tools(value)
+
+    @field_validator("live_voice")
+    @classmethod
+    def strip_live_voice(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        return text or None
 
 
 class PopulationMemberOut(BaseModel):

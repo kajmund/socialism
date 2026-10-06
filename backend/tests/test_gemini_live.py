@@ -63,6 +63,27 @@ async def _create_expert(client: AsyncClient) -> dict[str, object]:
 
 
 @pytest.mark.asyncio
+async def test_expert_saves_provider_and_voice(client: AsyncClient):
+    expert = await _create_expert(client)
+    saved = await client.put(
+        f"/personas/{expert['id']}",
+        json={"live_voice_provider": "gemini", "live_voice": "Kore"},
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["live_voice_provider"] == "gemini"
+    assert saved.json()["live_voice"] == "Kore"
+    voices = await client.get("/personas/live-voices", params={"provider": "gemini"})
+    assert voices.status_code == 200
+    ids = {row["id"] for row in voices.json()}
+    assert {"Kore", "Algenib"}.issubset(ids)
+    rejected = await client.put(
+        f"/personas/{expert['id']}",
+        json={"live_voice_provider": "gemini", "live_voice": "not-a-voice"},
+    )
+    assert rejected.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_live_token_for_expert_uses_server_built_prompt(
     client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -76,6 +97,8 @@ async def test_live_token_for_expert_uses_server_built_prompt(
         *,
         initial_turn: str,
         tools: list[dict[str, object]],
+        provider: str | None = None,
+        voice: str | None = None,
         client: httpx.AsyncClient | None = None,
     ):
         captured.append(system_instruction)
@@ -149,6 +172,8 @@ async def test_live_token_enforces_customer_scope(
         *,
         initial_turn: str,
         tools: list[dict[str, object]],
+        provider: str | None = None,
+        voice: str | None = None,
         client: httpx.AsyncClient | None = None,
     ):
         assert tools
@@ -191,6 +216,8 @@ async def test_live_token_endpoint_maps_google_failure_to_bad_gateway(
         *,
         initial_turn: str,
         tools: list[dict[str, object]],
+        provider: str | None = None,
+        voice: str | None = None,
         client: httpx.AsyncClient | None = None,
     ):
         assert tools

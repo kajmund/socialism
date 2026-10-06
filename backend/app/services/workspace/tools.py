@@ -19,14 +19,23 @@ def _validate_agent(workspace, user, agent_session) -> None:
                 or expires <= datetime.now(UTC) or workspace.state.get("expert_id") != agent_session.expert_id):
             raise HTTPException(status_code=403, detail="workspace_agent_session_revoked")
 
-async def execute_workspace_tool(session: AsyncSession, *, workspace_id: str, user: UserAccount,
-                                 tool_name: str, arguments: dict, idempotency_key: str,
-                                 agent_session=None) -> dict:
+async def execute_workspace_tool(  # noqa: PLR0913
+    session: AsyncSession,
+    *,
+    workspace_id: str,
+    user: UserAccount,
+    tool_name: str,
+    arguments: dict,
+    idempotency_key: str,
+    agent_session=None,
+    turn_state: WorkspaceState | None = None,
+) -> dict:
     if session.new or session.dirty or session.deleted:
         raise RuntimeError("VoiceWorkspace commands require their own clean transaction")
     workspace = await require_workspace(session, workspace_id, user)
     _validate_agent(workspace, user, agent_session)
-    turn_state = getattr(agent_session, "turn_state", None) if agent_session is not None else None
+    session_state = getattr(agent_session, "turn_state", None) if agent_session is not None else None
+    turn_state = session_state if session_state is not None else turn_state
     turn_context = None if turn_state is None else {
         "revision": getattr(agent_session, "turn_revision", workspace.revision),
         "state": WorkspaceState.model_validate(turn_state).model_dump(),

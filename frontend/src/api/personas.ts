@@ -22,12 +22,20 @@ export type PersonaWrite = {
   origin?: PersonaOrigin
   profile?: EditablePersona
   tools?: string[]
+  live_voice_provider?: "gemini" | "elevenlabs"
+  live_voice?: string
 }
+
+export type LiveVoiceProviderName = "gemini" | "elevenlabs"
+
+export type LiveVoiceOption = { id: string; name: string }
 
 export type PersonaWriteOptions = {
   kind?: PersonaKind
   customerId?: number
   tools?: string[]
+  liveVoiceProvider?: LiveVoiceProviderName
+  liveVoice?: string
 }
 
 export function editableToWrite(
@@ -52,6 +60,8 @@ export function editableToWrite(
       origin,
       profile: persona,
       tools: options.tools,
+      live_voice_provider: options.liveVoiceProvider,
+      live_voice: options.liveVoice,
     }
   }
   const age = Number.parseInt(persona.age, 10)
@@ -115,6 +125,10 @@ export function listExpertPersonas(params?: {
 
 export function getPersona(id: string): Promise<PersonaDetail> {
   return api.get<PersonaDetail>(`/personas/${id}`)
+}
+
+export function listLiveVoices(provider: LiveVoiceProviderName): Promise<LiveVoiceOption[]> {
+  return api.get<LiveVoiceOption[]>("/personas/live-voices", { provider })
 }
 
 export type PersonaLiveSession = {

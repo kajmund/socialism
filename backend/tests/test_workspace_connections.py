@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.database.base import Base
 from app.database.models import Kund, StoredObject, UserAccount
-from app.database.workspace_models import WorkspaceOperation
+from app.database.workspace_models import VoiceWorkspace, WorkspaceOperation
+from tests.test_pdf_quote_anchors import QUOTE, _synthetic_pdf
 from app.services.workspace import ingest, search
 from app.services.workspace.service import add_source, create_workspace
 from app.services.workspace.tools import execute_workspace_tool
@@ -159,3 +160,52 @@ async def test_general_graph_embedding_release_and_tenant_scope(single_connectio
         version.superseded_at = datetime.now(UTC)
         await session.commit()
         assert (await read_reference(session, workspace, item["reference_id"]))["stale"]
+
+
+async def _ready_source(factory, ids, *, content_type: str, text: str) -> None:
+    async with factory() as session:
+        workspace = await session.get(VoiceWorkspace, ids[1])
+        source = StoredObject(id="source-one", workspace_id=workspace.workspace_id, customer_id=1,
+            owner_user_id=ids[0], module="dd", kind="underlag", bucket="workspace-test",
+            object_key="source.bin", filename="avtal.pdf", content_type=content_type, size_bytes=len(text),
+            extraction_status="ok", extracted_text=text, knowledge_status="ready")
+        session.add(source)
+        await session.flush()
+        await add_source(session, workspace, source.id)
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_focus_passage_releases_connection_while_reading_the_pdf(single_connection, monkeypatch):
+    factory, ids = single_connection
+    await _ready_source(factory, ids, content_type="application/pdf", text=QUOTE)
+    calls = []
+
+    async def get_object(_bucket, _key):
+        await another_client(factory)
+        calls.append("pdf")
+        return _synthetic_pdf(), "application/pdf"
+
+    monkeypatch.setattr("app.services.workspace_quote_focus.get_object", get_object)
+    result = await command(factory, ids, name="focus_passage", args={"source_id": "source-one", "quote": "2031-02-03"})
+    assert calls == ["pdf"]
+    assert result["reference_id"]
+    assert result["anchor"]["page_number"] == 1
+    assert result["anchor"]["rects"]
+    await another_client(factory)
+
+
+@pytest.mark.asyncio
+async def test_focus_passage_marks_text_without_fetching_the_file(single_connection, monkeypatch):
+    factory, ids = single_connection
+    await _ready_source(factory, ids, content_type="text/plain", text="Ateles Consulting AB är kunden.")
+
+    async def get_object(_bucket, _key):
+        raise AssertionError("text quotes do not need the file")
+
+    monkeypatch.setattr("app.services.workspace_quote_focus.get_object", get_object)
+    result = await command(factory, ids, name="focus_passage", args={
+        "source_id": "source-one", "quote": "Ateles Consulting AB"})
+    assert result["anchor"]["exact_text"] == "Ateles Consulting AB"
+    assert result["anchor"]["locator"] == "passage"
+    assert result["anchor"]["page_number"] is None

@@ -9,6 +9,7 @@ type Options = {
   onToken: (threadId: string, text: string, requestId: string) => void
   onThreadMessage: (threadId: string, messages: SmeMessage[]) => void
   onConsultAnswered: (threadId: string) => void
+  onWorkspaceTool: (threadId: string, name: string, args: Record<string, unknown>) => void
   onReady: () => void
   onDisconnected: () => void
 }
@@ -51,6 +52,7 @@ export function useSmeChatSocket({
   onToken,
   onThreadMessage,
   onConsultAnswered,
+  onWorkspaceTool,
   onReady,
   onDisconnected,
 }: Options) {
@@ -64,6 +66,7 @@ export function useSmeChatSocket({
     onToken,
     onThreadMessage,
     onConsultAnswered,
+    onWorkspaceTool,
     onReady,
     onDisconnected,
   })
@@ -74,6 +77,7 @@ export function useSmeChatSocket({
     onToken,
     onThreadMessage,
     onConsultAnswered,
+    onWorkspaceTool,
     onReady,
     onDisconnected,
   }
@@ -137,6 +141,11 @@ export function useSmeChatSocket({
           case "consult.answered":
             if (threadId) callbacksRef.current.onConsultAnswered(threadId)
             break
+          case "workspace_tool":
+            if (threadId && typeof event.name === "string" && event.arguments && typeof event.arguments === "object") {
+              callbacksRef.current.onWorkspaceTool(threadId, event.name, event.arguments as Record<string, unknown>)
+            }
+            break
           case "error":
             callbacksRef.current.onError(
               threadId,
@@ -159,7 +168,7 @@ export function useSmeChatSocket({
   }, [])
 
   const send = useCallback(
-    (threadId: string, message: string, imageSha256?: string | null) => {
+    (threadId: string, message: string, imageSha256?: string | null, workspace?: { id: string; state: unknown }) => {
       if (!ready || !sendRef.current) return null
       const requestId = crypto.randomUUID()
       sendRef.current({
@@ -169,6 +178,7 @@ export function useSmeChatSocket({
         thread_id: threadId,
         message,
         ...(imageSha256 ? { image_sha256: imageSha256 } : {}),
+        ...(workspace ? { workspace_id: workspace.id, workspace_state: workspace.state } : {}),
       })
       return requestId
     },

@@ -44,16 +44,19 @@ export function useVoiceWorkspaceInbox(workspaceId: string | null, expertId: str
   const [snapshot, setSnapshot] = useState<{ workspaceId: string; rows: VoiceWorkspaceInboxItem[] } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const currentWorkspace = useRef(workspaceId), currentExpert = useRef(expertId), request = useRef(0), mounted = useRef(false), labels = useRef(t)
+  const currentWorkspace = useRef(workspaceId), currentExpert = useRef(expertId), request = useRef(0), mounted = useRef(false), labels = useRef(t), loaded = useRef<string | null>(null)
   currentWorkspace.current = workspaceId; currentExpert.current = expertId; labels.current = t
   const report = useCallback((caught: unknown) => { if (mounted.current) setError(workspaceErrorMessage(caught, labels.current, "sme.loadError")) }, [])
   const refresh = useCallback(async (id = currentWorkspace.current) => {
     if (!mounted.current || !id || id !== currentWorkspace.current) return
     const epoch = ++request.current
-    setLoading(true)
+    if (!loaded.current?.startsWith(`${id}:`)) setLoading(true)
     try {
       const rows = await voiceWorkspaces.inbox(id)
-      if (mounted.current && id === currentWorkspace.current && epoch === request.current) { setSnapshot({ workspaceId: id, rows }); setError(null) }
+      if (!mounted.current || id !== currentWorkspace.current || epoch !== request.current) return
+      const fingerprint = `${id}:${JSON.stringify(rows)}`
+      setError(null)
+      if (loaded.current !== fingerprint) { loaded.current = fingerprint; setSnapshot({ workspaceId: id, rows }) }
     } catch (caught) {
       if (id === currentWorkspace.current && epoch === request.current) report(caught)
     } finally {
@@ -70,6 +73,7 @@ export function useVoiceWorkspaceInbox(workspaceId: string | null, expertId: str
     return () => { mounted.current = false; request.current += 1; tracker.select(null, null) }
   }, [tracker])
   useEffect(() => {
+    loaded.current = null
     setSnapshot(null); setError(null); setLoading(false)
     void refresh()
     const focused = () => { void refresh() }

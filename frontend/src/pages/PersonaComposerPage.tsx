@@ -23,6 +23,7 @@ import {
   editableToWrite,
   generatePersonas,
   getPersona,
+  type LiveVoiceProviderName,
   getSuggestedQuestions,
   listPersonaMessages,
   resendPersonaMessage,
@@ -35,6 +36,7 @@ import { useAuth } from "@/auth/AuthProvider"
 import { ChatMessageActions } from "@/components/chat/ChatMessageActions"
 import { latestChatMessages } from "@/components/chat/chatWindow"
 import { ExpertVoiceButton } from "@/components/chat/ExpertVoiceButton"
+import { ExpertLiveVoiceFields } from "@/components/experts/ExpertLiveVoiceFields"
 import { MessengerChat } from "@/components/chat/MessengerChat"
 import { WorkspaceChatPanel } from "@/components/workspaces/WorkspaceChatPanel"
 import { useLlmCapabilities } from "@/components/chat/useLlmCapabilities"
@@ -225,6 +227,9 @@ type EditorProps = {
   workspaceChatEnabled?: boolean
   avatarUrl?: string | null
   onAvatarUrlChange?: (path: string | null) => void
+  liveVoiceProvider?: LiveVoiceProviderName
+  liveVoice?: string
+  onLiveVoiceChange?: (provider: LiveVoiceProviderName, voice: string) => void
 }
 
 function Editor({
@@ -250,6 +255,9 @@ function Editor({
   workspaceChatEnabled = true,
   avatarUrl = null,
   onAvatarUrlChange,
+  liveVoiceProvider = "gemini",
+  liveVoice = "",
+  onLiveVoiceChange,
 }: EditorProps) {
   const { intl } = useLocale()
   const [mode, setMode] = useState<"work" | "present">("work")
@@ -749,6 +757,7 @@ function Editor({
         >
           {kind === "expert" ? (
             <>
+              <ExpertLiveVoiceFields provider={liveVoiceProvider} voice={liveVoice} onChange={onLiveVoiceChange ?? (() => undefined)} />
               <div className="layer-h">{t("personas.composer.layerDemography")}</div>
               <LayerTable
                 fieldOptions={fieldOptions}
@@ -1371,6 +1380,8 @@ export function PersonaComposerPage({
   const [tools, setTools] = useState<ExpertToolId[]>(
     isExpert ? DEFAULT_EXPERT_TOOLS : [],
   )
+  const [liveProvider, setLiveProvider] = useState<LiveVoiceProviderName>("gemini")
+  const [liveVoice, setLiveVoice] = useState("")
   const [loading, setLoading] = useState(!!existingId)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -1466,6 +1477,8 @@ export function PersonaComposerPage({
             ? normalizeExpertTools(detail.tools)
             : normalizePersonaTools(detail.tools),
         )
+        setLiveProvider(detail.live_voice_provider)
+        setLiveVoice(detail.live_voice)
         setLoading(false)
       })
       .catch((err: unknown) => {
@@ -1492,6 +1505,8 @@ export function PersonaComposerPage({
         kind,
         customerId: writeCustomerId,
         tools,
+        liveVoiceProvider: isExpert ? liveProvider : undefined,
+        liveVoice: isExpert ? liveVoice : undefined,
       })
       if (personaId) {
         const saved = await updatePersona(personaId, body)
@@ -1503,6 +1518,8 @@ export function PersonaComposerPage({
             : normalizePersonaTools(saved.tools),
         )
         setAvatarUrl(saved.avatar_url ?? null)
+        setLiveProvider(saved.live_voice_provider)
+        setLiveVoice(saved.live_voice)
         if (embedded) onSaved?.(saved)
       } else {
         const saved = await createPersona(body)
@@ -1513,6 +1530,8 @@ export function PersonaComposerPage({
             ? normalizeExpertTools(saved.tools)
             : normalizePersonaTools(saved.tools),
         )
+        setLiveProvider(saved.live_voice_provider)
+        setLiveVoice(saved.live_voice)
         if (!embedded) navigate(`${basePath}/${saved.id}`, { replace: true })
         if (embedded) onSaved?.(saved)
       }
@@ -1752,6 +1771,9 @@ export function PersonaComposerPage({
               embeddedInterview={embeddedInterview}
               workspaceChatEnabled={workspaceChatEnabled && !embeddedInterview}
               avatarUrl={avatarUrl}
+              liveVoiceProvider={liveProvider}
+              liveVoice={liveVoice}
+              onLiveVoiceChange={(provider, voice) => { setLiveProvider(provider); setLiveVoice(voice) }}
               onAvatarUrlChange={(path) => {
                 setAvatarUrl(path)
                 onAvatarChange?.(path)

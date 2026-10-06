@@ -5,6 +5,7 @@ import httpx
 
 from app.config import settings
 from app.schemas.domain import LiveVoiceAudioOut, PersonaLiveTokenOut
+from app.services.elevenlabs_agents import ElevenLabsAgentsClient, ElevenLabsError, require_string
 from app.services.live_voice import LiveVoiceProviderError, LiveVoiceUnavailable
 
 ELEVENLABS_INPUT_AUDIO_FORMAT = "pcm_16000"
@@ -273,6 +274,62 @@ def build_elevenlabs_client_init(
     }
 
 
+def _tts_voice_id(agent: dict) -> str | None:
+    config = agent.get("conversation_config")
+    if not isinstance(config, dict):
+        return None
+    tts = config.get("tts")
+    if not isinstance(tts, dict):
+        return None
+    voice_id = tts.get("voice_id")
+    return voice_id if isinstance(voice_id, str) else None
+
+
+async def publish_agent_voice(voice_id: str, *, client: httpx.AsyncClient) -> None:
+    """Point the one configured agent at this expert's ElevenLabs voice."""
+    agent_id = settings.elevenlabs_agent_id.strip()
+    if not agent_id:
+        raise LiveVoiceUnavailable("ELEVENLABS_AGENT_ID is not configured")
+    api = ElevenLabsAgentsClient(client)
+    try:
+        agent = await api.request("GET", f"/v1/convai/agents/{agent_id}")
+    except ElevenLabsError as exc:
+        raise LiveVoiceProviderError("ElevenLabs voice update failed") from exc
+    if _tts_voice_id(agent) == voice_id:
+        return
+    branch_id = require_string(agent, "main_branch_id")
+    try:
+        await api.request("PATCH", f"/v1/convai/agents/{agent_id}", body={
+            "conversation_config": {"tts": {"voice_id": voice_id}}})
+        await api.request("PATCH", f"/v1/convai/agents/{agent_id}", params={"branch_id": branch_id},
+                          body={"version_description": f"expert-voice:{voice_id}"})
+    except ElevenLabsError as exc:
+        raise LiveVoiceProviderError("ElevenLabs voice update failed") from exc
+
+
+async def list_elevenlabs_voices() -> list[dict[str, str]]:
+    api_key = settings.elevenlabs_api_key.strip()
+    if not api_key:
+        raise LiveVoiceUnavailable("ELEVENLABS_API_KEY is not configured")
+    async with httpx.AsyncClient(base_url=settings.elevenlabs_base_url,
+                                  headers={"xi-api-key": api_key}, timeout=30.0) as http:
+        try:
+            payload = await ElevenLabsAgentsClient(http).request("GET", "/v1/voices")
+        except ElevenLabsError as exc:
+            raise LiveVoiceProviderError("ElevenLabs voice list failed") from exc
+    rows = payload.get("voices")
+    if not isinstance(rows, list):
+        raise LiveVoiceProviderError("ElevenLabs voice list failed")
+    options = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        voice_id, name = row.get("voice_id"), row.get("name")
+        if isinstance(voice_id, str) and voice_id.strip() and isinstance(name, str) and name.strip():
+            options.append({"id": voice_id, "name": name})
+    return sorted(options, key=lambda item: item["name"].casefold())
+
+
 def _require_elevenlabs_config() -> tuple[str, str, str]:
     api_key = settings.elevenlabs_api_key.strip()
     agent_id = settings.elevenlabs_agent_id.strip()
@@ -346,13 +403,17 @@ class ElevenLabsLiveVoiceProvider:
         *,
         initial_turn: str,
         tools: list[dict[str, Any]],
+        voice: str | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> PersonaLiveTokenOut:
-        _, agent_id, voice_id = _require_elevenlabs_config()
+        _, agent_id, configured_voice = _require_elevenlabs_config()
+        voice_id = (voice or "").strip() or configured_voice
         owns_client = client is None
         if client is None:
             client = httpx.AsyncClient(timeout=30.0)
         try:
+            if voice_id != configured_voice:
+                await publish_agent_voice(voice_id, client=client)
             tool_ids = await client_tool_ids_for_session(tools, client=client)
             signed_url = await create_elevenlabs_signed_url(client=client)
         finally:

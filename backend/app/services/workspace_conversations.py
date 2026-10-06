@@ -15,13 +15,12 @@ from app.database.models import PersonaMessage, UserAccount
 from app.database.workspace_conversations import WorkspaceConversationEvent, WorkspaceConversationSession
 from app.database.workspace_models import VoiceWorkspace
 from app.schemas.workspace import WorkspaceState
-from app.services.elevenlabs_agents import ElevenLabsAgentsClient
+from app.services.elevenlabs_agents import ElevenLabsAgentsClient, ElevenLabsError
+from app.services.live_voice import expert_live_voice
 from app.services.workspace_memory_context import workspace_memory_context
-from app.services.workspace_parent_documents import voice_document_inventory
+from app.services.workspace_document_context import voice_document_context
 from app.services.workspace.service import require_expert, require_workspace, validate_state
-from app.services.workspace_agent_deployment import (
-    deploy_agent_snapshot, prepare_agent_snapshot,
-)
+from app.services.workspace_agent_deployment import apply_configured_agent, prepare_agent_snapshot
 
 
 def aware(value: datetime) -> datetime:
@@ -89,7 +88,7 @@ async def reserve_conversation(session: AsyncSession, *, workspace_id: str, user
                 "context": {"voice_workspace_id": workspace.id, "workspace_id": workspace.workspace_id,
                             "chat_id": workspace.chat_id, "revision": workspace.revision, "state": state.model_dump(),
                             "expert_id": request.expert_id, "history": history[-40:],
-                            "available_documents": await voice_document_inventory(session, workspace, user)}}
+                            **await voice_document_context(session, workspace, user)}}
     session.expunge(persona)
     await session.commit()
     return prepared
@@ -105,7 +104,7 @@ async def activate_conversation(session: AsyncSession, prepared: dict, deploymen
     if row.status != "starting" or workspace.state.get("expert_id") != row.expert_id or aware(row.expires_at) <= datetime.now(UTC):
         await session.rollback()
         raise HTTPException(409, "workspace_conversation_superseded")
-    prepared["context"]["available_documents"] = await voice_document_inventory(session, workspace, owner)
+    prepared["context"].update(await voice_document_context(session, workspace, owner))
     row.agent_id, row.agent_version = deployment["agent_id"], deployment["agent_version"]
     row.conversation_id, row.status = connection["conversation_id"], "active"
     result = {"session_id": row.id, "generation": row.generation, "expires_at": aware(row.expires_at).isoformat(),
@@ -129,9 +128,18 @@ async def start_conversation(session: AsyncSession, *, workspace_id: str, user: 
     prepared = await reserve_conversation(session, workspace_id=workspace_id, user=user, request=request)
     completed = False
     try:
-        deployment = await deploy_agent_snapshot(session, prepared["snapshot"], client)
-        connection = await client.connection(agent_id=deployment["agent_id"],
-                                             agent_version=deployment["agent_version"], mode=request.mode)
+        agent_id = settings.elevenlabs_agent_id
+        if not agent_id:
+            raise ElevenLabsError("elevenlabs_not_configured", status=503)
+        # One configured agent. Each session applies ELEVENLABS_LLM, the voice
+        # and the active prompt snapshot before the conversation starts.
+        provider_name, expert_voice = expert_live_voice(prepared["persona"])
+        agent_version = await apply_configured_agent(
+            prepared["snapshot"], client,
+            voice_id=expert_voice if provider_name == "elevenlabs" else None,
+        )
+        deployment = {"agent_id": agent_id, "agent_version": agent_version}
+        connection = await client.connection(agent_id=agent_id, agent_version=agent_version, mode=request.mode)
         memories = await workspace_memory_context(prepared["persona"], prepared["query"],
                                                   prepared["snapshot"].prompts, owner_id=prepared["owner_id"],
                                                   workspace_parent_id=prepared["workspace_parent_id"])

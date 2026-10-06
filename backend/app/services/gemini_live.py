@@ -32,6 +32,7 @@ def _token_payload(
     system_instruction: str,
     *,
     tools: list[dict[str, object]] | None,
+    voice: str,
     now: datetime,
 ) -> dict[str, object]:
     model = f"models/{settings.gemini_live_model}"
@@ -42,7 +43,7 @@ def _token_payload(
             "speechConfig": {
                 "voiceConfig": {
                     "prebuiltVoiceConfig": {
-                        "voiceName": settings.gemini_live_voice,
+                        "voiceName": voice,
                     }
                 }
             },
@@ -71,14 +72,16 @@ async def create_gemini_live_token(
     system_instruction: str,
     *,
     tools: list[dict[str, object]] | None = None,
+    voice: str | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> tuple[str, str, str, str]:
     api_key = settings.google_api_key.strip()
     if not api_key:
         raise GeminiLiveUnavailable("GOOGLE_API_KEY is not configured")
+    chosen = (voice or "").strip() or settings.gemini_live_voice
 
     now = datetime.now(UTC)
-    payload = _token_payload(system_instruction, tools=tools, now=now)
+    payload = _token_payload(system_instruction, tools=tools, voice=chosen, now=now)
     owns_client = client is None
     if client is None:
         client = httpx.AsyncClient(timeout=15.0)
@@ -115,7 +118,7 @@ async def create_gemini_live_token(
     return (
         token,
         settings.gemini_live_model,
-        settings.gemini_live_voice,
+        chosen,
         str(payload["expireTime"]),
     )
 
@@ -127,12 +130,14 @@ class GeminiLiveVoiceProvider:
         *,
         initial_turn: str,
         tools: list[dict[str, Any]],
+        voice: str | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> PersonaLiveTokenOut:
         gemini_tools = openai_to_gemini_tools(tools)
-        token, model, voice, expires_at = await create_gemini_live_token(
+        token, model, chosen, expires_at = await create_gemini_live_token(
             system_instruction,
             tools=gemini_tools or None,
+            voice=voice,
             client=client,
         )
         return PersonaLiveTokenOut(
@@ -141,7 +146,7 @@ class GeminiLiveVoiceProvider:
                 f"{GEMINI_LIVE_WEBSOCKET_URL}?access_token={quote(token, safe='')}"
             ),
             model=model,
-            voice=voice,
+            voice=chosen,
             expires_at=expires_at,
             initial_turn=initial_turn,
             audio=LiveVoiceAudioOut(

@@ -6,7 +6,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from sqlalchemy import or_, select, update
@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.models import PersonaMessage, SmeExpertTurn
 from app.schemas.domain import PersonaChatResponse
+from app.schemas.workspace import WorkspaceState
 from app.schemas.sme import SmeExpertTurnOut, SmeMessageOut
 from app.serializers import utcnow
 from app.services.persona_chat import ChatTurnError, stream_library_chat_turn
@@ -455,6 +456,9 @@ async def execute_expert_turn(  # noqa: C901, PLR0912, PLR0913
     fence: int,
     token: str,
     on_token: Callable[[str], Awaitable[None]] | None = None,
+    workspace_id: str | None = None,
+    workspace_state: WorkspaceState | None = None,
+    on_client_tools: Callable[[list[dict[str, Any]]], Awaitable[None]] | None = None,
 ) -> PersonaChatResponse:
     heartbeat = ExpertTurnHeartbeat(
         session_factory,
@@ -486,6 +490,9 @@ async def execute_expert_turn(  # noqa: C901, PLR0912, PLR0913
                 sme_expert_turn_request_id=request_id,
                 actor_user_id=turn.user_id,
                 persist_guard=persist_guard,
+                workspace_id=workspace_id,
+                workspace_state=workspace_state,
+                on_client_tools=on_client_tools,
             )
             try:
                 async for item in stream:

@@ -54,7 +54,7 @@ export function PdfKnowledgeViewer({
   useEffect(() => {
     const node = viewportRef.current
     if (!node) return
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    const observer = new ResizeObserver(([entry]) => { const next = entry.contentRect.width; if (next > 0) setWidth(next) })
     observer.observe(node)
     return () => observer.disconnect()
   }, [])

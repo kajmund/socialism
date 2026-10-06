@@ -4,7 +4,7 @@ import type { DocumentKnowledgeAnchor } from "@/api/underlag"
 import { requireSourceVersion, voiceWorkspaces, type SourceReference, type Workspace } from "@/api/voiceWorkspaces"
 const PdfKnowledgeViewer = lazy(() => import("@/components/underlag/PdfKnowledgeViewer").then((module) => ({ default: module.PdfKnowledgeViewer })))
 import { useLocale } from "@/i18n"
-import { workspaceErrorMessage } from "./workspaceChatLogic"
+import { isWorkspaceSourceReread, workspaceErrorMessage } from "./workspaceChatLogic"
 import { localSelectionMatchesReference, type LocalDocumentSelection } from "./workspaceLocalSelection"
 
 export function WorkspaceSourcePane({ workspace, localSelection, sourceId, page, zoom, reference, onNavigate, onSelection, onClearSelection, onReady, onError }: {
@@ -53,7 +53,8 @@ export function WorkspaceSourcePane({ workspace, localSelection, sourceId, page,
     if (stale) { reportError(t("voiceWorkspaceChat.stale")); return }
     const load = async () => {
       if (source?.content_type === "application/pdf") {
-        const result = await voiceWorkspaces.sourceFileWithVersion(workspace.id, sourceId)
+        const read = () => voiceWorkspaces.sourceFileWithVersion(workspace.id, sourceId)
+        const result = await read().catch((error: unknown) => { if (!isWorkspaceSourceReread(error)) throw error; return read() })
         if (!cancelled) { objectUrl = URL.createObjectURL(result.blob); setSourceVersion(result.sourceVersion); setSourceFileSha256(result.sourceFileSha256); setUrl(objectUrl) }
       } else {
         const result = localSource ? await voiceWorkspaces.source(workspace.id, sourceId) : await voiceWorkspaces.tool(workspace.id, "read_source", { reference_id: remoteReferenceId, source_id: sourceId })

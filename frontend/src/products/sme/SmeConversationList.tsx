@@ -83,7 +83,7 @@ export function SmeConversationList({
         <Search size={18} aria-hidden="true" />
       </button>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 pb-4">
-        {loading ? <span role="status" className="text-center text-xs text-muted-foreground">{t("sme.loading")}</span> : null}
+        {loading && !filtered.length ? <span role="status" className="text-center text-xs text-muted-foreground">{t("sme.loading")}</span> : null}
         {error ? <button type="button" className="text-xs text-destructive" aria-label={error} onClick={() => setInboxOpen(true)}>{t("sme.loadError")}</button> : null}
         {!loading && !error && !filtered.length ? <span className="text-center text-xs text-muted-foreground">{t("sme.empty")}</span> : null}
         {filtered.map((item) => {
@@ -152,7 +152,7 @@ export function SmeConversationList({
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {loading ? (
+        {loading && filtered.length === 0 ? (
           <p className="px-3 py-6 text-sm text-[color:var(--text-muted)]">
             {t("sme.loading")}
           </p>
