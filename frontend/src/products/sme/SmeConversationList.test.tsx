@@ -15,10 +15,10 @@ const expert: SmeInboxItem = {
 const panel: SmeInboxItem = { ...expert, thread_type: "panel", name: "Expertpanel", preview: "Panelens svar", unread_count: 0 }
 const readExpert: SmeInboxItem = { ...expert, thread_id: "read-expert", name: "Erik", unread_count: 0 }
 
-function render({ compact = false, filter = "all", search = "" }: { compact?: boolean; filter?: SmeInboxFilter; search?: string } = {}) {
+function render({ compact = false, filter = "all", search = "", loading = false, items = [expert, panel, readExpert] }: { compact?: boolean; filter?: SmeInboxFilter; search?: string; loading?: boolean; items?: SmeInboxItem[] } = {}) {
   return renderToStaticMarkup(<LocaleProvider><SmeConversationList
-    compact={compact} scopeLabel="Klient A" filter={filter} items={[expert, panel, readExpert]}
-    selected={expert} search={search} loading={false} error={null}
+    compact={compact} scopeLabel="Klient A" filter={filter} items={items}
+    selected={expert} search={search} loading={loading} error={null}
     onFilterChange={() => undefined} onSearchChange={() => undefined}
     onSelect={() => undefined} onOpenExpertEditor={() => undefined}
   /></LocaleProvider>)
@@ -47,6 +47,15 @@ describe("SME conversation navigation", () => {
       expect(groups).not.toContain("Anna")
       expect(groups).not.toContain("Erik")
     }
+  })
+
+  it("keeps visible experts in place while a later inbox refresh is loading", () => {
+    for (const compact of [false, true]) {
+      const html = render({ compact, loading: true })
+      expect(html).toContain("Anna")
+      expect(html).not.toContain("Hämtar konversationer")
+    }
+    expect(render({ compact: true, loading: true, items: [] })).toContain("Hämtar konversationer")
   })
 
   it("searches message previews as well as expert names", () => {

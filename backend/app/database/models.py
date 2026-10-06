@@ -152,6 +152,8 @@ class Persona(Base):
     origin: Mapped[str] = mapped_column(String(32), nullable=False, default="manuell")
     profile: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     tools: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    live_voice_provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    live_voice: Mapped[str | None] = mapped_column(String(128), nullable=True)
     avatar_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     avatar_revision: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"

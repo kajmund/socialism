@@ -3,10 +3,11 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 
 from app.database.models import Job, Persona, StoredObject, UserAccount
-from app.database.workspace_models import WorkspaceArtifact, WorkspaceOperation
+from app.database.session import engine
+from app.database.workspace_models import WorkspaceArtifact, WorkspaceOperation, WorkspaceReference
 from app.services import jobs as jobs_service
 from app.services.workspace.service import create_workspace, new_id, publish_artifact_revision
 from app.services.workspace.tools import execute_workspace_tool
@@ -307,3 +308,30 @@ async def test_selected_block_revision_prevents_editing_another_block(client_db)
     valid = await client.post(f"/voice-workspaces/{ws['id']}/tools/revise_document", json={"idempotency_key": "selected-change",
         "arguments": {**base, "content": {"blocks": [{**blocks[0], "text": "Short"}, blocks[1]]}}})
     assert valid.status_code == 200 and valid.json()["artifact"]["revision"] == 2
+
+
+@pytest.mark.asyncio
+async def test_workspace_read_authorizes_sources_once_for_many_references(client_db):
+    client, factory = client_db
+    ws = await workspace(client)
+    uploaded = await upload(client, ws["id"])
+    async with factory() as session:
+        for number in range(30):
+            session.add(WorkspaceReference(id=new_id(), workspace_id=ws["id"], number=number + 1, identity_key=new_id(),
+                kind="underlag", source_id=uploaded["source_id"], source_version="missing",
+                anchor={"anchor_type": "text", "exact_text": str(number), "rects": []}, snapshot={"title": "Avtal", "excerpt": str(number)}))
+        await session.commit()
+    statements: list[str] = []
+
+    def record(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    event.listen(engine.sync_engine, "before_cursor_execute", record)
+    try:
+        response = await client.get(f"/voice-workspaces/{ws['id']}")
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", record)
+    assert response.status_code == 200
+    assert len(response.json()["references"]) == 30
+    assert len(response.json()["sources"]) == 1
+    assert len(statements) < 80, len(statements)

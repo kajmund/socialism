@@ -66,6 +66,7 @@ export function SmeExpertToolsButton({
       onChange={saveTools}
       disabled={loading || saving}
       error={error}
+      includeWorkspaceTools
     />
   )
 }

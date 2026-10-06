@@ -17,6 +17,11 @@ class ReadArguments(ToolArguments):
     source_id: str | None = None
 
 
+class FocusPassageArguments(ToolArguments):
+    source_id: str = Field(min_length=1, max_length=64)
+    quote: str = Field(min_length=1, max_length=500)
+
+
 class IngestArguments(ToolArguments):
     source_id: str | None = None
     url: str | None = Field(default=None, max_length=2048)

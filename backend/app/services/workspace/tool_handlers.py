@@ -11,7 +11,8 @@ from app.services.workspace.search import search_general, search_workspace
 from app.services.workspace.research_links import job_bound_to_canvas, sync_research_links
 from app.services.workspace.generation_tools import artifact_source_refs, source_context, queue_generation, require_shared_reference, require_source_scope, _start_research
 from app.services.workspace.tool_arguments import SearchArguments, ReadArguments, IngestArguments, JobArguments, GenerationArguments, ReviseArguments, ExportArguments, ChartArguments, ResearchArguments
-from app.services.workspace_parent_documents import voice_document_inventory
+from app.services.workspace_document_context import voice_document_context
+from app.services.workspace_quote_focus import focus_passage
 from app.services.workspace.source_ingest_retry import retry_failed_source
 
 @dataclass
@@ -28,7 +29,7 @@ async def context(context: ToolContext, arguments: dict) -> dict:
     workspace = context.workspace
     operation = context.operation
     value = await workspace_out(session, workspace)
-    value["available_documents"] = await voice_document_inventory(session, workspace, context.user)
+    value.update(await voice_document_context(session, workspace, context.user))
     return {"status": "completed", "workspace": value, "turn_context": operation.context_snapshot}
 
 
@@ -61,9 +62,10 @@ async def read(context: ToolContext, arguments: dict) -> dict:
         return {"status": "completed", **await read_reference(session, workspace, args.reference_id)}
     if args.source_id is None:
         raise HTTPException(status_code=422, detail="source_or_reference_required")
-    source = await require_source(session, workspace, args.source_id)
+    source = await require_source(session, workspace, args.source_id, member=False)
     if context.state.knowledge_scope == "general":
         raise HTTPException(status_code=409, detail="private_document_requires_workspace")
+    source = await add_source(session, workspace, source.id)
     refs = await source_context(session, workspace, [], [source.id])
     return {"status": "completed", **await read_reference(session, workspace, refs[0]["reference_id"]),
             "text": (source.extracted_text or "")[:20000], "ingest_status": source.knowledge_status}
@@ -204,4 +206,5 @@ HANDLERS = {
     "ingest_source": ingest, "get_job_status": job, "create_document": generate,
     "compare_sources": generate, "get_relations": generate, "revise_document": revise,
     "export_document": export, "render_chart": chart, "start_research": research,
+    "focus_passage": focus_passage,
 }

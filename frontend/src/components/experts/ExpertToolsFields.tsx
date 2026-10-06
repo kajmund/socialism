@@ -9,6 +9,7 @@ import {
   type ExpertToolGroup,
   type ExpertToolId,
 } from "@/data/expert-tools"
+import { WORKSPACE_CHAT_TOOLS, type WorkspaceChatToolId } from "@/data/workspace-chat-tools"
 import { useLocale, type MessageKey } from "@/i18n"
 
 const GROUP_ORDER: ExpertToolGroup[] = [
@@ -25,6 +26,29 @@ const GROUP_LABEL: Record<ExpertToolGroup, MessageKey> = {
   research: "experts.tools.groupResearch",
   consult: "experts.tools.groupConsult",
   context: "profile.groupContext",
+}
+
+const WORKSPACE_TOOL_LABEL: Record<WorkspaceChatToolId, MessageKey> = {
+  get_workspace_context: "experts.tools.workspace.get_workspace_context",
+  ingest_source: "experts.tools.workspace.ingest_source",
+  get_job_status: "experts.tools.workspace.get_job_status",
+  search_knowledge: "experts.tools.workspace.search_knowledge",
+  read_source: "experts.tools.workspace.read_source",
+  compare_sources: "experts.tools.workspace.compare_sources",
+  get_relations: "experts.tools.workspace.get_relations",
+  render_chart: "experts.tools.workspace.render_chart",
+  create_document: "experts.tools.workspace.create_document",
+  revise_document: "experts.tools.workspace.revise_document",
+  export_document: "experts.tools.workspace.export_document",
+  start_research: "experts.tools.workspace.start_research",
+  open_ingest_picker: "experts.tools.workspace.open_ingest_picker",
+  show_evidence: "experts.tools.workspace.show_evidence",
+  show_document: "experts.tools.workspace.show_document",
+  focus_anchor: "experts.tools.workspace.focus_anchor",
+  show_comparison: "experts.tools.workspace.show_comparison",
+  show_relations: "experts.tools.workspace.show_relations",
+  show_knowledge: "experts.tools.workspace.show_knowledge",
+  show_artifact: "experts.tools.workspace.show_artifact",
 }
 
 const TOOL_LABEL: Record<ExpertToolId, MessageKey> = {
@@ -47,6 +71,7 @@ export type ExpertToolsFieldsProps = {
   error?: string | null
   titleKey?: MessageKey
   introKey?: MessageKey
+  includeWorkspaceTools?: boolean
 }
 
 function ExpertToolsTable({
@@ -133,6 +158,7 @@ export function ExpertToolsFields({
   error = null,
   titleKey = "experts.composer.layerTools",
   introKey = "experts.tools.intro",
+  includeWorkspaceTools = false,
 }: ExpertToolsFieldsProps) {
   const { t } = useLocale()
   const [open, setOpen] = useState(false)
@@ -202,12 +228,28 @@ export function ExpertToolsFields({
                     {t(introKey)}
                   </p>
                 </div>
-                <div className="px-5 py-4">
+                <div className="max-h-[70vh] overflow-auto px-5 py-4">
                   <ExpertToolsTable
                     tools={tools}
                     onChange={onChange}
                     disabled={disabled}
                   />
+                  {includeWorkspaceTools ? (
+                    <div className="mt-4">
+                      <div className="layer-h">{t("experts.tools.workspaceGroup")}</div>
+                      <p className="mb-2 text-sm text-muted-foreground">{t("experts.tools.workspaceIntro")}</p>
+                      <ul className="grid gap-1">
+                        {WORKSPACE_CHAT_TOOLS.map((id) => (
+                          <li key={id}>
+                            <label className="flex items-center gap-2 text-sm">
+                              <input type="checkbox" checked disabled />
+                              {t(WORKSPACE_TOOL_LABEL[id])}
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                   {error ? (
                     <p className="mt-3 text-sm text-destructive" role="alert">
                       {error}

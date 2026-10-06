@@ -44,6 +44,7 @@ class AgentSnapshot:
     system: str
     tools: dict[str, dict]
     existing: dict | None
+    prior: dict | None
 
 
 def argument_schema(name: str) -> dict:
@@ -55,7 +56,8 @@ def argument_schema(name: str) -> dict:
         properties = {"reference_id": {"type": "string"}, "source_id": {"type": "string"},
                       "page": {"type": "integer", "minimum": 1}}
     elif name == "focus_anchor":
-        properties = {"reference_id": {"type": "string"}}
+        properties = {"source_id": {"type": "string"}, "quote": {"type": "string"},
+                      "reference_id": {"type": "string"}}
     elif name in {"show_evidence", "show_knowledge"}:
         properties = {"reference_ids": {"type": "array", "items": {"type": "string"}}}
     elif name == "show_relations":
@@ -65,17 +67,34 @@ def argument_schema(name: str) -> dict:
     result = {"type": "object", "properties": properties, "additionalProperties": False}
     if name in {"show_artifact", "show_comparison", "show_relations"}:
         result["required"] = ["artifact_id"]
-    if name == "focus_anchor":
-        result["required"] = ["reference_id"]
     return result
 
 
+def tool_parameters(name: str, argument_description: str) -> dict:
+    # Voice models call a named field. The arguments_json string is only for
+    # tools whose contract does not fit ElevenLabs' flat parameter subset.
+    if name == "search_knowledge":
+        return {"type": "object", "required": ["query"], "properties": {
+            "query": {"type": "string", "description": "Vad som ska hittas, med användarens egna ord."}}}
+    if name == "read_source":
+        return {"type": "object", "properties": {
+            "source_id": {"type": "string", "description": "source_object_id för dokumentet som ska läsas."},
+            "reference_id": {"type": "string", "description": "Referens från en tidigare sökträff."}}}
+    if name == "focus_anchor":
+        return {"type": "object", "required": ["source_id", "quote"], "properties": {
+            "source_id": {"type": "string", "description": "source_id från open_documents."},
+            "quote": {"type": "string", "description": "Exakta ord i dokumentet som ska markeras, till exempel kundens namn."}}}
+    if name == "show_document":
+        return {"type": "object", "required": ["source_id"], "properties": {
+            "source_id": {"type": "string", "description": "source_object_id från available_documents för dokumentet som ska öppnas."},
+            "reference_id": {"type": "string", "description": "Referens som ska visas, om en sådan redan finns."},
+            "page": {"type": "number", "description": "Sida, från 1."}}}
+    return {"type": "object", "required": ["arguments_json"], "properties": {
+        "arguments_json": {"type": "string", "description": argument_description}}}
+
+
 def tool_config(name: str, description: str, argument_description: str) -> dict:
-    # ElevenLabs' schema subset cannot carry our full Pydantic schemas. Keep
-    # the validated local contract explicit inside the JSON argument field.
-    parameters = {"type": "object", "properties": {
-        "arguments_json": {"type": "string", "description": argument_description}},
-        "required": ["arguments_json"]}
+    parameters = tool_parameters(name, argument_description)
     return {"name": name, "description": description, "type": "client", "parameters": parameters,
             "execution_mode": "immediate", "interruption_mode": "allow", "tool_error_handling_mode": "passthrough",
             "expects_response": True, "response_timeout_secs": 60}
@@ -116,10 +135,14 @@ async def prepare_agent_snapshot(session: AsyncSession, *, persona: Persona, lan
         "voice_id": settings.elevenlabs_voice_id, "duration": settings.elevenlabs_session_ttl_seconds, "adapter_version": 2,
     }, sort_keys=True).encode()).hexdigest()
     identity = {"customer_id": persona.customer_id, "expert_id": persona.id, "language": language}
-    row = (await session.execute(select(WorkspaceAgentDeployment).filter_by(
-        **identity, prompt_version=version))).scalar_one_or_none()
-    existing = deployment_values(row) if row else None
-    return AgentSnapshot({**identity, "expert_name": persona.name}, version, prompts, system, tools, existing)
+    rows = list((await session.execute(select(WorkspaceAgentDeployment).filter_by(**identity).order_by(
+        WorkspaceAgentDeployment.created_at.desc()))).scalars())
+    exact = next((row for row in rows if row.prompt_version == version), None)
+    existing = deployment_values(exact) if exact else None
+    # A changed prompt stays on the expert's agent. Conversation continuity
+    # comes from that expert's own memory, loaded when the session starts.
+    prior = None if exact is not None or not rows else deployment_values(rows[0])
+    return AgentSnapshot({**identity, "expert_name": persona.name}, version, prompts, system, tools, existing, prior)
 
 
 def tool_argument_description(prompts: dict[str, str], schema: dict) -> str:
@@ -169,14 +192,115 @@ async def cleanup_deployment(client: ElevenLabsAgentsClient, deployment: dict) -
         raise ElevenLabsError("elevenlabs_publish_failed_cleanup_required")
 
 
-async def publish_agent_snapshot(snapshot: AgentSnapshot, client: ElevenLabsAgentsClient) -> dict:
-    """External phase only: no session or ORM object may be consulted here."""
-    if snapshot.existing:
-        return snapshot.existing
+async def require_published_model(client: ElevenLabsAgentsClient) -> None:
     models = await client.request("GET", "/v1/convai/llm/list")
     model = next((item for item in models.get("llms", []) if item.get("llm") == settings.elevenlabs_llm), None)
     if not model or (model.get("deprecation_info") or {}).get("is_deprecated"):
         raise ElevenLabsError("elevenlabs_model_unavailable_or_deprecated")
+
+
+def _agent_section(agent: dict, *keys: str) -> dict:
+    value: object = agent
+    for key in keys:
+        if not isinstance(value, dict):
+            return {}
+        value = value.get(key)
+    return value if isinstance(value, dict) else {}
+
+
+def _listed_tools(body: dict) -> dict[str, dict]:
+    rows = body.get("tools")
+    if not isinstance(rows, list):
+        raise ElevenLabsError("elevenlabs_invalid_response")
+    found = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        config = row.get("tool_config")
+        tool_id = row.get("id")
+        if isinstance(config, dict) and config.get("type") == "client" and isinstance(config.get("name"), str) and isinstance(tool_id, str):
+            found[config["name"]] = {"id": tool_id, "tool_config": config}
+    return found
+
+
+async def ensure_workspace_tools(client: ElevenLabsAgentsClient, tools: dict[str, dict]) -> list[str]:
+    """Publish this session's tools and drop live-voice tools such as search_companies from the agent."""
+    existing = _listed_tools(await client.request("GET", "/v1/convai/tools"))
+    ids = []
+    for name, config in tools.items():
+        current = existing.get(name)
+        if current is None:
+            made = await client.request("POST", "/v1/convai/tools", body={"tool_config": config})
+            ids.append(require_string(made, "id"))
+            continue
+        if current["tool_config"] != config:
+            await client.request("PATCH", f"/v1/convai/tools/{current['id']}", body={"tool_config": config})
+        ids.append(current["id"])
+    return ids
+
+
+async def apply_configured_agent(snapshot: AgentSnapshot, client: ElevenLabsAgentsClient, *, voice_id: str | None = None) -> str:
+    """Make the one configured agent use ELEVENLABS_LLM, the active prompt, and this voice."""
+    agent_id = settings.elevenlabs_agent_id
+    chosen_voice = (voice_id or "").strip() or settings.elevenlabs_voice_id
+    await require_published_model(client)
+    agent = await client.request("GET", f"/v1/convai/agents/{agent_id}")
+    prompt = _agent_section(agent, "conversation_config", "agent", "prompt")
+    agent_block = _agent_section(agent, "conversation_config", "agent")
+    current_voice = _agent_section(agent, "conversation_config", "tts").get("voice_id")
+    first_message = render_prompt(snapshot.prompts, PROMPT_PREFIX + "first_message",
+                                  expert_name=snapshot.identity["expert_name"])
+    language = snapshot.identity["language"]
+    tool_ids = await ensure_workspace_tools(client, snapshot.tools)
+    if (prompt.get("llm") == settings.elevenlabs_llm and prompt.get("prompt") == snapshot.system
+            and agent_block.get("first_message") == first_message and agent_block.get("language") == language
+            and current_voice == chosen_voice and prompt.get("tool_ids") == tool_ids):
+        version = agent.get("version_id")
+        return version if isinstance(version, str) else ""
+    branch_id = require_string(agent, "main_branch_id")
+    published_prompt = {"prompt": snapshot.system, "llm": settings.elevenlabs_llm,
+                        "backup_llm_config": {"preference": "disabled"}, "tool_ids": tool_ids}
+    await client.request("PATCH", f"/v1/convai/agents/{agent_id}", body={"conversation_config": {
+        "agent": {"language": language, "first_message": first_message, "prompt": published_prompt},
+        "tts": {"voice_id": chosen_voice}}})
+    published = await client.request("PATCH", f"/v1/convai/agents/{agent_id}", params={"branch_id": branch_id},
+                                     body={"version_description": f"configured-model:{settings.elevenlabs_llm}:{snapshot.prompt_version[:12]}"})
+    return require_string(published, "version_id")
+
+
+async def update_existing_agent(snapshot: AgentSnapshot, client: ElevenLabsAgentsClient, prior: dict) -> dict:
+    """Publish the new prompt on the expert's agent instead of creating another."""
+    agent_id = prior["agent_id"]
+    tool_ids = dict(prior["tool_ids"])
+    created: list[str] = []
+    completed = False
+    try:
+        for name, config in snapshot.tools.items():
+            if name in tool_ids:
+                continue
+            made = await client.request("POST", "/v1/convai/tools", body={"tool_config": config})
+            tool_ids[name] = require_string(made, "id")
+            created.append(tool_ids[name])
+        agent = await client.request("GET", f"/v1/convai/agents/{agent_id}")
+        branch_id = require_string(agent, "main_branch_id")
+        await client.request("PATCH", f"/v1/convai/agents/{agent_id}", body=agent_config(snapshot, tool_ids))
+        published = await client.request("PATCH", f"/v1/convai/agents/{agent_id}", params={"branch_id": branch_id},
+                                         body={"version_description": f"database-prompt-snapshot:{snapshot.prompt_version}"})
+        completed = True
+        return {"agent_id": agent_id, "agent_version": require_string(published, "version_id"),
+                "tool_ids": tool_ids, "procedure_ids": dict(prior["procedure_ids"])}
+    finally:
+        if not completed and created:
+            await cleanup_deployment(client, {"tool_ids": {tool_id: tool_id for tool_id in created}})
+
+
+async def publish_agent_snapshot(snapshot: AgentSnapshot, client: ElevenLabsAgentsClient) -> dict:
+    """External phase only: no session or ORM object may be consulted here."""
+    if snapshot.existing:
+        return snapshot.existing
+    await require_published_model(client)
+    if snapshot.prior:
+        return await update_existing_agent(snapshot, client, snapshot.prior)
     resources = {"tool_ids": {}}
     completed = False
     try:
@@ -233,10 +357,10 @@ async def deploy_agent_snapshot(session: AsyncSession, snapshot: AgentSnapshot, 
         selected = await save_agent_deployment(session, snapshot, deployment)
         cached = True
     finally:
-        if not cached and snapshot.existing is None:
+        if not cached and snapshot.existing is None and snapshot.prior is None:
             await session.rollback()
             await cleanup_deployment(client, deployment)
-    if selected["agent_id"] != deployment["agent_id"]:
+    if selected["agent_id"] != deployment["agent_id"] and snapshot.prior is None:
         # A concurrent publisher won the identical snapshot's unique key.
         # Remove this unused copy before minting a connection to the winner.
         await cleanup_deployment(client, deployment)
