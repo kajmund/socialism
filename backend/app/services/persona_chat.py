@@ -9,13 +9,12 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from fastapi import HTTPException
 from openai import APITimeoutError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database.models import Persona, PersonaMessage, Run, UserAccount
+from app.database.models import Persona, PersonaMessage, Run
 from app.llm.chat import (
     build_run_interview_prompt,
     stream_reply_as_persona,
@@ -35,18 +34,20 @@ from app.serializers import format_date, profile_from_dict, utcnow
 from app.services.dd.company_mcp import CompanyMcpError
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
-from app.services.expert_async_tools import LibraryToolScope, begin_library_tools, queue_document_open
-from app.services.workspace_document_context import source_for_open_request
+from app.services.expert_async_tools import begin_library_tools
+from app.services.expert_memory_context import expert_memory_context
 from app.services.expert_memory_schedule import schedule_expert_memory_update
 from app.services.expert_tools import resolve_chat_tools
 from app.services.library_chat_fifo import trim_and_commit_library_chat
-from app.services.expertgranskning.memory import ExpertMemoryHit, get_expert_memory
+from app.services.expertgranskning.memory import get_expert_memory
 from app.services.expertgranskning.memory_view import serialize_memory_hit
+from app.services.library_workspace_turn import (
+    chat_tools_for_turn,
+    finish_workspace_turn,
+    prepare_workspace_chat,
+)
 from app.services.oasis_run import previous_attempts
-from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_prompts_for_persona
-from app.services.workspace.service import require_workspace
-from app.services.workspace_chat_tools import workspace_openai_tools, workspace_turn_text
 from app.services.run_tick_context import build_persona_feed_context
 
 logger = logging.getLogger(__name__)
@@ -175,49 +176,6 @@ async def _commit_library_message(
 
 def _history_triples(rows: list[PersonaMessage]) -> list[tuple[str, str, str | None]]:
     return [(row.role, row.content, row.image_sha256) for row in rows]
-
-
-async def expert_memory_context(
-    persona: Persona,
-    message: str,
-    prompts: dict[str, str],
-    *,
-    image_sha256: str | None = None,
-) -> str:
-    if persona.kind != "expert":
-        return ""
-    hits = await get_expert_memory().search(
-        customer_id=persona.customer_id,
-        expert_id=persona_catalog_key(persona),
-        query=message,
-        image_sha256=image_sha256,
-        sources=frozenset(
-            {
-                "persona_chat",
-                "panel_chat",
-                "expert_consult",
-                "intent_interview",
-                "word_findings",
-                "research_receipt",
-            }
-        ),
-    )
-    if not hits:
-        return ""
-    memories = "\n".join(_expert_memory_context_line(hit) for hit in hits)
-    return render_prompt(prompts, "chat.expert.memory", memories=memories)
-
-
-def _expert_memory_context_line(hit: ExpertMemoryHit) -> str:
-    if hit.source != "research_receipt":
-        return f"- {hit.text}"
-    question_id = str(hit.metadata.get("knowledge_question_id") or "unknown")
-    attempt_id = str(hit.metadata.get("source_attempt_id") or "unknown")
-    return (
-        "- [research_receipt; "
-        f"knowledge_question_id={question_id}; source_attempt_id={attempt_id}] "
-        f"{hit.text}"
-    )
 
 
 async def remember_expert_chat_turn(
@@ -365,56 +323,6 @@ def validate_interview_variant(
         )
 
 
-async def _prepare_workspace_chat(
-    session: AsyncSession,
-    *,
-    persona: Persona,
-    prompts: dict[str, str],
-    workspace_id: str | None,
-    workspace_state: WorkspaceState | None,
-    actor_user_id: str | None,
-) -> tuple[str, list[dict[str, Any]], dict | None]:
-    if workspace_id is None:
-        return "", [], None
-    if actor_user_id is None or workspace_state is None:
-        raise ChatTurnError("workspace_required", status_code=422)
-    actor = await session.get(UserAccount, actor_user_id)
-    if actor is None:
-        raise ChatTurnError("actor_not_found", status_code=404)
-    try:
-        await require_workspace(session, workspace_id, actor)
-    except HTTPException as exc:
-        raise ChatTurnError(str(exc.detail), status_code=exc.status_code) from exc
-    kept = [
-        name
-        for name in resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
-        if name != "start_research"
-    ]
-    return (
-        workspace_turn_text(prompts, workspace_state),
-        workspace_openai_tools(prompts, skip=frozenset(kept)),
-        workspace_state.model_dump(),
-    )
-
-
-async def _emit_workspace_client_tools(
-    scope: LibraryToolScope,
-    on_client_tools: Callable[[list[dict[str, Any]]], Awaitable[None]] | None,
-) -> None:
-    if on_client_tools is None or not scope.client_calls:
-        return
-    await on_client_tools(
-        [{"name": call.name, "arguments": call.arguments} for call in scope.client_calls]
-    )
-
-
-def _chat_tools_for_turn(persona: Persona, *, workspace: bool) -> list[str]:
-    names = resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
-    if not workspace:
-        return names
-    return [name for name in names if name != "start_research"]
-
-
 async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
     session: AsyncSession,
     *,
@@ -452,13 +360,14 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             validate_chat_turn_images(history, message, image_sha256)
         except ValueError as exc:
             raise ChatTurnError(str(exc)) from exc
-        workspace_extra, workspace_specs, stored_state = await _prepare_workspace_chat(
+        resolved_tools = resolve_chat_tools(library_chat_tools(persona), kind=persona.kind)
+        workspace_extra, workspace_specs, stored_state = await prepare_workspace_chat(
             session,
-            persona=persona,
             prompts=prompts,
             workspace_id=workspace_id,
             workspace_state=workspace_state,
             actor_user_id=actor_user_id,
+            tool_names=resolved_tools,
         )
         await session.commit()
         memory_context = await expert_memory_context(
@@ -466,7 +375,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
         )
         if workspace_extra:
             memory_context = f"{memory_context}\n\n{workspace_extra}".strip() if memory_context else workspace_extra
-        chat_tools = _chat_tools_for_turn(persona, workspace=bool(workspace_specs))
+        chat_tools = chat_tools_for_turn(resolved_tools, workspace=bool(workspace_specs))
         with_tools = _library_chat_uses_tools(persona) or bool(workspace_specs)
         scope = begin_library_tools(
             persona_id=persona_id,
@@ -475,8 +384,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             history=history,
             user_message=message,
             enabled=with_tools,
-            workspace_id=workspace_id,
-            workspace_state=stored_state,
+            workspace=None if workspace_id is None or stored_state is None else (workspace_id, stored_state),
         )
         saved_reply = False
         try:
@@ -532,16 +440,10 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
                 await _discard_user_message(session, user_row)
                 raise
 
-            opened = await source_for_open_request(
-                session,
-                workspace_id=workspace_id,
-                actor_user_id=actor_user_id,
-                message=message,
-                history=history,
+            await finish_workspace_turn(
+                session, scope, on_client_tools, workspace_id=workspace_id,
+                actor_user_id=actor_user_id, message=message, history=history,
             )
-            if opened:
-                queue_document_open(scope, opened)
-            await _emit_workspace_client_tools(scope, on_client_tools)
             reply = "".join(parts).strip()
             if not reply:
                 await _discard_user_message(session, user_row)

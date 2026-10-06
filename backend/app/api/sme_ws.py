@@ -68,6 +68,11 @@ async def _authenticate(websocket: WebSocket) -> UserAccount:
         )
 
 
+async def _send_workspace_tools(emit, envelope: dict, calls: list[dict]) -> None:
+    for call in calls:
+        await emit({"type": "workspace_tool", **call, **envelope})
+
+
 @router.websocket("/ws/sme")
 async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR0915
     await websocket.accept()
@@ -170,7 +175,7 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
             }
         )
 
-    async def run_expert_turn(send: SmeExpertSend) -> None:  # noqa: C901, PLR0915
+    async def run_expert_turn(send: SmeExpertSend) -> None:  # noqa: C901
         envelope = {
             "thread_type": send.thread_type,
             "thread_id": send.thread_id,
@@ -222,10 +227,6 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
             async def on_token(text: str) -> None:
                 await emit({"type": "token", "text": text, **envelope})
 
-            async def on_client_tools(calls: list[dict]) -> None:
-                for call in calls:
-                    await emit({"type": "workspace_tool", **call, **envelope})
-
             done = await execute_expert_turn(
                 factory,
                 request_id=send.request_id,
@@ -237,7 +238,7 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
                 on_token=on_token,
                 workspace_id=send.workspace_id,
                 workspace_state=send.workspace_state,
-                on_client_tools=on_client_tools,
+                on_client_tools=lambda calls: _send_workspace_tools(emit, envelope, calls),
             )
             async with factory() as session:
                 questions = await library_follow_up_questions(

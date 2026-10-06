@@ -16,6 +16,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.expert_live_voices import persona_update_data, register_live_voices, voice_for_token
 from app.auth.dependencies import get_current_user
 from app.auth.scope import (
     assert_kund_access,
@@ -52,7 +53,6 @@ from app.schemas.domain import (
     PersonaDetail,
     PersonaGenerateRequest,
     PersonaGenerateResponse,
-    LiveVoiceOption,
     PersonaLiveTokenOut,
     PersonaLiveToolRequest,
     PersonaLiveToolResponse,
@@ -81,17 +81,14 @@ from app.services.expert_consult import consult_handler_for_persona
 from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
 from app.services import persona_memory_api as memory_api
 from app.services.kund_store import bolag_demo_customer_id, default_os_customer_id
-from app.services.elevenlabs_live import list_elevenlabs_voices
 from app.services.live_voice import (
-    GEMINI_LIVE_VOICES,
     LiveVoiceProviderError,
     LiveVoiceUnavailable,
     create_live_voice_session,
-    expert_live_voice,
 )
 from app.services.live_voice_context import build_live_voice_context
 from app.services.library_chat_fifo import load_library_chat, trim_and_commit_library_chat
-from app.services.live_voice_tools import live_voice_tool_specs, run_live_voice_tool
+from app.services.live_voice_tools import run_live_voice_tool
 from app.services.live_voice_transcript import (
     LiveVoiceTranscriptRequest,
     publish_live_voice_turn,
@@ -122,6 +119,7 @@ from app.services.stored_objects import get_stored_object, read_stored_bytes
 from app.services.underlag_extract import ensure_underlag_extracted
 
 router = APIRouter(prefix="/personas", tags=["personas"])
+register_live_voices(router)
 PERSONA_AVATAR_BUCKET = "persona-avatars"
 
 
@@ -308,24 +306,6 @@ async def suggest_experts_from_underlag(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.get("/live-voices", response_model=list[LiveVoiceOption])
-async def list_live_voices(
-    provider: str = Query(pattern="^(gemini|elevenlabs)$"),
-    session: AsyncSession = Depends(get_session),
-    user: UserAccount = Depends(get_current_user),
-) -> list[LiveVoiceOption]:
-    del user
-    await session.rollback()
-    if provider == "gemini":
-        return [LiveVoiceOption(id=name, name=name) for name in GEMINI_LIVE_VOICES]
-    try:
-        return [LiveVoiceOption(**row) for row in await list_elevenlabs_voices()]
-    except LiveVoiceUnavailable as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except LiveVoiceProviderError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
 @router.get("/{persona_id}", response_model=PersonaDetail)
 async def get_persona(
     persona_id: str,
@@ -360,30 +340,18 @@ async def create_persona_live_token(
     )
     allowed_tools = resolve_chat_tools(persona.tools, kind=persona.kind)
     tool_context = expert_tool_prompt_extra(prompts, allowed_tools)
-    extra_system = "\n\n".join(
-        part for part in (live_context, tool_context) if part.strip()
-    )
+    extra_system = "\n\n".join(part for part in (live_context, tool_context) if part.strip())
     system_instruction = build_chat_system_prompt(
-        profile,
-        "interview",
-        prompts=prompts,
-        area_block=area_block,
-        extra_system=extra_system,
-        profile_kind="expert",
+        profile, "interview", prompts=prompts, area_block=area_block,
+        extra_system=extra_system, profile_kind="expert",
     )
-    tool_specs = live_voice_tool_specs(persona)
-    try:
-        provider_name, voice = expert_live_voice(persona)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    provider_name, voice, tool_specs = voice_for_token(persona)
     await session.rollback()
     try:
         return await create_live_voice_session(
             system_instruction,
             initial_turn=initial_turn,
-            tools=tool_specs,
-            provider=provider_name,
-            voice=voice,
+            tools=tool_specs, provider=provider_name, voice=voice,
         )
     except LiveVoiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -609,9 +577,7 @@ async def create_persona(  # noqa: PLR0912
         quote=quote,
         origin=body.origin,
         profile=profile.model_dump(),
-        tools=resolve_chat_tools(body.tools, kind=body.kind),
-        live_voice_provider=body.live_voice_provider,
-        live_voice=body.live_voice,
+        tools=resolve_chat_tools(body.tools, kind=body.kind), live_voice_provider=body.live_voice_provider, live_voice=body.live_voice,
         updated_at=utcnow(),
     )
     session.add(persona)
@@ -629,11 +595,7 @@ async def update_persona(
 ) -> PersonaDetail:
     persona = await _get_persona(session, persona_id)
     assert_kund_access(user, persona.customer_id)
-    data = body.model_dump(exclude_unset=True)
-    provider = data.get("live_voice_provider", persona.live_voice_provider) or settings.live_voice_provider
-    voice = data["live_voice"] if "live_voice" in data else persona.live_voice
-    if provider == "gemini" and voice and voice not in GEMINI_LIVE_VOICES:
-        raise HTTPException(status_code=422, detail="unknown_gemini_voice")
+    data = persona_update_data(persona, body.model_dump(exclude_unset=True))
     profile = data.pop("profile", None)
     tools_set = "tools" in data
     tools = data.pop("tools", None)
@@ -672,9 +634,7 @@ async def duplicate_persona(
         quote=source.quote,
         origin=source.origin,
         profile=dict(source.profile or blank_profile(source.name).model_dump()),
-        tools=list(source.tools) if source.tools is not None else source.tools,
-        live_voice_provider=source.live_voice_provider,
-        live_voice=source.live_voice,
+        tools=list(source.tools) if source.tools is not None else source.tools, live_voice_provider=source.live_voice_provider, live_voice=source.live_voice,
         updated_at=utcnow(),
     )
     session.add(persona)

@@ -4,6 +4,16 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.schemas.live_voice import (
+    LiveVoiceAudioOut as LiveVoiceAudioOut,
+    LiveVoiceOption as LiveVoiceOption,
+    LiveVoiceProviderName as LiveVoiceProviderName,
+    PersonaLiveMemoryRequest as PersonaLiveMemoryRequest,
+    PersonaLiveTokenOut as PersonaLiveTokenOut,
+    PersonaLiveToolHistoryItem as PersonaLiveToolHistoryItem,
+    PersonaLiveToolRequest as PersonaLiveToolRequest,
+    PersonaLiveToolResponse as PersonaLiveToolResponse,
+)
 from app.services.expert_tools import normalize_expert_tools
 from app.services.report.thresholds import ReportThresholds
 
@@ -60,14 +70,6 @@ class PersonaAnecdoteOut(BaseModel):
         return text
 
 
-LiveVoiceProviderName = Literal["gemini", "elevenlabs"]
-
-
-class LiveVoiceOption(BaseModel):
-    id: str
-    name: str
-
-
 class LibraryPersona(BaseModel):
     id: str
     kind: PersonaKind = "persona"
@@ -88,45 +90,6 @@ class LibraryPersona(BaseModel):
 
 class PersonaDetail(LibraryPersona):
     pass
-
-
-class LiveVoiceAudioOut(BaseModel):
-    input_format: str
-    output_format: str
-
-
-class PersonaLiveTokenOut(BaseModel):
-    provider: LiveVoiceProviderName
-    websocket_url: str
-    model: str
-    voice: str
-    expires_at: str
-    initial_turn: str
-    audio: LiveVoiceAudioOut
-    client_init: dict[str, Any] | None = None
-
-
-class PersonaLiveMemoryRequest(BaseModel):
-    session_id: str = Field(min_length=1, max_length=128)
-    user_message: str = Field(min_length=1, max_length=20_000)
-    assistant_message: str = Field(min_length=1, max_length=20_000)
-
-
-class PersonaLiveToolHistoryItem(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=20_000)
-
-
-class PersonaLiveToolRequest(BaseModel):
-    session_id: str = Field(min_length=1, max_length=128)
-    name: str = Field(min_length=1, max_length=128)
-    arguments: dict[str, Any] = Field(default_factory=dict)
-    history: list[PersonaLiveToolHistoryItem] = Field(default_factory=list, max_length=50)
-    user_message: str = Field(default="", max_length=20_000)
-
-
-class PersonaLiveToolResponse(BaseModel):
-    result: str
 
 
 class PersonaAvatarOut(BaseModel):
