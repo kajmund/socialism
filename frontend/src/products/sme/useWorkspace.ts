@@ -5,7 +5,7 @@ import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { commitWorkspaceState, openWorkspaceDocument, requiredString, sameWorkspaceState, workspaceErrorMessage } from "./workspaceChatLogic"
 import { workspaceFocusReference } from "./workspaceDocumentFocus"
 import { captureWorkspaceTurn, type WorkspaceTurnSnapshot } from "./workspaceTurnSnapshot"
-import { captureDocumentTurn, clearLocalDocumentSelection, localSelectionMatchesReference, type LocalDocumentSelection } from "./workspaceLocalSelection"
+import { captureDocumentTurn, clearLocalDocumentSelection, localSelectionMatchesReference, mergeMaterializedSelection, type LocalDocumentSelection } from "./workspaceLocalSelection"
 
 export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const { t, locale } = useLocale()
@@ -83,8 +83,25 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
       const value = await commitWorkspaceState(previous, update, { write: (revision, state) => voiceWorkspaces.update(previous.id, revision, state), read: () => voiceWorkspaces.get(previous.id) })
       if (value === previous || (value.revision === previous.revision && sameWorkspaceState(value.state, previous.state))) { if (pendingChanges.current === 1) apply(previous); return previous }
       if (epoch !== generation.current) throw new Error(t("voiceWorkspaceChat.presentationError"))
-      if (!isCurrent()) { persisted.current = value; if (current.current?.id === value.id) { current.current = { ...value, state: current.current.state }; setWorkspace(current.current) }; throw new Error(t("voiceWorkspaceChat.presentationError")) }
-      if (pendingChanges.current > 1 && current.current?.id === value.id) { persisted.current = value; current.current = { ...value, state: current.current.state }; setWorkspace(current.current) }
+      if (!isCurrent()) {
+        persisted.current = value
+        if (current.current?.id === value.id) {
+          const state = current.current.state.selection && value.state.selection
+            ? { ...current.current.state, selection: mergeMaterializedSelection(current.current.state.selection, value.state.selection) }
+            : current.current.state
+          current.current = { ...value, state }
+          setWorkspace(current.current)
+        }
+        throw new Error(t("voiceWorkspaceChat.presentationError"))
+      }
+      if (pendingChanges.current > 1 && current.current?.id === value.id) {
+        persisted.current = value
+        const state = current.current.state.selection && value.state.selection
+          ? { ...current.current.state, selection: mergeMaterializedSelection(current.current.state.selection, value.state.selection) }
+          : current.current.state
+        current.current = { ...value, state }
+        setWorkspace(current.current)
+      }
       else apply(value)
       setError(null)
       try { onContext.current(`Workspace state updated: ${JSON.stringify(value.state)}`) } catch (error) { report(error) }

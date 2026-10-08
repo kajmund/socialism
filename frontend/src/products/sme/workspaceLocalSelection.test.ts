@@ -95,6 +95,26 @@ describe("local document selection", () => {
     expect(await captureDocumentTurn(Promise.resolve({ workspaceId: "canvas", revision: 1, state: stored }), null)).toEqual({ workspaceId: "canvas", revision: 1, state: stored })
     expect(await captureDocumentTurn(Promise.resolve(null), local())).toBeNull()
   })
+  it("carries verified reference ids from the server commit into the captured question", async () => {
+    const selected = local()
+    const stored = {
+      ...state(),
+      selection: {
+        source_id: "pdf",
+        reference_id: "verified-reference",
+        source_version: "version-a",
+        source_file_sha256: "c".repeat(64),
+        anchor: structuredClone(anchor),
+      },
+    }
+    const question = await captureDocumentTurn(Promise.resolve({ workspaceId: "canvas", revision: 5, state: stored }), selected)
+    expect(question?.state.selection).toMatchObject({
+      reference_id: "verified-reference",
+      source_version: "version-a",
+      source_file_sha256: "c".repeat(64),
+      anchor: { exact_text: anchor.exact_text },
+    })
+  })
 })
 
 describe("reference presentation while a local selection remains", () => {
