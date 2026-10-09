@@ -21,6 +21,7 @@ from app.services.expert_async_tools import (
     active_library_tools,
     tool_result_extra,
 )
+from app.services.expert_reasoning_episode import history_message
 from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
 from app.services.prompt_catalog import render_prompt
 
@@ -194,12 +195,13 @@ def _chat_messages(  # noqa: PLR0913
         role = entry[0]
         text = entry[1]
         image_sha = entry[2] if len(entry) > 2 else None
-        messages.append(
-            {
-                "role": role,
-                "content": user_content_with_optional_image(text, image_sha),
-            }
-        )
+        reasoning = entry[3] if len(entry) > 3 else None
+        messages.append(history_message(
+            role,
+            text,
+            image_sha if isinstance(image_sha, str) else None,
+            reasoning if isinstance(reasoning, str) else None,
+        ))
     messages.append(
         {
             "role": "user",
@@ -312,6 +314,7 @@ async def stream_reply_as_persona(  # noqa: PLR0913
             prompts=prompts,
             prompt_key=_chat_prompt_key(mode),
             extra_specs=workspace_tools,
+            workspace_state=scope.workspace_state,
         )
         if ack.calls:
             scope.defer(ack.calls)

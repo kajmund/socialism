@@ -1,11 +1,13 @@
 import { Fragment, type ReactNode } from "react"
 
+import { stripWakeToolText } from "@/components/chat/liveToolWake"
+
 /**
  * Lightweight chat markdown: headings, hr, **bold**, *italic*, newlines, lists.
  * No HTML passthrough — only React text nodes + tags.
  */
 export function ChatMarkdown({ text, renderReference }: { text: string; renderReference?: (number: number) => ReactNode }) {
-  const lines = text.replace(/\r\n/g, "\n").split("\n")
+  const lines = stripWakeToolText(text).replace(/\r\n/g, "\n").split("\n")
   const blocks: ReactNode[] = []
   let i = 0
   let key = 0

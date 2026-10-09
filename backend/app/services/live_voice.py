@@ -45,7 +45,7 @@ def expert_live_voice(persona: Persona) -> tuple[str, str]:
         if voice not in GEMINI_LIVE_VOICES:
             raise ValueError("unknown_gemini_voice")
         return provider, voice
-    if provider == "elevenlabs":
+    if provider in {"elevenlabs", "socialism"}:
         return provider, saved or settings.elevenlabs_voice_id.strip()
     raise RuntimeError(f"unknown LIVE_VOICE_PROVIDER: {provider}")
 
@@ -64,6 +64,8 @@ def get_live_voice_provider(name: str | None = None) -> LiveVoiceProvider:
         from app.services.elevenlabs_live import ElevenLabsLiveVoiceProvider
 
         return ElevenLabsLiveVoiceProvider()
+    if chosen == "socialism":
+        raise LiveVoiceUnavailable("socialism_live_speech_workspace_required")
     raise RuntimeError(f"unknown LIVE_VOICE_PROVIDER: {chosen}")
 
 

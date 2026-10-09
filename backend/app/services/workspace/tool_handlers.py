@@ -9,8 +9,10 @@ from app.services.workspace.service import add_source, artifact_out, new_id, pub
 from app.services.workspace.sources import read_reference, search_research
 from app.services.workspace.search import search_general, search_workspace
 from app.services.workspace.research_links import job_bound_to_canvas, sync_research_links
+from app.services.workspace.document_brief import document_conversation_brief
 from app.services.workspace.generation_tools import artifact_source_refs, source_context, queue_generation, require_shared_reference, require_source_scope, _start_research
 from app.services.workspace.tool_arguments import SearchArguments, ReadArguments, IngestArguments, JobArguments, GenerationArguments, ReviseArguments, ExportArguments, ChartArguments, ResearchArguments
+from app.services.document_navigation import exact_workspace_search, read_document_part
 from app.services.workspace_document_context import voice_document_context
 from app.services.workspace_quote_focus import focus_passage
 from app.services.workspace.source_ingest_retry import retry_failed_source
@@ -41,10 +43,17 @@ async def search(context: ToolContext, arguments: dict) -> dict:
     scope = args.scope or state.knowledge_scope
     if scope != state.knowledge_scope:
         raise HTTPException(status_code=409, detail="selected_scope_conflict")
+    if args.exact:
+        if scope != "workspace":
+            raise HTTPException(status_code=422, detail="exact_search_requires_workspace")
+        result = await exact_workspace_search(
+            session, workspace, args.query, limit=args.limit, source_id=args.source_id,
+        )
+        return {"status": "completed", "scope": scope, **result}
     if scope in {"workspace", "general"}:
         context.operation.external_started = True
     if scope == "workspace":
-        result = await search_workspace(session, workspace, args.query, args.limit)
+        result = await search_workspace(session, workspace, args.query, args.limit, source_id=args.source_id)
     elif scope == "general":
         result = await search_general(session, workspace, args.query, args.limit)
     else:
@@ -56,6 +65,14 @@ async def read(context: ToolContext, arguments: dict) -> dict:
     session = context.session
     workspace = context.workspace
     args = ReadArguments.model_validate(arguments)
+    if args.outline or args.section is not None or args.quote is not None or args.page is not None:
+        if args.source_id is None:
+            raise HTTPException(status_code=422, detail="source_or_reference_required")
+        if context.state.knowledge_scope == "general":
+            raise HTTPException(status_code=409, detail="private_document_requires_workspace")
+        source = await require_source(session, workspace, args.source_id, member=False)
+        source = await add_source(session, workspace, source.id)
+        return await read_document_part(session, source, args)
     if args.reference_id:
         if context.state.knowledge_scope == "general":
             await require_shared_reference(session, workspace, args.reference_id)
@@ -125,6 +142,8 @@ async def generate(context: ToolContext, arguments: dict) -> dict:
     values["language"] = context.language
     values["source_context"] = await source_context(session, workspace, args.source_refs, args.source_ids,
         shared_only=context.state.knowledge_scope == "general")
+    if kind == "document":
+        values["conversation_brief"] = await document_conversation_brief(session, context.state.expert_id)
     if kind != "document" and not values["source_context"]:
         raise HTTPException(status_code=422, detail="cited_sources_required")
     return await queue_generation(session, workspace, user, operation, kind=kind, arguments=values)

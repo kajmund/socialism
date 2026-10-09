@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import get_current_user
 from app.auth.scope import require_user_kund_id
+from app.config import settings
 from app.database.models import (
     Kund,
     Persona,
@@ -152,6 +153,9 @@ async def list_inbox(
                     preview=last.content if last else expert.quote,
                     last_message_at=last.created_at if last else None,
                     unread_count=unread,
+                    live_voice_provider=(
+                        expert.live_voice_provider or settings.live_voice_provider
+                    ),
                 )
             )
     for panel in panels:

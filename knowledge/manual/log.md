@@ -1,5 +1,25 @@
 # Manual update log
 
+## 2026-10-08
+
+* **SME / dokumentutkast**: Ett färdigt utkast öppnas i arbetsytan när
+  jobbet blir klart. Från **Bakgrundsjobb** går det också att välja
+  **Öppna utkast**. Utkastet utgår från samtalet och uppdraget, inte
+  bara från uppladdade filer som råkar ligga i arbetsytan.
+* **SME / Live Speech**: Röstknappen använder nu samma expertchatt, historik,
+  verktyg och modellval som textchatten. Experten pratar först och tar upp
+  det ni senast pratade om. Preliminär transkription visas medan du talar.
+  Korta *mm* avbryter inte svaret. En längre fråga kan få en kort
+  lyssnarsignal, och ett långsamt uppslag kan få ett talat lägesbesked som
+  inte sparas. Text under samtalet avbryter uppläsningen men lämnar
+  röstläget kvar. Du kan pausa mikrofonen, avbryta uppläsningen eller säga
+  stopp för att avbryta svaret.
+* **Experter / röstfunktion**: Socialism Live Speech kan väljas separat från
+  Gemini och ElevenLabs. Vald ElevenLabs-röst används för uppläsningen i
+  workspace-chatten.
+* **Live Speech / v4 Turbo**: Uppläsningen kan använda känslo- och
+  framförandetaggar utan att taggarna visas eller sparas i chatten.
+
 ## 2026-10-04
 
 * **Workspace-chatten / dokumentmarkeringar**: Egna markeringar i PDF- och textdokument är lokala utkast tills en fråga skickas. Frågan låser passagen och dokumentversionen; verifierad källhänvisning och fråga sparas tillsammans. En senare markering gäller nästa fråga. Klick i dokumentet tar bort utkastet, och en omladdning av webbsidan tar bort en ännu oanvänd markering. Originalet och dokumentets frågor och svar ändras inte.

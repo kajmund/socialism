@@ -25,6 +25,17 @@ export type HttpRequestOptions = {
   jsonBody?: boolean
 }
 
+export function errorDetail(parsed: unknown, status: number): string {
+  if (typeof parsed !== "object" || parsed === null || !("detail" in parsed)) return `HTTP ${status}`
+  const detail = (parsed as { detail: unknown }).detail
+  if (typeof detail === "string" && detail.trim()) return detail
+  if (Array.isArray(detail)) {
+    const first = detail[0]
+    if (first && typeof first === "object" && "type" in first && typeof first.type === "string") return first.type
+  }
+  return `HTTP ${status}`
+}
+
 export async function httpRequest<T>(
   url: string,
   options: HttpRequestOptions = {},
@@ -82,14 +93,7 @@ export async function httpRequest<T>(
   }
 
   if (!response.ok) {
-    const detail =
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "detail" in parsed &&
-      typeof (parsed as { detail: unknown }).detail === "string"
-        ? (parsed as { detail: string }).detail
-        : `HTTP ${response.status}`
-    throw new ApiError(detail, { status: response.status, body: parsed })
+    throw new ApiError(errorDetail(parsed, response.status), { status: response.status, body: parsed })
   }
 
   return parsed as T

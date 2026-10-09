@@ -91,11 +91,12 @@ async def test_research_tool_queues_one_background_job_after_explicit_confirmati
         db,
         persona=expert,
         history=[
-            ("user", "Vad innebär klausul 2?", None),
+            ("user", "Vad innebär klausul 2?", None, None),
             (
                 "assistant",
                 "Underlaget räcker inte. Vill du att jag startar research?",
                 None,
+                "internt resonemang",
             )
         ],
         user_message="Ja, gör det",

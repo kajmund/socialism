@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { voiceWorkspaces, type KnowledgeResult, type SourceReference, type VoiceWorkspaceParent, type Workspace, type WorkspaceArtifact, type WorkspaceSelection, type WorkspaceState, type WorkspaceSummary } from "@/api/voiceWorkspaces"
 import { useLocale } from "@/i18n"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
-import { commitWorkspaceState, openWorkspaceDocument, requiredString, sameWorkspaceState, workspaceErrorMessage } from "./workspaceChatLogic"
+import { commitWorkspaceState, openWorkspaceDocument, requiredString, sameWorkspaceState, takeReadyGenerationArtifact, workspaceErrorMessage } from "./workspaceChatLogic"
 import { workspaceFocusReference } from "./workspaceDocumentFocus"
 import { captureWorkspaceTurn, type WorkspaceTurnSnapshot } from "./workspaceTurnSnapshot"
 import { captureDocumentTurn, clearLocalDocumentSelection, localSelectionMatchesReference, mergeMaterializedSelection, type LocalDocumentSelection } from "./workspaceLocalSelection"
@@ -26,6 +26,9 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const queue = useRef(Promise.resolve())
   const ready = useRef(new Set<string>())
   const pending = useRef(new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: number; selectionSensitive: boolean }>())
+  const generationStatus = useRef(new Map<string, string>())
+  const pendingGeneration = useRef(new Set<string>())
+  const openedGeneration = useRef(new Set<string>())
   const onContext = useRef<(text: string) => void>(() => undefined)
   const report = useCallback((caught: unknown) => setError(workspaceErrorMessage(caught, t, "voiceWorkspaceChat.operationError")), [t])
   const labels = useRef(t), errors = useRef(report)
@@ -167,7 +170,7 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
     ensureCurrent()
     if (name === "show_document" || name === "focus_anchor") {
       if (name === "focus_anchor" && typeof args.reference_id !== "string") {
-        const marked = await voiceWorkspaces.tool(value.id, "focus_passage", { source_id: requiredString(args, "source_id"), quote: requiredString(args, "quote") })
+        const marked = await voiceWorkspaces.tool(value.id, "focus_passage", { source_id: requiredString(args, "source_id"), quote: requiredString(args, "quote").slice(0, 4000) })
         ensureCurrent()
         if (typeof marked.reference_id !== "string") throw new Error(t("voiceWorkspaceChat.presentationError"))
         args = { reference_id: marked.reference_id }
@@ -215,5 +218,12 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const relevantJobs = jobs.filter((job) => job.request.voice_workspace_id === workspace?.id || workspace?.sources.some((source) => source.knowledge_job_id === job.id) || workspace?.research.some((research) => research.run_id === job.id || research.attempt_id === job.request.attempt_id))
   const jobContext = JSON.stringify(relevantJobs.map((job) => ({ id: job.id, status: job.status, error: job.error })))
   useEffect(() => { if (jobContext === "[]" || !current.current) return; void refresh().then((value) => { if (value) onContext.current(`Workspace background jobs updated: ${jobContext}`) }).catch(report) }, [jobContext, refresh, report])
+  useEffect(() => {
+    const artifactId = takeReadyGenerationArtifact({
+      jobs, artifacts: workspace?.artifacts ?? [], workspaceId: workspace?.id,
+      previousStatus: generationStatus.current, pending: pendingGeneration.current, opened: openedGeneration.current,
+    })
+    if (artifactId) void tool("show_artifact", { artifact_id: artifactId }).catch(report)
+  }, [jobs, workspace, tool, report])
   return { workspace, list, knowledge, setKnowledge, error, picker, setPicker, setError, current, turnSnapshot, localSelection, selectDocument, snapshot, select, create, refresh, change, markReady, presentationError, open, search, tool, saved, report, onContext, queue }
 }

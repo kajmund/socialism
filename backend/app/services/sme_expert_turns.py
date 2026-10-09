@@ -19,6 +19,7 @@ from app.schemas.workspace import WorkspaceState
 from app.schemas.sme import SmeExpertTurnOut, SmeMessageOut
 from app.serializers import utcnow
 from app.services.persona_chat import ChatTurnError, stream_library_chat_turn
+from app.services.sme_expert_turn_support import log_rerun_failure
 
 logger = logging.getLogger(__name__)
 
@@ -459,6 +460,8 @@ async def execute_expert_turn(  # noqa: C901, PLR0912, PLR0913
     workspace_id: str | None = None,
     workspace_state: WorkspaceState | None = None,
     on_client_tools: Callable[[list[dict[str, Any]]], Awaitable[None]] | None = None,
+    extra_system_prompt_key: str | None = None,
+    assistant_reply_transform: Callable[[str], str] | None = None,
 ) -> PersonaChatResponse:
     heartbeat = ExpertTurnHeartbeat(session_factory, request_id, token=token, fence=fence).start()
     try:
@@ -486,6 +489,8 @@ async def execute_expert_turn(  # noqa: C901, PLR0912, PLR0913
                 actor_user_id=turn.user_id,
                 persist_guard=persist_guard, workspace_id=workspace_id,
                 workspace_state=workspace_state, on_client_tools=on_client_tools,
+                extra_system_prompt_key=extra_system_prompt_key,
+                assistant_reply_transform=assistant_reply_transform,
             )
             try:
                 async for item in stream:
@@ -521,12 +526,12 @@ async def execute_expert_turn(  # noqa: C901, PLR0912, PLR0913
                 error=exc.detail,
             )
         raise
-    except Exception:
+    except Exception as exc:
         await _fail_owned_expert_turn(
             session_factory,
             request_id,
             fence=fence,
-            error="Chat error",
+            error=f"{type(exc).__name__}: {exc}"[:500],
         )
         raise
     finally:
@@ -568,13 +573,5 @@ def schedule_expert_turn_rerun(
             token=turn.lease_token,
         )
     )
-    task.add_done_callback(_log_rerun_failure)
+    task.add_done_callback(log_rerun_failure)
     return task
-
-
-def _log_rerun_failure(task: asyncio.Task[PersonaChatResponse]) -> None:
-    if task.cancelled():
-        return
-    exc = task.exception()
-    if exc is not None:
-        logger.exception("Reclaimed expert turn failed", exc_info=exc)

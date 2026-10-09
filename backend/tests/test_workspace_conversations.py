@@ -348,6 +348,7 @@ async def test_prompt_override_keeps_the_configured_agent(provider):
     patches = [body for method, path, body in requests if method == "PATCH" and path == "/v1/convai/agents/agent-fixture" and body and "conversation_config" in body]
     applied = patches[-1]["conversation_config"]
     assert applied["agent"]["prompt"]["llm"] == settings.elevenlabs_llm
+    assert applied["agent"]["prompt"]["reasoning_effort"] is None
     assert applied["agent"]["prompt"]["prompt"].startswith("Testversion")
     assert "tool-read_source" in applied["agent"]["prompt"]["tool_ids"]
     assert "tool-search_knowledge" in applied["agent"]["prompt"]["tool_ids"]

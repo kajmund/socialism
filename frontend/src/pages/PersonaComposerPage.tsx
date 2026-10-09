@@ -542,7 +542,7 @@ function Editor({
   const memoryNotice =
     showMemoryUi && savedMemories != null ? memoryNoticeText(savedMemories, t) : null
   const voiceAction =
-    !embeddedInterview && kind === "expert" ? (
+    !embeddedInterview && kind === "expert" && liveVoiceProvider !== "socialism" ? (
       <ExpertVoiceButton
         personaId={personaId}
         expertName={persona.name}

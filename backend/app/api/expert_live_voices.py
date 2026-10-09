@@ -28,7 +28,7 @@ def register_live_voices(router: APIRouter) -> None:
 
 
 async def list_live_voices(
-    provider: str = Query(pattern="^(gemini|elevenlabs)$"),
+    provider: str = Query(pattern="^(gemini|elevenlabs|socialism)$"),
     session: AsyncSession = Depends(get_session),
     user: UserAccount = Depends(get_current_user),
 ) -> list[LiveVoiceOption]:

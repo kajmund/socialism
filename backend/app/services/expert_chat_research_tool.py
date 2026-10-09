@@ -73,7 +73,7 @@ def research_tool_handler_for_chat(
     session: AsyncSession,
     *,
     persona: Persona,
-    history: list[tuple[str, str, str | None]],
+    history: list[tuple[str, str, str | None, str | None]],
     user_message: str,
 ) -> ResearchToolHandler:
     queued_job_id: str | None = None
@@ -81,7 +81,7 @@ def research_tool_handler_for_chat(
         history[-1][1] if history and history[-1][0] == "assistant" else ""
     )
     specific_question = next(
-        (content for role, content, _image in reversed(history) if role == "user"),
+        (entry[1] for entry in reversed(history) if entry[0] == "user"),
         "",
     )
 

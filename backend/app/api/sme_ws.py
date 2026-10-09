@@ -103,7 +103,13 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
             except (RuntimeError, WebSocketDisconnect):
                 disconnected.set()
 
-    await library_chat_broadcast.subscribe_customer(user.kund_id, emit)
+    async def emit_scoped(payload: dict) -> None:
+        target_user_id = payload.get("target_user_id")
+        if target_user_id is not None and target_user_id != user.id:
+            return
+        await emit(payload)
+
+    await library_chat_broadcast.subscribe_customer(user.kund_id, emit_scoped)
 
     async def _fail_expert_turn(
         request_id: str,
@@ -270,10 +276,11 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
         except ChatTurnError as exc:
             await _fail_expert_turn(send.request_id, fence, exc.detail)
             await emit({"type": "error", "detail": exc.detail, **envelope})
-        except Exception:
+        except Exception as exc:
             logger.exception("SME expert chat turn failed")
-            await _fail_expert_turn(send.request_id, fence, "Chat error")
-            await emit({"type": "error", "detail": "Chat error", **envelope})
+            detail = f"{type(exc).__name__}: {exc}"[:500]
+            await _fail_expert_turn(send.request_id, fence, detail)
+            await emit({"type": "error", "detail": detail, **envelope})
         finally:
             await emit({"type": "typing", "on": False, **envelope})
 
@@ -308,4 +315,4 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
     finally:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
-        await library_chat_broadcast.unsubscribe(emit)
+        await library_chat_broadcast.unsubscribe(emit_scoped)
