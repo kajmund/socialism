@@ -12,19 +12,52 @@ export function clearLocalDocumentSelection(state: WorkspaceState, references: S
   return { sourceId, selection: cleared.selection ?? null, clearedSourceIds }
 }
 
+function normalizedQuote(text: string | null | undefined): string {
+  return (text ?? "").replace(/\s/g, "").toLowerCase()
+}
+
+function anchorGeometryEqual(
+  left: NonNullable<WorkspaceSelection["anchor"]>,
+  right: NonNullable<WorkspaceSelection["anchor"]>,
+): boolean {
+  return left.anchor_type === right.anchor_type && left.page_number === right.page_number && left.locator === right.locator
+    && normalizedQuote(left.exact_text) === normalizedQuote(right.exact_text)
+    && JSON.stringify(left.rects.map(({ x, y, width, height }) => [x, y, width, height]))
+      === JSON.stringify(right.rects.map(({ x, y, width, height }) => [x, y, width, height]))
+}
+
+export function selectionsSameGeometry(local: WorkspaceSelection, server: WorkspaceSelection): boolean {
+  if (!local.source_id || !server.source_id || local.source_id !== server.source_id) return false
+  const left = local.anchor
+  const right = server.anchor
+  if (left == null || right == null) return false
+  return anchorGeometryEqual(left, right)
+}
+
+export function mergeMaterializedSelection(local: WorkspaceSelection, server: WorkspaceSelection | null | undefined): WorkspaceSelection {
+  if (!server?.reference_id || local.reference_id || !selectionsSameGeometry(local, server)) return local
+  return {
+    ...local,
+    reference_id: server.reference_id,
+    source_version: server.source_version ?? local.source_version,
+    source_file_sha256: server.source_file_sha256 ?? local.source_file_sha256,
+  }
+}
+
 export function localSelectionMatchesReference(local: LocalDocumentSelection, reference: SourceReference): boolean {
   const anchor = local.selection?.anchor, verified = reference.anchor
   if (!anchor || !verified || local.sourceId !== reference.source_id || local.selection?.source_version !== reference.source_version) return false
-  return anchor.anchor_type === verified.anchor_type && anchor.page_number === verified.page_number && anchor.locator === verified.locator
-    && (anchor.exact_text ?? "").replace(/\s/g, "").toLowerCase() === (verified.exact_text ?? "").replace(/\s/g, "").toLowerCase()
-    && JSON.stringify(anchor.rects.map(({ x, y, width, height }) => [x, y, width, height])) === JSON.stringify(verified.rects.map(({ x, y, width, height }) => [x, y, width, height]))
+  return anchorGeometryEqual(anchor, verified)
 }
 
 export function withLocalDocumentSelection(state: WorkspaceState, local: LocalDocumentSelection | null): WorkspaceState {
   if (!local) return state
+  const selection = local.selection
+    ? mergeMaterializedSelection(local.selection, state.selection)
+    : null
   return {
     ...state,
-    selection: local.selection,
+    selection,
     documents: state.documents.map((row) => row.source_id === local.sourceId || local.clearedSourceIds?.includes(row.source_id) ? { ...row, reference_id: null } : row),
   }
 }
