@@ -14,9 +14,9 @@ async def test_document_conversation_brief_keeps_newest_turns(client_db):
         session.add(Persona(
             id=expert_id, customer_id=1, kind="expert", name="Klas", occ="Revisor", district="Linköping",
         ))
-        session.add(PersonaMessage(persona_id=expert_id, mode="interview", role="user", content="äldre"))
+        session.add(PersonaMessage(persona_id=expert_id, mode="character", role="user", content="äldre"))
         session.add(PersonaMessage(
-            persona_id=expert_id, mode="interview", role="assistant",
+            persona_id=expert_id, mode="character", role="assistant",
             content="45,7 MSEK",
         ))
         session.add(PersonaMessage(persona_id=expert_id, mode="workspace", role="user", content="fel läge"))

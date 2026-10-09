@@ -66,7 +66,7 @@ async def test_sme_expert_inbox_and_read_cursor(client_db) -> None:
         session.add(
             PersonaMessage(
                 persona_id=expert["thread_id"],
-                mode="interview",
+                mode="character",
                 role="assistant",
                 content="Ett nytt expertsvar",
                 created_at=utcnow(),
@@ -546,7 +546,7 @@ def _bound_chat_message(
 ) -> PersonaMessage:
     return PersonaMessage(
         persona_id=persona_id,
-        mode="interview",
+        mode="character",
         role=role,
         content=content,
         sme_expert_turn_request_id=request_id,
@@ -681,7 +681,7 @@ async def test_expired_expert_turn_reclaims_saved_messages_without_duplicates(
                     select(PersonaMessage)
                     .where(
                         PersonaMessage.persona_id == persona_id,
-                        PersonaMessage.mode == "interview",
+                        PersonaMessage.mode == "character",
                     )
                     .order_by(PersonaMessage.id.asc())
                 )
@@ -761,7 +761,7 @@ async def test_unbound_identical_text_does_not_complete_expired_turn(
         first.add(
             PersonaMessage(
                 persona_id=persona_id,
-                mode="interview",
+                mode="character",
                 role="user",
                 content=text,
                 created_at=utcnow(),
@@ -770,7 +770,7 @@ async def test_unbound_identical_text_does_not_complete_expired_turn(
         first.add(
             PersonaMessage(
                 persona_id=persona_id,
-                mode="interview",
+                mode="character",
                 role="assistant",
                 content="Främmande svar",
                 created_at=utcnow(),
@@ -903,7 +903,7 @@ async def test_reclaim_ignores_identical_text_from_another_request(
         first.add(
             PersonaMessage(
                 persona_id=persona_id,
-                mode="interview",
+                mode="character",
                 role="user",
                 content=shared,
                 created_at=utcnow(),

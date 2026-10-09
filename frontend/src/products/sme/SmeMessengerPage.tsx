@@ -69,7 +69,7 @@ export function SmeMessengerPage() {
     let cancelled = false
     const selection = inboxSelection()
     setLoading(true)
-    void Promise.all([voiceWorkspaces.messages(workspaceId, selectedId), listPersonaMessages(selectedId, "interview")]).then(([result, interview]) => { if (!cancelled) { setMessages(mergeTranscript(result.messages, interview.map((row) => interviewTranscriptMessage(row)))); void inboxHistoryLoaded(selection).catch(reportInbox) } }).catch((error: unknown) => { if (!cancelled) setChatError(workspaceErrorMessage(error, t, "voiceWorkspaceChat.sessionError")) }).finally(() => { if (!cancelled) setLoading(false) })
+    void Promise.all([voiceWorkspaces.messages(workspaceId, selectedId), listPersonaMessages(selectedId, "character")]).then(([result, interview]) => { if (!cancelled) { setMessages(mergeTranscript(result.messages, interview.map((row) => interviewTranscriptMessage(row)))); void inboxHistoryLoaded(selection).catch(reportInbox) } }).catch((error: unknown) => { if (!cancelled) setChatError(workspaceErrorMessage(error, t, "voiceWorkspaceChat.sessionError")) }).finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [workspaceId, selectedId, t, inboxSelection, inboxHistoryLoaded, reportInbox])
   useEffect(() => { if (workspaceId && workspaceCurrent.current?.state.language !== locale) void changeWorkspace((state) => ({ ...state, language: locale })).catch(reportWorkspace) }, [workspaceId, locale, changeWorkspace, workspaceCurrent, reportWorkspace])

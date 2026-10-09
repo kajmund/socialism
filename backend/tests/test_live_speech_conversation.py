@@ -18,6 +18,7 @@ from app.services.live_speech_progress import (
 )
 from app.services import live_speech_phrases
 from app.schemas.workspace import WorkspaceState
+from app.services.live_speech_followup import published_assistant_reply
 from app.services.live_speech_runtime import LiveSpeechRuntime, LiveSpeechScope
 
 
@@ -446,6 +447,36 @@ async def test_deferred_tools_emit_progress_without_persisting(
     assert seen[3].remaining == 0
     assert "resultat read_source" in blob
     assert results == ("resultat read_source", "resultat search")
+
+
+async def test_published_followup_is_spoken_after_the_ack() -> None:
+    events: list[dict] = []
+    runtime = _runtime(events)
+    spoken: list[str] = []
+
+    async def play_main(text: str, _turn_id: str) -> None:
+        spoken.append(text)
+
+    runtime._coordinator.play_main = play_main
+    runtime._assistant_text = "Jag tar reda på det."
+    payload = {
+        "type": "thread.message",
+        "thread_id": "expert",
+        "mode": "character",
+        "messages": [
+            {"role": "assistant", "content": "Jag tar reda på det."},
+            {"role": "assistant", "content": "Omsättningen är tolv."},
+        ],
+    }
+    await runtime._on_library_event(payload)
+    await runtime._on_library_event(payload)
+    assert spoken == ["Omsättningen är tolv."]
+    assert published_assistant_reply(
+        payload,
+        expert_id="expert",
+        assistant_text="Omsättningen är tolv.",
+        voiced="",
+    ) is None
 
 
 async def test_opening_uses_recent_turns_and_is_not_an_expert_turn(

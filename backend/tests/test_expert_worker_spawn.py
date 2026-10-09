@@ -13,15 +13,21 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.database.base import Base
-from app.services.expert_async_tools import begin_library_tools
+from app.database.models import Kund, StoredObject
+from app.llm import set_tools_completer
+from app.services.document_navigation import SourceScopeIndex, source_scope_index
+from app.services.expert_async_tools import PlannedCall, ToolWork, begin_library_tools
 from app.services.expert_reasoning import assess_expert_reasoning
+from app.services.expert_reasoning_episode import ExpertEpisode, continue_expert_episode
 from app.services.expert_reasoning_turn import route_expert_turn
 from app.services.expert_worker_runtime import (
     WorkerIdentity,
+    _run_scoped_tool,
     _scope_error,
     run_worker_task,
 )
 from app.services.expert_worker_schema import instance_matches
+from app.services.expert_worker_scope import allowed_scope_ids, confine_search_payload
 from app.services.expert_worker_spawn import (
     SPAWN_TOOL_NAME,
     parse_spawn_request,
@@ -30,6 +36,10 @@ from app.services.expert_worker_spawn import (
     validate_spawn_request,
 )
 from app.services.jobs import set_job_session_factory
+from app.services.knowledge.extractors import ExtractedBlock, ExtractedDocument
+from app.services.knowledge.models import KnowledgeDocument, KnowledgeScope
+from app.services.knowledge.persistence import persist_segmented_document
+from app.services.knowledge.segmentation import DocumentSegmenter
 from app.services.prompt_catalog import default_prompts
 from tests.test_expert_reasoning import _FakeJev
 
@@ -52,6 +62,7 @@ _STATE = {
     "documents": [{"source_id": "doc-1", "page": 1}],
     "document_mentions": [],
 }
+_ALLOWED = {"doc-1": {"1", "2", "11"}}
 _TASK = {
     "task": "Granska klausuler 1-10",
     "scope": {"source_id": "doc-1", "ids": ["1", "2"]},
@@ -96,9 +107,13 @@ def test_invalid_spawn_calls_fail_the_whole_request():
     assert parse_spawn_request({"worker_profile": "fast", "tasks": []}) == "empty_tasks"
     parsed = parse_spawn_request(_request())
     assert not isinstance(parsed, str)
-    assert validate_spawn_request(parsed, workspace_state=_STATE) is None
+    assert validate_spawn_request(
+        parsed, workspace_state=_STATE, allowed_ids=_ALLOWED
+    ) is None
     assert (
-        validate_spawn_request(parsed, workspace_state={"documents": []})
+        validate_spawn_request(
+            parsed, workspace_state={"documents": []}, allowed_ids=_ALLOWED
+        )
         == "scope_outside_document"
     )
     forbidden = parse_spawn_request(
@@ -106,7 +121,7 @@ def test_invalid_spawn_calls_fail_the_whole_request():
     )
     assert not isinstance(forbidden, str)
     assert (
-        validate_spawn_request(forbidden, workspace_state=_STATE)
+        validate_spawn_request(forbidden, workspace_state=_STATE, allowed_ids=_ALLOWED)
         == "tool_not_on_read_list"
     )
     outside = parse_spawn_request(
@@ -114,7 +129,15 @@ def test_invalid_spawn_calls_fail_the_whole_request():
     )
     assert not isinstance(outside, str)
     assert (
-        validate_spawn_request(outside, workspace_state=_STATE)
+        validate_spawn_request(outside, workspace_state=_STATE, allowed_ids=_ALLOWED)
+        == "scope_outside_document"
+    )
+    unknown = parse_spawn_request(
+        _request(tasks=[{**_TASK, "scope": {"source_id": "doc-1", "ids": ["1", "missing"]}}])
+    )
+    assert not isinstance(unknown, str)
+    assert (
+        validate_spawn_request(unknown, workspace_state=_STATE, allowed_ids=_ALLOWED)
         == "scope_outside_document"
     )
 
@@ -166,6 +189,10 @@ async def test_partial_worker_failure_keeps_other_results(monkeypatch, tmp_path)
             [{"anchor_id": "1", "assessment": "odd", "reason": "x", "confidence": 0.7}]
         )
 
+    async def allow(_episode, source_ids):
+        return {source_id: set(_ALLOWED["doc-1"]) for source_id in source_ids}
+
+    monkeypatch.setattr("app.services.expert_worker_spawn.allowed_scope_ids", allow)
     monkeypatch.setattr("app.services.expert_worker_runtime.complete_text", complete)
     second = {
         **_TASK,
@@ -388,3 +415,339 @@ async def test_too_many_tasks_is_a_failed_call(monkeypatch):
     )
     parsed = parse_spawn_request(_request(tasks=[_TASK, {**_TASK, "task": "två"}]))
     assert parsed == "too_many_tasks"
+
+
+def test_invalid_json_schema_rejects_the_spawn():
+    bad = {**_TASK, "output_schema": {"type": "array", "minItems": -1}}
+    assert parse_spawn_request(_request(tasks=[bad])) == "invalid_output_schema"
+    remote = {**_TASK, "output_schema": {"$ref": "https://example.test/schema"}}
+    assert parse_spawn_request(_request(tasks=[remote])) == "invalid_output_schema"
+
+
+def test_worker_result_that_breaks_the_schema_is_rejected():
+    schema = {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 2,
+        "items": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["assessment", "confidence"],
+            "properties": {
+                "assessment": {"type": "string", "enum": ["odd", "normal"]},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            },
+        },
+    }
+    assert instance_matches(schema, [{"assessment": "odd", "confidence": 0.4}])
+    assert instance_matches(schema, [{"assessment": "odd", "confidence": 1.4}]) is False
+    assert instance_matches(
+        schema, [{"assessment": "odd", "confidence": 0.4, "extra": True}]
+    ) is False
+    assert instance_matches(schema, []) is False
+    assert instance_matches(schema, [{"assessment": "wild", "confidence": 0.2}]) is False
+
+
+def test_search_hits_outside_scope_are_dropped():
+    payload = json.dumps(
+        {
+            "status": "completed",
+            "items": [
+                {"excerpt": "Priset är fast."},
+                {"snapshot": {"text_unit_id": "unit-1", "excerpt": "Priset är fast."}},
+                {
+                    "excerpt": "Vite utgår.",
+                    "snapshot": {"section_id": "sec-9", "excerpt": "Vite utgår."},
+                },
+            ],
+        }
+    )
+    passages = (
+        ("unit-1", "sec-1", "Priset är fast."),
+        ("unit-9", "sec-9", "Vite utgår."),
+    )
+    limited = json.loads(confine_search_payload(payload, frozenset({"sec-1"}), passages))
+    assert [item.get("excerpt") or item["snapshot"]["text_unit_id"] for item in limited["items"]] == [
+        "Priset är fast.",
+        "unit-1",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_search_knowledge_cannot_read_outside_assigned_scope(monkeypatch):
+    payload = json.dumps(
+        {
+            "status": "completed",
+            "text": "Vite utgår i hela avtalet.",
+            "items": [
+                {
+                    "excerpt": "Priset är fast.",
+                    "snapshot": {"section_id": "sec-1", "excerpt": "Priset är fast."},
+                },
+                {
+                    "excerpt": "Vite utgår.",
+                    "snapshot": {"text_unit_id": "unit-9", "excerpt": "Vite utgår."},
+                },
+            ],
+        }
+    )
+
+    async def run_call(_planned, _work):
+        return payload
+
+    async def index(_source_id):
+        return SourceScopeIndex(
+            ids=frozenset({"sec-1", "sec-9", "unit-1", "unit-9"}),
+            titles=(("sec-1", "Klausul 1"), ("sec-9", "Klausul 9")),
+            passages=(
+                ("unit-1", "sec-1", "Priset är fast."),
+                ("unit-9", "sec-9", "Vite utgår."),
+            ),
+        )
+
+    monkeypatch.setattr(
+        "app.services.expert_workspace_tool_run.run_workspace_tool_call", run_call
+    )
+    monkeypatch.setattr("app.services.expert_worker_runtime.load_source_scope", index)
+    call = SimpleNamespace(
+        id="c1",
+        function=SimpleNamespace(
+            name="search_knowledge",
+            arguments=json.dumps({"query": "villkor", "source_id": "doc-1"}),
+        ),
+    )
+    task = SimpleNamespace(scope=SimpleNamespace(source_id="doc-1", ids=("sec-1",)))
+    text = await _run_scoped_tool(
+        call,
+        task,
+        WorkerIdentity("p", "Djup", "w", "u", _STATE),
+    )
+    assert "Vite" not in text
+    assert json.loads(text)["items"][0]["snapshot"]["section_id"] == "sec-1"
+
+
+def test_read_title_outside_scope_is_rejected():
+    scope = SimpleNamespace(source_id="doc-1", ids=("sec-1",))
+    titles = {"sec-1": "Klausul 1", "sec-9": "Klausul 9"}
+    assert _scope_error(
+        "read_source",
+        {"source_id": "doc-1", "section": "Klausul 1"},
+        scope,
+        titles=titles,
+    ) is None
+    assert (
+        _scope_error(
+            "read_source",
+            {"source_id": "doc-1", "section": "Klausul 9"},
+            scope,
+            titles=titles,
+        )
+        == "scope_outside_document"
+    )
+    assert (
+        _scope_error(
+            "search_knowledge",
+            {"source_id": "doc-1", "query": "pris", "section_ids": ["sec-9"]},
+            scope,
+        )
+        == "scope_outside_document"
+    )
+
+
+@pytest.mark.asyncio
+async def test_worker_json_outside_the_schema_fails_that_task(monkeypatch):
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["confidence"],
+        "properties": {"confidence": {"type": "number", "minimum": 0, "maximum": 1}},
+    }
+
+    async def complete(_messages, *, prompt_key=None):
+        del prompt_key
+        return json.dumps({"confidence": 4})
+
+    monkeypatch.setattr("app.services.expert_worker_runtime.complete_text", complete)
+    parsed = parse_spawn_request(
+        _request(tasks=[{**_TASK, "allowed_tools": [], "output_schema": schema}])
+    )
+    assert not isinstance(parsed, str)
+    result = await run_worker_task(
+        parsed.tasks[0],
+        identity=WorkerIdentity("p", "Djup", "w", "u", _STATE),
+        worker_profile="fast",
+        prompts=default_prompts("sv"),
+    )
+    assert result == {"ok": False, "error": "schema_mismatch"}
+
+
+@pytest.mark.asyncio
+async def test_scope_ids_must_belong_to_the_document_and_a_tool_result(tmp_path):
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/scope.db")
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    set_job_session_factory(factory)
+    try:
+        async with factory() as session:
+            kund = Kund(name="acme", slug="acme-scope", available_modules=["dd"])
+            session.add(kund)
+            await session.flush()
+            session.add(
+                StoredObject(
+                    id="doc-1",
+                    customer_id=kund.id,
+                    workspace_id=None,
+                    module="dd",
+                    kind="underlag",
+                    bucket="scope",
+                    object_key="agreement.txt",
+                    filename="agreement.txt",
+                    content_type="text/plain",
+                    size_bytes=32,
+                )
+            )
+            await session.flush()
+            segmented = DocumentSegmenter().segment(
+                ExtractedDocument(
+                    blocks=[
+                        ExtractedBlock(
+                            text="Priset är fast.",
+                            locator="page:1",
+                            metadata={"heading_level": 1},
+                        ),
+                        ExtractedBlock(
+                            text="Vite utgår.",
+                            locator="page:2",
+                            metadata={"heading_level": 1},
+                        ),
+                    ]
+                ),
+                KnowledgeDocument(
+                    document_id="doc-a",
+                    provider="supabase",
+                    external_id="acme/agreement.txt",
+                    title="Agreement",
+                    mime_type="text/plain",
+                    scope=KnowledgeScope(customer_id=kund.id, module="dd"),
+                    source_type="uploaded_file",
+                    canonical_uri="acme/agreement.txt",
+                ),
+                content_hash="hash-scope",
+            )
+            await persist_segmented_document(
+                session,
+                customer_id=kund.id,
+                source_object_id="doc-1",
+                segmented=segmented,
+            )
+            await session.commit()
+            index = await source_scope_index(session, "doc-1")
+        cited, omitted = sorted(index.ids)[:2]
+        episode = SimpleNamespace(
+            messages=(
+                {
+                    "role": "tool",
+                    "name": "read_source",
+                    "content": json.dumps({"sections": [{"id": cited}]}),
+                },
+            )
+        )
+        allowed = await allowed_scope_ids(episode, ["doc-1"])
+        assert cited in allowed["doc-1"]
+        assert omitted not in allowed["doc-1"]
+        parsed = parse_spawn_request(
+            _request(tasks=[{**_TASK, "scope": {"source_id": "doc-1", "ids": [omitted]}}])
+        )
+        assert not isinstance(parsed, str)
+        assert (
+            validate_spawn_request(parsed, workspace_state=_STATE, allowed_ids=allowed)
+            == "scope_outside_document"
+        )
+        cited_request = parse_spawn_request(
+            _request(tasks=[{**_TASK, "scope": {"source_id": "doc-1", "ids": [cited]}}])
+        )
+        assert not isinstance(cited_request, str)
+        assert (
+            validate_spawn_request(
+                cited_request, workspace_state=_STATE, allowed_ids=allowed
+            )
+            is None
+        )
+    finally:
+        set_job_session_factory(None)
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_partial_spawn_does_not_report_the_task_finished():
+    replies = iter(
+        (
+            SimpleNamespace(content="Jag har gått igenom hela avtalet.", tool_calls=None),
+            SimpleNamespace(
+                content="Två delar saknas, så avtalet är inte genomgånget.",
+                tool_calls=None,
+            ),
+        )
+    )
+    seen: list[str] = []
+
+    async def tools(messages, _specs=None):
+        seen.append(str(messages[-1]["content"]))
+        return next(replies)
+
+    async def unused_call(_call, _work):
+        raise AssertionError("spawn result was already recorded")
+
+    async def unused_publish(_calls):
+        raise AssertionError("no client call")
+
+    set_tools_completer(tools)
+    try:
+        text, _reasoning = await continue_expert_episode(
+            ToolWork(
+                persona_id="e",
+                mode="interview",
+                actor_user_id=None,
+                history=[],
+                user_message="Gå igenom avtalet.",
+                calls=(PlannedCall("c1", SPAWN_TOOL_NAME, {}),),
+                episode=ExpertEpisode(
+                    messages=(
+                        {"role": "user", "content": "Gå igenom avtalet."},
+                        {
+                            "role": "assistant",
+                            "content": "",
+                            "tool_calls": [
+                                {
+                                    "id": "c1",
+                                    "type": "function",
+                                    "function": {
+                                        "name": SPAWN_TOOL_NAME,
+                                        "arguments": "{}",
+                                    },
+                                }
+                            ],
+                        },
+                    ),
+                    specs=(),
+                    prompt_key=None,
+                    reasoning_content=None,
+                ),
+            ),
+            (
+                json.dumps(
+                    [
+                        {"ok": True, "result": []},
+                        {"ok": False, "error": "timeout"},
+                    ]
+                ),
+            ),
+            run_call=unused_call,
+            publish=unused_publish,
+        )
+    finally:
+        set_tools_completer(None)
+    assert text == "Två delar saknas, så avtalet är inte genomgånget."
+    assert json.loads(seen[1])["spawn_complete"] is False
+    assert json.loads(seen[1])["worker_failed"] == 1

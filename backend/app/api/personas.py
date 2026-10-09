@@ -40,7 +40,7 @@ from app.llm.expert_gen import ExpertCandidate, llm_experts_from_underlag
 from app.llm.persona_gen import llm_personas_from_description
 from app.modules.registry import MODULE_REGISTRY
 from app.schemas.domain import (
-    ChatMode,
+    EXPERT_CHAT_MODE, ChatMode,
     EditablePersona,
     ExpertMemoryListOut,
     ExpertMemoryOut,
@@ -342,7 +342,7 @@ async def create_persona_live_token(
     tool_context = expert_tool_prompt_extra(prompts, allowed_tools)
     extra_system = "\n\n".join(part for part in (live_context, tool_context) if part.strip())
     system_instruction = build_chat_system_prompt(
-        profile, "interview", prompts=prompts, area_block=area_block,
+        profile, EXPERT_CHAT_MODE, prompts=prompts, area_block=area_block,
         extra_system=extra_system, profile_kind="expert",
     )
     provider_name, voice, tool_specs = voice_for_token(persona)

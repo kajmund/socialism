@@ -47,7 +47,6 @@ SCORE_KEYS = (
     "decomposable",
     "parallelizable",
 )
-SPAWN_SCORE_KEYS = frozenset({"decomposable", "parallelizable"})
 NAVIGATION_TOOLS = frozenset(
     {
         "show_document",
@@ -225,7 +224,7 @@ def _assessment_questions(prompts: dict[str, str]) -> dict[str, Any]:
             category="schema_validation",
         ) from exc
     keys = set(parsed) if isinstance(parsed, dict) else set()
-    if keys != set(SCORE_KEYS) and keys != set(SCORE_KEYS) - SPAWN_SCORE_KEYS:
+    if keys != set(SCORE_KEYS):
         raise JevClientError(
             f"invalid questions in {ASSESSMENT_PROMPT_KEY}",
             category="schema_validation",
@@ -234,8 +233,6 @@ def _assessment_questions(prompts: dict[str, str]) -> dict[str, Any]:
 
 
 def _score_value(answers: dict[str, Any], key: str) -> float:
-    if key not in answers and key in SPAWN_SCORE_KEYS:
-        return 0.0
     return parse_noul(answers, key)
 
 

@@ -7,6 +7,10 @@ parser, or anchor system.
 from __future__ import annotations
 
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
+from typing import Iterator
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -26,6 +30,49 @@ from app.services.workspace.tool_arguments import ReadArguments
 
 _TEXT_LIMIT = 8000
 _PARAGRAPH = re.compile(r"\n\s*\n")
+# Workers bind assigned section and anchor ids so the existing search stays inside them.
+_worker_sections: ContextVar[frozenset[str] | None] = ContextVar(
+    "worker_search_sections", default=None
+)
+
+
+@dataclass(frozen=True)
+class SourceScopeIndex:
+    ids: frozenset[str]
+    titles: tuple[tuple[str, str], ...]
+    passages: tuple[tuple[str, str | None, str], ...]
+
+
+def current_worker_sections() -> frozenset[str] | None:
+    return _worker_sections.get()
+
+
+@contextmanager
+def bound_worker_sections(ids: frozenset[str]) -> Iterator[None]:
+    token = _worker_sections.set(ids)
+    try:
+        yield
+    finally:
+        _worker_sections.reset(token)
+
+
+def metadata_in_worker_sections(metadata: dict | None) -> bool:
+    allowed = current_worker_sections()
+    if allowed is None:
+        return True
+    return bool(_metadata_ids(metadata or {}) & allowed)
+
+
+def _metadata_ids(metadata: dict) -> set[str]:
+    found: set[str] = set()
+    for key in ("section_id", "text_unit_id", "anchor_id"):
+        value = metadata.get(key)
+        if isinstance(value, str) and value:
+            found.add(value)
+    listed = metadata.get("text_unit_ids")
+    if isinstance(listed, list):
+        found.update(item for item in listed if isinstance(item, str) and item)
+    return found
 
 
 def collapsed(text: str) -> str:
@@ -50,6 +97,9 @@ def window_around(text: str, quote: str, paragraphs: int) -> str | None:
 def match_section(
     sections: list[DocumentSectionRecord], query: str
 ) -> DocumentSectionRecord | None:
+    by_id = [row for row in sections if getattr(row, "id", None) == query]
+    if len(by_id) == 1:
+        return by_id[0]
     needle = collapsed(query)
     if not needle:
         return None
@@ -66,6 +116,7 @@ def match_section(
 def section_outline(sections: list[DocumentSectionRecord]) -> list[dict]:
     return [
         {
+            "id": row.id,
             "title": row.title,
             "type": row.type,
             "ordinal": row.ordinal,
@@ -74,6 +125,18 @@ def section_outline(sections: list[DocumentSectionRecord]) -> list[dict]:
         }
         for row in sections
     ]
+
+
+async def source_scope_index(session: AsyncSession, source_id: str) -> SourceScopeIndex:
+    sections = await _sections(session, source_id)
+    units = await _units(session, source_id)
+    ids = {row.id for row in sections}
+    ids.update(unit.id for unit in units)
+    return SourceScopeIndex(
+        ids=frozenset(ids),
+        titles=tuple((row.id, row.title or "") for row in sections),
+        passages=tuple((unit.id, unit.section_id, unit.text) for unit in units),
+    )
 
 
 def _clip(text: str) -> tuple[str, bool]:
@@ -191,6 +254,7 @@ async def _read_section(
         "source_id": source.id,
         "match": "section",
         "section": {
+            "id": matched.id,
             "title": matched.title,
             "page_start": matched.page_start,
             "page_end": matched.page_end,
@@ -264,11 +328,19 @@ async def _exact_hits(
     limit: int,
 ) -> list[dict]:
     needle = collapsed(query)
-    units = [unit for unit in await _units(session, source.id) if needle in collapsed(unit.text)][:limit]
+    allowed = current_worker_sections()
+    units = [unit for unit in await _units(session, source.id) if needle in collapsed(unit.text)]
+    if allowed is not None:
+        units = [
+            unit
+            for unit in units
+            if unit.id in allowed or (unit.section_id is not None and unit.section_id in allowed)
+        ]
+    units = units[:limit]
     if units:
         refs = [await _unit_citation(session, workspace, source, unit) for unit in units]
         return [reference_out(ref) for ref in refs]
-    if collapsed(query) not in collapsed(source.extracted_text or ""):
+    if allowed is not None or collapsed(query) not in collapsed(source.extracted_text or ""):
         return []
     window = window_around(source.extracted_text or "", query, 1) or query
     ref = await citation(

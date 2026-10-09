@@ -313,6 +313,7 @@ class PersonaGenerateResponse(BaseModel):
 
 
 ChatMode = Literal["interview", "character"]
+EXPERT_CHAT_MODE: ChatMode = "character"
 ChatRole = Literal["user", "assistant"]
 InterviewAskedBy = Literal["doctor", "human"]
 

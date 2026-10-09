@@ -11,10 +11,19 @@ export function interviewTranscriptMessage(message: { id: number; role: "user" |
   return { id: message.id, role: message.role === "user" ? "user" : "agent", content: message.content, created_at: message.created_at, event_key: `interview:${message.id}`, session_id: "interview" }
 }
 
+function transcriptText(value: string): string {
+  return value.replace(/\s+/g, " ").trim()
+}
+
 export function mergeTranscript(current: WorkspaceMessage[], incoming: WorkspaceMessage[]): WorkspaceMessage[] {
+  const persisted = incoming.filter((row) => row.id > 0)
   const rows = new Map<number, WorkspaceMessage>()
-  for (const row of current) if (row.session_id !== "local") rows.set(row.id, row)
-  for (const row of incoming) if (row.id > 0) rows.set(row.id, row)
+  for (const row of current) {
+    if (row.session_id === "local") continue
+    const echoed = row.session_id === "live-speech" && persisted.some((item) => item.role === row.role && transcriptText(item.content) === transcriptText(row.content))
+    if (!echoed) rows.set(row.id, row)
+  }
+  for (const row of persisted) rows.set(row.id, row)
   return [...rows.values()].sort((left, right) => left.id - right.id)
 }
 

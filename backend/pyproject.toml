@@ -12,6 +12,8 @@ dependencies = [
     "fastapi>=0.140.7",
     "greenlet==3.5.4",
     "httpx>=0.28.1",
+    # Full JSON Schema validation (additionalProperties, enum, numeric and array bounds).
+    "jsonschema>=4.26.0",
     # PDF text extraction for personal underlag; not something we write correctly in <30 lines.
     "mammoth==1.11.0",
     # LLM extraction, dedupe, multimodal parsing, and retrieval for expert memory.

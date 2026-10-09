@@ -14,9 +14,11 @@ import logging
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
+from uuid import uuid4
 
 from app.database.models import PersonaMessage
 from app.llm import complete_with_tools
+from app.llm.chat_model import current_chat_model
 from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.llm.tool_messages import assistant_message_dict, tool_result_message
 from app.services.dd.company_mcp import visible_assistant_text
@@ -27,6 +29,7 @@ from app.services.expert_async_tools import (
     _planned_calls,
     active_library_tools,
 )
+from app.services.expert_worker_spawn import withhold_incomplete_spawn
 from app.services.workspace_chat_tools import CLIENT_TOOL_NAMES
 
 logger = logging.getLogger(__name__)
@@ -92,7 +95,7 @@ def remember_expert_episode(
     schedule_model_traces(
         customer_id,
         scope.persona_id,
-        trace_events(display_text, calls),
+        trace_events(messages, specs, display_text, calls, model=current_chat_model()),
         target_user_id=scope.actor_user_id,
         workspace_id=scope.workspace_id,
     )
@@ -123,11 +126,30 @@ def history_message(
     return payload
 
 
-def trace_events(text: str, calls: Sequence[PlannedCall]) -> list[dict[str, Any]]:
+def trace_events(
+    messages: Sequence[dict[str, Any]],
+    specs: Sequence[dict[str, Any]],
+    text: str,
+    calls: Sequence[PlannedCall],
+    *,
+    model: str,
+) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
+    context = _context_text(messages)
+    if context:
+        events.append(_traced(kind="context", text=context))
+    question = _latest_user_text(messages)
+    if question:
+        events.append(_traced(kind="message", role="user", text=question))
+    offered = _offered_tools(specs)
+    if offered:
+        events.append(_traced(kind="tools", text=offered))
     visible = text.strip()
     if visible:
-        events.append({"kind": "message", "text": visible[:_TRACE_LIMIT]})
+        reply: dict[str, Any] = {"kind": "message", "role": "assistant", "text": visible[:_TRACE_LIMIT]}
+        if model:
+            reply["model"] = model
+        events.append(_traced(**reply))
     events.extend(
         {
             "kind": "tool_call",
@@ -138,6 +160,69 @@ def trace_events(text: str, calls: Sequence[PlannedCall]) -> list[dict[str, Any]
         for call in calls
     )
     return events
+
+
+def trace_model_reply(
+    work: ToolWork,
+    messages: Sequence[dict[str, Any]],
+    text: str,
+    specs: Sequence[dict[str, Any]] = (),
+) -> None:
+    episode = work.episode
+    customer_id = None if episode is None else episode.customer_id
+    schedule_model_traces(
+        customer_id,
+        work.persona_id,
+        trace_events(messages, specs, text, (), model=current_chat_model()),
+        target_user_id=work.actor_user_id,
+        workspace_id=work.workspace_id,
+    )
+
+
+def _traced(**fields: Any) -> dict[str, Any]:
+    return {"trace_id": uuid4().hex, **fields}
+
+
+def _context_text(messages: Sequence[dict[str, Any]]) -> str:
+    parts = [
+        _text_content(message.get("content"))
+        for message in messages
+        if message.get("role") == "system"
+    ]
+    return "\n\n".join(part for part in parts if part)[:_TRACE_LIMIT]
+
+
+def _latest_user_text(messages: Sequence[dict[str, Any]]) -> str:
+    for message in reversed(messages):
+        if message.get("role") == "user":
+            return _text_content(message.get("content"))[:_TRACE_LIMIT]
+    return ""
+
+
+def _offered_tools(specs: Sequence[dict[str, Any]]) -> str:
+    names: list[str] = []
+    for spec in specs:
+        function = spec.get("function") if isinstance(spec, dict) else None
+        name = function.get("name") if isinstance(function, dict) else ""
+        if name:
+            names.append(str(name))
+    return "\n".join(names)
+
+
+def _text_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content.strip()
+    if not isinstance(content, list):
+        return ""
+    parts: list[str] = []
+    for item in content:
+        if isinstance(item, str) and item.strip():
+            parts.append(item.strip())
+        elif isinstance(item, dict) and item.get("type") == "text":
+            text = str(item.get("text") or "").strip()
+            if text:
+                parts.append(text)
+    return "\n".join(parts)
 
 
 def schedule_model_traces(
@@ -200,6 +285,7 @@ async def continue_expert_episode(
         return "", None
     messages = [dict(message) for message in episode.messages]
     _trace_rows(work, _append_results(messages, _result_by_id(work.calls, results)))
+    _remember_transcript(work, messages)
     last_text = ""
     last_reasoning: str | None = None
     for _ in range(_MAX_ROUNDS):
@@ -223,16 +309,35 @@ async def continue_expert_episode(
             )
         )
         if not calls:
-            _trace_reply(work, text or last_text, ())
+            notice = withhold_incomplete_spawn(messages)
+            if notice is not None:
+                messages.append(notice)
+                _remember_transcript(work, messages)
+                continue
+            _trace_reply(work, messages, text or last_text, ())
             return text or last_text, _reasoning_text(payload.get("reasoning_content")) or last_reasoning
-        _trace_reply(work, text, calls)
+        _trace_reply(work, messages, text, calls)
         assistant = episode_assistant(payload, calls)
         messages.append(assistant)
         if text:
             last_text = text
         last_reasoning = _reasoning_text(assistant.get("reasoning_content")) or last_reasoning
         await _finish_round(messages, calls, work, run_call=run_call, publish=publish)
+        _remember_transcript(work, messages)
     return last_text, last_reasoning
+
+
+def _remember_transcript(work: ToolWork, messages: list[dict[str, Any]]) -> None:
+    episode = work.episode
+    if episode is None:
+        return
+    work.episode = ExpertEpisode(
+        messages=tuple(dict(message) for message in messages),
+        specs=episode.specs,
+        prompt_key=episode.prompt_key,
+        reasoning_content=episode.reasoning_content,
+        customer_id=episode.customer_id,
+    )
 
 
 def _result_by_id(calls: tuple[PlannedCall, ...], results: Sequence[str]) -> dict[str, str]:
@@ -299,13 +404,19 @@ def _call_name(tool_call: dict[str, Any]) -> str:
     return ""
 
 
-def _trace_reply(work: ToolWork, text: str, calls: Sequence[PlannedCall]) -> None:
+def _trace_reply(
+    work: ToolWork,
+    messages: Sequence[dict[str, Any]],
+    text: str,
+    calls: Sequence[PlannedCall],
+) -> None:
     episode = work.episode
     customer_id = None if episode is None else episode.customer_id
+    specs = () if episode is None else episode.specs
     schedule_model_traces(
         customer_id,
         work.persona_id,
-        trace_events(text, calls),
+        trace_events(messages, specs, text, calls, model=current_chat_model()),
         target_user_id=work.actor_user_id,
         workspace_id=work.workspace_id,
     )

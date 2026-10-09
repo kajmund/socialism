@@ -261,7 +261,9 @@ function Editor({
 }: EditorProps) {
   const { intl } = useLocale()
   const [mode, setMode] = useState<"work" | "present">("work")
-  const [icMode, setIcMode] = useState<ChatMode>("interview")
+  const [icMode, setIcMode] = useState<ChatMode>(
+    kind === "expert" && !embeddedInterview ? "character" : "interview",
+  )
   const [workspaceChatOpen, setWorkspaceChatOpen] = useState(false)
   const [layersOpen, setLayersOpen] = useState(!embeddedInterview)
   const [saved, setSaved] = useState(false)
@@ -550,8 +552,8 @@ function Editor({
         onErrorMessage={onToast}
         onTranscript={(id, rows) => {
           if (id !== personaId) return
-          if (icMode !== "interview") {
-            setIcMode("interview")
+          if (icMode !== "character") {
+            setIcMode("character")
             return
           }
           setMessages((prev) => {
@@ -765,6 +767,7 @@ function Editor({
                 onChange={upd}
                 rows={[
                   { k: "age", l: t("personas.fields.age"), v: persona.age, locked: !!locks.age },
+                  { k: "kön", l: t("personas.fields.gender"), v: persona.kön, locked: !!locks.kön },
                 ]}
               />
               <div className="layer-h">{t("experts.composer.layerCompetence")}</div>

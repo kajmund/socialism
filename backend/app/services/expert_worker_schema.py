@@ -4,48 +4,31 @@ from __future__ import annotations
 
 from typing import Any
 
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError
+
 
 def schema_error(schema: object) -> str | None:
-    if not isinstance(schema, dict) or "type" not in schema:
+    if not isinstance(schema, dict) or _remote_keyword(schema):
+        return "invalid_output_schema"
+    try:
+        Draft202012Validator.check_schema(schema)
+    except SchemaError:
         return "invalid_output_schema"
     return None
 
 
 def instance_matches(schema: dict[str, Any], value: object) -> bool:
-    expected = schema.get("type")
-    if expected == "object":
-        return _object_matches(schema, value)
-    if expected == "array":
-        return _array_matches(schema, value)
-    checkers = {
-        "string": lambda item: isinstance(item, str),
-        "number": lambda item: isinstance(item, (int, float)) and not isinstance(item, bool),
-        "integer": lambda item: isinstance(item, int) and not isinstance(item, bool),
-        "boolean": lambda item: isinstance(item, bool),
-        "null": lambda item: item is None,
-    }
-    check = checkers.get(expected)
-    return False if check is None else check(value)
-
-
-def _object_matches(schema: dict[str, Any], value: object) -> bool:
-    if not isinstance(value, dict):
+    if schema_error(schema) is not None:
         return False
-    required = schema.get("required") or []
-    if any(key not in value for key in required):
-        return False
-    properties = schema.get("properties") or {}
-    return all(
-        instance_matches(properties[key], item)
-        for key, item in value.items()
-        if key in properties
-    )
+    return Draft202012Validator(schema).is_valid(value)
 
 
-def _array_matches(schema: dict[str, Any], value: object) -> bool:
-    if not isinstance(value, list):
-        return False
-    items = schema.get("items")
-    if not isinstance(items, dict):
-        return True
-    return all(instance_matches(items, item) for item in value)
+def _remote_keyword(value: object) -> bool:
+    if isinstance(value, dict):
+        if "$ref" in value or "$schema" in value:
+            return True
+        return any(_remote_keyword(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_remote_keyword(item) for item in value)
+    return False

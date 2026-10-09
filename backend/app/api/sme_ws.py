@@ -18,6 +18,7 @@ from pydantic import (
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import Kund, Persona, UserAccount
 from app.realtime.library_chat_broadcast import library_chat_broadcast
+from app.schemas.domain import EXPERT_CHAT_MODE
 from app.schemas.workspace import WorkspaceState
 from app.services import jobs as jobs_service
 from app.services.persona_chat import ChatTurnError, library_follow_up_questions
@@ -156,7 +157,7 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
             questions = await library_follow_up_questions(
                 session,
                 persona_id=send.thread_id,
-                mode="interview",
+                mode=EXPERT_CHAT_MODE,
             )
         await emit(
             {
@@ -250,7 +251,7 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
                 questions = await library_follow_up_questions(
                     session,
                     persona_id=send.thread_id,
-                    mode="interview",
+                    mode=EXPERT_CHAT_MODE,
                 )
             await emit(
                 {

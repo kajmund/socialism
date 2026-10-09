@@ -18,7 +18,40 @@ describe("modelTraceEntry", () => {
       text: "",
       name: "read_source",
       arguments: { source_id: "avtal" },
+      model: "",
+      role: "",
     })
+  })
+
+  it("keeps context, offered tools, tool output, and the model that wrote the reply", () => {
+    expect(modelTraceEntry({
+      kind: "context",
+      trace_id: "ctx",
+      text: "Du är expert.",
+    })).toMatchObject({ id: "ctx", kind: "context", text: "Du är expert." })
+    expect(modelTraceEntry({
+      kind: "tools",
+      trace_id: "tools",
+      text: "read_source",
+    })).toMatchObject({ kind: "tools", text: "read_source" })
+    expect(modelTraceEntry({
+      kind: "message",
+      trace_id: "reply",
+      role: "assistant",
+      model: "Standard · deepseek-flash · balanced",
+      text: "Jag läser avtalet.",
+    })).toMatchObject({
+      id: "reply",
+      model: "Standard · deepseek-flash · balanced",
+      role: "assistant",
+    })
+    expect(modelTraceEntry({ kind: "tool_result", name: "read_source", call_id: "call_1", text: "klart" })).toMatchObject({
+      id: "tool_result:call_1",
+      kind: "tool_result",
+      text: "klart",
+    })
+    expect(modelTraceEntry({ kind: "context", text: "  " })).toBeNull()
+    expect(modelTraceEntry({ kind: "tools", text: "" })).toBeNull()
   })
 
   it("drops a message without text and a tool call without a name", () => {
