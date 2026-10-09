@@ -5,8 +5,8 @@ from app.services.expert_async_tools import (
     LibraryToolScope,
     PlannedCall,
     ToolWork,
-    _run_workspace_tool,
 )
+from app.services.expert_workspace_tool_run import run_workspace_tool_call
 from app.services.expert_tool_followup import queue_document_open
 from app.services.workspace_chat_tools import workspace_openai_tools, workspace_turn_text
 
@@ -88,10 +88,10 @@ async def test_queued_workspace_job_starts_after_commit(monkeypatch):
     async def execute(*_args, **_kwargs):
         return {"status": "queued", "job_id": "job_draft", "artifact_id": "art"}
 
-    monkeypatch.setattr("app.services.expert_async_tools.job_session_factory", lambda: _Session)
+    monkeypatch.setattr("app.services.expert_workspace_tool_run.job_session_factory", lambda: _Session)
     monkeypatch.setattr("app.services.workspace.tools.execute_workspace_tool", execute)
-    monkeypatch.setattr("app.services.expert_async_tools.enqueue_job", scheduled.append)
-    text = await _run_workspace_tool(
+    monkeypatch.setattr("app.services.expert_workspace_tool_run.enqueue_job", scheduled.append)
+    text = await run_workspace_tool_call(
         PlannedCall("call-1", "create_document", {"title": "Sammanfattning"}),
         ToolWork(
             persona_id="exp",

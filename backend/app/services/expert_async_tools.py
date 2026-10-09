@@ -82,6 +82,8 @@ class ToolWork:
     turn_started_at: float | None = None
     episode: Any = None
     spawn_exposed: bool = False
+    model_spoke: bool = False
+    failed_calls: int = 0
 
 
 @dataclass
@@ -121,6 +123,7 @@ class LibraryToolScope:
         self.turn_started_at: float | None = None
         self.tool_retrieval = None
         self.spawn_exposed = False
+        self.model_spoke = False
         self._calls: list[PlannedCall] = []
         self._thread: _Thread | None = None
         self._token: Any = None
@@ -240,6 +243,9 @@ async def acknowledge_expert_tools(
     )
     payload = assistant_message_dict(reply)
     text = visible_assistant_text(payload)
+    if scope is not None:
+        # A filled-in acknowledgement is not an answer the user has already heard.
+        scope.model_spoke = bool(text.strip())
     calls = _planned_calls(
         reply,
         text,
@@ -326,6 +332,7 @@ def _work(scope: LibraryToolScope, calls: tuple[PlannedCall, ...]) -> ToolWork:
         turn_started_at=scope.turn_started_at,
         episode=getattr(scope, "episode", None),
         spawn_exposed=scope.spawn_exposed,
+        model_spoke=scope.model_spoke,
     )
 
 
@@ -342,6 +349,8 @@ async def _run_deferred(thread: _Thread, work: ToolWork) -> None:
     except Exception:
         logger.exception("Expert tool follow-up failed for %s", work.persona_id)
         blob = ""
+    if withhold_failed_spoken_reply(work):
+        blob, tool_results = "", ()
     async with thread.cond:
         if blob:
             thread.pending.append(blob)
@@ -365,9 +374,15 @@ async def _run_deferred(thread: _Thread, work: ToolWork) -> None:
         await _wake(thread, work, blob, tool_results)
 
 
+def withhold_failed_spoken_reply(work: ToolWork) -> bool:
+    """The spoken answer stands. A failed tool must not add another reply."""
+    return bool(work.model_spoke and work.calls and work.failed_calls == len(work.calls))
+
+
 async def run_deferred_calls(work: ToolWork) -> tuple[str, tuple[str, ...]]:
     parts: list[str] = []
     results: list[str] = []
+    work.failed_calls = 0
     total = len(work.calls)
     for index, call in enumerate(work.calls):
         remaining = total - index
@@ -376,6 +391,7 @@ async def run_deferred_calls(work: ToolWork) -> tuple[str, tuple[str, ...]]:
             text = await _run_one(call, work)
         except Exception as exc:
             logger.exception("Expert tool %s failed", call.name)
+            work.failed_calls += 1
             text = str(exc) or call.name
         await emit_tool_progress(
             "partial",

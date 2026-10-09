@@ -47,6 +47,9 @@ def _follow_up_reasoning_effort() -> str | None:
 
 def _expert_block(profile: EditablePersona) -> str:
     lines = [f"Namn: {profile.name}"]
+    gender = (profile.kön or "").strip()
+    if gender and gender != "—":
+        lines.append(f"Kön: {gender}")
     for label, value in (
         ("Uppdrag", profile.beskrivning),
         ("Kompetensområde", profile.kompetensomrade),

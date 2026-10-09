@@ -231,10 +231,10 @@ async def test_create_document_stores_recent_conversation(client_db):
                 id=expert_id, customer_id=1, kind="expert", name="Klas", occ="Revisor", district="Linköping",
             ))
             session.add(PersonaMessage(
-                persona_id=expert_id, mode="interview", role="user", content="Crowd Collective Linköping",
+                persona_id=expert_id, mode="character", role="user", content="Crowd Collective Linköping",
             ))
             session.add(PersonaMessage(
-                persona_id=expert_id, mode="interview", role="assistant",
+                persona_id=expert_id, mode="character", role="assistant",
                 content="45,7 MSEK omsättning, 27 anställda",
             ))
             canvas = await session.get(VoiceWorkspace, workspace["id"])

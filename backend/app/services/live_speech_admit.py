@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import PersonaMessage
 from app.database.workspace_models import VoiceWorkspace
+from app.schemas.domain import EXPERT_CHAT_MODE
 from app.schemas.workspace import WorkspaceState
 from app.services.persona_chat import library_chat_filter
 from app.services.sme_expert_turns import accept_expert_turn, mark_expert_turn_running
@@ -21,7 +22,7 @@ async def recent_interview_turns(
     rows = (
         await session.scalars(
             select(PersonaMessage)
-            .where(*library_chat_filter(expert_id, "interview"))
+            .where(*library_chat_filter(expert_id, EXPERT_CHAT_MODE))
             .order_by(PersonaMessage.id.desc())
             .limit(_RECENT_TURN_LIMIT)
         )

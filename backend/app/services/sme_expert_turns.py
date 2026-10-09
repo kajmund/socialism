@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.models import PersonaMessage, SmeExpertTurn
-from app.schemas.domain import PersonaChatResponse
+from app.schemas.domain import EXPERT_CHAT_MODE, PersonaChatResponse
 from app.schemas.workspace import WorkspaceState
 from app.schemas.sme import SmeExpertTurnOut, SmeMessageOut
 from app.serializers import utcnow
@@ -261,7 +261,7 @@ async def serialize_expert_turn(
             select(PersonaMessage)
             .where(
                 PersonaMessage.persona_id == turn.persona_id,
-                PersonaMessage.mode == "interview",
+                PersonaMessage.mode == EXPERT_CHAT_MODE,
                 PersonaMessage.run_id.is_(None),
             )
             .order_by(PersonaMessage.id.asc())
@@ -482,7 +482,7 @@ async def execute_expert_turn(  # noqa: C901, PLR0912, PLR0913
             stream = stream_library_chat_turn(
                 session,
                 persona_id=persona_id,
-                mode="interview",
+                mode=EXPERT_CHAT_MODE,
                 message=message,
                 image_sha256=image_sha256,
                 sme_expert_turn_request_id=request_id,

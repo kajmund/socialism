@@ -77,6 +77,13 @@ describe("workspace conversation state", () => {
     expect(interview.role).toBe("agent")
     expect(mergeTranscript([message, pendingVoice, { ...message, id: -1, session_id: "local", event_key: "local" }], [interview])).toEqual([pendingVoice, interview, message])
   })
+  it("drops a spoken echo once the same reply is in the transcript", () => {
+    const spoken = { ...message, id: -8, content: "Jag hänger här med dig.", session_id: "live-speech", event_key: "live-speech:a" }
+    const opening = { ...message, id: -9, content: "Hej igen.", session_id: "live-speech", event_key: "live-speech:opening" }
+    const stored = interviewTranscriptMessage({ id: 20, role: "assistant", content: "Jag hänger här med dig.", created_at: "2026-10-04T11:00:00Z" })
+    const followup = interviewTranscriptMessage({ id: 21, role: "assistant", content: "En annan mening.", created_at: "2026-10-04T11:00:01Z" })
+    expect(mergeTranscript([opening, spoken], [stored, followup])).toEqual([opening, stored, followup])
+  })
   it("corrects the same transcript without duplicating a replayed event", () => {
     const corrected = { ...message, content: "The spoken response" }
     const rows = upsertTranscript(upsertTranscript([message], corrected), corrected)

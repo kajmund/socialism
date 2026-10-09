@@ -21,6 +21,7 @@ from app.services.elevenlabs_tts import ElevenLabsTts
 from app.services.live_speech_admit import admit_voice_turn, current_workspace_state
 from app.services.live_speech_coordinator import SpeechResponseCoordinator
 from app.services.live_speech_cues import LiveSpeechCues
+from app.services.live_speech_followup import published_assistant_reply
 from app.services.live_speech_history import persist_interrupted_voice_turn
 from app.services.live_speech_progress import bind_tool_progress
 from app.services.openai_live_transcription import (
@@ -90,6 +91,7 @@ class LiveSpeechRuntime:
         self._spoken_text = ""
         self._user_text = ""
         self._assistant_text = ""
+        self._voiced_reply = ""
         self._request_id: str | None = None
         self._request_fence: int | None = None
         self._speech_started_at: float | None = None
@@ -114,7 +116,7 @@ class LiveSpeechRuntime:
         await library_chat_broadcast.subscribe_persona(
             self.scope.customer_id,
             self.scope.expert_id,
-            self._forward_model_trace,
+            self._on_library_event,
         )
         self._cues.start_opening()
         await self._stt.start()
@@ -216,7 +218,7 @@ class LiveSpeechRuntime:
             ),
             return_exceptions=True,
         )
-        await library_chat_broadcast.unsubscribe(self._forward_model_trace)
+        await library_chat_broadcast.unsubscribe(self._on_library_event)
         await self._stt.close()
         await self._emit_json({"type": "session.state", "state": "closed", "reason": reason})
 
@@ -399,6 +401,32 @@ class LiveSpeechRuntime:
                 await self._emit_json({"type": "workspace.tool", "turn_id": turn_id, **call})
 
         return emit
+
+    async def _on_library_event(self, payload: dict) -> None:
+        if payload.get("type") == "thread.message":
+            await self._speak_published_reply(payload)
+            return
+        await self._forward_model_trace(payload)
+
+    async def _speak_published_reply(self, payload: dict) -> None:
+        if self._closed or self._muted:
+            return
+        text = published_assistant_reply(
+            payload,
+            expert_id=self.scope.expert_id,
+            assistant_text=self._assistant_text,
+            voiced=self._voiced_reply,
+        )
+        if text is None:
+            return
+        await self._play_reply(text)
+
+    async def _play_reply(self, text: str) -> None:
+        self._voiced_reply = text
+        await self._state("speaking")
+        await self._coordinator.play_main(text, self._turn_id or "followup")
+        if not self._closed:
+            await self._state("listening")
 
     async def _forward_model_trace(self, payload: dict) -> None:
         if payload.get("type") != "model_trace":

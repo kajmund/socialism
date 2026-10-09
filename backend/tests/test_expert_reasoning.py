@@ -10,6 +10,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.jev.system import JevSystemOneResult, JevUsage
+from app.llm.chat_model import chat_model_label
+from app.llm.runtime_override import LlmResolution, LlmRuntimeView
+from app.services.expert_async_tools import PlannedCall
+from app.services.expert_reasoning_episode import trace_events
 from app.services.expert_reasoning import (
     ReasoningScores,
     assess_expert_reasoning,
@@ -146,7 +150,7 @@ async def test_assessment_batches_all_scores_in_one_call():
 
 
 @pytest.mark.asyncio
-async def test_legacy_assessment_prompt_defaults_spawn_scores_to_zero():
+async def test_missing_spawn_signals_fall_back_to_balanced():
     prompts = default_prompts("sv")
     legacy = {
         key: json.loads(prompts["chat.expert.reasoning_assessment"])[key]
@@ -167,11 +171,9 @@ async def test_legacy_assessment_prompt_defaults_spawn_scores_to_zero():
         state={"message": "Förklara detta."},
         jev=_FakeJev(answers),
     )
-    assert decision.fallback is False
-    assert decision.profile == "deep"
-    assert decision.scores is not None
-    assert decision.scores.decomposable == 0.0
-    assert decision.scores.parallelizable == 0.0
+    assert decision.fallback is True
+    assert decision.profile == "balanced"
+    assert decision.scores is None
     assert spawn_should_expose(decision.profile, decision.scores) is False
 
 
@@ -235,3 +237,56 @@ async def test_jev_wait_does_not_hold_committed_database_connection(tmp_path):
         assert decision.profile == "balanced"
     finally:
         await engine.dispose()
+
+
+def test_trace_shows_context_message_tools_and_the_model() -> None:
+    events = trace_events(
+        [
+            {"role": "system", "content": "Du är expert."},
+            {"role": "user", "content": "Vad gäller?"},
+        ],
+        [{"type": "function", "function": {"name": "read_source"}}],
+        "Jag läser.",
+        (PlannedCall("c1", "read_source", {"source_id": "avtal"}),),
+        model="Standard · deepseek-flash · balanced",
+    )
+    assert [event["kind"] for event in events] == [
+        "context", "message", "tools", "message", "tool_call",
+    ]
+    assert events[0]["text"] == "Du är expert."
+    assert events[1] == {
+        "trace_id": events[1]["trace_id"],
+        "kind": "message",
+        "role": "user",
+        "text": "Vad gäller?",
+    }
+    assert events[2]["text"] == "read_source"
+    assert events[3]["model"] == "Standard · deepseek-flash · balanced"
+    assert events[3]["text"] == "Jag läser."
+    assert events[4]["name"] == "read_source"
+    assert events[4]["arguments"] == {"source_id": "avtal"}
+
+
+def test_chat_model_label_names_model_and_profile() -> None:
+    resolution = LlmResolution(
+        view=LlmRuntimeView(
+            provider="cerebras",
+            model="gpt-oss-120b",
+            temperature=None,
+            top_p=None,
+            max_tokens=1024,
+            reasoning_effort="medium",
+            api_key="test",
+            base_url="https://api.cerebras.ai/v1",
+        ),
+        prompt_key="chat.mode.interview",
+        selection_mode="default",
+        selected_configuration_id=None,
+        auto_confidence=None,
+        reason_code="default",
+        fallback=False,
+        call_kind="tools",
+        speed_class="fast",
+    )
+    assert chat_model_label(resolution) == "gpt-oss-120b · fast"
+    assert chat_model_label(None) == ""

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
 from app.config import settings
+from app.llm.chat_model import remember_chat_model
 from app.llm.jev import JevError, JevNeedClassifier, JevNeedDecision
 from app.llm.runtime_override import (
     CachedLlmConfiguration,
@@ -492,4 +493,7 @@ async def llm_call_runtime(
         requirements=requirements,
     )
     with bound_llm_runtime(resolution.view), bound_llm_resolution(resolution):
-        yield resolution
+        try:
+            yield resolution
+        finally:
+            remember_chat_model(resolution)

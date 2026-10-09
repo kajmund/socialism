@@ -18,6 +18,7 @@ from app.database.models import (
     UserAccount,
 )
 from app.llm.chat import reply_as_persona
+from app.schemas.domain import EXPERT_CHAT_MODE
 from app.schemas.sme import SmeMessageOut
 from app.serializers import profile_from_dict, utcnow
 from app.services.district_context import area_block_for_name
@@ -115,7 +116,7 @@ async def run_panel_message(  # noqa: PLR0915
             async with session_factory() as actor_session:
                 return await reply_as_persona(
                     profile,
-                    "interview",
+                    EXPERT_CHAT_MODE,
                     history,
                     text,
                     prompts=prompts,

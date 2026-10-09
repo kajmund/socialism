@@ -1,5 +1,10 @@
 # Manual update log
 
+## 2026-10-09
+
+* **Experter**: Chatten, röstsamtalet och SME-chatten är in-character.
+  Intervju finns kvar som ett eget läge. Under demografi kan du sätta kön.
+
 ## 2026-10-08
 
 * **SME / dokumentutkast**: Ett färdigt utkast öppnas i arbetsytan när

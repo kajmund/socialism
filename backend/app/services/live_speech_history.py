@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.models import PersonaMessage
+from app.schemas.domain import EXPERT_CHAT_MODE
 from app.serializers import utcnow
 from app.services.library_chat_fifo import trim_library_chat
 from app.services.sme_expert_turns import finish_expert_turn
@@ -39,7 +40,7 @@ async def persist_interrupted_voice_turn(
         if user is None:
             user = PersonaMessage(
                 persona_id=persona_id,
-                mode="interview",
+                mode=EXPERT_CHAT_MODE,
                 role="user",
                 content=user_text,
                 sme_expert_turn_request_id=request_id,
@@ -51,7 +52,7 @@ async def persist_interrupted_voice_turn(
             if assistant is None:
                 assistant = PersonaMessage(
                     persona_id=persona_id,
-                    mode="interview",
+                    mode=EXPERT_CHAT_MODE,
                     role="assistant",
                     sme_expert_turn_request_id=request_id,
                     created_at=utcnow(),
@@ -62,5 +63,5 @@ async def persist_interrupted_voice_turn(
             assistant.interrupted = True
         elif assistant is not None:
             await session.delete(assistant)
-        await trim_library_chat(session, persona_id, "interview")
+        await trim_library_chat(session, persona_id, EXPERT_CHAT_MODE)
         await session.commit()

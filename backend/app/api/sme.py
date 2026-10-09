@@ -25,6 +25,7 @@ from app.database.models import (
     UserAccount,
 )
 from app.database.session import get_session
+from app.schemas.domain import EXPERT_CHAT_MODE
 from app.schemas.sme import (
     SmeExpertTurnOut,
     SmeInboxItem,
@@ -61,7 +62,7 @@ async def _require_sme_customer(
 def _library_message(persona_id: str) -> tuple[object, ...]:
     return (
         PersonaMessage.persona_id == persona_id,
-        PersonaMessage.mode == "interview",
+        PersonaMessage.mode == EXPERT_CHAT_MODE,
         PersonaMessage.run_id.is_(None),
     )
 
@@ -100,7 +101,7 @@ async def list_inbox(
             select(PersonaMessage)
             .where(
                 PersonaMessage.persona_id.in_(expert_ids),
-                PersonaMessage.mode == "interview",
+                PersonaMessage.mode == EXPERT_CHAT_MODE,
                 PersonaMessage.run_id.is_(None),
             )
             .order_by(PersonaMessage.id.asc())

@@ -7,8 +7,12 @@ import type { ModelTraceEntry, ModelTraceKind } from "./modelTrace"
 
 function kindLabel(kind: ModelTraceKind, t: (key: MessageKey) => string): string {
   switch (kind) {
+    case "context":
+      return t("voiceWorkspaceChat.modelTraceContext")
     case "message":
       return t("voiceWorkspaceChat.modelTraceMessage")
+    case "tools":
+      return t("voiceWorkspaceChat.modelTraceTools")
     case "tool_call":
       return t("voiceWorkspaceChat.modelTraceToolCall")
     case "tool_result":
@@ -55,12 +59,13 @@ export function ModelTraceButton({ entries }: { entries: ModelTraceEntry[] }) {
 }
 
 function TraceRow({ entry, label }: { entry: ModelTraceEntry; label: string }) {
-  const border = entry.kind === "tool_call" ? "border-db-gold-500" : "border-db-ink-200"
+  const border = entry.kind === "tool_call" || entry.kind === "tools" ? "border-db-gold-500" : "border-db-ink-200"
   const argumentsText = entry.arguments ? JSON.stringify(entry.arguments, null, 2) : ""
+  const heading = [label, entry.model, entry.name].filter(Boolean).join(" · ")
   return (
     <article className={`rounded-lg border border-l-4 bg-white p-3 ${border}`}>
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}{entry.name ? ` · ${entry.name}` : ""}
+        {heading}
       </p>
       {entry.text ? <p className="mt-1 whitespace-pre-wrap text-sm">{entry.text}</p> : null}
       {argumentsText ? <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-xs text-db-ink-700">{argumentsText}</pre> : null}

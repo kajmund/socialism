@@ -28,6 +28,19 @@ def test_chat_prompt_includes_anekdot():
     assert "Profil för Anna" in prompt
 
 
+def test_expert_in_character_prompt_includes_gender():
+    prompt = build_chat_system_prompt(
+        _profile(beskrivning="Skatterådgivare"),
+        "character",
+        prompts=_PROMPTS,
+        profile_kind="expert",
+    )
+    assert "Läge: IN-CHARACTER" in prompt
+    assert "Läge: INTERVJU" not in prompt
+    assert "Kön: kvinna" in prompt
+    assert "du är den här experten" in prompt
+
+
 def test_in_character_prompt_locks_everyday_partner():
     prompt = build_chat_system_prompt(_profile(), "character", prompts=_PROMPTS)
     assert "IN-CHARACTER" in prompt

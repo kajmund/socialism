@@ -7,12 +7,14 @@ import json
 import logging
 import time
 from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
 from app.config import settings
 from app.observability.events import log_event
 from app.services.expert_worker_runtime import WorkerIdentity, run_worker_task
 from app.services.expert_worker_schema import schema_error
+from app.services.expert_worker_scope import allowed_scope_ids
 from app.services.prompt_catalog import default_prompts, render_prompt
 from app.services.research.concurrency import map_with_limit
 
@@ -137,13 +139,19 @@ def parse_spawn_request(arguments: dict[str, Any]) -> SpawnRequest | str:
 
 
 def validate_spawn_request(
-    request: SpawnRequest, *, workspace_state: dict[str, Any] | None
+    request: SpawnRequest,
+    *,
+    workspace_state: dict[str, Any] | None,
+    allowed_ids: Mapping[str, set[str]],
 ) -> str | None:
     known = resolved_source_ids(workspace_state)
     if not known:
         return "scope_outside_document"
     for task in request.tasks:
         if task.scope.source_id not in known:
+            return "scope_outside_document"
+        permitted = allowed_ids.get(task.scope.source_id, set())
+        if any(item not in permitted for item in task.scope.ids):
             return "scope_outside_document"
         forbidden = set(task.allowed_tools) - READ_TOOLS
         if forbidden:
@@ -156,7 +164,14 @@ async def run_spawn_workers(call: object, work: object) -> str:
     parsed = parse_spawn_request(getattr(call, "arguments", {}))
     if isinstance(parsed, str):
         return _failed_call(parsed)
-    invalid = validate_spawn_request(parsed, workspace_state=getattr(work, "workspace_state", None))
+    invalid = validate_spawn_request(
+        parsed,
+        workspace_state=getattr(work, "workspace_state", None),
+        allowed_ids=await allowed_scope_ids(
+            getattr(work, "episode", None),
+            [task.scope.source_id for task in parsed.tasks],
+        ),
+    )
     if invalid:
         return _failed_call(invalid)
     identity, prompts = await _load_identity(
@@ -259,6 +274,68 @@ async def _load_identity(
 
 def _failed_call(error: str) -> str:
     return json.dumps({"ok": False, "error": error}, ensure_ascii=False)
+
+
+def withhold_incomplete_spawn(messages: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
+    if _spawn_notice_seen(messages):
+        return None
+    counts = _incomplete_spawn_counts(messages)
+    if counts is None:
+        return None
+    ok, failed = counts
+    return {
+        "role": "user",
+        "content": json.dumps(
+            {"spawn_complete": False, "worker_ok": ok, "worker_failed": failed},
+            ensure_ascii=False,
+        ),
+    }
+
+
+def _incomplete_spawn_counts(messages: Sequence[Mapping[str, Any]]) -> tuple[int, int] | None:
+    ok = failed = 0
+    seen = False
+    for message in messages:
+        if message.get("role") != "tool" or message.get("name") != SPAWN_TOOL_NAME:
+            continue
+        rows = _spawn_rows(message.get("content"))
+        if rows is None:
+            continue
+        seen = True
+        for row in rows:
+            if row.get("ok") is True:
+                ok += 1
+            else:
+                failed += 1
+    if not seen or failed == 0:
+        return None
+    return ok, failed
+
+
+def _spawn_notice_seen(messages: Sequence[Mapping[str, Any]]) -> bool:
+    for message in messages:
+        if message.get("role") != "user" or not isinstance(message.get("content"), str):
+            continue
+        try:
+            payload = json.loads(message["content"])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and payload.get("spawn_complete") is False:
+            return True
+    return False
+
+
+def _spawn_rows(content: object) -> list[dict[str, Any]] | None:
+    if isinstance(content, str):
+        try:
+            content = json.loads(content)
+        except json.JSONDecodeError:
+            return None
+    if isinstance(content, list):
+        return [row for row in content if isinstance(row, dict)]
+    if isinstance(content, dict) and content.get("ok") is False:
+        return [content]
+    return None
 
 
 def _log_spawn(request: SpawnRequest, *, latency_ms: float, failed: int) -> None:

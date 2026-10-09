@@ -275,7 +275,7 @@ async def test_live_memory_is_written_once_when_transcript_is_stored(
             "session_id": "voice-session-1",
         }
     ]
-    listed = await client.get(f"/personas/{expert['id']}/messages")
+    listed = await client.get(f"/personas/{expert['id']}/messages", params={"mode": "character"})
     assert listed.status_code == 200, listed.text
     assert [(row["role"], row["content"]) for row in listed.json()] == [
         ("user", "Vad minns du från mötet?"),

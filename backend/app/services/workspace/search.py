@@ -22,6 +22,7 @@ from app.services.object_storage import get_object
 from app.services.research.composition import require_knowledge_vector_store
 from app.services.research.graph_reuse import GraphQueryEmbedding
 from app.services.research.models import RESEARCH_SOURCE_TYPES, ResearchContext, ResearchNeed
+from app.services.document_navigation import metadata_in_worker_sections
 from app.services.workspace.service import require_source, require_workspace
 from app.services.workspace.shared_graph import lookup_shared_graph_evidence, shared_graph_has_evidence
 from app.services.workspace.sources import citation, reference_out, source_version
@@ -147,6 +148,8 @@ async def search_workspace(
     workspace = await _fresh_workspace(session, workspace_id, actor_id)
     refs = []
     for value in found:
+        if not metadata_in_worker_sections(value[1].metadata):
+            continue
         ref = await _hit_reference(session, workspace, value)
         if ref is not None and ref.id not in {existing.id for existing in refs}:
             refs.append(ref)

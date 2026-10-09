@@ -5,6 +5,8 @@ import time
 
 from app.config import settings
 from app.database.models import Persona, PersonaMessage
+from app.llm import complete_text
+from app.llm.runtime_override import SelectionRole
 from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.serializers import utcnow
 from app.services.expert_async_tools import (
@@ -16,11 +18,11 @@ from app.services.expert_async_tools import (
     _library_messages,
     _prompts,
     _run_one,
+    tool_result_extra,
 )
-from app.services.expert_reasoning_episode import continue_expert_episode
+from app.services.expert_reasoning_episode import continue_expert_episode, trace_model_reply
 from app.services.jobs import job_session_factory
 from app.services.library_chat_fifo import trim_and_commit_library_chat
-from app.llm.runtime_override import SelectionRole
 from app.services.expert_reasoning import (
     RoutingDecision,
     assess_expert_reasoning,
@@ -124,7 +126,33 @@ async def _compose_followup(
                 spawn_exposed=work.spawn_exposed,
             ),
         )
+    if _deeper_than_main(work.reasoning_profile, reasoning_profile) and text.strip():
+        text = await _main_model_reply(work, prompts, text)
+        reasoning = None
     return text, reasoning
+
+
+def _deeper_than_main(
+    main: SelectionRole | None, current: SelectionRole | None
+) -> bool:
+    if main is None or current is None or current == main:
+        return False
+    return higher_profile(main, current) == current
+
+
+async def _main_model_reply(work: ToolWork, prompts: dict[str, str], draft: str) -> str:
+    """The deeper episode reports back. Only the turn's model speaks to the user."""
+    material = tool_result_extra(prompts, draft)
+    messages = [
+        {"role": "system", "content": material},
+        {"role": "user", "content": work.user_message},
+    ]
+    with bound_expert_profile(work.reasoning_profile):
+        text = (
+            await complete_text(messages, prompt_key="chat.expert.tool_result")
+        ).strip()
+    trace_model_reply(work, messages, text)
+    return text
 
 
 async def _maybe_escalate(

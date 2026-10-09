@@ -1,4 +1,4 @@
-export type ModelTraceKind = "message" | "tool_call" | "tool_result"
+export type ModelTraceKind = "context" | "message" | "tools" | "tool_call" | "tool_result"
 
 export type ModelTraceEntry = {
   id: string
@@ -6,6 +6,8 @@ export type ModelTraceEntry = {
   text: string
   name: string
   arguments: Record<string, unknown> | null
+  model: string
+  role: string
 }
 
 export function acceptModelTraceWorkspace(
@@ -15,24 +17,36 @@ export function acceptModelTraceWorkspace(
   return !eventWorkspaceId || eventWorkspaceId === currentWorkspaceId
 }
 
+const TRACE_KINDS: readonly ModelTraceKind[] = ["context", "message", "tools", "tool_call", "tool_result"]
+
+function traceKind(value: unknown): ModelTraceKind | null {
+  return TRACE_KINDS.find((kind) => kind === value) ?? null
+}
+
 export function modelTraceEntry(raw: Record<string, unknown>): ModelTraceEntry | null {
-  const kind = raw.kind
-  if (kind !== "message" && kind !== "tool_call" && kind !== "tool_result") return null
+  const kind = traceKind(raw.kind)
+  if (kind === null) return null
   const text = typeof raw.text === "string" ? raw.text : ""
   const name = typeof raw.name === "string" ? raw.name : ""
+  const model = typeof raw.model === "string" ? raw.model : ""
+  const role = typeof raw.role === "string" ? raw.role : ""
   const args = raw.arguments
   const argumentsValue = args && typeof args === "object" && !Array.isArray(args)
     ? args as Record<string, unknown>
     : null
-  if (kind === "message" && !text.trim()) return null
-  if (kind !== "message" && !name) return null
+  const textual = kind === "context" || kind === "message" || kind === "tools"
+  if (textual && !text.trim()) return null
+  if (!textual && !name) return null
+  const traceId = typeof raw.trace_id === "string" ? raw.trace_id : ""
   const callId = typeof raw.call_id === "string" ? raw.call_id : ""
   return {
-    id: callId ? `${kind}:${callId}` : `${kind}:${text}`,
+    id: traceId || (callId ? `${kind}:${callId}` : `${kind}:${text}`),
     kind,
     text,
     name,
     arguments: argumentsValue,
+    model,
+    role,
   }
 }
 
