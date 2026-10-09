@@ -17,13 +17,13 @@ from openai.resources.chat.completions import AsyncCompletions
 
 from app.config import settings
 from app.llm.runtime_override import (
-    LlmRuntimeView,
     bound_llm_retry,
     current_resolution,
     current_retry,
     current_runtime,
 )
 from app.llm.selection import llm_call_runtime
+from app.llm.tool_choice import reasoning_effort_for_tool_choice
 from app.llm.structured_retry import (
     StructuredOutputError,
     classify_structured_failure as classify_structured_failure,
@@ -589,18 +589,6 @@ def set_tools_completer(completer: ToolsCompleter | None) -> None:
     _tools_completer = completer
 
 
-def _reasoning_for_tool_choice(tool_choice: str, runtime: LlmRuntimeView) -> Any:
-    # DeepSeek thinking rejects forced tool_choice. The tools stay; thinking
-    # turns off for this request so the model can still be required to call one.
-    if (
-        tool_choice != "auto"
-        and runtime.provider == "deepseek"
-        and runtime.reasoning_effort not in {None, "none"}
-    ):
-        return "none"
-    return _UNSET
-
-
 async def complete_with_tools(
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]] | None = None,
@@ -623,7 +611,8 @@ async def complete_with_tools(
                 model=runtime.model,
                 messages=normalize_messages_for_provider(messages, runtime.provider),
                 extra=extra,
-                reasoning_effort=_reasoning_for_tool_choice(tool_choice, runtime),
+                reasoning_effort=reasoning_effort_for_tool_choice(tool_choice, runtime)
+                or _UNSET,
             )
         )
         prompt_tokens, completion_tokens = _usage_tokens(completion)
