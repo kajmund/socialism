@@ -7,6 +7,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.services.underlag_schemas import DocumentKnowledgeAnchorWrite
 
 
+class DocumentMention(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    display_name: str = Field(min_length=1, max_length=255)
+    source_object_id: str = Field(min_length=1, max_length=64)
+
+
 class WorkspaceDocumentTab(BaseModel):
     model_config = ConfigDict(extra="forbid")
     source_id: str
@@ -40,6 +46,7 @@ class WorkspaceState(BaseModel):
     selection: WorkspaceSelection | None = None
     research_attempt_ids: list[str] = Field(default_factory=list, max_length=50)
     active_artifact_id: str | None = None
+    document_mentions: list[DocumentMention] = Field(default_factory=list, max_length=8)
 
 
 class WorkspaceCreate(BaseModel):

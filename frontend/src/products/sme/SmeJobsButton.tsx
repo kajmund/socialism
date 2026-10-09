@@ -4,7 +4,11 @@ import { useLocale } from "@/i18n"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
 import { SmeJobsModal } from "@/products/sme/SmeJobsModal"
 
-export function SmeJobsButton() {
+export function SmeJobsButton({
+  onOpenWorkspaceArtifact,
+}: {
+  onOpenWorkspaceArtifact?: (draft: { artifactId: string; workspaceId: string }) => void
+} = {}) {
   const { t } = useLocale()
   const { activeCount } = useJobsRealtime()
   const [open, setOpen] = useState(false)
@@ -32,7 +36,7 @@ export function SmeJobsButton() {
           </span>
         ) : null}
       </button>
-      <SmeJobsModal open={open} onClose={() => setOpen(false)} />
+      <SmeJobsModal open={open} onClose={() => setOpen(false)} onOpenWorkspaceArtifact={onOpenWorkspaceArtifact} />
     </>
   )
 }

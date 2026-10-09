@@ -1,4 +1,5 @@
 import { api } from "@/lib/api"
+import type { LiveVoiceProviderName } from "@/api/personas"
 
 export type SmeThreadType = "expert" | "panel"
 export type SmeInboxFilter = "all" | "unread" | "groups"
@@ -15,6 +16,7 @@ export type SmeInboxItem = {
   last_message_at: string | null
   unread_count: number
   member_names: string[]
+  live_voice_provider?: LiveVoiceProviderName | null
 }
 
 export type SmeMessage = {

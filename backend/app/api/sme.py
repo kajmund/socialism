@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import get_current_user
 from app.auth.scope import require_user_kund_id
+from app.config import settings
 from app.database.models import (
     Kund,
     Persona,
@@ -24,6 +25,7 @@ from app.database.models import (
     UserAccount,
 )
 from app.database.session import get_session
+from app.schemas.domain import EXPERT_CHAT_MODE
 from app.schemas.sme import (
     SmeExpertTurnOut,
     SmeInboxItem,
@@ -60,7 +62,7 @@ async def _require_sme_customer(
 def _library_message(persona_id: str) -> tuple[object, ...]:
     return (
         PersonaMessage.persona_id == persona_id,
-        PersonaMessage.mode == "interview",
+        PersonaMessage.mode == EXPERT_CHAT_MODE,
         PersonaMessage.run_id.is_(None),
     )
 
@@ -99,7 +101,7 @@ async def list_inbox(
             select(PersonaMessage)
             .where(
                 PersonaMessage.persona_id.in_(expert_ids),
-                PersonaMessage.mode == "interview",
+                PersonaMessage.mode == EXPERT_CHAT_MODE,
                 PersonaMessage.run_id.is_(None),
             )
             .order_by(PersonaMessage.id.asc())
@@ -152,6 +154,9 @@ async def list_inbox(
                     preview=last.content if last else expert.quote,
                     last_message_at=last.created_at if last else None,
                     unread_count=unread,
+                    live_voice_provider=(
+                        expert.live_voice_provider or settings.live_voice_provider
+                    ),
                 )
             )
     for panel in panels:

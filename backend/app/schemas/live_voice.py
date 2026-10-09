@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-LiveVoiceProviderName = Literal["gemini", "elevenlabs"]
+LiveVoiceProviderName = Literal["gemini", "elevenlabs", "socialism"]
 
 
 class LiveVoiceOption(BaseModel):

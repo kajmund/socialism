@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.live_voice import LiveVoiceProviderName
+
 SmeThreadType = Literal["expert", "panel"]
 
 
@@ -22,6 +24,7 @@ class SmeInboxItem(BaseModel):
     last_message_at: datetime | None
     unread_count: int
     member_names: list[str] = Field(default_factory=list)
+    live_voice_provider: LiveVoiceProviderName | None = None
 
 
 class SmeMessageOut(BaseModel):

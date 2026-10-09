@@ -23,6 +23,7 @@ from app.llm.runtime_override import (
     current_runtime,
 )
 from app.llm.selection import llm_call_runtime
+from app.llm.tool_choice import reasoning_effort_for_tool_choice
 from app.llm.structured_retry import (
     StructuredOutputError,
     classify_structured_failure as classify_structured_failure,
@@ -593,46 +594,36 @@ async def complete_with_tools(
     tools: list[dict[str, Any]] | None = None,
     *,
     prompt_key: str | None = None,
+    tool_choice: str = "auto",
 ) -> Any:
     """One chat.completions turn; may return tool_calls. Injectable for tests."""
     async with llm_call_runtime(prompt_key, messages, "tools"):
-        return await _complete_with_tools(messages, tools)
-
-
-async def _complete_with_tools(
-    messages: list[dict[str, Any]],
-    tools: list[dict[str, Any]] | None,
-) -> Any:
-    if _tools_completer is not None:
-        return await _tools_completer(messages, tools)
-    if _text_completer is not None:
-        content = await _text_completer(messages)  # type: ignore[arg-type]
-        return SimpleNamespace(content=content, tool_calls=None)
-
-    runtime = current_runtime()
-    client = get_client()
-    chosen = runtime.model
-    extra: dict[str, Any] = {}
-    if tools:
-        extra["tools"] = tools
-        extra["tool_choice"] = "auto"
-    started_at = time.monotonic()
-    completion = await client.chat.completions.create(
-        **_chat_create_kwargs(
-            model=chosen,
-            messages=normalize_messages_for_provider(messages, runtime.provider),
-            extra=extra or None,
+        if _tools_completer is not None:
+            return await _tools_completer(messages, tools)
+        if _text_completer is not None:
+            content = await _text_completer(messages)  # type: ignore[arg-type]
+            return SimpleNamespace(content=content, tool_calls=None)
+        runtime = current_runtime()
+        extra = {"tools": tools, "tool_choice": tool_choice} if tools else None
+        started_at = time.monotonic()
+        completion = await get_client().chat.completions.create(
+            **_chat_create_kwargs(
+                model=runtime.model,
+                messages=normalize_messages_for_provider(messages, runtime.provider),
+                extra=extra,
+                reasoning_effort=reasoning_effort_for_tool_choice(tool_choice, runtime)
+                or _UNSET,
+            )
         )
-    )
-    prompt_tokens, completion_tokens = _usage_tokens(completion)
-    _record_call(
-        model=chosen,
-        kind="tools",
-        started_at=started_at,
-        prompt_tokens=prompt_tokens,
-        completion_tokens=completion_tokens,
-    )
-    return completion.choices[0].message
+        prompt_tokens, completion_tokens = _usage_tokens(completion)
+        _record_call(
+            model=runtime.model,
+            kind="tools",
+            started_at=started_at,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+        )
+        return completion.choices[0].message
 
 
 async def generate_editable_persona(

@@ -104,7 +104,7 @@ async def source_for_open_request(
     message: str,
     history: list[tuple[str, str, str | None]],
 ) -> str | None:
-    earlier = [text for role, text, _image in history if role == "user"]
+    earlier = [entry[1] for entry in history if entry[0] == "user"]
     terms = open_request_terms(message, earlier)
     if terms is None or actor_user_id is None or workspace_id is None:
         return None
@@ -116,7 +116,7 @@ async def source_for_open_request(
     ids = [row["source_object_id"] for row in inventory]
     rows = list(await session.scalars(select(StoredObject).where(StoredObject.id.in_(ids)))) if ids else []
     texts = {row.id: row.extracted_text or "" for row in rows}
-    assistant_text = "\n".join(text for role, text, _image in history if role == "assistant")
+    assistant_text = "\n".join(entry[1] for entry in history if entry[0] == "assistant")
     return matching_source_id(inventory, texts, terms, assistant_text)
 
 

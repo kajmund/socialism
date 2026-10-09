@@ -22,11 +22,11 @@ export type PersonaWrite = {
   origin?: PersonaOrigin
   profile?: EditablePersona
   tools?: string[]
-  live_voice_provider?: "gemini" | "elevenlabs"
+  live_voice_provider?: LiveVoiceProviderName
   live_voice?: string
 }
 
-export type LiveVoiceProviderName = "gemini" | "elevenlabs"
+export type LiveVoiceProviderName = "gemini" | "elevenlabs" | "socialism"
 
 export type LiveVoiceOption = { id: string; name: string }
 

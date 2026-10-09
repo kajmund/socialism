@@ -1,15 +1,14 @@
-"""Weave a tool result into the expert's next line, and open a requested document."""
+"""Continue an expert tool episode on the same transcript, and open a requested document."""
 
-import json
 import logging
+import time
 
+from app.config import settings
 from app.database.models import Persona, PersonaMessage
-from app.services.dd.company_mcp import visible_assistant_text
-from app.llm import complete_text, complete_with_tools
-from app.llm.tool_messages import assistant_message_dict
+from app.llm import complete_text
+from app.llm.runtime_override import SelectionRole
 from app.realtime.library_chat_broadcast import library_chat_broadcast
-from app.serializers import profile_from_dict, utcnow
-from app.services.district_context import area_block_for_name
+from app.serializers import utcnow
 from app.services.expert_async_tools import (
     LibraryToolScope,
     PlannedCall,
@@ -17,14 +16,23 @@ from app.services.expert_async_tools import (
     _Thread,
     _last_user_text,
     _library_messages,
-    _planned_calls,
     _prompts,
+    _run_one,
     tool_result_extra,
 )
+from app.services.expert_reasoning_episode import continue_expert_episode, trace_model_reply
 from app.services.jobs import job_session_factory
 from app.services.library_chat_fifo import trim_and_commit_library_chat
-from app.services.prompt_catalog import render_prompt
-from app.services.workspace_chat_tools import CLIENT_TOOL_NAMES, workspace_openai_tools
+from app.services.expert_reasoning import (
+    RoutingDecision,
+    assess_expert_reasoning,
+    bound_expert_profile,
+    build_turn_state,
+    emit_routing_event,
+    higher_profile,
+    RoutingEventState,
+    should_reassess_tools,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +51,12 @@ def queue_document_open(scope: LibraryToolScope, source_id: str) -> None:
     scope._calls = [call for call in scope._calls if call.name not in {"search_knowledge", "get_workspace_context"}]
 
 
-async def _wake(thread: _Thread, work: ToolWork, blob: str) -> None:
+async def _wake(thread: _Thread, work: ToolWork, blob: str, tool_results: tuple[str, ...] = ()) -> None:
     try:
-        text = await _compose_followup(work, blob)
+        text, reasoning = await _compose_followup(work, blob, tool_results)
     except Exception:
         logger.exception("Expert tool wake failed for %s", work.persona_id)
-        text = ""
+        text, reasoning = "", None
     async with thread.cond:
         if thread.busy or not text.strip():
             if thread.busy and blob:
@@ -57,7 +65,7 @@ async def _wake(thread: _Thread, work: ToolWork, blob: str) -> None:
             thread.cond.notify_all()
             return
     try:
-        await _save_followup(work, text)
+        await _save_followup(work, text, reasoning)
     except Exception:
         logger.exception("Expert tool wake save failed for %s", work.persona_id)
         async with thread.cond:
@@ -68,46 +76,112 @@ async def _wake(thread: _Thread, work: ToolWork, blob: str) -> None:
             thread.cond.notify_all()
 
 
-async def _compose_followup(work: ToolWork, blob: str) -> str:
-    from app.llm.chat import _chat_messages  # chat.py imports expert_async_tools
-
+async def _compose_followup(
+    work: ToolWork,
+    blob: str,
+    tool_results: tuple[str, ...] = (),
+) -> tuple[str, str | None]:
     factory = job_session_factory()
     async with factory() as session:
         persona = await session.get(Persona, work.persona_id)
         if persona is None:
-            return ""
+            return "", None
         prompts = await _prompts(session, persona)
-        profile = profile_from_dict(persona.profile, persona.name)
-        kind = persona.kind
-        area = await area_block_for_name(session, profile.ort or persona.district)
-        rows = list((await session.execute(_library_messages(work.persona_id, work.mode))).scalars())
-        history = [(row.role, row.content, row.image_sha256) for row in rows]
         customer_id = persona.customer_id
         session.expunge(persona)
         await session.commit()
-    messages = _chat_messages(
-        profile,
-        work.mode,
-        history,
-        tool_result_extra(prompts, blob),
-        prompts=prompts,
-        area_block=area,
-        profile_kind=kind,
+    reasoning_profile, routing_decision, escalation_reason = await _maybe_escalate(
+        work, prompts, blob,
     )
-    if work.workspace_id is None:
-        return (await complete_text(messages, prompt_key="chat.expert.tool_result")).strip()
-    turn = render_prompt(
-        prompts, "workspace.chat.turn", workspace_json=json.dumps(work.workspace_state or {}, ensure_ascii=False),
-    )
-    messages[-1] = {**messages[-1], "content": f"{messages[-1]['content']}\n\n{turn}"}
-    specs = [spec for spec in workspace_openai_tools(prompts) if spec["function"]["name"] in CLIENT_TOOL_NAMES]
-    reply = await complete_with_tools(messages, specs, prompt_key="chat.expert.tool_result")
-    payload = assistant_message_dict(reply)
-    text = visible_assistant_text(payload)
-    calls = [call for call in _planned_calls(reply, text, messages, consult=False) if call.name in CLIENT_TOOL_NAMES]
-    if calls:
+
+    async def publish(calls: list[PlannedCall]) -> None:
         await _publish_workspace_tools(customer_id, work, calls)
-    return text.strip()
+
+    with bound_expert_profile(reasoning_profile):
+        text, reasoning = await continue_expert_episode(
+            work,
+            tool_results,
+            run_call=_run_one,
+            publish=publish,
+        )
+    if (
+        routing_decision is not None
+        and work.reasoning_profile is not None
+        and reasoning_profile is not None
+    ):
+        emit_routing_event(
+            routing_decision,
+            RoutingEventState(
+                initial_profile=work.reasoning_profile,
+                final_profile=reasoning_profile,
+                escalated=reasoning_profile != work.reasoning_profile,
+                escalation_reason=escalation_reason,
+                tool_count=len(work.calls),
+                turn_latency_ms=(
+                    0.0
+                    if work.turn_started_at is None
+                    else (time.perf_counter() - work.turn_started_at) * 1000
+                ),
+                phase="final",
+                spawn_exposed=work.spawn_exposed,
+            ),
+        )
+    if _deeper_than_main(work.reasoning_profile, reasoning_profile) and text.strip():
+        text = await _main_model_reply(work, prompts, text)
+        reasoning = None
+    return text, reasoning
+
+
+def _deeper_than_main(
+    main: SelectionRole | None, current: SelectionRole | None
+) -> bool:
+    if main is None or current is None or current == main:
+        return False
+    return higher_profile(main, current) == current
+
+
+async def _main_model_reply(work: ToolWork, prompts: dict[str, str], draft: str) -> str:
+    """The deeper episode reports back. Only the turn's model speaks to the user."""
+    material = tool_result_extra(prompts, draft)
+    messages = [
+        {"role": "system", "content": material},
+        {"role": "user", "content": work.user_message},
+    ]
+    with bound_expert_profile(work.reasoning_profile):
+        text = (
+            await complete_text(messages, prompt_key="chat.expert.tool_result")
+        ).strip()
+    trace_model_reply(work, messages, text)
+    return text
+
+
+async def _maybe_escalate(
+    work: ToolWork,
+    prompts: dict[str, str],
+    blob: str,
+) -> tuple[SelectionRole | None, RoutingDecision | None, str | None]:
+    reasoning_profile = work.reasoning_profile
+    routing_decision = work.reasoning_decision
+    tool_names = [call.name for call in work.calls]
+    if (
+        reasoning_profile == "deep"
+        or not settings.expert_reasoning_route_enabled
+        or reasoning_profile is None
+        or not should_reassess_tools(tool_names)
+    ):
+        return reasoning_profile, routing_decision, None
+    decision = await assess_expert_reasoning(
+        prompts=prompts,
+        state=build_turn_state(
+            work.user_message,
+            workspace_state=work.workspace_state,
+            tool_names=tool_names,
+            tool_result=blob,
+        ),
+    )
+    next_profile = higher_profile(reasoning_profile, decision.profile)
+    escalation_reason = decision.reason if next_profile != reasoning_profile else None
+    return next_profile, decision, escalation_reason
 
 
 async def _publish_workspace_tools(customer_id: int, work: ToolWork, calls: list[PlannedCall]) -> None:
@@ -118,7 +192,7 @@ async def _publish_workspace_tools(customer_id: int, work: ToolWork, calls: list
         })
 
 
-async def _save_followup(work: ToolWork, text: str) -> None:
+async def _save_followup(work: ToolWork, text: str, reasoning: str | None) -> None:
     from app.services.persona_chat import schedule_expert_memory_update, serialize_persona_message
 
     factory = job_session_factory()
@@ -131,6 +205,7 @@ async def _save_followup(work: ToolWork, text: str) -> None:
             mode=work.mode,
             role="assistant",
             content=text,
+            reasoning_content=reasoning,
             created_at=utcnow(),
         )
         session.add(row)

@@ -8,9 +8,11 @@ import { SmeEmbedPanelShell } from "@/products/sme/SmeEmbedPanelShell"
 export function SmeJobsModal({
   open,
   onClose,
+  onOpenWorkspaceArtifact,
 }: {
   open: boolean
   onClose: () => void
+  onOpenWorkspaceArtifact?: (draft: { artifactId: string; workspaceId: string }) => void
 }) {
   const { t } = useLocale()
 
@@ -52,7 +54,11 @@ export function SmeJobsModal({
           </AdminButton>
         </header>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <JobsPage embedded Shell={SmeEmbedPanelShell} />
+          <JobsPage
+            embedded
+            Shell={SmeEmbedPanelShell}
+            onOpenWorkspaceArtifact={onOpenWorkspaceArtifact ? (draft) => { onClose(); onOpenWorkspaceArtifact(draft) } : undefined}
+          />
         </div>
       </div>
     </div>

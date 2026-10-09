@@ -8,11 +8,14 @@ import { WorkspaceKnowledge } from "./WorkspaceKnowledge"
 import { WorkspaceComparison } from "./WorkspaceComparison"
 import { WorkspaceChartView } from "./WorkspaceChartView"
 import { WorkspaceRelations } from "./WorkspaceRelations"
+import { ModelTraceButton } from "./ModelTraceButton"
 import { WorkspaceSourcePane } from "./WorkspaceSourcePane"
+import type { ModelTraceEntry } from "./modelTrace"
+import { artifactPresentationKey } from "./workspaceChatLogic"
 import type { LocalDocumentSelection } from "./workspaceLocalSelection"
 
-export function WorkspaceCanvas({ workspace, knowledge, localSelection, onState, onSelection, onClearSelection, onOpen, onReady, onError, onSaved, onSearch }: {
-  workspace: Workspace; knowledge: KnowledgeResult; localSelection: LocalDocumentSelection | null
+export function WorkspaceCanvas({ workspace, knowledge, localSelection, trace, onState, onSelection, onClearSelection, onOpen, onReady, onError, onSaved, onSearch }: {
+  workspace: Workspace; knowledge: KnowledgeResult; localSelection: LocalDocumentSelection | null; trace: ModelTraceEntry[]
   onState: (change: (state: WorkspaceState) => WorkspaceState) => void
   onSelection: (sourceId: string, value: WorkspaceSelection) => void
   onClearSelection: (sourceId: string) => void
@@ -23,7 +26,7 @@ export function WorkspaceCanvas({ workspace, knowledge, localSelection, onState,
   const { state } = workspace
   const artifact = workspace.artifacts.find((row) => row.id === state.active_artifact_id)
   const reference = workspace.references.find((row) => row.reference_id === state.selection?.reference_id)
-  useEffect(() => { if (artifact?.status === "ready" && ((artifact.kind === "comparison" && state.view === "comparison") || (artifact.kind === "relations" && state.view === "relations") || (state.view === "documents" && artifact.kind === "chart"))) onReady(`artifact:${artifact.id}:${artifact.revision}`) }, [artifact, onReady, state.view])
+  useEffect(() => { const key = artifactPresentationKey(artifact, state.view); if (key) onReady(key) }, [artifact, onReady, state.view])
   useEffect(() => { if (state.view === "evidence") onReady("evidence") }, [knowledge, onReady, state.view])
   const excerptReference = reference?.source_kind !== "underlag" ? reference : undefined
   const selection = (value: WorkspaceSelection) => onState((current) => ({ ...current, selection: { artifact_id: artifact?.id, artifact_revision: artifact?.revision, ...value } }))
@@ -39,7 +42,7 @@ export function WorkspaceCanvas({ workspace, knowledge, localSelection, onState,
   const showChart = !showExcerpt && !showEditor && artifact?.kind === "chart" && artifact.status === "ready"
   const showSources = !showExcerpt && !showEditor && !showChart
   return <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-db-ink-50">
-    <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-[color:var(--border-hairline)] bg-white px-3 pt-2" aria-label={t("voiceWorkspaceChat.title")}>{tabs.map(({ id, icon: Icon }) => <button key={id} type="button" aria-current={state.view === id ? "page" : undefined} className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm ${state.view === id ? "border-db-gold-500 font-semibold" : "border-transparent text-muted-foreground hover:text-db-ink-950"}`} onClick={() => onState((current) => ({ ...current, view: id }))}><Icon size={15} />{t(`voiceWorkspaceChat.${id}`)}</button>)}</nav>
+    <nav className="flex shrink-0 items-stretch gap-1 overflow-x-auto border-b border-[color:var(--border-hairline)] bg-white px-3 pt-2" aria-label={t("voiceWorkspaceChat.title")}>{tabs.map(({ id, icon: Icon }) => <button key={id} type="button" aria-current={state.view === id ? "page" : undefined} className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm ${state.view === id ? "border-db-gold-500 font-semibold" : "border-transparent text-muted-foreground hover:text-db-ink-950"}`} onClick={() => onState((current) => ({ ...current, view: id }))}><Icon size={15} />{t(`voiceWorkspaceChat.${id}`)}</button>)}<ModelTraceButton entries={trace} /></nav>
     {state.view === "evidence" ? <div className="min-h-0 flex-1 overflow-auto"><form className="m-5 flex rounded-lg border bg-white px-3" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const query = String(form.get("query") ?? "").trim(); if (query) onSearch(query) }}><input name="query" className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none" placeholder={t("voiceWorkspaceChat.searchPlaceholder")} aria-label={t("voiceWorkspaceChat.search")} /><button type="submit" aria-label={t("voiceWorkspaceChat.search")}><Search size={18} /></button></form><WorkspaceKnowledge result={knowledge} sourceNames={Object.fromEntries(workspace.sources.map((source) => [source.id, source.filename]))} onOpen={onOpen} /></div> : null}
     {state.view === "comparison" ? artifact?.kind === "comparison" && artifact.status === "ready" ? <WorkspaceComparison comparison={artifact.content as Comparison} references={workspace.references} onOpen={onOpen} /> : <p className="p-6 text-sm text-muted-foreground">{t("voiceWorkspaceChat.emptyComparison")}</p> : null}
     {state.view === "relations" ? artifact?.kind === "relations" && artifact.status === "ready" ? <WorkspaceRelations relations={artifact.content as Relations} references={workspace.references} selection={state.selection} onSelect={selection} onOpen={onOpen} /> : <p className="p-6 text-sm text-muted-foreground">{t("voiceWorkspaceChat.emptyRelations")}</p> : null}

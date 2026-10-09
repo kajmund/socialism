@@ -56,11 +56,12 @@ export function ExpertLiveVoiceFields({
             value={provider}
             onChange={(event) => {
               const next = event.target.value
-              if (next === "gemini" || next === "elevenlabs") onChange(next, "")
+              if (next === "gemini" || next === "elevenlabs" || next === "socialism") onChange(next, "")
             }}
           >
             <option value="gemini">{t("experts.voice.gemini")}</option>
             <option value="elevenlabs">{t("experts.voice.elevenlabs")}</option>
+            <option value="socialism">{t("experts.voice.socialism")}</option>
           </select>
         </label>
         <label className="grid gap-1 text-xs text-muted-foreground">

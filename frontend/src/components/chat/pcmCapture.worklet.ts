@@ -10,7 +10,7 @@ declare function registerProcessor(
 ): void
 
 class PcmCaptureProcessor extends AudioWorkletProcessor {
-  private readonly chunkSize = Math.max(1, Math.round(sampleRate / 10))
+  private readonly chunkSize = Math.max(1, Math.round(sampleRate * 0.03))
   private pending: number[] = []
 
   process(inputs: Float32Array[][]): boolean {

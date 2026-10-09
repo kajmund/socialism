@@ -75,11 +75,17 @@ def tool_parameters(name: str, argument_description: str) -> dict:
     # tools whose contract does not fit ElevenLabs' flat parameter subset.
     if name == "search_knowledge":
         return {"type": "object", "required": ["query"], "properties": {
-            "query": {"type": "string", "description": "Vad som ska hittas, med användarens egna ord."}}}
+            "query": {"type": "string", "description": "Vad som ska hittas, med användarens egna ord."},
+            "source_id": {"type": "string", "description": "source_object_id när dokumentet redan är identifierat."},
+            "exact": {"type": "boolean", "description": "Sant när textsträngen redan är känd. Matchar den utan semantisk sökning."}}}
     if name == "read_source":
         return {"type": "object", "properties": {
             "source_id": {"type": "string", "description": "source_object_id för dokumentet som ska läsas."},
-            "reference_id": {"type": "string", "description": "Referens från en tidigare sökträff."}}}
+            "reference_id": {"type": "string", "description": "Referens från en tidigare sökträff."},
+            "quote": {"type": "string", "description": "Känd passage. Läser stycken runt den och flyttar inte vyn."},
+            "section": {"type": "string", "description": "Rubrik eller klausul från dokumentstrukturen."},
+            "outline": {"type": "boolean", "description": "Returnera rubriker och sektioner från ingest."},
+            "page": {"type": "integer", "minimum": 1, "description": "Sida från 1. Läser texten på den sidan."}}}
     if name == "focus_anchor":
         return {"type": "object", "required": ["source_id", "quote"], "properties": {
             "source_id": {"type": "string", "description": "source_id från open_documents."},
@@ -192,11 +198,24 @@ async def cleanup_deployment(client: ElevenLabsAgentsClient, deployment: dict) -
         raise ElevenLabsError("elevenlabs_publish_failed_cleanup_required")
 
 
-async def require_published_model(client: ElevenLabsAgentsClient) -> None:
+async def require_published_model(client: ElevenLabsAgentsClient) -> dict:
     models = await client.request("GET", "/v1/convai/llm/list")
     model = next((item for item in models.get("llms", []) if item.get("llm") == settings.elevenlabs_llm), None)
     if not model or (model.get("deprecation_info") or {}).get("is_deprecated"):
         raise ElevenLabsError("elevenlabs_model_unavailable_or_deprecated")
+    return model
+
+
+def published_prompt(model: dict, *, system: str, tool_ids: list[str], current_effort: object = None) -> dict:
+    """Prompt fields sent on update. A merge keeps the previous model's reasoning effort unless it is replaced."""
+    prompt = {"prompt": system, "llm": settings.elevenlabs_llm,
+              "backup_llm_config": {"preference": "disabled"}, "tool_ids": tool_ids}
+    efforts = model.get("available_reasoning_efforts") or []
+    if not efforts:
+        prompt["reasoning_effort"] = None
+    elif current_effort not in efforts:
+        prompt["reasoning_effort"] = "none" if "none" in efforts else efforts[0]
+    return prompt
 
 
 def _agent_section(agent: dict, *keys: str) -> dict:
@@ -243,7 +262,7 @@ async def apply_configured_agent(snapshot: AgentSnapshot, client: ElevenLabsAgen
     """Make the one configured agent use ELEVENLABS_LLM, the active prompt, and this voice."""
     agent_id = settings.elevenlabs_agent_id
     chosen_voice = (voice_id or "").strip() or settings.elevenlabs_voice_id
-    await require_published_model(client)
+    model = await require_published_model(client)
     agent = await client.request("GET", f"/v1/convai/agents/{agent_id}")
     prompt = _agent_section(agent, "conversation_config", "agent", "prompt")
     agent_block = _agent_section(agent, "conversation_config", "agent")
@@ -252,16 +271,18 @@ async def apply_configured_agent(snapshot: AgentSnapshot, client: ElevenLabsAgen
                                   expert_name=snapshot.identity["expert_name"])
     language = snapshot.identity["language"]
     tool_ids = await ensure_workspace_tools(client, snapshot.tools)
+    efforts = model.get("available_reasoning_efforts") or []
+    current_effort = prompt.get("reasoning_effort")
+    reasoning_ok = current_effort in efforts if efforts else not current_effort
     if (prompt.get("llm") == settings.elevenlabs_llm and prompt.get("prompt") == snapshot.system
             and agent_block.get("first_message") == first_message and agent_block.get("language") == language
-            and current_voice == chosen_voice and prompt.get("tool_ids") == tool_ids):
+            and current_voice == chosen_voice and prompt.get("tool_ids") == tool_ids and reasoning_ok):
         version = agent.get("version_id")
         return version if isinstance(version, str) else ""
     branch_id = require_string(agent, "main_branch_id")
-    published_prompt = {"prompt": snapshot.system, "llm": settings.elevenlabs_llm,
-                        "backup_llm_config": {"preference": "disabled"}, "tool_ids": tool_ids}
+    prompt_body = published_prompt(model, system=snapshot.system, tool_ids=tool_ids, current_effort=current_effort)
     await client.request("PATCH", f"/v1/convai/agents/{agent_id}", body={"conversation_config": {
-        "agent": {"language": language, "first_message": first_message, "prompt": published_prompt},
+        "agent": {"language": language, "first_message": first_message, "prompt": prompt_body},
         "tts": {"voice_id": chosen_voice}}})
     published = await client.request("PATCH", f"/v1/convai/agents/{agent_id}", params={"branch_id": branch_id},
                                      body={"version_description": f"configured-model:{settings.elevenlabs_llm}:{snapshot.prompt_version[:12]}"})

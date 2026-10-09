@@ -11,10 +11,19 @@ export function interviewTranscriptMessage(message: { id: number; role: "user" |
   return { id: message.id, role: message.role === "user" ? "user" : "agent", content: message.content, created_at: message.created_at, event_key: `interview:${message.id}`, session_id: "interview" }
 }
 
+function transcriptText(value: string): string {
+  return value.replace(/\s+/g, " ").trim()
+}
+
 export function mergeTranscript(current: WorkspaceMessage[], incoming: WorkspaceMessage[]): WorkspaceMessage[] {
+  const persisted = incoming.filter((row) => row.id > 0)
   const rows = new Map<number, WorkspaceMessage>()
-  for (const row of current) if (row.session_id !== "local") rows.set(row.id, row)
-  for (const row of incoming) if (row.id > 0) rows.set(row.id, row)
+  for (const row of current) {
+    if (row.session_id === "local") continue
+    const echoed = row.session_id === "live-speech" && persisted.some((item) => item.role === row.role && transcriptText(item.content) === transcriptText(row.content))
+    if (!echoed) rows.set(row.id, row)
+  }
+  for (const row of persisted) rows.set(row.id, row)
   return [...rows.values()].sort((left, right) => left.id - right.id)
 }
 
@@ -133,4 +142,57 @@ export function workspaceErrorMessage(error: unknown, t: (key: MessageKey) => st
   }
   if (!message || /^(?:[a-z0-9]+_[a-z0-9_]+|HTTP \d|Invalid tool|Missing |Network request|Request timed)/.test(message)) return t(fallback)
   return message
+}
+
+export function workspaceGenerationDraft(job: {
+  kind: string
+  status: string
+  request: Record<string, unknown>
+  result?: { artifact_id?: string } | null
+}): { artifactId: string; workspaceId: string } | null {
+  if (job.kind !== "workspace_generation" || job.status !== "succeeded") return null
+  const artifactId = typeof job.request.artifact_id === "string" && job.request.artifact_id
+    ? job.request.artifact_id
+    : typeof job.result?.artifact_id === "string" && job.result.artifact_id
+      ? job.result.artifact_id
+      : ""
+  const workspaceId = typeof job.request.voice_workspace_id === "string" ? job.request.voice_workspace_id : ""
+  if (!artifactId || !workspaceId) return null
+  return { artifactId, workspaceId }
+}
+
+export function artifactPresentationKey(artifact: { id: string; kind: string; status: string; revision: number } | undefined, view: WorkspaceState["view"]): string | null {
+  if (!artifact || artifact.status !== "ready") return null
+  const shown = (view === "documents" && (artifact.kind === "document" || artifact.kind === "chart"))
+    || (view === "comparison" && artifact.kind === "comparison")
+    || (view === "relations" && artifact.kind === "relations")
+  return shown ? `artifact:${artifact.id}:${artifact.revision}` : null
+}
+
+export function takeReadyGenerationArtifact(input: {
+  jobs: Array<{ id: string; kind: string; status: string; request: Record<string, unknown>; result?: { artifact_id?: string } | null }>
+  artifacts: Array<{ id: string; status: string }>
+  workspaceId: string | null | undefined
+  previousStatus: Map<string, string>
+  pending: Set<string>
+  opened: Set<string>
+}): string | null {
+  for (const job of input.jobs) {
+    const previous = input.previousStatus.get(job.id)
+    if (previous != null && previous !== "succeeded" && job.status === "succeeded") input.pending.add(job.id)
+    input.previousStatus.set(job.id, job.status)
+  }
+  if (!input.workspaceId) return null
+  for (const jobId of input.pending) {
+    if (input.opened.has(jobId)) continue
+    const job = input.jobs.find((row) => row.id === jobId)
+    if (!job) continue
+    const draft = workspaceGenerationDraft(job)
+    if (!draft || draft.workspaceId !== input.workspaceId) continue
+    if (!input.artifacts.some((row) => row.id === draft.artifactId && row.status === "ready")) continue
+    input.opened.add(jobId)
+    input.pending.delete(jobId)
+    return draft.artifactId
+  }
+  return null
 }

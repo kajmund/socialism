@@ -26,9 +26,24 @@ Välj först företagets eller kundens arbetsyta och därefter en privat chatt o
 
 När du byter expert eller privat chatt avslutas det aktuella samtalet. Redan sparade meddelanden ligger kvar. Dokumentjobb som har startats fortsätter även när samtalet avslutas.
 
-Telefonknappen vid skrivfältet startar **live voice**. Tillåt mikrofonen i webbläsaren. Du kan stänga av mikrofonen, avbryta ett uppläst svar eller avsluta röstsamtalet. Du kan också skriva medan röstsamtalet är aktivt. Talade frågor och expertsvar visas i chatten. Dokument och sparade jobb ligger kvar när samtalet avslutas.
+Telefonknappen vid skrivfältet startar **live voice**. Tillåt mikrofonen i webbläsaren. Experten tar upp tråden från det ni senast pratade om och pratar först. Du kan stänga av mikrofonen, avbryta ett uppläst svar eller avsluta röstsamtalet. Du kan också skriva medan röstsamtalet är aktivt; texten avbryter uppläsningen
+men samtalet fortsätter. Korta lyssnarsignaler som *mm* avbryter inte svaret.
+Om du talar en längre stund kan experten nynna med utan att det sparas i
+chatten. När ett uppslag tar tid kan experten säga att hen väntar eller att
+en del har kommit. Talade frågor och expertsvar visas i chatten. Dokument och
+sparade jobb ligger kvar när samtalet avslutas.
 
-Om mikrofonen nekas visar chatten ett fel och du kan fortsätta skriva. Om rösttjänsten saknar konfiguration visas det i chatten.
+I expertens redigering väljer du röstfunktion. **Socialism Live Speech** använder
+workspace-chattens vanliga modell, verktyg och historik. Där väljer du också den
+ElevenLabs-röst som ska läsa upp expertens svar. Valen **Gemini** och
+**ElevenLabs** behåller sina separata leverantörssamtal.
+
+Med v4 Turbo kan uppläsningen använda skratt, suckar och andra uttryck. Dessa
+röstinstruktioner hörs i framförandet men visas inte som taggar i chatten.
+
+Om mikrofonen nekas visar chatten ett fel och du kan fortsätta skriva. Om
+transkriberingen eller uppläsningen inte är tillgänglig visas ett fel i chatten;
+textchatten ligger kvar.
 
 ## Arbeta med källor och presentationer
 
@@ -51,7 +66,7 @@ Du kan styra vyerna med rösten, till exempel ”öppna källan”, ”jämför 
 
 ## Skapa och revidera dokument
 
-Be experten skapa ett utkast utifrån arbetsytans källor. Utkastet skapas som ett jobb och öppnas när det är färdigt. Du kan redigera block och spara en ny revision, eller markera ett block och be experten ändra det med röst eller text.
+Be experten skapa ett utkast. Utkastet bygger på det ni just pratat om och på de källor som faktiskt stöder uppdraget. Uppladdade filer som inte handlar om saken blir inte hela underlaget. Utkastet skapas som ett jobb och öppnas när det är färdigt. Du kan redigera block och spara en ny revision, eller markera ett block och be experten ändra det med röst eller text.
 
 Varje sparad revision behåller sina källreferenser. Om dokumentet har ändrats sedan en revidering startade visas en revisionskonflikt så att den nyare texten kan granskas. **Word** och **PDF** exporterar den sparade revision som visas. PDF-export kräver att serverns dokumentkonvertering är tillgänglig.
 
@@ -87,7 +102,7 @@ Administratörer ser även **Admin**. Det öppnar den vanliga vyn **Verktyg** i 
 
 ## Bakgrundsjobb
 
-Portföljikonen i SME-huvudet öppnar **Bakgrundsjobb** i en modal ovanpå chatten. Där syns researchjobb som en expert har startat, med status pending, running, succeeded eller failed. En siffra på ikonen visar hur många jobb som fortfarande pågår. Ett misslyckat expertresearch-jobb kan återupptas från listan. En avslutad expertresearch kan köras om och startar då som ett nytt jobb.
+Portföljikonen i SME-huvudet öppnar **Bakgrundsjobb** i en modal ovanpå chatten. Där syns researchjobb och dokumentutkast som en expert har startat, med status pending, running, succeeded eller failed. En siffra på ikonen visar hur många jobb som fortfarande pågår. Ett färdigt dokumentutkast öppnas i arbetsytan när jobbet blir klart. Om det inte gör det väljer du **Öppna utkast**. Ett misslyckat expertresearch-jobb kan återupptas från listan. En avslutad expertresearch kan köras om och startar då som ett nytt jobb.
 
 ## Relaterade guider
 

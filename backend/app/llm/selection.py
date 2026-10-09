@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
 from app.config import settings
+from app.llm.chat_model import remember_chat_model
 from app.llm.jev import JevError, JevNeedClassifier, JevNeedDecision
 from app.llm.runtime_override import (
     CachedLlmConfiguration,
@@ -22,6 +23,10 @@ from app.llm.runtime_override import (
     cached_configurations,
     default_configuration,
     settings_runtime_view,
+)
+from app.services.expert_reasoning import (
+    EXPERT_PROMPT_KEYS,
+    current_expert_profile,
 )
 
 logger = logging.getLogger(__name__)
@@ -246,6 +251,92 @@ def _log_resolution(resolution: LlmResolution) -> None:
     )
 
 
+def _expert_profile_resolution(
+    *,
+    prompt_key: str | None,
+    messages: Sequence[dict[str, Any]],
+    call_kind: LLMCallKind,
+    assignment: PromptLlmAssignmentView,
+    requirements: LlmCallRequirements | None,
+) -> LlmResolution | None:
+    routed_profile = (
+        current_expert_profile()
+        if settings.expert_reasoning_route_enabled and prompt_key in EXPERT_PROMPT_KEYS
+        else None
+    )
+    if routed_profile is None:
+        return None
+    vision, tools, structured, long_context = _hard_need_flags(
+        messages=messages,
+        call_kind=call_kind,
+        requirements=requirements,
+    )
+    allowed = assignment.allowed_configuration_ids
+    if requirements is not None and requirements.allowed_configuration_ids is not None:
+        allowed = requirements.allowed_configuration_ids
+    matched = match_auto_configuration(
+        TaskNeed(
+            speed_class=routed_profile,
+            needs_vision=vision,
+            needs_tools=tools,
+            needs_structured_output=structured,
+            needs_long_context=long_context,
+            confidence=1.0,
+        ),
+        list(cached_configurations().values()),
+        allowed_configuration_ids=allowed,
+    )
+    if matched is None:
+        logger.info(
+            "llm.runtime.expert_reasoning_no_match prompt_key=%s profile=%s",
+            prompt_key,
+            routed_profile,
+        )
+        return None
+    return _resolution_from_config(
+        matched,
+        prompt_key=prompt_key,
+        selection_mode="auto",
+        reason_code="expert_reasoning_selected",
+        fallback=False,
+        call_kind=call_kind,
+        auto_confidence=1.0,
+        speed_class=routed_profile,
+    )
+
+
+def _static_assignment_resolution(
+    assignment: PromptLlmAssignmentView,
+    *,
+    prompt_key: str | None,
+    call_kind: LLMCallKind,
+) -> LlmResolution | None:
+    if assignment.mode == "default":
+        return _resolution_from_config(
+            default_configuration(),
+            prompt_key=prompt_key,
+            selection_mode="default",
+            reason_code="default",
+            fallback=False,
+            call_kind=call_kind,
+        )
+    if assignment.mode != "fixed":
+        return None
+    row = (
+        cached_configurations().get(assignment.configuration_id)
+        if assignment.configuration_id is not None
+        else None
+    )
+    return _resolution_from_config(
+        row or default_configuration(),
+        prompt_key=prompt_key,
+        selection_mode="fixed",
+        reason_code="fixed",
+        fallback=False,
+        call_kind=call_kind,
+    )
+
+
 async def resolve_llm_runtime(  # noqa: PLR0911
     *,
     prompt_key: str | None,
@@ -254,33 +345,22 @@ async def resolve_llm_runtime(  # noqa: PLR0911
     requirements: LlmCallRequirements | None = None,
 ) -> LlmResolution:
     assignment = assignment_for_prompt(prompt_key)
-    if assignment.mode == "default":
-        resolution = _resolution_from_config(
-            default_configuration(),
-            prompt_key=prompt_key,
-            selection_mode="default",
-            reason_code="default",
-            fallback=False,
-            call_kind=call_kind,
-        )
-        _log_resolution(resolution)
-        return resolution
-    if assignment.mode == "fixed":
-        row = None
-        if assignment.configuration_id is not None:
-            row = cached_configurations().get(assignment.configuration_id)
-        if row is None:
-            row = default_configuration()
-        resolution = _resolution_from_config(
-            row,
-            prompt_key=prompt_key,
-            selection_mode="fixed",
-            reason_code="fixed",
-            fallback=False,
-            call_kind=call_kind,
-        )
-        _log_resolution(resolution)
-        return resolution
+    routed = _expert_profile_resolution(
+        prompt_key=prompt_key,
+        messages=messages,
+        call_kind=call_kind,
+        assignment=assignment,
+        requirements=requirements,
+    )
+    if routed is not None:
+        _log_resolution(routed)
+        return routed
+    static = _static_assignment_resolution(
+        assignment, prompt_key=prompt_key, call_kind=call_kind
+    )
+    if static is not None:
+        _log_resolution(static)
+        return static
 
     fallback = _fallback_configuration(assignment)
     hard_vision, hard_tools, hard_structured, hard_long = _hard_need_flags(
@@ -413,4 +493,7 @@ async def llm_call_runtime(
         requirements=requirements,
     )
     with bound_llm_runtime(resolution.view), bound_llm_resolution(resolution):
-        yield resolution
+        try:
+            yield resolution
+        finally:
+            remember_chat_model(resolution)

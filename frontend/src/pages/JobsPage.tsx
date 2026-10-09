@@ -9,6 +9,7 @@ import {
   type Job,
   type JobStatus,
 } from "@/api/jobs"
+import { workspaceGenerationDraft } from "@/products/sme/workspaceChatLogic"
 import { AdminShell } from "@/components/layout/AdminShell"
 import { NestedBolagPage } from "@/components/layout/BolagShell"
 import { Card, CardContent } from "@/components/ui/card"
@@ -144,6 +145,8 @@ function kindLabel(kind: string, t: Translate): string {
       return t("jobs.kind.expert_chat_research")
     case "document_ingest":
       return t("jobs.kind.document_ingest")
+    case "workspace_generation":
+      return t("jobs.kind.workspace_generation")
     default:
       return kind
   }
@@ -300,6 +303,24 @@ function JobArchiveButton({
   )
 }
 
+function WorkspaceDraftButton({
+  job,
+  t,
+  onOpen,
+}: {
+  job: Job
+  t: Translate
+  onOpen?: (draft: { artifactId: string; workspaceId: string }) => void
+}) {
+  const draft = onOpen ? workspaceGenerationDraft(job) : null
+  if (!draft || !onOpen) return null
+  return (
+    <button type="button" onClick={() => onOpen(draft)}>
+      {t("jobs.openDraft")}
+    </button>
+  )
+}
+
 function JobActionLinks({
   job,
   t,
@@ -307,6 +328,7 @@ function JobActionLinks({
   busy,
   onResume,
   onRerun,
+  onOpenWorkspaceArtifact,
 }: {
   job: Job
   t: Translate
@@ -314,6 +336,7 @@ function JobActionLinks({
   busy?: boolean
   onResume?: (job: Job) => void
   onRerun?: (job: Job) => void
+  onOpenWorkspaceArtifact?: (draft: { artifactId: string; workspaceId: string }) => void
 }) {
   const { popId, runId, reportId, sessionId, researchAttemptId } = jobIds(job)
   const links: ReactNode[] = []
@@ -452,6 +475,11 @@ function JobActionLinks({
       </Link>,
     )
   }
+  if (onOpenWorkspaceArtifact) {
+    links.push(
+      <WorkspaceDraftButton key="draft" job={job} t={t} onOpen={onOpenWorkspaceArtifact} />,
+    )
+  }
 
   return <>{links}</>
 }
@@ -465,6 +493,7 @@ function JobCard({
   onArchive,
   onResume,
   onRerun,
+  onOpenWorkspaceArtifact,
 }: {
   job: Job
   t: Translate
@@ -474,6 +503,7 @@ function JobCard({
   onArchive: (job: Job, archived: boolean) => void
   onResume: (job: Job) => void
   onRerun: (job: Job) => void
+  onOpenWorkspaceArtifact?: (draft: { artifactId: string; workspaceId: string }) => void
 }) {
   const { popId, runId, reportId } = jobIds(job)
   const ddHref = ddCampaignHref(job)
@@ -610,6 +640,7 @@ function JobCard({
               alignItems: "center",
             }}
           >
+            <WorkspaceDraftButton job={job} t={t} onOpen={onOpenWorkspaceArtifact} />
             <JobResumeButton job={job} busy={busy} onResume={onResume} t={t} />
             <JobRerunButton job={job} busy={busy} onRerun={onRerun} t={t} />
             <JobArchiveButton job={job} busy={busy} onArchive={onArchive} t={t} />
@@ -629,6 +660,7 @@ function JobListRow({
   onArchive,
   onResume,
   onRerun,
+  onOpenWorkspaceArtifact,
 }: {
   job: Job
   t: Translate
@@ -638,6 +670,7 @@ function JobListRow({
   onArchive: (job: Job, archived: boolean) => void
   onResume: (job: Job) => void
   onRerun: (job: Job) => void
+  onOpenWorkspaceArtifact?: (draft: { artifactId: string; workspaceId: string }) => void
 }) {
   const duration = formatJobDuration(job, t)
   const whenCreated = formatWhen(job.created_at, intl, t("common.emDash"))
@@ -669,6 +702,7 @@ function JobListRow({
           busy={busy}
           onResume={onResume}
           onRerun={onRerun}
+          onOpenWorkspaceArtifact={onOpenWorkspaceArtifact}
         />
         <JobArchiveButton job={job} busy={busy} onArchive={onArchive} t={t} />
       </div>
@@ -680,12 +714,14 @@ export type JobsPageProps = {
   scope?: CustomerScope
   Shell?: ShellComponent
   embedded?: boolean
+  onOpenWorkspaceArtifact?: (draft: { artifactId: string; workspaceId: string }) => void
 }
 
 export function JobsPage({
   scope = "admin",
   Shell = AdminShell,
   embedded = false,
+  onOpenWorkspaceArtifact,
 }: JobsPageProps) {
   const { t, intl } = useLocale()
   const { jobs: liveJobs, applyJob, connected, status } = useJobsRealtime()
@@ -922,6 +958,7 @@ export function JobsPage({
                   onArchive={onArchive}
                   onResume={onResume}
                   onRerun={onRerun}
+                  onOpenWorkspaceArtifact={onOpenWorkspaceArtifact}
                 />
               ))}
             </div>
@@ -938,6 +975,7 @@ export function JobsPage({
                   onArchive={onArchive}
                   onResume={onResume}
                   onRerun={onRerun}
+                  onOpenWorkspaceArtifact={onOpenWorkspaceArtifact}
                 />
               ))}
             </div>

@@ -4,12 +4,21 @@ import pytest
 
 from app.database.models import Persona
 from app.services.elevenlabs_agents import ElevenLabsError
-from app.services.workspace_agent_deployment import deploy_agent_snapshot, prepare_agent_snapshot, save_agent_deployment
+from app.services.workspace_agent_deployment import (
+    deploy_agent_snapshot, prepare_agent_snapshot, published_prompt, save_agent_deployment,
+)
 from tests.test_workspace_conversations import (
     provider as provider,
     single_connection_provider as single_connection_provider,
     probe_connection,
 )
+
+
+def test_published_prompt_replaces_an_unsupported_reasoning_effort():
+    efforts = {"available_reasoning_efforts": ["none", "low", "medium", "high", "max"]}
+    assert published_prompt(efforts, system="prompt", tool_ids=["tool"], current_effort=None)["reasoning_effort"] == "none"
+    assert "reasoning_effort" not in published_prompt(efforts, system="prompt", tool_ids=["tool"], current_effort="high")
+    assert published_prompt({}, system="prompt", tool_ids=["tool"], current_effort="high")["reasoning_effort"] is None
 
 
 @pytest.mark.asyncio
