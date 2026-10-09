@@ -1,4 +1,4 @@
-"""Expert chat says it is looking something up, then delivers the tool result later."""
+"""Expert tool episodes publish one answer from their owning turn."""
 
 from __future__ import annotations
 
@@ -17,10 +17,9 @@ from app.schemas.domain import PersonaChatResponse
 from app.services.expert_async_tools import (
     PlannedCall,
     ToolWork,
-    _threads,
+    acknowledge_expert_tools,
     begin_library_tools,
-    reset_library_tool_threads,
-    wait_library_tool_tasks,
+    complete_tool_episode,
 )
 from app.services.expert_reasoning_episode import (
     ExpertEpisode,
@@ -30,7 +29,7 @@ from app.services.expert_reasoning_episode import (
 )
 from app.services.expert_reasoning import current_expert_profile
 from app.services.expert_tool_followup import (
-    _compose_followup,
+    compose_tool_episode,
     _deeper_than_main,
     _maybe_escalate,
 )
@@ -70,10 +69,10 @@ def _assert_model_trace(traced: list[dict]) -> None:
 
 def _company_tool(factory, release: asyncio.Event, probed: asyncio.Event):
     async def company_tool(_name, _arguments):
-        await release.wait()
         async with factory() as probe:
             assert await probe.scalar(select(Persona.id)) == "e-lookup"
         probed.set()
+        await release.wait()
         return "Omsättning 12"
 
     return company_tool
@@ -86,7 +85,10 @@ def _scripted_tools(seen: list[list[dict]]):
             return SimpleNamespace(content="Omsättningen är 12.", tool_calls=None, reasoning_content="after")
         return SimpleNamespace(
             content="Jag kollar upp det.",
-            tool_calls=[_tool_call("lookup_company", '{"orgnr":"5567037485"}')],
+            tool_calls=[
+                _tool_call("lookup_company", '{"orgnr":"5567037485"}'),
+                _tool_call("lookup_company", '{"orgnr":"5567037485"}'),
+            ],
             reasoning_content="before",
         )
 
@@ -101,7 +103,142 @@ def _tool_call(name: str, arguments: str) -> SimpleNamespace:
 
 
 @pytest.mark.asyncio
-async def test_ack_returns_before_tool_and_idle_expert_writes_the_result(tmp_path, monkeypatch):
+async def test_document_inventory_does_not_force_tools_for_social_turns():
+    choices: list[str] = []
+
+    async def complete(_messages, _specs=None, *, tool_choice="auto", **_kwargs):
+        choices.append(tool_choice)
+        return SimpleNamespace(content="Varsågod, Sara här.", tool_calls=None)
+
+    set_tools_completer(complete)
+    messages = ("Hej Sara", "Vad vill du göra?", "Absolut, lilla plutten", "Bra, tack")
+    try:
+        for index, message in enumerate(messages):
+            scope = begin_library_tools(
+                persona_id="sara",
+                mode="character",
+                actor_user_id="user",
+                history=[],
+                user_message=message,
+                enabled=True,
+                workspace=("workspace", {"documents": [{"source_id": "contract"}]}),
+            )
+            scope.turn_id = f"turn-{index}"
+            await scope.enter()
+            scope.tool_retrieval = SimpleNamespace(require_tool=True)
+            reply = await acknowledge_expert_tools(
+                [
+                    {"role": "system", "content": "available_documents: Avtal.pdf"},
+                    {"role": "user", "content": message},
+                ],
+                allowed_tools=frozenset(),
+                prompt_key="chat.mode.in_character",
+                extra_specs=[
+                    {"type": "function", "function": {"name": "show_document", "parameters": {}}},
+                    {"type": "function", "function": {"name": "read_source", "parameters": {}}},
+                ],
+                workspace_state=scope.workspace_state,
+            )
+            assert reply.text == "Varsågod, Sara här."
+            assert reply.calls == ()
+            await scope.finish()
+    finally:
+        set_tools_completer(None)
+    assert choices == ["auto"] * len(messages)
+
+
+@pytest.mark.asyncio
+async def test_tool_call_ack_does_not_make_a_discarded_text_request(monkeypatch):
+    async def complete(_messages, _specs=None, *, tool_choice="auto", **_kwargs):
+        return SimpleNamespace(
+            content="",
+            tool_calls=[_tool_call("show_document", '{"source_id":"contract"}')],
+        )
+
+    async def unused_text(*_args, **_kwargs):
+        raise AssertionError("discarded acknowledgement must not call complete_text")
+
+    monkeypatch.setattr("app.services.expert_async_tools.complete_text", unused_text, raising=False)
+    set_tools_completer(complete)
+    try:
+        reply = await acknowledge_expert_tools(
+            [{"role": "user", "content": "Visa avtalet"}],
+            allowed_tools=frozenset(),
+            prompt_key="chat.mode.in_character",
+            extra_specs=[
+                {"type": "function", "function": {"name": "show_document", "parameters": {}}},
+            ],
+        )
+    finally:
+        set_tools_completer(None)
+    assert reply.text == ""
+    assert [call.name for call in reply.calls] == ["show_document"]
+
+
+@pytest.mark.asyncio
+async def test_repeated_tool_call_id_is_deduplicated_across_episode_rounds(monkeypatch):
+    rounds = iter([
+        SimpleNamespace(
+            content="Let me check.",
+            tool_calls=[_tool_call("lookup_company", '{"orgnr":"1"}')],
+        ),
+        SimpleNamespace(content="Here is the answer.", tool_calls=[
+            _tool_call("lookup_company", '{"orgnr":"1"}')
+        ]),
+    ])
+    executed: list[str] = []
+
+    async def complete(*_args, **_kwargs):
+        return next(rounds)
+
+    async def run_call(call, _work):
+        executed.append(call.id)
+        return "Company result"
+
+    async def publish(_calls):
+        raise AssertionError("no client calls expected")
+
+    monkeypatch.setattr("app.services.expert_reasoning_episode.complete_with_tools", complete)
+    initial = PlannedCall("initial-call", "lookup_company", {})
+    work = ToolWork(
+        persona_id="sara",
+        mode="character",
+        actor_user_id="user",
+        history=[],
+        user_message="Kolla bolaget",
+        calls=(initial,),
+        episode=ExpertEpisode(
+            messages=(
+                {"role": "user", "content": "Kolla bolaget"},
+                {"role": "assistant", "tool_calls":[{
+                    "id": initial.id,
+                    "type": "function",
+                    "function": {"name": initial.name, "arguments": "{}"},
+                }]},
+            ),
+            specs=({
+                "type": "function",
+                "function": {"name": "lookup_company", "parameters": {}},
+            },),
+            prompt_key="chat.mode.in_character",
+            reasoning_content=None,
+        ),
+        seen_call_ids={initial.id},
+    )
+
+    result, _reasoning = await continue_expert_episode(
+        work,
+        ["Initial result"],
+        run_call=run_call,
+        publish=publish,
+    )
+    assert result == "Here is the answer."
+    assert executed == ["call_1"]
+    assert "call_1" in work.seen_call_ids
+
+
+@pytest.mark.asyncio
+async def test_tool_result_is_the_only_answer_and_db_connection_is_released(tmp_path, monkeypatch):
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{tmp_path / 'tools.db'}",
         pool_size=1,
@@ -144,24 +281,29 @@ async def test_ack_returns_before_tool_and_idle_expert_writes_the_result(tmp_pat
                 )
             )
             await session.commit()
-            reply = ""
-            async for item in stream_library_chat_turn(
-                session,
-                persona_id="e-lookup",
-                mode="interview",
-                message="Vad omsätter bolaget?",
-            ):
-                if isinstance(item, str):
-                    reply += item
-                elif isinstance(item, PersonaChatResponse):
-                    reply = item.reply
-                    release.set()
-                    await wait_library_tool_tasks()
-                    await wait_model_traces()
-        assert reply == "Jag kollar upp det."
+            async def run_turn():
+                items = []
+                async for item in stream_library_chat_turn(
+                    session,
+                    persona_id="e-lookup",
+                    mode="interview",
+                    message="Vad omsätter bolaget?",
+                ):
+                    items.append(item)
+                return items
+
+            pending = asyncio.create_task(run_turn())
+            await probed.wait()
+            assert not pending.done()
+            release.set()
+            items = await pending
+            await wait_model_traces()
+        response = next(item for item in items if isinstance(item, PersonaChatResponse))
+        assert response.reply == "Omsättningen är 12."
         assert probed.is_set()
         continued = seen[-1]
         assert continued[-1]["role"] == "tool"
+        assert len([message for message in continued if message.get("role") == "tool"]) == 1
         assert "Omsättning 12" in continued[-1]["content"]
         assert continued[-2]["reasoning_content"] == "before"
         async with factory() as session:
@@ -174,18 +316,14 @@ async def test_ack_returns_before_tool_and_idle_expert_writes_the_result(tmp_pat
                     )
                 ).all()
             )
-        assert [row.content for row in rows] == [
-            "Vad omsätter bolaget?",
-            "Jag kollar upp det.",
-            "Omsättningen är 12.",
-        ]
-        assert [row.reasoning_content for row in rows] == [None, "before", "after"]
+        assert [row.role for row in rows] == ["user", "assistant"]
+        assert [row.content for row in rows] == ["Vad omsätter bolaget?", "Omsättningen är 12."]
+        assert [row.reasoning_content for row in rows] == [None, "after"]
         _assert_model_trace(traced)
     finally:
         await library_chat_broadcast.unsubscribe(capture)
         set_tools_completer(None)
         set_job_session_factory(None)
-        reset_library_tool_threads()
         await engine.dispose()
 
 
@@ -241,8 +379,7 @@ async def test_workspace_followup_opens_the_named_document(tmp_path):
             await session.commit()
         result = '{"items":[{"source_id":"avtal","filename":"Avtal.pdf"}]}'
         show_document = {"type": "function", "function": {"name": "show_document", "parameters": {}}}
-        text, _reasoning = await _compose_followup(
-            ToolWork(
+        work = ToolWork(
                 persona_id="e-open",
                 mode="interview",
                 actor_user_id=None,
@@ -269,9 +406,29 @@ async def test_workspace_followup_opens_the_named_document(tmp_path):
                     prompt_key="chat.mode.interview",
                     reasoning_content="find the file",
                 ),
-            ),
+            )
+
+        async def unused_call(_call, _work):
+            raise AssertionError("No server tool should run in this test")
+
+        async def publish(calls):
+            for call in calls:
+                events.append({
+                    "type": "workspace_tool",
+                    "thread_type": "expert",
+                    "thread_id": "e-open",
+                    "mode": "interview",
+                    "name": call.name,
+                    "arguments": call.arguments,
+                })
+
+        text, _reasoning = await compose_tool_episode(
+            work,
             result,
             (result,),
+            continue_episode=continue_expert_episode,
+            run_call=unused_call,
+            publish=publish,
         )
         assert text == "Avtalet är öppet."
         assert events == [{
@@ -290,52 +447,115 @@ async def test_workspace_followup_opens_the_named_document(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_next_turn_weaves_the_result_instead_of_a_separate_wake(monkeypatch):
+async def test_overlapping_turn_scopes_keep_replayed_calls_with_their_owner(monkeypatch):
+    started = asyncio.Event()
     release = asyncio.Event()
+    ran: list[tuple[str, str]] = []
+    composed: list[str] = []
 
-    async def company_tool(_name, _arguments):
-        await release.wait()
-        return "Omsättning 12"
+    async def run_one(call, work):
+        ran.append((work.turn_id, call.id))
+        if work.user_message == "Absolut, lilla plutten":
+            started.set()
+            await release.wait()
+        return work.user_message
 
-    monkeypatch.setattr("app.services.expert_async_tools.run_company_tool", company_tool)
-    scope = begin_library_tools(
-        persona_id="e-next",
-        mode="interview",
-        actor_user_id=None,
-        history=[],
-        user_message="Vad omsätter bolaget?",
-        enabled=True,
-    )
-    try:
-        await scope.enter()
-        scope.defer((PlannedCall("call_1", "lookup_company", {"orgnr": "5567037485"}),))
-        await scope.finish(deliver=True)
-        thread = _threads[("e-next", "interview")]
-        assert thread.inflight == 1
-        nxt = begin_library_tools(
-            persona_id="e-next",
-            mode="interview",
-            actor_user_id=None,
+    async def compose(work, _blob, _results, **_kwargs):
+        composed.append(work.user_message)
+        return f"Svar: {work.user_message}", None
+
+    monkeypatch.setattr("app.services.expert_async_tools._run_one", run_one)
+    monkeypatch.setattr("app.services.expert_tool_followup.compose_tool_episode", compose)
+
+    async def run_scope(message: str, calls: tuple[PlannedCall, ...]):
+        scope = begin_library_tools(
+            persona_id="sara",
+            mode="character",
+            actor_user_id="user",
             history=[],
-            user_message="Och vinsten?",
+            user_message=message,
             enabled=True,
         )
-        async def take_result() -> None:
-            await nxt.enter()
-            assert "Omsättning 12" in nxt.pending_result
-            await nxt.finish(deliver=False)
+        scope.turn_id = f"owner-{message}"
+        await scope.enter()
+        answer = await complete_tool_episode(scope, (*calls, *calls))
+        await scope.finish()
+        return answer
 
-        waiting = asyncio.create_task(take_result())
-        for _ in range(20):
-            if thread.busy >= 1 and not waiting.done():
-                break
-            await asyncio.sleep(0)
-        assert thread.busy >= 1
+    first = None
+    try:
+        first = asyncio.create_task(run_scope(
+            "Absolut, lilla plutten",
+            (PlannedCall("same-call-id", "lookup_company", {}),),
+        ))
+        await started.wait()
+        second = asyncio.create_task(run_scope("Bra, tack", ()))
+        assert await second == "Svar: Bra, tack"
         release.set()
-        await waiting
-        await wait_library_tool_tasks()
+        assert await first == "Svar: Absolut, lilla plutten"
     finally:
-        reset_library_tool_threads()
+        release.set()
+        if first is not None:
+            await asyncio.gather(first, return_exceptions=True)
+    assert len(ran) == 1
+    assert ran[0][0] == "owner-Absolut, lilla plutten"
+    assert composed == ["Bra, tack", "Absolut, lilla plutten"]
+    assert len(set(ran[0])) == 2
+
+
+@pytest.mark.asyncio
+async def test_executed_calls_remain_for_single_final_routing_record(monkeypatch):
+    scope = begin_library_tools(
+        persona_id="sara",
+        mode="character",
+        actor_user_id="user",
+        history=[],
+        user_message="Kolla bolaget",
+        enabled=True,
+    )
+    scope.reasoning_decision = SimpleNamespace(profile="standard")
+    scope.turn_started_at = 1.0
+    scope.tool_retrieval = SimpleNamespace()
+    call = PlannedCall("call-1", "lookup_company", {})
+    selected: list[list[str]] = []
+    route_events: list[object] = []
+
+    async def run_one(_call, _work):
+        return "result"
+
+    async def compose(*_args, **_kwargs):
+        from app.services.expert_tool_followup import emit_routing_event
+
+        emit_routing_event("followup")
+        return "Answer", None
+
+    monkeypatch.setattr("app.services.expert_async_tools._run_one", run_one)
+    monkeypatch.setattr("app.services.expert_tool_followup.compose_tool_episode", compose)
+    monkeypatch.setattr(
+        "app.services.expert_reasoning_turn.log_tool_choice",
+        lambda _record, names: selected.append(names),
+    )
+    monkeypatch.setattr(
+        "app.services.expert_reasoning_turn.emit_routing_event",
+        lambda *args: route_events.append(args),
+    )
+    monkeypatch.setattr(
+        "app.services.expert_tool_followup.emit_routing_event",
+        lambda *args: route_events.append(args),
+    )
+    await scope.enter()
+    try:
+        assert await complete_tool_episode(scope, (call,)) == "Answer"
+        assert scope._calls == [call]
+        assert scope.has_deferred_calls
+        await scope.finish()
+        from app.services.expert_reasoning_turn import emit_final_routing
+
+        emit_final_routing(scope)
+    finally:
+        await scope.finish()
+    assert selected == [["lookup_company"]]
+    assert route_events == [("followup",)]
 
 
 def test_reasoning_is_replayed_for_the_model_and_hidden_from_the_client():
@@ -459,7 +679,7 @@ def test_only_a_higher_profile_reports_back() -> None:
 
 
 @pytest.mark.asyncio
-async def test_deeper_followup_is_rewritten_by_the_main_profile(monkeypatch):
+async def test_deeper_followup_keeps_expert_personality_in_the_main_profile(monkeypatch):
     class Session:
         async def __aenter__(self):
             return self
@@ -494,15 +714,13 @@ async def test_deeper_followup_is_rewritten_by_the_main_profile(monkeypatch):
 
     async def complete(messages, **_kwargs):
         seen["profile"] = current_expert_profile()
-        seen["material"] = messages[0]["content"]
+        seen["messages"] = messages
         return "Huvudmodellen säger så här."
 
     monkeypatch.setattr("app.services.expert_tool_followup._prompts", prompts)
     monkeypatch.setattr("app.services.expert_tool_followup._maybe_escalate", escalate)
-    monkeypatch.setattr("app.services.expert_tool_followup.continue_expert_episode", episode)
     monkeypatch.setattr("app.services.expert_tool_followup.complete_text", complete)
-    text, reasoning = await _compose_followup(
-        ToolWork(
+    work = ToolWork(
             persona_id="e",
             mode="interview",
             actor_user_id=None,
@@ -510,76 +728,28 @@ async def test_deeper_followup_is_rewritten_by_the_main_profile(monkeypatch):
             user_message="Vad gäller klausulen?",
             calls=(PlannedCall("c", "read_source", {}),),
             reasoning_profile="fast",
-        ),
+            episode=ExpertEpisode(
+                messages=(
+                    {"role": "system", "content": "Sara är varm och nyfiken."},
+                    {"role": "user", "content": "Vad gäller klausulen?"},
+                ),
+                specs=(),
+                prompt_key="chat.mode.interview",
+                reasoning_content=None,
+            ),
+        )
+    text, reasoning = await compose_tool_episode(
+        work,
         "utdrag",
         ("utdrag",),
+        continue_episode=episode,
+        run_call=lambda *_args: None,
+        publish=lambda _calls: None,
     )
     assert text == "Huvudmodellen säger så här."
     assert reasoning is None
     assert seen["profile"] == "fast"
-    assert "Djupet publicerar det här." in str(seen["material"])
+    transcript = seen["messages"]
+    assert transcript[0] == {"role": "system", "content": "Sara är varm och nyfiken."}
+    assert any("Djupet publicerar det här." in str(message["content"]) for message in transcript)
     assert "publicerar" not in text
-
-
-@pytest.mark.asyncio
-async def test_failed_tool_after_a_spoken_reply_does_not_add_another(monkeypatch):
-    woken: list[str] = []
-
-    async def fail(_call, _work):
-        raise ValueError("Ingen annan expert har kompetens att besvara frågan.")
-
-    async def wake(_thread, _work, blob, _results):
-        woken.append(blob)
-
-    monkeypatch.setattr("app.services.expert_async_tools._run_one", fail)
-    monkeypatch.setattr("app.services.expert_tool_followup._wake", wake)
-    scope = begin_library_tools(
-        persona_id="e-spoken",
-        mode="character",
-        actor_user_id=None,
-        history=[],
-        user_message="Har du idag?",
-        enabled=True,
-    )
-    try:
-        await scope.enter()
-        scope.model_spoke = True
-        scope.defer((PlannedCall("c", "ask_expert", {"question": "Har du idag?"}),))
-        await scope.finish(deliver=True)
-        await wait_library_tool_tasks()
-        assert woken == []
-        thread = _threads[("e-spoken", "character")]
-        assert thread.pending == []
-        assert thread.waking is False
-    finally:
-        reset_library_tool_threads()
-
-
-@pytest.mark.asyncio
-async def test_failed_tool_without_a_spoken_reply_still_wakes(monkeypatch):
-    woken: list[str] = []
-
-    async def fail(_call, _work):
-        raise ValueError("Ingen annan expert har kompetens att besvara frågan.")
-
-    async def wake(_thread, _work, blob, _results):
-        woken.append(blob)
-
-    monkeypatch.setattr("app.services.expert_async_tools._run_one", fail)
-    monkeypatch.setattr("app.services.expert_tool_followup._wake", wake)
-    scope = begin_library_tools(
-        persona_id="e-ack",
-        mode="character",
-        actor_user_id=None,
-        history=[],
-        user_message="Har du idag?",
-        enabled=True,
-    )
-    try:
-        await scope.enter()
-        scope.defer((PlannedCall("c", "ask_expert", {"question": "Har du idag?"}),))
-        await scope.finish(deliver=True)
-        await wait_library_tool_tasks()
-        assert woken == ["ask_expert\nIngen annan expert har kompetens att besvara frågan."]
-    finally:
-        reset_library_tool_threads()
