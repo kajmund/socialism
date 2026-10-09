@@ -364,7 +364,8 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             enabled=with_tools,
             workspace=None if workspace_id is None or stored_state is None else (workspace_id, stored_state),
         )
-        saved_reply, scope.customer_id = False, persona.customer_id
+        scope.turn_id = sme_expert_turn_request_id or scope.turn_id
+        scope.customer_id = persona.customer_id
         try:
             if with_tools:
                 await scope.enter()
@@ -453,14 +454,13 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             )
             messages = [serialize_persona_message(row) for row in all_rows.scalars().all()]
             await session.commit()
-            saved_reply = True
             response = PersonaChatResponse(
                 reply=reply,
                 messages=messages,
                 saved_memories=[],
             )
         finally:
-            await scope.finish(deliver=saved_reply)
+            await scope.finish()
         expert_reasoning_turn.emit_final_routing(scope)
         yield response
 

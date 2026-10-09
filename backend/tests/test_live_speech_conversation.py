@@ -18,7 +18,6 @@ from app.services.live_speech_progress import (
 )
 from app.services import live_speech_phrases
 from app.schemas.workspace import WorkspaceState
-from app.services.live_speech_followup import published_assistant_reply
 from app.services.live_speech_runtime import LiveSpeechRuntime, LiveSpeechScope
 
 
@@ -412,10 +411,10 @@ async def test_progress_talk_covers_running_tool_and_mid_series_partial(
     assert any(event.get("type") == "assistant.waiting" for event in events)
 
 
-async def test_deferred_tools_emit_progress_without_persisting(
+async def test_tool_calls_emit_progress_without_persisting(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.services.expert_async_tools import PlannedCall, ToolWork, run_deferred_calls
+    from app.services.expert_async_tools import PlannedCall, ToolWork, run_tool_calls
 
     seen: list[ToolProgress] = []
 
@@ -438,7 +437,7 @@ async def test_deferred_tools_emit_progress_without_persisting(
         ),
     )
     with bind_tool_progress(handler):
-        blob, results = await run_deferred_calls(work)
+        blob, results = await run_tool_calls(work)
     assert [event.kind for event in seen] == ["started", "partial", "started", "partial"]
     assert seen[0].remaining == 2
     assert seen[1].remaining == 1
@@ -449,7 +448,7 @@ async def test_deferred_tools_emit_progress_without_persisting(
     assert results == ("resultat read_source", "resultat search")
 
 
-async def test_published_followup_is_spoken_after_the_ack() -> None:
+async def test_published_chat_followup_does_not_create_a_second_speech_reply() -> None:
     events: list[dict] = []
     runtime = _runtime(events)
     spoken: list[str] = []
@@ -470,13 +469,7 @@ async def test_published_followup_is_spoken_after_the_ack() -> None:
     }
     await runtime._on_library_event(payload)
     await runtime._on_library_event(payload)
-    assert spoken == ["Omsättningen är tolv."]
-    assert published_assistant_reply(
-        payload,
-        expert_id="expert",
-        assistant_text="Omsättningen är tolv.",
-        voiced="",
-    ) is None
+    assert spoken == []
 
 
 async def test_opening_uses_recent_turns_and_is_not_an_expert_turn(

@@ -29,9 +29,11 @@ class _Jev:
     def __init__(self, scores: dict[str, float]) -> None:
         self.scores = scores
         self.questions: dict | None = None
+        self.state: dict | None = None
 
     async def ask(self, *, state, questions, model, timeout_seconds):
         self.questions = questions
+        self.state = state
         return JevSystemOneResult(
             answers={key: {"noul": self.scores[key]} for key in questions},
             model=model,
@@ -108,6 +110,27 @@ async def test_scores_are_advisory_and_ordered(monkeypatch):
     assert record.fallback is False
     assert record.require_tool is True
     assert record.ranking[0] == "search_knowledge"
+
+
+@pytest.mark.asyncio
+async def test_document_scores_use_the_current_request_not_available_files(monkeypatch):
+    monkeypatch.setattr(settings, "document_tool_relevance_floor", 0.2)
+    monkeypatch.setattr(settings, "document_tool_relevance_top_k", 8)
+    monkeypatch.setattr(settings, "document_tool_relevance_gap", 0.55)
+    monkeypatch.setattr(settings, "document_tool_relevance_complement_floor", 0.45)
+    specs = [_spec("show_document"), _spec("read_source"), _spec("search_knowledge")]
+    jev = _Jev({name: 0.9 for name in ("show_document", "read_source", "search_knowledge")})
+    _exposed, record = await expose_workspace_tools(
+        prompts=default_prompts("sv"),
+        specs=specs,
+        message="Bra, tack",
+        workspace_state={"documents": [{"source_id": "contract", "filename": "Avtal.pdf"}]},
+        jev=jev,
+    )
+    assert record.require_tool is True
+    assert jev.state is not None
+    assert "workspace_state" not in jev.state
+    assert "Avtal.pdf" not in str(jev.state), (jev.state, jev.questions)
 
 
 @pytest.mark.asyncio

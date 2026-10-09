@@ -147,7 +147,6 @@ async def expose_workspace_tools(
             prompts,
             filtered,
             message=message,
-            workspace_state=workspace_state,
             tool_result=tool_result,
             jev=jev,
         )
@@ -233,14 +232,13 @@ async def _score(
     specs: list[dict],
     *,
     message: str,
-    workspace_state: WorkspaceState | dict[str, Any] | None,
     tool_result: str | None,
     jev: JevSystemOne | None,
 ) -> dict[str, float]:
     questions = _score_questions(prompts, specs)
     state = build_turn_state(
         message,
-        workspace_state=workspace_state,
+        workspace_state=None,
         tool_names=list(questions),
         tool_result=tool_result,
     )
