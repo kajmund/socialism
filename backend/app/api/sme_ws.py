@@ -278,8 +278,11 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
             await emit({"type": "error", "detail": exc.detail, **envelope})
         except Exception as exc:
             logger.exception("SME expert chat turn failed")
-            detail = f"{type(exc).__name__}: {exc}"[:500]
-            await _fail_expert_turn(send.request_id, fence, detail)
+            await _fail_expert_turn(
+                send.request_id,
+                fence,
+                detail := f"{type(exc).__name__}: {exc}"[:500],
+            )
             await emit({"type": "error", "detail": detail, **envelope})
         finally:
             await emit({"type": "typing", "on": False, **envelope})

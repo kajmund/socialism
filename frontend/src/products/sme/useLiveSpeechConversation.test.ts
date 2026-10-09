@@ -1,5 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+vi.mock("@/lib/env", () => ({
+  env: {
+    apiBaseUrl: "http://api.test",
+    wsBaseUrl: "ws://api.test",
+    supabaseUrl: "http://supabase.test",
+    supabaseAnonKey: "anon",
+    isDev: false,
+  },
+}))
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
