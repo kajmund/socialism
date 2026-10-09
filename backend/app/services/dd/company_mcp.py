@@ -33,6 +33,7 @@ from app.services.expert_session_tools import (
 )
 from app.services.expert_tools import filter_openai_tools
 from app.services.help_chat import looks_like_leaked_tool_markup
+from app.services.leaked_tool_text import strip_wake_tool_text, wake_tool_calls
 from app.services.oasis_agent_tools import (
     SEARCH_TOOL_NAMES,
     run_search_tool,
@@ -279,13 +280,15 @@ def tool_calls_from_leaked_markup(text: str) -> list[Any]:
             and any(str(value).strip() for value in raw_args.values())
         ):
             calls.append(_fake_tool_call(len(calls) + 1, name, raw_args))
+    for _start, _end, name, args in wake_tool_calls(text):
+        calls.append(_fake_tool_call(len(calls) + 1, name, args))
     return calls
 
 
 def visible_assistant_text(message: dict[str, Any]) -> str:
     if message.get("role") != "assistant":
         return ""
-    content = str(message.get("content") or "").strip()
+    content = strip_wake_tool_text(str(message.get("content") or "")).strip()
     if not content or looks_like_leaked_tool_markup(content):
         return ""
     return content

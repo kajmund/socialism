@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.database.base import Base
 from app.database.models import Persona, PersonaMessage
-from app.llm import set_text_completer, set_tools_completer
+from app.llm import set_tools_completer
 from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.schemas.domain import PersonaChatResponse
 from app.services.expert_async_tools import (
@@ -22,10 +22,61 @@ from app.services.expert_async_tools import (
     reset_library_tool_threads,
     wait_library_tool_tasks,
 )
-from app.services.expert_tool_followup import _compose_followup
+from app.services.expert_reasoning_episode import (
+    ExpertEpisode,
+    continue_expert_episode,
+    history_message,
+    wait_model_traces,
+)
+from app.services.expert_tool_followup import _compose_followup, _maybe_escalate
+from app.services.persona_chat import _history_triples, serialize_persona_message
 from app.services.jobs import set_job_session_factory
 from app.services.persona_chat import stream_library_chat_turn
 from app.services.prompt_store import ensure_default_configurations
+
+
+def _trace_capture(traced: list[dict]):
+    async def capture(event: dict) -> None:
+        if event.get("type") == "model_trace":
+            traced.append(event)
+
+    return capture
+
+
+def _assert_model_trace(traced: list[dict]) -> None:
+    assert [event["kind"] for event in traced] == [
+        "message", "tool_call", "tool_result", "message",
+    ]
+    assert traced[0]["text"] == "Jag kollar upp det."
+    assert traced[1]["name"] == "lookup_company"
+    assert "Omsättning 12" in traced[2]["text"]
+    assert traced[3]["text"] == "Omsättningen är 12."
+    assert all("reasoning_content" not in event for event in traced)
+
+
+def _company_tool(factory, release: asyncio.Event, probed: asyncio.Event):
+    async def company_tool(_name, _arguments):
+        await release.wait()
+        async with factory() as probe:
+            assert await probe.scalar(select(Persona.id)) == "e-lookup"
+        probed.set()
+        return "Omsättning 12"
+
+    return company_tool
+
+
+def _scripted_tools(seen: list[list[dict]]):
+    async def tools(messages, _specs=None):
+        seen.append(messages)
+        if any(message.get("role") == "tool" for message in messages):
+            return SimpleNamespace(content="Omsättningen är 12.", tool_calls=None, reasoning_content="after")
+        return SimpleNamespace(
+            content="Jag kollar upp det.",
+            tool_calls=[_tool_call("lookup_company", '{"orgnr":"5567037485"}')],
+            reasoning_content="before",
+        )
+
+    return tools
 
 
 def _tool_call(name: str, arguments: str) -> SimpleNamespace:
@@ -46,33 +97,20 @@ async def test_ack_returns_before_tool_and_idle_expert_writes_the_result(tmp_pat
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     release = asyncio.Event()
     probed = asyncio.Event()
-    composed: list[str] = []
-
-    async def company_tool(_name, _arguments):
-        await release.wait()
-        async with factory() as probe:
-            assert await probe.scalar(select(Persona.id)) == "e-lookup"
-        probed.set()
-        return "Omsättning 12"
-
-    async def tools(_messages, _specs=None):
-        return SimpleNamespace(
-            content="Jag kollar upp det.",
-            tool_calls=[_tool_call("lookup_company", '{"orgnr":"5567037485"}')],
-        )
-
-    async def weave(messages, *, model=None):
-        composed.append(str(messages[-1]["content"]))
-        return "Omsättningen är 12."
-
-    monkeypatch.setattr("app.services.expert_async_tools.run_company_tool", company_tool)
+    seen: list[list[dict]] = []
+    traced: list[dict] = []
+    capture = _trace_capture(traced)
+    monkeypatch.setattr(
+        "app.services.expert_async_tools.run_company_tool",
+        _company_tool(factory, release, probed),
+    )
     monkeypatch.setattr(
         "app.services.persona_chat.schedule_expert_memory_update",
         lambda *args, **kwargs: None,
     )
     set_job_session_factory(factory)
-    set_tools_completer(tools)
-    set_text_completer(weave)
+    set_tools_completer(_scripted_tools(seen))
+    await library_chat_broadcast.subscribe_customer(1, capture)
     try:
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
@@ -105,9 +143,13 @@ async def test_ack_returns_before_tool_and_idle_expert_writes_the_result(tmp_pat
                     reply = item.reply
                     release.set()
                     await wait_library_tool_tasks()
+                    await wait_model_traces()
         assert reply == "Jag kollar upp det."
         assert probed.is_set()
-        assert any("Omsättning 12" in text for text in composed)
+        continued = seen[-1]
+        assert continued[-1]["role"] == "tool"
+        assert "Omsättning 12" in continued[-1]["content"]
+        assert continued[-2]["reasoning_content"] == "before"
         async with factory() as session:
             rows = list(
                 (
@@ -123,9 +165,11 @@ async def test_ack_returns_before_tool_and_idle_expert_writes_the_result(tmp_pat
             "Jag kollar upp det.",
             "Omsättningen är 12.",
         ]
+        assert [row.reasoning_content for row in rows] == [None, "before", "after"]
+        _assert_model_trace(traced)
     finally:
+        await library_chat_broadcast.unsubscribe(capture)
         set_tools_completer(None)
-        set_text_completer(None)
         set_job_session_factory(None)
         reset_library_tool_threads()
         await engine.dispose()
@@ -145,15 +189,20 @@ async def test_workspace_followup_opens_the_named_document(tmp_path):
     async def capture(event: dict) -> None:
         events.append(event)
 
+    calls = {"n": 0}
+
     async def tools(messages, specs=None):
         names = [spec["function"]["name"] for spec in (specs or [])]
-        assert "show_document" in names
-        assert "search_knowledge" not in names
-        assert "Fråga aldrig om lov" in messages[-1]["content"]
-        return SimpleNamespace(
-            content="Avtalet är öppet.",
-            tool_calls=[_tool_call("show_document", '{"source_id":"avtal"}')],
-        )
+        assert names == ["show_document"]
+        calls["n"] += 1
+        if calls["n"] == 1:
+            assert messages[-1]["role"] == "tool"
+            assert "avtal" in messages[-1]["content"]
+            return SimpleNamespace(
+                content="Avtalet är öppet.",
+                tool_calls=[_tool_call("show_document", '{"source_id":"avtal"}')],
+            )
+        return SimpleNamespace(content="Avtalet är öppet.", tool_calls=None)
 
     set_job_session_factory(factory)
     set_tools_completer(tools)
@@ -176,18 +225,39 @@ async def test_workspace_followup_opens_the_named_document(tmp_path):
                 )
             )
             await session.commit()
-        text = await _compose_followup(
+        result = '{"items":[{"source_id":"avtal","filename":"Avtal.pdf"}]}'
+        show_document = {"type": "function", "function": {"name": "show_document", "parameters": {}}}
+        text, _reasoning = await _compose_followup(
             ToolWork(
                 persona_id="e-open",
                 mode="interview",
                 actor_user_id=None,
                 history=[],
                 user_message="öppna avtalet med ateles som kund",
-                calls=(),
+                calls=(PlannedCall("call_search", "search_knowledge", {}),),
                 workspace_id="canvas",
                 workspace_state={"documents": []},
+                episode=ExpertEpisode(
+                    messages=(
+                        {"role": "user", "content": "öppna avtalet med ateles som kund"},
+                        {
+                            "role": "assistant",
+                            "content": "",
+                            "reasoning_content": "find the file",
+                            "tool_calls": [{
+                                "id": "call_search",
+                                "type": "function",
+                                "function": {"name": "search_knowledge", "arguments": "{}"},
+                            }],
+                        },
+                    ),
+                    specs=(show_document,),
+                    prompt_key="chat.mode.interview",
+                    reasoning_content="find the file",
+                ),
             ),
-            '{"items":[{"source_id":"avtal","filename":"Avtal.pdf"}]}',
+            result,
+            (result,),
         )
         assert text == "Avtalet är öppet."
         assert events == [{
@@ -252,3 +322,117 @@ async def test_next_turn_weaves_the_result_instead_of_a_separate_wake(monkeypatc
         await wait_library_tool_tasks()
     finally:
         reset_library_tool_threads()
+
+
+def test_reasoning_is_replayed_for_the_model_and_hidden_from_the_client():
+    row = PersonaMessage(
+        id=1,
+        persona_id="e",
+        mode="interview",
+        role="assistant",
+        content="Hej",
+        reasoning_content="plan",
+    )
+    role, content, image, reasoning = _history_triples([row])[0]
+    assert history_message(role, content, image, reasoning)["reasoning_content"] == "plan"
+    assert "reasoning_content" not in serialize_persona_message(row).model_dump()
+
+
+@pytest.mark.asyncio
+async def test_deep_episode_does_not_reassess(monkeypatch):
+    async def assess(**_kwargs):
+        raise AssertionError("Jev ran inside a deep episode")
+
+    monkeypatch.setattr("app.services.expert_tool_followup.assess_expert_reasoning", assess)
+    profile, _decision, reason = await _maybe_escalate(
+        ToolWork(
+            persona_id="e",
+            mode="interview",
+            actor_user_id=None,
+            history=[],
+            user_message="markera alla",
+            calls=(PlannedCall("c", "lookup_company", {}),),
+            reasoning_profile="deep",
+        ),
+        {},
+        "result",
+    )
+    assert profile == "deep"
+    assert reason is None
+
+
+@pytest.mark.asyncio
+async def test_balanced_episode_can_still_escalate(monkeypatch):
+    async def assess(**_kwargs):
+        return SimpleNamespace(profile="deep", reason="set_operation")
+
+    monkeypatch.setattr("app.services.expert_tool_followup.assess_expert_reasoning", assess)
+    profile, _decision, reason = await _maybe_escalate(
+        ToolWork(
+            persona_id="e",
+            mode="interview",
+            actor_user_id=None,
+            history=[],
+            user_message="markera alla",
+            calls=(PlannedCall("c", "lookup_company", {}),),
+            reasoning_profile="balanced",
+        ),
+        {},
+        "result",
+    )
+    assert profile == "deep"
+    assert reason == "set_operation"
+
+
+@pytest.mark.asyncio
+async def test_tool_error_stays_in_the_episode():
+    seen: list[dict] = []
+
+    async def tools(messages, _specs=None):
+        seen.append(messages[-1])
+        return SimpleNamespace(content="Inte alla.", tool_calls=None, reasoning_content="checked")
+
+    async def unused_call(_call, _work):
+        raise AssertionError("result was already recorded")
+
+    async def unused_publish(_calls):
+        raise AssertionError("no new client call")
+
+    set_tools_completer(tools)
+    try:
+        text, reasoning = await continue_expert_episode(
+            ToolWork(
+                persona_id="e",
+                mode="interview",
+                actor_user_id=None,
+                history=[],
+                user_message="markera alla",
+                calls=(PlannedCall("c1", "lookup_company", {}),),
+                episode=ExpertEpisode(
+                    messages=(
+                        {"role": "user", "content": "markera alla"},
+                        {
+                            "role": "assistant",
+                            "content": "",
+                            "reasoning_content": "plan",
+                            "tool_calls": [{
+                                "id": "c1",
+                                "type": "function",
+                                "function": {"name": "lookup_company", "arguments": "{}"},
+                            }],
+                        },
+                    ),
+                    specs=(),
+                    prompt_key=None,
+                    reasoning_content="plan",
+                ),
+            ),
+            ("boom",),
+            run_call=unused_call,
+            publish=unused_publish,
+        )
+    finally:
+        set_tools_completer(None)
+    assert text == "Inte alla."
+    assert reasoning == "checked"
+    assert seen[-1]["content"] == "boom"

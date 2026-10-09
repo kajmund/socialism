@@ -48,6 +48,43 @@ export function encodePcm16Base64(
   return btoa(binary)
 }
 
+export function encodePcm16(
+  source: Float32Array,
+  sourceSampleRate: number,
+  targetSampleRate = 24_000,
+): ArrayBuffer {
+  const outputLength = Math.max(
+    1,
+    Math.round(source.length * targetSampleRate / sourceSampleRate),
+  )
+  const bytes = new Uint8Array(outputLength * 2)
+  const view = new DataView(bytes.buffer)
+  const ratio = sourceSampleRate / targetSampleRate
+  for (let index = 0; index < outputLength; index += 1) {
+    const position = index * ratio
+    const left = Math.min(Math.floor(position), source.length - 1)
+    const right = Math.min(left + 1, source.length - 1)
+    const sample = source[left] + (source[right] - source[left]) * (position - left)
+    const clamped = Math.max(-1, Math.min(1, sample))
+    view.setInt16(
+      index * 2,
+      clamped < 0 ? Math.round(clamped * 0x8000) : Math.round(clamped * 0x7fff),
+      true,
+    )
+  }
+  return bytes.buffer
+}
+
+export function decodePcm16(data: ArrayBuffer): Float32Array {
+  const view = new DataView(data)
+  const samples = new Float32Array(Math.floor(data.byteLength / 2))
+  for (let index = 0; index < samples.length; index += 1) {
+    const value = view.getInt16(index * 2, true)
+    samples[index] = value < 0 ? value / 0x8000 : value / 0x7fff
+  }
+  return samples
+}
+
 export function decodePcm16Base64(data: string): Float32Array {
   const binary = atob(data)
   const bytes = new Uint8Array(binary.length)

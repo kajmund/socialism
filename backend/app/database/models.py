@@ -350,8 +350,8 @@ class PersonaMessage(Base):
     mode: Mapped[str] = mapped_column(String(32), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    # SHA256 of an attached image in the image cache (vision chat turns).
     image_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reasoning_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -371,9 +371,8 @@ class PersonaMessage(Base):
         index=True,
     )
     voice_turn_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    interrupted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     __table_args__ = (UniqueConstraint("persona_id", "voice_turn_id", "role", name="uq_vturn"),)
-
-
 class SmePanelMessage(Base):
     """One message in a customer-scoped SME expert-panel thread."""
 

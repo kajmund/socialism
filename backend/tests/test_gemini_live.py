@@ -81,6 +81,16 @@ async def test_expert_saves_provider_and_voice(client: AsyncClient):
         json={"live_voice_provider": "gemini", "live_voice": "not-a-voice"},
     )
     assert rejected.status_code == 422
+    socialism = await client.put(
+        f"/personas/{expert['id']}",
+        json={
+            "live_voice_provider": "socialism",
+            "live_voice": "elevenlabs-voice",
+        },
+    )
+    assert socialism.status_code == 200, socialism.text
+    assert socialism.json()["live_voice_provider"] == "socialism"
+    assert socialism.json()["live_voice"] == "elevenlabs-voice"
 
 
 @pytest.mark.asyncio

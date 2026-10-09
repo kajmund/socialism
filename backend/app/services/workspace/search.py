@@ -124,9 +124,14 @@ async def _fresh_workspace(session: AsyncSession, workspace_id: str, actor_id: s
     return await require_workspace(session, workspace_id, actor)
 
 
-async def search_workspace(session: AsyncSession, workspace: VoiceWorkspace, query: str, limit: int) -> dict:
+async def search_workspace(
+    session: AsyncSession, workspace: VoiceWorkspace, query: str, limit: int, *, source_id: str | None = None,
+) -> dict:
     workspace_id, actor_id = workspace.id, workspace.owner_user_id
     members = list((await session.scalars(select(WorkspaceSource).where(WorkspaceSource.workspace_id == workspace.id))).all())
+    if source_id is not None and source_id not in {member.source_id for member in members}:
+        raise HTTPException(status_code=404, detail="workspace_source_not_found")
+    members = [member for member in members if source_id is None or member.source_id == source_id]
     sources = [await require_source(session, workspace, member.source_id) for member in members]
     readable = [await _materialize(session, source) for source in sources if source.knowledge_status in {"ready", "partial"} and source.extracted_text]
     gaps = [{"source_id": source.id, "status": source.knowledge_status, "detail": source.knowledge_error}

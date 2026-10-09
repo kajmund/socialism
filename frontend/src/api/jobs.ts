@@ -11,6 +11,7 @@ export type JobKind =
   | "expertgranskning_word_review"
   | "expert_chat_research"
   | "document_ingest"
+  | "workspace_generation"
 export type JobStatus = "pending" | "running" | "succeeded" | "failed"
 
 export type PopulationGenerateJobRequest = {
@@ -51,6 +52,7 @@ export type Job = {
     html_path?: string
     sources?: number
     dry_run?: boolean
+    artifact_id?: string
   } | null
   error: string | null
   created_at: string

@@ -204,3 +204,52 @@ async def test_generation_releases_single_connection_while_llm_pending(client_db
         release.set()
         await task
         await engine.dispose()
+
+
+def test_document_generation_prompt_uses_conversation_as_basis():
+    from app.services.prompt_catalog import PROMPT_FIELDS
+    field = next(row for row in PROMPT_FIELDS if row["key"] == "workspace.generate.document.system")
+    assert "conversation_brief" in field["defaults"]["sv"]
+    assert "metadokument" in field["defaults"]["sv"]
+    assert "Use only supplied evidence snapshots for facts" not in field["defaults"]["en"]
+
+
+@pytest.mark.asyncio
+async def test_create_document_stores_recent_conversation(client_db):
+    from app.database.models import Persona, PersonaMessage
+
+    client, factory = client_db
+    jobs.set_schedule_hook(lambda _job_id: None)
+    try:
+        workspace = (await client.post(
+            "/voice-workspaces?customer_id=1",
+            json={"title": "Koncern", "module": "dd", "idempotency_key": str(uuid4())},
+        )).json()
+        expert_id = str(uuid4())
+        async with factory() as session:
+            session.add(Persona(
+                id=expert_id, customer_id=1, kind="expert", name="Klas", occ="Revisor", district="Linköping",
+            ))
+            session.add(PersonaMessage(
+                persona_id=expert_id, mode="interview", role="user", content="Crowd Collective Linköping",
+            ))
+            session.add(PersonaMessage(
+                persona_id=expert_id, mode="interview", role="assistant",
+                content="45,7 MSEK omsättning, 27 anställda",
+            ))
+            canvas = await session.get(VoiceWorkspace, workspace["id"])
+            canvas.state = {**canvas.state, "expert_id": expert_id}
+            await session.commit()
+        result = await client.post(
+            f"/voice-workspaces/{workspace['id']}/tools/create_document",
+            json={"idempotency_key": "crowd-draft", "arguments": {"title": "Koncern", "instructions": "Helhetsbild"}},
+        )
+        assert result.status_code == 200, result.text
+        async with factory() as session:
+            job = await session.get(Job, result.json()["job_id"])
+            assert job.request["arguments"]["conversation_brief"] == [
+                {"role": "user", "content": "Crowd Collective Linköping"},
+                {"role": "assistant", "content": "45,7 MSEK omsättning, 27 anställda"},
+            ]
+    finally:
+        jobs.set_schedule_hook(None)

@@ -23,6 +23,7 @@ def workspace_turn_text(prompts: dict[str, str], state: WorkspaceState) -> str:
         "active_artifact_id": state.active_artifact_id,
         "documents": [row.model_dump() for row in state.documents],
         "selection": selection,
+        "document_mentions": [row.model_dump() for row in state.document_mentions],
     }
     return render_prompt(
         prompts,

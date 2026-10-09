@@ -1,7 +1,7 @@
 import { ApiError } from "@/lib/http"
 import { describe, expect, it } from "vitest"
 import type { WorkspaceMessage, WorkspaceState } from "@/api/voiceWorkspaces"
-import { clientArguments, clientToolFailure, commitWorkspaceState, expertProxyToolNames, interviewTranscriptMessage, isCurrentConversation, isWorkspaceSourceReread, mergeTranscript, openWorkspaceDocument, sameArtifactContent, sameWorkspaceState, upsertTranscript, workspaceSessionTool, workspaceThreadKey, workspaceErrorMessage } from "./workspaceChatLogic"
+import { artifactPresentationKey, clientArguments, clientToolFailure, commitWorkspaceState, expertProxyToolNames, interviewTranscriptMessage, isCurrentConversation, isWorkspaceSourceReread, mergeTranscript, openWorkspaceDocument, sameArtifactContent, sameWorkspaceState, takeReadyGenerationArtifact, upsertTranscript, workspaceGenerationDraft, workspaceSessionTool, workspaceThreadKey, workspaceErrorMessage } from "./workspaceChatLogic"
 const state: WorkspaceState = { language: "sv", knowledge_scope: "workspace", view: "relations", documents: [{ source_id: "first", page: 3, zoom: 1.5 }, { source_id: "second", page: 7, zoom: 0.8 }], split_source_ids: ["first", "second"], research_attempt_ids: [], selection: { node_id: "event" } }
 const message: WorkspaceMessage = { id: 10, role: "agent", content: "The complete response", session_id: "session-a", event_key: "agent:4", created_at: "2026-10-04T12:00:00Z" }
 describe("workspace conversation state", () => {
@@ -111,5 +111,56 @@ describe("workspace conversation state", () => {
     expect(clientArguments({ arguments_json: '{"reference_id":"ref-a"}' })).toEqual({ reference_id: "ref-a" })
     expect(() => clientArguments({ arguments_json: "[]" })).toThrow()
     expect(() => clientArguments({ arguments_json: "{" })).toThrow()
+  })
+  it("signals a ready document artifact once the documents view is showing it", () => {
+    const artifact = { id: "draft-a", kind: "document", status: "ready", revision: 1 }
+    expect(artifactPresentationKey(artifact, "documents")).toBe("artifact:draft-a:1")
+    expect(artifactPresentationKey(artifact, "comparison")).toBeNull()
+    expect(artifactPresentationKey({ ...artifact, status: "running" }, "documents")).toBeNull()
+  })
+  it("reads the generated draft from a succeeded workspace job", () => {
+    expect(workspaceGenerationDraft({
+      kind: "workspace_generation",
+      status: "succeeded",
+      request: { artifact_id: "draft-a", voice_workspace_id: "canvas-a" },
+      result: { artifact_id: "draft-a" },
+    })).toEqual({ artifactId: "draft-a", workspaceId: "canvas-a" })
+    expect(workspaceGenerationDraft({
+      kind: "workspace_generation",
+      status: "running",
+      request: { artifact_id: "draft-a", voice_workspace_id: "canvas-a" },
+      result: null,
+    })).toBeNull()
+  })
+  it("opens a generation draft only after the job succeeds and the artifact is ready", () => {
+    const job = {
+      id: "job-a",
+      kind: "workspace_generation",
+      status: "running",
+      request: { artifact_id: "draft-a", voice_workspace_id: "canvas-a" },
+      result: null,
+    }
+    const previousStatus = new Map<string, string>()
+    const pending = new Set<string>()
+    const opened = new Set<string>()
+    expect(takeReadyGenerationArtifact({
+      jobs: [job], artifacts: [{ id: "draft-a", status: "running" }], workspaceId: "canvas-a",
+      previousStatus, pending, opened,
+    })).toBeNull()
+    expect(takeReadyGenerationArtifact({
+      jobs: [{ ...job, status: "succeeded", result: { artifact_id: "draft-a" } }],
+      artifacts: [{ id: "draft-a", status: "running" }], workspaceId: "canvas-a",
+      previousStatus, pending, opened,
+    })).toBeNull()
+    expect(takeReadyGenerationArtifact({
+      jobs: [{ ...job, status: "succeeded", result: { artifact_id: "draft-a" } }],
+      artifacts: [{ id: "draft-a", status: "ready" }], workspaceId: "canvas-a",
+      previousStatus, pending, opened,
+    })).toBe("draft-a")
+    expect(takeReadyGenerationArtifact({
+      jobs: [{ ...job, status: "succeeded", result: { artifact_id: "draft-a" } }],
+      artifacts: [{ id: "draft-a", status: "ready" }], workspaceId: "canvas-a",
+      previousStatus, pending, opened,
+    })).toBeNull()
   })
 })

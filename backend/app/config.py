@@ -2,36 +2,27 @@ import json
 import os
 from pathlib import Path
 from typing import Annotated, Literal, Self
-
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
-
 from app.database_url import normalize_database_url
-
+from app.live_speech_settings import LiveSpeechSettings
 EMBEDDING_MODEL_DIMENSIONS = {
     "text-embedding-3-large": 3072,
     "text-embedding-3-small": 1536,
     "text-embedding-ada-002": 1536,
 }
-
 _LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
-
 SimulationEngine = Literal["none", "oasis"]
 PersonaGenerator = Literal["deepseek", "stub"]
 LLMProvider = Literal["cerebras", "deepseek"]
-LiveVoiceProviderName = Literal["gemini", "elevenlabs"]
+LiveVoiceProviderName = Literal["gemini", "elevenlabs", "socialism"]
 # Cerebras: low|medium|high. DeepSeek: none|low|high|max (medium/xhigh map on API).
 LLMReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]
-
 CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
 CEREBRAS_DEFAULT_BASE_URL = "https://api.cerebras.ai/v1"
-
-
-class Settings(BaseSettings):
+class Settings(LiveSpeechSettings, BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
     database_url: str
-
     elevenlabs_llm: str = "gpt-4.1"
     elevenlabs_session_ttl_seconds: int = Field(default=3600, ge=300, le=14400)
 
@@ -65,12 +56,36 @@ class Settings(BaseSettings):
     jev_confidence_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
     jev_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
     jev_state_char_budget: int = Field(default=8000, ge=256, le=32_000)
+    expert_reasoning_route_enabled: bool = True
+    expert_reasoning_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
+    expert_reasoning_state_char_budget: int = Field(default=4000, ge=256, le=16_000)
+    expert_reasoning_deep_analysis: float = Field(default=0.9, ge=0.0, le=1.0)
+    expert_reasoning_deep_analysis_combined: float = Field(default=0.75, ge=0.0, le=1.0)
+    expert_reasoning_deep_multi_step: float = Field(default=0.75, ge=0.0, le=1.0)
+    expert_reasoning_deep_comparison: float = Field(default=0.8, ge=0.0, le=1.0)
+    expert_reasoning_deep_synthesis: float = Field(default=0.7, ge=0.0, le=1.0)
+    expert_reasoning_deep_conflict: float = Field(default=0.75, ge=0.0, le=1.0)
+    expert_reasoning_fast_simple: float = Field(default=0.85, ge=0.0, le=1.0)
+    expert_reasoning_fast_analysis_max: float = Field(default=0.3, ge=0.0, le=1.0)
+    expert_reasoning_fast_multi_step_max: float = Field(default=0.35, ge=0.0, le=1.0)
+    expert_reasoning_fast_other_max: float = Field(default=0.25, ge=0.0, le=1.0)
+    expert_reasoning_spawn_decomposable: float = Field(default=0.85, ge=0.0, le=1.0)
+    expert_reasoning_spawn_parallelizable: float = Field(default=0.85, ge=0.0, le=1.0)
+    expert_reasoning_spawn_max_tasks: int = Field(default=8, ge=1, le=32)
+    expert_reasoning_spawn_concurrency: int = Field(default=4, ge=1, le=16)
+    expert_reasoning_spawn_timeout_seconds: float = Field(default=60.0, gt=0, le=300)
+    document_tool_retrieval_enabled: bool = True
+    document_tool_retrieval_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
+    document_tool_retrieval_state_chars: int = Field(default=4000, ge=256, le=16_000)
+    document_tool_relevance_floor: float = Field(default=0.2, ge=0.0, le=1.0)
+    document_tool_relevance_top_k: int = Field(default=8, ge=1, le=40)
+    document_tool_relevance_gap: float = Field(default=0.55, ge=0.0, le=1.0)
+    document_tool_relevance_complement_floor: float = Field(default=0.45, ge=0.0, le=1.0)
+    document_tool_require_score: float = Field(default=0.40, ge=0.0, le=1.0)
     # Frozen EvidenceSet revalidation. False clear is worse than extra review.
     revalidation_impact_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
     revalidation_clear_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
-    # Document-understanding batches are bounded separately from the global LLM
-    # settings. They contain at most 20 short items and should never inherit a
-    # very large global completion budget.
+    # Document-understanding batches stay bounded and do not inherit the global completion budget.
     document_knowledge_llm_max_tokens: int = Field(default=8192, ge=512, le=32768)
     document_knowledge_llm_timeout_seconds: float = Field(default=180.0, gt=0, le=900)
     cerebras_api_key: str = ""
@@ -80,7 +95,6 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     # stub = weighted random (tests only); deepseek = call the selected chat LLM
     persona_generator: PersonaGenerator = "deepseek"
-
     # OpenAI embeddings for SSR and knowledge ingest (separate from chat LLM / CAMEL).
     openai_api_key: str = ""
     embedding_model: str = "text-embedding-3-large"
@@ -473,14 +487,11 @@ class Settings(BaseSettings):
         return Path(__file__).resolve().parents[2] / "knowledge" / "manual"
 
     def apply_oasis_env(self) -> None:
-        """Mirror DeepSeek into env vars CAMEL reads (overwrite — not embeddings key)."""
-        # Force DeepSeek for OASIS even when OPENAI_API_KEY is a real OpenAI key
-        # used by settings.openai_api_key / the SSR embeddings client.
+        """Mirror DeepSeek into env vars CAMEL reads, including when the embeddings key is set."""
         os.environ["OPENAI_API_KEY"] = self.deepseek_api_key
         os.environ["OPENAI_COMPATIBLE_API_KEY"] = self.deepseek_api_key
 
 
 settings = Settings()
-# Mem0 reads this directly during import. Mirror the typed setting here so the
-# SDK never owns application configuration or enables outbound telemetry.
+# Mem0 reads this at import. Mirror the typed setting so the SDK does not own configuration.
 os.environ["MEM0_TELEMETRY"] = "true" if settings.mem0_telemetry else "false"

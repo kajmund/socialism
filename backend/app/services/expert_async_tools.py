@@ -3,23 +3,21 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from collections.abc import Awaitable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database.models import Persona, PersonaMessage, UserAccount
+from app.database.models import Persona, PersonaMessage
 from app.llm import complete_text, complete_with_tools
+from app.llm.runtime_override import SelectionRole
 from app.llm.tool_messages import assistant_message_dict
 from app.schemas.domain import ChatMode
-from app.schemas.workspace import WorkspaceState
 from app.services.actor_profiles import ACTOR_TOOL_IDS, ActorProfileTools, actor_tool_specs
 from app.services.dd.company_mcp import (
     COMPANY_TOOL_NAMES,
@@ -37,8 +35,13 @@ from app.services.expert_session_tools import (
 )
 from app.services.expert_chat_evidence import evidence_tool_handler_for_chat
 from app.services.expert_chat_research_tool import research_tool_handler_for_chat
+from app.services.expert_reasoning import RoutingDecision
 from app.services.expert_tools import filter_openai_tools
-from app.services.jobs import enqueue_job, job_session_factory
+from app.services.jobs import job_session_factory
+from app.services.leaked_tool_text import read_promise_arguments
+from app.services.expert_workspace_tool_run import run_workspace_tool_call
+from app.services.expert_worker_spawn import SPAWN_TOOL_NAME, run_spawn_workers
+from app.services.live_speech_progress import emit_tool_progress
 from app.services.oasis_agent_tools import SEARCH_TOOL_NAMES, run_search_tool, search_tool_specs
 from app.services.prompt_catalog import render_prompt
 from app.services.workspace_chat_tools import CLIENT_TOOL_NAMES, SERVER_TOOL_NAMES
@@ -74,6 +77,11 @@ class ToolWork:
     calls: tuple[PlannedCall, ...]
     workspace_id: str | None = None
     workspace_state: dict | None = None
+    reasoning_profile: SelectionRole | None = None
+    reasoning_decision: RoutingDecision | None = None
+    turn_started_at: float | None = None
+    episode: Any = None
+    spawn_exposed: bool = False
 
 
 @dataclass
@@ -99,6 +107,7 @@ class LibraryToolScope:
     ) -> None:
         self.enabled = enabled
         self.persona_id = persona_id
+        self.customer_id: int | None = None
         self.mode = mode
         self.actor_user_id = actor_user_id
         self.history = history
@@ -107,6 +116,11 @@ class LibraryToolScope:
         self.workspace_state = None if workspace is None else workspace[1]
         self.pending_result = ""
         self.client_calls: list[PlannedCall] = []
+        self.reasoning_profile: SelectionRole | None = None
+        self.reasoning_decision: RoutingDecision | None = None
+        self.turn_started_at: float | None = None
+        self.tool_retrieval = None
+        self.spawn_exposed = False
         self._calls: list[PlannedCall] = []
         self._thread: _Thread | None = None
         self._token: Any = None
@@ -140,6 +154,14 @@ class LibraryToolScope:
                 self.client_calls.append(call)
             else:
                 self._calls.append(call)
+
+    @property
+    def tool_count(self) -> int:
+        return len(self._calls) + len(self.client_calls)
+
+    @property
+    def has_deferred_calls(self) -> bool:
+        return bool(self._calls)
 
     async def finish(self, *, deliver: bool) -> None:
         if not self.enabled:
@@ -206,17 +228,29 @@ async def acknowledge_expert_tools(
     prompts: dict[str, str],
     prompt_key: str | None,
     extra_specs: list[dict[str, Any]] | None = None,
+    workspace_state: dict | None = None,
 ) -> AckTurn:
     specs = [*await _tool_specs(allowed_tools), *(extra_specs or [])]
-    reply = await complete_with_tools(messages, specs, prompt_key=prompt_key)
+    retrieval = None if (scope := active_library_tools()) is None else scope.tool_retrieval
+    reply = await complete_with_tools(
+        messages,
+        specs,
+        prompt_key=prompt_key,
+        tool_choice="required" if retrieval is not None and retrieval.require_tool else "auto",
+    )
     payload = assistant_message_dict(reply)
     text = visible_assistant_text(payload)
     calls = _planned_calls(
         reply,
         text,
         messages,
+        offered=frozenset(str(spec["function"]["name"]) for spec in specs),
         consult=CONSULT_TOOL_NAME in allowed_tools,
+        workspace_state=workspace_state,
     )
+    # expert_reasoning_episode imports this module for the tool loop.
+    from app.services.expert_reasoning_episode import remember_expert_episode
+
     if calls and not text:
         text = (
             await complete_text(
@@ -227,6 +261,9 @@ async def acknowledge_expert_tools(
                 prompt_key="chat.expert.tool_ack",
             )
         ).strip()
+    remember_expert_episode(
+        messages, payload, tuple(calls), specs, prompt_key=prompt_key, display_text=text,
+    )
     return AckTurn(text=text, calls=tuple(calls))
 
 
@@ -253,18 +290,24 @@ def _planned_calls(
     text: str,
     messages: list[dict[str, Any]],
     *,
+    offered: frozenset[str],
     consult: bool,
+    workspace_state: dict | None = None,
 ) -> list[PlannedCall]:
     raw = list(getattr(reply, "tool_calls", None) or [])
     if not raw:
         raw = tool_calls_from_leaked_markup(str(getattr(reply, "content", "") or ""))
     if not raw and consult:
         raw = consult_calls_from_promise(text, last_user_question(messages))
-    planned: list[PlannedCall] = []
-    for call in raw:
-        planned.append(
-            PlannedCall(str(call.id), str(call.function.name), parse_tool_args(call.function.arguments))
-        )
+    planned = [
+        PlannedCall(str(call.id), str(call.function.name), parse_tool_args(call.function.arguments))
+        for call in raw
+        if str(call.function.name) in offered
+    ]
+    if not planned and "read_source" in offered:
+        promised = read_promise_arguments(text, workspace_state)
+        if promised is not None:
+            planned.append(PlannedCall("call_read_promise", "read_source", promised))
     return planned
 
 
@@ -278,6 +321,11 @@ def _work(scope: LibraryToolScope, calls: tuple[PlannedCall, ...]) -> ToolWork:
         calls=calls,
         workspace_id=scope.workspace_id,
         workspace_state=scope.workspace_state,
+        reasoning_profile=scope.reasoning_profile,
+        reasoning_decision=scope.reasoning_decision,
+        turn_started_at=scope.turn_started_at,
+        episode=getattr(scope, "episode", None),
+        spawn_exposed=scope.spawn_exposed,
     )
 
 
@@ -288,21 +336,20 @@ def _track(coro: Awaitable[None]) -> None:
 
 
 async def _run_deferred(thread: _Thread, work: ToolWork) -> None:
-    result = ""
+    blob, tool_results = "", ()
     try:
-        result = await run_deferred_calls(work)
+        blob, tool_results = await run_deferred_calls(work)
     except Exception:
         logger.exception("Expert tool follow-up failed for %s", work.persona_id)
-        result = ""
-    blob = ""
+        blob = ""
     async with thread.cond:
-        if result:
-            thread.pending.append(result)
+        if blob:
+            thread.pending.append(blob)
         thread.inflight -= 1
         idle = (
             thread.busy == 0
             and thread.inflight == 0
-            and bool(thread.pending)
+            and (bool(thread.pending) or bool(tool_results))
             and not thread.waking
         )
         if idle:
@@ -314,62 +361,39 @@ async def _run_deferred(thread: _Thread, work: ToolWork) -> None:
         # followup imports this module, so the wake import stays at the call.
         from app.services.expert_tool_followup import _wake
 
-        await _wake(thread, work, blob)
+        await emit_tool_progress("followup", "followup", remaining=0, summary=blob)
+        await _wake(thread, work, blob, tool_results)
 
 
-async def run_deferred_calls(work: ToolWork) -> str:
+async def run_deferred_calls(work: ToolWork) -> tuple[str, tuple[str, ...]]:
     parts: list[str] = []
-    for call in work.calls:
+    results: list[str] = []
+    total = len(work.calls)
+    for index, call in enumerate(work.calls):
+        remaining = total - index
+        await emit_tool_progress("started", call.name, remaining=remaining)
         try:
             text = await _run_one(call, work)
         except Exception as exc:
             logger.exception("Expert tool %s failed", call.name)
             text = str(exc) or call.name
+        await emit_tool_progress(
+            "partial",
+            call.name,
+            remaining=remaining - 1,
+            summary=text,
+        )
+        results.append(text)
         if text:
             parts.append(f"{call.name}\n{text}")
-    return "\n\n".join(parts)
-
-
-async def _run_workspace_tool(call: PlannedCall, work: ToolWork) -> str:
-    # expert_async_tools loads during app.modules.registry init, via llm.chat.
-    # workspace.tools imports that registry, so this import cannot sit at module level.
-    from app.services.workspace.tools import _turn_state, execute_workspace_tool
-
-    if not work.workspace_id or not work.actor_user_id or work.workspace_state is None:
-        raise ValueError("workspace_required")
-    factory = job_session_factory()
-    async with factory() as session:
-        user = await session.get(UserAccount, work.actor_user_id)
-        if user is None:
-            raise ValueError("actor_not_found")
-        session.expunge(user)
-        await session.rollback()
-        try:
-            token = _turn_state.set(WorkspaceState.model_validate(work.workspace_state))
-            try:
-                result = await execute_workspace_tool(
-                    session,
-                    workspace_id=work.workspace_id,
-                    user=user,
-                    tool_name=call.name,
-                    arguments=call.arguments,
-                    idempotency_key=call.id,
-                )
-            finally:
-                _turn_state.reset(token)
-        except HTTPException as exc:
-            await session.rollback()
-            return str(exc.detail)
-        await session.commit()
-    if result.get("status") == "queued" and result.get("job_id"):
-        enqueue_job(result["job_id"])
-    text = json.dumps(result, ensure_ascii=False)
-    return text if len(text) <= 12000 else text[:12000]
+    return "\n\n".join(parts), tuple(results)
 
 
 async def _run_one(call: PlannedCall, work: ToolWork) -> str:
+    if call.name == SPAWN_TOOL_NAME:
+        return await run_spawn_workers(call, work)
     if call.name in SERVER_TOOL_NAMES:
-        return await _run_workspace_tool(call, work)
+        return await run_workspace_tool_call(call, work)
     if call.name in COMPANY_TOOL_NAMES:
         return await run_company_tool(call.name, call.arguments)
     if call.name in SEARCH_TOOL_NAMES:

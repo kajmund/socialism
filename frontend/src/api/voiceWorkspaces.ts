@@ -38,6 +38,7 @@ export type WorkspaceState = {
   active_artifact_id?: string | null
   selection?: WorkspaceSelection | null
   research_attempt_ids: string[]
+  document_mentions?: { display_name: string; source_object_id: string }[]
 }
 export type ArtifactBlock = { id: string; type: "heading" | "paragraph"; text: string; source_refs: string[] }
 export type WorkspaceArtifact = {

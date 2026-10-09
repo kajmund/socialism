@@ -30,6 +30,7 @@ from app.llm.selection import (
     set_need_classifier,
 )
 from app.services.expertgranskning.schemas import WordExpertComment
+from app.services.expert_reasoning import bound_expert_profile
 from app.services.expertgranskning.word_structured import complete_word_structured
 from app.services.prompt_catalog import default_prompts
 from tests.word_review_helpers import word_expert_comment
@@ -80,6 +81,7 @@ def _config(  # noqa: PLR0913
 def _selection_isolation():
     previous_key = settings.typesafe_api_key
     previous_threshold = settings.jev_confidence_threshold
+    previous_expert_routing = settings.expert_reasoning_route_enabled
     set_runtime_selection_cache(
         assignments={},
         configurations={},
@@ -90,6 +92,7 @@ def _selection_isolation():
     yield
     settings.typesafe_api_key = previous_key
     settings.jev_confidence_threshold = previous_threshold
+    settings.expert_reasoning_route_enabled = previous_expert_routing
     set_need_classifier(None)
     set_structured_completer(None)
     set_runtime_selection_cache(
@@ -185,6 +188,45 @@ async def test_resolve_default_and_fixed():
     assert fixed.selection_mode == "fixed"
     assert fixed.selected_configuration_id == 3
     assert fixed.view.model == "deepseek-v4-pro"
+
+
+@pytest.mark.asyncio
+async def test_expert_profile_selects_role_without_jev_speed_classification():
+    _install_catalog()
+    classifier = _FakeNeedClassifier(
+        JevNeedDecision(
+            speed_class="deep",
+            needs_vision=False,
+            needs_tools=False,
+            needs_structured_output=False,
+            needs_long_context=False,
+            confidence=1,
+        )
+    )
+    set_need_classifier(classifier)
+    with bound_expert_profile("fast"):
+        resolution = await resolve_llm_runtime(
+            prompt_key="chat.mode.interview",
+            messages=[{"role": "user", "content": "Öppna avtalet"}],
+            call_kind="tools",
+        )
+    assert resolution.reason_code == "expert_reasoning_selected"
+    assert resolution.selected_configuration_id == 2
+    assert classifier.calls == 0
+
+
+@pytest.mark.asyncio
+async def test_disabled_expert_routing_preserves_default_selection():
+    _install_catalog()
+    settings.expert_reasoning_route_enabled = False
+    with bound_expert_profile("fast"):
+        resolution = await resolve_llm_runtime(
+            prompt_key="chat.mode.interview",
+            messages=[{"role": "user", "content": "Öppna avtalet"}],
+            call_kind="text",
+        )
+    assert resolution.reason_code == "default"
+    assert resolution.selected_configuration_id == 1
 
 
 class _FakeNeedClassifier:

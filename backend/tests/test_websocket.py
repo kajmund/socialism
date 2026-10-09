@@ -621,12 +621,13 @@ def test_sme_websocket_routes_expert_output_by_thread(ws_client):
         typing = websocket.receive_json()
         assert typing["type"] == "typing"
         assert typing["thread_id"] == persona_id
-
         tokens: list[str] = []
         done = None
         for _ in range(10):
             event = websocket.receive_json()
             assert event["thread_id"] == persona_id
+            if event["type"] == "model_trace":
+                continue
             assert event["request_id"] == "request-1"
             if event["type"] == "token":
                 tokens.append(event["text"])
@@ -636,7 +637,6 @@ def test_sme_websocket_routes_expert_output_by_thread(ws_client):
         assert tokens == ["Mockad personasvar för tester."]
         assert done is not None
         assert done["reply"] == "Mockad personasvar för tester."
-
         suggestions = websocket.receive_json()
         assert suggestions["type"] == "suggestions"
         assert suggestions["thread_id"] == persona_id
