@@ -306,6 +306,7 @@ async def continue_expert_episode(
                 ),
                 consult=False,
                 workspace_state=work.workspace_state,
+                seen_call_ids=work.seen_call_ids,
             )
         )
         if not calls:
