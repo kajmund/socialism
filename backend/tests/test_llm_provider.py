@@ -666,6 +666,66 @@ async def test_complete_with_tools_normalizes_per_provider(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_complete_with_tools_keeps_required_by_disabling_deepseek_thinking(
+    monkeypatch,
+):
+    set_tools_completer(None)
+    set_text_completer(None)
+    seen: list[dict] = []
+
+    async def fake_create(**kwargs):
+        seen.append(kwargs)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content="ok"))],
+            usage=None,
+        )
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    tools = [
+        {
+            "type": "function",
+            "function": {"name": "read_source", "parameters": {"type": "object"}},
+        }
+    ]
+    settings.llm_provider = "deepseek"
+    settings.llm_reasoning_effort = "high"
+    await complete_with_tools(
+        [{"role": "user", "content": "markera klausuler"}],
+        tools,
+        tool_choice="required",
+    )
+    await complete_with_tools(
+        [{"role": "user", "content": "markera klausuler"}],
+        tools,
+        tool_choice="auto",
+    )
+    settings.llm_reasoning_effort = "none"
+    await complete_with_tools(
+        [{"role": "user", "content": "markera klausuler"}],
+        tools,
+        tool_choice="required",
+    )
+    forced, thinking_auto, already_off = seen
+    assert forced["tool_choice"] == "required"
+    assert forced.get("reasoning_effort") == "none" or (
+        forced.get("extra_body") or {}
+    ).get("reasoning_effort") == "none"
+    assert thinking_auto["tool_choice"] == "auto"
+    assert thinking_auto.get("reasoning_effort") == "high" or (
+        thinking_auto.get("extra_body") or {}
+    ).get("reasoning_effort") == "high"
+    assert already_off["tool_choice"] == "required"
+    assert already_off.get("reasoning_effort") == "none" or (
+        already_off.get("extra_body") or {}
+    ).get("reasoning_effort") == "none"
+
+
+@pytest.mark.asyncio
 async def test_injectable_structured_completer_still_used():
     async def fake(_messages, response_model):
         return response_model.model_validate({"issues": []})

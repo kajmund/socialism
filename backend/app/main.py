@@ -16,6 +16,7 @@ from app.api import (
     help,
     jobs,
     kunder,
+    live_speech,
     llm_settings,
     local_login,
     me,
@@ -48,6 +49,7 @@ from app.services.graph_v2.worker import start_graph_ingest_loop, stop_graph_ing
 from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
 from app.services.knowledge.vector_store import SupabaseVectorBucketStore
 from app.services.kund_store import ensure_default_kunder
+from app.services.live_speech_sessions import LiveSpeechRegistry
 from app.services.llm_runtime_settings import load_runtime_settings
 from app.services.panel.module_defaults import ensure_module_panel_defaults
 from app.services.prompt_store import ensure_default_configurations
@@ -107,6 +109,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
     reclaim_stop = None
     graph_task = None
     set_lagen_nu_selector_factory(LlmLagenNuSelector)
+    _app.state.live_speech_registry = LiveSpeechRegistry()
     if settings.research_worker_loop_enabled:
         vector_runtime = await start_supabase_vector_runtime(settings)
         vector_store = SupabaseVectorBucketStore(vector_runtime.client)
@@ -122,6 +125,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
     try:
         yield
     finally:
+        await _app.state.live_speech_registry.close_all()
         if reclaim_stop is not None:
             await stop_research_reclaim_loop(reclaim_stop)
         if graph_task is not None:
@@ -148,6 +152,7 @@ def create_app() -> FastAPI:
     if not settings.supabase_service_role_key.strip():
         raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required")
     app = FastAPI(title="Opinionssimulator", version="0.1.0", lifespan=lifespan)
+    app.state.live_speech_registry = LiveSpeechRegistry()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
@@ -179,6 +184,7 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(sme.router)
     app.include_router(sme_ws.router)
+    app.include_router(live_speech.router)
     app.include_router(voice_workspaces.router)
     app.include_router(voice_workspace_inbox.router)
     app.include_router(workspace_exports.router)

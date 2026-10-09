@@ -7,8 +7,10 @@ import pdfplumber
 import pytest
 
 from app.services.document_knowledge import _quote_rects
-from app.services.pdf_quote_anchors import first_quote_page, quote_rects
+from app.services.pdf_quote_anchors import _normalized, first_quote_page, quote_rects
 from app.services.workspace.search import _pdf_quote_rects
+from app.services.workspace.tool_arguments import FocusPassageArguments
+from app.services.workspace_quote_focus import _locate_quote, matching_quote
 
 QUOTE = "Period: 2031-02-03 09:00 2031-02-03 10:00"
 
@@ -96,6 +98,18 @@ def test_quote_cannot_end_inside_word_or_change_punctuation(quote):
 
 def test_identical_quotes_on_same_page_fail_closed_without_position_discriminator():
     assert _pdf_quote_rects(_synthetic_pdf(amount_line="50 SEK 50 SEK"), 2, "50 SEK") == []
+
+
+def test_longer_request_marks_the_verbatim_span():
+    found = matching_quote(f"Inledning. {QUOTE} Avslutning.", f"Jag tror att {QUOTE} och något som inte står här.")
+    assert found is not None
+    assert _normalized(found) == _normalized(QUOTE)
+    located = _locate_quote(_synthetic_pdf(), f"Ovidkommande {QUOTE}")
+    assert located is not None
+    page, rects, exact = located
+    assert page == 1 and rects
+    assert _normalized(exact) == _normalized(QUOTE)
+    FocusPassageArguments(source_id="source-one", quote=("avtal " * 300).strip())
 
 
 def test_repeated_phrase_still_marks_the_first_occurrence():

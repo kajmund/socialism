@@ -81,6 +81,16 @@ async def test_expert_saves_provider_and_voice(client: AsyncClient):
         json={"live_voice_provider": "gemini", "live_voice": "not-a-voice"},
     )
     assert rejected.status_code == 422
+    socialism = await client.put(
+        f"/personas/{expert['id']}",
+        json={
+            "live_voice_provider": "socialism",
+            "live_voice": "elevenlabs-voice",
+        },
+    )
+    assert socialism.status_code == 200, socialism.text
+    assert socialism.json()["live_voice_provider"] == "socialism"
+    assert socialism.json()["live_voice"] == "elevenlabs-voice"
 
 
 @pytest.mark.asyncio
@@ -265,7 +275,7 @@ async def test_live_memory_is_written_once_when_transcript_is_stored(
             "session_id": "voice-session-1",
         }
     ]
-    listed = await client.get(f"/personas/{expert['id']}/messages")
+    listed = await client.get(f"/personas/{expert['id']}/messages", params={"mode": "character"})
     assert listed.status_code == 200, listed.text
     assert [(row["role"], row["content"]) for row in listed.json()] == [
         ("user", "Vad minns du från mötet?"),

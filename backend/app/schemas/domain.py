@@ -311,8 +311,8 @@ class PersonaGenerateRequest(BaseModel):
 class PersonaGenerateResponse(BaseModel):
     candidates: list[EditablePersona]
 
-
 ChatMode = Literal["interview", "character"]
+EXPERT_CHAT_MODE: ChatMode = "character"
 ChatRole = Literal["user", "assistant"]
 InterviewAskedBy = Literal["doctor", "human"]
 

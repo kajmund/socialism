@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { SmeMessage } from "@/api/sme"
 import { connectJsonWebSocket } from "@/lib/ws"
+import { modelTraceEntry, type ModelTraceEntry } from "./modelTrace"
 
 type Options = {
   onDone: (threadId: string, messages: SmeMessage[], requestId: string) => void
@@ -10,6 +11,7 @@ type Options = {
   onThreadMessage: (threadId: string, messages: SmeMessage[]) => void
   onConsultAnswered: (threadId: string) => void
   onWorkspaceTool: (threadId: string, name: string, args: Record<string, unknown>) => void
+  onModelTrace: (threadId: string, workspaceId: string, entry: ModelTraceEntry) => void
   onReady: () => void
   onDisconnected: () => void
 }
@@ -53,11 +55,13 @@ export function useSmeChatSocket({
   onThreadMessage,
   onConsultAnswered,
   onWorkspaceTool,
+  onModelTrace,
   onReady,
   onDisconnected,
 }: Options) {
   const [ready, setReady] = useState(false)
   const sendRef = useRef<((payload: unknown) => void) | null>(null)
+  const canSendRef = useRef(false)
   const wasReadyRef = useRef(false)
   const callbacksRef = useRef({
     onDone,
@@ -67,6 +71,7 @@ export function useSmeChatSocket({
     onThreadMessage,
     onConsultAnswered,
     onWorkspaceTool,
+    onModelTrace,
     onReady,
     onDisconnected,
   })
@@ -78,6 +83,7 @@ export function useSmeChatSocket({
     onThreadMessage,
     onConsultAnswered,
     onWorkspaceTool,
+    onModelTrace,
     onReady,
     onDisconnected,
   }
@@ -88,6 +94,7 @@ export function useSmeChatSocket({
       onOpen: () => undefined,
       onStatus: (status) => {
         if (status !== "open") {
+          canSendRef.current = false
           setReady(false)
           if (status === "closed" && wasReadyRef.current) {
             wasReadyRef.current = false
@@ -105,6 +112,7 @@ export function useSmeChatSocket({
         switch (event.type) {
           case "ready":
             wasReadyRef.current = true
+            canSendRef.current = true
             setReady(true)
             callbacksRef.current.onReady()
             break
@@ -146,6 +154,14 @@ export function useSmeChatSocket({
               callbacksRef.current.onWorkspaceTool(threadId, event.name, event.arguments as Record<string, unknown>)
             }
             break
+          case "model_trace": {
+            const entry = modelTraceEntry(event)
+            const workspaceId = typeof event.workspace_id === "string" ? event.workspace_id : ""
+            if (threadId && entry) {
+              callbacksRef.current.onModelTrace(threadId, workspaceId, entry)
+            }
+            break
+          }
           case "error":
             callbacksRef.current.onError(
               threadId,
@@ -161,6 +177,7 @@ export function useSmeChatSocket({
     sendRef.current = connection.send
     return () => {
       wasReadyRef.current = false
+      canSendRef.current = false
       connection.close()
       sendRef.current = null
       setReady(false)
@@ -169,7 +186,7 @@ export function useSmeChatSocket({
 
   const send = useCallback(
     (threadId: string, message: string, imageSha256?: string | null, workspace?: { id: string; state: unknown }) => {
-      if (!ready || !sendRef.current) return null
+      if (!canSendRef.current || !sendRef.current) return null
       const requestId = crypto.randomUUID()
       sendRef.current({
         type: "send",
@@ -182,7 +199,7 @@ export function useSmeChatSocket({
       })
       return requestId
     },
-    [ready],
+    [],
   )
 
   const resend = useCallback(
@@ -192,7 +209,7 @@ export function useSmeChatSocket({
       message: string,
       imageSha256?: string | null,
     ) => {
-      if (!ready || !sendRef.current) return false
+      if (!canSendRef.current || !sendRef.current) return false
       sendRef.current({
         type: "send",
         request_id: requestId,
@@ -203,7 +220,7 @@ export function useSmeChatSocket({
       })
       return true
     },
-    [ready],
+    [],
   )
 
   return { ready, send, resend }

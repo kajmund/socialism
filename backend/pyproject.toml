@@ -7,9 +7,13 @@ dependencies = [
     "alembic>=1.18.5",
     # AWS SigV4 + S3 protocol for Supabase Storage; not something we write in <30 lines.
     "boto3==1.43.85",
+    # Official cancellable streaming TTS client; used for every Live Speech reply.
+    "elevenlabs==2.26.0",
     "fastapi>=0.140.7",
     "greenlet==3.5.4",
     "httpx>=0.28.1",
+    # Full JSON Schema validation (additionalProperties, enum, numeric and array bounds).
+    "jsonschema>=4.26.0",
     # PDF text extraction for personal underlag; not something we write correctly in <30 lines.
     "mammoth==1.11.0",
     # LLM extraction, dedupe, multimodal parsing, and retrieval for expert memory.
@@ -31,6 +35,8 @@ dependencies = [
     "storage3==2.31.0",
     "structlog>=26.1.0",
     "uvicorn[standard]>=0.51.0",
+    # Async Realtime wire protocol and close/error semantics; used by every STT session.
+    "websockets==15.0.1",
 ]
 
 [project.optional-dependencies]
@@ -134,8 +140,8 @@ tests-max-lines = 1000
 "app/api/reports.py" = 566
 "app/api/runs.py" = 922
 "app/api/ws.py" = 748
-"app/database/models.py" = 3156
-"app/llm/__init__.py" = 657
+"app/database/models.py" = 3155
+"app/llm/__init__.py" = 648
 "app/schemas/domain.py" = 1416
 "app/seed.py" = 1340
 "app/services/anchor_pool.py" = 556
@@ -156,7 +162,7 @@ tests-max-lines = 1000
 "app/services/panel/engine.py" = 635
 "app/services/panel/research.py" = 720
 "app/services/panel/structured_scoring.py" = 594
-"app/services/persona_chat.py" = 754
+"app/services/persona_chat.py" = 732
 "app/services/population_generate.py" = 828
 "app/services/prompt_catalog.py" = 3644
 "app/services/report/charts.py" = 1389
@@ -166,7 +172,7 @@ tests-max-lines = 1000
 "app/services/report/segment_analysis.py" = 622
 "app/services/research/execution.py" = 1352
 "app/services/research/progress.py" = 669
-"app/services/sme_expert_turns.py" = 580
+"app/services/sme_expert_turns.py" = 577
 "app/services/spindoctor_mcp_tools.py" = 983
 "tests/test_api.py" = 1533
 "tests/test_execution_api.py" = 1144

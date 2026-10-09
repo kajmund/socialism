@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona, UserAccount
+from app.schemas.domain import EXPERT_CHAT_MODE
 from app.database.workspace_conversations import WorkspaceConversationSession
 from app.services.expert_session_tools import consult_tool_spec
 from app.services.expert_tools import resolve_expert_tools
@@ -89,7 +90,7 @@ async def _run_selected_tool(session: AsyncSession, persona: Persona, user: User
         from app.services.expert_consult import expert_consult_handler_for_chat
 
         result = await expert_consult_handler_for_chat(
-            session, asker=persona, mode="interview", prompts=context["prompts"],
+            session, asker=persona, mode=EXPERT_CHAT_MODE, prompts=context["prompts"],
             workspace_owner_id=context["owner_id"],
             workspace_parent_id=context["workspace_parent_id"],
         )(args.arguments)

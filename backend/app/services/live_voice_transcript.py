@@ -1,4 +1,4 @@
-"""Persist a spoken expert turn in the interview thread.
+"""Persist a spoken expert turn in the in-character thread.
 
 Memory is scheduled only when this turn_id is stored for the first time.
 A repeat returns the same chat rows and does not write Mem0 again.
@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.scope import assert_kund_access
 from app.database.models import Persona, PersonaMessage, UserAccount
-from app.schemas.domain import PersonaLiveMemoryRequest, PersonaMessageOut
+from app.schemas.domain import EXPERT_CHAT_MODE, PersonaLiveMemoryRequest, PersonaMessageOut
 from app.serializers import format_date, utcnow
 from app.services.library_chat_fifo import trim_library_chat
 from app.services.persona_chat import remember_expert_chat_turn
@@ -50,7 +50,7 @@ async def publish_live_voice_turn(
     messages = [_message_out(row) for row in rows]
     if not created:
         return messages
-    await trim_library_chat(session, persona.id, "interview")
+    await trim_library_chat(session, persona.id, EXPERT_CHAT_MODE)
     session.expunge(persona)
     await session.commit()
     background_tasks.add_task(
@@ -73,7 +73,7 @@ async def store_live_voice_transcript(
     assistant_message: str,
     follow_up: bool = False,
 ) -> tuple[list[PersonaMessage], bool]:
-    """Return the interview rows and whether this turn was stored now."""
+    """Return the chat rows and whether this turn was stored now."""
     existing = await _load_turn(session, persona_id, turn_id)
     if existing:
         return existing, False
@@ -109,7 +109,7 @@ def _turn_rows(
 ) -> list[PersonaMessage]:
     assistant_row = PersonaMessage(
         persona_id=persona_id,
-        mode="interview",
+        mode=EXPERT_CHAT_MODE,
         role="assistant",
         content=assistant_message,
         voice_turn_id=turn_id,
@@ -120,7 +120,7 @@ def _turn_rows(
     return [
         PersonaMessage(
             persona_id=persona_id,
-            mode="interview",
+            mode=EXPERT_CHAT_MODE,
             role="user",
             content=user_message,
             voice_turn_id=turn_id,

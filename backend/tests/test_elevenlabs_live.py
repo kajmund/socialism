@@ -291,7 +291,7 @@ async def test_live_token_endpoint_uses_elevenlabs_when_configured(
     assert body["client_init"]["type"] == "conversation_initiation_client_data"
     prompt = body["client_init"]["conversation_config_override"]["agent"]["prompt"]
     assert "prompt" in prompt
-    assert "INTERVJU" in prompt["prompt"]
+    assert "IN-CHARACTER" in prompt["prompt"]
     assert body["client_init"]["conversation_config_override"]["agent"][
         "first_message"
     ] == body["initial_turn"]

@@ -18,6 +18,7 @@ from pydantic import (
 from app.auth.tokens import user_from_bearer_token
 from app.database.models import Kund, Persona, UserAccount
 from app.realtime.library_chat_broadcast import library_chat_broadcast
+from app.schemas.domain import EXPERT_CHAT_MODE
 from app.schemas.workspace import WorkspaceState
 from app.services import jobs as jobs_service
 from app.services.persona_chat import ChatTurnError, library_follow_up_questions
@@ -103,7 +104,13 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
             except (RuntimeError, WebSocketDisconnect):
                 disconnected.set()
 
-    await library_chat_broadcast.subscribe_customer(user.kund_id, emit)
+    async def emit_scoped(payload: dict) -> None:
+        target_user_id = payload.get("target_user_id")
+        if target_user_id is not None and target_user_id != user.id:
+            return
+        await emit(payload)
+
+    await library_chat_broadcast.subscribe_customer(user.kund_id, emit_scoped)
 
     async def _fail_expert_turn(
         request_id: str,
@@ -150,7 +157,7 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
             questions = await library_follow_up_questions(
                 session,
                 persona_id=send.thread_id,
-                mode="interview",
+                mode=EXPERT_CHAT_MODE,
             )
         await emit(
             {
@@ -244,7 +251,7 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
                 questions = await library_follow_up_questions(
                     session,
                     persona_id=send.thread_id,
-                    mode="interview",
+                    mode=EXPERT_CHAT_MODE,
                 )
             await emit(
                 {
@@ -270,10 +277,14 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
         except ChatTurnError as exc:
             await _fail_expert_turn(send.request_id, fence, exc.detail)
             await emit({"type": "error", "detail": exc.detail, **envelope})
-        except Exception:
+        except Exception as exc:
             logger.exception("SME expert chat turn failed")
-            await _fail_expert_turn(send.request_id, fence, "Chat error")
-            await emit({"type": "error", "detail": "Chat error", **envelope})
+            await _fail_expert_turn(
+                send.request_id,
+                fence,
+                detail := f"{type(exc).__name__}: {exc}"[:500],
+            )
+            await emit({"type": "error", "detail": detail, **envelope})
         finally:
             await emit({"type": "typing", "on": False, **envelope})
 
@@ -308,4 +319,4 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
     finally:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
-        await library_chat_broadcast.unsubscribe(emit)
+        await library_chat_broadcast.unsubscribe(emit_scoped)

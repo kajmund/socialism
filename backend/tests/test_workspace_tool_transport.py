@@ -26,10 +26,10 @@ async def test_active_database_transport_prompt_applies_to_native_and_expert_too
         parameters = config["parameters"]
         if config["name"] == "search_knowledge":
             assert parameters["required"] == ["query"]
-            assert set(parameters["properties"]) == {"query"}
+            assert set(parameters["properties"]) == {"query", "source_id", "exact"}
             continue
         if config["name"] == "read_source":
-            assert set(parameters["properties"]) == {"source_id", "reference_id"}
+            assert set(parameters["properties"]) == {"source_id", "reference_id", "quote", "section", "outline", "page"}
             continue
         if config["name"] == "focus_anchor":
             assert parameters["required"] == ["source_id", "quote"]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from types import SimpleNamespace
 from typing import Self
@@ -19,7 +20,7 @@ from app.services.dd.bolagsapi_mcp import (
     require_bolagsapi_key,
 )
 from app.services.dd.allabolag import AllabolagNotFoundError
-from app.services.dd.company_mcp import tool_calls_from_leaked_markup
+from app.services.dd.company_mcp import tool_calls_from_leaked_markup, visible_assistant_text
 from app.services.dd.schemas import DdCandidateCompany
 from app.services.dd.sourcing_chat import (
     SourcingChatError,
@@ -122,6 +123,27 @@ def test_tool_calls_from_leaked_invoke_and_json():
     lookup = tool_calls_from_leaked_markup(json_block)
     assert lookup[0].function.name == "lookup_company"
     assert tool_calls_from_leaked_markup('<invoke name="search_companies">') == []
+
+
+def test_underlag_json_is_a_tool_call_and_stays_out_of_the_reply():
+    text = """bra gå till sidan 2 i det avtalet
+
+[[underlag]]{
+"tool": "show_document",
+"arguments": {
+"source_id": "192ece85404a5501666c9e3ab8ea1eee",
+"page": 2
+}
+}"""
+    calls = tool_calls_from_leaked_markup(text)
+    assert len(calls) == 1
+    assert calls[0].function.name == "show_document"
+    assert json.loads(calls[0].function.arguments) == {
+        "source_id": "192ece85404a5501666c9e3ab8ea1eee",
+        "page": 2,
+    }
+    visible = visible_assistant_text({"role": "assistant", "content": text})
+    assert visible == "bra gå till sidan 2 i det avtalet"
 
 
 def test_merge_candidates_upserts_by_orgnr():

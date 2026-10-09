@@ -2,6 +2,7 @@ import { useCallback, useRef } from "react"
 import type { WorkspaceMessage, WorkspaceState } from "@/api/voiceWorkspaces"
 import { useLocale } from "@/i18n"
 import { useSmeChatSocket } from "./useSmeChatSocket"
+import type { ModelTraceEntry } from "./modelTrace"
 import { interviewTranscriptMessage } from "./workspaceChatLogic"
 
 type Handlers = {
@@ -9,6 +10,7 @@ type Handlers = {
   onPreview: (threadId: string, text: string | null) => void
   onError: (message: string) => void
   onWorkspaceTool: (threadId: string, name: string, args: Record<string, unknown>) => void
+  onModelTrace: (threadId: string, workspaceId: string, entry: ModelTraceEntry) => void
 }
 
 export function useExpertTextChat(handlers: Handlers) {
@@ -33,15 +35,19 @@ export function useExpertTextChat(handlers: Handlers) {
       settle(threadId)
     },
     onSuggestions: () => undefined,
-    onError: (threadId) => {
-      latest.current.onError(t("sme.chatError"))
-      if (threadId) settle(threadId, new Error(t("sme.chatError")))
-      else failAll(new Error(t("sme.chatError")))
+    onError: (threadId, detail) => {
+      const message = detail.trim() && detail !== "Chat error" ? detail : t("sme.chatError")
+      latest.current.onError(message)
+      if (threadId) settle(threadId, new Error(message))
+      else failAll(new Error(message))
     },
     onToken: (threadId, text) => latest.current.onPreview(threadId, text),
     onThreadMessage: (threadId, messages) => latest.current.onMessages(threadId, messages.map((row) => interviewTranscriptMessage(row))),
     onConsultAnswered: () => undefined,
     onWorkspaceTool: (threadId, name, args) => latest.current.onWorkspaceTool(threadId, name, args),
+    onModelTrace: (threadId, workspaceId, entry) => {
+      latest.current.onModelTrace(threadId, workspaceId, entry)
+    },
     onReady: () => undefined,
     onDisconnected: () => failAll(new Error(t("sme.chatError"))),
   })
