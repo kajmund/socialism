@@ -37,7 +37,6 @@ from app.services.persona_chat import _history_triples, serialize_persona_messag
 from app.services.jobs import set_job_session_factory
 from app.services.persona_chat import stream_library_chat_turn
 from app.services.prompt_store import ensure_default_configurations
-from app.services.prompt_catalog import default_prompts
 
 
 def _trace_capture(traced: list[dict]):
@@ -133,7 +132,6 @@ async def test_document_inventory_does_not_force_tools_for_social_turns():
                     {"role": "user", "content": message},
                 ],
                 allowed_tools=frozenset(),
-                prompts=default_prompts("sv"),
                 prompt_key="chat.mode.in_character",
                 extra_specs=[
                     {"type": "function", "function": {"name": "show_document", "parameters": {}}},
@@ -147,6 +145,96 @@ async def test_document_inventory_does_not_force_tools_for_social_turns():
     finally:
         set_tools_completer(None)
     assert choices == ["auto"] * len(messages)
+
+
+@pytest.mark.asyncio
+async def test_tool_call_ack_does_not_make_a_discarded_text_request(monkeypatch):
+    async def complete(_messages, _specs=None, *, tool_choice="auto", **_kwargs):
+        return SimpleNamespace(
+            content="",
+            tool_calls=[_tool_call("show_document", '{"source_id":"contract"}')],
+        )
+
+    async def unused_text(*_args, **_kwargs):
+        raise AssertionError("discarded acknowledgement must not call complete_text")
+
+    monkeypatch.setattr("app.services.expert_async_tools.complete_text", unused_text, raising=False)
+    set_tools_completer(complete)
+    try:
+        reply = await acknowledge_expert_tools(
+            [{"role": "user", "content": "Visa avtalet"}],
+            allowed_tools=frozenset(),
+            prompt_key="chat.mode.in_character",
+            extra_specs=[
+                {"type": "function", "function": {"name": "show_document", "parameters": {}}},
+            ],
+        )
+    finally:
+        set_tools_completer(None)
+    assert reply.text == ""
+    assert [call.name for call in reply.calls] == ["show_document"]
+
+
+@pytest.mark.asyncio
+async def test_repeated_tool_call_id_is_deduplicated_across_episode_rounds(monkeypatch):
+    rounds = iter([
+        SimpleNamespace(
+            content="Let me check.",
+            tool_calls=[_tool_call("lookup_company", '{"orgnr":"1"}')],
+        ),
+        SimpleNamespace(content="Here is the answer.", tool_calls=[
+            _tool_call("lookup_company", '{"orgnr":"1"}')
+        ]),
+    ])
+    executed: list[str] = []
+
+    async def complete(*_args, **_kwargs):
+        return next(rounds)
+
+    async def run_call(call, _work):
+        executed.append(call.id)
+        return "Company result"
+
+    async def publish(_calls):
+        raise AssertionError("no client calls expected")
+
+    monkeypatch.setattr("app.services.expert_reasoning_episode.complete_with_tools", complete)
+    initial = PlannedCall("initial-call", "lookup_company", {})
+    work = ToolWork(
+        persona_id="sara",
+        mode="character",
+        actor_user_id="user",
+        history=[],
+        user_message="Kolla bolaget",
+        calls=(initial,),
+        episode=ExpertEpisode(
+            messages=(
+                {"role": "user", "content": "Kolla bolaget"},
+                {"role": "assistant", "tool_calls":[{
+                    "id": initial.id,
+                    "type": "function",
+                    "function": {"name": initial.name, "arguments": "{}"},
+                }]},
+            ),
+            specs=({
+                "type": "function",
+                "function": {"name": "lookup_company", "parameters": {}},
+            },),
+            prompt_key="chat.mode.in_character",
+            reasoning_content=None,
+        ),
+        seen_call_ids={initial.id},
+    )
+
+    result, _reasoning = await continue_expert_episode(
+        work,
+        ["Initial result"],
+        run_call=run_call,
+        publish=publish,
+    )
+    assert result == "Here is the answer."
+    assert executed == ["call_1"]
+    assert "call_1" in work.seen_call_ids
 
 
 @pytest.mark.asyncio
@@ -413,6 +501,61 @@ async def test_overlapping_turn_scopes_keep_replayed_calls_with_their_owner(monk
     assert ran[0][0] == "owner-Absolut, lilla plutten"
     assert composed == ["Bra, tack", "Absolut, lilla plutten"]
     assert len(set(ran[0])) == 2
+
+
+@pytest.mark.asyncio
+async def test_executed_calls_remain_for_single_final_routing_record(monkeypatch):
+    scope = begin_library_tools(
+        persona_id="sara",
+        mode="character",
+        actor_user_id="user",
+        history=[],
+        user_message="Kolla bolaget",
+        enabled=True,
+    )
+    scope.reasoning_decision = SimpleNamespace(profile="standard")
+    scope.turn_started_at = 1.0
+    scope.tool_retrieval = SimpleNamespace()
+    call = PlannedCall("call-1", "lookup_company", {})
+    selected: list[list[str]] = []
+    route_events: list[object] = []
+
+    async def run_one(_call, _work):
+        return "result"
+
+    async def compose(*_args, **_kwargs):
+        from app.services.expert_tool_followup import emit_routing_event
+
+        emit_routing_event("followup")
+        return "Answer", None
+
+    monkeypatch.setattr("app.services.expert_async_tools._run_one", run_one)
+    monkeypatch.setattr("app.services.expert_tool_followup.compose_tool_episode", compose)
+    monkeypatch.setattr(
+        "app.services.expert_reasoning_turn.log_tool_choice",
+        lambda _record, names: selected.append(names),
+    )
+    monkeypatch.setattr(
+        "app.services.expert_reasoning_turn.emit_routing_event",
+        lambda *args: route_events.append(args),
+    )
+    monkeypatch.setattr(
+        "app.services.expert_tool_followup.emit_routing_event",
+        lambda *args: route_events.append(args),
+    )
+    await scope.enter()
+    try:
+        assert await complete_tool_episode(scope, (call,)) == "Answer"
+        assert scope._calls == [call]
+        assert scope.has_deferred_calls
+        await scope.finish()
+        from app.services.expert_reasoning_turn import emit_final_routing
+
+        emit_final_routing(scope)
+    finally:
+        await scope.finish()
+    assert selected == [["lookup_company"]]
+    assert route_events == [("followup",)]
 
 
 def test_reasoning_is_replayed_for_the_model_and_hidden_from_the_client():

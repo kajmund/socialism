@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextvars import ContextVar
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any
 from uuid import uuid4
 
@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Persona, PersonaMessage
-from app.llm import complete_text, complete_with_tools
+from app.llm import complete_with_tools
 from app.llm.runtime_override import SelectionRole
 from app.llm.tool_messages import assistant_message_dict
 from app.schemas.domain import ChatMode
@@ -81,6 +81,7 @@ class ToolWork:
     spawn_exposed: bool = False
     failed_calls: int = 0
     turn_id: str = ""
+    seen_call_ids: set[str] = field(default_factory=set)
 
 
 class LibraryToolScope:
@@ -178,7 +179,6 @@ async def acknowledge_expert_tools(
     messages: list[dict[str, Any]],
     *,
     allowed_tools: frozenset[str],
-    prompts: dict[str, str],
     prompt_key: str | None,
     extra_specs: list[dict[str, Any]] | None = None,
     workspace_state: dict | None = None,
@@ -203,16 +203,6 @@ async def acknowledge_expert_tools(
     # expert_reasoning_episode imports this module for the tool loop.
     from app.services.expert_reasoning_episode import remember_expert_episode
 
-    if calls and not text:
-        text = (
-            await complete_text(
-                [
-                    *messages,
-                    {"role": "user", "content": render_prompt(prompts, "chat.expert.tool_ack")},
-                ],
-                prompt_key="chat.expert.tool_ack",
-            )
-        ).strip()
     remember_expert_episode(
         messages, payload, tuple(calls), specs, prompt_key=prompt_key, display_text=text,
     )
@@ -245,6 +235,7 @@ def _planned_calls(
     offered: frozenset[str],
     consult: bool,
     workspace_state: dict | None = None,
+    seen_call_ids: set[str] | None = None,
 ) -> list[PlannedCall]:
     raw = list(getattr(reply, "tool_calls", None) or [])
     if not raw:
@@ -252,7 +243,7 @@ def _planned_calls(
     if not raw and consult:
         raw = consult_calls_from_promise(text, last_user_question(messages))
     planned: list[PlannedCall] = []
-    seen_ids: set[str] = set()
+    seen_ids = seen_call_ids if seen_call_ids is not None else set()
     for call in raw:
         call_id = str(call.id)
         name = str(call.function.name)
@@ -283,6 +274,7 @@ def _work(scope: LibraryToolScope, calls: tuple[PlannedCall, ...]) -> ToolWork:
         episode=getattr(scope, "episode", None),
         spawn_exposed=scope.spawn_exposed,
         turn_id=scope.turn_id,
+        seen_call_ids=scope._planned_call_ids,
     )
 
 
@@ -322,7 +314,6 @@ async def complete_tool_episode(
 
     scope.defer(calls)
     calls = tuple(scope._calls)
-    scope._calls.clear()
     work = _work(scope, calls)
     blob, results = await run_tool_calls(work) if calls else ("", ())
 

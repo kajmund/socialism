@@ -311,7 +311,6 @@ async def stream_reply_as_persona(  # noqa: PLR0913
         ack = await acknowledge_expert_tools(
             messages,
             allowed_tools=frozenset(allowed),
-            prompts=prompts,
             prompt_key=_chat_prompt_key(mode),
             extra_specs=workspace_tools,
             workspace_state=scope.workspace_state,
