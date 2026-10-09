@@ -364,8 +364,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             enabled=with_tools,
             workspace=None if workspace_id is None or stored_state is None else (workspace_id, stored_state),
         )
-        if sme_expert_turn_request_id is not None:
-            scope.turn_id = sme_expert_turn_request_id
+        scope.turn_id = sme_expert_turn_request_id or scope.turn_id
         scope.customer_id = persona.customer_id
         try:
             if with_tools:
