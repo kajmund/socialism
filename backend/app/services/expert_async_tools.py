@@ -1,18 +1,17 @@
-"""Return the expert's own short line, then run tools and weave the result in later."""
+"""Run expert tools inside the turn that owns their final user-visible answer."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable
 from contextvars import ContextVar
-from dataclasses import dataclass, field
+from dataclasses import dataclass, replace
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database.models import Persona, PersonaMessage
 from app.llm import complete_text, complete_with_tools
 from app.llm.runtime_override import SelectionRole
@@ -50,8 +49,6 @@ logger = logging.getLogger(__name__)
 
 History = list[tuple[str, str, str | None]]
 _active: ContextVar[LibraryToolScope | None] = ContextVar("library_tool_scope", default=None)
-_threads: dict[tuple[str, str], _Thread] = {}
-_tasks: set[asyncio.Task[None]] = set()
 
 
 @dataclass(frozen=True)
@@ -82,17 +79,8 @@ class ToolWork:
     turn_started_at: float | None = None
     episode: Any = None
     spawn_exposed: bool = False
-    model_spoke: bool = False
     failed_calls: int = 0
-
-
-@dataclass
-class _Thread:
-    cond: asyncio.Condition = field(default_factory=asyncio.Condition)
-    busy: int = 0
-    inflight: int = 0
-    waking: bool = False
-    pending: list[str] = field(default_factory=list)
+    turn_id: str = ""
 
 
 class LibraryToolScope:
@@ -114,45 +102,29 @@ class LibraryToolScope:
         self.actor_user_id = actor_user_id
         self.history = history
         self.user_message = user_message
+        self.turn_id = uuid4().hex
         self.workspace_id = None if workspace is None else workspace[0]
         self.workspace_state = None if workspace is None else workspace[1]
-        self.pending_result = ""
         self.client_calls: list[PlannedCall] = []
         self.reasoning_profile: SelectionRole | None = None
         self.reasoning_decision: RoutingDecision | None = None
         self.turn_started_at: float | None = None
         self.tool_retrieval = None
         self.spawn_exposed = False
-        self.model_spoke = False
         self._calls: list[PlannedCall] = []
-        self._thread: _Thread | None = None
         self._token: Any = None
-        self._counted = False
+        self._planned_call_ids: set[str] = set()
 
     async def enter(self) -> None:
         if not self.enabled:
             return
         self._token = _active.set(self)
-        thread = _threads.setdefault((self.persona_id, self.mode), _Thread())
-        self._thread = thread
-        async with thread.cond:
-            thread.busy += 1
-            self._counted = True
-        await self._take_ready(thread)
-
-    async def _take_ready(self, thread: _Thread) -> None:
-        try:
-            async with asyncio.timeout(settings.llm_timeout_seconds * 5):
-                async with thread.cond:
-                    while thread.inflight or thread.waking:
-                        await thread.cond.wait()
-                    self.pending_result = "\n\n".join(thread.pending)
-                    thread.pending.clear()
-        except TimeoutError:
-            self.pending_result = ""
 
     def defer(self, calls: tuple[PlannedCall, ...] | list[PlannedCall]) -> None:
         for call in calls:
+            if call.id in self._planned_call_ids:
+                continue
+            self._planned_call_ids.add(call.id)
             if call.name in CLIENT_TOOL_NAMES:
                 self.client_calls.append(call)
             else:
@@ -166,25 +138,12 @@ class LibraryToolScope:
     def has_deferred_calls(self) -> bool:
         return bool(self._calls)
 
-    async def finish(self, *, deliver: bool) -> None:
+    async def finish(self) -> None:
         if not self.enabled:
             return
         if self._token is not None:
             _active.reset(self._token)
             self._token = None
-        thread = self._thread
-        if thread is None:
-            return
-        calls = tuple(self._calls) if deliver else ()
-        async with thread.cond:
-            if calls:
-                thread.inflight += 1
-            if self._counted:
-                thread.busy -= 1
-                self._counted = False
-            thread.cond.notify_all()
-        if calls:
-            _track(_run_deferred(thread, _work(self, calls)))
 
 
 def begin_library_tools(
@@ -215,15 +174,6 @@ def active_library_tools() -> LibraryToolScope | None:
     return scope
 
 
-def reset_library_tool_threads() -> None:
-    _threads.clear()
-
-
-async def wait_library_tool_tasks() -> None:
-    while _tasks:
-        await asyncio.gather(*list(_tasks))
-
-
 async def acknowledge_expert_tools(
     messages: list[dict[str, Any]],
     *,
@@ -234,18 +184,14 @@ async def acknowledge_expert_tools(
     workspace_state: dict | None = None,
 ) -> AckTurn:
     specs = [*await _tool_specs(allowed_tools), *(extra_specs or [])]
-    retrieval = None if (scope := active_library_tools()) is None else scope.tool_retrieval
     reply = await complete_with_tools(
         messages,
         specs,
         prompt_key=prompt_key,
-        tool_choice="required" if retrieval is not None and retrieval.require_tool else "auto",
+        tool_choice="auto",
     )
     payload = assistant_message_dict(reply)
     text = visible_assistant_text(payload)
-    if scope is not None:
-        # A filled-in acknowledgement is not an answer the user has already heard.
-        scope.model_spoke = bool(text.strip())
     calls = _planned_calls(
         reply,
         text,
@@ -305,11 +251,15 @@ def _planned_calls(
         raw = tool_calls_from_leaked_markup(str(getattr(reply, "content", "") or ""))
     if not raw and consult:
         raw = consult_calls_from_promise(text, last_user_question(messages))
-    planned = [
-        PlannedCall(str(call.id), str(call.function.name), parse_tool_args(call.function.arguments))
-        for call in raw
-        if str(call.function.name) in offered
-    ]
+    planned: list[PlannedCall] = []
+    seen_ids: set[str] = set()
+    for call in raw:
+        call_id = str(call.id)
+        name = str(call.function.name)
+        if name not in offered or call_id in seen_ids:
+            continue
+        seen_ids.add(call_id)
+        planned.append(PlannedCall(call_id, name, parse_tool_args(call.function.arguments)))
     if not planned and "read_source" in offered:
         promised = read_promise_arguments(text, workspace_state)
         if promised is not None:
@@ -332,54 +282,11 @@ def _work(scope: LibraryToolScope, calls: tuple[PlannedCall, ...]) -> ToolWork:
         turn_started_at=scope.turn_started_at,
         episode=getattr(scope, "episode", None),
         spawn_exposed=scope.spawn_exposed,
-        model_spoke=scope.model_spoke,
+        turn_id=scope.turn_id,
     )
 
 
-def _track(coro: Awaitable[None]) -> None:
-    task = asyncio.create_task(coro)
-    _tasks.add(task)
-    task.add_done_callback(_tasks.discard)
-
-
-async def _run_deferred(thread: _Thread, work: ToolWork) -> None:
-    blob, tool_results = "", ()
-    try:
-        blob, tool_results = await run_deferred_calls(work)
-    except Exception:
-        logger.exception("Expert tool follow-up failed for %s", work.persona_id)
-        blob = ""
-    if withhold_failed_spoken_reply(work):
-        blob, tool_results = "", ()
-    async with thread.cond:
-        if blob:
-            thread.pending.append(blob)
-        thread.inflight -= 1
-        idle = (
-            thread.busy == 0
-            and thread.inflight == 0
-            and (bool(thread.pending) or bool(tool_results))
-            and not thread.waking
-        )
-        if idle:
-            thread.waking = True
-            blob = "\n\n".join(thread.pending)
-            thread.pending.clear()
-        thread.cond.notify_all()
-    if idle:
-        # followup imports this module, so the wake import stays at the call.
-        from app.services.expert_tool_followup import _wake
-
-        await emit_tool_progress("followup", "followup", remaining=0, summary=blob)
-        await _wake(thread, work, blob, tool_results)
-
-
-def withhold_failed_spoken_reply(work: ToolWork) -> bool:
-    """The spoken answer stands. A failed tool must not add another reply."""
-    return bool(work.model_spoke and work.calls and work.failed_calls == len(work.calls))
-
-
-async def run_deferred_calls(work: ToolWork) -> tuple[str, tuple[str, ...]]:
+async def run_tool_calls(work: ToolWork) -> tuple[str, tuple[str, ...]]:
     parts: list[str] = []
     results: list[str] = []
     work.failed_calls = 0
@@ -403,6 +310,50 @@ async def run_deferred_calls(work: ToolWork) -> tuple[str, tuple[str, ...]]:
         if text:
             parts.append(f"{call.name}\n{text}")
     return "\n\n".join(parts), tuple(results)
+
+
+async def complete_tool_episode(
+    scope: LibraryToolScope,
+    calls: tuple[PlannedCall, ...],
+) -> str:
+    """Run tool calls and their follow-up before the owning turn replies."""
+    from app.services.expert_reasoning_episode import continue_expert_episode
+    from app.services.expert_tool_followup import compose_tool_episode
+
+    scope.defer(calls)
+    calls = tuple(scope._calls)
+    scope._calls.clear()
+    work = _work(scope, calls)
+    blob, results = await run_tool_calls(work) if calls else ("", ())
+
+    async def publish(client_calls: list[PlannedCall]) -> None:
+        if scope.customer_id is None:
+            return
+        from app.realtime.library_chat_broadcast import library_chat_broadcast
+
+        for call in client_calls:
+            await library_chat_broadcast.publish(scope.customer_id, scope.persona_id, {
+                "type": "workspace_tool",
+                "thread_type": "expert",
+                "thread_id": scope.persona_id,
+                "mode": scope.mode,
+                "name": call.name,
+                "arguments": call.arguments,
+                "owner_turn_id": scope.turn_id,
+            })
+
+    text, reasoning = await compose_tool_episode(
+        work,
+        blob,
+        results,
+        continue_episode=continue_expert_episode,
+        run_call=_run_one,
+        publish=publish,
+    )
+    episode = getattr(scope, "episode", None)
+    if episode is not None:
+        scope.episode = replace(episode, reasoning_content=reasoning)
+    return text.strip()
 
 
 async def _run_one(call: PlannedCall, work: ToolWork) -> str:
