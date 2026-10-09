@@ -9,6 +9,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # Kom igång
 
 * [Logga in](logga-in.md) — Logga in med inloggningslänk till din e-post
+* [Landa på rätt yta efter inloggning](landa-pa-ratt-yta-efter-inloggning.md) — Var Standard, SME och enskilda moduler tar dig efter inloggning
 * [Hantera användare](hantera-anvandare.md) — Bjud in användare (administratör)
 * [Översikt av ytorna](oversikt.md) — Var du hittar huvudfunktionerna i admin
 * [Använda startsidan](anvanda-startsidan.md) — Dashboard med snabbstart, jobb och biblioteksstatistik
@@ -103,6 +104,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # Rapporter
 
 * [Hantera rapporter](hantera-rapporter.md) — Lista och öppna beställda rapporter
+* [Öppna rapporter per modul](oppna-rapporter-per-modul.md) — Flikar för politik, Due Diligence, expertgranskning och rättsunderlag
 * [Beställa en rapport](bestalla-rapport.md) — Sammanfattning eller jämförelse från resultat
 * [Läsa simuleringsrapport](lasa-simuleringsrapport.md) — Öppna och läsa HTML-rapporten
 * [Läsa Due Diligence-rapport](lasa-due-diligence-rapport.md) — Tolka panelpoäng, källor och nyckeltal i DD-rapporten
