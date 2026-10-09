@@ -54,7 +54,7 @@ class ExpertEpisode:
 
 
 def episode_assistant(payload: dict[str, Any], calls: tuple[PlannedCall, ...]) -> dict[str, Any]:
-    if payload.get("tool_calls") or not calls:
+    if not calls:
         return payload
     assistant = dict(payload)
     assistant["tool_calls"] = [

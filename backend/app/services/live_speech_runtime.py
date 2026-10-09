@@ -21,7 +21,6 @@ from app.services.elevenlabs_tts import ElevenLabsTts
 from app.services.live_speech_admit import admit_voice_turn, current_workspace_state
 from app.services.live_speech_coordinator import SpeechResponseCoordinator
 from app.services.live_speech_cues import LiveSpeechCues
-from app.services.live_speech_followup import published_assistant_reply
 from app.services.live_speech_history import persist_interrupted_voice_turn
 from app.services.live_speech_progress import bind_tool_progress
 from app.services.openai_live_transcription import (
@@ -403,23 +402,7 @@ class LiveSpeechRuntime:
         return emit
 
     async def _on_library_event(self, payload: dict) -> None:
-        if payload.get("type") == "thread.message":
-            await self._speak_published_reply(payload)
-            return
         await self._forward_model_trace(payload)
-
-    async def _speak_published_reply(self, payload: dict) -> None:
-        if self._closed or self._muted:
-            return
-        text = published_assistant_reply(
-            payload,
-            expert_id=self.scope.expert_id,
-            assistant_text=self._assistant_text,
-            voiced=self._voiced_reply,
-        )
-        if text is None:
-            return
-        await self._play_reply(text)
 
     async def _play_reply(self, text: str) -> None:
         self._voiced_reply = text

@@ -19,7 +19,7 @@ from app.services.expert_session_tools import (
 from app.services.expert_async_tools import (
     acknowledge_expert_tools,
     active_library_tools,
-    tool_result_extra,
+    complete_tool_episode,
 )
 from app.services.expert_reasoning_episode import history_message
 from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
@@ -294,9 +294,6 @@ async def stream_reply_as_persona(  # noqa: PLR0913
         combined_extra = f"{extra_system}\n\n{extra}".strip() if extra_system else extra
     scope = active_library_tools()
     workspace_tools = extra_tools or []
-    if scope is not None and scope.pending_result:
-        rendered = tool_result_extra(prompts, scope.pending_result)
-        combined_extra = f"{combined_extra}\n\n{rendered}".strip() if combined_extra else rendered
     messages = _chat_messages(
         profile,
         mode,
@@ -320,9 +317,13 @@ async def stream_reply_as_persona(  # noqa: PLR0913
             workspace_state=scope.workspace_state,
         )
         if ack.calls:
-            scope.defer(ack.calls)
-        if ack.text:
-            yield ack.text
+            reply = await complete_tool_episode(scope, ack.calls)
+        else:
+            reply = ack.text
+        if reply:
+            yield reply
+        else:
+            raise ValueError("Expert tool episode produced no reply")
         return
     if allowed:
         reply = await complete_text_with_company_tools(
