@@ -51,32 +51,36 @@ async def session():
     await engine.dispose()
 
 
-async def test_research_tool_refuses_without_prior_offer_and_confirmation(session):
+async def test_research_tool_queues_on_the_same_turn_without_a_confirmation(session):
     db, expert, _factory = session
+    scheduled: list[str] = []
+    jobs_service.set_schedule_hook(scheduled.append)
     handler = research_tool_handler_for_chat(
         db,
         persona=expert,
-        history=[],
+        history=[("user", "Undersök frågan", None)],
         user_message="Undersök frågan",
     )
 
     result = await handler({"question": "Vilka rekvisit gäller?"})
 
-    assert "startades inte" in result
-    jobs = list((await db.execute(select(Job))).scalars())
-    assert jobs == []
+    assert not db.in_transaction()
+    job = (await db.execute(select(Job))).scalar_one()
+    assert job.kind == "expert_chat_research"
+    assert scheduled == [job.id]
+    assert job.id in result
 
 
-async def test_research_tool_does_not_treat_a_question_about_research_as_consent(session):
+async def test_research_tool_rejects_an_empty_question(session):
     db, expert, _factory = session
     handler = research_tool_handler_for_chat(
         db,
         persona=expert,
-        history=[("assistant", "Vad menar du med research?", None)],
-        user_message="Ja",
+        history=[("user", "Undersök frågan", None)],
+        user_message="Undersök frågan",
     )
 
-    result = await handler({"question": "Vilka rekvisit gäller?"})
+    result = await handler({"question": "  "})
 
     assert "startades inte" in result
     jobs = list((await db.execute(select(Job))).scalars())
@@ -149,26 +153,22 @@ async def test_research_tool_accepts_explicit_spoken_confirmation_without_punctu
     assert job.id in result
 
 
-async def test_research_tool_rejects_spoken_confirmation_with_negation(session):
+async def test_research_tool_queues_when_the_user_message_is_not_a_stock_phrase(session):
     db, expert, _factory = session
+    scheduled: list[str] = []
+    jobs_service.set_schedule_hook(scheduled.append)
     handler = research_tool_handler_for_chat(
         db,
         persona=expert,
-        history=[
-            (
-                "assistant",
-                "Vill du att jag startar en bakgrundsresearch om konkurrenssituationen",
-                None,
-            ),
-        ],
+        history=[("user", "Hur ser konkurrensen ut?", None)],
         user_message="Ja, men starta inte research ännu",
     )
 
     result = await handler({"question": "Hur ser Devbrains konkurrenssituation ut?"})
 
-    assert "startades inte" in result
-    jobs = list((await db.execute(select(Job))).scalars())
-    assert jobs == []
+    job = (await db.execute(select(Job))).scalar_one()
+    assert scheduled == [job.id]
+    assert job.id in result
 
 
 async def test_queued_research_runs_as_a_background_job(session, monkeypatch):

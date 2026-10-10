@@ -42,7 +42,7 @@ I SME väljer du **Starta research** i arbetsytans övre rad. I expertens redige
 
 Skriv frågan och kontrollera dokumentvalet. Dokument som fortfarande bearbetas eller har misslyckats hindrar starten om de är valda. Vänta tills de är klara eller välj uttryckligen bort dem. Välj **Starta research** för att starta ett bakgrundsjobb.
 
-Du kan också be om research i ett chattmeddelande. Chattens researchverktyg använder samma workspace och samma regler för källor och åtkomst. I SME inväntar experten din bekräftelse efter att ha erbjudit sig att starta research.
+Du kan också be om research i ett chattmeddelande. Chattens researchverktyg använder samma workspace och samma regler för källor och åtkomst. I SME kan experten starta research i samma svar när frågan kräver det.
 
 Du kan fråga om en befintlig fil direkt, till exempel **Läs kvittot och sammanfatta uppgifterna**. Chatten känner till filerna i workspacet och använder det relevanta dokumentet som underlag. Du behöver inte ladda upp en klar fil igen eller skriva ordet research. Andra filer som fortfarande bearbetas hindrar inte en fråga om det valda, klara dokumentet.
 

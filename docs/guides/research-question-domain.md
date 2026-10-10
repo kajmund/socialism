@@ -56,7 +56,7 @@ Library expert chat performs a read-only semantic lookup against tenant and publ
 
 Matching frozen evidence is added to the expert's system context with stable `[R1]`, `[R2]` references and explicit freshness. The expert must disclose gaps or stale evidence rather than invent an answer. This seam creates no Run, Attempt, question, or provider request. Both REST and streaming chat use the same read-through behavior; Word remains outside it.
 
-When the frozen read-through is insufficient, a library expert can offer to start research. This is an explicit two-turn protocol: the expert first asks the user and states what should be researched; only a later affirmative user message unlocks the native `start_research` tool. The server validates both turns instead of trusting the model prompt alone.
+When the frozen read-through is insufficient, a library expert queues `start_research` in the same turn. The server checks that the question is present and within length; it does not require a separate confirming user message.
 
 The tool creates an `expert_chat_research` Job and returns immediately. The user's original chat question becomes the context-bound `SpecificQuestion`; the standalone question proposed by the expert becomes the initial general `ResearchQuestion`. Its background worker creates the parent Attempt and preserves the initiating expert as `raised_by`. Normal expert assignment then selects or creates the responsible expert before the existing question DAG runs through planning, routing, frozen evidence, assessment and completeness. The chat does not wait for the result or claim that it already exists. Word has neither this tool nor this initiation path.
 

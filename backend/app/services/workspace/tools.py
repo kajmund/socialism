@@ -39,12 +39,6 @@ async def execute_workspace_tool(session: AsyncSession, *, workspace_id: str, us
         idempotency_key=idempotency_key, context_snapshot=turn_context)
     if not accepted:
         return operation.result or {"operation_id": operation.id, "status": operation.status}
-    if agent_session is not None:
-        if tool_name == "start_research":
-            from app.services.expert_chat_research_tool import _assistant_offered_research, _explicit_research_confirmation
-            if not (_explicit_research_confirmation(getattr(agent_session, "turn_user_text", ""))
-                    and _assistant_offered_research(getattr(agent_session, "turn_previous_agent_text", ""))):
-                raise HTTPException(status_code=409, detail="research_confirmation_required")
     completed = False
     try:
         handler = HANDLERS.get(tool_name)
