@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 EmitJson = Callable[[dict], Awaitable[None]]
 EmitAudio = Callable[[bytes], Awaitable[None]]
+OnFloorGranted = Callable[[str, str], Awaitable[None]]  # persona_id, transcript
 
 
 @dataclass
@@ -47,11 +48,13 @@ class GroupVoiceAudioRuntime:
         *,
         emit_json: EmitJson,
         emit_audio: EmitAudio,
+        on_floor_granted: OnFloorGranted | None = None,
     ) -> None:
         self.session = session
         self.scope = scope
         self._emit_json = emit_json
         self._emit_audio = emit_audio
+        self._on_floor_granted = on_floor_granted
         self._stt = OpenAITranscriptionStream(
             api_key=settings.openai_api_key,
             model=settings.live_speech_stt_model,
@@ -108,6 +111,8 @@ class GroupVoiceAudioRuntime:
                     "floor_name": self.session.member_names.get(addressed),
                 }
             )
+            if self._on_floor_granted is not None:
+                await self._on_floor_granted(addressed, text)
 
     async def speak_as(self, persona_id: str, text: str) -> None:
         """Synthesize and stream audio for the expert who currently holds the floor."""
