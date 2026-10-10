@@ -11,7 +11,6 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from time import monotonic
 from uuid import uuid4
 
 from elevenlabs.core.api_error import ApiError as ElevenLabsApiError
@@ -98,13 +97,10 @@ class GroupVoiceAudioRuntime:
                 "item_id": event.item_id or "pending",
             }
         )
-        # Feed into the state machine (name address can grant floor)
         addressed = self.session.address_by_name(text)
         if addressed:
             self.session.grant_floor(addressed)
             await self._emit_json({"type": "snapshot", **self.session.snapshot()})
-            # In a full implementation the expert turn would be started here.
-            # For this foundation we only signal that speech is expected.
             await self._emit_json(
                 {
                     "type": "floor.granted",
