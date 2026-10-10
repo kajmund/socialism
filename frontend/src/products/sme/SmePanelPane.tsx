@@ -14,11 +14,12 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
   const [messages, setMessages] = useState<SmeMessage[]>([]), [draft, setDraft] = useState("")
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [voiceEnabled, setVoiceEnabled] = useState(false)
   const epoch = useRef(0)
 
   const voice = useSmeGroupVoice({
     panelId: thread.thread_id,
-    enabled: true,
+    enabled: voiceEnabled,
   })
 
   useEffect(() => { const token = ++epoch.current; let cancelled = false; setLoading(true); setMessages([]); setError(null); void listSmePanelMessages(thread.thread_id).then((rows) => { if (!cancelled && epoch.current === token) setMessages(rows) }).catch((caught: unknown) => { if (!cancelled && epoch.current === token) setError(workspaceErrorMessage(caught, t, "sme.chatError")) }).finally(() => { if (!cancelled && epoch.current === token) setLoading(false) }); void markSmeThreadRead("panel", thread.thread_id).catch((caught: unknown) => { if (!cancelled && epoch.current === token) setError(workspaceErrorMessage(caught, t, "sme.chatError")) }); return () => { cancelled = true } }, [t, thread.thread_id])
@@ -39,7 +40,7 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
       setMessages((rows) => [...new Map([...rows, ...created].map((message) => [message.id, message])).values()])
       setDraft("")
       await markSmeThreadRead("panel", thread.thread_id)
-      voice.sendUtterance(text)
+      if (voiceEnabled) voice.sendUtterance(text)
     }
     catch (caught) { setError(workspaceErrorMessage(caught, t, "sme.chatError")) }
     finally { setBusy(false) }
@@ -62,6 +63,14 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
           </span>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            className="grid size-8 place-items-center rounded-full border text-xs"
+            onClick={() => setVoiceEnabled((v) => !v)}
+            title={voiceEnabled ? "Disable voice" : "Enable voice"}
+          >
+            {voiceEnabled ? <Mic size={16} /> : <MicOff size={16} />}
+          </button>
           {voice.connected && (
             <button
               type="button"
