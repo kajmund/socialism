@@ -46,9 +46,7 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
     finally { setBusy(false) }
   }
 
-  const floorName = voice.snapshot?.floor
-    ? thread.member_names.find((_, i) => false) // placeholder; real mapping needs persona ids
-    : null
+  const floorName = voice.snapshot?.floor_name ?? null
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-white">
