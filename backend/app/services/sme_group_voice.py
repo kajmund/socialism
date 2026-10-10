@@ -110,11 +110,16 @@ class GroupVoiceSession:
         self,
         recent_transcript: str,
         jev: HttpJevSystemOne | None = None,
+        keep_hand_prompt: str | None = None,
     ) -> None:
         """After floor returns to open, each remaining hand asks Jev whether to stay raised."""
         if not self.hands:
             return
         client = jev or HttpJevSystemOne()
+        instruction_template = keep_hand_prompt or (
+            "Is the point {name} wanted to raise still relevant and unanswered "
+            "given the recent discussion? Answer yes if the hand should stay raised."
+        )
         to_lower: list[str] = []
         for persona_id in list(self.hands):
             name = self.member_names.get(persona_id, persona_id)
@@ -129,10 +134,7 @@ class GroupVoiceSession:
             questions = {
                 "keep_hand": {
                     "type": "noul",
-                    "instructions": (
-                        f"Is the point {name} wanted to raise still relevant and unanswered "
-                        "given the recent discussion? Answer yes if the hand should stay raised."
-                    ),
+                    "instructions": instruction_template.format(name=name),
                 }
             }
             try:
