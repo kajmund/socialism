@@ -215,7 +215,13 @@ async def _dispatch(
     elif kind == "release_floor":
         msg = ReleaseFloor.model_validate(raw)
         session.release_floor()
-        await session.decide_keep_hands(msg.transcript)
+        from app.services.prompt_store import require_active_prompts
+        from app.services.prompt_catalog import render_prompt
+        factory = jobs_service.job_session_factory()
+        async with factory() as db:
+            prompts = await require_active_prompts(db)
+        keep_prompt = render_prompt(prompts, "sme.group_voice.keep_hand")
+        await session.decide_keep_hands(msg.transcript, keep_hand_prompt=keep_prompt)
         await push_snapshot()
     elif kind == "attach_tool":
         msg = AttachTool.model_validate(raw)
