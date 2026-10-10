@@ -28,6 +28,7 @@ from app.api import (
     populations,
     reports,
     sme,
+    sme_group_voice_ws,
     sme_ws,
     spindoctor,
     underlag,
@@ -193,6 +194,7 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(sme.router)
     app.include_router(sme_ws.router)
+    app.include_router(sme_group_voice_ws.router)
     app.include_router(live_speech.router)
     app.include_router(voice_workspaces.router)
     app.include_router(voice_workspace_inbox.router)
