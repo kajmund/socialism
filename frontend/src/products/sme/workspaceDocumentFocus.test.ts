@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { UnderlagFile } from "@/api/underlag"
 import type { SourceReference, WorkspaceState } from "@/api/voiceWorkspaces"
-import { clearWorkspaceDocumentSelection, workspaceFocusReference } from "./workspaceDocumentFocus"
+import { clearWorkspaceDocumentSelection, visibleDocumentHighlights, workspaceFocusReference } from "./workspaceDocumentFocus"
 
 const source: UnderlagFile = { id: "pdf", kind: "underlag", filename: "example.pdf", content_type: "application/pdf", size_bytes: 100, module: "sme", owner_user_id: null, folder_id: null, extraction_status: "ok", created_at: "2026-10-04T00:00:00Z" }
 const reference: SourceReference = { reference_id: "passage", number: 1, source_id: source.id, source_kind: "underlag", title: source.filename, excerpt: "Period June 1–30", source_version: "v1", stale: false, anchor: { anchor_type: "text", locator: "page:1", page_number: 1, exact_text: "Period June 1–30", rects: [], prefix_text: null, suffix_text: null, asset_id: null } }
@@ -14,6 +14,18 @@ function documentState(): WorkspaceState {
     split_source_ids: [source.id, "other"], active_artifact_id: "draft", research_attempt_ids: ["research"], selection: null,
   }
 }
+
+describe("visible document highlights", () => {
+  const marked = { ...reference, reference_id: "marked", anchor: { ...reference.anchor!, rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }] } }
+  const otherPage = { ...marked, reference_id: "other-page", anchor: { ...marked.anchor!, page_number: 2, rects: [{ x: 0.2, y: 0.3, width: 0.2, height: 0.05 }] } }
+  const otherSource = { ...marked, reference_id: "other-source", source_id: "other" }
+  it("shows every positioned passage on the open page", () => {
+    expect(visibleDocumentHighlights([reference, marked, otherPage, otherSource], source.id, 1, undefined).map((anchor) => anchor.rects)).toEqual([marked.anchor!.rects])
+  })
+  it("hides stored passages after an explicit clear", () => {
+    expect(visibleDocumentHighlights([marked], source.id, 1, null)).toEqual([])
+  })
+})
 
 describe("clearing a workspace document selection", () => {
   it("clears a cited selection linked through references without changing either pane's position", () => {

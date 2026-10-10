@@ -1021,6 +1021,38 @@ async def test_reclaim_orphan_does_not_touch_other_request_rows(
     assert [row.content for row in rows] == [shared, "Svar B"]
 
 
+@pytest.mark.asyncio
+async def test_clear_panel_messages_leaves_other_panels(client_db) -> None:
+    client, factory = client_db
+    await _enable_sme(client)
+    async with factory() as session:
+        panel = Population(
+            customer_id=TEST_CUSTOMER_ID, kind="expert_panel", name="Att rensa",
+            size=1, versions=1, fingerprint=[], recipe={}, updated_at=utcnow(),
+        )
+        other = Population(
+            customer_id=TEST_CUSTOMER_ID, kind="expert_panel", name="Kvar",
+            size=1, versions=1, fingerprint=[], recipe={}, updated_at=utcnow(),
+        )
+        session.add_all([panel, other])
+        await session.flush()
+        session.add(SmePanelMessage(
+            customer_id=TEST_CUSTOMER_ID, population_id=panel.id, role="user",
+            content="Hej", created_at=utcnow(),
+        ))
+        session.add(SmePanelMessage(
+            customer_id=TEST_CUSTOMER_ID, population_id=other.id, role="user",
+            content="Kvar", created_at=utcnow(),
+        ))
+        await session.commit()
+        panel_id, other_id = panel.id, other.id
+    cleared = await client.delete(f"/sme/panels/{panel_id}/messages")
+    assert cleared.status_code == 204
+    assert (await client.get(f"/sme/panels/{panel_id}/messages")).json() == []
+    kept = await client.get(f"/sme/panels/{other_id}/messages")
+    assert [row["content"] for row in kept.json()] == ["Kvar"]
+
+
 async def _wait_expert_status(
     factory, request_id: str, statuses: set[str]
 ) -> SmeExpertTurn:

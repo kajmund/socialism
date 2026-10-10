@@ -48,9 +48,10 @@ halvfärdig ljudtur efter socketdrop.
 ## VAD och avbrott
 
 Browsern kalibrerar en enkel energibaserad VAD, behåller cirka 250 ms pre-roll
-och committar efter cirka 600 ms tystnad. Normal tur öppnas efter cirka 300 ms
-sammanhängande tal. Kortare brus kastas. Urgent-gränsen 120 ms öppnar STT
-tidigare så att `stopp`, `nej` och `vänta` kan klassas. OpenAI-sessionen
+och committar efter cirka 600 ms tystnad. En tur bekräftas efter cirka 120 ms
+sammanhängande tal, samma gräns som öppnar STT, så att korta ord som "ja" och
+"okey" blir en tur. Kortare brus kastas. `stopp`, `nej` och `vänta` klassas
+så fort transkriptet finns. OpenAI-sessionen
 konfigureras alltid med `turn_detection: null`.
 
 Talstart under uppläsning avbryter inte ensamt. Servern klassificerar

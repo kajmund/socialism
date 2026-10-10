@@ -5,12 +5,12 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import UTC, datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.graph_v2 import GraphFact, GraphFactSource
-from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, TextUnitRecord
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord
 from app.services.lagen_nu.registration import LAGEN_NU_EVIDENCE_NATURES, LAGEN_NU_PROVIDER_ID
+from app.services.overgraph.model import GraphFactView, TextUnitView
+from app.services.overgraph.research import knowledge_catalog, supporting_units
 from app.services.research.models import (
     ResearchContext,
     ResearchError,
@@ -33,11 +33,11 @@ def current_interval(start: datetime | None, end: datetime | None, now: datetime
     return (start is None or _utc(start) <= now) and (end is None or now < _utc(end))
 
 
-def fact_is_current(fact: GraphFact, now: datetime) -> bool:
+def fact_is_current(fact, now: datetime) -> bool:
     return fact.status == "active" and current_interval(fact.valid_at, fact.invalid_at, now)
 
 
-def _scope_allowed(scope: str, fact: GraphFact) -> bool:
+def _scope_allowed(scope: str, fact) -> bool:
     # Shared facts must never expose customer-owned passages.
     return scope == "shared" or scope == fact.scope_key
 
@@ -57,43 +57,24 @@ def _context_allowed(extra: dict, context: ResearchContext, *, require_case: boo
 async def grounded_fact_evidence(
     session: AsyncSession,
     *,
-    fact: GraphFact,
+    fact: GraphFactView,
     need: ResearchNeed,
     context: ResearchContext,
     now: datetime,
     max_age_seconds: int | None,
 ) -> list[ResearchEvidence]:
-    refs = list(
-        (
-            await session.scalars(
-                select(GraphFactSource.source_ref)
-                .where(
-                    GraphFactSource.fact_id == fact.id,
-                    GraphFactSource.source_kind == "text_unit",
-                )
-                .order_by(GraphFactSource.source_ref)
-            )
-        ).all()
-    )
-    if not refs:
+    if not fact.text_unit_refs:
         # Structural edges (e.g. decomposition) are traversal context, not evidence.
         return []
-    units = list(
-        (
-            await session.scalars(
-                select(TextUnitRecord)
-                .where(
-                    TextUnitRecord.id.in_(refs),
-                )
-                .order_by(
-                    TextUnitRecord.document_version_id, TextUnitRecord.ordinal, TextUnitRecord.id
-                )
-            )
-        ).all()
-    )
-    if len(units) != len(refs):
+    catalog = knowledge_catalog()
+    loaded = await catalog.run(supporting_units, catalog, fact)
+    if any(unit is None for unit in loaded):
         raise GraphResearchError(f"Graph fact {fact.id} has missing supporting TextUnits")
-    grouped: dict[str, list[TextUnitRecord]] = defaultdict(list)
+    units = sorted(
+        (unit for unit in loaded if unit is not None),
+        key=lambda unit: (unit.document_version_id, unit.ordinal, unit.id),
+    )
+    grouped: dict[str, list[TextUnitView]] = defaultdict(list)
     for unit in units:
         if not _scope_allowed(unit.scope_key, fact):
             raise GraphResearchError(f"Graph fact {fact.id} crosses its source scope")

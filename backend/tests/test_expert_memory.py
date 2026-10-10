@@ -11,8 +11,6 @@ from app.services.expertgranskning.memory import (
     LANGUAGE_PRESERVATION_INSTRUCTIONS,
     ExpertMemory,
     ExpertMemoryHit,
-    MEM0_PGVECTOR_MAXCONN,
-    MEM0_PGVECTOR_MINCONN,
     _default_memory,
     _memory_config,
     close_default_expert_memory,
@@ -645,6 +643,30 @@ async def test_expert_memory_api_lists_and_scopes(client, user_token, admin_toke
     client.headers["Authorization"] = f"Bearer {admin_token}"
 
 
+def test_overgraph_is_accepted_by_mem0_config():
+    from mem0.configs.base import MemoryConfig
+    from mem0.utils.factory import VectorStoreFactory
+
+    from app.services.overgraph.mem0_store import OverGraphVectorStore
+
+    config = MemoryConfig(
+        vector_store={
+            "provider": "overgraph",
+            "config": {
+                "collection_name": "expert_memories",
+                "embedding_model_dims": 1536,
+            },
+        }
+    )
+    store = VectorStoreFactory.create(
+        config.vector_store.provider,
+        config.vector_store.config,
+    )
+    assert isinstance(store, OverGraphVectorStore)
+    assert store.collection_name == "expert_memories"
+    assert store.embedding_model_dims == 1536
+
+
 def test_memory_config_includes_language_preservation(monkeypatch):
     monkeypatch.setattr(
         "app.services.expertgranskning.memory.settings.database_url",
@@ -653,10 +675,8 @@ def test_memory_config_includes_language_preservation(monkeypatch):
     config = _memory_config(vision=False)
     assert config["custom_instructions"] == LANGUAGE_PRESERVATION_INSTRUCTIONS
     assert "Never translate memories into English" in LANGUAGE_PRESERVATION_INSTRUCTIONS
-    assert config["vector_store"]["provider"] == "pgvector"
+    assert config["vector_store"]["provider"] == "overgraph"
     assert config["vector_store"]["config"]["embedding_model_dims"] == 1536
-    assert config["vector_store"]["config"]["minconn"] == MEM0_PGVECTOR_MINCONN
-    assert config["vector_store"]["config"]["maxconn"] == MEM0_PGVECTOR_MAXCONN
     assert config["history_db_path"].startswith("postgresql://")
 
 

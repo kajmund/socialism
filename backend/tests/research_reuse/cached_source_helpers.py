@@ -10,6 +10,9 @@ from app.database.models import DocumentVersionRecord, TextUnitRecord
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
 from app.services.knowledge.scope import customer_scope
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.model import TextUnitWrite
+from app.services.overgraph.publish import publish_legal_fact
 from app.services.knowledge.units import hash_text
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.canonical_ingest import ingest_lagen_nu_document
@@ -60,13 +63,32 @@ async def seed_cache(factory) -> CachedSource:
         scope = customer_scope(1)
         subject = await resolve_node(session, NodeInput(node_type="legal.source", name=URI, scope=scope))
         target = await resolve_node(session, NodeInput(node_type="legal.concept", name="Jämkning", scope=scope))
-        await resolve_fact(session, FactInput(
+        fact, _decision = await resolve_fact(session, FactInput(
             source_id=subject.id, target_id=target.id, scope=scope, predicate="legal.provision",
             fact_text="36 § avtalslagen avser oskäliga avtalsvillkor",
             embedding=tuple(fake_embed_text("36 § avtalslagen avser oskäliga avtalsvillkor")),
             embedding_model=FakeEmbeddingProvider.model,
             sources=(SourceRef("text_unit", result.segmented.text_units[0].id),),
         ))
+        unit = result.segmented.text_units[0]
+        publish_legal_fact(
+            require_knowledge(),
+            FactInput(
+                source_id=subject.id, target_id=target.id, scope=scope, predicate="legal.provision",
+                fact_text="36 § avtalslagen avser oskäliga avtalsvillkor",
+                embedding=tuple(fake_embed_text("36 § avtalslagen avser oskäliga avtalsvillkor")),
+                sources=(SourceRef("text_unit", unit.id),),
+            ),
+            fact_id=fact.id,
+            source=NodeInput(node_type="legal.source", name=URI, scope=scope),
+            target=NodeInput(node_type="legal.concept", name="Jämkning", scope=scope),
+            units=[TextUnitWrite(
+                unit_id=unit.id, scope=scope, document_id=result.document_id,
+                document_version_id=result.document_version_id, text=unit.text,
+                content_hash=unit.content_hash, ordinal=unit.ordinal, locator=unit.locator,
+                embedding=tuple(fake_embed_text(unit.text)),
+            )],
+        )
         await session.commit()
     return CachedSource(
         factory, result.document_id, result.document_version_id,

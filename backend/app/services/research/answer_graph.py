@@ -10,13 +10,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database.graph_v2 import GraphFact, GraphNode
+from app.database.graph_v2 import GraphFact, GraphFactSource, GraphNode
 from app.database.models import DocumentVersionRecord, EvidenceSet, KnowledgeQuestionRow
 from app.services.graph_v2.dependencies import attach_question_dependency
 from app.services.graph_v2.questions import question_node
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
 from app.services.knowledge.scope import require_persist_scope
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.publish import AnswerPublish, publish_answer_fact
 from app.services.research.graph_grounding import (
     fact_is_current,
     current_interval,
@@ -100,7 +102,32 @@ async def publish_answer(
     )
     dependencies = {ref for item in basis for ref in item.metadata.get("graph_fact_ids", [])}
     for ref in dependencies:
+        if await session.scalar(
+            select(GraphFactSource.id).where(GraphFactSource.fact_id == ref).limit(1)
+        ) is None:
+            continue
         await attach_question_dependency(session, question_node_id=source.id, fact_id=ref)
+    publish_answer_fact(
+        require_knowledge(),
+        AnswerPublish(
+            question_id=question.id,
+            question_text=question.display_text,
+            scope=scope,
+            identity=identity,
+            evidence_set_id=evidence_set_id,
+            fact_id=fact.id,
+            attributes={
+                "knowledge_module": context.scope.module,
+                "knowledge_case_id": context.scope.case_id,
+                "workspace_id": context.scope.workspace_id,
+                "document_version_ids": list(context.scope.allowed_document_version_ids or ()),
+                "answer_status": "sufficient" if assessment.get("sufficient") else "partial",
+            },
+            basis=payload,
+            assessment=assessment,
+            dependency_ids=tuple(dependencies),
+        ),
+    )
     return fact.id
 
 

@@ -46,7 +46,7 @@ async def seed_source(session, workspace, user, identity, *, attach=True):
 
 
 @pytest.fixture
-async def pdf_search_db(tmp_path):
+async def pdf_search_db(tmp_path, research_overgraph):
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/pdf-search.db", pool_size=1, max_overflow=0, pool_timeout=.3)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:

@@ -85,7 +85,7 @@ _FORBIDDEN_IMPORT_PREFIXES = (
 
 
 @pytest.fixture
-async def db():
+async def db(research_overgraph):
     engine = create_async_engine(
         "sqlite+aiosqlite://",
         connect_args={"check_same_thread": False},
@@ -100,7 +100,7 @@ async def db():
 
 
 @pytest.fixture
-async def file_db(tmp_path):
+async def file_db(tmp_path, research_overgraph):
     """Own connections so concurrent workers do not share SQLite savepoints."""
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{tmp_path}/research.sqlite",

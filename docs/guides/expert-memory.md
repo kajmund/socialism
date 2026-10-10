@@ -1,12 +1,12 @@
 # Expertminne med Mem0
 
-Mem0 OSS använder samma Supabase Postgres-databas som backend. Vektorer lagras
-med pgvector och Mem0-historiken ligger i vanliga Postgres-tabeller. Ingen lokal
-Chroma- eller SQLite-databas används i drift.
+Mem0 OSS är den enda minneshanteraren för experterna. Vektorer och
+entitetslänkar lagras i OverGraphs minneskatalog. Mem0-historiken ligger i
+Postgres-tabeller. Expertchatten söker via mem0, inte direkt i OverGraph.
 
 ## Lagring och scope
 
-- Vektorer: `expert_memories` och `expert_memories_entities`
+- Vektorer och entiteter: OverGraph-katalogen `OVERGRAPH_DIR/memory`
 - Mem0-historik: `mem0_history` och `mem0_messages`
 - Kundscope: `user_id=kund:{customer_id}`
 - Expertscope: `agent_id=expert:{catalog_key}`. Samma stabila katalognyckel används

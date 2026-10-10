@@ -36,7 +36,7 @@ async def graph_reference(session, workspace, scope):
 
 
 @pytest.fixture
-async def scoped_sources():
+async def scoped_sources(research_overgraph):
     engine = create_async_engine("sqlite+aiosqlite://", poolclass=StaticPool)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:

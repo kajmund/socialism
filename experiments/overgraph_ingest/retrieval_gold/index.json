@@ -1,0 +1,31 @@
+{
+  "id": "legal-questions-v1",
+  "notes": "Same 100-contract corpus and the same retrieve/classify engine. auto-renewal is the measured C@8 baseline. liability-cap and liability-secrecy-carveout were corrected after the first C@8 generalisation run so passage gold matches the classify question. Hybrid is the auto-renewal candidate baseline, not the only retrieval strategy.",
+  "golds": [
+    {
+      "id": "auto-renewal",
+      "path": "auto-renewal.json",
+      "status": "measured_c8"
+    },
+    {
+      "id": "notice-period",
+      "path": "notice-period.json",
+      "status": "gold_only"
+    },
+    {
+      "id": "liability-cap",
+      "path": "liability-cap.json",
+      "status": "gold_only"
+    },
+    {
+      "id": "confidentiality",
+      "path": "confidentiality.json",
+      "status": "gold_only"
+    },
+    {
+      "id": "liability-secrecy-carveout",
+      "path": "liability-secrecy-carveout.json",
+      "status": "gold_only"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
 os.environ.setdefault("LOCAL_AUTH_JWT_SECRET", "test-supabase-jwt-secret-not-real")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-supabase-service-role-not-real")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("OVERGRAPH_DIR", "data/overgraph-pytest")
 os.environ["LOG_DIR"] = ""
 os.environ["LOGSTASH_URL"] = ""
 os.environ["LOGSTASH_USERNAME"] = ""
@@ -49,6 +50,12 @@ from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis
 from app.services.prompt_fields_store import clear_prompt_cache
 from app.services.ssr import clear_embedding_cache, set_embedder
+from app.services.overgraph.catalogs import (
+    OverGraphRuntime,
+    get_runtime,
+    open_catalog,
+    set_runtime,
+)
 
 # Isolate disk cache / rotating logs from developer machine data/.
 _EMBED_CACHE_ROOT = tempfile.mkdtemp(prefix="ssr-embed-cache-")
@@ -68,10 +75,32 @@ TEST_CUSTOMER_ID = 1
 # Default projekt under Devbrains from ensure_default_kunder().
 TEST_PROJECT_ID = 1
 
+RESEARCH_TEST_DIM = 32
+
+
+def research_test_vector() -> list[float]:
+    return [1.0] + [0.0] * (RESEARCH_TEST_DIM - 1)
 TEST_JWT_SECRET = "test-supabase-jwt-secret-not-real"
 ADMIN_USER_ID = "00000000-0000-4000-8000-aaaaaaaaaaaa"
 USER_USER_ID = "00000000-0000-4000-8000-bbbbbbbbbbbb"
 BOLAG_USER_ID = "00000000-0000-4000-8000-cccccccccccc"
+
+
+@pytest.fixture(autouse=True)
+def research_overgraph(tmp_path):
+    knowledge = open_catalog(
+        tmp_path / "research-runtime" / "knowledge", kind="knowledge", dimension=RESEARCH_TEST_DIM,
+    )
+    memory = open_catalog(
+        tmp_path / "research-runtime" / "memory", kind="memory", dimension=RESEARCH_TEST_DIM,
+    )
+    runtime = OverGraphRuntime(knowledge, memory)
+    set_runtime(runtime)
+    try:
+        yield knowledge
+    finally:
+        if get_runtime() is runtime:
+            set_runtime(None)
 
 
 class NoopExpertMemory:

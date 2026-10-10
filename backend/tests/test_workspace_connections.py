@@ -129,7 +129,9 @@ async def test_caller_pending_writes_are_never_committed(single_connection):
 
 
 @pytest.mark.asyncio
-async def test_general_graph_embedding_release_and_tenant_scope(single_connection, monkeypatch):
+async def test_general_graph_embedding_release_and_tenant_scope(
+    single_connection, research_overgraph, monkeypatch
+):
     factory, ids = single_connection
     from app.database.workspace_models import VoiceWorkspace
     from app.database.models import DocumentVersionRecord
