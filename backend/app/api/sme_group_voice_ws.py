@@ -1,0 +1,191 @@
+"""WebSocket for SME panel (group) live voice sessions — phase 1 foundation.
+
+Uses GroupVoiceSession for floor / hands / Jev keep-lower / shared tool results.
+Audio streaming is left to a later phase; this endpoint manages control state
+and pushes snapshots.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, Field, ValidationError
+
+from app.auth.tokens import user_from_bearer_token
+from app.database.models import Kund, Population, PopulationMember, UserAccount
+from app.services import jobs as jobs_service
+from app.services.sme_group_voice import GroupVoiceSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
+logger = logging.getLogger(__name__)
+router = APIRouter(tags=["websocket"])
+
+
+class StartSession(BaseModel):
+    type: str = "start"
+    panel_id: str = Field(min_length=1)
+
+
+class HumanUtterance(BaseModel):
+    type: str = "utterance"
+    text: str = Field(max_length=10_000)
+
+
+class RaiseHand(BaseModel):
+    type: str = "raise_hand"
+    persona_id: str
+
+
+class GrantFloor(BaseModel):
+    type: str = "grant_floor"
+    persona_id: str
+
+
+class ReleaseFloor(BaseModel):
+    type: str = "release_floor"
+    transcript: str = ""
+
+
+class AttachTool(BaseModel):
+    type: str = "attach_tool"
+    persona_id: str
+    tool_name: str
+    summary: str = ""
+    result: Any = None
+
+
+async def _authenticate(websocket: WebSocket) -> UserAccount:
+    factory = jobs_service.job_session_factory()
+    async with factory() as session:
+        return await user_from_bearer_token(
+            session,
+            websocket.query_params.get("access_token"),
+        )
+
+
+async def _load_panel_session(
+    panel_id: str,
+    user: UserAccount,
+) -> GroupVoiceSession:
+    if user.kund_id is None:
+        raise HTTPException(status_code=403, detail="kund_access_denied")
+    factory = jobs_service.job_session_factory()
+    async with factory() as session:
+        kund = await session.get(Kund, user.kund_id)
+        if kund is None or kund.product != "sme":
+            raise HTTPException(status_code=403, detail="sme_product_required")
+        try:
+            pid = int(panel_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="panel_not_found") from exc
+        result = await session.execute(
+            select(Population)
+            .where(
+                Population.id == pid,
+                Population.customer_id == user.kund_id,
+                Population.kind == "expert_panel",
+            )
+            .options(selectinload(Population.members).selectinload(PopulationMember.persona))
+        )
+        panel = result.scalar_one_or_none()
+        if panel is None:
+            raise HTTPException(status_code=404, detail="panel_not_found")
+        member_ids: set[str] = set()
+        member_names: dict[str, str] = {}
+        for member in panel.members:
+            if member.persona is None:
+                continue
+            member_ids.add(member.persona.id)
+            member_names[member.persona.id] = member.persona.name
+        if not member_ids:
+            raise HTTPException(status_code=400, detail="panel_has_no_members")
+        return GroupVoiceSession(
+            panel_id=panel_id,
+            member_ids=member_ids,
+            member_names=member_names,
+        )
+
+
+@router.websocket("/ws/sme-group-voice")
+async def sme_group_voice_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
+    session: GroupVoiceSession | None = None
+    send_lock = asyncio.Lock()
+
+    async def emit(payload: dict) -> None:
+        async with send_lock:
+            try:
+                await websocket.send_json(payload)
+            except (RuntimeError, WebSocketDisconnect):
+                pass
+
+    async def push_snapshot() -> None:
+        if session is not None:
+            await emit({"type": "snapshot", **session.snapshot()})
+
+    try:
+        user = await _authenticate(websocket)
+        raw = await websocket.receive_json()
+        start = StartSession.model_validate(raw)
+        session = await _load_panel_session(start.panel_id, user)
+        await emit({"type": "ready", "panel_id": session.panel_id})
+        await push_snapshot()
+
+        while True:
+            raw = await websocket.receive_json()
+            if not isinstance(raw, dict):
+                await emit({"type": "error", "detail": "expected object"})
+                continue
+            kind = raw.get("type")
+            try:
+                if kind == "utterance":
+                    msg = HumanUtterance.model_validate(raw)
+                    addressed = session.address_by_name(msg.text)
+                    if addressed:
+                        session.grant_floor(addressed)
+                    await push_snapshot()
+                elif kind == "raise_hand":
+                    msg = RaiseHand.model_validate(raw)
+                    session.raise_hand(msg.persona_id)
+                    await push_snapshot()
+                elif kind == "grant_floor":
+                    msg = GrantFloor.model_validate(raw)
+                    session.grant_floor(msg.persona_id)
+                    await push_snapshot()
+                elif kind == "release_floor":
+                    msg = ReleaseFloor.model_validate(raw)
+                    session.release_floor()
+                    await session.decide_keep_hands(msg.transcript)
+                    await push_snapshot()
+                elif kind == "attach_tool":
+                    msg = AttachTool.model_validate(raw)
+                    session.attach_tool_result(
+                        msg.persona_id,
+                        msg.tool_name,
+                        msg.result,
+                        msg.summary,
+                    )
+                    await push_snapshot()
+                elif kind == "ping":
+                    await emit({"type": "pong"})
+                else:
+                    await emit({"type": "error", "detail": f"unknown type {kind}"})
+            except ValidationError as exc:
+                await emit({"type": "error", "detail": str(exc.errors()[0]["msg"])})
+    except HTTPException as exc:
+        await emit({"type": "error", "detail": str(exc.detail)})
+        await websocket.close(code=4403)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("SME group voice WebSocket failed")
+        await emit({"type": "error", "detail": "internal"})
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
