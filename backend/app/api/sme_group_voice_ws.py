@@ -1,8 +1,7 @@
-"""WebSocket for SME panel (group) live voice sessions — phase 1 foundation.
+"""WebSocket for SME panel (group) live voice sessions — phase 1.
 
-Uses GroupVoiceSession for floor / hands / Jev keep-lower / shared tool results.
-Audio streaming is left to a later phase; this endpoint manages control state
-and pushes snapshots.
+Uses GroupVoiceSession for floor / hands / Jev keep-lower / shared tool results
+and GroupVoiceAudioRuntime for STT + floor-driven TTS.
 """
 
 from __future__ import annotations
@@ -15,9 +14,14 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 
 from app.auth.tokens import user_from_bearer_token
+from app.config import settings
 from app.database.models import Kund, Population, PopulationMember, UserAccount
 from app.services import jobs as jobs_service
 from app.services.sme_group_voice import GroupVoiceSession
+from app.services.sme_group_voice_runtime import (
+    GroupVoiceAudioRuntime,
+    GroupVoiceAudioScope,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -28,6 +32,7 @@ router = APIRouter(tags=["websocket"])
 class StartSession(BaseModel):
     type: str = "start"
     panel_id: str = Field(min_length=1)
+    language: str = "sv"
 
 
 class HumanUtterance(BaseModel):
@@ -58,6 +63,12 @@ class AttachTool(BaseModel):
     result: Any = None
 
 
+class SpeakAs(BaseModel):
+    type: str = "speak_as"
+    persona_id: str
+    text: str = Field(max_length=10_000)
+
+
 async def _authenticate(websocket: WebSocket) -> UserAccount:
     factory = jobs_service.job_session_factory()
     async with factory() as session:
@@ -70,7 +81,7 @@ async def _authenticate(websocket: WebSocket) -> UserAccount:
 async def _load_panel_session(
     panel_id: str,
     user: UserAccount,
-) -> GroupVoiceSession:
+) -> tuple[GroupVoiceSession, dict[str, str]]:
     if user.kund_id is None:
         raise HTTPException(status_code=403, detail="kund_access_denied")
     factory = jobs_service.job_session_factory()
@@ -96,17 +107,25 @@ async def _load_panel_session(
             raise HTTPException(status_code=404, detail="panel_not_found")
         member_ids: set[str] = set()
         member_names: dict[str, str] = {}
+        voice_ids: dict[str, str] = {}
         for member in panel.members:
             if member.persona is None:
                 continue
-            member_ids.add(member.persona.id)
-            member_names[member.persona.id] = member.persona.name
+            pid_str = member.persona.id
+            member_ids.add(pid_str)
+            member_names[pid_str] = member.persona.name
+            voice = (member.persona.live_voice or "").strip() or settings.elevenlabs_voice_id
+            if voice:
+                voice_ids[pid_str] = voice
         if not member_ids:
             raise HTTPException(status_code=400, detail="panel_has_no_members")
-        return GroupVoiceSession(
-            panel_id=panel_id,
-            member_ids=member_ids,
-            member_names=member_names,
+        return (
+            GroupVoiceSession(
+                panel_id=panel_id,
+                member_ids=member_ids,
+                member_names=member_names,
+            ),
+            voice_ids,
         )
 
 
@@ -114,12 +133,20 @@ async def _load_panel_session(
 async def sme_group_voice_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
     session: GroupVoiceSession | None = None
+    runtime: GroupVoiceAudioRuntime | None = None
     send_lock = asyncio.Lock()
 
     async def emit(payload: dict) -> None:
         async with send_lock:
             try:
                 await websocket.send_json(payload)
+            except (RuntimeError, WebSocketDisconnect):
+                pass
+
+    async def emit_audio(payload: bytes) -> None:
+        async with send_lock:
+            try:
+                await websocket.send_bytes(payload)
             except (RuntimeError, WebSocketDisconnect):
                 pass
 
@@ -131,12 +158,47 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
         user = await _authenticate(websocket)
         raw = await websocket.receive_json()
         start = StartSession.model_validate(raw)
-        session = await _load_panel_session(start.panel_id, user)
-        await emit({"type": "ready", "panel_id": session.panel_id})
+        session, voice_ids = await _load_panel_session(start.panel_id, user)
+        scope = GroupVoiceAudioScope(language=start.language, voice_ids=voice_ids)
+        runtime = GroupVoiceAudioRuntime(
+            session,
+            scope,
+            emit_json=emit,
+            emit_audio=emit_audio,
+        )
+        await runtime.start()
+        await emit(
+            {
+                "type": "ready",
+                "panel_id": session.panel_id,
+                "audio_format": {
+                    "codec": "pcm16",
+                    "sample_rate": 24000,
+                    "channels": 1,
+                },
+            }
+        )
         await push_snapshot()
 
         while True:
-            raw = await websocket.receive_json()
+            message = await websocket.receive()
+            if message["type"] == "websocket.disconnect":
+                break
+            frame = message.get("bytes")
+            if frame is not None:
+                if runtime is not None:
+                    await runtime.append_audio(frame)
+                continue
+            text = message.get("text")
+            if text is None:
+                continue
+            raw = await websocket.receive_json() if False else None  # type hint only
+            try:
+                import json
+                raw = json.loads(text)
+            except Exception:
+                await emit({"type": "error", "detail": "invalid json"})
+                continue
             if not isinstance(raw, dict):
                 await emit({"type": "error", "detail": "expected object"})
                 continue
@@ -170,6 +232,13 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
                         msg.summary,
                     )
                     await push_snapshot()
+                elif kind == "speak_as":
+                    msg = SpeakAs.model_validate(raw)
+                    if runtime is not None:
+                        await runtime.speak_as(msg.persona_id, msg.text)
+                elif kind == "commit_audio":
+                    if runtime is not None:
+                        await runtime.commit_audio()
                 elif kind == "ping":
                     await emit({"type": "pong"})
                 else:
@@ -185,6 +254,8 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
         logger.exception("SME group voice WebSocket failed")
         await emit({"type": "error", "detail": "internal"})
     finally:
+        if runtime is not None:
+            await runtime.close()
         try:
             await websocket.close()
         except Exception:
