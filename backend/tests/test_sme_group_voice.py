@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.services.sme_group_voice import GroupVoiceSession
 
 
