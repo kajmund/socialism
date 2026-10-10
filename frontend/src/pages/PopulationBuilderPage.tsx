@@ -21,6 +21,8 @@ type PopulationBuilderPageProps = {
   kind?: PopulationBuilderKind
   Shell?: ComponentType<{ children: ReactNode }>
   basePath?: string
+  customerId?: number
+  onCreated?: (id: number) => void
 }
 
 const PERSONA_STEP_TITLES = [
@@ -201,6 +203,8 @@ export function PopulationBuilderPage({
   kind = "persona",
   Shell = AdminShell,
   basePath = "/populations",
+  customerId,
+  onCreated,
 }: PopulationBuilderPageProps) {
   const isExpertPanel = kind === "expert_panel"
   const personaKind: PersonaKind = isExpertPanel ? "expert" : "persona"
@@ -317,7 +321,8 @@ export function PopulationBuilderPage({
         recipe: buildRecipe(),
         include_persona_ids: selectedIds,
       })
-      navigate(`${basePath}/${panel.id}`)
+      if (onCreated) onCreated(panel.id)
+      else navigate(`${basePath}/${panel.id}`)
     } catch (err) {
       setLoadError(
         err instanceof ApiError ? err.message : t("expertPanels.builder.createError"),
@@ -614,6 +619,7 @@ export function PopulationBuilderPage({
               )}
               <AddFromLibraryPanel
                 personaKind={personaKind}
+                customerId={customerId}
                 excludeIds={selectedIds}
                 onAdd={addLibraryPersona}
                 hint={t(

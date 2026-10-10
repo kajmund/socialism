@@ -15,6 +15,7 @@ import { SmeExpertEditorModal } from "./SmeExpertEditorModal"
 import { SmeExpertInterviewButton } from "./SmeExpertInterviewButton"
 import { SmeIngestDialog } from "./SmeIngestDialog"
 import { SmeJobsButton } from "./SmeJobsButton"
+import { SmeExpertPanelsButton } from "./SmeExpertPanelsButton"
 import { SmeGraphButton } from "./SmeGraphButton"
 import { SmeResearchJobsButton } from "./SmeResearchJobsButton"
 import { SmeUserMenu } from "./SmeUserMenu"
@@ -55,7 +56,7 @@ export function SmeMessengerPage() {
   selectedExpert.current = selectedId
   const nativeInbox = useVoiceWorkspaceInbox(workspaceId, selectedId, metadata)
   const { items: inbox, selection: inboxSelection, historyLoaded: inboxHistoryLoaded, report: reportInbox } = nativeInbox
-  const loadInbox = useCallback(async () => { const rows = await listSmeInbox("all"); setMetadata(rows) }, [])
+  const loadInbox = useCallback(async () => { const rows = await listSmeInbox("all"); setMetadata(rows); return rows }, [])
   useEffect(() => { void loadInbox().catch(model.report) }, [loadInbox, model.report])
   useEffect(() => {
     if (!workspaceId) return
@@ -141,7 +142,7 @@ export function SmeMessengerPage() {
     seenArtifact.current = id
   }, [workspace?.state.active_artifact_id])
   return <div className="theme-admin flex h-dvh min-h-0 flex-col bg-db-ink-50 font-sans text-[color:var(--text-body)]">
-    <header className="flex h-16 shrink-0 items-center bg-db-ink-950 px-4 text-white sm:px-6"><img src="/devbrains-logo-white.png" alt="Devbrains" className="h-6 w-auto sm:h-8" /><span className="mx-4 hidden h-6 w-px bg-white/20 sm:block" aria-hidden="true" /><span className="hidden text-sm text-white/80 sm:block">{t("sme.productName")}</span><div className="ml-auto flex items-center gap-1 sm:gap-2"><SmeGraphButton /><SmeResearchJobsButton /><SmeJobsButton onOpenWorkspaceArtifact={openDraft} /><LocaleSwitcher locale={locale} setLocale={setLocale} t={t} /><SmeUserMenu /></div></header>
+    <header className="flex h-16 shrink-0 items-center bg-db-ink-950 px-4 text-white sm:px-6"><img src="/devbrains-logo-white.png" alt="Devbrains" className="h-6 w-auto sm:h-8" /><span className="mx-4 hidden h-6 w-px bg-white/20 sm:block" aria-hidden="true" /><span className="hidden text-sm text-white/80 sm:block">{t("sme.productName")}</span><div className="ml-auto flex items-center gap-1 sm:gap-2"><SmeExpertPanelsButton onClosed={() => { void loadInbox().catch(model.report) }} onStarted={(panelId) => { void loadInbox().then((rows) => { const panel = rows.find((row) => row.thread_type === "panel" && row.thread_id === String(panelId)); if (panel) return selectExpert(panel) }).catch(model.report) }} /><SmeGraphButton /><SmeResearchJobsButton /><SmeJobsButton onOpenWorkspaceArtifact={openDraft} /><LocaleSwitcher locale={locale} setLocale={setLocale} t={t} /><SmeUserMenu /></div></header>
     <SmeWorkspaceSelector parent={parent} onChange={setParent} beforeChange={conversation.stop} />
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-white px-4 py-3"><select className="max-w-52 rounded-lg border bg-white px-3 py-2 text-sm font-medium" aria-label={t("voiceWorkspaceChat.select")} value={workspace?.id ?? ""} onChange={(event) => { void conversation.stop(); void model.select(event.target.value).catch(model.report) }}><option value="" disabled>{t("voiceWorkspaceChat.select")}</option>{model.list.map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}</select><button type="button" className="grid size-9 place-items-center rounded-lg border" aria-label={t("voiceWorkspaceChat.new")} disabled={!parent} onClick={() => setNewOpen(true)}><Plus size={17} /></button>{workspace ? <><span className="hidden text-xs text-muted-foreground sm:block">{t("voiceWorkspaceChat.sourceCount", { count: workspace.sources.length })}</span><AdminButton size="sm" variant="secondary" onClick={() => model.setPicker(true)}>{t("voiceWorkspaceChat.addSource")}</AdminButton>{parent ? <SmeResearchDialog key={workspace.id} workspace={workspace} parent={parent.workspace} onChanged={model.refresh} /> : null}<div className="ml-auto flex gap-1 rounded-lg bg-db-ink-100 p-1" role="group" aria-label={t("voiceWorkspaceChat.knowledge")}>{(["workspace", "general", "research"] as KnowledgeScope[]).map((scope) => <button key={scope} type="button" aria-pressed={workspace.state.knowledge_scope === scope} className={`rounded-md px-3 py-1.5 text-xs ${workspace.state.knowledge_scope === scope ? "bg-db-ink-950 font-medium text-db-gold-500" : "hover:bg-white"}`} onClick={() => { void model.change((state) => ({ ...state, knowledge_scope: scope })).catch(model.report) }}>{t(`voiceWorkspaceChat.${scope}`)}</button>)}</div></> : null}</div>
     {model.error ? <div className="shrink-0 border-b border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive" role="alert">{model.error}</div> : null}

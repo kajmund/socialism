@@ -94,7 +94,7 @@ I företagets workspace öppnar **Intervju** expertens tidigare samtal i en dial
 
 ## Chatta med en expertpanel
 
-Öppna **Grupper** och välj en expertpanel. När du skickar en fråga svarar panelens experter var för sig. Expertens namn visas ovanför respektive svar. **Rensa chatt** tar bort panelens meddelanden.
+Öppna **Grupper** och välj en expertpanel. Gruppikonen längst till vänster i huvudet öppnar **Expertpaneler** i en ruta. Experterna där är samma som i chattlistan. Skapa en panel och välj **Starta gruppchatt**, eller skapa panelen så öppnas chatten direkt. När du skickar en fråga svarar panelens experter var för sig. Expertens namn visas ovanför respektive svar. Telefonikonen till höger i skrivfältet startar röstsamtalet, på samma plats som i en enskild chatt. Det du säger skrivs ut i chatten. Experter som inte tilltalas vid namn räcker upp handen. Välj en hand för att ge den experten ordet. **Rensa chatt** tar bort panelens meddelanden.
 
 På en mindre skärm visas chatten eller arbetsytan åt gången. Växla med **Chatt** och **Workspace** och öppna chattlistan med förstoringsglaset.
 

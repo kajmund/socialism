@@ -27,6 +27,7 @@ from app.services.sme_group_voice_runtime import (
     GroupVoiceAudioRuntime,
     GroupVoiceAudioScope,
 )
+from app.services.sme_group_voice_turns import run_floor_turn
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -145,6 +146,33 @@ async def _load_panel_session(
         )
 
 
+async def _maybe_speak(
+    *,
+    session: GroupVoiceSession,
+    runtime: GroupVoiceAudioRuntime | None,
+    user_text: str,
+    user_id: str,
+    customer_id: int,
+    speaking_task: dict,
+) -> None:
+    if runtime is None or not session.floor:
+        return
+    # Cancel any previous speech so the receive loop stays free.
+    prev = speaking_task.get("task")
+    if prev is not None and not prev.done():
+        prev.cancel()
+        await asyncio.gather(prev, return_exceptions=True)
+    speaking_task["task"] = asyncio.create_task(
+        run_floor_turn(
+            session=session,
+            runtime=runtime,
+            user_text=user_text,
+            user_id=user_id,
+            customer_id=customer_id,
+        )
+    )
+
+
 async def _dispatch(
     *,
     kind: str,
@@ -153,13 +181,26 @@ async def _dispatch(
     runtime: GroupVoiceAudioRuntime | None,
     emit,
     push_snapshot,
+    user_id: str,
+    customer_id: int,
+    speaking_task: dict,
 ) -> None:
     if kind == "utterance":
         msg = HumanUtterance.model_validate(raw)
         addressed = session.address_by_name(msg.text)
         if addressed:
             session.grant_floor(addressed)
-        await push_snapshot()
+            await push_snapshot()
+            await _maybe_speak(
+                session=session,
+                runtime=runtime,
+                user_text=msg.text,
+                user_id=user_id,
+                customer_id=customer_id,
+                speaking_task=speaking_task,
+            )
+        else:
+            await push_snapshot()
     elif kind == "raise_hand":
         msg = RaiseHand.model_validate(raw)
         session.raise_hand(msg.persona_id)
@@ -168,10 +209,24 @@ async def _dispatch(
         msg = GrantFloor.model_validate(raw)
         session.grant_floor(msg.persona_id)
         await push_snapshot()
+        await _maybe_speak(
+            session=session,
+            runtime=runtime,
+            user_text=session.last_utterance,
+            user_id=user_id,
+            customer_id=customer_id,
+            speaking_task=speaking_task,
+        )
     elif kind == "release_floor":
         msg = ReleaseFloor.model_validate(raw)
         session.release_floor()
-        await session.decide_keep_hands(msg.transcript)
+        from app.services.prompt_store import require_active_prompts
+        from app.services.prompt_catalog import render_prompt
+        factory = jobs_service.job_session_factory()
+        async with factory() as db:
+            prompts = await require_active_prompts(db)
+        keep_prompt = render_prompt(prompts, "sme.group_voice.keep_hand")
+        await session.decide_keep_hands(msg.transcript, keep_hand_prompt=keep_prompt)
         await push_snapshot()
     elif kind == "attach_tool":
         msg = AttachTool.model_validate(raw)
@@ -185,10 +240,20 @@ async def _dispatch(
     elif kind == "speak_as":
         msg = SpeakAs.model_validate(raw)
         if runtime is not None:
-            await runtime.speak_as(msg.persona_id, msg.text)
+            # Run as background so controls stay responsive.
+            prev = speaking_task.get("task")
+            if prev is not None and not prev.done():
+                prev.cancel()
+                await asyncio.gather(prev, return_exceptions=True)
+            speaking_task["task"] = asyncio.create_task(
+                runtime.speak_as(msg.persona_id, msg.text)
+            )
     elif kind == "commit_audio":
         if runtime is not None:
             await runtime.commit_audio()
+    elif kind == "clear_audio":
+        if runtime is not None:
+            await runtime.clear()
     elif kind == "ping":
         await emit({"type": "pong"})
     else:
@@ -202,6 +267,9 @@ async def _receive_loop(
     runtime: GroupVoiceAudioRuntime | None,
     emit,
     push_snapshot,
+    user_id: str,
+    customer_id: int,
+    speaking_task: dict,
 ) -> None:
     while True:
         message = await websocket.receive()
@@ -232,6 +300,9 @@ async def _receive_loop(
                 runtime=runtime,
                 emit=emit,
                 push_snapshot=push_snapshot,
+                user_id=user_id,
+                customer_id=customer_id,
+                speaking_task=speaking_task,
             )
         except ValidationError as exc:
             await emit({"type": "error", "detail": str(exc.errors()[0]["msg"])})
@@ -243,6 +314,7 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
     session: GroupVoiceSession | None = None
     runtime: GroupVoiceAudioRuntime | None = None
     send_lock = asyncio.Lock()
+    speaking_task: dict = {"task": None}
 
     async def emit(payload: dict) -> None:
         async with send_lock:
@@ -268,11 +340,23 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
         start = StartSession.model_validate(raw)
         session, voice_ids = await _load_panel_session(start.panel_id, user)
         scope = GroupVoiceAudioScope(language=start.language, voice_ids=voice_ids)
+
+        async def on_floor_granted(_persona_id: str, transcript: str) -> None:
+            await _maybe_speak(
+                session=session,
+                runtime=runtime,
+                user_text=transcript,
+                user_id=user.id,
+                customer_id=user.kund_id or 0,
+                speaking_task=speaking_task,
+            )
+
         runtime = GroupVoiceAudioRuntime(
             session,
             scope,
             emit_json=emit,
             emit_audio=emit_audio,
+            on_floor_granted=on_floor_granted,
         )
         await runtime.start()
         await emit(
@@ -293,6 +377,9 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
             runtime=runtime,
             emit=emit,
             push_snapshot=push_snapshot,
+            user_id=user.id,
+            customer_id=user.kund_id or 0,
+            speaking_task=speaking_task,
         )
     except HTTPException as exc:
         await emit({"type": "error", "detail": str(exc.detail)})
@@ -303,6 +390,10 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
         logger.exception("SME group voice WebSocket failed")
         await emit({"type": "error", "detail": "internal"})
     finally:
+        task = speaking_task.get("task")
+        if task is not None and not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
         if runtime is not None:
             await runtime.close()
         try:

@@ -879,8 +879,8 @@ textarea.p-field-ctl{min-height:4.5rem;resize:vertical;line-height:1.35;padding:
 .usage-row b{color:var(--text-body);font-family:var(--font-mono);font-weight:500}
 .card-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:auto}
 .card-actions button,.card-actions a{min-width:0;font-family:'Bai Jamjuree',sans-serif;font-weight:400;font-size:0.7rem;padding:8px 4px;text-align:center;border-radius:var(--radius-sm);border:1px solid var(--border-hairline);background:var(--db-ink-0);cursor:pointer;color:var(--text-body);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-actions a.primary{background:var(--button-primary-bg);color:var(--button-primary-text);border-color:var(--button-primary-bg)}
-.card-actions a.primary:hover{color:var(--button-primary-text)}
+.card-actions a.primary,.card-actions button.primary{background:var(--button-primary-bg);color:var(--button-primary-text);border-color:var(--button-primary-bg)}
+.card-actions a.primary:hover,.card-actions button.primary:hover{color:var(--button-primary-text)}
 .card-actions button.danger:hover{border-color:var(--db-error);color:var(--db-error)}
 .confirm-row{display:flex;gap:6px}
 .confirm-row button{min-width:0;font-family:'Bai Jamjuree',sans-serif;font-weight:400;font-size:0.7rem;padding:8px 4px;text-align:center;border-radius:var(--radius-sm);border:1px solid var(--border-hairline);background:var(--db-ink-0);cursor:pointer;color:var(--text-body)}

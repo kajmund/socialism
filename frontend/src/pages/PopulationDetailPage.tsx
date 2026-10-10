@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from "react"
+import { useEffect, useState, type ComponentType, type CSSProperties, type ReactNode } from "react"
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom"
 import {
   addPopulationMember,
@@ -90,17 +90,54 @@ type PopulationDetailPageProps = {
   Shell?: ComponentType<{ children: ReactNode }>
   basePath?: string
   expectedKind?: "persona" | "expert_panel"
+  populationId?: number
+  customerId?: number
+  onBack?: () => void
+  onDuplicated?: (id: number) => void
+  onOpenExpert?: (id: string, name: string) => void
+}
+
+function OpenTarget({
+  to,
+  onOpen,
+  className,
+  style,
+  children,
+}: {
+  to: string
+  onOpen?: () => void
+  className?: string
+  style?: CSSProperties
+  children: ReactNode
+}) {
+  if (onOpen) {
+    return (
+      <button type="button" className={className} style={style} onClick={onOpen}>
+        {children}
+      </button>
+    )
+  }
+  return (
+    <Link to={to} className={className} style={style}>
+      {children}
+    </Link>
+  )
 }
 
 export function PopulationDetailPage({
   Shell = AdminShell,
   basePath = "/populations",
   expectedKind = "persona",
+  populationId: populationIdProp,
+  customerId,
+  onBack,
+  onDuplicated,
+  onOpenExpert,
 }: PopulationDetailPageProps) {
   const { id } = useParams()
   const navigate = useNavigate()
   const { t, intl } = useLocale()
-  const populationId = id ? Number(id) : NaN
+  const populationId = populationIdProp ?? (id ? Number(id) : NaN)
 
   const [pop, setPop] = useState<PopulationDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -163,6 +200,12 @@ export function PopulationDetailPage({
     }
   }, [populationId, t])
 
+  const wrongKind = pop != null && expectedKind != null && pop.kind !== expectedKind
+  useEffect(() => {
+    if (!onBack || loading || (!notFound && pop && !wrongKind)) return
+    if (notFound || !pop || wrongKind) onBack()
+  }, [loading, notFound, onBack, pop, wrongKind])
+
   const wrapClass = "wrap admin-page"
 
   if (loading) {
@@ -177,9 +220,11 @@ export function PopulationDetailPage({
     )
   }
 
+  if (onBack && (notFound || !pop || wrongKind)) return null
+
   if (notFound || !pop) return <Navigate to={basePath} replace />
 
-  if (expectedKind && pop.kind !== expectedKind) {
+  if (wrongKind) {
     return <Navigate to={basePath} replace />
   }
 
@@ -187,6 +232,8 @@ export function PopulationDetailPage({
   const memberBasePath = isExpertPanel ? "/bolag/experter" : "/personas"
   const memberHref = (personaId?: string) =>
     personaId ? `${memberBasePath}/${personaId}` : memberBasePath
+  const openMember = (personaId: string | undefined, name: string) =>
+    personaId && onOpenExpert ? () => onOpenExpert(personaId, name) : undefined
   const excludeNames = members.map((m) => m.name)
 
   const startRename = () => {
@@ -233,9 +280,13 @@ export function PopulationDetailPage({
   const detail = (
         <>
         <div className="crumb">
-          <Link to={basePath}>
+          <OpenTarget
+            to={basePath}
+            onOpen={onBack}
+            style={onBack ? { background: "none", border: 0, padding: 0, color: "var(--text-link)", cursor: "pointer", font: "inherit" } : undefined}
+          >
             {t(isExpertPanel ? "expertPanels.detail.back" : "populations.detail.back")}
-          </Link>
+          </OpenTarget>
         </div>
         <div className="head-row">
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -312,7 +363,8 @@ export function PopulationDetailPage({
                 void duplicatePopulation(pop.id)
                   .then((copy) => {
                     showToast(t("populations.detail.duplicated", { name: pop.name }))
-                    navigate(`${basePath}/${copy.id}`)
+                    if (onDuplicated) onDuplicated(copy.id)
+                    else navigate(`${basePath}/${copy.id}`)
                   })
                   .catch((err: unknown) =>
                     showToast(
@@ -529,6 +581,7 @@ export function PopulationDetailPage({
         {showAdd && (
           <AddFromLibraryPanel
             personaKind={isExpertPanel ? "expert" : "persona"}
+            customerId={customerId}
             excludeNames={excludeNames}
             onAdd={(p) => {
               const member = libraryPersonaToMember(p)
@@ -589,9 +642,12 @@ export function PopulationDetailPage({
                         }}
                         onToast={showToast}
                       />
-                      <Link to={memberHref(p.id)}>
+                      <OpenTarget
+                        to={memberHref(p.id)}
+                        onOpen={openMember(p.id, p.name)}
+                      >
                         {t("common.openArrow")}
-                      </Link>
+                      </OpenTarget>
                       <button
                         type="button"
                         className="danger"
@@ -612,8 +668,9 @@ export function PopulationDetailPage({
                 className="p-row"
                 key={p.member_id ?? `${p.name}-${p.id ?? "x"}`}
               >
-                <Link
+                <OpenTarget
                   to={memberHref(p.id)}
+                  onOpen={openMember(p.id, p.name)}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -621,13 +678,19 @@ export function PopulationDetailPage({
                     minWidth: 0,
                     color: "inherit",
                     textDecoration: "none",
+                    background: "none",
+                    border: 0,
+                    padding: 0,
+                    cursor: "pointer",
+                    font: "inherit",
+                    textAlign: "left",
                   }}
                 >
                   <div className="av" style={{ width: 28, height: 28, fontSize: 11 }}>
                     {p.initials}
                   </div>
                   <div className="nm2">{p.name}</div>
-                </Link>
+                </OpenTarget>
                 <div className="quote2">{p.trait || t("common.emDash")}</div>
                 <div className="meta">
                   {p.age} · {p.occ} · {p.district}
@@ -647,9 +710,12 @@ export function PopulationDetailPage({
                     }}
                     onToast={showToast}
                   />
-                  <Link to={memberHref(p.id)}>
+                  <OpenTarget
+                    to={memberHref(p.id)}
+                    onOpen={openMember(p.id, p.name)}
+                  >
                     {t("common.open")}
-                  </Link>
+                  </OpenTarget>
                   <button
                     type="button"
                     className="danger"
