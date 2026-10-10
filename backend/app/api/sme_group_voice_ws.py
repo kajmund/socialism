@@ -303,11 +303,21 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
         start = StartSession.model_validate(raw)
         session, voice_ids = await _load_panel_session(start.panel_id, user)
         scope = GroupVoiceAudioScope(language=start.language, voice_ids=voice_ids)
+
+        async def on_floor_granted(_persona_id: str, transcript: str) -> None:
+            await _maybe_speak(
+                session=session,
+                runtime=runtime,
+                user_text=transcript,
+                user_id=user.id,
+            )
+
         runtime = GroupVoiceAudioRuntime(
             session,
             scope,
             emit_json=emit,
             emit_audio=emit_audio,
+            on_floor_granted=on_floor_granted,
         )
         await runtime.start()
         await emit(
