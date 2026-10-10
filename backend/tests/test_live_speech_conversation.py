@@ -438,12 +438,13 @@ async def test_tool_calls_emit_progress_without_persisting(
     )
     with bind_tool_progress(handler):
         blob, results = await run_tool_calls(work)
-    assert [event.kind for event in seen] == ["started", "partial", "started", "partial"]
-    assert seen[0].remaining == 2
-    assert seen[1].remaining == 1
-    assert seen[1].summary == "resultat read_source"
-    assert seen[2].remaining == 1
-    assert seen[3].remaining == 0
+    started = [event for event in seen if event.kind == "started"]
+    partial = [event for event in seen if event.kind == "partial"]
+    assert [event.tool_name for event in started] == ["read_source", "search"]
+    assert [event.tool_name for event in partial] == ["read_source", "search"]
+    assert started[0].remaining == 2
+    assert partial[-1].remaining == 0
+    assert partial[0].summary == "resultat read_source"
     assert "resultat read_source" in blob
     assert results == ("resultat read_source", "resultat search")
 

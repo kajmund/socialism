@@ -73,7 +73,7 @@ async def test_provider_rechecks_parent_membership_after_external_memory(single_
 
 
 @pytest.mark.parametrize("confirmed_by_user", [False, True])
-async def test_native_research_requires_persisted_confirmation_and_queues_core_job(provider, monkeypatch, confirmed_by_user):
+async def test_native_research_queues_without_a_confirmation_phrase(provider, monkeypatch, confirmed_by_user):
     client, factory, canvas_id, expert_id, _requests = provider
     async with factory() as session:
         expert = await session.get(Persona, expert_id)
@@ -91,19 +91,16 @@ async def test_native_research_requires_persisted_confirmation_and_queues_core_j
     body = {"conversation_id": connection["conversation_id"], "agent_turn": 1, "turn_event_key": "confirmation",
         "arguments_json": json.dumps({"objective": "Research public sources", "confirmed": True, "source_object_ids": []})}
     response = await client.post(url, json=body)
-    if not confirmed_by_user:
-        assert response.status_code == 409 and not scheduled
-    else:
-        assert response.status_code == 200, response.text
-        result = response.json()
-        replay = await client.post(url, json=body)
-        assert replay.json() == result and scheduled == [result["job_id"], result["job_id"]]
-        async with factory() as session:
-            job = await session.get(Job, result["job_id"])
-            canvas = await session.get(VoiceWorkspace, canvas_id)
-            assert job.request["workspace_id"] == canvas.workspace_id and job.request["chat_id"] == canvas.chat_id
-            assert job.request["voice_workspace_id"] == canvas_id and job.request["document_manifest"] == []
-            assert len(list(await session.scalars(select(Job)))) == 1
+    assert response.status_code == 200, response.text
+    result = response.json()
+    replay = await client.post(url, json=body)
+    assert replay.json() == result and scheduled == [result["job_id"], result["job_id"]]
+    async with factory() as session:
+        job = await session.get(Job, result["job_id"])
+        canvas = await session.get(VoiceWorkspace, canvas_id)
+        assert job.request["workspace_id"] == canvas.workspace_id and job.request["chat_id"] == canvas.chat_id
+        assert job.request["voice_workspace_id"] == canvas_id and job.request["document_manifest"] == []
+        assert len(list(await session.scalars(select(Job)))) == 1
 
 
 async def test_bootstrap_persists_parent_before_initial_event_with_foreign_keys(single_connection_provider):

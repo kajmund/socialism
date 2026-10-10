@@ -63,6 +63,7 @@ async def finish_workspace_turn(
         message=message,
         history=history,
     )
+    await _release_read(session)
     if opened:
         queue_document_open(scope, opened)
     if on_client_tools is None or not scope.client_calls:
@@ -70,6 +71,17 @@ async def finish_workspace_turn(
     await on_client_tools(
         [{"name": call.name, "arguments": call.arguments} for call in scope.client_calls]
     )
+
+
+async def _release_read(session: AsyncSession) -> None:
+    if not session.in_transaction():
+        return
+    previous = session.expire_on_rollback
+    session.expire_on_rollback = False
+    try:
+        await session.rollback()
+    finally:
+        session.expire_on_rollback = previous
 
 
 def chat_tools_for_turn(names: list[str], *, workspace: bool) -> list[str]:

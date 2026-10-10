@@ -69,6 +69,8 @@ async def run_live_voice_tool(  # noqa: PLR0913
             conversation=f"expert:{persona.id}:voice:{session_id}",
         )(name, arguments)
     if name == RESEARCH_TOOL_NAME:
+        if session.in_transaction():
+            await session.commit()
         handler = research_tool_handler_for_chat(
             session,
             persona=persona,

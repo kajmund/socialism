@@ -1,5 +1,10 @@
 # Manual update log
 
+## 2026-10-10
+
+* **Expertchatten / röst**: Experten kan starta research i samma svar när
+  frågan kräver en ny undersökning. Ett extra bekräftande svar behövs inte.
+
 ## 2026-10-09
 
 * **Experter**: Chatten, röstsamtalet och SME-chatten är in-character.
