@@ -1,9 +1,13 @@
 # Graph v2
 
 Graph v2 stores domain-neutral nodes, fact edges, identifiers, provenance and
-fact-to-fact relations. The SQL tables map directly to Neo4j labels,
-relationships and properties; IDs are stable SHA-256 keys independent of
-database sequences and supporting documents.
+fact-to-fact relations. IDs are stable SHA-256 keys independent of database
+sequences and supporting documents. OverGraph is the target engine for that
+model; see [overgraph-knowledge-engine.md](../specs/overgraph-knowledge-engine.md).
+Research reads facts and TextUnits from OverGraph. Postgres Graph v2 tables
+remain for grafens egna tester, svarsavsnitt kopplade till EvidenceSet och
+legal write-back tills de vägarna är helt flyttade. De är inte en andra
+auktoritativ kopia av TextUnits.
 
 ## Identity and resolution
 
@@ -98,10 +102,10 @@ Downgrade reconstructs each occurrence's text from the shared table.
 
 Retrieval fuses full-text matches and embedding similarity with reciprocal
 rank fusion, then expands bounded graph neighbourhoods by node ID. PostgreSQL
-adds a GIN full-text index. Embeddings currently use portable JSON storage
-and a bounded semantic scan; a vector index and asynchronous ingestion are
-required for large corpora. Community summaries should be recomputed from
-fact edges and provenance, never used as an authoritative fact store.
+adds a GIN full-text index. The OverGraph engine replaces that Python fusion
+with native dense, sparse and hybrid search plus graph-scoped ranking. Community
+summaries should be recomputed from fact edges and provenance, never used as an
+authoritative fact store.
 
 The legal research adapter projects meaningful subject and concept/value nodes;
 the full assertion is held by its fact edge and only its supporting TextUnits

@@ -5,6 +5,7 @@ import { requireSourceVersion, voiceWorkspaces, type SourceReference, type Works
 const PdfKnowledgeViewer = lazy(() => import("@/components/underlag/PdfKnowledgeViewer").then((module) => ({ default: module.PdfKnowledgeViewer })))
 import { useLocale } from "@/i18n"
 import { isWorkspaceSourceReread, workspaceErrorMessage } from "./workspaceChatLogic"
+import { visibleDocumentHighlights } from "./workspaceDocumentFocus"
 import { localSelectionMatchesReference, type LocalDocumentSelection } from "./workspaceLocalSelection"
 
 export function WorkspaceSourcePane({ workspace, localSelection, sourceId, page, zoom, reference, onNavigate, onSelection, onClearSelection, onReady, onError }: {
@@ -35,10 +36,10 @@ export function WorkspaceSourcePane({ workspace, localSelection, sourceId, page,
   const manualAnchor = local ? local.selection?.anchor ?? null : undefined
   const savedAnchor = workspace.state.selection?.source_id === sourceId ? workspace.state.selection.anchor : undefined
   const suppressReferenceReady = referenceId !== undefined && (local ? !localSelectionMatchesReference(local, reference!) : savedAnchor !== undefined)
-  const focus = useMemo(() => {
-    const anchor = manualAnchor !== undefined ? manualAnchor : savedAnchor ?? reference?.anchor
-    return anchor && (anchor.page_number == null || anchor.page_number === page) ? [anchor] : []
-  }, [manualAnchor, page, reference, savedAnchor])
+  const focus = useMemo(
+    () => visibleDocumentHighlights(workspace.references, sourceId, page, manualAnchor !== undefined ? manualAnchor : savedAnchor ?? reference?.anchor),
+    [manualAnchor, page, reference, savedAnchor, sourceId, workspace.references],
+  )
   const callbacks = useRef({ onError, onReady, suppressReferenceReady })
   callbacks.current = { onError, onReady, suppressReferenceReady }
   const reportError = useCallback((message: string) => { setError(message); callbacks.current.onError(sourceId, message) }, [sourceId])

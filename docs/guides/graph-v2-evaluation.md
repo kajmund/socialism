@@ -32,12 +32,10 @@ regression tests, but has no labelled evaluation set here. The production judge
 uses a versioned database prompt and needs measured precision/recall on human
 labelled SAME, DISTINCT and CONTRADICTS pairs before its quality is known.
 
-Postgres holds portable node/fact/source records; full-text ranking and vector
-distance are retrieval adapters. Before Neo4j, preserve the stable IDs, scope,
-occurrence, source links, contradiction relations and temporal properties; replace
-the Postgres candidate queries, transactional uniqueness handling and graph
-traversal with Neo4j implementations. Add an ANN index or a dedicated vector
-column for large corpora; the current JSON-to-vector cast cannot use a pgvector
-index. The outbox and legacy research claim reuse remain transitional bridges.
+Postgres holds portable node/fact/source records until research callers read
+OverGraph. Preserve the stable IDs, scope, occurrence, source links, contradiction
+relations and temporal properties; replace the Postgres candidate queries and
+Python fusion with OverGraph hybrid search, PPR and traversal. The outbox and
+legacy research claim reuse remain transitional bridges.
 Legal entity relations await relation-specific TextUnit support before projection;
 claim passages are not automatically evidence for a citation or court relation.

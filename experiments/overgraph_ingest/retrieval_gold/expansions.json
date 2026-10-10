@@ -1,0 +1,42 @@
+{
+  "notes": "Deterministic concept synonyms for query expansion. Terms are legal variants, not gold passage snippets. The same lexicon is applied to every gold that shares the concept.",
+  "concepts": {
+    "auto_renewal": [
+      "automatisk förlängning",
+      "förlängs automatiskt",
+      "tyst förlängning",
+      "förlängning utan uppsägning"
+    ],
+    "notice_period": [
+      "uppsägningstid",
+      "uppsägning",
+      "säga upp",
+      "ömsesidig uppsägning"
+    ],
+    "liability_cap": [
+      "ansvarsbegränsning",
+      "ansvarstak",
+      "begränsat ansvar",
+      "skadeståndstak"
+    ],
+    "confidentiality": [
+      "sekretess",
+      "tystnadsplikt",
+      "konfidentiell information",
+      "företagshemligheter"
+    ],
+    "secrecy_carveout": [
+      "sekretessundantag",
+      "brott mot sekretess",
+      "undantag från ansvarsbegränsning",
+      "gäller inte vid sekretess"
+    ]
+  },
+  "golds": {
+    "auto-renewal": "auto_renewal",
+    "notice-period": "notice_period",
+    "liability-cap": "liability_cap",
+    "confidentiality": "confidentiality",
+    "liability-secrecy-carveout": "secrecy_carveout"
+  }
+}

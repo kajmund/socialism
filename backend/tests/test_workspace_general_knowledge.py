@@ -16,6 +16,16 @@ from app.services.workspace.containers import WorkspaceContainer
 from app.services.workspace.service import add_source, create_workspace
 from app.services.workspace.sources import read_reference
 from app.services.workspaces import create_client_workspace
+from app.services.graph_v2.types import NodeInput
+from app.services.knowledge.scope import customer_scope
+from app.services.overgraph.model import TextUnitWrite
+from app.services.overgraph.research import (
+    ResearchFactWrite,
+    drop_scope_index,
+    knowledge_catalog,
+    persist_research_fact,
+)
+from tests.conftest import RESEARCH_TEST_DIM, research_test_vector
 from tests.test_research_graph_v2_reuse import Embeddings, NOW, seed_fact
 from tests.text_unit_fakes import persisted_text_unit
 from tests.test_workspace_connections import (
@@ -56,17 +66,45 @@ async def _private_fact(session, identity, parent, *, customer_id=1, owner_id="u
     fact = GraphFact(id=f"fact-{identity}", scope_key=scope, customer_id=customer_id,
         identity_key=identity, source_id=nodes[0].id, target_id=nodes[1].id, predicate="test.policy",
         fact_text=unit.text, normalized_text=unit.text.casefold(), status="active",
-        embedding=[1.0, 0.0, 0.0], embedding_model=Embeddings.model,
+        embedding=research_test_vector(), embedding_model=Embeddings.model,
         attributes={"workspace_id": parent, "knowledge_module": "dd"})
     session.add(fact)
     await session.flush()
     session.add(GraphFactSource(fact_id=fact.id, source_kind="text_unit", source_ref=unit.id))
     await session.commit()
+    owner = customer_scope(customer_id)
+    persist_research_fact(
+        knowledge_catalog(),
+        ResearchFactWrite(
+            fact_id=f"fact-{identity}",
+            scope=owner,
+            source=NodeInput(node_type="core.concept", name="source", scope=owner),
+            target=NodeInput(node_type="core.concept", name="target", scope=owner),
+            predicate="test.policy",
+            fact_text=unit.text,
+            unit=TextUnitWrite(
+                unit_id=unit.id,
+                scope=owner,
+                document_id=document.id,
+                document_version_id=version.id,
+                text=unit.text,
+                content_hash=unit.content_hash,
+                ordinal=0,
+                locator="line:1",
+                ingested_at=NOW,
+                embedding=tuple(research_test_vector()),
+            ),
+            embedding=tuple(research_test_vector()),
+            attributes={"workspace_id": parent, "knowledge_module": "dd"},
+            source_key=f"{identity}-source",
+            target_key=f"{identity}-target",
+        ),
+    )
     return {"text_unit_id": unit.id, "document_version_id": version.id, "document_id": document.id}
 
 
 @pytest.fixture
-async def general_documents(single_connection):
+async def general_documents(single_connection, research_overgraph):
     factory, old_ids = single_connection
     async with factory() as session:
         user = await session.get(UserAccount, old_ids[0])
@@ -142,6 +180,7 @@ async def test_general_empty_shared_graph_does_not_embed_private_material(genera
     factory, ids, _indexed, _parents = general_documents
     async with factory.begin() as session:
         await session.execute(delete(GraphFact).where(GraphFact.scope_key == "shared"))
+        drop_scope_index(knowledge_catalog(), "shared")
 
     def forbidden_embeddings():
         raise AssertionError("An empty shared graph must not embed just because private facts exist")
@@ -158,7 +197,7 @@ async def test_research_reuse_keeps_shared_company_and_active_client_visibility(
             workspace_id=parents[1], readable_workspace_ids=parents))
         evidence = await lookup_graph_evidence(session,
             need=ResearchNeed(id="reuse", question=QUERY, why_needed="", source_types=list(RESEARCH_SOURCE_TYPES)),
-            context=context, query_embedding=GraphQueryEmbedding(Embeddings.model, 3, [1.0, 0.0, 0.0]), limit=10)
+            context=context, query_embedding=GraphQueryEmbedding(Embeddings.model, RESEARCH_TEST_DIM, research_test_vector()), limit=10)
     assert {item.metadata["graph_fact_ids"][0] for item in evidence} == {
         "fact-shared", "fact-company-policy", "fact-active-contract"}
 

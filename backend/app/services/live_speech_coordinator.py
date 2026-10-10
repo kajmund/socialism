@@ -37,6 +37,7 @@ class SpeechResponseCoordinator:
         self._on_first_audio = on_first_audio
         self._lock = asyncio.Lock()
         self._aside_token = 0
+        self._playback_token = 0
         self.main_text_seen = False
         self.spoken_text = ""
         self.spoken_asides: list[str] = []
@@ -52,6 +53,10 @@ class SpeechResponseCoordinator:
 
     def drop_aside(self) -> None:
         self._aside_token += 1
+
+    def interrupt_playback(self) -> None:
+        self._aside_token += 1
+        self._playback_token += 1
 
     def allow_progress(self) -> None:
         self.main_text_seen = False
@@ -73,8 +78,13 @@ class SpeechResponseCoordinator:
         cleaned = text.strip()
         if not cleaned:
             return
+        token = self._playback_token
         async with self._lock:
-            await self._play(cleaned, turn_id, announce=True, token=self._aside_token)
+            if token != self._playback_token:
+                return
+            await self._play(cleaned, turn_id, announce=True, token=token)
+            if token != self._playback_token:
+                return
             spoken = strip_voice_tags(cleaned)
             self.spoken_text = f"{self.spoken_text} {spoken}".strip() if self.spoken_text else spoken
 
@@ -100,7 +110,16 @@ class SpeechResponseCoordinator:
             }
         )
         async for chunk in self._stream(text):
-            if not announce and token != self._aside_token:
+            if (announce and token != self._playback_token) or (
+                not announce and token != self._aside_token
+            ):
+                await self._emit_json(
+                    {
+                        "type": "audio.output.end",
+                        "turn_id": turn_id,
+                        "sequence": self._next_sequence(),
+                    }
+                )
                 return
             if self._on_first_audio is not None:
                 self._on_first_audio()

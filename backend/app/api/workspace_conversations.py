@@ -18,7 +18,8 @@ from app.services.workspace.tools import execute_workspace_tool
 from app.services.workspace_agent_deployment import SERVER_TOOLS
 from app.services.workspace_conversation_events import persist_event
 from app.services.workspace_conversations import (
-    attach_turn_context, operation_key, require_conversation, start_conversation, thread_messages,
+    attach_turn_context, clear_thread_messages, operation_key, require_conversation, start_conversation,
+    thread_messages,
 )
 
 router = APIRouter(prefix="/workspace-chat", tags=["workspace-conversations"])
@@ -106,6 +107,13 @@ async def history(workspace_id: str, expert_id: str,
                   session: AsyncSession = Depends(get_session), user: UserAccount = Depends(get_current_user)) -> dict:
     workspace = await require_workspace(session, workspace_id, user)
     return {"messages": await thread_messages(session, workspace=workspace, expert_id=expert_id), "next_cursor": None}
+
+
+@router.delete("/{workspace_id}/threads/{expert_id}/messages", status_code=204)
+async def clear_history(workspace_id: str, expert_id: str,
+                        session: AsyncSession = Depends(get_session), user: UserAccount = Depends(get_current_user)) -> None:
+    workspace = await require_workspace(session, workspace_id, user)
+    await clear_thread_messages(session, workspace=workspace, expert_id=expert_id)
 
 
 def parse_arguments(payload: WorkspaceSessionToolRequest) -> dict:

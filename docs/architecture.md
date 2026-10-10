@@ -38,6 +38,7 @@ flowchart LR
 | Frontend | Vite · React · TypeScript · Tailwind · shadcn · React Router |
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic · pydantic-settings |
 | Database | Supabase Postgres via `psycopg` for durable shared state; SQLite via `aiosqlite` for isolated local work and tests |
+| Knowledge graph | OverGraph embedded catalogs (knowledge 3072, memory 1536); see [overgraph-knowledge-engine.md](specs/overgraph-knowledge-engine.md) |
 | API logs | Rotating file `backend/data/logs/app.log` (uvicorn stdout unchanged) |
 | LLM | Cerebras `gpt-oss-120b` default (`CEREBRAS_API_KEY`); DeepSeek via `LLM_PROVIDER=deepseek` |
 | Embeddings (SSR) | OpenAI `text-embedding-3-large` (`OPENAI_API_KEY` required) |

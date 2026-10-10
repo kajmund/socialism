@@ -2,11 +2,10 @@
 
 from time import perf_counter
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.database.graph_v2 import GraphFact, GraphFactSource
 from app.services.knowledge.embeddings import EmbeddingProvider, require_embedding_vectors
+from app.services.overgraph.research import graph_has_supported_facts
 from app.services.research.graph_reuse import lookup_graph_evidence, GraphQueryEmbedding
 from app.services.research.models import ResearchContext, ResearchEvidence, ResearchNeed
 
@@ -19,21 +18,7 @@ async def lookup_question(
     *,
     timings: dict[str, float] | None = None,
 ) -> list[ResearchEvidence]:
-    scopes = ("shared", f"customer:{context.scope.customer_id}")
-    async with factory() as session:
-        present = await session.scalar(
-            select(GraphFact.id)
-            .join(
-                GraphFactSource,
-                GraphFactSource.fact_id == GraphFact.id,
-            )
-            .where(
-                GraphFact.scope_key.in_(scopes),
-                GraphFact.status == "active",
-                GraphFactSource.source_kind == "text_unit",
-            )
-            .limit(1)
-        )
+    present = await graph_has_supported_facts(context.scope.customer_id)
     prepared = None
     if present:
         if embeddings is None:

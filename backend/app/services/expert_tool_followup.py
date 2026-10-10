@@ -1,5 +1,6 @@
 """Continue an expert tool episode on the same transcript, and open a requested document."""
 
+import json
 import time
 
 from app.config import settings
@@ -39,6 +40,66 @@ def queue_document_open(scope: LibraryToolScope, source_id: str) -> None:
     if not already_open:
         scope.client_calls.append(PlannedCall(f"open-{source_id}", "show_document", {"source_id": source_id}))
     scope._calls = [call for call in scope._calls if call.name not in {"search_knowledge", "get_workspace_context"}]
+
+
+def focus_calls_for_search(results: list[tuple[str, str]], workspace_state: dict | None) -> list[PlannedCall]:
+    """Ask the document view to paint a searched passage that already has a position."""
+    open_ids = _open_source_ids(workspace_state)
+    calls: list[PlannedCall] = []
+    seen: set[str] = set()
+    for name, result in results:
+        if name != "search_knowledge":
+            continue
+        reference_id = _highlight_reference(result, open_ids)
+        if reference_id is None or reference_id in seen:
+            continue
+        seen.add(reference_id)
+        calls.append(PlannedCall(f"focus-{reference_id}", "focus_anchor", {"reference_id": reference_id}))
+    return calls
+
+
+def _open_source_ids(state: dict | None) -> set[str]:
+    documents = state.get("documents") if isinstance(state, dict) else None
+    if not isinstance(documents, list):
+        return set()
+    return {
+        row["source_id"]
+        for row in documents
+        if isinstance(row, dict) and isinstance(row.get("source_id"), str)
+    }
+
+
+def _highlight_reference(result: str, open_ids: set[str]) -> str | None:
+    try:
+        payload = json.loads(result)
+    except json.JSONDecodeError:
+        return None
+    items = payload.get("items") if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        return None
+    fallback: str | None = None
+    for item in items:
+        reference_id = _positioned_reference(item)
+        if reference_id is None:
+            continue
+        if isinstance(item, dict) and item.get("source_id") in open_ids:
+            return reference_id
+        fallback = fallback or reference_id
+    return fallback
+
+
+def _positioned_reference(item: object) -> str | None:
+    if not isinstance(item, dict):
+        return None
+    reference_id = item.get("reference_id")
+    anchor = item.get("anchor")
+    if not isinstance(reference_id, str) or not reference_id or not isinstance(anchor, dict):
+        return None
+    page = anchor.get("page_number")
+    rects = anchor.get("rects")
+    if isinstance(page, bool) or not isinstance(page, int) or page < 1 or not isinstance(rects, list) or not rects:
+        return None
+    return reference_id
 
 
 async def compose_tool_episode(

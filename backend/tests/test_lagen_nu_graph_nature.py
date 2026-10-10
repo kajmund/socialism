@@ -11,6 +11,7 @@ from app.services.research.graph_grounding import GraphResearchError
 from tests.test_research_graph_v2_reuse import lookup_graph_evidence
 from tests.knowledge_fakes import FakeEmbeddingProvider
 from tests.test_lagen_nu_canonical_ingest import _document
+from tests.conftest import research_test_vector
 from tests.test_research_graph_v2_reuse import NOW, context, need, seed_fact
 from tests.test_research_graph_v2_reuse import graph_db as graph_db
 
@@ -24,9 +25,11 @@ from tests.test_research_graph_v2_reuse import graph_db as graph_db
     ],
 )
 async def test_ingested_nature_is_usable_graph_evidence(graph_db, uri, source, nature):
-    from app.database.graph_v2 import GraphFactSource
     from app.services.knowledge.persistence import current_text_units
-    from sqlalchemy import delete
+    from app.services.knowledge.scope import customer_scope
+    from app.services.overgraph.model import TextUnitWrite
+    from app.services.overgraph.research import knowledge_catalog, set_text_unit_refs
+    from app.services.overgraph.write import upsert_text_unit
 
     fact = await seed_fact(graph_db)
     document = replace(_document(uri=uri), source=source)
@@ -38,9 +41,20 @@ async def test_ingested_nature_is_usable_graph_evidence(graph_db, uri, source, n
         vector_store=MemoryKnowledgeVectorStore(),
     )
     units = await current_text_units(graph_db, result.document_id)
-    await graph_db.execute(delete(GraphFactSource).where(GraphFactSource.fact_id == fact.id))
-    graph_db.add(GraphFactSource(fact_id=fact.id, source_kind="text_unit", source_ref=units[0].id))
-    await graph_db.flush()
+    unit = units[0]
+    catalog = knowledge_catalog()
+    upsert_text_unit(catalog, TextUnitWrite(
+        unit_id=unit.id,
+        scope=customer_scope(1),
+        document_id=unit.document_id,
+        document_version_id=unit.document_version_id,
+        text=unit.text,
+        content_hash=unit.content_hash,
+        ordinal=unit.ordinal,
+        locator=unit.locator,
+        embedding=tuple(research_test_vector()),
+    ))
+    set_text_unit_refs(catalog, fact.id, [unit.id])
     hits = await lookup_graph_evidence(
         graph_db,
         need=replace(need(), source_types=[nature]),

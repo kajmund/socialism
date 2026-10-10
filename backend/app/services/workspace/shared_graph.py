@@ -1,12 +1,10 @@
 """Native general knowledge searches shared Graph facts and canonical sources."""
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database.graph_v2 import GraphFact, GraphFactSource
-from app.services.graph_v2.retrieval import hybrid_facts, neighbourhood
 from app.services.knowledge.embeddings import require_embedding_vectors
+from app.services.overgraph.research import graph_has_supported_facts, lookup_candidates
 from app.services.research.graph_grounding import (
     GraphResearchError,
     fact_is_current,
@@ -17,23 +15,16 @@ from app.services.research.models import ResearchContext, ResearchEvidence, Rese
 
 
 async def shared_graph_has_evidence(session: AsyncSession) -> bool:
-    present = await session.scalar(select(GraphFact.id).join(
-        GraphFactSource, GraphFactSource.fact_id == GraphFact.id).where(
-        GraphFact.scope_key == "shared", GraphFact.status == "active",
-        GraphFactSource.source_kind == "text_unit").limit(1))
-    return present is not None
+    return await graph_has_supported_facts(None)
 
 
 async def _shared_candidates(session, *, need, embedding, limit):
-    hits = await hybrid_facts(session, customer_id=None, query=need.question,
-        embedding=embedding.vector, embedding_model=embedding.model, limit=limit)
-    seeds = list(dict.fromkeys(node for hit in hits for node in (hit.fact.source_id, hit.fact.target_id)))
-    expanded = await neighbourhood(session, customer_id=None, seeds=seeds,
-        max_hops=1, limit=limit) if seeds else []
-    unique = {}
-    for hit in [*hits, *expanded]:
-        unique.setdefault(hit.fact.id, hit)
-    return list(unique.values())
+    return await lookup_candidates(
+        customer_id=None,
+        question_id=None,
+        dense_query=embedding.vector,
+        bound=limit,
+    )
 
 
 async def lookup_shared_graph_evidence(

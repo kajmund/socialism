@@ -1,5 +1,6 @@
+import type { DocumentKnowledgeAnchor } from "@/api/underlag"
 import type { SourceReference, Workspace, WorkspaceState } from "@/api/voiceWorkspaces"
-import { pdfAnchorKind } from "@/components/underlag/pdfAnchorPresentation"
+import { pdfAnchorKind, pdfAnchorRectangles } from "@/components/underlag/pdfAnchorPresentation"
 
 export function clearWorkspaceDocumentSelection(state: WorkspaceState, sourceId: string, references: SourceReference[]): WorkspaceState {
   const document = state.documents.find((row) => row.source_id === sourceId)
@@ -12,6 +13,27 @@ export function clearWorkspaceDocumentSelection(state: WorkspaceState, sourceId:
     selection: clearSelection ? null : state.selection,
     documents: state.documents.map((row) => row.source_id === sourceId && row.reference_id != null ? { ...row, reference_id: null } : row),
   }
+}
+
+export function visibleDocumentHighlights(
+  references: Pick<SourceReference, "source_id" | "stale" | "anchor">[],
+  sourceId: string,
+  page: number,
+  active: DocumentKnowledgeAnchor | null | undefined,
+): DocumentKnowledgeAnchor[] {
+  if (active === null) return []
+  const seen = new Set<string>()
+  const anchors: DocumentKnowledgeAnchor[] = []
+  const add = (anchor: DocumentKnowledgeAnchor | null | undefined) => {
+    if (!anchor || anchor.page_number !== page || !pdfAnchorRectangles(anchor).length) return
+    const key = JSON.stringify(anchor.rects.map(({ x, y, width, height }) => [x, y, width, height]))
+    if (seen.has(key)) return
+    seen.add(key)
+    anchors.push(anchor)
+  }
+  add(active)
+  for (const row of references) if (row.source_id === sourceId && !row.stale) add(row.anchor)
+  return anchors
 }
 
 export function workspaceFocusReference(workspace: Pick<Workspace, "references" | "sources">, referenceId: unknown): SourceReference {

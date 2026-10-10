@@ -1,7 +1,7 @@
 import { ApiError } from "@/lib/http"
 import { describe, expect, it } from "vitest"
 import type { WorkspaceMessage, WorkspaceState } from "@/api/voiceWorkspaces"
-import { artifactPresentationKey, clientArguments, clientToolFailure, commitWorkspaceState, expertProxyToolNames, interviewTranscriptMessage, isCurrentConversation, isWorkspaceSourceReread, mergeTranscript, openWorkspaceDocument, sameArtifactContent, sameWorkspaceState, takeReadyGenerationArtifact, upsertTranscript, workspaceGenerationDraft, workspaceSessionTool, workspaceThreadKey, workspaceErrorMessage } from "./workspaceChatLogic"
+import { artifactPresentationKey, clientArguments, clientToolFailure, commitWorkspaceState, expertProxyToolNames, interviewTranscriptMessage, isCurrentConversation, isWorkspaceSourceReread, mergeTranscript, navigateWorkspaceDocument, openWorkspaceDocument, sameArtifactContent, sameWorkspaceState, takeReadyGenerationArtifact, upsertTranscript, workspaceGenerationDraft, workspaceSessionTool, workspaceThreadKey, workspaceErrorMessage } from "./workspaceChatLogic"
 const state: WorkspaceState = { language: "sv", knowledge_scope: "workspace", view: "relations", documents: [{ source_id: "first", page: 3, zoom: 1.5 }, { source_id: "second", page: 7, zoom: 0.8 }], split_source_ids: ["first", "second"], research_attempt_ids: [], selection: { node_id: "event" } }
 const message: WorkspaceMessage = { id: 10, role: "agent", content: "The complete response", session_id: "session-a", event_key: "agent:4", created_at: "2026-10-04T12:00:00Z" }
 describe("workspace conversation state", () => {
@@ -84,6 +84,11 @@ describe("workspace conversation state", () => {
     const followup = interviewTranscriptMessage({ id: 21, role: "assistant", content: "En annan mening.", created_at: "2026-10-04T11:00:01Z" })
     expect(mergeTranscript([opening, spoken], [stored, followup])).toEqual([opening, stored, followup])
   })
+  it("does not append a spoken echo after the same reply is already stored", () => {
+    const stored = interviewTranscriptMessage({ id: 20, role: "assistant", content: "Hej Erik.\n\nJag är kvar här.", created_at: "2026-10-04T11:00:00Z" })
+    const spoken = { ...message, id: -8, content: "Hej Erik. Jag är kvar här.", session_id: "live-speech", event_key: "live-speech:a" }
+    expect(upsertTranscript([stored], spoken)).toEqual([stored])
+  })
   it("corrects the same transcript without duplicating a replayed event", () => {
     const corrected = { ...message, content: "The spoken response" }
     const rows = upsertTranscript(upsertTranscript([message], corrected), corrected)
@@ -96,6 +101,14 @@ describe("workspace conversation state", () => {
     const next = openWorkspaceDocument(state, "second", 9)
     expect(next.documents).toEqual([{ source_id: "second", page: 9, zoom: 0.8 }, state.documents[0]])
     expect(state.documents[1].page).toBe(7)
+  })
+  it("keeps the passage highlight when the pdf page changes", () => {
+    const marked = { ...state, selection: { reference_id: "passage", source_id: "first" }, documents: [{ source_id: "first", page: 3, zoom: 1.5, reference_id: "passage" }, state.documents[1]] }
+    const next = navigateWorkspaceDocument(marked, "first", 4, 1.2)
+    expect(next.selection).toEqual(marked.selection)
+    expect(next.documents[0]).toEqual({ source_id: "first", page: 4, zoom: 1.2, reference_id: "passage" })
+    expect(next.documents[1]).toBe(marked.documents[1])
+    expect(marked.documents[0].page).toBe(3)
   })
   it("returns a tool failure the model can explain instead of a rejected client call", () => {
     expect(JSON.parse(clientToolFailure(new ApiError("workspace_source_not_found", { status: 404 })))).toEqual({

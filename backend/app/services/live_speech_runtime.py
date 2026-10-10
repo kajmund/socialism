@@ -20,8 +20,8 @@ from app.services import jobs as jobs_service
 from app.services.elevenlabs_tts import ElevenLabsTts
 from app.services.live_speech_admit import admit_voice_turn, current_workspace_state
 from app.services.live_speech_coordinator import SpeechResponseCoordinator
-from app.services.expert_turn_cancel import bind_turn_cancel
 from app.services.live_speech_cues import LiveSpeechCues
+from app.services.expert_turn_cancel import bind_turn_cancel
 from app.services.live_speech_history import persist_interrupted_voice_turn
 from app.services.live_speech_progress import bind_tool_progress
 from app.services.openai_live_transcription import (
@@ -162,7 +162,7 @@ class LiveSpeechRuntime:
             return
         cancelled_at = monotonic()
         self._turn_cancel.set()
-        self._coordinator.drop_aside()
+        self._coordinator.interrupt_playback()
         self._cues.cancel_waiting()
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
@@ -295,10 +295,7 @@ class LiveSpeechRuntime:
         self._cues.start_waiting(turn_id)
         on_token = self._main_token_handler(turn_id, queue)
         try:
-            with (
-                bind_tool_progress(self._cues.on_tool_progress),
-                bind_turn_cancel(self._turn_cancel),
-            ):
+            with bind_tool_progress(self._cues.on_tool_progress), bind_turn_cancel(self._turn_cancel):
                 done = await execute_expert_turn(
                     factory,
                     request_id=request_id,

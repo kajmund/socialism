@@ -129,7 +129,9 @@ class Settings(LiveSpeechSettings, BaseSettings):
     embedding_cache_dir: str = "data/embedding_cache"
     # Budskap image bytes + vision captions keyed by SHA256.
     image_cache_dir: str = "data/image_cache"
-    # Persistent expert memory in the configured Supabase Postgres database.
+    # Embedded OverGraph catalogs (knowledge 3072, memory 1536).
+    overgraph_dir: str = "data/overgraph"
+    # Persistent expert memory history in the configured Supabase Postgres database.
     mem0_collection_name: str = "expert_memories"
     mem0_embedding_model: str = "text-embedding-3-small"
     mem0_search_limit: int = Field(default=10, ge=1, le=50)

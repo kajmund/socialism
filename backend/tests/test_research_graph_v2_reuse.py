@@ -9,34 +9,48 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.graph_v2 import GraphFact, GraphFactQuestionDependency, GraphFactSource, GraphNode
+from app.database.graph_v2 import GraphFact, GraphNode
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund
+from app.services.graph_v2.types import NodeInput
 from app.services.knowledge.models import KnowledgeScope
+from app.services.knowledge.scope import customer_scope, shared_scope
+from app.services.overgraph.model import GraphFactView, TextUnitWrite
+from app.services.overgraph.research import (
+    ResearchFactWrite,
+    add_text_unit_ref,
+    attach_question_dependency,
+    knowledge_catalog,
+    persist_research_fact,
+    update_fact,
+)
 from app.services.research.graph_grounding import GraphResearchError
 from app.services.research.graph_reuse import GraphQueryEmbedding, lookup_graph_evidence as read_graph_evidence
 from app.services.research.models import ResearchContext, ResearchNeed
-from tests.text_unit_fakes import persisted_text_unit
+from tests.conftest import RESEARCH_TEST_DIM, research_test_vector
 
 NOW = datetime.now(UTC)
 
 
 class Embeddings:
     model = "test-graph-embedding"
-    dimension = 3
+    dimension = RESEARCH_TEST_DIM
     provider_id = "test"
 
     async def embed(self, texts):
-        return [[1.0, 0.0, 0.0] for _ in texts]
+        return [research_test_vector() for _ in texts]
 
 
 async def lookup_graph_evidence(session, **kwargs):
     """Hydration tests supply a precomputed vector; only the wrapper calls embeddings."""
-    kwargs.setdefault("query_embedding", GraphQueryEmbedding(Embeddings.model, 3, [1.0, 0.0, 0.0]))
+    kwargs.setdefault(
+        "query_embedding",
+        GraphQueryEmbedding(Embeddings.model, RESEARCH_TEST_DIM, research_test_vector()),
+    )
     return await read_graph_evidence(session, **kwargs)
 
 
 @pytest.fixture
-async def graph_db(monkeypatch):
+async def graph_db(research_overgraph, monkeypatch):
     engine = create_async_engine("sqlite+aiosqlite://", poolclass=StaticPool)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:
@@ -66,6 +80,12 @@ def context(customer_id=1, *, case_id=None, module="dd") -> ResearchContext:
     )
 
 
+def _tenant(scope: str):
+    if scope == "shared":
+        return shared_scope()
+    return customer_scope(int(scope.split(":")[1]))
+
+
 async def seed_fact(
     session: AsyncSession,
     *,
@@ -73,8 +93,7 @@ async def seed_fact(
     source_scope=None,
     attributes=None,
     source_extra=None,
-) -> GraphFact:
-    customer_id = int(scope.split(":")[1]) if scope != "shared" else None
+) -> GraphFactView:
     source_scope = source_scope or scope
     source_customer = int(source_scope.split(":")[1]) if source_scope != "shared" else None
     source_fields = dict(
@@ -103,58 +122,78 @@ async def seed_fact(
     )
     session.add(version)
     await session.flush()
-    unit = await persisted_text_unit(session,
-        id=f"unit-{suffix}",
+    text = "36 § avtalslagen senare lagändringar i förarbetena."
+    unit = TextUnitWrite(
+        unit_id=f"unit-{suffix}",
+        scope=_tenant(source_scope),
         document_id=document.id,
         document_version_id=version.id,
+        text=text,
+        content_hash="unit-hash",
         ordinal=0,
-        text="36 § avtalslagen senare lagändringar i förarbetena.",
         locator="a4.2",
         ingested_at=NOW,
-        **source_fields,
+        embedding=tuple(research_test_vector()),
     )
-    nodes = [
-        GraphNode(
-            id=f"source-{suffix}",
+    owner = _tenant(scope)
+    customer_id = owner.customer_id
+    session.add_all(
+        [
+            GraphNode(
+                id=f"source-{suffix}",
+                scope_key=scope,
+                customer_id=customer_id,
+                node_type="legal.source",
+                identity_key="source",
+                name="Avtalslagen",
+                normalized_name="avtalslagen",
+            ),
+            GraphNode(
+                id=f"target-{suffix}",
+                scope_key=scope,
+                customer_id=customer_id,
+                node_type="legal.value",
+                identity_key="value",
+                name="Lagändringar",
+                normalized_name="lagändringar",
+            ),
+        ]
+    )
+    await session.flush()
+    session.add(
+        GraphFact(
+            id=f"fact-{suffix}",
+            identity_key=f"identity-{suffix}",
             scope_key=scope,
             customer_id=customer_id,
-            node_type="legal.source",
-            identity_key="source",
-            name="Avtalslagen",
-            normalized_name="avtalslagen",
-        ),
-        GraphNode(
-            id=f"target-{suffix}",
-            scope_key=scope,
-            customer_id=customer_id,
-            node_type="legal.value",
-            identity_key="value",
-            name="Lagändringar",
-            normalized_name="lagändringar",
-        ),
-    ]
-    session.add_all([unit, *nodes])
-    await session.flush()
-    fact = GraphFact(
-        id=f"fact-{suffix}",
-        identity_key=f"identity-{suffix}",
-        scope_key=scope,
-        customer_id=customer_id,
-        source_id=nodes[0].id,
-        target_id=nodes[1].id,
-        predicate="legal.legislative_intent",
-        fact_text=unit.text,
-        normalized_text=unit.text.casefold(),
-        status="active",
-        embedding=[1.0, 0.0, 0.0],
-        embedding_model=Embeddings.model,
-        attributes=attributes or {},
+            source_id=f"source-{suffix}",
+            target_id=f"target-{suffix}",
+            predicate="legal.legislative_intent",
+            fact_text=text,
+            normalized_text=text.casefold(),
+            status="active",
+            embedding=research_test_vector(),
+            embedding_model=Embeddings.model,
+            attributes=attributes or {},
+        )
     )
-    session.add(fact)
     await session.flush()
-    session.add(GraphFactSource(fact_id=fact.id, source_kind="text_unit", source_ref=unit.id))
-    await session.flush()
-    return fact
+    return persist_research_fact(
+        knowledge_catalog(),
+        ResearchFactWrite(
+            fact_id=f"fact-{suffix}",
+            scope=owner,
+            source=NodeInput(node_type="legal.source", name="Avtalslagen", scope=owner),
+            target=NodeInput(node_type="legal.value", name="Lagändringar", scope=owner),
+            predicate="legal.legislative_intent",
+            fact_text=text,
+            unit=unit,
+            embedding=tuple(research_test_vector()),
+            attributes=attributes or {},
+            source_key=f"source-{suffix}",
+            target_key=f"target-{suffix}",
+        ),
+    )
 
 
 async def test_graph_fact_is_hydrated_without_claims_and_keeps_source_ids(graph_db):
@@ -178,29 +217,16 @@ async def test_empty_graph_requires_no_query_embedding(graph_db):
 
 async def test_canonical_dependency_is_read_from_graph_without_legacy_links(graph_db, monkeypatch):
     fact = await seed_fact(graph_db)
-    question_node = GraphNode(
-        id="question-node",
-        scope_key="customer:1",
-        customer_id=1,
-        node_type="research.question",
-        identity_key="canonical-36",
-        name=need().question,
-        normalized_name=need().question,
-        attributes={"canonical_question_id": "canonical-36"},
+    attach_question_dependency(
+        knowledge_catalog(),
+        question_id="canonical-36",
+        question_text=need().question,
+        fact_id=fact.id,
+        scope=customer_scope(1),
     )
-    graph_db.add(question_node)
-    await graph_db.flush()
-    graph_db.add(
-        GraphFactQuestionDependency(
-            id="question-dependency",
-            scope_key="customer:1",
-            question_node_id=question_node.id,
-            fact_id=fact.id,
-        )
-    )
-    await graph_db.flush()
     monkeypatch.setattr(
-        "app.services.research.graph_reuse.hybrid_facts", AsyncMock(return_value=[])
+        "app.services.overgraph.research.search_research_facts",
+        lambda *_args, **_kwargs: [],
     )
     current_need = replace(need(), knowledge_question_id="canonical-36")
     hits = await lookup_graph_evidence(graph_db, need=current_need, context=context())
@@ -235,8 +261,7 @@ async def test_customer_and_shared_visibility(graph_db):
 )
 async def test_invalid_or_future_facts_are_not_reused(graph_db, field, value):
     fact = await seed_fact(graph_db)
-    setattr(fact, field, value)
-    await graph_db.flush()
+    update_fact(knowledge_catalog(), fact.id, **{field: value})
     assert await lookup_graph_evidence(graph_db, need=need(), context=context(), now=NOW) == []
 
 
@@ -320,10 +345,7 @@ async def test_shared_fact_cannot_expose_private_sources(graph_db):
 
 async def test_broken_text_unit_ref_fails_loudly(graph_db):
     fact = await seed_fact(graph_db)
-    graph_db.add(
-        GraphFactSource(fact_id=fact.id, source_kind="text_unit", source_ref="missing-unit")
-    )
-    await graph_db.flush()
+    add_text_unit_ref(knowledge_catalog(), fact.id, "missing-unit")
     with pytest.raises(GraphResearchError, match="missing supporting"):
         await lookup_graph_evidence(graph_db, need=need(), context=context())
 

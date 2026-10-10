@@ -91,12 +91,14 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 
 ## Expert memory
 
-Expert long-term memory uses Mem0 OSS with pgvector and history tables in the
-configured Supabase Postgres `DATABASE_URL`. Scope every operation by customer
-and expert. Expert
+Expert long-term memory uses Mem0 OSS. Mem0 owns extraction and lifecycle.
+OverGraph stores and retrieves those memories in the process-owned memory
+catalog. History tables stay in the configured Supabase Postgres
+`DATABASE_URL`. Scope every operation by customer and expert. Expert
 chat reads and writes memory, while Word review only writes deduplicated
 findings per `doc_id` in phase 1. Keep literal transcripts in their existing
-tables. See [expert-memory.md](../docs/guides/expert-memory.md).
+tables. See [expert-memory.md](../docs/guides/expert-memory.md) and
+[overgraph-knowledge-engine.md](../docs/specs/overgraph-knowledge-engine.md).
 
 **Answer review TTL:** the common research freeze/ready boundary captures one final question/evidence basis across all providers (including synthesized and reused evidence) in `knowledge_answer_reviews` as `awaiting_ttl`. Providers have no TTL logic. The separate `python -m app.services.knowledge.answer_review_worker classify` process asks Jev for `soon|later|never` (3/6 calendar months or no schedule); `enqueue` promotes bounded indexed batches to candidates. Research makes no TTL model calls and TTL never gates reuse. See [answer-review-ttl.md](../docs/guides/answer-review-ttl.md). Do not reintroduce graph-impact revalidation in provider write-back. Graph v2 question/fact revalidation queues are gone; freeze only writes `awaiting_ttl`, and the Graph worker only processes ingest.
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react"
 import { CachedAuthImage } from "@/components/chat/CachedAuthImage"
+import { DocumentMentionInput } from "@/components/chat/DocumentMentionInput"
 import { ChatMarkdown } from "@/components/chat/ChatMarkdown"
 import { TypingIndicator } from "@/components/chat/TypingIndicator"
 import { AdminButton } from "@/components/ui/admin-button"
@@ -48,6 +49,8 @@ type MessengerChatProps = {
   onClearImage?: () => void
   /** Optional control rendered immediately to the right of the text input. */
   inputAction?: ReactNode
+  /** Workspace files offered when the draft contains an @ mention. */
+  documentFiles?: { id: string; filename: string }[]
 }
 
 /**
@@ -81,6 +84,7 @@ export function MessengerChat({
   onPickImage,
   onClearImage,
   inputAction,
+  documentFiles,
 }: MessengerChatProps) {
   const { t } = useLocale()
   const msgsRef = useRef<HTMLDivElement | null>(null)
@@ -240,18 +244,15 @@ export function MessengerChat({
             </AdminButton>
           </>
         ) : null}
-        <input
-          ref={inputRef}
-          className="min-w-0"
-          placeholder={placeholder}
+        <DocumentMentionInput
+          inputRef={inputRef}
           value={draft}
+          placeholder={placeholder}
           disabled={disabled}
-          onChange={(e) => onDraftChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault()
-              if (canSend) onSend()
-            }
+          files={documentFiles}
+          onChange={onDraftChange}
+          onSubmit={() => {
+            if (canSend) onSend()
           }}
         />
         {inputAction}

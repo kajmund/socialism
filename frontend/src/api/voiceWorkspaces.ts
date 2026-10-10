@@ -137,6 +137,7 @@ export const voiceWorkspaces = {
   saveArtifact: async (id: string, artifact: WorkspaceArtifact) => { const result = await api.patch<ToolResult>(`/voice-workspaces/${id}/artifacts/${artifact.id}`, { expected_revision: artifact.revision, title: artifact.title, content: artifact.content, idempotency_key: crypto.randomUUID() }); if (!result.artifact) throw new Error("Missing saved artifact"); return result.artifact },
   export: (id: string, artifactId: string, format: "pdf" | "docx", revision: number) => api.getBlob(`/voice-workspaces/${id}/artifacts/${artifactId}/exports/${format}?revision=${revision}`),
   messages: (id: string, expertId: string) => api.get<{ messages: WorkspaceMessage[] }>(`/workspace-chat/${id}/threads/${expertId}/messages`),
+  clearMessages: (id: string, expertId: string) => api.delete(`/workspace-chat/${id}/threads/${expertId}/messages`),
   inbox: (id: string) => api.get<VoiceWorkspaceInboxItem[]>(`/voice-workspaces/${id}/inbox`),
   read: (id: string, expertId: string) => api.post<{ last_read_message_id: number | null }>(`/voice-workspaces/${id}/experts/${expertId}/read`),
   start: (id: string, expertId: string, mode: "text" | "voice", language: string) => api.post<ChatSession>(`/workspace-chat/${id}/sessions`, { expert_id: expertId, mode, language }),

@@ -1,0 +1,76 @@
+{
+  "id": "notice-period",
+  "kind": "unit",
+  "proof_kind": "EXISTS",
+  "query": "Vilka avtal innehåller en uppsägningstid?",
+  "classify_question": "Innehåller texten en stående uppsägningstid för att avsluta avtalet?",
+  "notes": "Relevant is a standing notice period for terminating this agreement. A termination letter that only records a period, a one-shot waiver of notice, or a purely optional bracketed alternative is not relevant.",
+  "relevant_units": [
+    {
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "contains": "För Arbetstagaren är den en (1) månad."
+    },
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "contains": "Båda parter får säga upp avtalet med [30] dagars uppsägningstid."
+    },
+    {
+      "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+      "contains": "Båda parter kan säga upp avtalet med [en (1)] månads uppsägningstid."
+    },
+    {
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+      "contains": "Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång."
+    },
+    {
+      "relative_path": "Avtal_18_Hyresavtal_bostad.docx",
+      "contains": "Uppsägningstiden är tre (3) månader för båda parter"
+    },
+    {
+      "relative_path": "Avtal_21_Parkeringsavtal.docx",
+      "contains": "Avtalet kan sägas upp av båda parter med [tre (3)] månaders uppsägningstid."
+    },
+    {
+      "relative_path": "Avtal_22_Kontorshotell_coworking.docx",
+      "contains": "Avtalet kan sägas upp av båda parter med [en (1)] månads uppsägningstid"
+    },
+    {
+      "relative_path": "Avtal_29_Samarbetsavtal.docx",
+      "contains": "ömsesidig uppsägningstid på [tre (3)] månader"
+    },
+    {
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "contains": "Uppsägningstiden är en (1) månad under det första avtalsåret"
+    },
+    {
+      "relative_path": "Avtal_75_Visselblasarfunktion.docx",
+      "contains": "sex (6) månaders ömsesidig uppsägningstid"
+    },
+    {
+      "relative_path": "Avtal_77_Redovisningsuppdrag.docx",
+      "contains": "tre (3) månaders ömsesidig uppsägningstid"
+    },
+    {
+      "relative_path": "Avtal_79_Hyresavtal_lokal_Goteborg.docx",
+      "contains": "Avtalet ska sägas upp senast nio (9) månader före hyrestidens utgång."
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "contains": "Ömsesidig uppsägningstid är sex (6) månader."
+    }
+  ],
+  "hard_negatives": [
+    {
+      "relative_path": "Avtal_93_Avveckling_av_samarbete.docx",
+      "contains": "Den uppsägningstid som följer av Andrahandsavtalet frångås.",
+      "reason": "Waives an existing notice period; it does not set one"
+    }
+  ],
+  "watch_negatives": [
+    {
+      "relative_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "contains": "Din uppsägningstid är [antal] månader enligt",
+      "reason": "Termination letter recording a period, not a standing commercial term"
+    }
+  ]
+}
