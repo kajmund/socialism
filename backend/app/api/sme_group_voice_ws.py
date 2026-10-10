@@ -118,7 +118,6 @@ async def _load_panel_session(
                 continue
             persona = member.persona
             pid_str = persona.id
-            # Group voice always uses the socialism provider.
             provider = persona.live_voice_provider or settings.live_voice_provider
             if provider != "socialism":
                 raise HTTPException(
@@ -127,7 +126,6 @@ async def _load_panel_session(
                 )
             member_ids.add(pid_str)
             member_names[pid_str] = persona.name
-            # Each expert must speak with the voice configured on their persona.
             voice = (persona.live_voice or "").strip() or settings.elevenlabs_voice_id
             if not voice:
                 raise HTTPException(
@@ -145,6 +143,56 @@ async def _load_panel_session(
             ),
             voice_ids,
         )
+
+
+async def _dispatch(
+    *,
+    kind: str,
+    raw: dict,
+    session: GroupVoiceSession,
+    runtime: GroupVoiceAudioRuntime | None,
+    emit,
+    push_snapshot,
+) -> None:
+    if kind == "utterance":
+        msg = HumanUtterance.model_validate(raw)
+        addressed = session.address_by_name(msg.text)
+        if addressed:
+            session.grant_floor(addressed)
+        await push_snapshot()
+    elif kind == "raise_hand":
+        msg = RaiseHand.model_validate(raw)
+        session.raise_hand(msg.persona_id)
+        await push_snapshot()
+    elif kind == "grant_floor":
+        msg = GrantFloor.model_validate(raw)
+        session.grant_floor(msg.persona_id)
+        await push_snapshot()
+    elif kind == "release_floor":
+        msg = ReleaseFloor.model_validate(raw)
+        session.release_floor()
+        await session.decide_keep_hands(msg.transcript)
+        await push_snapshot()
+    elif kind == "attach_tool":
+        msg = AttachTool.model_validate(raw)
+        session.attach_tool_result(
+            msg.persona_id,
+            msg.tool_name,
+            msg.result,
+            msg.summary,
+        )
+        await push_snapshot()
+    elif kind == "speak_as":
+        msg = SpeakAs.model_validate(raw)
+        if runtime is not None:
+            await runtime.speak_as(msg.persona_id, msg.text)
+    elif kind == "commit_audio":
+        if runtime is not None:
+            await runtime.commit_audio()
+    elif kind == "ping":
+        await emit({"type": "pong"})
+    else:
+        await emit({"type": "error", "detail": f"unknown type {kind}"})
 
 
 @router.websocket("/ws/sme-group-voice")
@@ -220,45 +268,14 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
                 continue
             kind = raw.get("type")
             try:
-                if kind == "utterance":
-                    msg = HumanUtterance.model_validate(raw)
-                    addressed = session.address_by_name(msg.text)
-                    if addressed:
-                        session.grant_floor(addressed)
-                    await push_snapshot()
-                elif kind == "raise_hand":
-                    msg = RaiseHand.model_validate(raw)
-                    session.raise_hand(msg.persona_id)
-                    await push_snapshot()
-                elif kind == "grant_floor":
-                    msg = GrantFloor.model_validate(raw)
-                    session.grant_floor(msg.persona_id)
-                    await push_snapshot()
-                elif kind == "release_floor":
-                    msg = ReleaseFloor.model_validate(raw)
-                    session.release_floor()
-                    await session.decide_keep_hands(msg.transcript)
-                    await push_snapshot()
-                elif kind == "attach_tool":
-                    msg = AttachTool.model_validate(raw)
-                    session.attach_tool_result(
-                        msg.persona_id,
-                        msg.tool_name,
-                        msg.result,
-                        msg.summary,
-                    )
-                    await push_snapshot()
-                elif kind == "speak_as":
-                    msg = SpeakAs.model_validate(raw)
-                    if runtime is not None:
-                        await runtime.speak_as(msg.persona_id, msg.text)
-                elif kind == "commit_audio":
-                    if runtime is not None:
-                        await runtime.commit_audio()
-                elif kind == "ping":
-                    await emit({"type": "pong"})
-                else:
-                    await emit({"type": "error", "detail": f"unknown type {kind}"})
+                await _dispatch(
+                    kind=kind,
+                    raw=raw,
+                    session=session,
+                    runtime=runtime,
+                    emit=emit,
+                    push_snapshot=push_snapshot,
+                )
             except ValidationError as exc:
                 await emit({"type": "error", "detail": str(exc.errors()[0]["msg"])})
     except HTTPException as exc:
