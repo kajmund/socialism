@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Hand, UsersRound } from "lucide-react"
+import { Hand, Mic, MicOff, UsersRound } from "lucide-react"
 import { clearSmePanelMessages, listSmePanelMessages, markSmeThreadRead, sendSmePanelMessage, type SmeInboxItem, type SmeMessage } from "@/api/sme"
 import { useAuth } from "@/auth/AuthProvider"
 import { MessengerChat } from "@/components/chat/MessengerChat"
@@ -39,7 +39,6 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
       setMessages((rows) => [...new Map([...rows, ...created].map((message) => [message.id, message])).values()])
       setDraft("")
       await markSmeThreadRead("panel", thread.thread_id)
-      // Also notify the voice session of the human utterance (name address can grant floor)
       voice.sendUtterance(text)
     }
     catch (caught) { setError(workspaceErrorMessage(caught, t, "sme.chatError")) }
@@ -59,9 +58,20 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
           <span className="text-xs text-muted-foreground">
             {t("sme.groupMembers", { count: thread.member_names.length })}
             {voice.connected ? " · voice" : ""}
+            {floorName ? ` · ${floorName}` : ""}
           </span>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {voice.connected && (
+            <button
+              type="button"
+              className="grid size-8 place-items-center rounded-full border text-xs"
+              onClick={() => (voice.listening ? voice.stopListening() : void voice.startListening())}
+              title={voice.listening ? "Stop listening" : "Start listening"}
+            >
+              {voice.listening ? <MicOff size={16} /> : <Mic size={16} />}
+            </button>
+          )}
           {voice.snapshot && voice.snapshot.hands.length > 0 && (
             <span className="flex items-center gap-1 text-xs text-muted-foreground" title="Raised hands">
               <Hand size={14} />
