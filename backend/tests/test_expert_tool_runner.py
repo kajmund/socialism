@@ -299,16 +299,20 @@ def test_research_prompt_migration_drops_the_confirmation_turn() -> None:
                 "en": f"Intro. {migration._VOICE_OLD['en']} End.",
             },
         )
+        original_get_bind = migration.op.get_bind
         migration.op.get_bind = lambda: connection
-        migration.upgrade()
-        stored = connection.execute(
-            sa.text("SELECT default_sv FROM prompt_fields WHERE key = :key"),
-            {"key": migration._RESEARCH_KEY},
-        ).scalar_one()
-        voice = connection.execute(
-            sa.text("SELECT default_sv, default_en FROM prompt_fields WHERE key = :key"),
-            {"key": migration._VOICE_KEY},
-        ).one()
+        try:
+            migration.upgrade()
+            stored = connection.execute(
+                sa.text("SELECT default_sv FROM prompt_fields WHERE key = :key"),
+                {"key": migration._RESEARCH_KEY},
+            ).scalar_one()
+            voice = connection.execute(
+                sa.text("SELECT default_sv, default_en FROM prompt_fields WHERE key = :key"),
+                {"key": migration._VOICE_KEY},
+            ).one()
+        finally:
+            migration.op.get_bind = original_get_bind
     assert "bekräftat" not in stored
     assert "samma svar" in stored
     assert migration._VOICE_NEW["sv"] in voice[0]
