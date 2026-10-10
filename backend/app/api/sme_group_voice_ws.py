@@ -152,6 +152,7 @@ async def _maybe_speak(
     runtime: GroupVoiceAudioRuntime | None,
     user_text: str,
     user_id: str,
+    customer_id: int,
     speaking_task: dict,
 ) -> None:
     if runtime is None or not session.floor:
@@ -167,6 +168,7 @@ async def _maybe_speak(
             runtime=runtime,
             user_text=user_text,
             user_id=user_id,
+            customer_id=customer_id,
         )
     )
 
@@ -180,6 +182,7 @@ async def _dispatch(
     emit,
     push_snapshot,
     user_id: str,
+    customer_id: int,
     speaking_task: dict,
 ) -> None:
     if kind == "utterance":
@@ -193,6 +196,7 @@ async def _dispatch(
                 runtime=runtime,
                 user_text=msg.text,
                 user_id=user_id,
+                customer_id=customer_id,
                 speaking_task=speaking_task,
             )
         else:
@@ -210,6 +214,7 @@ async def _dispatch(
             runtime=runtime,
             user_text="(floor granted)",
             user_id=user_id,
+            customer_id=customer_id,
             speaking_task=speaking_task,
         )
     elif kind == "release_floor":
@@ -260,6 +265,7 @@ async def _receive_loop(
     emit,
     push_snapshot,
     user_id: str,
+    customer_id: int,
     speaking_task: dict,
 ) -> None:
     while True:
@@ -292,6 +298,7 @@ async def _receive_loop(
                 emit=emit,
                 push_snapshot=push_snapshot,
                 user_id=user_id,
+                customer_id=customer_id,
                 speaking_task=speaking_task,
             )
         except ValidationError as exc:
@@ -337,6 +344,7 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
                 runtime=runtime,
                 user_text=transcript,
                 user_id=user.id,
+                customer_id=user.kund_id or 0,
                 speaking_task=speaking_task,
             )
 
@@ -367,6 +375,7 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
             emit=emit,
             push_snapshot=push_snapshot,
             user_id=user.id,
+            customer_id=user.kund_id or 0,
             speaking_task=speaking_task,
         )
     except HTTPException as exc:
