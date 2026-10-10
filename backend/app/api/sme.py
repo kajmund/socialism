@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -218,6 +218,21 @@ async def list_panel_messages(
         )
         for row, persona_name in result.all()
     ]
+
+
+@router.delete("/panels/{panel_id}/messages", status_code=204)
+async def clear_panel_messages(
+    panel_id: int,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> None:
+    customer_id = await _require_sme_customer(session, user)
+    await _require_panel(session, panel_id, customer_id)
+    await session.execute(delete(SmePanelMessage).where(
+        SmePanelMessage.population_id == panel_id,
+        SmePanelMessage.customer_id == customer_id,
+    ))
+    await session.commit()
 
 
 async def _require_panel(

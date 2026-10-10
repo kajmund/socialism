@@ -11,7 +11,7 @@ class LiveSpeechSettings:
     live_speech_vad_threshold: float = Field(default=0.018, gt=0, le=1)
     live_speech_vad_preroll_ms: int = Field(default=250, ge=0, le=1000)
     live_speech_vad_hangover_ms: int = Field(default=600, ge=100, le=3000)
-    live_speech_vad_min_speech_ms: int = Field(default=300, ge=0, le=2000)
+    live_speech_vad_min_speech_ms: int = Field(default=120, ge=0, le=2000)
     live_speech_vad_urgent_ms: int = Field(default=120, ge=0, le=1000)
     live_speech_backchannel_max_ms: int = Field(default=1200, ge=200, le=4000)
     live_speech_backchannel_confirm_ms: int = Field(default=300, ge=100, le=800)

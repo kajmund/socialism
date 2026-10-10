@@ -1,0 +1,104 @@
+{
+  "id": "auto-renewal",
+  "kind": "unit",
+  "proof_kind": "EXISTS",
+  "query": "Vilka avtal innehåller bestämmelser om automatisk förlängning?",
+  "classify_question": "Innehåller texten en bestämmelse där avtalet förlängs automatiskt utan ett nytt uttryckligt godkännande från båda parterna?",
+  "notes": "Relevant is a standing tacit-renewal or auto-renewal term. Ongoing 'tills vidare', one-shot amendments, optional renewal rights, and 'förlängs inte automatiskt' are not relevant.",
+  "relevant_units": [
+    {
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+      "contains": "Annars förlängs det med [tre (3)] år i taget."
+    },
+    {
+      "relative_path": "Avtal_18_Hyresavtal_bostad.docx",
+      "contains": "Annars förlängs avtalet tills vidare."
+    },
+    {
+      "relative_path": "Avtal_19_Andrahandsuthyrning_lokal.docx",
+      "contains": "Därefter förlängs den med [tolv] månader i taget"
+    },
+    {
+      "relative_path": "Avtal_20_Arrendeavtal_lagenhetsarrende.docx",
+      "contains": "förlängs avtalet med [ett (1)] år i taget"
+    },
+    {
+      "relative_path": "Avtal_22_Kontorshotell_coworking.docx",
+      "contains": "förlängs därefter med [en (1)] månad i taget"
+    },
+    {
+      "relative_path": "Avtal_25_Fastighetsservice_stadning.docx",
+      "contains": "förlängs därefter med [ett (1)] år i taget"
+    },
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "contains": "förlängs därefter med [tolv (12)] månader i taget"
+    },
+    {
+      "relative_path": "Avtal_32_Inkopsavtal.docx",
+      "contains": "förlängs därefter med ett (1) år i taget"
+    },
+    {
+      "relative_path": "Avtal_34_Aterforsaljaravtal.docx",
+      "contains": "förlängs därefter med ett (1) år i taget"
+    },
+    {
+      "relative_path": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "contains": "förlängs därefter med tolv (12) månader i taget"
+    },
+    {
+      "relative_path": "Avtal_42_Factoringavtal.docx",
+      "contains": "förlängs därefter med tolv (12) månader i taget"
+    },
+    {
+      "relative_path": "Avtal_46_SaaS_avtal.docx",
+      "contains": "förlängs därefter med tolv (12) månader i taget"
+    },
+    {
+      "relative_path": "Avtal_47_Programvarulicensavtal.docx",
+      "contains": "förlängs därefter med tolv (12) månader i taget"
+    },
+    {
+      "relative_path": "Avtal_49_IT_drift_hostingavtal.docx",
+      "contains": "förlängs därefter med tolv (12) månader i taget"
+    },
+    {
+      "relative_path": "Avtal_50_Support_underhallsavtal.docx",
+      "contains": "förlängs därefter med tolv (12) månader i taget"
+    },
+    {
+      "relative_path": "Avtal_52_Licensavtal_varumarke.docx",
+      "contains": "förlängs därefter med tolv (12) månader i taget"
+    },
+    {
+      "relative_path": "Avtal_63_Appavtal_utveckling_publicering.docx",
+      "contains": "förlängs därefter med tolv (12) månader i taget"
+    },
+    {
+      "relative_path": "Avtal_64_Byraavtal_reklam.docx",
+      "contains": "förlängs därefter med tolv (12) månader i taget"
+    },
+    {
+      "relative_path": "Avtal_69_Kundavtal_B2C_villkor.docx",
+      "contains": "förlängs automatiskt med samma period"
+    },
+    {
+      "relative_path": "Avtal_79_Hyresavtal_lokal_Goteborg.docx",
+      "contains": "I annat fall förlängs det med tre (3) år i taget."
+    }
+  ],
+  "hard_negatives": [
+    {
+      "relative_path": "Avtal_15_Bonusavtal.docx",
+      "contains": "Det förlängs inte automatiskt.",
+      "reason": "Explicitly excludes automatic renewal"
+    }
+  ],
+  "watch_negatives": [
+    {
+      "relative_path": "Avtal_23_Tillaggsavtal_hyresavtal_lokal.docx",
+      "contains": "Hyrestiden förlängs och löper från och med 2023-02-01",
+      "reason": "One-shot extension of an existing lease, not a standing auto-renewal term"
+    }
+  ]
+}

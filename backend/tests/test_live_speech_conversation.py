@@ -139,6 +139,39 @@ async def test_coordinator_allows_progress_after_main() -> None:
     assert chunks == ["Första svaret.", "Jag har fått en del."]
 
 
+async def test_coordinator_stops_main_playback_when_interrupted() -> None:
+    released = asyncio.Event()
+    holding = asyncio.Event()
+    audio: list[bytes] = []
+
+    async def stream(_text: str):
+        yield b"\x00\x01"
+        holding.set()
+        await released.wait()
+        yield b"\x00\x02"
+
+    async def emit_json(_event: dict) -> None:
+        return None
+
+    async def emit_audio(chunk: bytes) -> None:
+        audio.append(chunk)
+
+    coordinator = SpeechResponseCoordinator(
+        stream=stream,
+        emit_json=emit_json,
+        emit_audio=emit_audio,
+        sample_rate=24_000,
+        next_sequence=lambda: 1,
+    )
+    playing = asyncio.create_task(coordinator.play_main("Omsättningen är tolv.", "turn"))
+    await holding.wait()
+    coordinator.interrupt_playback()
+    released.set()
+    await playing
+    assert audio == [b"\x00\x01"]
+    assert coordinator.spoken_text == ""
+
+
 async def test_runtime_does_not_barge_in_on_audio_start() -> None:
     events: list[dict] = []
 

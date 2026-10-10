@@ -15,6 +15,7 @@ from typing import Any, Protocol
 from app.config import EMBEDDING_MODEL_DIMENSIONS, settings
 from app.services.expertgranskning.mem0_postgres_history import PostgresHistoryManager
 from app.services.image_cache import image_data_url
+from app.services.overgraph.mem0_patch import install_mem0_overgraph
 import mem0.memory.main as mem0_main
 from mem0 import Memory
 from mem0.memory.utils import parse_vision_messages
@@ -23,6 +24,7 @@ from mem0.memory.utils import parse_vision_messages
 # module global when each Memory instance is created, so pinning the version and
 # replacing that storage boundary keeps all runtime state in Postgres.
 mem0_main.SQLiteManager = PostgresHistoryManager
+install_mem0_overgraph()
 
 MemorySource = str
 
@@ -194,16 +196,12 @@ def _memory_config(*, vision: bool) -> dict[str, Any]:
         )
     return {
         "vector_store": {
-            "provider": "pgvector",
+            "provider": "overgraph",
             "config": {
                 "collection_name": settings.mem0_collection_name,
                 "embedding_model_dims": EMBEDDING_MODEL_DIMENSIONS[
                     settings.mem0_embedding_model
                 ],
-                "connection_string": _mem0_database_url(),
-                "sslmode": "require",
-                "minconn": MEM0_PGVECTOR_MINCONN,
-                "maxconn": MEM0_PGVECTOR_MAXCONN,
             },
         },
         "llm": {"provider": "openai", "config": llm_config},

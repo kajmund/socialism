@@ -4,9 +4,18 @@
 
 * **Expertchatten / röst**: Experten kan starta research i samma svar när
   frågan kräver en ny undersökning. Ett extra bekräftande svar behövs inte.
+* **SME**: **Rensa chatt** tar bort meddelandena i den öppna expertchatten
+  eller expertpanelen. Samma text försvinner även i expertens andra
+  arbetsytor. Röstmeddelanden där, minnen, dokument och företagets
+  expertintervju ligger kvar.
+* **SME**: Administratörer öppnar kunskapsgrafen med grafikonen till
+  vänster om research-ikonen. Där går det att läsa noder och kopplingar
+  i kunskap och minne.
 
 ## 2026-10-09
 
+* **SME**: Skriv `@` i meddelandefältet för att hänvisa till ett underlag.
+  Listan fyller i dokumentnamnet.
 * **Experter**: Chatten, röstsamtalet och SME-chatten är in-character.
   Intervju finns kvar som ett eget läge. Under demografi kan du sätta kön.
 

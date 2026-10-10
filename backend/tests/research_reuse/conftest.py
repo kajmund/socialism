@@ -20,7 +20,7 @@ def offline_boundaries(monkeypatch):
 
 
 @pytest.fixture
-async def reuse_db(tmp_path):
+async def reuse_db(tmp_path, research_overgraph):
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{tmp_path / 'reuse.db'}",
         pool_size=1,
@@ -39,7 +39,7 @@ async def reuse_db(tmp_path):
 
 
 @pytest.fixture
-async def graph_basis(reuse_db):
+async def graph_basis(reuse_db, research_overgraph):
     async with reuse_db.begin() as session:
         await seed_fact(session)
     return reuse_db

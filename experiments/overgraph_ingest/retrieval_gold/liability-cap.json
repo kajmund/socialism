@@ -1,0 +1,195 @@
+{
+  "id": "liability-cap",
+  "kind": "unit",
+  "proof_kind": "EXISTS",
+  "query": "Vilka avtal begränsar ansvaret för skada?",
+  "classify_question": "Innehåller texten en avtalsenlig ansvarsbegränsning, till exempel ett takbelopp eller ett undantag för indirekt skada?",
+  "notes": "Passage gold is an operative contractual cap or exclusion of indirect loss. A heading without a limit, a statutory GDPR allocation, a parking/car disclaimer, and a carve-out sentence that only names exceptions are not passage-relevant. Document gold is the contract that contains at least one such passage. Corrected after C@8: Jev YES on genuine caps that the first gold omitted were added; YES on operational disclaimers and insurance schedules were not.",
+  "relevant_documents": [
+    "Avtal_05_Konsultavtal.docx",
+    "Avtal_22_Kontorshotell_coworking.docx",
+    "Avtal_25_Fastighetsservice_stadning.docx",
+    "Avtal_29_Samarbetsavtal.docx",
+    "Avtal_30_Ramavtal_tjanster.docx",
+    "Avtal_31_Leveransavtal.docx",
+    "Avtal_32_Inkopsavtal.docx",
+    "Avtal_34_Aterforsaljaravtal.docx",
+    "Avtal_36_Underleverantorsavtal.docx",
+    "Avtal_37_Allmanna_villkor_B2B.docx",
+    "Avtal_41_Borgensforbindelse.docx",
+    "Avtal_46_SaaS_avtal.docx",
+    "Avtal_47_Programvarulicensavtal.docx",
+    "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+    "Avtal_49_IT_drift_hostingavtal.docx",
+    "Avtal_50_Support_underhallsavtal.docx",
+    "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+    "Avtal_57_Penetrationstest.docx",
+    "Avtal_59_Agilt_IT_konsultavtal.docx",
+    "Avtal_60_Pilotavtal_PoC.docx",
+    "Avtal_62_PUB_GDPR_databehandlingsavtal.docx",
+    "Avtal_63_Appavtal_utveckling_publicering.docx",
+    "Avtal_64_Byraavtal_reklam.docx",
+    "Avtal_67_Evenemangsavtal.docx",
+    "Avtal_69_Kundavtal_B2C_villkor.docx",
+    "Avtal_77_Redovisningsuppdrag.docx",
+    "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+    "Avtal_91_Inkramsoverlatelse.docx"
+  ],
+  "relevant_units": [
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "contains": "Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet"
+    },
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "contains": "Ingen part ansvarar för indirekt skada eller följdskada"
+    },
+    {
+      "relative_path": "Avtal_22_Kontorshotell_coworking.docx",
+      "contains": "Leverantörens ansvar är begränsat till ett belopp som motsvarar [tre (3)] månadsavgifter."
+    },
+    {
+      "relative_path": "Avtal_25_Fastighetsservice_stadning.docx",
+      "contains": "Ansvaret för ren förmögenhetsskada och indirekt skada är begränsat till [Belopp] kronor"
+    },
+    {
+      "relative_path": "Avtal_29_Samarbetsavtal.docx",
+      "contains": "Respektive Parts ansvar enligt detta avtal är begränsat till [Belopp] kronor"
+    },
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "contains": "Ingen part ansvarar för indirekt skada, t.ex. utebliven vinst, produktionsbortfall"
+    },
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "contains": "Respektive parts sammanlagda ansvar per kalenderår är begränsat"
+    },
+    {
+      "relative_path": "Avtal_31_Leveransavtal.docx",
+      "contains": "Leverantören ansvarar inte för indirekt skada, t.ex. produktionsbortfall"
+    },
+    {
+      "relative_path": "Avtal_31_Leveransavtal.docx",
+      "contains": "Leverantörens sammanlagda ansvar enligt detta avtal är begränsat till köpeskillingen"
+    },
+    {
+      "relative_path": "Avtal_32_Inkopsavtal.docx",
+      "contains": "Ingen part ansvarar för indirekt skada, utom vid uppsåt eller grov vårdslöshet."
+    },
+    {
+      "relative_path": "Avtal_34_Aterforsaljaravtal.docx",
+      "contains": "Ansvaret är begränsat till ett belopp som motsvarar vad Återförsäljaren har betalat"
+    },
+    {
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "contains": "Underleverantörens ansvar är begränsat till [två (2)] gånger den totala ersättningen"
+    },
+    {
+      "relative_path": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "contains": "DevBrains ansvarar inte för indirekt skada, t.ex. utebliven vinst, förlust av data"
+    },
+    {
+      "relative_path": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "contains": "DevBrains sammanlagda ansvar under ett kalenderår är begränsat"
+    },
+    {
+      "relative_path": "Avtal_41_Borgensforbindelse.docx",
+      "contains": "Borgensmannens ansvar är begränsat till [Belopp] kronor"
+    },
+    {
+      "relative_path": "Avtal_46_SaaS_avtal.docx",
+      "contains": "Ingen part ansvarar för indirekt skada, t.ex. utebliven vinst, förlorad försäljning"
+    },
+    {
+      "relative_path": "Avtal_46_SaaS_avtal.docx",
+      "contains": "DevBrains sammanlagda ansvar per avtalsår är begränsat till de avgifter som Kunden har betalat under de senaste tolv (12) månaderna."
+    },
+    {
+      "relative_path": "Avtal_47_Programvarulicensavtal.docx",
+      "contains": "Respektive parts sammanlagda ansvar är begränsat till de avgifter som har betalats under de senaste tolv (12) månaderna"
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "contains": "DevBrains ansvar för skada är begränsat till [100] procent av takpriset"
+    },
+    {
+      "relative_path": "Avtal_49_IT_drift_hostingavtal.docx",
+      "contains": "upp till ett belopp som motsvarar tolv (12) månadsavgifter"
+    },
+    {
+      "relative_path": "Avtal_49_IT_drift_hostingavtal.docx",
+      "contains": "Ingen part ansvarar för indirekt skada. Leverantören ansvarar dock för kostnaden att återställa data"
+    },
+    {
+      "relative_path": "Avtal_50_Support_underhallsavtal.docx",
+      "contains": "DevBrains sammanlagda ansvar per avtalsår är begränsat till de avgifter som Kunden har betalat"
+    },
+    {
+      "relative_path": "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+      "contains": "DevBrains ansvarar inte för indirekta skador eller förlust av data"
+    },
+    {
+      "relative_path": "Avtal_57_Penetrationstest.docx",
+      "contains": "med ett högsta belopp om [Belopp] kronor"
+    },
+    {
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "contains": "Leverantörens ansvar är begränsat till ersättningen under de senaste sex (6) månaderna"
+    },
+    {
+      "relative_path": "Avtal_60_Pilotavtal_PoC.docx",
+      "contains": "DevBrains sammanlagda ansvar är begränsat till [Belopp] kronor"
+    },
+    {
+      "relative_path": "Avtal_62_PUB_GDPR_databehandlingsavtal.docx",
+      "contains": "DevBrains ansvar enligt detta avtal är begränsat till [två (2) gånger] den högsta ansvarsgräns"
+    },
+    {
+      "relative_path": "Avtal_63_Appavtal_utveckling_publicering.docx",
+      "contains": "DevBrains sammanlagda ansvar är begränsat till det fasta priset enligt punkt 7.1"
+    },
+    {
+      "relative_path": "Avtal_64_Byraavtal_reklam.docx",
+      "contains": "Byråns ansvar i övrigt är begränsat till arvodet under de senaste tolv (12) månaderna"
+    },
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "contains": "Anläggningens ansvar är begränsat till priset för evenemanget"
+    },
+    {
+      "relative_path": "Avtal_69_Kundavtal_B2C_villkor.docx",
+      "contains": "Vi ansvarar inte för indirekt skada om vi inte har varit vårdslösa"
+    },
+    {
+      "relative_path": "Avtal_77_Redovisningsuppdrag.docx",
+      "contains": "Ansvaret är begränsat till [fem (5)] prisbasbelopp per uppdragsår"
+    },
+    {
+      "relative_path": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+      "contains": "Ansvaret är begränsat till [Belopp] kronor per uppdrag"
+    },
+    {
+      "relative_path": "Avtal_91_Inkramsoverlatelse.docx",
+      "contains": "Säljarens ansvar är begränsat till [30] procent av köpeskillingen"
+    }
+  ],
+  "hard_negatives": [
+    {
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "contains": "Parternas ansvar för skada som orsakats den registrerade eller den andra parten följer av artikel 82 GDPR.",
+      "reason": "Statutory allocation under GDPR, not a contractual cap"
+    }
+  ],
+  "watch_negatives": [
+    {
+      "relative_path": "Avtal_21_Parkeringsavtal.docx",
+      "contains": "Upplåtaren ansvarar inte för stöld av eller skada på fordon",
+      "reason": "Narrow operational disclaimer, not a general monetary cap"
+    },
+    {
+      "relative_path": "Avtal_14_Tjanstebilsavtal.docx",
+      "contains": "Vid skada som har orsakats genom vårdslöshet ska Föraren betala självrisken",
+      "reason": "Driver excess, not a contractual liability cap between the parties"
+    }
+  ]
+}

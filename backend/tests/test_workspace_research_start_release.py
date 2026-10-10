@@ -15,7 +15,7 @@ from tests.test_research_graph_v2_reuse import Embeddings, seed_fact
 
 @pytest.mark.parametrize("outcome", ["success", "error", "cancel"])
 async def test_full_startup_releases_single_connection_before_remote_work(
-    single_connection, monkeypatch, outcome
+    single_connection, research_overgraph, monkeypatch, outcome
 ):
     engine, factory = single_connection
     checked = []

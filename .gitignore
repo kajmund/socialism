@@ -30,6 +30,11 @@ pnpm-debug.log*
 !/data/downloads/.gitkeep
 *.parquet
 
+# OverGraph ingest experiment
+/experiments/overgraph_ingest/.venv/
+/experiments/overgraph_ingest/data/
+/experiments/overgraph_ingest/*.egg-info/
+
 # Backend local SQLite
 /backend/data/*.db
 /backend/data/*.db-*
@@ -39,6 +44,8 @@ pnpm-debug.log*
 /backend/data/image_cache/
 /backend/data/bolagsapi_cache/
 /backend/data/mem0/
+/backend/data/overgraph/
+/backend/data/overgraph-pytest/
 /backend/data/logs/
 /backend/data/benchmark_*.json
 

@@ -433,3 +433,50 @@ async def test_delayed_tool_uses_its_original_user_turn(provider, monkeypatch):
     second = await client.post(tool_url(provider, connection), json=second_body)
     assert first.status_code == second.status_code == 200
     assert captured == [("evidence", "Visa den här."), ("relations", "Och den andra.")]
+
+
+@pytest.mark.asyncio
+async def test_clear_thread_removes_this_chat_and_keeps_the_rest(provider, user_token):
+    client, factory, workspace_id, expert_id, _ = provider
+    connection = await bootstrap(provider)
+    url = f"/workspace-chat/{workspace_id}/sessions/{connection['session_id']}/events"
+    assert (await client.post(url, json={"event_key": "u1", "kind": "user", "text": "Förklara detta"})).status_code == 200
+    assert (await client.post(url, json={"event_key": "a1", "kind": "agent", "text": "Ett svar"})).status_code == 200
+    other = await client.post("/voice-workspaces?customer_id=1", json={
+        "title": "Annan arbetsyta", "idempotency_key": str(uuid4()),
+    })
+    assert other.status_code == 201, other.text
+    other_id = other.json()["id"]
+    other_session = await client.post(
+        f"/workspace-chat/{other_id}/sessions", json={"expert_id": expert_id, "mode": "voice"},
+    )
+    assert other_session.status_code == 200, other_session.text
+    other_url = f"/workspace-chat/{other_id}/sessions/{other_session.json()['session_id']}/events"
+    kept = {"event_key": "u1", "kind": "user", "text": "Kvar i andra arbetsytan"}
+    assert (await client.post(other_url, json=kept)).status_code == 200
+    async with factory() as db:
+        db.add(PersonaMessage(persona_id=expert_id, mode="character", role="user", content="Text i chatten"))
+        db.add(PersonaMessage(persona_id=expert_id, mode="interview", role="user", content="Intervjun ligger kvar"))
+        await db.commit()
+    denied = await client.delete(
+        f"/workspace-chat/{workspace_id}/threads/{expert_id}/messages",
+        headers={"Authorization": "Bearer " + user_token},
+    )
+    assert denied.status_code == 404
+    cleared = await client.delete(f"/workspace-chat/{workspace_id}/threads/{expert_id}/messages")
+    assert cleared.status_code == 204
+    history = await client.get(f"/workspace-chat/{workspace_id}/threads/{expert_id}/messages")
+    assert history.json()["messages"] == []
+    other_history = await client.get(f"/workspace-chat/{other_id}/threads/{expert_id}/messages")
+    assert [row["content"] for row in other_history.json()["messages"]] == ["Kvar i andra arbetsytan"]
+    character = await client.get(f"/personas/{expert_id}/messages", params={"mode": "character"})
+    interview = await client.get(f"/personas/{expert_id}/messages", params={"mode": "interview"})
+    assert character.status_code == interview.status_code == 200
+    assert character.json() == []
+    assert [row["content"] for row in interview.json()] == ["Intervjun ligger kvar"]
+    stale = await client.post(url, json={"event_key": "u2", "kind": "user", "text": "Efter rensning"})
+    assert stale.status_code == 401
+    async with factory() as db:
+        remaining = await db.scalar(select(func.count()).select_from(WorkspaceConversationEvent).where(
+            WorkspaceConversationEvent.session_id == connection["session_id"]))
+    assert remaining == 0

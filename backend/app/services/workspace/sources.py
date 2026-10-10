@@ -6,10 +6,11 @@ from fastapi import HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, EvidenceSet, EvidenceSetItem, ExecutionAttempt, ExecutionRun, StoredObject, TextUnitRecord
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, EvidenceSet, EvidenceSetItem, ExecutionAttempt, ExecutionRun, StoredObject
 from app.database.workspace_models import VoiceWorkspace, WorkspaceReference, WorkspaceResearch, WorkspaceSource
 from app.services.workspace.service import fingerprint, new_id, require_reference, require_source
 from app.services.workspace.research_links import sync_research_links
+from app.services.overgraph.research import knowledge_catalog, load_text_units
 from app.services.research.workspace_grounding import passages_allowed
 from app.services.research.models import ResearchContext
 from app.services.knowledge.models import KnowledgeScope
@@ -124,8 +125,12 @@ async def _graph_reference_stale(session: AsyncSession, workspace: VoiceWorkspac
     if version is None or document is None or version.scope_key not in scopes or document.scope_key != version.scope_key:
         raise HTTPException(status_code=404, detail="workspace_graph_source_not_found")
     unit_ids = ref.snapshot.get("supporting_text_unit_ids", [])
-    units = list((await session.scalars(select(TextUnitRecord).where(TextUnitRecord.id.in_(unit_ids)))).all())
-    if not unit_ids or len(units) != len(unit_ids) or any(unit.document_version_id != version.id or unit.scope_key != version.scope_key for unit in units):
+    catalog = knowledge_catalog()
+    units = await catalog.run(load_text_units, catalog, list(unit_ids))
+    if not unit_ids or any(
+        unit is None or unit.document_version_id != version.id or unit.scope_key != version.scope_key
+        for unit in units
+    ):
         raise HTTPException(status_code=409, detail="workspace_graph_grounding_invalid")
     parents = await resolve_readable_workspace_ids(session, customer_id=workspace.customer_id,
         user_id=workspace.owner_user_id, workspace_id=workspace.workspace_id)

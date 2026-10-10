@@ -7,16 +7,18 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database.models import PersonaMessage, UserAccount
 from app.database.workspace_conversations import WorkspaceConversationEvent, WorkspaceConversationSession
 from app.database.workspace_models import VoiceWorkspace
+from app.schemas.domain import EXPERT_CHAT_MODE
 from app.schemas.workspace import WorkspaceState
 from app.services.elevenlabs_agents import ElevenLabsAgentsClient, ElevenLabsError
 from app.services.live_voice import expert_live_voice
+from app.services.persona_chat import library_chat_filter
 from app.services.workspace_memory_context import workspace_memory_context
 from app.services.workspace_document_context import voice_document_context
 from app.services.workspace.service import require_expert, require_workspace, validate_state
@@ -150,6 +152,27 @@ async def start_conversation(session: AsyncSession, *, workspace_id: str, user: 
     finally:
         if not completed:
             await abandon_conversation(session, prepared["session_id"])
+
+
+async def clear_thread_messages(session: AsyncSession, *, workspace: VoiceWorkspace, expert_id: str) -> None:
+    await require_expert(session, workspace, expert_id)
+    scope = (
+        WorkspaceConversationSession.workspace_id == workspace.id,
+        WorkspaceConversationSession.expert_id == expert_id,
+    )
+    session_ids = select(WorkspaceConversationSession.id).where(*scope)
+    linked_ids = select(WorkspaceConversationEvent.message_id).where(
+        WorkspaceConversationEvent.session_id.in_(session_ids),
+        WorkspaceConversationEvent.message_id.is_not(None),
+    )
+    await session.execute(delete(PersonaMessage).where(PersonaMessage.id.in_(linked_ids)))
+    await session.execute(delete(WorkspaceConversationEvent).where(
+        WorkspaceConversationEvent.session_id.in_(session_ids)))
+    await session.execute(delete(PersonaMessage).where(*library_chat_filter(expert_id, EXPERT_CHAT_MODE)))
+    await session.execute(update(WorkspaceConversationSession).where(
+        *scope, WorkspaceConversationSession.status.in_(("starting", "active")),
+    ).values(status="revoked"))
+    await session.commit()
 
 
 async def thread_messages(session: AsyncSession, *, workspace: VoiceWorkspace, expert_id: str, limit: int = 200) -> list[dict]:

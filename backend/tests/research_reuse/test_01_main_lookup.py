@@ -33,10 +33,12 @@ async def test_unavailable_embedding_is_an_error_not_empty_knowledge(graph_basis
 
 async def test_invalidated_facts_do_not_answer_main_question(graph_basis):
     from app.database.graph_v2 import GraphFact
+    from app.services.overgraph.research import knowledge_catalog, update_fact
 
     async with graph_basis.begin() as session:
         fact = await session.get(GraphFact, "fact-customer-1")
         fact.status = "invalidated"
+    update_fact(knowledge_catalog(), "fact-customer-1", status="invalidated")
     assert await lookup(graph_basis, need(question=MAIN), context(), Embeddings()) == []
 
 

@@ -29,7 +29,10 @@ export function mergeTranscript(current: WorkspaceMessage[], incoming: Workspace
 
 export function upsertTranscript(messages: WorkspaceMessage[], message: WorkspaceMessage): WorkspaceMessage[] {
   const index = messages.findIndex((row) => row.session_id === message.session_id && row.event_key === message.event_key)
-  if (index < 0) return [...messages, message]
+  if (index < 0) {
+    const echoed = message.session_id === "live-speech" && messages.some((row) => row.id > 0 && row.role === message.role && transcriptText(row.content) === transcriptText(message.content))
+    return echoed ? messages : [...messages, message]
+  }
   return messages.map((row, i) => i === index ? message : row)
 }
 
@@ -38,6 +41,10 @@ export function openWorkspaceDocument(state: WorkspaceState, sourceId: string, p
   const document = { source_id: sourceId, page, zoom: current?.zoom ?? 1 }
   const split = state.split_source_ids.length === 2 && !state.split_source_ids.includes(sourceId) ? [sourceId, state.split_source_ids[0]] : state.split_source_ids
   return { ...state, view: "documents", split_source_ids: split, documents: [document, ...state.documents.filter((row) => row.source_id !== sourceId)] }
+}
+
+export function navigateWorkspaceDocument(state: WorkspaceState, sourceId: string, page: number, zoom: number): WorkspaceState {
+  return { ...state, documents: state.documents.map((row) => row.source_id === sourceId ? { ...row, page, zoom } : row) }
 }
 
 export const workspaceClientToolNames = ["open_ingest_picker", "show_evidence", "show_document", "focus_anchor", "show_comparison", "show_relations", "show_knowledge", "show_artifact"] as const

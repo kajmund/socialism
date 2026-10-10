@@ -1,0 +1,80 @@
+{
+  "id": "liability-secrecy-carveout",
+  "kind": "multi_clause",
+  "proof_kind": "COMPOSITE",
+  "query": "Vilka avtal undantar brott mot sekretess från ansvarsbegränsningen?",
+  "classify_question": "Innehåller texten att ansvarsbegränsningen inte gäller vid brott mot sekretess?",
+  "notes": "Passage gold is an operative carve-out of confidentiality breach from a liability cap. A cap that only carves out intent, gross negligence, GDPR/PUB or a numbered cross-reference is not passage-relevant. Document gold is the contract that contains such a carve-out. Avtal 46 splits the cap and the carve-out; coverage_groups records that both must be found for the document-level conclusion. Corrected after C@8: Avtal 30 and 36 were genuine carve-outs omitted from the first gold.",
+  "relevant_documents": [
+    "Avtal_05_Konsultavtal.docx",
+    "Avtal_30_Ramavtal_tjanster.docx",
+    "Avtal_36_Underleverantorsavtal.docx",
+    "Avtal_46_SaaS_avtal.docx",
+    "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+    "Avtal_59_Agilt_IT_konsultavtal.docx",
+    "Avtal_60_Pilotavtal_PoC.docx"
+  ],
+  "relevant_units": [
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "contains": "dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+    },
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "contains": "Begränsningarna gäller inte vid uppsåt, grov vårdslöshet, brott mot sekretess eller brott mot personuppgiftsbiträdesavtalet"
+    },
+    {
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "contains": "utom vid uppsåt, grov vårdslöshet eller brott mot sekretess eller underbiträdesavtalet."
+    },
+    {
+      "relative_path": "Avtal_46_SaaS_avtal.docx",
+      "contains": "Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess."
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "contains": "utom vid uppsåt, grov vårdslöshet, brott mot sekretess eller brott mot personuppgiftsbiträdesavtalet."
+    },
+    {
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "contains": "utom vid grov vårdslöshet, uppsåt eller brott mot sekretess."
+    },
+    {
+      "relative_path": "Avtal_60_Pilotavtal_PoC.docx",
+      "contains": "utom vid uppsåt, grov vårdslöshet eller brott mot sekretess eller personuppgiftsbiträdesavtalet."
+    }
+  ],
+  "hard_negatives": [
+    {
+      "relative_path": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "contains": "Begränsningarna gäller inte vid uppsåt eller grov vårdslöshet.",
+      "reason": "Carve-out omits confidentiality breach"
+    },
+    {
+      "relative_path": "Avtal_50_Support_underhallsavtal.docx",
+      "contains": "utom vid uppsåt, grov vårdslöshet eller brott mot personuppgiftsbiträdesavtalet.",
+      "reason": "Carve-out is GDPR/PUB, not secrecy"
+    }
+  ],
+  "watch_negatives": [
+    {
+      "relative_path": "Avtal_47_Programvarulicensavtal.docx",
+      "contains": "utom vid uppsåt, grov vårdslöshet eller ansvar enligt punkt 8.",
+      "reason": "Carve-out points to IP indemnity, not secrecy"
+    },
+    {
+      "relative_path": "Avtal_49_IT_drift_hostingavtal.docx",
+      "contains": "Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot punkt 4.",
+      "reason": "Cross-reference; the passage alone cannot name secrecy. Navigation target."
+    }
+  ],
+  "coverage_groups": [
+    {
+      "relative_path": "Avtal_46_SaaS_avtal.docx",
+      "contains": [
+        "DevBrains sammanlagda ansvar per avtalsår är begränsat till de avgifter som Kunden har betalat under de senaste tolv (12) månaderna.",
+        "Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess."
+      ]
+    }
+  ]
+}
