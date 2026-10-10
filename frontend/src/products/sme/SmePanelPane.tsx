@@ -47,6 +47,7 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
   }
 
   const floorName = voice.snapshot?.floor_name ?? null
+  const hands = voice.snapshot?.hands ?? []
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-white">
@@ -81,10 +82,10 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
               {voice.listening ? <MicOff size={16} /> : <Mic size={16} />}
             </button>
           )}
-          {voice.snapshot && voice.snapshot.hands.length > 0 && (
+          {hands.length > 0 && (
             <span className="flex items-center gap-1 text-xs text-muted-foreground" title={t("sme.raisedHands")}>
               <Hand size={14} />
-              {voice.snapshot.hands.length}
+              {hands.length}
             </span>
           )}
           {voice.snapshot && voice.snapshot.source_checked.length > 0 && (
@@ -95,6 +96,22 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
           <SmeClearChatButton name={thread.name} disabled={loading || busy || messages.length === 0} onClear={clearMessages} />
         </div>
       </header>
+      {hands.length > 0 && (
+        <div className="flex shrink-0 flex-wrap gap-1 border-b px-4 py-2 text-xs">
+          {hands.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className="rounded-full border px-2 py-1 hover:bg-muted"
+              onClick={() => voice.grantFloor(id)}
+              title={t("sme.raisedHands")}
+            >
+              <Hand size={12} className="mr-1 inline" />
+              {id.slice(0, 8)}
+            </button>
+          ))}
+        </div>
+      )}
       <MessengerChat
         className="sme-messenger-chat"
         messages={messages.map((message) => ({ ...message, speakerName: message.persona_name }))}
