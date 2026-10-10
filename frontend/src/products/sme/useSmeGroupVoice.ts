@@ -4,6 +4,7 @@ import { env } from "@/lib/env"
 
 export type GroupVoiceSnapshot = {
   floor: string | null
+  floor_name: string | null
   hands: string[]
   source_checked: string[]
   shared_result_count: number
@@ -60,6 +61,7 @@ export function useSmeGroupVoice({ panelId, enabled }: Options) {
           if (data.type === "snapshot") {
             setSnapshot({
               floor: data.floor ?? null,
+              floor_name: data.floor_name ?? null,
               hands: data.hands ?? [],
               source_checked: data.source_checked ?? [],
               shared_result_count: data.shared_result_count ?? 0,
