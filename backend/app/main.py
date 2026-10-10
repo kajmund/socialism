@@ -150,27 +150,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
             await engine.dispose()
 
 
-def create_app() -> FastAPI:
-    log_path = configure_logging()
-    if log_path is not None:
-        logger.info("File logging %s", log_path)
-    _require_chat_llm()
-    if not settings.openai_api_key.strip():
-        raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")
-    if not settings.supabase_url.strip():
-        raise RuntimeError("SUPABASE_URL is required")
-    if not settings.supabase_service_role_key.strip():
-        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required")
-    app = FastAPI(title="Opinionssimulator", version="0.1.0", lifespan=lifespan)
-    app.state.live_speech_registry = LiveSpeechRegistry()
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.allowed_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["X-Workspace-Source-Version", "X-Workspace-File-Sha256"],
-    )
+def _register_routers(app: FastAPI) -> None:
     app.include_router(health.router)
     app.include_router(local_login.router)
     from app.api import profiles
@@ -210,6 +190,30 @@ def create_app() -> FastAPI:
     app.include_router(spindoctor.router)
     app.include_router(underlag.router)
     app.include_router(ws.router)
+
+
+def create_app() -> FastAPI:
+    log_path = configure_logging()
+    if log_path is not None:
+        logger.info("File logging %s", log_path)
+    _require_chat_llm()
+    if not settings.openai_api_key.strip():
+        raise RuntimeError("OPENAI_API_KEY is required (embeddings / SSR)")
+    if not settings.supabase_url.strip():
+        raise RuntimeError("SUPABASE_URL is required")
+    if not settings.supabase_service_role_key.strip():
+        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required")
+    app = FastAPI(title="Opinionssimulator", version="0.1.0", lifespan=lifespan)
+    app.state.live_speech_registry = LiveSpeechRegistry()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Workspace-Source-Version", "X-Workspace-File-Sha256"],
+    )
+    _register_routers(app)
     return app
 
 
