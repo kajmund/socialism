@@ -2,6 +2,10 @@
 
 Uses GroupVoiceSession for floor / hands / Jev keep-lower / shared tool results
 and GroupVoiceAudioRuntime for STT + floor-driven TTS.
+
+All experts in the panel must be configured with the "socialism" live-voice
+provider. Each expert speaks with the voice stored on their persona
+(live_voice).
 """
 
 from __future__ import annotations
@@ -112,12 +116,25 @@ async def _load_panel_session(
         for member in panel.members:
             if member.persona is None:
                 continue
-            pid_str = member.persona.id
+            persona = member.persona
+            pid_str = persona.id
+            # Group voice always uses the socialism provider.
+            provider = persona.live_voice_provider or settings.live_voice_provider
+            if provider != "socialism":
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"expert_{pid_str}_provider_mismatch",
+                )
             member_ids.add(pid_str)
-            member_names[pid_str] = member.persona.name
-            voice = (member.persona.live_voice or "").strip() or settings.elevenlabs_voice_id
-            if voice:
-                voice_ids[pid_str] = voice
+            member_names[pid_str] = persona.name
+            # Each expert must speak with the voice configured on their persona.
+            voice = (persona.live_voice or "").strip() or settings.elevenlabs_voice_id
+            if not voice:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"expert_{pid_str}_voice_not_configured",
+                )
+            voice_ids[pid_str] = voice
         if not member_ids:
             raise HTTPException(status_code=400, detail="panel_has_no_members")
         return (
