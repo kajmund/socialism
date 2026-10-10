@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Literal, TypedDict
 
 from app.services.prompt_render import render_prompt as render_prompt
-
+from app.services.sme_group_voice_prompts import group_voice_prompt_fields
 from app.services.workspace_prompt_defaults import workspace_prompt_fields as voice_workspace_prompt_fields
 
 from app.services.expert_chat_prompts import expert_chat_prompt_fields
@@ -1378,16 +1378,6 @@ HOW YOU WRITE COMMENTS:
             "You are not a real-world actor and must not own next steps such as contacting "
             "the counterparty, sending proposals, or negotiating."
         ),
-    ),
-    _f(
-        "sme.group_voice.keep_hand",
-        "panel",
-        "Gruppröst — behåll hand",
-        "Group voice — keep hand",
-        "Jev-bedömning om en expert ska behålla sin hand. Platshållare: {name}",
-        "Jev judgment whether an expert should keep their hand. Placeholder: {name}",
-        "Är poängen {name} ville ta upp fortfarande relevant och obesvarad givet den senaste diskussionen? Svara ja om handen ska vara kvar.",
-        "Is the point {name} wanted to raise still relevant and unanswered given the recent discussion? Answer yes if the hand should stay raised.",
     ),
     _f(
         "panel.moderator.opening",
@@ -3614,7 +3604,7 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
 ]
 PROMPT_FIELDS.extend(
     [*graph_fact_prompt_fields(), *coverage_prompt_fields(),
-     *expert_chat_prompt_fields(), *workspace_prompt_fields()]
+     *expert_chat_prompt_fields(), *workspace_prompt_fields(), *group_voice_prompt_fields()]
 )
 
 PROMPT_FIELDS.extend(voice_workspace_prompt_fields(_f))
