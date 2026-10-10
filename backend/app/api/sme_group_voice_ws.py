@@ -195,6 +195,48 @@ async def _dispatch(
         await emit({"type": "error", "detail": f"unknown type {kind}"})
 
 
+async def _receive_loop(
+    websocket: WebSocket,
+    *,
+    session: GroupVoiceSession,
+    runtime: GroupVoiceAudioRuntime | None,
+    emit,
+    push_snapshot,
+) -> None:
+    while True:
+        message = await websocket.receive()
+        if message["type"] == "websocket.disconnect":
+            return
+        frame = message.get("bytes")
+        if frame is not None:
+            if runtime is not None:
+                await runtime.append_audio(frame)
+            continue
+        text = message.get("text")
+        if text is None:
+            continue
+        try:
+            raw = json.loads(text)
+        except json.JSONDecodeError:
+            await emit({"type": "error", "detail": "invalid json"})
+            continue
+        if not isinstance(raw, dict):
+            await emit({"type": "error", "detail": "expected object"})
+            continue
+        kind = raw.get("type")
+        try:
+            await _dispatch(
+                kind=kind,
+                raw=raw,
+                session=session,
+                runtime=runtime,
+                emit=emit,
+                push_snapshot=push_snapshot,
+            )
+        except ValidationError as exc:
+            await emit({"type": "error", "detail": str(exc.errors()[0]["msg"])})
+
+
 @router.websocket("/ws/sme-group-voice")
 async def sme_group_voice_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
@@ -245,39 +287,13 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
             }
         )
         await push_snapshot()
-
-        while True:
-            message = await websocket.receive()
-            if message["type"] == "websocket.disconnect":
-                break
-            frame = message.get("bytes")
-            if frame is not None:
-                if runtime is not None:
-                    await runtime.append_audio(frame)
-                continue
-            text = message.get("text")
-            if text is None:
-                continue
-            try:
-                raw = json.loads(text)
-            except json.JSONDecodeError:
-                await emit({"type": "error", "detail": "invalid json"})
-                continue
-            if not isinstance(raw, dict):
-                await emit({"type": "error", "detail": "expected object"})
-                continue
-            kind = raw.get("type")
-            try:
-                await _dispatch(
-                    kind=kind,
-                    raw=raw,
-                    session=session,
-                    runtime=runtime,
-                    emit=emit,
-                    push_snapshot=push_snapshot,
-                )
-            except ValidationError as exc:
-                await emit({"type": "error", "detail": str(exc.errors()[0]["msg"])})
+        await _receive_loop(
+            websocket,
+            session=session,
+            runtime=runtime,
+            emit=emit,
+            push_snapshot=push_snapshot,
+        )
     except HTTPException as exc:
         await emit({"type": "error", "detail": str(exc.detail)})
         await websocket.close(code=4403)
@@ -291,5 +307,5 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
             await runtime.close()
         try:
             await websocket.close()
-        except Exception:
+        except (RuntimeError, WebSocketDisconnect):
             pass
