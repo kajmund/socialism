@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
@@ -22,11 +23,14 @@ from app.auth.tokens import user_from_bearer_token
 from app.config import settings
 from app.database.models import Kund, Population, PopulationMember, UserAccount
 from app.services import jobs as jobs_service
+from app.services.prompt_catalog import render_prompt
+from app.services.prompt_store import require_active_prompts
 from app.services.sme_group_voice import GroupVoiceSession
 from app.services.sme_group_voice_runtime import (
     GroupVoiceAudioRuntime,
     GroupVoiceAudioScope,
 )
+from app.services.sme_group_voice_turns import run_floor_turn
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -145,72 +149,133 @@ async def _load_panel_session(
         )
 
 
-async def _dispatch(
-    *,
-    kind: str,
-    raw: dict,
-    session: GroupVoiceSession,
-    runtime: GroupVoiceAudioRuntime | None,
-    emit,
-    push_snapshot,
-) -> None:
-    if kind == "utterance":
-        msg = HumanUtterance.model_validate(raw)
-        addressed = session.address_by_name(msg.text)
-        if addressed:
-            session.grant_floor(addressed)
-        await push_snapshot()
-    elif kind == "raise_hand":
-        msg = RaiseHand.model_validate(raw)
-        session.raise_hand(msg.persona_id)
-        await push_snapshot()
-    elif kind == "grant_floor":
-        msg = GrantFloor.model_validate(raw)
-        session.grant_floor(msg.persona_id)
-        await push_snapshot()
-    elif kind == "release_floor":
-        msg = ReleaseFloor.model_validate(raw)
-        session.release_floor()
-        await session.decide_keep_hands(msg.transcript)
-        await push_snapshot()
-    elif kind == "attach_tool":
-        msg = AttachTool.model_validate(raw)
-        session.attach_tool_result(
-            msg.persona_id,
-            msg.tool_name,
-            msg.result,
-            msg.summary,
-        )
-        await push_snapshot()
-    elif kind == "speak_as":
-        msg = SpeakAs.model_validate(raw)
-        if runtime is not None:
-            await runtime.speak_as(msg.persona_id, msg.text)
-    elif kind == "commit_audio":
-        if runtime is not None:
-            await runtime.commit_audio()
-    elif kind == "ping":
-        await emit({"type": "pong"})
-    else:
-        await emit({"type": "error", "detail": f"unknown type {kind}"})
+@dataclass
+class _Call:
+    session: GroupVoiceSession
+    runtime: GroupVoiceAudioRuntime | None
+    emit: Any
+    push_snapshot: Any
+    user_id: str
+    customer_id: int
+    speaking_task: dict[str, Any]
 
 
-async def _receive_loop(
-    websocket: WebSocket,
-    *,
-    session: GroupVoiceSession,
-    runtime: GroupVoiceAudioRuntime | None,
-    emit,
-    push_snapshot,
-) -> None:
+async def _replace_speech(speaking_task: dict[str, Any], speech) -> None:
+    previous = speaking_task.get("task")
+    if previous is not None and not previous.done():
+        previous.cancel()
+        await asyncio.gather(previous, return_exceptions=True)
+    speaking_task["task"] = asyncio.create_task(speech)
+
+
+async def _maybe_speak(call: _Call, user_text: str) -> None:
+    if call.runtime is None or not call.session.floor:
+        return
+    await _replace_speech(
+        call.speaking_task,
+        run_floor_turn(
+            session=call.session,
+            runtime=call.runtime,
+            user_text=user_text,
+            user_id=call.user_id,
+            customer_id=call.customer_id,
+        ),
+    )
+
+
+async def _on_utterance(call: _Call, raw: dict) -> None:
+    msg = HumanUtterance.model_validate(raw)
+    addressed = call.session.address_by_name(msg.text)
+    if addressed:
+        call.session.grant_floor(addressed)
+        await call.push_snapshot()
+        await _maybe_speak(call, msg.text)
+        return
+    await call.push_snapshot()
+
+
+async def _on_raise_hand(call: _Call, raw: dict) -> None:
+    msg = RaiseHand.model_validate(raw)
+    call.session.raise_hand(msg.persona_id)
+    await call.push_snapshot()
+
+
+async def _on_grant_floor(call: _Call, raw: dict) -> None:
+    msg = GrantFloor.model_validate(raw)
+    call.session.grant_floor(msg.persona_id)
+    await call.push_snapshot()
+    await _maybe_speak(call, call.session.last_utterance)
+
+
+async def _on_release_floor(call: _Call, raw: dict) -> None:
+    msg = ReleaseFloor.model_validate(raw)
+    call.session.release_floor()
+    factory = jobs_service.job_session_factory()
+    async with factory() as db:
+        prompts = await require_active_prompts(db)
+    keep_prompt = render_prompt(prompts, "sme.group_voice.keep_hand")
+    await call.session.decide_keep_hands(msg.transcript, keep_hand_prompt=keep_prompt)
+    await call.push_snapshot()
+
+
+async def _on_attach_tool(call: _Call, raw: dict) -> None:
+    msg = AttachTool.model_validate(raw)
+    call.session.attach_tool_result(msg.persona_id, msg.tool_name, msg.result, msg.summary)
+    await call.push_snapshot()
+
+
+async def _on_speak_as(call: _Call, raw: dict) -> None:
+    msg = SpeakAs.model_validate(raw)
+    if call.runtime is None:
+        return
+    await _replace_speech(call.speaking_task, call.runtime.speak_as(msg.persona_id, msg.text))
+
+
+async def _on_commit_audio(call: _Call, _raw: dict) -> None:
+    if call.runtime is not None:
+        await call.runtime.commit_audio()
+
+
+async def _on_clear_audio(call: _Call, _raw: dict) -> None:
+    if call.runtime is not None:
+        await call.runtime.clear()
+
+
+async def _on_ping(call: _Call, _raw: dict) -> None:
+    await call.emit({"type": "pong"})
+
+
+_HANDLERS = {
+    "utterance": _on_utterance,
+    "raise_hand": _on_raise_hand,
+    "grant_floor": _on_grant_floor,
+    "release_floor": _on_release_floor,
+    "attach_tool": _on_attach_tool,
+    "speak_as": _on_speak_as,
+    "commit_audio": _on_commit_audio,
+    "clear_audio": _on_clear_audio,
+    "ping": _on_ping,
+}
+
+
+async def _dispatch(call: _Call, raw: dict) -> None:
+    kind = raw.get("type")
+    handler = _HANDLERS.get(kind) if isinstance(kind, str) else None
+    if handler is None:
+        await call.emit({"type": "error", "detail": f"unknown type {kind}"})
+        return
+    await handler(call, raw)
+
+
+async def _receive_loop(websocket: WebSocket, call: _Call) -> None:
     while True:
         message = await websocket.receive()
         if message["type"] == "websocket.disconnect":
             return
         frame = message.get("bytes")
         if frame is not None:
-            if runtime is not None:
-                await runtime.append_audio(frame)
+            if call.runtime is not None:
+                await call.runtime.append_audio(frame)
             continue
         text = message.get("text")
         if text is None:
@@ -218,94 +283,114 @@ async def _receive_loop(
         try:
             raw = json.loads(text)
         except json.JSONDecodeError:
-            await emit({"type": "error", "detail": "invalid json"})
+            await call.emit({"type": "error", "detail": "invalid json"})
             continue
         if not isinstance(raw, dict):
-            await emit({"type": "error", "detail": "expected object"})
+            await call.emit({"type": "error", "detail": "expected object"})
             continue
-        kind = raw.get("type")
         try:
-            await _dispatch(
-                kind=kind,
-                raw=raw,
-                session=session,
-                runtime=runtime,
-                emit=emit,
-                push_snapshot=push_snapshot,
-            )
+            await _dispatch(call, raw)
         except ValidationError as exc:
-            await emit({"type": "error", "detail": str(exc.errors()[0]["msg"])})
+            await call.emit({"type": "error", "detail": str(exc.errors()[0]["msg"])})
+
+
+async def _send_json(websocket: WebSocket, lock: asyncio.Lock, payload: dict) -> None:
+    async with lock:
+        try:
+            await websocket.send_json(payload)
+        except (RuntimeError, WebSocketDisconnect):
+            pass
+
+
+async def _send_bytes(websocket: WebSocket, lock: asyncio.Lock, payload: bytes) -> None:
+    async with lock:
+        try:
+            await websocket.send_bytes(payload)
+        except (RuntimeError, WebSocketDisconnect):
+            pass
+
+
+async def _start_call(websocket: WebSocket, lock: asyncio.Lock, speaking_task: dict[str, Any]) -> _Call:
+    user = await _authenticate(websocket)
+    raw = await websocket.receive_json()
+    start = StartSession.model_validate(raw)
+    session, voice_ids = await _load_panel_session(start.panel_id, user)
+
+    async def emit(payload: dict) -> None:
+        await _send_json(websocket, lock, payload)
+
+    async def emit_audio(payload: bytes) -> None:
+        await _send_bytes(websocket, lock, payload)
+
+    async def push_snapshot() -> None:
+        await emit({"type": "snapshot", **session.snapshot()})
+
+    call = _Call(
+        session=session,
+        runtime=None,
+        emit=emit,
+        push_snapshot=push_snapshot,
+        user_id=user.id,
+        customer_id=user.kund_id or 0,
+        speaking_task=speaking_task,
+    )
+
+    async def on_floor_granted(_persona_id: str, transcript: str) -> None:
+        await _maybe_speak(call, transcript)
+
+    call.runtime = GroupVoiceAudioRuntime(
+        session,
+        GroupVoiceAudioScope(language=start.language, voice_ids=voice_ids),
+        emit_json=emit,
+        emit_audio=emit_audio,
+        on_floor_granted=on_floor_granted,
+    )
+    await call.runtime.start()
+    await emit(
+        {
+            "type": "ready",
+            "panel_id": session.panel_id,
+            "audio_format": {"codec": "pcm16", "sample_rate": 24000, "channels": 1},
+        }
+    )
+    await push_snapshot()
+    return call
+
+
+async def _stop_call(websocket: WebSocket, speaking_task: dict[str, Any], runtime: GroupVoiceAudioRuntime | None) -> None:
+    task = speaking_task.get("task")
+    if task is not None and not task.done():
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+    if runtime is not None:
+        await runtime.close()
+    try:
+        await websocket.close()
+    except (RuntimeError, WebSocketDisconnect):
+        pass
 
 
 @router.websocket("/ws/sme-group-voice")
 async def sme_group_voice_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
-    session: GroupVoiceSession | None = None
+    await _serve(websocket)
+
+
+async def _serve(websocket: WebSocket) -> None:
+    lock = asyncio.Lock()
+    speaking_task: dict[str, Any] = {"task": None}
     runtime: GroupVoiceAudioRuntime | None = None
-    send_lock = asyncio.Lock()
-
-    async def emit(payload: dict) -> None:
-        async with send_lock:
-            try:
-                await websocket.send_json(payload)
-            except (RuntimeError, WebSocketDisconnect):
-                pass
-
-    async def emit_audio(payload: bytes) -> None:
-        async with send_lock:
-            try:
-                await websocket.send_bytes(payload)
-            except (RuntimeError, WebSocketDisconnect):
-                pass
-
-    async def push_snapshot() -> None:
-        if session is not None:
-            await emit({"type": "snapshot", **session.snapshot()})
-
     try:
-        user = await _authenticate(websocket)
-        raw = await websocket.receive_json()
-        start = StartSession.model_validate(raw)
-        session, voice_ids = await _load_panel_session(start.panel_id, user)
-        scope = GroupVoiceAudioScope(language=start.language, voice_ids=voice_ids)
-        runtime = GroupVoiceAudioRuntime(
-            session,
-            scope,
-            emit_json=emit,
-            emit_audio=emit_audio,
-        )
-        await runtime.start()
-        await emit(
-            {
-                "type": "ready",
-                "panel_id": session.panel_id,
-                "audio_format": {
-                    "codec": "pcm16",
-                    "sample_rate": 24000,
-                    "channels": 1,
-                },
-            }
-        )
-        await push_snapshot()
-        await _receive_loop(
-            websocket,
-            session=session,
-            runtime=runtime,
-            emit=emit,
-            push_snapshot=push_snapshot,
-        )
+        call = await _start_call(websocket, lock, speaking_task)
+        runtime = call.runtime
+        await _receive_loop(websocket, call)
     except HTTPException as exc:
-        await emit({"type": "error", "detail": str(exc.detail)})
+        await _send_json(websocket, lock, {"type": "error", "detail": str(exc.detail)})
         await websocket.close(code=4403)
     except WebSocketDisconnect:
         pass
     except Exception:
         logger.exception("SME group voice WebSocket failed")
-        await emit({"type": "error", "detail": "internal"})
+        await _send_json(websocket, lock, {"type": "error", "detail": "internal"})
     finally:
-        if runtime is not None:
-            await runtime.close()
-        try:
-            await websocket.close()
-        except (RuntimeError, WebSocketDisconnect):
-            pass
+        await _stop_call(websocket, speaking_task, runtime)

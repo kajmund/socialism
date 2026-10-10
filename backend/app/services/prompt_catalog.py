@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Literal, TypedDict
 
 from app.services.prompt_render import render_prompt as render_prompt
-
+from app.services.sme_group_voice_prompts import group_voice_prompt_fields
 from app.services.workspace_prompt_defaults import workspace_prompt_fields as voice_workspace_prompt_fields
 
 from app.services.expert_chat_prompts import expert_chat_prompt_fields
@@ -3604,7 +3604,7 @@ Description is 1–2 sentences. Return exactly {count} candidates.""",
 ]
 PROMPT_FIELDS.extend(
     [*graph_fact_prompt_fields(), *coverage_prompt_fields(),
-     *expert_chat_prompt_fields(), *workspace_prompt_fields()]
+     *expert_chat_prompt_fields(), *workspace_prompt_fields(), *group_voice_prompt_fields()]
 )
 
 PROMPT_FIELDS.extend(voice_workspace_prompt_fields(_f))

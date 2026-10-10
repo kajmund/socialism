@@ -20,6 +20,7 @@ from app.services.lagen_nu.graph_writeback import (
     PendingGraphWrite,
     persist_pending_graph_writes,
 )
+from tests.conftest import RESEARCH_TEST_DIM, research_test_vector
 from tests.test_lagen_nu_document_fetch import _law_source, _two_doc_client
 from tests.test_lagen_nu_provider import FakeLegalInterpreter
 from tests.test_research import _context, _need
@@ -124,11 +125,11 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
 
     class FakeEmbedder:
         model = "test"
-        dimension = 2
+        dimension = RESEARCH_TEST_DIM
         provider_id = "test"
 
         async def embed(self, texts):
-            return [[1.0, 0.0] for _ in texts]
+            return [research_test_vector() for _ in texts]
 
     class FakeJudge:
         async def compare(self, proposed, candidate_text):
