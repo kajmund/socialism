@@ -29,6 +29,7 @@ from app.services.expert_async_tools import (
     _planned_calls,
     active_library_tools,
 )
+from app.services.expert_tool_run import tool_failure_text
 from app.services.expert_worker_spawn import withhold_incomplete_spawn
 from app.services.workspace_chat_tools import CLIENT_TOOL_NAMES
 
@@ -375,9 +376,10 @@ async def _finish_round(
     server = [call for call in calls if call.name not in CLIENT_TOOL_NAMES]
     if client:
         await publish(client)
-    produced: dict[str, str] = {}
-    for call in server:
-        produced[call.id] = await _run_safely(run_call, call, work)
+    texts = await asyncio.gather(
+        *(_run_safely(run_call, call, work) for call in server)
+    )
+    produced = {call.id: text for call, text in zip(server, texts, strict=True)}
     for call in client:
         produced[call.id] = _DISPATCHED
     _trace_rows(work, _append_results(messages, produced))
@@ -386,9 +388,14 @@ async def _finish_round(
 async def _run_safely(run_call: RunCall, call: PlannedCall, work: ToolWork) -> str:
     try:
         return await run_call(call, work)
-    except Exception as exc:
+    except TimeoutError:
+        logger.warning("Expert tool %s timed out", call.name)
+        work.failed_calls += 1
+        return tool_failure_text(call.name, "timeout")
+    except Exception:
         logger.exception("Expert tool %s failed", call.name)
-        return str(exc) or call.name
+        work.failed_calls += 1
+        return tool_failure_text(call.name, "error")
 
 
 def _tool_calls(message: dict[str, Any]) -> list[dict[str, Any]]:

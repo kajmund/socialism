@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -34,18 +33,17 @@ from app.services.expert_session_tools import (
 )
 from app.services.expert_chat_evidence import evidence_tool_handler_for_chat
 from app.services.expert_chat_research_tool import research_tool_handler_for_chat
+from app.services.expert_tool_run import execute_tool_calls, run_bounded
+from app.services.expert_turn_cancel import turn_is_cancelled
 from app.services.expert_reasoning import RoutingDecision
 from app.services.expert_tools import filter_openai_tools
 from app.services.jobs import job_session_factory
 from app.services.leaked_tool_text import read_promise_arguments
 from app.services.expert_workspace_tool_run import run_workspace_tool_call
 from app.services.expert_worker_spawn import SPAWN_TOOL_NAME, run_spawn_workers
-from app.services.live_speech_progress import emit_tool_progress
 from app.services.oasis_agent_tools import SEARCH_TOOL_NAMES, run_search_tool, search_tool_specs
 from app.services.prompt_catalog import render_prompt
 from app.services.workspace_chat_tools import CLIENT_TOOL_NAMES, SERVER_TOOL_NAMES
-
-logger = logging.getLogger(__name__)
 
 History = list[tuple[str, str, str | None]]
 _active: ContextVar[LibraryToolScope | None] = ContextVar("library_tool_scope", default=None)
@@ -82,6 +80,7 @@ class ToolWork:
     failed_calls: int = 0
     turn_id: str = ""
     seen_call_ids: set[str] = field(default_factory=set)
+    session_factory: Any = None
 
 
 class LibraryToolScope:
@@ -112,6 +111,7 @@ class LibraryToolScope:
         self.turn_started_at: float | None = None
         self.tool_retrieval = None
         self.spawn_exposed = False
+        self.session_factory = None
         self._calls: list[PlannedCall] = []
         self._token: Any = None
         self._planned_call_ids: set[str] = set()
@@ -119,6 +119,7 @@ class LibraryToolScope:
     async def enter(self) -> None:
         if not self.enabled:
             return
+        self.session_factory = job_session_factory()
         self._token = _active.set(self)
 
     def defer(self, calls: tuple[PlannedCall, ...] | list[PlannedCall]) -> None:
@@ -275,33 +276,18 @@ def _work(scope: LibraryToolScope, calls: tuple[PlannedCall, ...]) -> ToolWork:
         spawn_exposed=scope.spawn_exposed,
         turn_id=scope.turn_id,
         seen_call_ids=scope._planned_call_ids,
+        session_factory=scope.session_factory,
     )
 
 
 async def run_tool_calls(work: ToolWork) -> tuple[str, tuple[str, ...]]:
-    parts: list[str] = []
-    results: list[str] = []
-    work.failed_calls = 0
-    total = len(work.calls)
-    for index, call in enumerate(work.calls):
-        remaining = total - index
-        await emit_tool_progress("started", call.name, remaining=remaining)
-        try:
-            text = await _run_one(call, work)
-        except Exception as exc:
-            logger.exception("Expert tool %s failed", call.name)
-            work.failed_calls += 1
-            text = str(exc) or call.name
-        await emit_tool_progress(
-            "partial",
-            call.name,
-            remaining=remaining - 1,
-            summary=text,
-        )
-        results.append(text)
-        if text:
-            parts.append(f"{call.name}\n{text}")
-    return "\n\n".join(parts), tuple(results)
+    if work.session_factory is None:
+        work.session_factory = job_session_factory()
+    return await execute_tool_calls(work, _run_one)
+
+
+async def _bounded_call(call: PlannedCall, work: ToolWork) -> str:
+    return await run_bounded(call, work, _run_one)
 
 
 async def complete_tool_episode(
@@ -338,7 +324,7 @@ async def complete_tool_episode(
         blob,
         results,
         continue_episode=continue_expert_episode,
-        run_call=_run_one,
+        run_call=_bounded_call,
         publish=publish,
     )
     episode = getattr(scope, "episode", None)
@@ -348,6 +334,8 @@ async def complete_tool_episode(
 
 
 async def _run_one(call: PlannedCall, work: ToolWork) -> str:
+    if turn_is_cancelled():
+        raise asyncio.CancelledError
     if call.name == SPAWN_TOOL_NAME:
         return await run_spawn_workers(call, work)
     if call.name in SERVER_TOOL_NAMES:
@@ -360,7 +348,7 @@ async def _run_one(call: PlannedCall, work: ToolWork) -> str:
 
 
 async def _run_session_tool(call: PlannedCall, work: ToolWork) -> str:
-    factory = job_session_factory()
+    factory = work.session_factory or job_session_factory()
     async with factory() as session:
         persona = await session.get(Persona, work.persona_id)
         if persona is None:
@@ -378,6 +366,8 @@ async def _dispatch_session_tool(
     work: ToolWork,
 ) -> str:
     if call.name == RESEARCH_TOOL_NAME:
+        if session.in_transaction():
+            await session.commit()
         handler = research_tool_handler_for_chat(
             session,
             persona=persona,

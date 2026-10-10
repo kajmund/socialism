@@ -49,6 +49,7 @@ class Settings(LiveSpeechSettings, BaseSettings):
     llm_temperature: float | None = Field(default=None, ge=0, le=2)
     llm_top_p: float | None = Field(default=None, gt=0, le=1)
     llm_timeout_seconds: float = 60.0
+    expert_tool_timeout_seconds: float = Field(default=45.0, gt=0, le=180)
     # TypeSafe Jev classifies Auto task needs. Empty key disables Auto classification.
     typesafe_api_key: str = ""
     typesafe_base_url: str = "https://api.typesafe.ai"
