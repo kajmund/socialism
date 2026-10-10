@@ -1,6 +1,6 @@
 """Automatic expert turns for SME group voice.
 
-When the floor is granted, run the expert's normal chat turn and speak the result.
+When the floor is granted, admit a real expert turn, run it, and speak the result.
 """
 
 from __future__ import annotations
@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from uuid import uuid4
 
-from app.services.sme_expert_turns import execute_expert_turn
+from app.services.sme_expert_turns import accept_expert_turn, execute_expert_turn
 from app.services.sme_group_voice import GroupVoiceSession
 from app.services.sme_group_voice_runtime import GroupVoiceAudioRuntime
 from app.services import jobs as jobs_service
@@ -22,6 +22,7 @@ async def run_floor_turn(
     runtime: GroupVoiceAudioRuntime,
     user_text: str,
     user_id: str,
+    customer_id: int,
 ) -> None:
     """If an expert holds the floor, generate their reply and speak it."""
     persona_id = session.floor
@@ -30,16 +31,29 @@ async def run_floor_turn(
     request_id = f"group-voice-{uuid4().hex}"
     factory = jobs_service.job_session_factory()
     try:
-        # Minimal admit + execute path. Fence/token handling is simplified for phase 1.
-        # Full lease integration can be added later if needed.
+        async with factory() as db:
+            turn, should_run = await accept_expert_turn(
+                db,
+                request_id=request_id,
+                customer_id=customer_id,
+                user_id=user_id,
+                persona_id=persona_id,
+                message=user_text,
+                image_sha256=None,
+            )
+            await db.commit()
+            if not should_run:
+                return
+            token = turn.lease_token or ""
+            fence = turn.fence
         done = await execute_expert_turn(
             factory,
             request_id=request_id,
             persona_id=persona_id,
             message=user_text,
             image_sha256=None,
-            fence=1,
-            token="group-voice",
+            fence=fence,
+            token=token,
             on_token=lambda _delta: None,
             workspace_id=None,
             workspace_state=None,
