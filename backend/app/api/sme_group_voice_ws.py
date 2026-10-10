@@ -7,6 +7,7 @@ and GroupVoiceAudioRuntime for STT + floor-driven TTS.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import Any
 
@@ -192,11 +193,9 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
             text = message.get("text")
             if text is None:
                 continue
-            raw = await websocket.receive_json() if False else None  # type hint only
             try:
-                import json
                 raw = json.loads(text)
-            except Exception:
+            except json.JSONDecodeError:
                 await emit({"type": "error", "detail": "invalid json"})
                 continue
             if not isinstance(raw, dict):
