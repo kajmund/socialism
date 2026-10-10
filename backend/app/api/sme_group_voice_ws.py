@@ -27,6 +27,7 @@ from app.services.sme_group_voice_runtime import (
     GroupVoiceAudioRuntime,
     GroupVoiceAudioScope,
 )
+from app.services.sme_group_voice_turns import run_floor_turn
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -145,6 +146,23 @@ async def _load_panel_session(
         )
 
 
+async def _maybe_speak(
+    *,
+    session: GroupVoiceSession,
+    runtime: GroupVoiceAudioRuntime | None,
+    user_text: str,
+    user_id: str,
+) -> None:
+    if runtime is None or not session.floor:
+        return
+    await run_floor_turn(
+        session=session,
+        runtime=runtime,
+        user_text=user_text,
+        user_id=user_id,
+    )
+
+
 async def _dispatch(
     *,
     kind: str,
@@ -153,13 +171,22 @@ async def _dispatch(
     runtime: GroupVoiceAudioRuntime | None,
     emit,
     push_snapshot,
+    user_id: str,
 ) -> None:
     if kind == "utterance":
         msg = HumanUtterance.model_validate(raw)
         addressed = session.address_by_name(msg.text)
         if addressed:
             session.grant_floor(addressed)
-        await push_snapshot()
+            await push_snapshot()
+            await _maybe_speak(
+                session=session,
+                runtime=runtime,
+                user_text=msg.text,
+                user_id=user_id,
+            )
+        else:
+            await push_snapshot()
     elif kind == "raise_hand":
         msg = RaiseHand.model_validate(raw)
         session.raise_hand(msg.persona_id)
@@ -168,6 +195,12 @@ async def _dispatch(
         msg = GrantFloor.model_validate(raw)
         session.grant_floor(msg.persona_id)
         await push_snapshot()
+        await _maybe_speak(
+            session=session,
+            runtime=runtime,
+            user_text="(floor granted)",
+            user_id=user_id,
+        )
     elif kind == "release_floor":
         msg = ReleaseFloor.model_validate(raw)
         session.release_floor()
@@ -202,6 +235,7 @@ async def _receive_loop(
     runtime: GroupVoiceAudioRuntime | None,
     emit,
     push_snapshot,
+    user_id: str,
 ) -> None:
     while True:
         message = await websocket.receive()
@@ -232,6 +266,7 @@ async def _receive_loop(
                 runtime=runtime,
                 emit=emit,
                 push_snapshot=push_snapshot,
+                user_id=user_id,
             )
         except ValidationError as exc:
             await emit({"type": "error", "detail": str(exc.errors()[0]["msg"])})
@@ -293,6 +328,7 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
             runtime=runtime,
             emit=emit,
             push_snapshot=push_snapshot,
+            user_id=user.id,
         )
     except HTTPException as exc:
         await emit({"type": "error", "detail": str(exc.detail)})
