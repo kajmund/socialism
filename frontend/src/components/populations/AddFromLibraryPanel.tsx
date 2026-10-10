@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api"
 
 type AddFromLibraryPanelProps = {
   personaKind?: PersonaKind
+  customerId?: number
   excludeNames?: string[]
   excludeIds?: string[]
   onAdd: (persona: LibraryPersona) => void
@@ -16,6 +17,7 @@ type AddFromLibraryPanelProps = {
 
 export function AddFromLibraryPanel({
   personaKind = "persona",
+  customerId,
   excludeNames = [],
   excludeIds = [],
   onAdd,
@@ -29,7 +31,7 @@ export function AddFromLibraryPanel({
   useEffect(() => {
     let cancelled = false
     const loader = personaKind === "expert" ? listExpertPersonas : listLibraryPersonas
-    loader()
+    void loader(customerId == null ? undefined : { customer_id: customerId })
       .then((data) => {
         if (!cancelled) {
           setPersonas(data)
@@ -44,7 +46,7 @@ export function AddFromLibraryPanel({
     return () => {
       cancelled = true
     }
-  }, [personaKind, t])
+  }, [customerId, personaKind, t])
 
   const excludeNameSet = useMemo(
     () => new Set(excludeNames.map((n) => n.toLowerCase())),

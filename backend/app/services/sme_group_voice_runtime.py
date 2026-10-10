@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 EmitJson = Callable[[dict], Awaitable[None]]
 EmitAudio = Callable[[bytes], Awaitable[None]]
+OnFloorGranted = Callable[[str, str], Awaitable[None]]  # persona_id, transcript
 
 
 @dataclass
@@ -47,11 +48,13 @@ class GroupVoiceAudioRuntime:
         *,
         emit_json: EmitJson,
         emit_audio: EmitAudio,
+        on_floor_granted: OnFloorGranted | None = None,
     ) -> None:
         self.session = session
         self.scope = scope
         self._emit_json = emit_json
         self._emit_audio = emit_audio
+        self._on_floor_granted = on_floor_granted
         self._stt = OpenAITranscriptionStream(
             api_key=settings.openai_api_key,
             model=settings.live_speech_stt_model,
@@ -75,6 +78,9 @@ class GroupVoiceAudioRuntime:
     async def commit_audio(self) -> None:
         await self._stt.commit()
 
+    async def clear(self) -> None:
+        await self._stt.clear()
+
     async def close(self) -> None:
         if self._closed:
             return
@@ -85,10 +91,13 @@ class GroupVoiceAudioRuntime:
         await self._stt.close()
 
     async def _on_transcript(self, event: TranscriptEvent) -> None:
-        if self._closed or event.kind != "final":
+        if self._closed or event.kind not in {"final", "partial"}:
             return
         text = (event.text or "").strip()
         if not text:
+            return
+        if event.kind == "partial":
+            await self._emit_json({"type": "transcript.partial", "text": text})
             return
         await self._emit_json(
             {
@@ -97,10 +106,15 @@ class GroupVoiceAudioRuntime:
                 "item_id": event.item_id or "pending",
             }
         )
+        self.session.last_utterance = text
         addressed = self.session.address_by_name(text)
         if addressed:
             self.session.grant_floor(addressed)
-            await self._emit_json({"type": "snapshot", **self.session.snapshot()})
+        else:
+            for persona_id in self.session.member_ids:
+                self.session.raise_hand(persona_id)
+        await self._emit_json({"type": "snapshot", **self.session.snapshot()})
+        if addressed:
             await self._emit_json(
                 {
                     "type": "floor.granted",
@@ -108,6 +122,8 @@ class GroupVoiceAudioRuntime:
                     "floor_name": self.session.member_names.get(addressed),
                 }
             )
+            if self._on_floor_granted is not None:
+                await self._on_floor_granted(addressed, text)
 
     async def speak_as(self, persona_id: str, text: str) -> None:
         """Synthesize and stream audio for the expert who currently holds the floor."""

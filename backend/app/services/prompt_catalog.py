@@ -1380,6 +1380,16 @@ HOW YOU WRITE COMMENTS:
         ),
     ),
     _f(
+        "sme.group_voice.keep_hand",
+        "panel",
+        "Gruppröst — behåll hand",
+        "Group voice — keep hand",
+        "Jev-bedömning om en expert ska behålla sin hand. Platshållare: {name}",
+        "Jev judgment whether an expert should keep their hand. Placeholder: {name}",
+        "Är poängen {name} ville ta upp fortfarande relevant och obesvarad givet den senaste diskussionen? Svara ja om handen ska vara kvar.",
+        "Is the point {name} wanted to raise still relevant and unanswered given the recent discussion? Answer yes if the hand should stay raised.",
+    ),
+    _f(
         "panel.moderator.opening",
         "panel",
         "Moderator — öppning",
