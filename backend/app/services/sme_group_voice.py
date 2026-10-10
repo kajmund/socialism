@@ -16,6 +16,7 @@ Rules locked for phase 1:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -50,10 +51,13 @@ class GroupVoiceSession:
         return persona_id in self.member_ids
 
     def address_by_name(self, utterance: str) -> str | None:
-        """Return persona_id if the utterance directly addresses an expert by exact name."""
+        """Return persona_id if the utterance directly addresses an expert by token-boundary name."""
         text = utterance.lower()
         for persona_id, name in self.member_names.items():
-            if name.lower() in text:
+            if not name:
+                continue
+            pattern = r"\b" + re.escape(name.lower()) + r"\b"
+            if re.search(pattern, text):
                 return persona_id
         return None
 
@@ -142,8 +146,8 @@ class GroupVoiceSession:
                 if probability < 0.5:
                     to_lower.append(persona_id)
             except JevClientError:
-                # On Jev failure, keep the hand (conservative).
-                pass
+                # Surface the failure; do not silently keep the hand.
+                raise
         for persona_id in to_lower:
             self.lower_hand(persona_id)
 
