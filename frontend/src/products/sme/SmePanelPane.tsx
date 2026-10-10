@@ -58,7 +58,7 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
           <strong className="block truncate text-sm">{thread.name}</strong>
           <span className="text-xs text-muted-foreground">
             {t("sme.groupMembers", { count: thread.member_names.length })}
-            {voice.connected ? " · voice" : ""}
+            {voice.connected ? ` · ${t("sme.voice")}` : ""}
             {floorName ? ` · ${floorName}` : ""}
           </span>
         </div>
@@ -67,7 +67,7 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
             type="button"
             className="grid size-8 place-items-center rounded-full border text-xs"
             onClick={() => setVoiceEnabled((v) => !v)}
-            title={voiceEnabled ? "Disable voice" : "Enable voice"}
+            title={voiceEnabled ? t("sme.voiceDisable") : t("sme.voiceEnable")}
           >
             {voiceEnabled ? <Mic size={16} /> : <MicOff size={16} />}
           </button>
@@ -76,19 +76,19 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
               type="button"
               className="grid size-8 place-items-center rounded-full border text-xs"
               onClick={() => (voice.listening ? voice.stopListening() : void voice.startListening())}
-              title={voice.listening ? "Stop listening" : "Start listening"}
+              title={voice.listening ? t("sme.listeningStop") : t("sme.listeningStart")}
             >
               {voice.listening ? <MicOff size={16} /> : <Mic size={16} />}
             </button>
           )}
           {voice.snapshot && voice.snapshot.hands.length > 0 && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground" title="Raised hands">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground" title={t("sme.raisedHands")}>
               <Hand size={14} />
               {voice.snapshot.hands.length}
             </span>
           )}
           {voice.snapshot && voice.snapshot.source_checked.length > 0 && (
-            <span className="text-xs text-db-gold-700" title="Source checked">
+            <span className="text-xs text-db-gold-700" title={t("sme.sourceChecked")}>
               ✓ {voice.snapshot.source_checked.length}
             </span>
           )}
@@ -112,7 +112,7 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
             </div>
             {voice.error ? <span className="text-destructive" role="alert">{voice.error}</span> : null}
             {error ? <span className="text-destructive" role="alert">{error}</span> : null}
-            {floorName ? <span className="text-xs text-muted-foreground">Floor: {floorName}</span> : null}
+            {floorName ? <span className="text-xs text-muted-foreground">{t("sme.floor")}: {floorName}</span> : null}
           </>
         }
       />
