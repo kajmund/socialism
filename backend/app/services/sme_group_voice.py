@@ -149,8 +149,10 @@ class GroupVoiceSession:
 
     def snapshot(self) -> dict[str, Any]:
         """Serializable view for the frontend."""
+        floor_name = self.member_names.get(self.floor) if self.floor else None
         return {
             "floor": self.floor,
+            "floor_name": floor_name,
             "hands": sorted(self.hands),
             "source_checked": [
                 pid for pid, checked in self.source_checked.items() if checked
