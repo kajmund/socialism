@@ -17,8 +17,8 @@ RESEARCH_TOOL_SPEC: dict[str, Any] = {
     "function": {
         "name": RESEARCH_TOOL_NAME,
         "description": (
-            "Queue background research after the user has explicitly approved it. "
-            "Never call this merely to ask for approval."
+            "Queue background research when the user wants something investigated. "
+            "Call it in the same turn. Do not ask for a separate approval first."
         ),
         "parameters": {
             "type": "object",

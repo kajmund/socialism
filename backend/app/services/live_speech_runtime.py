@@ -20,6 +20,7 @@ from app.services import jobs as jobs_service
 from app.services.elevenlabs_tts import ElevenLabsTts
 from app.services.live_speech_admit import admit_voice_turn, current_workspace_state
 from app.services.live_speech_coordinator import SpeechResponseCoordinator
+from app.services.expert_turn_cancel import bind_turn_cancel
 from app.services.live_speech_cues import LiveSpeechCues
 from app.services.live_speech_history import persist_interrupted_voice_turn
 from app.services.live_speech_progress import bind_tool_progress
@@ -81,6 +82,7 @@ class LiveSpeechRuntime:
         self._partials: dict[str, str] = {}
         self._revisions: dict[str, int] = {}
         self._turn_task: asyncio.Task[None] | None = None
+        self._turn_cancel = asyncio.Event()
         self._turn_id: str | None = None
         self._muted = False
         self._closed = False
@@ -159,6 +161,7 @@ class LiveSpeechRuntime:
         if task is None or task.done() or turn_id != self._turn_id:
             return
         cancelled_at = monotonic()
+        self._turn_cancel.set()
         self._coordinator.drop_aside()
         self._cues.cancel_waiting()
         task.cancel()
@@ -264,6 +267,7 @@ class LiveSpeechRuntime:
             await self.cancel_turn(self._turn_id, "new_user_turn")
         turn_id = str(uuid4())
         self._turn_id = turn_id
+        self._turn_cancel = asyncio.Event()
         await self._emit_json(
             {
                 "type": "transcript.final",
@@ -291,7 +295,10 @@ class LiveSpeechRuntime:
         self._cues.start_waiting(turn_id)
         on_token = self._main_token_handler(turn_id, queue)
         try:
-            with bind_tool_progress(self._cues.on_tool_progress):
+            with (
+                bind_tool_progress(self._cues.on_tool_progress),
+                bind_turn_cancel(self._turn_cancel),
+            ):
                 done = await execute_expert_turn(
                     factory,
                     request_id=request_id,
