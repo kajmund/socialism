@@ -151,4 +151,42 @@ describe("LiveSpeechClient lifecycle", () => {
     })
     expect(state).not.toHaveBeenCalledWith("disconnected")
   })
+
+  it("drops tool-reply audio that arrives after barge-in", async () => {
+    vi.stubGlobal("window", { location: { hash: "", search: "" } })
+    const { LiveSpeechClient } = await import("./useLiveSpeechConversation")
+    const client = new LiveSpeechClient("workspace", "expert", "sv", {
+      state: vi.fn(),
+      message: vi.fn(),
+      preview: vi.fn(),
+      tool: vi.fn(async () => undefined),
+      error: vi.fn(),
+      trace: vi.fn(),
+    })
+    const createBuffer = vi.fn(() => ({ getChannelData: () => ({ set: vi.fn() }) }))
+    const source = { buffer: null, connect: vi.fn(), start: vi.fn(), onended: null }
+    client["playback"] = {
+      createBuffer,
+      createBufferSource: () => source,
+      currentTime: 0,
+      destination: {},
+    } as unknown as AudioContext
+    client["handleControl"](JSON.stringify({
+      type: "assistant.cancelled",
+      turn_id: "followup",
+      reason: "barge_in",
+      spoken_text: "",
+    }))
+    client["play"](new ArrayBuffer(4))
+    expect(createBuffer).not.toHaveBeenCalled()
+    client["handleControl"](JSON.stringify({
+      type: "audio.output.start",
+      turn_id: "next",
+      sequence: 2,
+      codec: "pcm16",
+      sample_rate: 24000,
+    }))
+    client["play"](new ArrayBuffer(4))
+    expect(createBuffer).toHaveBeenCalledOnce()
+  })
 })

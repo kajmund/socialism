@@ -1,0 +1,1091 @@
+{
+  "collection_id": "extra-corpus",
+  "environment": {
+    "python": "3.13.6",
+    "platform": "macOS-15.7.4-arm64-arm-64bit-Mach-O",
+    "processor": "arm",
+    "cpu_count": 10,
+    "overgraph": "0.17.0",
+    "pymupdf": "1.26.5",
+    "python_docx": "1.2.0",
+    "experiment": "overgraph-ingest-phase1",
+    "extraction_version": "extract-v1",
+    "segmentation_version": "structural-v1"
+  },
+  "segmentation_version": "structural-v1",
+  "write_batch_size": 500,
+  "document_count": 100,
+  "published": 100,
+  "failed": 0,
+  "characters": 399936,
+  "text_units": 2357,
+  "structures": 2357,
+  "clauses": 2174,
+  "nodes": 4914,
+  "edges": 11472,
+  "text_coverage_mean": 1.0,
+  "reconstructed_documents": 100,
+  "total_seconds": 2.852701457682997,
+  "publish_ready_seconds": 2.659673291724175,
+  "stage_seconds": {
+    "extract": 2.2101752515882254,
+    "segment": 0.027327048126608133,
+    "build": 0.04637349396944046,
+    "write": 0.2599324560724199,
+    "write_nodes": 0.09047357877716422,
+    "write_edges": 0.029839121736586094,
+    "verify": 0.06605325313284993,
+    "publish": 0.011731463950127363
+  },
+  "finalize_seconds": {
+    "end_ingest": 0.1821642080321908,
+    "sync": 1.2792181223630905e-05
+  },
+  "persist_seconds": 0.4421094562858343,
+  "documents_per_second": 35.054491850409526,
+  "text_unit_size": {
+    "count": 2357,
+    "min": 5,
+    "median": 147.0,
+    "p95": 416.1999999999998,
+    "p99": 607.8800000000001,
+    "max": 1023,
+    "mean": 169.680101824353
+  },
+  "text_unit_size_buckets": {
+    "0-199": 1618,
+    "200-999": 738,
+    "1000-2999": 1,
+    "3000+": 0
+  },
+  "peak_rss_mb": 168.625,
+  "disk_mb": 8.550856590270996,
+  "headline": {
+    "documents": "100/100",
+    "pages": 0,
+    "characters": 399936,
+    "text_units": 2357,
+    "nodes": 4914,
+    "edges": 11472,
+    "extraction_seconds": 2.2101752515882254,
+    "segmentation_seconds": 0.027327048126608133,
+    "graph_construction_seconds": 0.04637349396944046,
+    "overgraph_batch_write_seconds": 0.2599324560724199,
+    "overgraph_finalize_seconds": 0.18217700021341443,
+    "end_ingest_seconds": 0.1821642080321908,
+    "sync_seconds": 1.2792181223630905e-05,
+    "verification_seconds": 0.06605325313284993,
+    "total_seconds": 2.852701457682997,
+    "peak_rss_mb": 168.625,
+    "disk_mb": 8.550856590270996,
+    "text_coverage": 1.0
+  },
+  "id": "phase1-sequential-100-docx",
+  "label": "Official sequential phase-1 baseline: 100 real Swedish DOCX contracts, single writer, no parallel extraction",
+  "zero_clause_documents": [
+    "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+    "Avtal_70_Offertvillkor_orderbekraftelse.docx"
+  ],
+  "documents": [
+    {
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4545,
+      "text_units": 41,
+      "structures": 41,
+      "clauses": 40,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 2551,
+      "text_units": 20,
+      "structures": 20,
+      "clauses": 19,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_03_Visstidsanstallning.docx",
+      "status": "PUBLISHED",
+      "characters": 2190,
+      "text_units": 18,
+      "structures": 18,
+      "clauses": 17,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+      "status": "PUBLISHED",
+      "characters": 2379,
+      "text_units": 20,
+      "structures": 20,
+      "clauses": 19,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 5038,
+      "text_units": 31,
+      "structures": 31,
+      "clauses": 30,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+      "status": "PUBLISHED",
+      "characters": 3781,
+      "text_units": 17,
+      "structures": 17,
+      "clauses": 16,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_07_Sekretessavtal_omsesidigt.docx",
+      "status": "PUBLISHED",
+      "characters": 3340,
+      "text_units": 17,
+      "structures": 17,
+      "clauses": 16,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3077,
+      "text_units": 16,
+      "structures": 16,
+      "clauses": 15,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_09_Kundbearbetningsforbud_varvningsforbud.docx",
+      "status": "PUBLISHED",
+      "characters": 2431,
+      "text_units": 11,
+      "structures": 11,
+      "clauses": 10,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_100_Djurkopeavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3941,
+      "text_units": 22,
+      "structures": 22,
+      "clauses": 21,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_10_Arbetstidsavtal_flextid.docx",
+      "status": "PUBLISHED",
+      "characters": 2434,
+      "text_units": 18,
+      "structures": 18,
+      "clauses": 17,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3201,
+      "text_units": 25,
+      "structures": 25,
+      "clauses": 24,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "status": "PUBLISHED",
+      "characters": 4619,
+      "text_units": 18,
+      "structures": 18,
+      "clauses": 0,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3714,
+      "text_units": 23,
+      "structures": 23,
+      "clauses": 22,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_14_Tjanstebilsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3142,
+      "text_units": 23,
+      "structures": 23,
+      "clauses": 22,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_15_Bonusavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 2735,
+      "text_units": 20,
+      "structures": 20,
+      "clauses": 19,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_16_Praktikavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 2904,
+      "text_units": 19,
+      "structures": 19,
+      "clauses": 18,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+      "status": "PUBLISHED",
+      "characters": 5009,
+      "text_units": 33,
+      "structures": 33,
+      "clauses": 32,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_18_Hyresavtal_bostad.docx",
+      "status": "PUBLISHED",
+      "characters": 4123,
+      "text_units": 20,
+      "structures": 20,
+      "clauses": 19,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_19_Andrahandsuthyrning_lokal.docx",
+      "status": "PUBLISHED",
+      "characters": 3658,
+      "text_units": 20,
+      "structures": 20,
+      "clauses": 19,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_20_Arrendeavtal_lagenhetsarrende.docx",
+      "status": "PUBLISHED",
+      "characters": 3277,
+      "text_units": 22,
+      "structures": 22,
+      "clauses": 21,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_21_Parkeringsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3352,
+      "text_units": 27,
+      "structures": 27,
+      "clauses": 26,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_22_Kontorshotell_coworking.docx",
+      "status": "PUBLISHED",
+      "characters": 3927,
+      "text_units": 25,
+      "structures": 25,
+      "clauses": 24,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_23_Tillaggsavtal_hyresavtal_lokal.docx",
+      "status": "PUBLISHED",
+      "characters": 2708,
+      "text_units": 17,
+      "structures": 17,
+      "clauses": 16,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_24_Kopeavtal_fastighet.docx",
+      "status": "PUBLISHED",
+      "characters": 6054,
+      "text_units": 33,
+      "structures": 33,
+      "clauses": 31,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_25_Fastighetsservice_stadning.docx",
+      "status": "PUBLISHED",
+      "characters": 4018,
+      "text_units": 29,
+      "structures": 29,
+      "clauses": 28,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_26_Stiftelseurkund.docx",
+      "status": "PUBLISHED",
+      "characters": 3130,
+      "text_units": 22,
+      "structures": 22,
+      "clauses": 21,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_27_Bolagsordning.docx",
+      "status": "PUBLISHED",
+      "characters": 3767,
+      "text_units": 23,
+      "structures": 23,
+      "clauses": 10,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_28_Aktieagaravtal.docx",
+      "status": "PUBLISHED",
+      "characters": 7401,
+      "text_units": 35,
+      "structures": 35,
+      "clauses": 34,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_29_Samarbetsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4547,
+      "text_units": 25,
+      "structures": 25,
+      "clauses": 24,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "status": "PUBLISHED",
+      "characters": 7938,
+      "text_units": 50,
+      "structures": 50,
+      "clauses": 49,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_31_Leveransavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4739,
+      "text_units": 29,
+      "structures": 29,
+      "clauses": 28,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_32_Inkopsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4662,
+      "text_units": 30,
+      "structures": 30,
+      "clauses": 29,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 5755,
+      "text_units": 30,
+      "structures": 30,
+      "clauses": 29,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_34_Aterforsaljaravtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4994,
+      "text_units": 33,
+      "structures": 33,
+      "clauses": 32,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_35_Franchiseavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 6738,
+      "text_units": 33,
+      "structures": 33,
+      "clauses": 32,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 5045,
+      "text_units": 27,
+      "structures": 27,
+      "clauses": 26,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "status": "PUBLISHED",
+      "characters": 6112,
+      "text_units": 37,
+      "structures": 37,
+      "clauses": 36,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_38_Projektavtal_fast_pris.docx",
+      "status": "PUBLISHED",
+      "characters": 3987,
+      "text_units": 38,
+      "structures": 38,
+      "clauses": 29,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_39_Avsiktsforklaring_LOI.docx",
+      "status": "PUBLISHED",
+      "characters": 4337,
+      "text_units": 20,
+      "structures": 20,
+      "clauses": 16,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_40_Laneavtal_revers.docx",
+      "status": "PUBLISHED",
+      "characters": 3400,
+      "text_units": 22,
+      "structures": 22,
+      "clauses": 21,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_41_Borgensforbindelse.docx",
+      "status": "PUBLISHED",
+      "characters": 3293,
+      "text_units": 21,
+      "structures": 21,
+      "clauses": 20,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_42_Factoringavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4000,
+      "text_units": 24,
+      "structures": 24,
+      "clauses": 23,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_43_Leasingavtal_utrustning.docx",
+      "status": "PUBLISHED",
+      "characters": 4414,
+      "text_units": 29,
+      "structures": 29,
+      "clauses": 28,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_44_Avbetalningsplan.docx",
+      "status": "PUBLISHED",
+      "characters": 2595,
+      "text_units": 20,
+      "structures": 20,
+      "clauses": 15,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_45_Fullmakt.docx",
+      "status": "PUBLISHED",
+      "characters": 2287,
+      "text_units": 9,
+      "structures": 9,
+      "clauses": 8,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_46_SaaS_avtal.docx",
+      "status": "PUBLISHED",
+      "characters": 6004,
+      "text_units": 38,
+      "structures": 38,
+      "clauses": 37,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_47_Programvarulicensavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4632,
+      "text_units": 26,
+      "structures": 26,
+      "clauses": 25,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 5175,
+      "text_units": 42,
+      "structures": 42,
+      "clauses": 33,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_49_IT_drift_hostingavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4522,
+      "text_units": 40,
+      "structures": 40,
+      "clauses": 36,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_50_Support_underhallsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4117,
+      "text_units": 28,
+      "structures": 28,
+      "clauses": 27,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+      "status": "PUBLISHED",
+      "characters": 4497,
+      "text_units": 21,
+      "structures": 21,
+      "clauses": 20,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_52_Licensavtal_varumarke.docx",
+      "status": "PUBLISHED",
+      "characters": 4413,
+      "text_units": 27,
+      "structures": 27,
+      "clauses": 25,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_53_Overlatelse_immateriella_rattigheter.docx",
+      "status": "PUBLISHED",
+      "characters": 3616,
+      "text_units": 16,
+      "structures": 16,
+      "clauses": 15,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_54_Kallkodsdeposition_escrow.docx",
+      "status": "PUBLISHED",
+      "characters": 4676,
+      "text_units": 16,
+      "structures": 16,
+      "clauses": 15,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_55_Overlatelse_domannamn.docx",
+      "status": "PUBLISHED",
+      "characters": 2454,
+      "text_units": 13,
+      "structures": 13,
+      "clauses": 12,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_56_Bidragsavtal_CLA.docx",
+      "status": "PUBLISHED",
+      "characters": 3592,
+      "text_units": 15,
+      "structures": 15,
+      "clauses": 14,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_57_Penetrationstest.docx",
+      "status": "PUBLISHED",
+      "characters": 4727,
+      "text_units": 28,
+      "structures": 28,
+      "clauses": 26,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_58_IT_policy_BYOD.docx",
+      "status": "PUBLISHED",
+      "characters": 4390,
+      "text_units": 22,
+      "structures": 22,
+      "clauses": 21,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4168,
+      "text_units": 28,
+      "structures": 28,
+      "clauses": 27,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_60_Pilotavtal_PoC.docx",
+      "status": "PUBLISHED",
+      "characters": 3809,
+      "text_units": 25,
+      "structures": 25,
+      "clauses": 24,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "status": "PUBLISHED",
+      "characters": 5435,
+      "text_units": 19,
+      "structures": 19,
+      "clauses": 18,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_62_PUB_GDPR_databehandlingsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 5302,
+      "text_units": 21,
+      "structures": 21,
+      "clauses": 20,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_63_Appavtal_utveckling_publicering.docx",
+      "status": "PUBLISHED",
+      "characters": 5185,
+      "text_units": 28,
+      "structures": 28,
+      "clauses": 19,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_64_Byraavtal_reklam.docx",
+      "status": "PUBLISHED",
+      "characters": 4068,
+      "text_units": 24,
+      "structures": 24,
+      "clauses": 23,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_65_Sponsringsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3302,
+      "text_units": 20,
+      "structures": 20,
+      "clauses": 19,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_66_Foto_filmavtal_bildlicens.docx",
+      "status": "PUBLISHED",
+      "characters": 3618,
+      "text_units": 20,
+      "structures": 20,
+      "clauses": 18,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3605,
+      "text_units": 25,
+      "structures": 25,
+      "clauses": 24,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_68_Hyresavtal_fordon.docx",
+      "status": "PUBLISHED",
+      "characters": 3487,
+      "text_units": 20,
+      "structures": 20,
+      "clauses": 19,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_69_Kundavtal_B2C_villkor.docx",
+      "status": "PUBLISHED",
+      "characters": 5131,
+      "text_units": 21,
+      "structures": 21,
+      "clauses": 19,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_70_Offertvillkor_orderbekraftelse.docx",
+      "status": "PUBLISHED",
+      "characters": 3458,
+      "text_units": 15,
+      "structures": 15,
+      "clauses": 0,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_71_Konstnarsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3785,
+      "text_units": 24,
+      "structures": 24,
+      "clauses": 23,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_72_Utbildningsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3297,
+      "text_units": 18,
+      "structures": 18,
+      "clauses": 17,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_73_Volontaravtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3662,
+      "text_units": 16,
+      "structures": 16,
+      "clauses": 15,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_74_Forsakringsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4332,
+      "text_units": 24,
+      "structures": 24,
+      "clauses": 23,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_75_Visselblasarfunktion.docx",
+      "status": "PUBLISHED",
+      "characters": 3847,
+      "text_units": 17,
+      "structures": 17,
+      "clauses": 16,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_76_Uppdragsbrev_revision.docx",
+      "status": "PUBLISHED",
+      "characters": 4121,
+      "text_units": 17,
+      "structures": 17,
+      "clauses": 16,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_77_Redovisningsuppdrag.docx",
+      "status": "PUBLISHED",
+      "characters": 4131,
+      "text_units": 33,
+      "structures": 33,
+      "clauses": 32,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+      "status": "PUBLISHED",
+      "characters": 3668,
+      "text_units": 21,
+      "structures": 21,
+      "clauses": 20,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_79_Hyresavtal_lokal_Goteborg.docx",
+      "status": "PUBLISHED",
+      "characters": 3717,
+      "text_units": 28,
+      "structures": 28,
+      "clauses": 27,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_80_Styrelsens_arbetsordning.docx",
+      "status": "PUBLISHED",
+      "characters": 4203,
+      "text_units": 19,
+      "structures": 19,
+      "clauses": 18,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 4080,
+      "text_units": 28,
+      "structures": 28,
+      "clauses": 26,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_82_Uppdragsavtal_styrelseledamot.docx",
+      "status": "PUBLISHED",
+      "characters": 3550,
+      "text_units": 27,
+      "structures": 27,
+      "clauses": 26,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_83_Teckningsoptionsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3751,
+      "text_units": 21,
+      "structures": 21,
+      "clauses": 20,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_84_Villkorat_aktieagartillskott.docx",
+      "status": "PUBLISHED",
+      "characters": 2888,
+      "text_units": 19,
+      "structures": 19,
+      "clauses": 18,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_85_Konvertibelt_laneavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3356,
+      "text_units": 16,
+      "structures": 16,
+      "clauses": 15,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_86_Aktieoverlatelseavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3414,
+      "text_units": 24,
+      "structures": 24,
+      "clauses": 23,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_87_Investeringsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 5303,
+      "text_units": 29,
+      "structures": 29,
+      "clauses": 28,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_88_Teckningsavtal_nyemission.docx",
+      "status": "PUBLISHED",
+      "characters": 3043,
+      "text_units": 21,
+      "structures": 21,
+      "clauses": 20,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_89_Aktieagaravtal_uppdaterat.docx",
+      "status": "PUBLISHED",
+      "characters": 7240,
+      "text_units": 42,
+      "structures": 42,
+      "clauses": 41,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_90_Anslutningsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 2743,
+      "text_units": 11,
+      "structures": 11,
+      "clauses": 10,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_91_Inkramsoverlatelse.docx",
+      "status": "PUBLISHED",
+      "characters": 5185,
+      "text_units": 26,
+      "structures": 26,
+      "clauses": 25,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_92_Forlikningsavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 3463,
+      "text_units": 21,
+      "structures": 21,
+      "clauses": 20,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_93_Avveckling_av_samarbete.docx",
+      "status": "PUBLISHED",
+      "characters": 3509,
+      "text_units": 27,
+      "structures": 27,
+      "clauses": 26,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_94_Kopeavtal_los_egendom.docx",
+      "status": "PUBLISHED",
+      "characters": 3113,
+      "text_units": 22,
+      "structures": 22,
+      "clauses": 21,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_95_Gavobrev.docx",
+      "status": "PUBLISHED",
+      "characters": 2294,
+      "text_units": 12,
+      "structures": 12,
+      "clauses": 11,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_96_Testamente.docx",
+      "status": "PUBLISHED",
+      "characters": 3684,
+      "text_units": 14,
+      "structures": 14,
+      "clauses": 13,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_97_Skuldebrev.docx",
+      "status": "PUBLISHED",
+      "characters": 2513,
+      "text_units": 17,
+      "structures": 17,
+      "clauses": 16,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_98_Samboavtal.docx",
+      "status": "PUBLISHED",
+      "characters": 2627,
+      "text_units": 13,
+      "structures": 13,
+      "clauses": 12,
+      "coverage": 1.0,
+      "reconstructed": true
+    },
+    {
+      "relative_path": "Avtal_99_Aktenskapsforord.docx",
+      "status": "PUBLISHED",
+      "characters": 2745,
+      "text_units": 10,
+      "structures": 10,
+      "clauses": 9,
+      "coverage": 1.0,
+      "reconstructed": true
+    }
+  ]
+}

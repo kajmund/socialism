@@ -21,6 +21,7 @@ from app.api import (
     local_login,
     me,
     modules,
+    overgraph,
     panel,
     panel_catalog,
     personas,
@@ -39,13 +40,14 @@ from app.api import (
     workspaces,
     ws,
 )
-from app.config import settings
+from app.config import EMBEDDING_MODEL_DIMENSIONS, settings
 from app.database.session import engine
 from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
 from app.services.expertgranskning.memory import close_default_expert_memory
 from app.services.graph_v2.worker import start_graph_ingest_loop, stop_graph_ingest_loop
+from app.services.overgraph.catalogs import catalog_root, open_runtime, set_runtime
 from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
 from app.services.knowledge.vector_store import SupabaseVectorBucketStore
 from app.services.kund_store import ensure_default_kunder
@@ -105,6 +107,12 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
     except (OperationalError, ProgrammingError) as exc:
         logger.warning("Skipping LLM runtime settings load on startup: %s", exc)
     vector_runtime = None
+    graph_runtime = open_runtime(
+        catalog_root(settings.overgraph_dir),
+        knowledge_dimension=settings.embedding_dimension,
+        memory_dimension=EMBEDDING_MODEL_DIMENSIONS[settings.mem0_embedding_model],
+    )
+    set_runtime(graph_runtime)
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None
     graph_task = None
@@ -137,6 +145,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
         try:
             close_default_expert_memory()
         finally:
+            set_runtime(None)
             await engine.dispose()
 
 
@@ -190,6 +199,7 @@ def create_app() -> FastAPI:
     app.include_router(workspace_exports.router)
     app.include_router(workspace_conversations.router)
     app.include_router(embeddings.router)
+    app.include_router(overgraph.router)
     app.include_router(expert_memory.router)
     app.include_router(llm_settings.router)
     app.include_router(llm_settings.capabilities_router)

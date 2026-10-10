@@ -296,7 +296,7 @@ async def complete_tool_episode(
 ) -> str:
     """Run tool calls and their follow-up before the owning turn replies."""
     from app.services.expert_reasoning_episode import continue_expert_episode
-    from app.services.expert_tool_followup import compose_tool_episode
+    from app.services.expert_tool_followup import compose_tool_episode, focus_calls_for_search
 
     scope.defer(calls)
     calls = tuple(scope._calls)
@@ -318,6 +318,13 @@ async def complete_tool_episode(
                 "arguments": call.arguments,
                 "owner_turn_id": scope.turn_id,
             })
+
+    highlights = focus_calls_for_search(
+        [(call.name, result) for call, result in zip(calls, results, strict=False)],
+        work.workspace_state,
+    )
+    if highlights:
+        await publish(highlights)
 
     text, reasoning = await compose_tool_episode(
         work,

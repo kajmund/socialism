@@ -37,6 +37,10 @@ export function listSmePanelMessages(panelId: string): Promise<SmeMessage[]> {
   return api.get<SmeMessage[]>(`/sme/panels/${panelId}/messages`)
 }
 
+export function clearSmePanelMessages(panelId: string): Promise<void> {
+  return api.delete(`/sme/panels/${panelId}/messages`)
+}
+
 export function sendSmePanelMessage(
   panelId: string,
   message: string,

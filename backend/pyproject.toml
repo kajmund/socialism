@@ -19,6 +19,8 @@ dependencies = [
     # LLM extraction, dedupe, multimodal parsing, and retrieval for expert memory.
     "mem0ai==2.0.20",
     "openai==2.48.0",
+    # Embedded graph + hybrid vector engine; not something we write in <30 lines.
+    "overgraph==0.17.0",
     "pdfplumber==0.11.9",
     # Decode, validate and strip image metadata; robust codecs are not a small helper.
     "pillow>=10.4.0",
@@ -150,7 +152,7 @@ tests-max-lines = 1000
 "app/services/document_knowledge.py" = 775
 "app/services/execution/service.py" = 1534
 "app/services/expertgranskning/comment_convergence.py" = 646
-"app/services/expertgranskning/memory.py" = 779
+"app/services/expertgranskning/memory.py" = 777
 "app/services/expertgranskning/schemas.py" = 901
 "app/services/expertgranskning/word_review.py" = 1900
 "app/services/help_read_context.py" = 553

@@ -56,6 +56,7 @@ export class LiveSpeechClient {
   private assistantText = ""
   private vad = new EnergyVad(0.018, 250, 600)
   private stopped = false
+  private dropIncomingAudio = false
 
   constructor(
     private readonly workspaceId: string,
@@ -183,7 +184,7 @@ export class LiveSpeechClient {
         number(vad?.threshold, 0.018),
         number(vad?.preroll_ms, 250),
         number(vad?.hangover_ms, 600),
-        number(vad?.min_speech_ms, 300),
+        number(vad?.min_speech_ms, 120),
         number(vad?.urgent_ms, 120),
       )
       void this.startCapture()
@@ -211,7 +212,10 @@ export class LiveSpeechClient {
       this.callbacks.preview(null)
       this.callbacks.message(localMessage("agent", string(event.text)))
       this.assistantText = ""
+    } else if (type === "audio.output.start") {
+      this.dropIncomingAudio = false
     } else if (type === "assistant.cancelled") {
+      this.dropIncomingAudio = true
       this.clearPlayback()
       this.callbacks.preview(null)
     } else if (type === "workspace.tool") {
@@ -291,6 +295,7 @@ export class LiveSpeechClient {
   }
 
   private play(data: ArrayBuffer): void {
+    if (this.dropIncomingAudio) return
     const context = this.playback
     if (!context) return
     const samples = decodePcm16(data)

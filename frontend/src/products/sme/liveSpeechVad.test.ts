@@ -53,6 +53,13 @@ describe("EnergyVad", () => {
     expect(speak(vad, 1, 0)[0].commit).toBe(false)
   })
 
+  it("commits a short word once speech passes the minimum", () => {
+    const vad = new EnergyVad(0.02, 80, 30, 120, 120)
+    calibrate(vad)
+    speak(vad, 12)
+    expect(speak(vad, 3, 0).some((result) => result.commit)).toBe(true)
+  })
+
   it("commits only after confirmed speech and hangover", () => {
     const vad = new EnergyVad(0.02, 80, 30, 300, 120)
     calibrate(vad)

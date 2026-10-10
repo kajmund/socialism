@@ -1,0 +1,81 @@
+{
+  "id": "confidentiality",
+  "kind": "unit",
+  "proof_kind": "EXISTS",
+  "query": "Vilka avtal innehåller en sekretessplikt?",
+  "classify_question": "Innehåller texten en skyldighet att hålla information hemlig eller att inte röja konfidentiella uppgifter?",
+  "notes": "Relevant is an operative confidentiality or non-disclosure duty. A heading without body, a cover-page blurb, or a pointer to another NDA is not enough.",
+  "relevant_units": [
+    {
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "contains": "obehörigen röja eller använda Arbetsgivarens företagshemligheter"
+    },
+    {
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "contains": "tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella uppgifter, både under och efter anställningen."
+    },
+    {
+      "relative_path": "Avtal_03_Visstidsanstallning.docx",
+      "contains": "tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella information, både under och efter anställningen."
+    },
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "contains": "Konsulten ska hålla Konfidentiell information hemlig under avtalstiden och i [fem (5)] år därefter."
+    },
+    {
+      "relative_path": "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+      "contains": "Mottagaren ska hålla Konfidentiell Information hemlig och får inte röja den för tredje man"
+    },
+    {
+      "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+      "contains": "Arbetstagaren har fortsatt tystnadsplikt om Arbetsgivarens företagshemligheter"
+    },
+    {
+      "relative_path": "Avtal_22_Kontorshotell_coworking.docx",
+      "contains": "behandla information om DevBrains och dess kunder konfidentiellt."
+    },
+    {
+      "relative_path": "Avtal_28_Aktieagaravtal.docx",
+      "contains": "hålla innehållet i detta avtal samt information om Bolaget och dess kunder konfidentiellt"
+    },
+    {
+      "relative_path": "Avtal_34_Aterforsaljaravtal.docx",
+      "contains": "behandla konfidentiell information om den andra parten, Slutkunder och priser konfidentiellt"
+    },
+    {
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "contains": "hålla information om DevBrains, Slutkunden och Uppdraget konfidentiell under avtalstiden och i fem (5) år därefter"
+    },
+    {
+      "relative_path": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "contains": "hålla konfidentiell information om den andra parten hemlig under avtalstiden och i tre (3) år därefter."
+    },
+    {
+      "relative_path": "Avtal_46_SaaS_avtal.docx",
+      "contains": "hålla den andra partens konfidentiella information hemlig under avtalstiden och i tre (3) år därefter."
+    },
+    {
+      "relative_path": "Avtal_57_Penetrationstest.docx",
+      "contains": "inklusive sårbarheter och rapport, är konfidentiell och får inte lämnas ut till tredje man"
+    }
+  ],
+  "hard_negatives": [
+    {
+      "relative_path": "Avtal_80_Styrelsens_arbetsordning.docx",
+      "contains": "9. Sekretess",
+      "reason": "Heading without an operative confidentiality duty"
+    }
+  ],
+  "watch_negatives": [
+    {
+      "relative_path": "Avtal_16_Praktikavtal.docx",
+      "contains": "Se avtal 6.",
+      "reason": "Points to a separate NDA instead of stating the full duty"
+    },
+    {
+      "relative_path": "Avtal_70_Offertvillkor_orderbekraftelse.docx",
+      "contains": "Offertens innehåll, inklusive priser, är konfidentiellt.",
+      "reason": "Quote confidentiality, not an ongoing contractual NDA"
+    }
+  ]
+}

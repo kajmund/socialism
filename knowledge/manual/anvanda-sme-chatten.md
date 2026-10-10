@@ -24,6 +24,8 @@ I den smala expertlistan öppnar sökikonen en dialog med sökfält, filter och 
 
 Välj först företagets eller kundens arbetsyta och därefter en privat chatt och expert. Administratörer väljer även kund. Skriv i fältet **Aa** och skicka. Text och röst använder samma expert och samma arbetsyta. Chattens svar sparas tillsammans med arbetsytan.
 
+Papperskorgsknappen i chatthuvudet är **Rensa chatt**. Den tar bort meddelandena i den öppna chatten. Samma text försvinner även i expertens andra arbetsytor. Röstmeddelanden där ligger kvar. Minnen, dokument och företagets expertintervju ändras inte.
+
 När du byter expert eller privat chatt avslutas det aktuella samtalet. Redan sparade meddelanden ligger kvar. Dokumentjobb som har startats fortsätter även när samtalet avslutas.
 
 Telefonknappen vid skrivfältet startar **live voice**. Tillåt mikrofonen i webbläsaren. Experten tar upp tråden från det ni senast pratade om och pratar först. Du kan stänga av mikrofonen, avbryta ett uppläst svar eller avsluta röstsamtalet. Du kan också skriva medan röstsamtalet är aktivt; texten avbryter uppläsningen
@@ -48,6 +50,8 @@ textchatten ligger kvar.
 ## Arbeta med källor och presentationer
 
 Chatten kan upptäcka dokument som redan finns i företagets och den valda kundens arbetsyta. Be exempelvis ”läs kvittot” eller ”sammanfatta avtalet”. Experten väljer det relevanta dokumentet och behöver inte be dig ladda upp det igen.
+
+Skriv `@` i meddelandefältet för att peka ut ett underlag i arbetsytan. En lista med dokumentnamn visas. Välj ett namn, eller skriv början av det, så fylls hela namnet i efter `@`. Pil upp och ned flyttar i listan, Enter infogar namnet och Escape stänger listan.
 
 Ladda upp nya dokument genom filväljaren i arbetsytan. Bearbetningen visas som ett bakgrundsjobb. Vänta tills dokumentet är läsbart innan du ber experten analysera det. Dokument som saknar textlager visar en kunskapslucka. Om bearbetningen avbryts visas ett fel; filen räknas inte som färdig kunskap.
 
@@ -78,7 +82,7 @@ Med verktyget **Fråga en annan expert** kan experten lämna vidare en fråga so
 
 Den runda expertikonen i listan eller i chatthuvudet öppnar expertens profilfält i en modal ovanpå chatten — samma vänsterkolumn som i Due Diligence (kompetens, bakgrund, anekdot, verktyg och spara). Du kan också ladda upp en profilbild som visas i listan och chatten. Chatten och presentationsläget ingår inte. Klicka på namn eller förhandsvisning i listan för att öppna konversationen.
 
-När en expert startar research skapas ett vanligt bakgrundsjobb. Research-ikonen (mikroskop) uppe till höger visar pågående och avslutade research-jobb i en lista. Välj ett jobb för att följa det i en modal. Portföljikonen bredvid öppnar alla bakgrundsjobb. Om researchen avbryts, till exempel vid en serveromstart, öppnar du jobbet och väljer **Återuppta research**. Den fortsätter från det som redan hunnit sparas. Om researchen blev klar men resultatet blev fel väljer du **Kör om research**. Det startar en ny research med samma fråga.
+När en expert startar research skapas ett vanligt bakgrundsjobb. Research-ikonen (mikroskop) uppe till höger visar pågående och avslutade research-jobb i en lista. Välj ett jobb för att följa det i en modal. Portföljikonen bredvid öppnar alla bakgrundsjobb. Grafikonen till vänster om research-ikonen öppnar kunskapsgrafen. Den syns för administratörer. Om researchen avbryts, till exempel vid en serveromstart, öppnar du jobbet och väljer **Återuppta research**. Den fortsätter från det som redan hunnit sparas. Om researchen blev klar men resultatet blev fel väljer du **Kör om research**. Det startar en ny research med samma fråga.
 
 Juridisk research kan söka lagtext, svenska domstolsavgöranden och förarbeten via lagen.nu. När frågan gäller hur ett visst lagrum har tillämpats kombineras en sökning på den konkreta frågan med avgöranden som hänvisar till lagrummet. Relevanta avsnitt i förarbeten prioriteras framför dokumentets inledning. Uppladdat material används inte som extern researchkälla.
 
@@ -90,7 +94,7 @@ I företagets workspace öppnar **Intervju** expertens tidigare samtal i en dial
 
 ## Chatta med en expertpanel
 
-Öppna **Grupper** och välj en expertpanel. När du skickar en fråga svarar panelens experter var för sig. Expertens namn visas ovanför respektive svar.
+Öppna **Grupper** och välj en expertpanel. När du skickar en fråga svarar panelens experter var för sig. Expertens namn visas ovanför respektive svar. **Rensa chatt** tar bort panelens meddelanden.
 
 På en mindre skärm visas chatten eller arbetsytan åt gången. Växla med **Chatt** och **Workspace** och öppna chattlistan med förstoringsglaset.
 
@@ -103,6 +107,10 @@ Administratörer ser även **Admin**. Det öppnar den vanliga vyn **Verktyg** i 
 ## Bakgrundsjobb
 
 Portföljikonen i SME-huvudet öppnar **Bakgrundsjobb** i en modal ovanpå chatten. Där syns researchjobb och dokumentutkast som en expert har startat, med status pending, running, succeeded eller failed. En siffra på ikonen visar hur många jobb som fortfarande pågår. Ett färdigt dokumentutkast öppnas i arbetsytan när jobbet blir klart. Om det inte gör det väljer du **Öppna utkast**. Ett misslyckat expertresearch-jobb kan återupptas från listan. En avslutad expertresearch kan köras om och startar då som ett nytt jobb.
+
+## Kunskapsgraf
+
+Administratörer har en grafikon till vänster om research-ikonen. Den öppnar kunskapsgrafen i en stor modal ovanpå chatten. Växla mellan **Kunskap** och **Minne**, välj en etikett och öppna en nod. Där syns text, egenskaper och kopplingar till andra noder. Sökningen matchar nyckel och text. Stäng modalen för att återgå till chatten.
 
 ## Relaterade guider
 

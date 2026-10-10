@@ -1,5 +1,7 @@
 """Expert text chat receives the workspace selection and workspace tools."""
 
+import json
+
 from app.schemas.workspace import WorkspaceState
 from app.services.expert_async_tools import (
     LibraryToolScope,
@@ -7,7 +9,7 @@ from app.services.expert_async_tools import (
     ToolWork,
 )
 from app.services.expert_workspace_tool_run import run_workspace_tool_call
-from app.services.expert_tool_followup import queue_document_open
+from app.services.expert_tool_followup import focus_calls_for_search, queue_document_open
 from app.services.workspace_chat_tools import workspace_openai_tools, workspace_turn_text
 
 
@@ -60,6 +62,27 @@ def test_display_tools_stay_on_the_client():
     assert scope.client_calls[-1].name == "show_document"
     assert scope.client_calls[-1].arguments == {"source_id": "contract"}
     assert scope._calls == []
+
+
+def test_search_hit_on_an_open_document_is_sent_to_the_viewer():
+    positioned = {
+        "reference_id": "passage",
+        "source_id": "open-pdf",
+        "anchor": {"page_number": 1, "rects": [{"x": 0.1, "y": 0.2, "width": 0.3, "height": 0.04}]},
+    }
+    other = {
+        "reference_id": "other",
+        "source_id": "closed-pdf",
+        "anchor": {"page_number": 2, "rects": [{"x": 0.1, "y": 0.2, "width": 0.3, "height": 0.04}]},
+    }
+    whole = {"reference_id": "document", "source_id": "open-pdf", "anchor": {"page_number": None, "locator": "document", "rects": []}}
+    state = {"documents": [{"source_id": "open-pdf", "page": 2}]}
+    calls = focus_calls_for_search([
+        ("search_knowledge", json.dumps({"items": [other, whole, positioned]})),
+        ("read_source", json.dumps(whole)),
+        ("search_knowledge", "not-json"),
+    ], state)
+    assert [(call.name, call.arguments) for call in calls] == [("focus_anchor", {"reference_id": "passage"})]
 
 
 class _Session:

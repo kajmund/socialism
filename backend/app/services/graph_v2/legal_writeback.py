@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import KnowledgeClaimAnswer, KnowledgeQuestionRow
+from app.database.models import KnowledgeClaimAnswer, KnowledgeQuestionRow, TextUnitRecord
 from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
 from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
 from app.services.graph_v2.errors import PermanentGraphError
@@ -19,6 +19,9 @@ from app.services.knowledge.claims import KnowledgeClaim
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.entities import KnowledgeEntity
 from app.services.knowledge.scope import KnowledgeTenantScope
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.model import TextUnitWrite
+from app.services.overgraph.publish import link_legal_questions, publish_legal_fact
 from app.services.prompt_store import require_active_prompts
 
 
@@ -115,6 +118,10 @@ async def write_legal_facts(
                 fact_id=fact_id,
             )
         ids.append(fact_id)
+    await _publish_overgraph(
+        session, claims=claims, source=source, ids_by_claim=ids_by_claim,
+        pending=pending, vectors=vectors,
+    )
     return ids
 
 
@@ -192,6 +199,77 @@ def _fact_text(source_name: str, claim: KnowledgeClaim) -> str:
         value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, sort_keys=True)
     )
     return f"{source_name} — {claim.predicate}: {detail}"
+
+
+async def _publish_overgraph(session, *, claims, source, ids_by_claim, pending, vectors) -> None:
+    catalog = require_knowledge()
+    scope = source.scope
+    source_input = NodeInput(
+        node_type=source.entity_type,
+        name=source.name,
+        scope=scope,
+        identifier_namespace="legal.canonical_uri",
+        identifier=source.key,
+        attributes=source.extra,
+    )
+    embedded = {
+        proposed.fact_text: vector
+        for (_, proposed), vector in zip(pending, vectors, strict=True)
+    }
+    for claim in claims:
+        text = _fact_text(source.name, claim)
+        units = []
+        for ref in claim.supporting_text_unit_ids:
+            unit = await session.get(TextUnitRecord, ref)
+            if unit is None:
+                raise PermanentGraphError(f"legal fact missing TextUnit {ref}")
+            units.append(TextUnitWrite(
+                unit_id=unit.id,
+                scope=scope,
+                document_id=unit.document_id,
+                document_version_id=unit.document_version_id,
+                text=unit.text,
+                content_hash=unit.content_hash,
+                ordinal=unit.ordinal,
+                locator=unit.locator,
+                page_start=unit.page_start,
+                page_end=unit.page_end,
+            ))
+        vector = embedded.get(text)
+        publish_legal_fact(
+            catalog,
+            FactInput(
+                source_id=source.key,
+                target_id=claim.id,
+                scope=scope,
+                predicate=claim.predicate,
+                fact_text=text,
+                sources=tuple(SourceRef("text_unit", ref) for ref in claim.supporting_text_unit_ids),
+                embedding=tuple(vector) if vector is not None else None,
+            ),
+            fact_id=ids_by_claim[claim.id],
+            source=source_input,
+            target=value_node_input(claim, scope),
+            units=units,
+        )
+        question_ids = set(
+            (
+                await session.scalars(
+                    select(KnowledgeClaimAnswer.knowledge_question_id).where(
+                        KnowledgeClaimAnswer.claim_id == claim.id,
+                        KnowledgeClaimAnswer.knowledge_question_id.is_not(None),
+                    )
+                )
+            ).all()
+        )
+        questions = []
+        for question_id in sorted(question_ids):
+            question = await session.get(KnowledgeQuestionRow, question_id)
+            if question is not None:
+                questions.append((question.id, question.display_text))
+        link_legal_questions(
+            catalog, fact_id=ids_by_claim[claim.id], scope=scope, questions=questions,
+        )
 
 
 def value_node_input(claim: KnowledgeClaim, scope: KnowledgeTenantScope) -> NodeInput:

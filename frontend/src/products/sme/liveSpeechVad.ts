@@ -20,7 +20,7 @@ export class EnergyVad {
     private readonly configuredThreshold: number,
     private readonly prerollMs: number,
     private readonly hangoverMs: number,
-    private readonly minSpeechMs = 300,
+    private readonly minSpeechMs = 120,
     private readonly urgentMs = 120,
   ) {}
 
