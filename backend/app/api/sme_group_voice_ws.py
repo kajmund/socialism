@@ -152,14 +152,22 @@ async def _maybe_speak(
     runtime: GroupVoiceAudioRuntime | None,
     user_text: str,
     user_id: str,
+    speaking_task: dict,
 ) -> None:
     if runtime is None or not session.floor:
         return
-    await run_floor_turn(
-        session=session,
-        runtime=runtime,
-        user_text=user_text,
-        user_id=user_id,
+    # Cancel any previous speech so the receive loop stays free.
+    prev = speaking_task.get("task")
+    if prev is not None and not prev.done():
+        prev.cancel()
+        await asyncio.gather(prev, return_exceptions=True)
+    speaking_task["task"] = asyncio.create_task(
+        run_floor_turn(
+            session=session,
+            runtime=runtime,
+            user_text=user_text,
+            user_id=user_id,
+        )
     )
 
 
@@ -172,6 +180,7 @@ async def _dispatch(
     emit,
     push_snapshot,
     user_id: str,
+    speaking_task: dict,
 ) -> None:
     if kind == "utterance":
         msg = HumanUtterance.model_validate(raw)
@@ -184,6 +193,7 @@ async def _dispatch(
                 runtime=runtime,
                 user_text=msg.text,
                 user_id=user_id,
+                speaking_task=speaking_task,
             )
         else:
             await push_snapshot()
@@ -200,6 +210,7 @@ async def _dispatch(
             runtime=runtime,
             user_text="(floor granted)",
             user_id=user_id,
+            speaking_task=speaking_task,
         )
     elif kind == "release_floor":
         msg = ReleaseFloor.model_validate(raw)
@@ -218,7 +229,14 @@ async def _dispatch(
     elif kind == "speak_as":
         msg = SpeakAs.model_validate(raw)
         if runtime is not None:
-            await runtime.speak_as(msg.persona_id, msg.text)
+            # Run as background so controls stay responsive.
+            prev = speaking_task.get("task")
+            if prev is not None and not prev.done():
+                prev.cancel()
+                await asyncio.gather(prev, return_exceptions=True)
+            speaking_task["task"] = asyncio.create_task(
+                runtime.speak_as(msg.persona_id, msg.text)
+            )
     elif kind == "commit_audio":
         if runtime is not None:
             await runtime.commit_audio()
@@ -236,6 +254,7 @@ async def _receive_loop(
     emit,
     push_snapshot,
     user_id: str,
+    speaking_task: dict,
 ) -> None:
     while True:
         message = await websocket.receive()
@@ -267,6 +286,7 @@ async def _receive_loop(
                 emit=emit,
                 push_snapshot=push_snapshot,
                 user_id=user_id,
+                speaking_task=speaking_task,
             )
         except ValidationError as exc:
             await emit({"type": "error", "detail": str(exc.errors()[0]["msg"])})
@@ -278,6 +298,7 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
     session: GroupVoiceSession | None = None
     runtime: GroupVoiceAudioRuntime | None = None
     send_lock = asyncio.Lock()
+    speaking_task: dict = {"task": None}
 
     async def emit(payload: dict) -> None:
         async with send_lock:
@@ -310,6 +331,7 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
                 runtime=runtime,
                 user_text=transcript,
                 user_id=user.id,
+                speaking_task=speaking_task,
             )
 
         runtime = GroupVoiceAudioRuntime(
@@ -339,6 +361,7 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
             emit=emit,
             push_snapshot=push_snapshot,
             user_id=user.id,
+            speaking_task=speaking_task,
         )
     except HTTPException as exc:
         await emit({"type": "error", "detail": str(exc.detail)})
@@ -349,6 +372,10 @@ async def sme_group_voice_websocket(websocket: WebSocket) -> None:
         logger.exception("SME group voice WebSocket failed")
         await emit({"type": "error", "detail": "internal"})
     finally:
+        task = speaking_task.get("task")
+        if task is not None and not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
         if runtime is not None:
             await runtime.close()
         try:
