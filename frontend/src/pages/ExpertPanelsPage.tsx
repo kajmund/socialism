@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import {
   deletePopulation,
@@ -15,7 +15,7 @@ import { ApiError } from "@/lib/api"
 type Translate = (key: MessageKey, params?: TranslateParams) => string
 
 const CTA_CLASS =
-  "admin-cta inline-flex h-9 items-center rounded-[var(--radius-md)] bg-db-black px-[18px] text-[0.85rem] text-db-ink-0 no-underline hover:bg-db-ink-800"
+  "admin-cta inline-flex h-9 items-center rounded-[var(--radius-md)] border-0 bg-db-black px-[18px] text-[0.85rem] text-db-ink-0 no-underline hover:bg-db-ink-800"
 
 type PanelItemProps = {
   panel: PopulationSummary
@@ -23,9 +23,36 @@ type PanelItemProps = {
   t: Translate
   onDelete: (id: number) => void
   onDup: (id: number) => void
+  onOpen?: (id: number) => void
+  onChat?: (id: number) => void
 }
 
-function PanelCard({ panel, intl, t, onDelete, onDup }: PanelItemProps) {
+function PanelTarget({
+  to,
+  onClick,
+  className,
+  children,
+}: {
+  to: string
+  onClick?: () => void
+  className?: string
+  children: ReactNode
+}) {
+  if (onClick) {
+    return (
+      <button type="button" className={className} onClick={onClick}>
+        {children}
+      </button>
+    )
+  }
+  return (
+    <Link className={className} to={to}>
+      {children}
+    </Link>
+  )
+}
+
+function PanelCard({ panel, intl, t, onDelete, onDup, onOpen, onChat }: PanelItemProps) {
   const [confirming, setConfirming] = useState(false)
   return (
     <div className="pop-card">
@@ -56,9 +83,18 @@ function PanelCard({ panel, intl, t, onDelete, onDup }: PanelItemProps) {
             </div>
           ) : (
             <div className="card-actions">
-              <Link className="primary" to={`/bolag/expertpaneler/${panel.id}`}>
+              {onChat ? (
+                <button type="button" className="primary" onClick={() => onChat(panel.id)}>
+                  {t("expertPanels.list.startChat")}
+                </button>
+              ) : null}
+              <PanelTarget
+                className={onChat ? undefined : "primary"}
+                to={`/bolag/expertpaneler/${panel.id}`}
+                onClick={onOpen ? () => onOpen(panel.id) : undefined}
+              >
                 {t("common.open")}
-              </Link>
+              </PanelTarget>
               <button type="button" onClick={() => onDup(panel.id)}>
                 {t("common.duplicate")}
               </button>
@@ -73,7 +109,7 @@ function PanelCard({ panel, intl, t, onDelete, onDup }: PanelItemProps) {
   )
 }
 
-function PanelListRow({ panel, intl, t, onDelete, onDup }: PanelItemProps) {
+function PanelListRow({ panel, intl, t, onDelete, onDup, onOpen, onChat }: PanelItemProps) {
   const [confirming, setConfirming] = useState(false)
   return (
     <div className="admin-list-row admin-list-pops">
@@ -99,9 +135,18 @@ function PanelListRow({ panel, intl, t, onDelete, onDup }: PanelItemProps) {
           </>
         ) : (
           <>
-            <Link className="primary" to={`/bolag/expertpaneler/${panel.id}`}>
+            {onChat ? (
+              <button type="button" className="primary" onClick={() => onChat(panel.id)}>
+                {t("expertPanels.list.startChat")}
+              </button>
+            ) : null}
+            <PanelTarget
+              className={onChat ? undefined : "primary"}
+              to={`/bolag/expertpaneler/${panel.id}`}
+              onClick={onOpen ? () => onOpen(panel.id) : undefined}
+            >
               {t("common.open")}
-            </Link>
+            </PanelTarget>
             <button type="button" onClick={() => onDup(panel.id)}>
               {t("common.duplicate")}
             </button>
@@ -115,7 +160,17 @@ function PanelListRow({ panel, intl, t, onDelete, onDup }: PanelItemProps) {
   )
 }
 
-export function ExpertPanelsPage() {
+export function ExpertPanelsPage({
+  customerId,
+  onOpen,
+  onCreate,
+  onChat,
+}: {
+  customerId?: number
+  onOpen?: (id: number) => void
+  onCreate?: () => void
+  onChat?: (id: number) => void
+} = {}) {
   const { t, intl } = useLocale()
   const [panels, setPanels] = useState<PopulationSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -153,12 +208,17 @@ export function ExpertPanelsPage() {
     return () => window.clearTimeout(timer)
   }, [toast])
 
+  const owned = useMemo(
+    () => (customerId == null ? panels : panels.filter((row) => row.customer_id === customerId)),
+    [customerId, panels],
+  )
+
   const list = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return panels
+    return owned
       .filter((row) => !q || row.name.toLowerCase().includes(q))
       .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
-  }, [panels, query])
+  }, [owned, query])
 
   async function handleDelete(id: number) {
     try {
@@ -196,7 +256,7 @@ export function ExpertPanelsPage() {
           </div>
         ) : null}
 
-        {!loading && panels.length > 0 ? (
+        {!loading && owned.length > 0 ? (
           <div className="controls-row">
             <div className="controls-left">
               <input
@@ -208,9 +268,13 @@ export function ExpertPanelsPage() {
             </div>
             <div className="controls-right">
               <ViewToggle value={view} onChange={setView} />
-              <Link to="/bolag/expertpaneler/new" className={CTA_CLASS}>
+              <PanelTarget
+                to="/bolag/expertpaneler/new"
+                className={CTA_CLASS}
+                onClick={onCreate}
+              >
                 {t("expertPanels.list.newPanel")}
-              </Link>
+              </PanelTarget>
             </div>
           </div>
         ) : null}
@@ -219,7 +283,7 @@ export function ExpertPanelsPage() {
       <div className="admin-page-body">
         {loading ? (
           <div className="no-match">{t("expertPanels.list.loading")}</div>
-        ) : panels.length > 0 ? (
+        ) : owned.length > 0 ? (
           list.length === 0 ? (
             <div className="no-match">{t("expertPanels.list.emptyFilter", { query })}</div>
           ) : view === "grid" ? (
@@ -232,6 +296,8 @@ export function ExpertPanelsPage() {
                   t={t}
                   onDelete={(id) => void handleDelete(id)}
                   onDup={(id) => void handleDuplicate(id)}
+                  onOpen={onOpen}
+                  onChat={onChat}
                 />
               ))}
             </div>
@@ -245,6 +311,8 @@ export function ExpertPanelsPage() {
                   t={t}
                   onDelete={(id) => void handleDelete(id)}
                   onDup={(id) => void handleDuplicate(id)}
+                  onOpen={onOpen}
+                  onChat={onChat}
                 />
               ))}
             </div>
@@ -257,9 +325,13 @@ export function ExpertPanelsPage() {
             <p style={{ color: "var(--text-muted)", marginBottom: 24 }}>
               {t("expertPanels.list.emptyBody")}
             </p>
-            <Link to="/bolag/expertpaneler/new" className={CTA_CLASS}>
+            <PanelTarget
+              to="/bolag/expertpaneler/new"
+              className={CTA_CLASS}
+              onClick={onCreate}
+            >
               {t("expertPanels.list.newPanel")}
-            </Link>
+            </PanelTarget>
           </div>
         )}
       </div>

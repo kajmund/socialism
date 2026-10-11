@@ -16,6 +16,7 @@ Rules locked for phase 1:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -41,6 +42,7 @@ class GroupVoiceSession:
     member_names: dict[str, str]  # persona_id -> display name
 
     floor: str | None = None  # None = open, else persona_id holding the floor
+    last_utterance: str = ""
     hands: set[str] = field(default_factory=set)
     shared_results: list[SharedToolResult] = field(default_factory=list)
     # expert_id -> True if they currently have a "source checked" indicator
@@ -50,10 +52,13 @@ class GroupVoiceSession:
         return persona_id in self.member_ids
 
     def address_by_name(self, utterance: str) -> str | None:
-        """Return persona_id if the utterance directly addresses an expert by exact name."""
+        """Return persona_id if the utterance directly addresses an expert by token-boundary name."""
         text = utterance.lower()
         for persona_id, name in self.member_names.items():
-            if name.lower() in text:
+            if not name:
+                continue
+            pattern = r"\b" + re.escape(name.lower()) + r"\b"
+            if re.search(pattern, text):
                 return persona_id
         return None
 
@@ -106,11 +111,16 @@ class GroupVoiceSession:
         self,
         recent_transcript: str,
         jev: HttpJevSystemOne | None = None,
+        keep_hand_prompt: str | None = None,
     ) -> None:
         """After floor returns to open, each remaining hand asks Jev whether to stay raised."""
         if not self.hands:
             return
         client = jev or HttpJevSystemOne()
+        instruction_template = keep_hand_prompt or (
+            "Is the point {name} wanted to raise still relevant and unanswered "
+            "given the recent discussion? Answer yes if the hand should stay raised."
+        )
         to_lower: list[str] = []
         for persona_id in list(self.hands):
             name = self.member_names.get(persona_id, persona_id)
@@ -125,10 +135,7 @@ class GroupVoiceSession:
             questions = {
                 "keep_hand": {
                     "type": "noul",
-                    "instructions": (
-                        f"Is the point {name} wanted to raise still relevant and unanswered "
-                        "given the recent discussion? Answer yes if the hand should stay raised."
-                    ),
+                    "instructions": instruction_template.format(name=name),
                 }
             }
             try:
@@ -142,8 +149,8 @@ class GroupVoiceSession:
                 if probability < 0.5:
                     to_lower.append(persona_id)
             except JevClientError:
-                # On Jev failure, keep the hand (conservative).
-                pass
+                # Surface the failure; do not silently keep the hand.
+                raise
         for persona_id in to_lower:
             self.lower_hand(persona_id)
 
@@ -154,6 +161,10 @@ class GroupVoiceSession:
             "floor": self.floor,
             "floor_name": floor_name,
             "hands": sorted(self.hands),
+            "members": [
+                {"id": persona_id, "name": self.member_names.get(persona_id, persona_id)}
+                for persona_id in sorted(self.member_ids)
+            ],
             "source_checked": [
                 pid for pid, checked in self.source_checked.items() if checked
             ],
