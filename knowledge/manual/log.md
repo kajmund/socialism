@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-10-11
+
+* **SME**: Gruppikonen längst till vänster i huvudet öppnar expertpanelerna i en ruta. Listan är samma experter som i chatten, även när du lägger till medlemmar. **Starta gruppchatt** öppnar panelens konversation. Telefonikonen i skrivfältet startar röstsamtalet. Det du säger skrivs ut, och experterna räcker upp handen.
+
 ## 2026-10-10
 
 * **Expertchatten / röst**: Experten kan starta research i samma svar när
