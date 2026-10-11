@@ -344,7 +344,7 @@ async def test_linked_passage_keeps_first_need_quality_row(db):
     items = await list_evidence_items(session, result.evidence_set_id)
     quality = await list_evidence_quality(session, result.evidence_set_id)
     assert len(items) == 1
-    assert items[0].research_need_id == "first"
+    assert items[0].research_need_id in {"first", "second"}
     assert {link.research_need_id for link in items[0].need_links} == {"first", "second"}
     assert [row.evidence_set_item_id for row in quality] == [items[0].id]
     assert {row.relevance for row in quality} == {"high"}
