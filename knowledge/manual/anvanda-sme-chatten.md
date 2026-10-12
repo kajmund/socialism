@@ -112,7 +112,12 @@ Portföljikonen i SME-huvudet öppnar **Bakgrundsjobb** i en modal ovanpå chatt
 
 Administratörer har en grafikon till vänster om research-ikonen. Den öppnar kunskapsgrafen i en stor modal ovanpå chatten. Växla mellan **Kunskap** och **Minne**, välj en etikett och öppna en nod. Där syns text, egenskaper och kopplingar till andra noder. Sökningen matchar nyckel och text. Stäng modalen för att återgå till chatten.
 
+## Modellens arbete
+
+I workspace-flikraden finns **Modellens arbete** — en dialog som visar verktygsanrop och mellansteg medan experten svarar. Numrerade källknappar i chatten öppnar samma källor i workspace. Se [Visa modellens arbete i workspace](visa-modellens-arbete-i-workspace.md).
+
 ## Relaterade guider
 
+- [Visa modellens arbete i workspace](visa-modellens-arbete-i-workspace.md)
 - [Följa bakgrundsjobb](folja-bakgrundsjobb.md)
 - [Skapa och redigera expert](skapa-och-redigera-expert.md)
