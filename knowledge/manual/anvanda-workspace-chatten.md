@@ -71,3 +71,13 @@ Markerad text följer läsordningen i PDF:en. Om markeringen inte kan verifieras
 Markeringar i dokument med flera kolumner kontrolleras mot texten på de markerade positionerna i originalet. Du kan därför markera ett avsnitt i en kolumn även om dokumentets sparade text blandar rader från flera kolumner.
 
 Du kan markera flera rader eller en del av ett ord. Skillnader i hur mellanrum visas ska inte hindra en giltig markering; texten kontrolleras fortfarande mot originalet.
+
+## Modellens arbete och källnummer
+
+I flikraden ovanför workspace finns **Modellens arbete** — en logg över verktygsanrop och mellansteg för den aktuella chatten. Numrerade knappar i expertsvaren öppnar citerade källor i workspace. Se [Visa modellens arbete i workspace](visa-modellens-arbete-i-workspace.md).
+
+## Relaterade guider
+
+- [Visa modellens arbete i workspace](visa-modellens-arbete-i-workspace.md)
+- [Använda SME-chatten](anvanda-sme-chatten.md)
+- [Följa research i realtid](folja-research-i-realtid.md)
