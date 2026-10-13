@@ -64,3 +64,5 @@ async def run_floor_turn(
             await runtime.speak_as(persona_id, reply)
     except Exception:
         logger.exception("group voice expert turn failed for %s", persona_id)
+    finally:
+        await runtime.release_floor_for(persona_id)

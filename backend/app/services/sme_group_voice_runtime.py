@@ -81,6 +81,13 @@ class GroupVoiceAudioRuntime:
     async def clear(self) -> None:
         await self._stt.clear()
 
+    async def release_floor_for(self, persona_id: str) -> None:
+        """Return the floor to open and push a snapshot when this expert still holds it."""
+        if self.session.floor != persona_id:
+            return
+        self.session.release_floor()
+        await self._emit_json({"type": "snapshot", **self.session.snapshot()})
+
     async def close(self) -> None:
         if self._closed:
             return
