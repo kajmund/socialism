@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { WorkspaceMessage } from "@/api/voiceWorkspaces"
-import { decodePcm16, encodePcm16 } from "@/components/chat/liveVoiceAudio"
+import { encodePcm16 } from "@/components/chat/liveVoiceAudio"
 import { useLocale } from "@/i18n"
 import { authAdapter } from "@/lib/auth"
 import { env } from "@/lib/env"
-import { EnergyVad } from "./liveSpeechVad"
+import { liveSpeechMicrophone } from "./liveSpeechMicrophone"
+import { createSpeechVad, type SpeechVad } from "./speechVad"
+import { sourceIdsFromWorkspaceContext } from "./sttFocus"
+import { PcmQueue } from "./pcmQueue"
 import { modelTraceEntry, type ModelTraceEntry } from "./modelTrace"
 
 export type VoiceState =
@@ -47,14 +50,16 @@ export class LiveSpeechClient {
   private source: MediaStreamAudioSourceNode | null = null
   private worklet: AudioWorkletNode | null = null
   private silentGain: GainNode | null = null
-  private playbackSources = new Set<AudioBufferSourceNode>()
-  private nextPlayback = 0
+  private queue = new PcmQueue()
   private sequence = 0
   private heartbeat: number | null = null
   private muted = false
   private currentTurn: string | null = null
   private assistantText = ""
-  private vad = new EnergyVad(0.018, 250, 600)
+  private vad: SpeechVad | null = null
+  private hearing: Promise<void> = Promise.resolve()
+  private vadFailed = false
+  private pendingFocus: string[] | null = null
   private stopped = false
   private dropIncomingAudio = false
 
@@ -68,12 +73,7 @@ export class LiveSpeechClient {
   async start(): Promise<void> {
     this.callbacks.state("connecting")
     const microphone = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
+      audio: liveSpeechMicrophone,
     })
     if (this.stopped) {
       for (const track of microphone.getTracks()) track.stop()
@@ -113,7 +113,7 @@ export class LiveSpeechClient {
   toggleMute(): boolean {
     this.muted = !this.muted
     if (this.muted) {
-      this.vad.resetTurn()
+      this.vad?.reset()
       this.send({ type: "audio.cancel", turn_id: this.currentTurn })
     }
     this.send({ type: "session.mute", muted: this.muted })
@@ -139,7 +139,7 @@ export class LiveSpeechClient {
       socket.onmessage = (event) => {
         if (this.stopped) return
         if (event.data instanceof ArrayBuffer) this.play(event.data)
-        else this.handleControl(String(event.data))
+        else void this.handleControl(String(event.data))
       }
       socket.onclose = () => {
         if (!this.stopped) void this.stop()
@@ -166,7 +166,17 @@ export class LiveSpeechClient {
     })
   }
 
-  private handleControl(raw: string): void {
+  focusDocuments(sourceIds: string[]): void {
+    this.pendingFocus = sourceIds
+    this.sendFocus()
+  }
+
+  private sendFocus(): void {
+    if (this.pendingFocus === null || this.socket?.readyState !== WebSocket.OPEN) return
+    this.send({ type: "stt.focus", source_ids: this.pendingFocus })
+  }
+
+  private async handleControl(raw: string): Promise<void> {
     let event: Record<string, unknown>
     try {
       const parsed: unknown = JSON.parse(raw)
@@ -179,15 +189,15 @@ export class LiveSpeechClient {
     }
     const type = typeof event.type === "string" ? event.type : ""
     if (type === "session.ready") {
-      const vad = event.vad as Record<string, unknown> | undefined
-      this.vad = new EnergyVad(
-        number(vad?.threshold, 0.018),
-        number(vad?.preroll_ms, 250),
-        number(vad?.hangover_ms, 600),
-        number(vad?.min_speech_ms, 120),
-        number(vad?.urgent_ms, 120),
-      )
+      try {
+        this.vad = await createSpeechVad(event.vad)
+      } catch {
+        this.callbacks.error("vad_failed")
+        void this.stop().then(() => this.callbacks.state("error"))
+        return
+      }
       void this.startCapture()
+      this.sendFocus()
     } else if (type === "session.state") {
       this.handleState(event.state)
     } else if (type === "transcript.partial") {
@@ -260,14 +270,25 @@ export class LiveSpeechClient {
     this.worklet.connect(this.silentGain)
     this.silentGain.connect(context.destination)
     this.worklet.port.onmessage = (event: MessageEvent<unknown>) => {
-      if (!(event.data instanceof Float32Array) || this.muted) return
-      this.captureFrame(event.data, context.sampleRate)
+      if (!(event.data instanceof Float32Array) || this.muted || this.vad === null) return
+      this.hear(event.data, context.sampleRate)
     }
     this.callbacks.state("listening")
   }
 
-  private captureFrame(frame: Float32Array, sampleRate: number): void {
-    const result = this.vad.process(frame, sampleRate)
+  private hear(frame: Float32Array, sampleRate: number): void {
+    const vad = this.vad
+    if (vad === null) return
+    this.hearing = this.hearing.then(() => this.captureFrame(vad, frame, sampleRate)).catch(() => {
+      if (this.vadFailed) return
+      this.vadFailed = true
+      this.callbacks.error("vad_failed")
+      void this.stop().then(() => this.callbacks.state("error"))
+    })
+  }
+
+  private async captureFrame(vad: SpeechVad, frame: Float32Array, sampleRate: number): Promise<void> {
+    const result = await vad.push(frame, sampleRate)
     if (result.started) {
       this.send({
         type: "audio.start",
@@ -298,29 +319,11 @@ export class LiveSpeechClient {
     if (this.dropIncomingAudio) return
     const context = this.playback
     if (!context) return
-    const samples = decodePcm16(data)
-    const buffer = context.createBuffer(1, samples.length, 24_000)
-    buffer.getChannelData(0).set(samples)
-    const source = context.createBufferSource()
-    source.buffer = buffer
-    source.connect(context.destination)
-    source.onended = () => this.playbackSources.delete(source)
-    this.playbackSources.add(source)
-    const start = Math.max(context.currentTime + 0.01, this.nextPlayback)
-    source.start(start)
-    this.nextPlayback = start + buffer.duration
+    this.queue.play(context, data)
   }
 
   private clearPlayback(): void {
-    for (const source of this.playbackSources) {
-      try {
-        source.stop()
-      } catch {
-        // Playback may have ended between the event and interruption.
-      }
-    }
-    this.playbackSources.clear()
-    this.nextPlayback = this.playback?.currentTime ?? 0
+    this.queue.stop(this.playback)
   }
 
   private handleTool(event: Record<string, unknown>): void {
@@ -435,7 +438,10 @@ export function useLiveSpeechConversation(options: Options) {
     toggleMute,
     cancel,
     cancelForText: () => cancel("text_message"),
-    contextualUpdate: (_text: string) => undefined,
+    contextualUpdate: (text: string) => {
+      const sourceIds = sourceIdsFromWorkspaceContext(text)
+      if (sourceIds) client.current?.focusDocuments(sourceIds)
+    },
     userActivity: () => undefined,
   }
 }
@@ -453,8 +459,4 @@ function localMessage(role: "user" | "agent", content: string): WorkspaceMessage
 
 function string(value: unknown): string {
   return typeof value === "string" ? value : ""
-}
-
-function number(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback
 }
