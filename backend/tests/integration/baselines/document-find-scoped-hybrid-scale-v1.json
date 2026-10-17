@@ -1,0 +1,38 @@
+{
+  "corpus": {
+    "documents_total": 150,
+    "lease_documents": 30,
+    "gold_leases": 8,
+    "noise_documents": 120,
+    "text_units_per_document": 3,
+    "text_units_total": 450,
+    "limit": 8
+  },
+  "scoped_per_document": {
+    "ids": [
+      "lease-ext-0",
+      "lease-ext-1",
+      "lease-ext-2",
+      "lease-ext-3",
+      "lease-ext-4",
+      "lease-ext-5",
+      "lease-ext-6",
+      "lease-ext-7"
+    ],
+    "recall_at_limit": 1.0,
+    "vector_searches": 30,
+    "db_ms": 1.7632090020924807,
+    "total_ms": 1.7773750005289912,
+    "text_unit_reads": 30,
+    "wall_ms": 1.7835000035120174
+  },
+  "global_post_filter": {
+    "ids": [],
+    "recall_at_limit": 0.0,
+    "vector_searches": 1,
+    "db_ms": 0.3482910033199005,
+    "total_ms": 0.3533329945639707,
+    "text_unit_reads": 8,
+    "wall_ms": 0.3579580006771721
+  }
+}

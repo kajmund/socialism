@@ -3,12 +3,13 @@
 import asyncio
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.database.base import Base
 from app.database.models import Kund, StoredObject, UserAccount
-from app.database.workspace_models import VoiceWorkspace, WorkspaceOperation
+from app.database.workspace_models import VoiceWorkspace, WorkspaceOperation, WorkspacePassageComment, WorkspaceReference
 from tests.test_pdf_quote_anchors import QUOTE, _synthetic_pdf
 from app.services.workspace import ingest, search
 from app.services.workspace.service import add_source, create_workspace
@@ -39,11 +40,11 @@ async def another_client(factory):
         assert await asyncio.wait_for(other.scalar(text("SELECT 1")), timeout=1) == 1
 
 
-async def command(factory, ids, *, name, args):
+async def command(factory, ids, *, name, args, key="external-one"):
     async with factory() as session:
         user = await session.get(UserAccount, ids[0])
         result = await execute_workspace_tool(session, workspace_id=ids[1], user=user,
-            tool_name=name, arguments=args, idempotency_key="external-one")
+            tool_name=name, arguments=args, idempotency_key=key)
         await session.commit()
         return result
 
@@ -211,3 +212,134 @@ async def test_focus_passage_marks_text_without_fetching_the_file(single_connect
     assert result["anchor"]["exact_text"] == "Ateles Consulting AB"
     assert result["anchor"]["locator"] == "passage"
     assert result["anchor"]["page_number"] is None
+    assert result["marked_by"] is None
+
+
+@pytest.mark.asyncio
+async def test_focus_passage_records_the_current_expert(single_connection, monkeypatch):
+    factory, ids = single_connection
+    await _ready_source(factory, ids, content_type="text/plain", text="Ateles Consulting AB är kunden.")
+    async with factory() as session:
+        from app.database.models import Persona
+        session.add(Persona(
+            id="expert-one", customer_id=1, kind="expert", name="Karin Expert",
+            occ="jurist", district="Stockholm", quote="",
+        ))
+        workspace = await session.get(VoiceWorkspace, ids[1])
+        workspace.state = {**dict(workspace.state or {}), "expert_id": "expert-one"}
+        await session.commit()
+
+    async def get_object(_bucket, _key):
+        raise AssertionError("text quotes do not need the file")
+
+    monkeypatch.setattr("app.services.workspace_quote_focus.get_object", get_object)
+    result = await command(factory, ids, name="focus_passage", args={
+        "source_id": "source-one", "quote": "Ateles Consulting AB"})
+    assert result["marked_by"] == {"kind": "expert", "id": "expert-one", "name": "Karin Expert"}
+
+
+@pytest.mark.asyncio
+async def test_focus_passage_uses_the_speaker_rather_than_the_saved_expert(single_connection, monkeypatch):
+    factory, ids = single_connection
+    await _ready_source(factory, ids, content_type="text/plain", text="Ateles Consulting AB är kunden.")
+    async with factory() as session:
+        from app.database.models import Persona
+        session.add(Persona(
+            id="expert-one", customer_id=1, kind="expert", name="Karin Expert",
+            occ="jurist", district="Stockholm", quote="",
+        ))
+        session.add(Persona(
+            id="expert-two", customer_id=1, kind="expert", name="Alfons Expert",
+            occ="jurist", district="Stockholm", quote="",
+        ))
+        workspace = await session.get(VoiceWorkspace, ids[1])
+        workspace.state = {**dict(workspace.state or {}), "expert_id": "expert-one"}
+        await session.commit()
+
+    async def get_object(_bucket, _key):
+        raise AssertionError("text quotes do not need the file")
+
+    monkeypatch.setattr("app.services.workspace_quote_focus.get_object", get_object)
+    result = await command(factory, ids, name="focus_passage", args={
+        "source_id": "source-one", "quote": "Ateles Consulting AB", "expert_id": "expert-two"})
+    assert result["marked_by"] == {"kind": "expert", "id": "expert-two", "name": "Alfons Expert"}
+
+
+@pytest.mark.asyncio
+async def test_focus_passage_saves_the_experts_comment(single_connection, monkeypatch):
+    factory, ids = single_connection
+    await _ready_source(factory, ids, content_type="text/plain", text="Ateles Consulting AB är kunden.")
+    async with factory() as session:
+        from app.database.models import Persona
+        session.add(Persona(
+            id="expert-one", customer_id=1, kind="expert", name="Karin Expert",
+            occ="jurist", district="Stockholm", quote="",
+        ))
+        await session.commit()
+
+    async def get_object(_bucket, _key):
+        raise AssertionError("text quotes do not need the file")
+
+    monkeypatch.setattr("app.services.workspace_quote_focus.get_object", get_object)
+    await command(factory, ids, name="focus_passage", args={
+        "source_id": "source-one", "quote": "Ateles Consulting AB", "expert_id": "expert-one",
+        "comment": "  Otydlig part.  ",
+    })
+    async with factory() as session:
+        rows = list((await session.scalars(select(WorkspacePassageComment))).all())
+    assert [(row.author_kind, row.expert_id, row.author_name, row.body, row.author_user_id) for row in rows] == [
+        ("expert", "expert-one", "Karin Expert", "Otydlig part.", None),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_two_experts_keep_separate_marks_and_comments(single_connection, monkeypatch):
+    factory, ids = single_connection
+    await _ready_source(factory, ids, content_type="text/plain", text="Ateles Consulting AB är kunden.")
+    async with factory() as session:
+        from app.database.models import Persona
+        session.add(Persona(
+            id="expert-one", customer_id=1, kind="expert", name="Karin Expert",
+            occ="jurist", district="Stockholm", quote="",
+        ))
+        session.add(Persona(
+            id="expert-two", customer_id=1, kind="expert", name="Alfons Expert",
+            occ="jurist", district="Stockholm", quote="",
+        ))
+        await session.commit()
+
+    async def get_object(_bucket, _key):
+        raise AssertionError("text quotes do not need the file")
+
+    monkeypatch.setattr("app.services.workspace_quote_focus.get_object", get_object)
+    quote = {"source_id": "source-one", "quote": "Ateles Consulting AB"}
+    first = await command(factory, ids, name="focus_passage", key="karin", args={**quote, "expert_id": "expert-one", "comment": "Karins anmärkning"})
+    second = await command(factory, ids, name="focus_passage", key="alfons", args={**quote, "expert_id": "expert-two", "comment": "Alfons anmärkning"})
+    assert first["reference_id"] != second["reference_id"]
+    assert first["marked_by"]["id"] == "expert-one"
+    assert second["marked_by"]["id"] == "expert-two"
+    async with factory() as session:
+        refs = list((await session.scalars(select(WorkspaceReference))).all())
+        comments = list((await session.scalars(select(WorkspacePassageComment))).all())
+    assert {ref.snapshot["marked_by"]["id"] for ref in refs} == {"expert-one", "expert-two"}
+    assert {(row.expert_id, row.body) for row in comments} == {
+        ("expert-one", "Karins anmärkning"),
+        ("expert-two", "Alfons anmärkning"),
+    }
+
+
+@pytest.mark.asyncio
+async def test_focus_passage_rejects_a_comment_without_an_expert(single_connection, monkeypatch):
+    factory, ids = single_connection
+    await _ready_source(factory, ids, content_type="text/plain", text="Ateles Consulting AB är kunden.")
+
+    async def get_object(_bucket, _key):
+        raise AssertionError("text quotes do not need the file")
+
+    monkeypatch.setattr("app.services.workspace_quote_focus.get_object", get_object)
+    with pytest.raises(HTTPException) as rejected:
+        await command(factory, ids, name="focus_passage", args={
+            "source_id": "source-one", "quote": "Ateles Consulting AB", "comment": "Utan expert.",
+        })
+    assert rejected.value.status_code == 422
+    assert rejected.value.detail == "comment_requires_expert"

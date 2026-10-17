@@ -41,12 +41,30 @@ def test_expert_in_character_prompt_includes_gender():
     assert "du är den här experten" in prompt
 
 
-def test_in_character_prompt_locks_everyday_partner():
+def test_expert_prompt_has_block_labels():
+    prompt = build_chat_system_prompt(
+        _profile(beskrivning="Skatterådgivare"),
+        "character",
+        prompts=_PROMPTS,
+        profile_kind="expert",
+    )
+    assert "[ROLL]" in prompt
+    assert "[PROFIL]" in prompt
+
+
+def test_persona_prompt_has_no_expert_block_labels():
+    prompt = build_chat_system_prompt(_profile(), "character", prompts=_PROMPTS)
+    assert "[ROLL]" not in prompt
+    assert "[PROFIL]" not in prompt
+
+
+def test_in_character_personality_does_not_limit_the_task():
     prompt = build_chat_system_prompt(_profile(), "character", prompts=_PROMPTS)
     assert "IN-CHARACTER" in prompt
     assert "Du är Anna" in prompt
-    assert "inte en intervjuare" in prompt
-    assert "vardag" in prompt
+    assert "Personlighet" in prompt
+    assert "verktyg" in prompt
+    assert "inte förmågan" in prompt
 
 
 def test_run_interview_prompt_blocks_future_context():
