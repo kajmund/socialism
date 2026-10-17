@@ -1,8 +1,52 @@
 # Manual update log
 
+## 2026-10-17
+
+* **SME**: När du skickar en fråga skriver experten först en kort rad i chatten (till exempel att hen kollar på det) och skickar den direkt till dig; därefter följer det fullständiga svaret som en fortsättning på den raden. Dröjer svaret skriver experten också en framstegsrad, till exempel att hen fortfarande arbetar med avtalet. Båda ligger kvar; bara det fullständiga svaret sparas.
+* **SME**: I live voice hälsar experten inte längre med en allmän fråga när historiken saknas — experten håller tyst och du inleder.
+
+## 2026-10-14
+
+* **SME**: En expert kan visa flera sökträffade dokument som en egen flik med sökrubrik och förhandsvisning av första sidan. Välj ett dokument i samlingen för att öppna det.
+* **SME**: Samma fil i samma workspace hoppas över vid uppladdning och får status **Redan inläst**. Innehållet jämförs, inte filnamnet.
+
+## 2026-10-13
+
+* **Underlag**: Uppladdade dokument blir användbara när originaltexten är indexerad. Automatiska fakta- och frågekort skapas inte längre vid ingest. Egna markeringar, kommentarer, bokmärken och anteckningar finns kvar.
+* **SME**: PDF öppnas som PDF. Word öppnas som Word, utan konvertering.
+
+## 2026-10-12
+
+* **SME**: **Lägg till underlag** tar emot många Word- och PDF-filer i samma ruta. Varje fil visar uppladdning och ingest. Du kan lämna rutan och komma tillbaka. När en fil är sökbar kan du öppna den. En fil som misslyckades kan du försöka med igen.
+* **SME**: När en relationskarta har många samband står de också i en lista vid grafen. Välj en uppgift eller ett samband så visas de kopplingarna, och de övriga tonas ner.
+
 ## 2026-10-11
 
-* **SME**: Gruppikonen längst till vänster i huvudet öppnar expertpanelerna i en ruta. Listan är samma experter som i chatten, även när du lägger till medlemmar. **Starta gruppchatt** öppnar panelens konversation. Telefonikonen i skrivfältet startar röstsamtalet. Det du säger skrivs ut, och experterna räcker upp handen.
+* **SME**: När du tar bort en kommentar försvinner också markeringen den hör till, även när en expert har skrivit den.
+* **SME**: Du kan ta bort en kommentar vid en markering, även när en expert har skrivit den.
+* **SME**: Du kan lämna en kommentar på någon annans markering utan att ändra den. En expert kan skriva en kommentar tillsammans med sin markering. Den visas i expertens namn vid passagen.
+* **SME**: En markering kan ha en kommentar. Kommentarerna visas i en ruta till höger om dokumentet, i höjd med passagen. Ikonen till vänster om sidbläddringen i PDF-huvudet visar eller döljer rutan.
+* **SME**: Du kan markera flera passager i samma dokument. Den föregående ligger kvar när du markerar nästa.
+* **SME**: Säger en expert att en passage är markerad syns den markeringen i dokumentet, även när flera experter svarar i samma grupp.
+* **SME**: När flera experter i en grupp markerar i samma avtal syns varje experts passager, i den expertens färg och med expertens namn.
+* **SME**: En markering i dokumentet följer stycket du drar över. Din markering är gul och visar ditt namn. Varje expert har en egen färg och sitt namn vid sin markering. Experterna ser vem som har markerat vilken passage.
+* **SME**: I PDF-visaren bläddrar du mellan sidorna genom att scrolla. Sidnumret följer den sida som syns.
+* **SME**: En relationskarta som ligger framme kan experter och expertpaneler läsa, både i text och i röst. Där syns händelser, villkor, konsekvenser och om ett samband är en tolkning.
+* **SME**: I en öppen chatt ligger **Rensa chatt**, **Minnen**, **Välj verktyg** och **Intervju** i menyn till höger om namnet. Chatten är smalare.
+* **SME**: Rutan för dokument som går att öppna är en tabell med namn, typ och när posten skapades. Underlag, dokument, relationer och jämförelser ligger i samma tabell.
+* **SME**: Menyn längst till höger öppnas vid klick. Rutan för dokument som går att öppna är stor och visar uppgifterna för underlag, skapade dokument och relationer.
+* **SME**: **Lägg till underlag**, **Starta research**, **Evidens** och kunskapsområdet ligger i menyn längst till höger. Workspacenamnet står bredvid menyn.
+* **SME**: **Evidens** sitter till vänster om dokument som går att öppna och öppnar sökningen i en ruta. Jämförelse, dokument och relationer finns bara som flikar, utan en rad ovanför.
+* **SME**: Öppna underlag ligger som flikar ovanför dokumentet, och stäng-krysset syns på varje flik. Knappen till vänster om **Workspace** öppnar listan över dokument som går att öppna. Jämförelse, dokument och relationer öppnas som flikar på samma sätt.
+* **SME**: I en öppen expertpanel öppnar gruppikonen bredvid namnet redigering. Där går det att ändra namn, lägga till en expert, ta bort en expert, generera en expert och ta bort expertpanelen.
+* **SME**: Expertpanelerna ligger tillsammans med experterna till vänster i chatten. Ett meddelande i panelen ligger kvar där och kopieras inte till experternas egna chattar. Experten minns ändå det som sades.
+* **SME**: När ett skapat dokument ligger framme är det den texten experterna läser, även om andra avtalsflikar är öppna. De ska inte säga att dokumentet saknas i vyn. Ett tidigare svar om att det saknas gäller inte när dokumentet ligger framme. De svarar på det som just sades och upprepar inte en genomgång som redan getts.
+* **SME**: Ett dokument som redan ligger framme i arbetsytan kan alla experter läsa, utan att var och en öppnar det.
+* **SME**: Om du pratar medan en expert svarar i gruppens röstsamtal avbryts uppläsningen, på samma sätt som med en enskild expert. Ett kort ja eller mm avbryter inte.
+* **SME**: Skriv `@` i en enskild chatt eller i en grupp för att peka ut ett underlag eller ett dokument som skapats i arbetsytan. Listan visar båda, och experterna läser det dokument du pekar ut.
+* **SME**: Ett skrivet meddelande i gruppen använder samma expert som röstsamtalet. Experten kan läsa och öppna dokumenten i arbetsytan på samma sätt.
+* **SME**: Experterna i en grupp ser avtalet som är öppet i arbetsytan, både när du skriver och när du pratar. Ber du gruppen öppna ett avtal öppnas det en gång i arbetsytan. Ber du dem öppna ett dokument som skapats i arbetsytan öppnas det som en egen flik i dokumentvyn, och texten går att läsa där. Ett sådant dokument syns för experterna även om det inte är en uppladdad fil. Det läses och öppnas på samma sätt som övriga dokument. Det som ligger framme kan de läsa. Samma sak gäller en enskild expert, både när du skriver och när du pratar.
+* **SME**: Gruppikonen längst till vänster i huvudet öppnar expertpanelerna i en ruta. Listan är samma experter som i chatten, även när du lägger till medlemmar. **Starta gruppchatt** öppnar panelens konversation. Telefonikonen i skrivfältet startar röstsamtalet. Det du säger skrivs ut och ligger kvar. Ett felhört namn, till exempel Claes i stället för Klas, ger ändå rätt expert ordet. Experterna hör gruppens samtal. I röstsamtalet svarar den som ligger närmast det du sa. Den som har en egen poäng räcker upp handen, flera kan göra det samtidigt, och handen ligger kvar medan personen har ordet. Den tas ner när repliken är slut. De som inte har sagt något behåller handen. Den som svarar lägger till sin poäng om det som just sades och nämner inte handen. Om du pratar medan en expert svarar avbryts repliken, utom ett kort ja eller mm. Det du säger skickas först när du har pratat klart. Ett skrivet inlägg besvaras utifrån det som redan sagts i gruppen. En pågående replik avbryts inte.
 
 ## 2026-10-10
 
