@@ -1,0 +1,139 @@
+{
+  "id": "phase2-proof-logic-v1",
+  "label": "Frozen: polarity and scope as a logical form per predication. Not a gate, not a parser, not applied to v3.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_change_evidence_contract": true,
+  "no_new_jev": true,
+  "no_new_controller": true,
+  "not_a_gate": true,
+  "not_a_parser": true,
+  "headline": {
+    "all_positives_claim_form": true,
+    "pairs_match": true,
+    "stacked_all_inverted": true,
+    "avtal_60_claim_form": true,
+    "avtal_60_not_inverted": true,
+    "avtal_12_undecided": true,
+    "quote_and_yes_is_not_proof": true,
+    "logic_synonym_claim_count": 3,
+    "jev_synonym_recall": 1.0
+  },
+  "schema": [
+    "liability_cap → does_not_apply → secrecy_breach",
+    "liability_cap → does_not_apply → other → except secrecy_breach",
+    "liability_cap → applies → secrecy_breach",
+    "undecided"
+  ],
+  "polarity_pairs": [
+    {
+      "id": "polarity_inte_vid",
+      "text": "Begränsningen gäller inte vid sekretessbrott.",
+      "legal_meaning": "SUPPORTED",
+      "expected_form": "liability_cap → does_not_apply → secrecy_breach",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "form": "liability_cap → does_not_apply → secrecy_breach",
+      "span_validated": true,
+      "relation_validated": true,
+      "quote_and_yes": true,
+      "both_invariants": true,
+      "predications": [
+        {
+          "text": "Begränsningen gäller inte vid sekretessbrott.",
+          "form": "liability_cap → does_not_apply → secrecy_breach"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "polarity_aven_vid",
+      "text": "Begränsningen gäller även vid sekretessbrott.",
+      "legal_meaning": "CONTRADICTED",
+      "expected_form": "undecided",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "form": "undecided",
+      "span_validated": false,
+      "relation_validated": false,
+      "quote_and_yes": false,
+      "both_invariants": false,
+      "predications": [
+        {
+          "text": "Begränsningen gäller även vid sekretessbrott.",
+          "form": "undecided"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "polarity_inte_utom",
+      "text": "Begränsningen gäller inte, utom vid sekretessbrott.",
+      "legal_meaning": "CONTRADICTED",
+      "expected_form": "liability_cap → does_not_apply → other → except secrecy_breach",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "form": "liability_cap → does_not_apply → other → except secrecy_breach",
+      "span_validated": true,
+      "relation_validated": false,
+      "quote_and_yes": false,
+      "both_invariants": false,
+      "predications": [
+        {
+          "text": "Begränsningen gäller inte, utom vid sekretessbrott.",
+          "form": "liability_cap → does_not_apply → other → except secrecy_breach"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "polarity_gäller_utom",
+      "text": "Begränsningen gäller, utom vid sekretessbrott.",
+      "legal_meaning": "SUPPORTED",
+      "expected_form": "liability_cap → does_not_apply → secrecy_breach",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "form": "liability_cap → does_not_apply → secrecy_breach",
+      "span_validated": true,
+      "relation_validated": true,
+      "quote_and_yes": true,
+      "both_invariants": true,
+      "predications": [
+        {
+          "text": "Begränsningen gäller, utom vid sekretessbrott.",
+          "form": "liability_cap → does_not_apply → secrecy_breach"
+        }
+      ],
+      "pass": true
+    }
+  ],
+  "avtal_60": {
+    "claim": "liability_cap_excludes_confidentiality_breach",
+    "form": "liability_cap → does_not_apply → secrecy_breach",
+    "span_validated": true,
+    "relation_validated": true,
+    "quote_and_yes": false,
+    "both_invariants": true,
+    "predications": [
+      {
+        "text": "DevBrains ansvarar inte för indirekt skada.",
+        "form": "undecided"
+      },
+      {
+        "text": "DevBrains sammanlagda ansvar är begränsat till [Belopp] kronor, utom vid uppsåt, grov vårdslöshet eller brott mot sekretess eller personuppgiftsbiträdesavtalet.",
+        "form": "liability_cap → does_not_apply → secrecy_breach"
+      }
+    ]
+  },
+  "inverted_quote_and_yes": {
+    "claim": "liability_cap_excludes_confidentiality_breach",
+    "form": "liability_cap → does_not_apply → other → except secrecy_breach",
+    "span_validated": true,
+    "relation_validated": false,
+    "quote_and_yes": true,
+    "both_invariants": false,
+    "predications": [
+      {
+        "text": "Begränsningen gäller inte, utom vid sekretessbrott.",
+        "form": "liability_cap → does_not_apply → other → except secrecy_breach"
+      }
+    ]
+  }
+}

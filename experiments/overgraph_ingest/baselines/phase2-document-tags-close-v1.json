@@ -1,0 +1,48 @@
+{
+  "id": "phase2-document-tags-close-v1",
+  "label": "Closed document-tag experiment. Carry the data model into the Socialism integration plan. Do not run more Jev on the 16 documents.",
+  "do_not_overwrite": true,
+  "does_not_run_jev": true,
+  "models_not_run": true,
+  "experiment_closed": true,
+  "do_not_run_more_jev_on_16_docs": true,
+  "does_not_change_document_tags_run": true,
+  "does_not_change_answer_cell": true,
+  "no_production_integration": true,
+  "a_is_cheap_ingest_candidate": true,
+  "b_is_experimental_semantic_alternative": true,
+  "automatic_tags_are_proposals": true,
+  "carry_to_socialism": {
+    "document_catalog": "Document type, tags, raw confidence/probabilities, and user corrections.",
+    "tabular_review": "User questions answered from original text with citations.",
+    "product_loop": "Filter which documents first, then ask what to know.",
+    "reuse_canonical_document": true,
+    "reuse_document_version": true,
+    "do_not_import_overgraph_ingest": true
+  },
+  "identity": {
+    "tag_identity_excludes_origin": true,
+    "keep_proposer_and_reviewer_history": true,
+    "logical_document_is_not_content_hash": true,
+    "user_decisions_belong_to_canonical_document": true,
+    "extracted_properties_and_sources_belong_to_document_version": true
+  },
+  "deletion": {
+    "archive_hides_and_keeps": true,
+    "purge_removes_content_and_metadata": true,
+    "experiment_delete_is_archive_only": true,
+    "purge_not_solved_in_experiment": true
+  },
+  "measured": {
+    "doctype_b_accuracy": 0.86,
+    "tag_a_recall": 0.9411764705882353,
+    "tag_b_recall": 0.9411764705882353,
+    "tag_filter_seconds": 0.002,
+    "samples_are_separate_experiments": true
+  },
+  "headline": {
+    "experiment_closed": true,
+    "models_not_run": true,
+    "next": "plan_socialism_integration"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "id": "phase2-workspace-inventory-v1",
+  "label": "Frozen: reallocating the same 50 candidates is not workspace inventory. Two-stage is a negative experiment. Do not start another two-stage run or a new document ranking on the same 100. 24/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "verdict": "rejected_as_completeness",
+  "two_stage_is_negative": true,
+  "does_not_start_another_two_stage": true,
+  "does_not_build_document_ranking": true,
+  "does_not_tune_ranking_on_same_100": true,
+  "does_not_start_ingest_enrichment": true,
+  "top50_is_not_completeness": true,
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "tasks": {
+      "which_documents_may_contain_the_answer": "document_identification",
+      "where_in_each_document_is_the_answer": "local_passage_rank",
+      "current_score": "same_passage_score_for_both"
+    },
+    "limits": {
+      "discovery": {
+        "kind": "information_selection",
+        "unexamined": 14,
+        "all_fourteen_only_when_portfolio_included": true,
+        "unlocks_blocked_by_identification": [
+          "avtal_135.docx",
+          "avtal_159.docx",
+          "avtal_168.docx"
+        ],
+        "documents": [
+          "avtal_111.docx",
+          "avtal_114.docx",
+          "avtal_121.docx",
+          "avtal_127.docx",
+          "avtal_130.docx",
+          "avtal_135.docx",
+          "avtal_155.docx",
+          "avtal_158.docx",
+          "avtal_159.docx",
+          "avtal_160.docx",
+          "avtal_168.docx",
+          "avtal_169.docx",
+          "avtal_181.docx",
+          "avtal_196.docx"
+        ]
+      },
+      "proof_evaluation": {
+        "kind": "legal_understanding",
+        "true_support": 24,
+        "expected_yes": 53,
+        "examined_undecided": 15
+      }
+    },
+    "rejected": {
+      "reallocating_the_same_fifty_candidates": true,
+      "another_two_stage_experiment": true,
+      "new_document_ranking_on_the_same_100": true
+    },
+    "future_not_started": {
+      "ingest_property_extraction": "Unmeasured. A later workspace question could start from source-grounded ingest properties. Not assumed right for composite legal relations such as secrecy carve-outs."
+    },
+    "examples": {
+      "avtal_155.docx": {
+        "document_identification_rank": 16,
+        "local_passage_rank": 10,
+        "first_relevant_passage_rank": 728,
+        "constraint": "local_passage"
+      },
+      "avtal_135.docx": {
+        "document_identification_rank": 88,
+        "local_passage_rank": 2,
+        "first_relevant_passage_rank": 301,
+        "constraint": "document_identification"
+      }
+    },
+    "top50_is_not_completeness": true,
+    "does_not_require_jev_on_every_document": true,
+    "needs_separate_handling_when_no_relevant_hit": true
+  }
+}
