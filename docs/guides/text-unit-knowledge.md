@@ -35,8 +35,8 @@ Uploaded documents now ingest as `CanonicalDocument` → `DocumentVersion` → `
 - Size-based splitting happens only inside a section.
 - Section and TextUnit IDs are scoped to `document_version_id`. Same passage in the same version keeps the same ID.
 - Embeddings are generated from TextUnit text. `KnowledgeChunk` is the vector-store projection of a TextUnit (`chunk_id == text_unit_id`).
-- Q&A generation reads neighbouring TextUnits in the same section. Size packing stays inside a section and no longer spans the whole document.
-- `DocumentKnowledgeItem` keeps exact quotes and PDF anchors, and adds `supporting_text_unit_ids`.
+- Ingest does not generate fact/Q&A cards. Persistent OverGraph Q&A is created when a user asks a question.
+- `DocumentKnowledgeItem` stores manual marks with exact quotes, PDF anchors, and `supporting_text_unit_ids`.
 - Core knowledge modules stay domain-neutral. Swedish law, medicine, and economics belong in adapters.
 
 Tables: `canonical_documents`, `document_versions`, `document_sections`, `text_units`, `document_knowledge_item_text_units`.
@@ -61,9 +61,11 @@ Same content hash reuses the existing document id and current version when that 
 
 ## Next phases
 
-### Phase 2 — Q&A routing
+### Phase 2 — OverGraph Q&A
 
-Section-neighbour grouping is in place. Next: use Jev as a cheap passage gate so only TextUnits likely to contain revisitable facts are sent to LLM Q&A. Keep exact-quote grounding.
+Document Q&A is not an ingest step. A user question retrieves TextUnits,
+runs Jev `answer_cell` per cell, and may persist Question/Answer nodes on
+the tenant OverGraph. Manual marks stay off the vector index.
 
 ### Phase 3 — lagen.nu as a document provider
 
