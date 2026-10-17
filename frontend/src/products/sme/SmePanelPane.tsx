@@ -5,11 +5,20 @@ import { useAuth } from "@/auth/AuthProvider"
 import { MessengerChat } from "@/components/chat/MessengerChat"
 import { ProfileProposals } from "@/components/profiles/ProfileProposals"
 import { useLocale } from "@/i18n"
+import { SmeChatActionsMenu } from "./SmeChatActionsMenu"
 import { SmeClearChatButton } from "./SmeClearChatButton"
+import { resolveDocumentMentions, type MentionFile } from "./documentMentions"
 import { workspaceErrorMessage } from "./workspaceChatLogic"
 import { useSmeGroupVoice } from "./useSmeGroupVoice"
 
-export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCleared: () => void }) {
+export function SmePanelPane({ thread, workspaceId, documentFiles, onCleared, onEdit, onWorkspaceTool }: {
+  thread: SmeInboxItem
+  workspaceId: string
+  documentFiles: MentionFile[]
+  onCleared: () => void
+  onEdit: () => void
+  onWorkspaceTool: (name: string, args: Record<string, unknown>) => void
+}) {
   const { t } = useLocale(); const { refreshProfile } = useAuth()
   const [messages, setMessages] = useState<SmeMessage[]>([]), [draft, setDraft] = useState("")
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
@@ -34,10 +43,12 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
 
   const voice = useSmeGroupVoice({
     panelId: thread.thread_id,
+    workspaceId,
     enabled: call,
     onUserPartial: setPreview,
     onUserTranscript: (text) => appendLocal("user", text, null, null),
     onExpertSpeech: (personaId, name, text) => appendLocal("assistant", text, personaId, name),
+    onWorkspaceTool,
   })
 
   useEffect(() => { const token = ++epoch.current; let cancelled = false; setLoading(true); setMessages([]); setError(null); setCall(false); setPreview(null); void listSmePanelMessages(thread.thread_id).then((rows) => { if (!cancelled && epoch.current === token) setMessages(rows) }).catch((caught: unknown) => { if (!cancelled && epoch.current === token) setError(workspaceErrorMessage(caught, t, "sme.chatError")) }).finally(() => { if (!cancelled && epoch.current === token) setLoading(false) }); void markSmeThreadRead("panel", thread.thread_id).catch((caught: unknown) => { if (!cancelled && epoch.current === token) setError(workspaceErrorMessage(caught, t, "sme.chatError")) }); return () => { cancelled = true } }, [t, thread.thread_id])
@@ -54,7 +65,12 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
     const text = draft.trim(); if (!text || busy) return
     setBusy(true); setError(null)
     try {
-      const created = await sendSmePanelMessage(thread.thread_id, text)
+      const created = await sendSmePanelMessage(
+        thread.thread_id,
+        text,
+        workspaceId,
+        resolveDocumentMentions(text, documentFiles),
+      )
       setMessages((rows) => [...new Map([...rows, ...created].map((message) => [message.id, message])).values()])
       setDraft("")
       await markSmeThreadRead("panel", thread.thread_id)
@@ -72,9 +88,14 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-white">
       <header className="flex h-[72px] shrink-0 items-center gap-3 border-b px-4">
-        <span className="grid size-10 place-items-center rounded-xl bg-db-ink-950 text-db-gold-500">
+        <button
+          type="button"
+          className="grid size-10 shrink-0 place-items-center rounded-xl bg-db-ink-950 text-db-gold-500"
+          aria-label={t("sme.panelEditorAria", { name: thread.name })}
+          onClick={onEdit}
+        >
           <UsersRound size={20} />
-        </span>
+        </button>
         <div className="min-w-0 flex-1">
           <strong className="block truncate text-sm">{thread.name}</strong>
           <span className="text-xs text-muted-foreground" role="status">
@@ -83,7 +104,9 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
             {voice.snapshot?.floor_name ? ` · ${voice.snapshot.floor_name}` : ""}
           </span>
         </div>
-        <SmeClearChatButton name={thread.name} disabled={loading || busy || messages.length === 0} onClear={clearMessages} />
+        <SmeChatActionsMenu>
+          <SmeClearChatButton name={thread.name} disabled={loading || busy || messages.length === 0} onClear={clearMessages} />
+        </SmeChatActionsMenu>
       </header>
       {hands.length > 0 && (
         <div className="flex shrink-0 flex-wrap gap-1 border-b px-4 py-2 text-xs">
@@ -111,6 +134,7 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
         typing={busy}
         streamText={preview}
         placeholder={t("sme.messagePlaceholder")}
+        documentFiles={documentFiles}
         empty={<div className="bub them">{loading ? t("sme.loading") : t("personas.composer.askToStart")}</div>}
         inputAction={
           <div className="flex items-center gap-1">
@@ -141,7 +165,7 @@ export function SmePanelPane({ thread, onCleared }: { thread: SmeInboxItem; onCl
             <div className="max-h-40 overflow-auto">
               <ProfileProposals conversation={`panel:${thread.thread_id}`} refreshKey={messages.length} onSaved={refreshProfile} />
             </div>
-            {voice.error ? <span className="text-destructive" role="alert">{voice.error}</span> : null}
+            {voice.error ? <span className="text-destructive" role="alert">{voice.error === "hand_decision_failed" ? t("sme.handDecisionFailed") : voice.error}</span> : null}
             {error ? <span className="text-destructive" role="alert">{error}</span> : null}
           </>
         }

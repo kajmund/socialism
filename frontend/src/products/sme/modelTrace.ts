@@ -17,6 +17,18 @@ export function acceptModelTraceWorkspace(
   return !eventWorkspaceId || eventWorkspaceId === currentWorkspaceId
 }
 
+/** Where to store an incoming trace so expert and panel views both stay current. */
+export function modelTraceStorageKeys(
+  eventThreadId: string,
+  active: { thread_type: string; thread_id: string } | null,
+): string[] {
+  if (!eventThreadId) return active?.thread_type === "panel" ? [active.thread_id] : []
+  if (active?.thread_type === "panel" && active.thread_id !== eventThreadId) {
+    return [eventThreadId, active.thread_id]
+  }
+  return [eventThreadId]
+}
+
 const TRACE_KINDS: readonly ModelTraceKind[] = ["context", "message", "tools", "tool_call", "tool_result"]
 
 function traceKind(value: unknown): ModelTraceKind | null {
