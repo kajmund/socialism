@@ -1,0 +1,327 @@
+{
+  "experiment": "document-channel-nine-turn-diagnostic-v1",
+  "created_at": "2026-10-15T02:18:33.030409+00:00",
+  "classification": "diagnostic-only",
+  "channels": [
+    "group_voice"
+  ],
+  "scenario_sequences": [
+    1
+  ],
+  "retry_policy": "one attempt per channel and scenario",
+  "rows": [
+    {
+      "case_id": "diagnostic",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 30698.353,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-diagnostic-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ChatTurnError",
+        "message": "Expert tool episode produced no reply"
+      },
+      "trace": [
+        {
+          "stage": "initial_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.39,
+            "ingest_source": 0.08,
+            "get_job_status": 0.06,
+            "search_knowledge": 0.04,
+            "find_documents": 0.9,
+            "compare_sources": 0.08,
+            "get_relations": 0.1,
+            "render_chart": 0.04,
+            "create_document": 0.06,
+            "revise_document": 0.03,
+            "export_document": 0.06,
+            "start_research": 0.13,
+            "open_ingest_picker": 0.08,
+            "show_evidence": 0.13,
+            "show_document": 0.05,
+            "show_document_set": 0.46,
+            "show_comparison": 0.09,
+            "show_relations": 0.13,
+            "show_knowledge": 0.12,
+            "show_artifact": 0.22
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": false
+        },
+        {
+          "stage": "initial_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [
+            {
+              "id": "47139368c",
+              "name": "find_documents",
+              "arguments": "{\"query\":\"hyresavtal\",\"mode\":\"replace\"}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "hyresavtal",
+            "mode": "replace"
+          },
+          "error": {
+            "type": "OperationalError",
+            "message": "(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO workspace_operations (id, workspace_id, idempotency_key, payload_hash, tool_name, status, context_snapshot, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (workspace_id, idempotency_key) DO NOTHING RETURNING id]\n[parameters: ('a09abb84-c48c-439a-a554-9102e0b5c4c7', 'benchmark-canvas', '47139368c', '5c8b1f99dd45e0787d142cf4fef053acc75be36e21144ccf64eb26f07db9e8c0', 'find_documents', 'accepted', '{\"revision\": 0, \"state\": {\"langua"
+          }
+        },
+        {
+          "stage": "post_result_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.4,
+            "ingest_source": 0.08,
+            "get_job_status": 0.09,
+            "search_knowledge": 0.04,
+            "find_documents": 0.93,
+            "compare_sources": 0.07,
+            "get_relations": 0.11,
+            "render_chart": 0.04,
+            "create_document": 0.05,
+            "revise_document": 0.03,
+            "export_document": 0.06,
+            "start_research": 0.16,
+            "open_ingest_picker": 0.1,
+            "show_evidence": 0.14,
+            "show_document": 0.05,
+            "show_document_set": 0.3,
+            "show_comparison": 0.07,
+            "show_relations": 0.12,
+            "show_knowledge": 0.15,
+            "show_artifact": 0.17
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": true
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "557af18d4",
+              "name": "find_documents",
+              "arguments": "{\"query\": \"hyresavtal\", \"mode\": \"replace\", \"limit\": 100}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "hyresavtal",
+            "mode": "replace",
+            "limit": 100
+          },
+          "error": {
+            "type": "OperationalError",
+            "message": "(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO workspace_operations (id, workspace_id, idempotency_key, payload_hash, tool_name, status, context_snapshot, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (workspace_id, idempotency_key) DO NOTHING RETURNING id]\n[parameters: ('860c5a9e-94ef-43a1-ac5f-9c219741dccd', 'benchmark-canvas', '557af18d4', 'd92b22e008b41b80bef71cdd4fbcde761a8340bb6a84c9af9afa9130db072412', 'find_documents', 'accepted', '{\"revision\": 0, \"state\": {\"langua"
+          }
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "beeef7ad7",
+              "name": "get_workspace_context",
+              "arguments": "{}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "get_workspace_context",
+          "arguments": {},
+          "error": {
+            "type": "OperationalError",
+            "message": "(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO workspace_operations (id, workspace_id, idempotency_key, payload_hash, tool_name, status, context_snapshot, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (workspace_id, idempotency_key) DO NOTHING RETURNING id]\n[parameters: ('d78be19d-10f7-467a-a10b-4f1ed92ea5b4', 'benchmark-canvas', 'beeef7ad7', '891ec7593bc8536ab402d4f22777d9cbca535b331b2827f168955e26cad56214', 'get_workspace_context', 'accepted', '{\"revision\": 0, \"state\": {"
+          }
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "0f80281bb",
+              "name": "find_documents",
+              "arguments": "{\"query\": \"type:hyresavtal\", \"mode\": \"replace\"}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "type:hyresavtal",
+            "mode": "replace"
+          },
+          "error": {
+            "type": "OperationalError",
+            "message": "(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO workspace_operations (id, workspace_id, idempotency_key, payload_hash, tool_name, status, context_snapshot, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (workspace_id, idempotency_key) DO NOTHING RETURNING id]\n[parameters: ('8d63ffe4-6b8b-4763-ac87-876d15db9c26', 'benchmark-canvas', '0f80281bb', '5e620204eb2f329cdea34c01423bbecf88dc85283ced92764e294c03f4e59ed9', 'find_documents', 'accepted', '{\"revision\": 0, \"state\": {\"langua"
+          }
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "dc467f530",
+              "name": "find_documents",
+              "arguments": "{\"query\": \"hyresavtal\"}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "hyresavtal"
+          },
+          "error": {
+            "type": "OperationalError",
+            "message": "(sqlite3.OperationalError) database is locked\n[SQL: INSERT INTO workspace_operations (id, workspace_id, idempotency_key, payload_hash, tool_name, status, context_snapshot, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (workspace_id, idempotency_key) DO NOTHING RETURNING id]\n[parameters: ('a010a899-c45b-4cc1-9d8f-d8c3109cd451', 'benchmark-canvas', 'dc467f530', 'cc3ea066da99b632e02b414bcbad1c3cdec6780c7b19481ae6ab59904da58410', 'find_documents', 'accepted', '{\"revision\": 0, \"state\": {\"langua"
+          }
+        }
+      ],
+      "breakpoint": "find_dispatch"
+    }
+  ],
+  "summary": {
+    "group_voice": {
+      "breakpoints": {
+        "find_dispatch": 1
+      },
+      "errors": {
+        "ChatTurnError": 1
+      }
+    }
+  }
+}
