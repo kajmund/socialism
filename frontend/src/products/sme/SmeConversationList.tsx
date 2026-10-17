@@ -53,6 +53,10 @@ export function SmeConversationList({
       .toLocaleLowerCase(intl)
       .includes(search.trim().toLocaleLowerCase(intl)),
   )
+  const placed = [
+    ...filtered.filter((item) => item.thread_type === "panel"),
+    ...filtered.filter((item) => item.thread_type === "expert"),
+  ]
 
   function filterLabel(value: SmeInboxFilter): string {
     switch (value) {
@@ -86,13 +90,16 @@ export function SmeConversationList({
         {loading && !filtered.length ? <span role="status" className="text-center text-xs text-muted-foreground">{t("sme.loading")}</span> : null}
         {error ? <button type="button" className="text-xs text-destructive" aria-label={error} onClick={() => setInboxOpen(true)}>{t("sme.loadError")}</button> : null}
         {!loading && !error && !filtered.length ? <span className="text-center text-xs text-muted-foreground">{t("sme.empty")}</span> : null}
-        {filtered.map((item) => {
+        {placed.map((item) => {
           const active = selected?.thread_type === item.thread_type && selected.thread_id === item.thread_id
           const readStatus = item.unread_count > 0 ? t("sme.unreadCount", { count: item.unread_count }) : t("sme.readConversation")
-          return <button key={`${item.thread_type}:${item.thread_id}`} type="button" title={[item.name, item.preview || item.subtitle, timeLabel(item.last_message_at), readStatus].filter(Boolean).join(" · ")} aria-label={`${item.name} · ${readStatus}`} aria-pressed={active} className={`relative flex shrink-0 flex-col items-center gap-1 rounded-lg p-1 text-[10px] ${active ? "bg-db-gold-100 ring-1 ring-db-gold-500" : "hover:bg-db-ink-100"}`} onClick={() => onSelect(item)}>
+          const tileClass = `relative flex shrink-0 flex-col items-center gap-1 rounded-lg p-1 text-[10px] ${active ? "bg-db-gold-100 ring-1 ring-db-gold-500" : "hover:bg-db-ink-100"}`
+          const title = [item.name, item.preview || item.subtitle, timeLabel(item.last_message_at), readStatus].filter(Boolean).join(" · ")
+          const unread = item.unread_count > 0 ? <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-db-gold-500 px-1 text-[10px] font-semibold text-db-ink-950" aria-label={readStatus}>{new Intl.NumberFormat(intl).format(item.unread_count)}</span> : null
+          return <button key={`${item.thread_type}:${item.thread_id}`} type="button" title={title} aria-label={`${item.name} · ${readStatus}`} aria-pressed={active} className={tileClass} onClick={() => onSelect(item)}>
             {item.thread_type === "panel" ? <span className="grid size-10 place-items-center rounded-lg bg-db-ink-950 text-db-gold-500"><UsersRound size={20} aria-hidden="true" /></span> : <ExpertAvatar avatarUrl={item.avatar_url} name={item.name} className="grid size-10 place-items-center overflow-hidden rounded-lg bg-db-ink-950 text-db-gold-500" iconSize={20} />}
             <span className="w-full truncate">{item.name}</span>
-            {item.unread_count > 0 ? <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-db-gold-500 px-1 text-[10px] font-semibold text-db-ink-950" aria-label={readStatus}>{new Intl.NumberFormat(intl).format(item.unread_count)}</span> : null}
+            {unread}
           </button>
         })}
       </div>
@@ -167,7 +174,7 @@ export function SmeConversationList({
             {t("sme.empty")}
           </p>
         ) : null}
-        {filtered.map((item) => {
+        {placed.map((item) => {
           const active =
             selected?.thread_type === item.thread_type &&
             selected.thread_id === item.thread_id

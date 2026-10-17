@@ -67,6 +67,7 @@ export function SmeExpertToolsButton({
       disabled={loading || saving}
       error={error}
       includeWorkspaceTools
+      triggerClassName="inline-flex h-8 w-full items-center justify-start gap-1.5 rounded-[var(--radius-md)] border border-[color:var(--border-hairline)] bg-db-ink-0 px-3 text-xs"
     />
   )
 }
