@@ -1,0 +1,50 @@
+{
+  "id": "force-majeure",
+  "kind": "unit",
+  "proof_kind": "EXISTS",
+  "split": "held_out",
+  "query": "Vilka avtal innehåller en befrielsegrund vid oförutsedda händelser?",
+  "classify_question": "Innehåller texten att en part befrias från ansvar eller prestation när omständigheter utanför partens kontroll hindrar fullgörandet?",
+  "notes": "Held-out expansion test. The query uses Swedish befrielsegrund; several contracts title the clause Force majeure. Relevant is an operative relief clause, not a heading and not a delay/vite that only mentions force majeure in passing.",
+  "relevant_units": [
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "contains": "En part är befriad från sina skyldigheter om fullgörandet förhindras av omständigheter som parten inte rimligen kunde förutse eller råda över"
+    },
+    {
+      "relative_path": "Avtal_31_Leveransavtal.docx",
+      "contains": "Force majeure enligt ramavtalet gäller. Brist på komponenter hos tillverkaren utgör force majeure endast om Leverantören inte kunnat anskaffa varor"
+    },
+    {
+      "relative_path": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "contains": "En part är befriad från påföljder för underlåtenhet att fullgöra sina förpliktelser om underlåtenheten beror på omständigheter utanför partens kontroll"
+    },
+    {
+      "relative_path": "Avtal_49_IT_drift_hostingavtal.docx",
+      "contains": "Force majeure enligt sedvanliga villkor gäller. Strömavbrott och avbrott hos underleverantörer utgör inte force majeure"
+    },
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "contains": "Om evenemanget inte kan genomföras på grund av omständigheter utanför parternas kontroll"
+    }
+  ],
+  "hard_negatives": [
+    {
+      "relative_path": "Avtal_31_Leveransavtal.docx",
+      "contains": "förseningen inte beror på Köparen eller på force majeure",
+      "reason": "Delay/vite that names force majeure without stating the relief rule"
+    },
+    {
+      "relative_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "contains": "Arbetstagaren är [arbetsbefriad från och med [Datum]",
+      "reason": "Garden leave, not force majeure"
+    }
+  ],
+  "watch_negatives": [
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "contains": "8. Force majeure",
+      "reason": "Heading; the operative relief is the following paragraph"
+    }
+  ]
+}

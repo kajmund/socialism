@@ -1,0 +1,357 @@
+{
+  "id": "phase2-coverage-v3-blind-trace-v1",
+  "label": "Frozen: observed Coverage v3 decision traces on contracts_v2 carve-out. Do not change proof evaluation from this file.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_proof_rule": true,
+  "no_link_re_change": true,
+  "tracing_does_not_change_decisions": true,
+  "headline": {
+    "documents_found": 39,
+    "documents_expected": 53,
+    "document_recall_b5": 0.7358490566037735,
+    "evidence_found_nonrelevant": [
+      "avtal_119.docx",
+      "avtal_138.docx",
+      "avtal_142.docx",
+      "avtal_173.docx",
+      "avtal_200.docx"
+    ],
+    "observed_false_complete_count": 2,
+    "complete_uncertain_count": 3,
+    "observed_true_complete_missed_count": 39,
+    "document_coverage_at_50": 0.2641509433962264,
+    "classified_b5": 393,
+    "jev_calls_b5": 118,
+    "hop_fetches_b5": 64,
+    "all_found_reasons_jev_yes_after_hop": true
+  },
+  "false_complete": [
+    {
+      "document_id": "avtal_119.docx",
+      "gold_classification": "NO",
+      "role": "false_complete",
+      "error_class": "precedence_override",
+      "why_evidence_found": "jev_yes_after_hop",
+      "controller_status_before_navigation": "NEEDS_ANALYSIS",
+      "evidence_found_before_navigation": false,
+      "navigation_added_necessary_complete": true,
+      "link_re_matches_before_navigation": false,
+      "link_re_matches": false,
+      "jev_yes_text": "2.4\tBegränsningen ovan gäller inte heller vid brott mot punkt 1.\n",
+      "hop_text": "2.3\tBegränsningen gäller inte vid uppsåt eller grov vårdslöshet.\n",
+      "identity": {
+        "key": "015bdf5b8ac193003d87d210f54bb86c355bbd6232eb59e02cfa6157b60895b3",
+        "node_id": 1702,
+        "document_id": "843774012aa10cb03ed85541fd85c26bfbd7df7c81fc23975db7aa0263307290",
+        "relative_path": "avtal_119.docx",
+        "structure_id": "3f695a06237b0c125f6406c48aa243a58ca5ef497253e88abfd5e12179d42ed9",
+        "sequence": 51,
+        "char_start": 5043,
+        "char_end": 5108,
+        "content_hash": "5549113299f292135af1960fad42d8142d5ba6319aebc19627420dbf761045fb",
+        "text_sha256": "fa46a7920002619f9ee811fdb4582d80b59adc671753d3022c2bc993aa1c0c0f"
+      },
+      "event_kinds": [
+        "classify",
+        "classify",
+        "navigation",
+        "proof_decision"
+      ]
+    },
+    {
+      "document_id": "avtal_200.docx",
+      "gold_classification": "NO",
+      "role": "false_complete",
+      "error_class": "precedence_override",
+      "why_evidence_found": "jev_yes_after_hop",
+      "controller_status_before_navigation": "NEEDS_ANALYSIS",
+      "evidence_found_before_navigation": false,
+      "navigation_added_necessary_complete": true,
+      "link_re_matches_before_navigation": false,
+      "link_re_matches": false,
+      "jev_yes_text": "2.5\tBegränsningen ovan gäller inte heller vid brott mot punkt 1.\n",
+      "hop_text": "2.4\tBegränsningen gäller inte vid uppsåt eller grov vårdslöshet.\n",
+      "identity": {
+        "key": "aa1937e869eb7a41a3bca26b9a7e4ac3e474ba3169dbe6587fd11de037d7db18",
+        "node_id": 9073,
+        "document_id": "65829ba59e2fe2075184b4bbb613970263fef1822fbd3a0bccfeccf336187d56",
+        "relative_path": "avtal_200.docx",
+        "structure_id": "babf28f4f73c51f3d23097bda82d4a7e38ab795171283f538416f48165117933",
+        "sequence": 26,
+        "char_start": 5130,
+        "char_end": 5195,
+        "content_hash": "1dcfed085f3eaf1a9b2ea12da18dd73dbf43ed3fb8854a8a17fe4f49ecca5538",
+        "text_sha256": "bb37cc18b4b0761515cceff47a67c9f8354b5105c5a09f4bb0b1744ab952b541"
+      },
+      "event_kinds": [
+        "classify",
+        "classify",
+        "navigation",
+        "proof_decision"
+      ]
+    }
+  ],
+  "complete_uncertain": [
+    {
+      "document_id": "avtal_138.docx",
+      "gold_classification": "UNCERTAIN",
+      "role": "complete_uncertain",
+      "error_class": null,
+      "why_evidence_found": "jev_yes_after_hop",
+      "controller_status_before_navigation": "NEEDS_ANALYSIS",
+      "evidence_found_before_navigation": false,
+      "navigation_added_necessary_complete": true,
+      "link_re_matches_before_navigation": true,
+      "link_re_matches": true,
+      "jev_yes_text": "6.5\tBegränsningen gäller inte heller vid brott mot sekretessåtagandet i punkt 12.\n",
+      "hop_text": "6.4\tAnsvarsbegränsningen gäller inte i fall då skadan har vållats med avsikt eller genom grov oaktsamhet.\n",
+      "identity": {
+        "key": "edf5141a3efe1bcc19dbf1b91302959c726066b43273b650a529c7a9198e75d5",
+        "node_id": 3414,
+        "document_id": "6fbad248b617d8b27cc95288cf03d2a51d7b25f9578442de85c7ef2a0f2203ee",
+        "relative_path": "avtal_138.docx",
+        "structure_id": "f0ab0a13c23d1aa7f8d5c31b2ee1395ea6093248e44a54bc0c2ad553db1e74cc",
+        "sequence": 24,
+        "char_start": 2962,
+        "char_end": 3044,
+        "content_hash": "2af4abc5346a5dd95383d6eb335e60737842e744fe72e5bf6473dcdea1237269",
+        "text_sha256": "58c3d8f94848cf349ffe91befa2efdb6965475acdf67cbbf5c08dda580354e0d"
+      },
+      "event_kinds": [
+        "classify",
+        "navigation",
+        "proof_decision"
+      ]
+    },
+    {
+      "document_id": "avtal_142.docx",
+      "gold_classification": "UNCERTAIN",
+      "role": "complete_uncertain",
+      "error_class": null,
+      "why_evidence_found": "jev_yes_after_hop",
+      "controller_status_before_navigation": "NEEDS_ANALYSIS",
+      "evidence_found_before_navigation": false,
+      "navigation_added_necessary_complete": true,
+      "link_re_matches_before_navigation": false,
+      "link_re_matches": false,
+      "jev_yes_text": "6.3\tBegränsningen ska inte tillämpas i den mån det skulle vara uppenbart oskäligt, varvid särskild hänsyn ska tas till om skadan har orsakats genom röjande av Konfidentiell Information.\n",
+      "hop_text": "6.2\tErsättning för utebliven intäkt, minskad produktion eller andra följdskador utgår inte.\n",
+      "identity": {
+        "key": "2842a00280c5db2bcefa3fc7dff438e2681e2b85739ccbc04fc76a74e18e5b8d",
+        "node_id": 3885,
+        "document_id": "d97467ba487019f45f165a0cbf21b75a13afbb9032b8555cfd6f255012b763f0",
+        "relative_path": "avtal_142.docx",
+        "structure_id": "9708c148618d643228341b902abbaca3b24940ca0f242645b91610e9078e8582",
+        "sequence": 27,
+        "char_start": 2738,
+        "char_end": 2924,
+        "content_hash": "b53fba94edaee7a9e51bfca6930ea6dc7c5d19f5280f3296fcf8a2a26f15bd47",
+        "text_sha256": "6fabb2d8fbd844dcc756ca2662e2b1bbb7ebf0732e161545ba8adf076d081ffe"
+      },
+      "event_kinds": [
+        "classify",
+        "classify",
+        "classify",
+        "navigation",
+        "proof_decision"
+      ]
+    },
+    {
+      "document_id": "avtal_173.docx",
+      "gold_classification": "UNCERTAIN",
+      "role": "complete_uncertain",
+      "error_class": null,
+      "why_evidence_found": "jev_yes_after_hop",
+      "controller_status_before_navigation": "NEEDS_ANALYSIS",
+      "evidence_found_before_navigation": false,
+      "navigation_added_necessary_complete": true,
+      "link_re_matches_before_navigation": true,
+      "link_re_matches": true,
+      "jev_yes_text": "6.4\tBegränsningen gäller inte heller vid brott mot sekretessåtagandet i punkt 8.\n",
+      "hop_text": "6.3\tBegränsningen i denna punkt ska inte tillämpas vid uppsåt eller grov vårdslöshet.\n",
+      "identity": {
+        "key": "0db57abb4c5a5dce485cda56d930e38acbd56d4f215d4c9151ec9e181b5db20a",
+        "node_id": 6666,
+        "document_id": "153b51b8234fadc086e2017bb99317a833fcced0cb82316591c9ef41365a1a30",
+        "relative_path": "avtal_173.docx",
+        "structure_id": "84a88ea7cb723960389144b56e5b4480d7b1c107bafd00218226d3b30d3350e2",
+        "sequence": 25,
+        "char_start": 2503,
+        "char_end": 2584,
+        "content_hash": "e5d9c426ad886fa6d2b4ed6f79d8532f412bc2a8eee46a81d09ed719fa40b540",
+        "text_sha256": "2ee1f8409f90da5576ed6f55f02bf67d4e2bc67be6abe1fe66b16a403e841adc"
+      },
+      "event_kinds": [
+        "classify",
+        "classify",
+        "navigation",
+        "proof_decision"
+      ]
+    }
+  ],
+  "true_complete_missed_by_detector": [
+    {
+      "document_id": "avtal_103.docx",
+      "gold_classification": "YES",
+      "role": "true_complete",
+      "error_class": null,
+      "why_evidence_found": "jev_yes_after_hop",
+      "controller_status_before_navigation": "NEEDS_ANALYSIS",
+      "evidence_found_before_navigation": false,
+      "navigation_added_necessary_complete": true,
+      "link_re_matches_before_navigation": false,
+      "link_re_matches": false,
+      "jev_yes_text": "5.3\tInget i denna punkt ska begränsa parts ansvar för brott mot avsnitt 4.\n",
+      "hop_text": "5.2\tSkadestånd ska under avtalets hela löptid sammanlagt inte överstiga 2 500 000 kronor.\n",
+      "identity": {
+        "key": "bd9729e154e0f92d0b10eb32fe3b4572dbc655954145e3c7f5ee9615bca24709",
+        "node_id": 268,
+        "document_id": "dbf96eb73a80a2a92d2c73e0d94d595780bc374fe747ff6e1c5e54856c947b1a",
+        "relative_path": "avtal_103.docx",
+        "structure_id": "80edada93f2aa170e0cdf39386977dc73d63dac9f9411f336b0198ce5399529a",
+        "sequence": 20,
+        "char_start": 1896,
+        "char_end": 1971,
+        "content_hash": "0785ecf9f70c8898c4ddb5032f2f8f87036ae710c0a3037c77fd30fee7cbdbc6",
+        "text_sha256": "90dc5dc6eaff492e5ea1b8fcdd38e56e55122737c791878d458174cfe8f0aea1"
+      },
+      "event_kinds": [
+        "classify",
+        "navigation",
+        "proof_decision"
+      ]
+    },
+    {
+      "document_id": "avtal_106.docx",
+      "gold_classification": "YES",
+      "role": "true_complete",
+      "error_class": null,
+      "why_evidence_found": "jev_yes_after_hop",
+      "controller_status_before_navigation": "NEEDS_ANALYSIS",
+      "evidence_found_before_navigation": false,
+      "navigation_added_necessary_complete": true,
+      "link_re_matches_before_navigation": false,
+      "link_re_matches": false,
+      "jev_yes_text": "Ersättningsskyldighet\nPart ska ersätta den andra parten för direkt skada som parten orsakat genom vårdslöshet, med de begränsningar som följer nedan.\nParts sammanlagda ersättningsskyldighet är begränsad till ett belopp motsvarande tio prisbasbelopp enligt socialförsäkringsbalken (2010:110).\nBegränsningen i denna punkt ska inte tillämpas om skadan har orsakats uppsåtligen eller genom grov vårdslöshet.\nDetsamma gäller skada som uppkommer till följd av att part åsidosätter sin tystnadsplikt.\n",
+      "hop_text": "Dataskydd\nVardera parten är självständigt personuppgiftsansvarig för den behandling av personuppgifter om kontaktpersoner som sker inom ramen för avtalet.\n",
+      "identity": {
+        "key": "01eb915ca4a71fcec281f3fffe0e49f5e03340420d9b8539cd052012f7a8786f",
+        "node_id": 467,
+        "document_id": "00e9f4ed6a600081e5236b1baf46c108d40acccf2db449703d0ce1647e689d84",
+        "relative_path": "avtal_106.docx",
+        "structure_id": "337b02083ad33f02d2360fec868ea3cd3c583250234be15303188182764d8f8a",
+        "sequence": 6,
+        "char_start": 1085,
+        "char_end": 1579,
+        "content_hash": "6e813ba710cc6056b87713af66ee1220ca904396964b34d5d92c70861d5ebe1c",
+        "text_sha256": "14241d1c0f08fbc2057bf4f1b8ad6527a888cf68b82a1dfd4a089962ea32166f"
+      },
+      "event_kinds": [
+        "classify",
+        "classify",
+        "navigation",
+        "proof_decision"
+      ]
+    },
+    {
+      "document_id": "avtal_107.docx",
+      "gold_classification": "YES",
+      "role": "true_complete",
+      "error_class": null,
+      "why_evidence_found": "jev_yes_after_hop",
+      "controller_status_before_navigation": "NEEDS_ANALYSIS",
+      "evidence_found_before_navigation": false,
+      "navigation_added_necessary_complete": true,
+      "link_re_matches_before_navigation": false,
+      "link_re_matches": false,
+      "jev_yes_text": "5.4\tSamma sak gäller för skada som orsakas av att part obehörigen röjer Förtrolig Information.\n",
+      "hop_text": "5.3\tBegränsningarna i denna punkt ska inte tillämpas om skadan har orsakats uppsåtligen eller genom grov vårdslöshet.\n",
+      "identity": {
+        "key": "ba4d9e016f75fcd6735b3a2b48c68cd98df6d6c12a59d8b4a76d7b80912a5374",
+        "node_id": 552,
+        "document_id": "9b35101b7e29369e776c00a781a70d9c41bab74fafb1acbcdbed43bf57fc8012",
+        "relative_path": "avtal_107.docx",
+        "structure_id": "1f1a928cee2daf574f73f91119eb60382adb333e1a1768d568a5d49e33e7aed9",
+        "sequence": 22,
+        "char_start": 2438,
+        "char_end": 2533,
+        "content_hash": "0b37849366f16201dce702f8ebf182338f03cf7a1258e10955dfef472a70a40a",
+        "text_sha256": "8a4a9dffd6bcff9da586dce70ea4cbd20e5c41c5505115371968d8c8896f1195"
+      },
+      "event_kinds": [
+        "classify",
+        "classify",
+        "classify",
+        "navigation",
+        "proof_decision"
+      ]
+    },
+    {
+      "document_id": "avtal_113.docx",
+      "gold_classification": "YES",
+      "role": "true_complete",
+      "error_class": null,
+      "why_evidence_found": "jev_yes_after_hop",
+      "controller_status_before_navigation": "NEEDS_ANALYSIS",
+      "evidence_found_before_navigation": false,
+      "navigation_added_necessary_complete": true,
+      "link_re_matches_before_navigation": false,
+      "link_re_matches": false,
+      "jev_yes_text": "8.4\tBegränsningarna ovan gäller inte vid skada som har orsakats genom uppsåt eller grov vårdslöshet, och inte heller vid brott mot parts skyldigheter avseende Konfidentiell Information.\n",
+      "hop_text": "8.3\tIngen av parterna ansvarar för indirekt skada, såsom utebliven vinst, förlorad omsättning, produktionsbortfall eller förlust av data.\n",
+      "identity": {
+        "key": "b954f226565c5aac09a058211ab7cee9b73d3d6f04bf7f4635a9dd1366ecf225",
+        "node_id": 1130,
+        "document_id": "8862db0101e7339894ef976fe8e16f726119bd40d92f5f36c4c73d9b7a860fe7",
+        "relative_path": "avtal_113.docx",
+        "structure_id": "c68ea2ef7c74cf8fbceaf8446fd4db8c24fd6638626b2c360c47920feb57fcf8",
+        "sequence": 30,
+        "char_start": 3038,
+        "char_end": 3224,
+        "content_hash": "f02245d083ff692c0f2f822359a5b9f966f5a694446082525a08049c0ce840b3",
+        "text_sha256": "49f9b6861c5b025a8473503b0c2f46ee41821997773b5c1b13b1347f78f286c7"
+      },
+      "event_kinds": [
+        "classify",
+        "classify",
+        "navigation",
+        "proof_decision"
+      ]
+    },
+    {
+      "document_id": "avtal_140.docx",
+      "gold_classification": "YES",
+      "role": "true_complete",
+      "error_class": null,
+      "why_evidence_found": "jev_yes_after_hop",
+      "controller_status_before_navigation": "NEEDS_ANALYSIS",
+      "evidence_found_before_navigation": false,
+      "navigation_added_necessary_complete": true,
+      "link_re_matches_before_navigation": false,
+      "link_re_matches": false,
+      "jev_yes_text": "7.3\tAnsvarsbegränsningen ovan gäller inte i följande fall:\n(a) personskada;\n(b) skada som orsakats uppsåtligen eller genom grov vårdslöshet;\n(c) skada till följd av obehörigt röjande av Förtrolig Information; eller\n(d) intrång i tredje mans immateriella rättigheter.\n",
+      "hop_text": "7.2\tIngen av parterna ansvarar för indirekt skada, såsom utebliven vinst, förlorad omsättning, produktionsbortfall eller förlust av data.\n",
+      "identity": {
+        "key": "208979c757175f12ad4b42ddfb66ca01fa9468cfb64bcc99941c21db126537d4",
+        "node_id": 3672,
+        "document_id": "84a01ea6ebbf4df35be930c1c6d91fe5adba9c73317da262f2332e6f763bd592",
+        "relative_path": "avtal_140.docx",
+        "structure_id": "a214e1d8fd9256a932bb93199624f92aa18031475420311ed7a2f7e79e05bc6d",
+        "sequence": 26,
+        "char_start": 2124,
+        "char_end": 2391,
+        "content_hash": "0516e5601581c7a56e481324f582ce7ea509af9bff9f4cc1b697564a713fb57f",
+        "text_sha256": "48ff08f421957676d7cd287b42be846006ba0ba03d22625071bac93c44ae07b3"
+      },
+      "event_kinds": [
+        "classify",
+        "navigation",
+        "proof_decision"
+      ]
+    }
+  ],
+  "uncertain_is_not_false_complete": true,
+  "do_not_pad_false_completes": true
+}

@@ -1,0 +1,556 @@
+{
+  "id": "phase2-document-tags-gold-v1",
+  "label": "Document-tag gold for 16 phase-2 contracts. Locked before tag-extraction Jev. Limited tag classes.",
+  "do_not_overwrite": true,
+  "does_not_run_jev": true,
+  "models_not_run": true,
+  "does_not_change_text_units": true,
+  "does_not_change_retrieval": true,
+  "does_not_change_answer_cell": true,
+  "does_not_change_doctype_baseline": true,
+  "default_remains_d": true,
+  "prepared_knowledge_not_legal_proof": true,
+  "gold_id": "document-tags-gold-v1",
+  "catalog_version": "document-tags-v1",
+  "documents": [
+    "Avtal_01_Tillsvidareanstallningsavtal.docx",
+    "Avtal_02_Provanstallningsavtal.docx",
+    "Avtal_03_Visstidsanstallning.docx",
+    "Avtal_04_Timanstallning_behovsanstallning.docx",
+    "Avtal_05_Konsultavtal.docx",
+    "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+    "Avtal_07_Sekretessavtal_omsesidigt.docx",
+    "Avtal_08_Konkurrensforbudsavtal.docx",
+    "Avtal_11_Distansarbetsavtal.docx",
+    "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+    "Avtal_13_Avgangsvederlagsavtal.docx",
+    "Avtal_17_Hyresavtal_lokal.docx",
+    "Avtal_36_Underleverantorsavtal.docx",
+    "Avtal_38_Projektavtal_fast_pris.docx",
+    "Avtal_59_Agilt_IT_konsultavtal.docx",
+    "Avtal_81_VD_anstallningsavtal.docx"
+  ],
+  "headline": {
+    "documents": 16,
+    "tags": 34,
+    "counts": {
+      "employment_type": 7,
+      "notice_period": 7,
+      "confidentiality": 12,
+      "non_compete": 2,
+      "billing_model": 4,
+      "work_location": 2
+    },
+    "models_not_run": true
+  },
+  "inventory": {
+    "socialism_has_document_tag_model": false,
+    "openapi_tags_are_unrelated": true,
+    "speaker_user_label_is_unrelated": true,
+    "passage_marks_are_highlights_not_tags": true,
+    "expertgranskning_document_type_is_free_text": true,
+    "reuse_experiment_overgraph": true,
+    "reuse_frozen_doctype_b": true,
+    "do_not_create_parallel_tag_database": true,
+    "tenant_props": [
+      "tenant_id",
+      "workspace_id"
+    ],
+    "jev_fields_stored_raw": [
+      "confidence",
+      "probabilities"
+    ],
+    "citation_path": "TextUnit excerpt must be an exact substring"
+  },
+  "labels": [
+    {
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "tag_class": "employment_type",
+      "value": "permanent",
+      "display_value": "Tillsvidare",
+      "contains": "tillsvidareanställning"
+    },
+    {
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "tag_class": "notice_period",
+      "value": "1_month",
+      "display_value": "1 månad",
+      "contains": "en (1) månad"
+    },
+    {
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "konfidentiell information"
+    },
+    {
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "tag_class": "employment_type",
+      "value": "probationary",
+      "display_value": "Provanställning",
+      "contains": "Provanställning"
+    },
+    {
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "tag_class": "employment_type",
+      "value": "permanent",
+      "display_value": "Tillsvidare",
+      "contains": "tillsvidareanställning"
+    },
+    {
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "tag_class": "notice_period",
+      "value": "2_weeks",
+      "display_value": "14 dagar",
+      "contains": "två veckors"
+    },
+    {
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "tystnadsplikt"
+    },
+    {
+      "relative_path": "Avtal_03_Visstidsanstallning.docx",
+      "tag_class": "employment_type",
+      "value": "fixed_term",
+      "display_value": "Visstid",
+      "contains": "visstidsanställning"
+    },
+    {
+      "relative_path": "Avtal_03_Visstidsanstallning.docx",
+      "tag_class": "notice_period",
+      "value": "1_month",
+      "display_value": "1 månad",
+      "contains": "en (1) månads"
+    },
+    {
+      "relative_path": "Avtal_03_Visstidsanstallning.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "tystnadsplikt"
+    },
+    {
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+      "tag_class": "employment_type",
+      "value": "hourly",
+      "display_value": "Timanställning",
+      "contains": "Timanställning"
+    },
+    {
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+      "tag_class": "employment_type",
+      "value": "fixed_term",
+      "display_value": "Visstid",
+      "contains": "särskild visstidsanställning"
+    },
+    {
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "tystnadsplikt"
+    },
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "tag_class": "billing_model",
+      "value": "hourly",
+      "display_value": "Timarvode",
+      "contains": "kronor per timme"
+    },
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "tag_class": "notice_period",
+      "value": "30_days",
+      "display_value": "30 dagar",
+      "contains": "30] dagars uppsägningstid"
+    },
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "hålla Konfidentiell information hemlig"
+    },
+    {
+      "relative_path": "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "hålla Konfidentiell Information hemlig"
+    },
+    {
+      "relative_path": "Avtal_07_Sekretessavtal_omsesidigt.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "hålla Konfidentiell Information hemlig"
+    },
+    {
+      "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx",
+      "tag_class": "non_compete",
+      "value": "non_compete",
+      "display_value": "Konkurrensförbud",
+      "contains": "Konkurrensförbud"
+    },
+    {
+      "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+      "tag_class": "work_location",
+      "value": "remote",
+      "display_value": "Distans",
+      "contains": "arbeta på distans"
+    },
+    {
+      "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+      "tag_class": "notice_period",
+      "value": "1_month",
+      "display_value": "1 månad",
+      "contains": "en (1)] månads uppsägningstid"
+    },
+    {
+      "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "Konfidentiella handlingar"
+    },
+    {
+      "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "tystnadsplikt"
+    },
+    {
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+      "tag_class": "notice_period",
+      "value": "9_months",
+      "display_value": "9 månader",
+      "contains": "nio (9)] månader"
+    },
+    {
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "tag_class": "billing_model",
+      "value": "hourly",
+      "display_value": "Timarvode",
+      "contains": "kronor per timme"
+    },
+    {
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "hålla information om DevBrains"
+    },
+    {
+      "relative_path": "Avtal_38_Projektavtal_fast_pris.docx",
+      "tag_class": "billing_model",
+      "value": "fixed_price",
+      "display_value": "Fast pris",
+      "contains": "fast pris"
+    },
+    {
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "tag_class": "billing_model",
+      "value": "time_and_materials",
+      "display_value": "Löpande räkning",
+      "contains": "löpande räkning"
+    },
+    {
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "följa sekretess"
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "tag_class": "employment_type",
+      "value": "permanent",
+      "display_value": "Tillsvidare",
+      "contains": "gäller tills vidare"
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "tag_class": "notice_period",
+      "value": "6_months",
+      "display_value": "6 månader",
+      "contains": "sex (6) månader"
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "tag_class": "work_location",
+      "value": "stockholm",
+      "display_value": "Stockholm",
+      "contains": "Placeringsort är Stockholm"
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "tag_class": "confidentiality",
+      "value": "secrecy_obligation",
+      "display_value": "Sekretessåtagande",
+      "contains": "tystnadsplikt"
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "tag_class": "non_compete",
+      "value": "non_compete",
+      "display_value": "Konkurrensförbud",
+      "contains": "verksamhet som konkurrerar"
+    }
+  ],
+  "per_document": [
+    {
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "tags": [
+        {
+          "tag_class": "employment_type",
+          "value": "permanent",
+          "display_value": "Tillsvidare"
+        },
+        {
+          "tag_class": "notice_period",
+          "value": "1_month",
+          "display_value": "1 månad"
+        },
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "tags": [
+        {
+          "tag_class": "employment_type",
+          "value": "probationary",
+          "display_value": "Provanställning"
+        },
+        {
+          "tag_class": "employment_type",
+          "value": "permanent",
+          "display_value": "Tillsvidare"
+        },
+        {
+          "tag_class": "notice_period",
+          "value": "2_weeks",
+          "display_value": "14 dagar"
+        },
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_03_Visstidsanstallning.docx",
+      "tags": [
+        {
+          "tag_class": "employment_type",
+          "value": "fixed_term",
+          "display_value": "Visstid"
+        },
+        {
+          "tag_class": "notice_period",
+          "value": "1_month",
+          "display_value": "1 månad"
+        },
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+      "tags": [
+        {
+          "tag_class": "employment_type",
+          "value": "hourly",
+          "display_value": "Timanställning"
+        },
+        {
+          "tag_class": "employment_type",
+          "value": "fixed_term",
+          "display_value": "Visstid"
+        },
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "tags": [
+        {
+          "tag_class": "billing_model",
+          "value": "hourly",
+          "display_value": "Timarvode"
+        },
+        {
+          "tag_class": "notice_period",
+          "value": "30_days",
+          "display_value": "30 dagar"
+        },
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+      "tags": [
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_07_Sekretessavtal_omsesidigt.docx",
+      "tags": [
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx",
+      "tags": [
+        {
+          "tag_class": "non_compete",
+          "value": "non_compete",
+          "display_value": "Konkurrensförbud"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+      "tags": [
+        {
+          "tag_class": "work_location",
+          "value": "remote",
+          "display_value": "Distans"
+        },
+        {
+          "tag_class": "notice_period",
+          "value": "1_month",
+          "display_value": "1 månad"
+        },
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "tags": []
+    },
+    {
+      "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+      "tags": [
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+      "tags": [
+        {
+          "tag_class": "notice_period",
+          "value": "9_months",
+          "display_value": "9 månader"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "tags": [
+        {
+          "tag_class": "billing_model",
+          "value": "hourly",
+          "display_value": "Timarvode"
+        },
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_38_Projektavtal_fast_pris.docx",
+      "tags": [
+        {
+          "tag_class": "billing_model",
+          "value": "fixed_price",
+          "display_value": "Fast pris"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "tags": [
+        {
+          "tag_class": "billing_model",
+          "value": "time_and_materials",
+          "display_value": "Löpande räkning"
+        },
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "tags": [
+        {
+          "tag_class": "employment_type",
+          "value": "permanent",
+          "display_value": "Tillsvidare"
+        },
+        {
+          "tag_class": "notice_period",
+          "value": "6_months",
+          "display_value": "6 månader"
+        },
+        {
+          "tag_class": "work_location",
+          "value": "stockholm",
+          "display_value": "Stockholm"
+        },
+        {
+          "tag_class": "confidentiality",
+          "value": "secrecy_obligation",
+          "display_value": "Sekretessåtagande"
+        },
+        {
+          "tag_class": "non_compete",
+          "value": "non_compete",
+          "display_value": "Konkurrensförbud"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "phase2-first-verified-evidence",
+  "label": "Frozen: first verified positive evidence is already cheap on the C@8 lists. Do not optimize ranking for first YES.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "do_not_optimize_first_yes": true,
+  "budget_exhausted_is_not_absent": true,
+  "evidence_contracts": {
+    "document_existence": "first_verified_positive_may_answer",
+    "workspace_inventory": "every_document_verified_or_unresolved"
+  },
+  "golds": [
+    {
+      "gold_id": "auto-renewal",
+      "judgments_until_first_verified": 1,
+      "false_yes_before_first_verified": 0
+    },
+    {
+      "gold_id": "notice-period",
+      "judgments_until_first_verified": 2,
+      "false_yes_before_first_verified": 1
+    },
+    {
+      "gold_id": "liability-cap",
+      "judgments_until_first_verified": 4,
+      "false_yes_before_first_verified": 3
+    },
+    {
+      "gold_id": "confidentiality",
+      "judgments_until_first_verified": 1,
+      "false_yes_before_first_verified": 0
+    },
+    {
+      "gold_id": "liability-secrecy-carveout",
+      "judgments_until_first_verified": 2,
+      "false_yes_before_first_verified": 1
+    }
+  ]
+}

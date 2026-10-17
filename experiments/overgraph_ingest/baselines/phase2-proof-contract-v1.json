@@ -1,0 +1,23 @@
+{
+  "id": "phase2-proof-contract-v1",
+  "label": "Frozen: COMPOSITE should require complete legal relation, not a mandatory hop. Not applied to Coverage v3.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_controller": true,
+  "proof_contract_applied_to_v3": false,
+  "does_not_claim_saved_classifications": true,
+  "jev_yes_is_not_enough": true,
+  "relation": ["liability_cap", "exception", "secrecy_breach"],
+  "headline": {
+    "current_complete_at_first_signal": 0,
+    "proposed_complete_at_first_signal": 6,
+    "positives_expected": 7,
+    "needs_complementary": ["Avtal_46_SaaS_avtal.docx"],
+    "unresolved_references": [
+      "Avtal_47_Programvarulicensavtal.docx",
+      "Avtal_49_IT_drift_hostingavtal.docx"
+    ],
+    "control_none_complete": true
+  }
+}
