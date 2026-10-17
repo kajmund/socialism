@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { SourceReference, WorkspaceState } from "@/api/voiceWorkspaces"
-import { captureDocumentTurn, clearLocalDocumentSelection, localSelectionMatchesReference, withLocalDocumentSelection, type LocalDocumentSelection } from "./workspaceLocalSelection"
+import { addLocalDocumentSelection, captureDocumentTurn, clearLocalDocumentSelection, dropLocalPassage, localSelectionMatchesReference, localUserAnchors, withLocalDocumentSelection, type LocalDocumentSelection } from "./workspaceLocalSelection"
+import { passageCommentKey } from "./passageCommentKey"
 import type { WorkspaceTurnSnapshot } from "./workspaceTurnSnapshot"
 
 const anchor = { anchor_type: "text" as const, page_number: 1, locator: "page:1", exact_text: "Synthetic passage A",
@@ -114,6 +115,38 @@ describe("local document selection", () => {
       source_file_sha256: "c".repeat(64),
       anchor: { exact_text: anchor.exact_text },
     })
+  })
+})
+
+describe("several passages marked by the reader", () => {
+  const next = (): LocalDocumentSelection["selection"] => ({
+    source_id: "pdf", source_version: "version-a", source_file_sha256: "d".repeat(64),
+    anchor: { ...structuredClone(anchor), exact_text: "Synthetic passage B", rects: [{ x: .5, y: .6, width: .2, height: .04 }] },
+  })
+  it("keeps the earlier passage when the next one is marked", () => {
+    const kept = addLocalDocumentSelection(local(), "pdf", next()!)
+    expect(localUserAnchors(kept, "pdf")?.map((row) => row.exact_text)).toEqual(["Synthetic passage A", "Synthetic passage B"])
+    expect(kept.selection?.anchor?.exact_text).toBe("Synthetic passage B")
+    expect(withLocalDocumentSelection(state(), kept).selection?.anchor?.exact_text).toBe("Synthetic passage B")
+  })
+  it("keeps the first document's passage when another document is marked", () => {
+    const other = { ...next()!, source_id: "other" }
+    const kept = addLocalDocumentSelection(local(), "other", other)
+    expect(localUserAnchors(kept, "pdf")?.map((row) => row.exact_text)).toEqual(["Synthetic passage A"])
+    expect(localUserAnchors(kept, "other")?.map((row) => row.exact_text)).toEqual(["Synthetic passage B"])
+  })
+  it("drops the kept passages on the document that was cleared", () => {
+    const kept = addLocalDocumentSelection(local(), "pdf", next()!)
+    const cleared = clearLocalDocumentSelection(state(), [], kept, "pdf")
+    expect(localUserAnchors(cleared, "pdf")).toEqual([])
+    expect(cleared.selection).toBeNull()
+  })
+  it("drops the draft that belongs to a removed comment and keeps the other passage", () => {
+    const other = { ...anchor, exact_text: "Synthetic passage B", rects: [{ x: .5, y: .6, width: .2, height: .04 }] }
+    const kept = addLocalDocumentSelection(local(), "pdf", { source_id: "pdf", source_version: "version-a", anchor: other })
+    const dropped = dropLocalPassage(kept, "pdf", passageCommentKey("pdf", anchor))
+    expect(localUserAnchors(dropped, "pdf")).toEqual([other])
+    expect(dropLocalPassage(dropped, "pdf", passageCommentKey("pdf", other))?.selection).toBeNull()
   })
 })
 

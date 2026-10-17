@@ -3,6 +3,7 @@ import {
   activeDocumentQuery,
   documentMentionChoices,
   insertDocumentMention,
+  mentionableDocuments,
   resolveDocumentMentions,
 } from "./documentMentions"
 
@@ -28,6 +29,32 @@ describe("resolveDocumentMentions", () => {
   it("resolves exact filenames containing spaces", () => {
     expect(resolveDocumentMentions("Läs @Ramavtal 2026.pdf noggrant", files)).toEqual([
       { display_name: "Ramavtal 2026.pdf", source_object_id: "spaced" },
+    ])
+  })
+})
+
+describe("mentionableDocuments", () => {
+  it("lists uploaded files and ready created documents", () => {
+    expect(mentionableDocuments(
+      [{ id: "file", filename: "Avtal.pdf" }],
+      [
+        { id: "draft", title: "Förhandlingspunkter", kind: "document", status: "ready" },
+        { id: "failed", title: "Utkast", kind: "document", status: "failed" },
+        { id: "graph", title: "Relationer", kind: "relations", status: "ready" },
+      ],
+    )).toEqual([
+      { id: "file", filename: "Avtal.pdf" },
+      { id: "draft", filename: "Förhandlingspunkter" },
+    ])
+  })
+
+  it("resolves a created document the same way as an uploaded file", () => {
+    const files = mentionableDocuments(
+      [{ id: "file", filename: "Avtal.pdf" }],
+      [{ id: "draft", title: "Förhandlingspunkter", kind: "document", status: "ready" }],
+    )
+    expect(resolveDocumentMentions("Läs @Förhandlingspunkter", files)).toEqual([
+      { display_name: "Förhandlingspunkter", source_object_id: "draft" },
     ])
   })
 })
