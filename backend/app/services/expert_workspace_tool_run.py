@@ -9,6 +9,10 @@ from fastapi import HTTPException
 from app.database.models import UserAccount
 from app.schemas.workspace import WorkspaceState
 from app.services.jobs import enqueue_job, job_session_factory
+from app.services.workspace_intent import (
+    IntentDecision,
+    apply_intent_to_find_arguments,
+)
 
 
 async def run_workspace_tool_call(call: object, work: object) -> str:
@@ -16,6 +20,12 @@ async def run_workspace_tool_call(call: object, work: object) -> str:
 
     if not work.workspace_id or not work.actor_user_id or work.workspace_state is None:
         raise ValueError("workspace_required")
+    arguments = dict(call.arguments)
+    if call.name == "find_documents":
+        intent = getattr(work, "workspace_intent", None)
+        if not isinstance(intent, IntentDecision):
+            intent = None
+        arguments = apply_intent_to_find_arguments(arguments, intent)
     factory = job_session_factory()
     async with factory() as session:
         user = await session.get(UserAccount, work.actor_user_id)
@@ -31,7 +41,7 @@ async def run_workspace_tool_call(call: object, work: object) -> str:
                     workspace_id=work.workspace_id,
                     user=user,
                     tool_name=call.name,
-                    arguments=call.arguments,
+                    arguments=arguments,
                     idempotency_key=call.id,
                 )
             finally:

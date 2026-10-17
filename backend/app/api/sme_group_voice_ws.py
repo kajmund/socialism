@@ -22,9 +22,10 @@ from pydantic import BaseModel, Field, ValidationError
 from app.auth.tokens import user_from_bearer_token
 from app.config import settings
 from app.database.models import Kund, Population, PopulationMember, UserAccount
+from app.live_speech_settings import vad_client_config
 from app.services import jobs as jobs_service
-from app.services.prompt_catalog import render_prompt
-from app.services.prompt_store import require_active_prompts
+from app.services.prompt_render import prompt_template
+from app.services.prompt_store import module_for_population_kind, require_active_prompts
 from app.services.sme_group_voice import GroupVoiceSession
 from app.services.sme_group_voice_runtime import (
     GroupVoiceAudioRuntime,
@@ -42,6 +43,7 @@ class StartSession(BaseModel):
     type: str = "start"
     panel_id: str = Field(min_length=1)
     language: str = "sv"
+    workspace_id: str | None = Field(default=None, max_length=64)
 
 
 class HumanUtterance(BaseModel):
@@ -157,6 +159,8 @@ class _Call:
     push_snapshot: Any
     user_id: str
     customer_id: int
+    language: str
+    workspace_id: str | None
     speaking_task: dict[str, Any]
 
 
@@ -166,6 +170,16 @@ async def _replace_speech(speaking_task: dict[str, Any], speech) -> None:
         previous.cancel()
         await asyncio.gather(previous, return_exceptions=True)
     speaking_task["task"] = asyncio.create_task(speech)
+
+
+async def _interrupt_speech(call: _Call) -> None:
+    """Stop the expert who is talking so the user's utterance can finish."""
+    task = call.speaking_task.get("task")
+    if task is None or task.done():
+        return
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+    call.speaking_task["task"] = None
 
 
 async def _maybe_speak(call: _Call, user_text: str) -> None:
@@ -179,6 +193,7 @@ async def _maybe_speak(call: _Call, user_text: str) -> None:
             user_text=user_text,
             user_id=call.user_id,
             customer_id=call.customer_id,
+            workspace_id=call.workspace_id,
         ),
     )
 
@@ -210,10 +225,11 @@ async def _on_grant_floor(call: _Call, raw: dict) -> None:
 async def _on_release_floor(call: _Call, raw: dict) -> None:
     msg = ReleaseFloor.model_validate(raw)
     call.session.release_floor()
-    factory = jobs_service.job_session_factory()
-    async with factory() as db:
-        prompts = await require_active_prompts(db)
-    keep_prompt = render_prompt(prompts, "sme.group_voice.keep_hand")
+    keep_prompt = await _prompt(
+        "sme.group_voice.keep_hand",
+        customer_id=call.customer_id,
+        language=call.language,
+    )
     await call.session.decide_keep_hands(msg.transcript, keep_hand_prompt=keep_prompt)
     await call.push_snapshot()
 
@@ -332,11 +348,36 @@ async def _start_call(websocket: WebSocket, lock: asyncio.Lock, speaking_task: d
         push_snapshot=push_snapshot,
         user_id=user.id,
         customer_id=user.kund_id or 0,
+        language=start.language,
+        workspace_id=start.workspace_id,
         speaking_task=speaking_task,
     )
 
     async def on_floor_granted(_persona_id: str, transcript: str) -> None:
         await _maybe_speak(call, transcript)
+
+    async def on_unaddressed(transcript: str) -> None:
+        prompt = await _prompt(
+            "sme.group_voice.raise_hand",
+            customer_id=call.customer_id,
+            language=call.language,
+        )
+        winner = await session.decide_raise_hands(transcript, raise_hand_prompt=prompt)
+        if winner is None or session.floor is not None:
+            return
+        session.grant_floor(winner, lower_hand=False)
+        await emit(
+            {
+                "type": "floor.granted",
+                "persona_id": winner,
+                "floor_name": session.member_names.get(winner),
+            }
+        )
+        await push_snapshot()
+        await _maybe_speak(call, transcript)
+
+    async def interrupt_speech() -> None:
+        await _interrupt_speech(call)
 
     call.runtime = GroupVoiceAudioRuntime(
         session,
@@ -344,17 +385,32 @@ async def _start_call(websocket: WebSocket, lock: asyncio.Lock, speaking_task: d
         emit_json=emit,
         emit_audio=emit_audio,
         on_floor_granted=on_floor_granted,
+        on_unaddressed=on_unaddressed,
     )
+    call.runtime.interrupt_speech = interrupt_speech
     await call.runtime.start()
     await emit(
         {
             "type": "ready",
             "panel_id": session.panel_id,
             "audio_format": {"codec": "pcm16", "sample_rate": 24000, "channels": 1},
+            "vad": vad_client_config(settings),
         }
     )
     await push_snapshot()
     return call
+
+
+async def _prompt(key: str, *, customer_id: int, language: str) -> str:
+    factory = jobs_service.job_session_factory()
+    async with factory() as db:
+        prompts = await require_active_prompts(
+            db,
+            customer_id=customer_id,
+            module=module_for_population_kind("expert_panel"),
+            language=language,
+        )
+    return prompt_template(prompts, key)
 
 
 async def _stop_call(websocket: WebSocket, speaking_task: dict[str, Any], runtime: GroupVoiceAudioRuntime | None) -> None:
