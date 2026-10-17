@@ -3,7 +3,7 @@
 import sqlalchemy as sa
 from alembic import op
 
-from app.services.prompt_catalog import PROMPT_FIELDS
+from app.services.workspace_prompt_defaults import workspace_prompt_fields
 
 revision = "156_workspace_focus_passage"
 down_revision = "155_workspace_document_answer"
@@ -12,14 +12,22 @@ depends_on = None
 
 _SYSTEM = "workspace.voice.system"
 _PARAGRAPHS = {
-    "sv": "Du markerar i dokumentvyn genom att anropa focus_anchor med source_id från open_documents och quote "
-    "med de exakta orden, till exempel kundens namn. Säg aldrig att du inte kan markera eller visa platsen. "
-    "Bekräfta markeringen först när focus_anchor har svarat completed. Om användaren säger att ingen markering "
-    "syns, anropa focus_anchor direkt.",
-    "en": "You highlight in the document view by calling focus_anchor with source_id from open_documents and "
-    "quote set to the exact words, such as the customer name. Never say you cannot mark or show the place. "
-    "Confirm the highlight only after focus_anchor returns completed. If the user says no highlight is visible, "
-    "call focus_anchor immediately.",
+    "sv": "Du markerar i dokumentvyn genom att anropa focus_anchor en gång per passage, med source_id "
+    "från open_documents och quote med just den passagens exakta ord. Flera anrop på samma dokument "
+    "markerar flera passager. Säg aldrig att du inte kan markera eller visa platsen. Bekräfta varje "
+    "passage först när dess focus_anchor har svarat completed. Säg inte att en passage är markerad om "
+    "du inte anropat focus_anchor för den. Om användaren säger att ingen markering syns, anropa "
+    "focus_anchor direkt. När du har en kommentar till passagen skickar du den i comment i samma "
+    "anrop. Kommentaren visas vid markeringen i ditt namn. Utelämna comment när passagen bara ska "
+    "markeras.",
+    "en": "You highlight in the document view by calling focus_anchor once per passage, with source_id "
+    "from open_documents and quote set to that passage's exact words. Several calls on the same "
+    "document highlight several passages. Never say you cannot mark or show the place. Confirm each "
+    "passage only after its focus_anchor returns completed. Do not say a passage is highlighted unless "
+    "you called focus_anchor for it. If the user says no highlight is visible, call focus_anchor "
+    "immediately. When you have a comment on the passage, send it in comment in the same call. The "
+    "comment appears on the highlight in your name. Omit comment when the passage should only be "
+    "highlighted.",
 }
 _PARAGRAPHS["nb"] = _PARAGRAPHS["sv"]
 
@@ -31,8 +39,22 @@ _TOOL_OLD = {
 }
 
 
+def _make_field(
+    key: str,
+    _section: str,
+    _label_sv: str,
+    _label_en: str,
+    _hint_sv: str,
+    _hint_en: str,
+    default_sv: str,
+    default_en: str,
+) -> dict:
+    return {"key": key, "defaults": {"sv": default_sv, "en": default_en, "nb": default_sv}}
+
+
 def _catalog(key: str) -> dict[str, str]:
-    for field in PROMPT_FIELDS:
+    # Pre-split legacy texts: 180 applies the compact overrides, not this migration.
+    for field in workspace_prompt_fields(_make_field, apply_overrides=False):
         if field["key"] == key:
             return field["defaults"]
     raise RuntimeError(f"missing prompt catalog field {key}")

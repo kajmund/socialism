@@ -5,6 +5,8 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.config import settings
+from app.services.document_qa.owner import attach_graph_owner, detach_graph_owner
 from app.services.graph_v2.outbox import process_graph_work
 
 logger = logging.getLogger(__name__)
@@ -33,3 +35,16 @@ async def stop_graph_ingest_loop(task: asyncio.Task[None]) -> None:
         await task
     except asyncio.CancelledError:
         pass
+
+
+def start_graph_owner(factory: async_sessionmaker[AsyncSession]) -> asyncio.Task[None] | None:
+    if not settings.graph_ingest_loop_enabled:
+        return None
+    attach_graph_owner()
+    return start_graph_ingest_loop(factory)
+
+
+async def stop_graph_owner(task: asyncio.Task[None] | None) -> None:
+    if task is not None:
+        await stop_graph_ingest_loop(task)
+    detach_graph_owner()
