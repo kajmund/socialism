@@ -91,6 +91,13 @@ class GraphContext:
 def load_graph_context(writer: GraphWriter) -> GraphContext:
     units = load_published_units(writer)
     structures = _structures(writer)
+    return context_from_units(units, structures)
+
+
+def context_from_units(
+    units: list[StoredUnit],
+    structures: dict[str, dict[str, object]],
+) -> GraphContext:
     return GraphContext(
         units=units,
         structures=structures,
