@@ -4,7 +4,17 @@ import type { SpindoctorChartType } from "@/api/spindoctorWidgets"
 import { requireVoiceWorkspace } from "./voiceWorkspaceResponse"
 
 export type KnowledgeScope = "workspace" | "general" | "research"
-export type WorkspaceView = "evidence" | "comparison" | "documents" | "relations"
+export type WorkspaceView = "evidence" | "comparison" | "documents" | "relations" | "document_set"
+export type WorkspaceDocumentSet = {
+  id: string
+  title: string
+  source_ids: string[]
+}
+export type PassageAuthor = {
+  kind: "user" | "expert"
+  id: string
+  name: string
+}
 export type SourceReference = {
   reference_id: string
   number: number
@@ -15,6 +25,7 @@ export type SourceReference = {
   anchor: DocumentKnowledgeAnchor | null
   source_version: string
   stale: boolean
+  marked_by?: PassageAuthor | null
 }
 export type WorkspaceSelection = {
   reference_id?: string
@@ -34,8 +45,12 @@ export type WorkspaceState = {
   knowledge_scope: KnowledgeScope
   view: WorkspaceView
   documents: { source_id: string; page: number; zoom: number; reference_id?: string | null }[]
+  active_source_id?: string | null
+  document_sets?: WorkspaceDocumentSet[]
+  active_document_set_id?: string | null
   split_source_ids: string[]
   active_artifact_id?: string | null
+  open_artifact_ids?: string[]
   selection?: WorkspaceSelection | null
   research_attempt_ids: string[]
   document_mentions?: { display_name: string; source_object_id: string }[]
@@ -49,11 +64,25 @@ export type WorkspaceArtifact = {
   status: string
   job_id: string | null
   error: string | null
+  created_at?: string
   content: { blocks?: ArtifactBlock[] } & Record<string, unknown>
 }
 export type WorkspaceResearch = { job_id: string; attempt_id: string | null; run_id: string | null; status: string; progress_url: string }
 export type VoiceWorkspaceParent = { workspaceId: string; customerId?: number }
 export type WorkspaceSummary = Pick<Workspace, "id" | "workspace_id" | "chat_id" | "customer_id" | "title" | "module" | "revision" | "state">
+export type PassageComment = {
+  id: string
+  source_id: string
+  passage_key: string
+  anchor: DocumentKnowledgeAnchor
+  author_id: string | null
+  author_kind: "user" | "expert"
+  expert_id?: string | null
+  author_name: string
+  body: string
+  created_at: string
+  updated_at: string
+}
 export type Workspace = {
   id: string
   workspace_id: string
@@ -67,6 +96,7 @@ export type Workspace = {
   artifacts: WorkspaceArtifact[]
   references: SourceReference[]
   research: WorkspaceResearch[]
+  comments?: PassageComment[]
 }
 export type WorkspaceMessage = {
   id: number
@@ -117,6 +147,7 @@ export type ToolResult = {
   artifact?: WorkspaceArtifact
   artifact_id?: string
   job_id?: string
+  comment?: PassageComment
   snapshot?: { title: string; excerpt: string; source_url?: string; provenance?: Record<string, unknown> }
   download_url?: string
 }
@@ -133,6 +164,9 @@ export const voiceWorkspaces = {
   sourceFileWithVersion: (id: string, sourceId: string) => api.getBlobWithHeaders(`/voice-workspaces/${id}/sources/${sourceId}/file`).then(({ blob, headers }) => ({ blob, sourceVersion: requireSourceVersion(headers.get("X-Workspace-Source-Version")), sourceFileSha256: requireSourceFileSha256(headers.get("X-Workspace-File-Sha256")) })),
   reference: (id: string, referenceId: string) => api.get<SourceReference>(`/voice-workspaces/${id}/references/${referenceId}`),
   tool: (id: string, name: string, args: Record<string, unknown>, expectedRevision?: number) => api.post<ToolResult>(`/voice-workspaces/${id}/tools/${name}`, { idempotency_key: crypto.randomUUID(), expected_revision: expectedRevision, arguments: args }, name === "search_knowledge" || name === "focus_passage" ? { timeoutMs: 120_000 } : undefined),
+  addPassageComment: (id: string, body: { source_id: string; anchor: DocumentKnowledgeAnchor; body: string }) => api.post<PassageComment>(`/voice-workspaces/${id}/passage-comments`, body),
+  updatePassageComment: (id: string, commentId: string, body: string) => api.patch<PassageComment>(`/voice-workspaces/${id}/passage-comments/${commentId}`, { body }),
+  deletePassageComment: (id: string, commentId: string) => api.delete<{ removed_reference_ids: string[] }>(`/voice-workspaces/${id}/passage-comments/${commentId}`),
   artifact: async (id: string, artifactId: string, revision?: number) => { const artifact = await api.get<WorkspaceArtifact>(`/voice-workspaces/${id}/artifacts/${artifactId}`); if (revision == null) return artifact; const historical = await api.get<Pick<WorkspaceArtifact, "revision" | "title" | "content">>(`/voice-workspaces/${id}/artifacts/${artifactId}/revisions/${revision}`); return { ...artifact, ...historical } },
   saveArtifact: async (id: string, artifact: WorkspaceArtifact) => { const result = await api.patch<ToolResult>(`/voice-workspaces/${id}/artifacts/${artifact.id}`, { expected_revision: artifact.revision, title: artifact.title, content: artifact.content, idempotency_key: crypto.randomUUID() }); if (!result.artifact) throw new Error("Missing saved artifact"); return result.artifact },
   export: (id: string, artifactId: string, format: "pdf" | "docx", revision: number) => api.getBlob(`/voice-workspaces/${id}/artifacts/${artifactId}/exports/${format}?revision=${revision}`),
