@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from dataclasses import dataclass, field, replace
 from typing import Any
 from uuid import uuid4
@@ -44,9 +44,25 @@ from app.services.expert_worker_spawn import SPAWN_TOOL_NAME, run_spawn_workers
 from app.services.oasis_agent_tools import SEARCH_TOOL_NAMES, run_search_tool, search_tool_specs
 from app.services.prompt_catalog import render_prompt
 from app.services.workspace_chat_tools import CLIENT_TOOL_NAMES, SERVER_TOOL_NAMES
+from app.services.workspace_intent import IntentDecision, filter_specs_for_intent
+from app.services.workspace_intent import presentation_tools_allowed
 
 History = list[tuple[str, str, str | None]]
 _active: ContextVar[LibraryToolScope | None] = ContextVar("library_tool_scope", default=None)
+_ack_text: ContextVar[str | None] = ContextVar("library_turn_ack_text", default=None)
+
+
+def bind_ack_text(value: str | None) -> Token[str | None]:
+    """Per-turn acknowledgment the expert has already said; the reply continues it."""
+    return _ack_text.set(value)
+
+
+def reset_ack_text(token: Token[str | None]) -> None:
+    _ack_text.reset(token)
+
+
+def current_ack_text() -> str | None:
+    return _ack_text.get()
 
 
 @dataclass(frozen=True)
@@ -72,6 +88,7 @@ class ToolWork:
     calls: tuple[PlannedCall, ...]
     workspace_id: str | None = None
     workspace_state: dict | None = None
+    workspace_intent: IntentDecision | None = None
     reasoning_profile: SelectionRole | None = None
     reasoning_decision: RoutingDecision | None = None
     turn_started_at: float | None = None
@@ -110,6 +127,10 @@ class LibraryToolScope:
         self.reasoning_decision: RoutingDecision | None = None
         self.turn_started_at: float | None = None
         self.tool_retrieval = None
+        self.workspace_task_context = ""
+        self.workspace_prompts: dict[str, str] = {}
+        self.workspace_tool_catalog: list[dict[str, Any]] = []
+        self.workspace_intent: IntentDecision | None = None
         self.spawn_exposed = False
         self.session_factory = None
         self._calls: list[PlannedCall] = []
@@ -131,6 +152,11 @@ class LibraryToolScope:
                 self.client_calls.append(call)
             else:
                 self._calls.append(call)
+
+    def extra_system(self, base: str) -> str:
+        if not self.workspace_task_context:
+            return base
+        return f"{base}\n\n{self.workspace_task_context}".strip()
 
     @property
     def tool_count(self) -> int:
@@ -238,23 +264,32 @@ def _planned_calls(
     workspace_state: dict | None = None,
     seen_call_ids: set[str] | None = None,
 ) -> list[PlannedCall]:
+    """Parse tool calls for this model reply.
+
+    ``seen_call_ids`` is read-only here: already delivered or executed IDs are
+    skipped. Ownership of a newly accepted ID is claimed by ``defer`` (initial
+    round and client delivery) or by ``_finish_round`` (continuation servers).
+    Mutating the shared set here caused continuation client calls to be dropped
+    before ``defer`` could enqueue them.
+    """
     raw = list(getattr(reply, "tool_calls", None) or [])
     if not raw:
         raw = tool_calls_from_leaked_markup(str(getattr(reply, "content", "") or ""))
     if not raw and consult:
         raw = consult_calls_from_promise(text, last_user_question(messages))
     planned: list[PlannedCall] = []
-    seen_ids = seen_call_ids if seen_call_ids is not None else set()
+    already = seen_call_ids if seen_call_ids is not None else set()
+    local: set[str] = set()
     for call in raw:
         call_id = str(call.id)
         name = str(call.function.name)
-        if name not in offered or call_id in seen_ids:
+        if name not in offered or call_id in already or call_id in local:
             continue
-        seen_ids.add(call_id)
+        local.add(call_id)
         planned.append(PlannedCall(call_id, name, parse_tool_args(call.function.arguments)))
     if not planned and "read_source" in offered:
         promised = read_promise_arguments(text, workspace_state)
-        if promised is not None:
+        if promised is not None and "call_read_promise" not in already:
             planned.append(PlannedCall("call_read_promise", "read_source", promised))
     return planned
 
@@ -269,6 +304,7 @@ def _work(scope: LibraryToolScope, calls: tuple[PlannedCall, ...]) -> ToolWork:
         calls=calls,
         workspace_id=scope.workspace_id,
         workspace_state=scope.workspace_state,
+        workspace_intent=scope.workspace_intent,
         reasoning_profile=scope.reasoning_profile,
         reasoning_decision=scope.reasoning_decision,
         turn_started_at=scope.turn_started_at,
@@ -302,22 +338,44 @@ async def complete_tool_episode(
     calls = tuple(scope._calls)
     work = _work(scope, calls)
     blob, results = await run_tool_calls(work) if calls else ("", ())
+    if blob and any(
+        call.name in {"find_documents", "search_knowledge", "read_source"} for call in calls
+    ):
+        # Imported here because reasoning routing imports this scope type.
+        from app.services.expert_reasoning_turn import reroute_workspace_episode
+
+        rerouted, require_tool = await reroute_workspace_episode(scope, blob)
+        if rerouted and work.episode is not None:
+            rerouted = filter_specs_for_intent(rerouted, scope.workspace_intent)
+            require_presentation = (
+                require_tool and presentation_tools_allowed(scope.workspace_intent)
+                and any(call.name == "find_documents" for call in calls)
+            )
+            workspace_names = {
+                str(spec.get("function", {}).get("name") or "")
+                for spec in scope.workspace_tool_catalog
+            }
+            non_workspace = tuple(
+                spec for spec in work.episode.specs
+                if str(spec.get("function", {}).get("name") or "") not in workspace_names
+            )
+            work.episode = replace(
+                work.episode,
+                specs=(*non_workspace, *rerouted),
+                tool_choice="required" if require_presentation else "auto",
+            )
+            scope.episode = work.episode
 
     async def publish(client_calls: list[PlannedCall]) -> None:
-        if scope.customer_id is None:
-            return
-        from app.realtime.library_chat_broadcast import library_chat_broadcast
-
-        for call in client_calls:
-            await library_chat_broadcast.publish(scope.customer_id, scope.persona_id, {
-                "type": "workspace_tool",
-                "thread_type": "expert",
-                "thread_id": scope.persona_id,
-                "mode": scope.mode,
-                "name": call.name,
-                "arguments": call.arguments,
-                "owner_turn_id": scope.turn_id,
-            })
+        # Broadcast delivery dropped panel marks on a conversation that
+        # ignores the expert channel; the turn defers every document tool once.
+        if not presentation_tools_allowed(scope.workspace_intent):
+            client_calls = [
+                call for call in client_calls
+                if call.name not in {"show_document", "show_document_set"}
+            ]
+        if client_calls:
+            scope.defer(client_calls)
 
     highlights = focus_calls_for_search(
         [(call.name, result) for call, result in zip(calls, results, strict=False)],

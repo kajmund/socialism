@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import suppress
 from dataclasses import dataclass, field
 from time import monotonic
 from uuid import uuid4
@@ -14,6 +13,7 @@ from elevenlabs.core.api_error import ApiError as ElevenLabsApiError
 from openai import OpenAIError
 
 from app.config import settings
+from app.live_speech_settings import tts_sample_rate
 from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.schemas.workspace import WorkspaceState
 from app.services import jobs as jobs_service
@@ -24,6 +24,7 @@ from app.services.live_speech_cues import LiveSpeechCues
 from app.services.expert_turn_cancel import bind_turn_cancel
 from app.services.live_speech_history import persist_interrupted_voice_turn
 from app.services.live_speech_progress import bind_tool_progress
+from app.services.live_speech_stt_terms import keywords_from_text_units, text_unit_texts
 from app.services.openai_live_transcription import (
     OpenAITranscriptionStream,
     TranscriptEvent,
@@ -54,6 +55,9 @@ class LiveSpeechScope:
     workspace_state: WorkspaceState
     prompts: dict[str, str] = field(default_factory=dict)
     recent_turns: tuple[tuple[str, str], ...] = ()
+    stt_prompt: str = ""
+    stt_keywords: tuple[str, ...] = ()
+    stt_base_keywords: tuple[str, ...] = ()
 
 
 class LiveSpeechRuntime:
@@ -67,10 +71,13 @@ class LiveSpeechRuntime:
         self.scope = scope
         self._emit_json = emit_json
         self._emit_audio = emit_audio
+        self._base_keywords = list(scope.stt_base_keywords)
         self._stt = OpenAITranscriptionStream(
             api_key=settings.openai_api_key,
             model=settings.live_speech_stt_model,
             language=scope.language,
+            prompt=scope.stt_prompt,
+            keywords=list(scope.stt_keywords),
             on_event=self._on_transcript,
         )
         self._tts = ElevenLabsTts(
@@ -107,10 +114,23 @@ class LiveSpeechRuntime:
             stream=self._tts_chunks,
             emit_json=self._emit_json,
             emit_audio=self._emit_audio,
-            sample_rate=_output_sample_rate(),
+            sample_rate=tts_sample_rate(settings.live_speech_tts_output_format),
             next_sequence=self._next_sequence,
             on_state=self._state,
             on_first_audio=self._mark_first_audio,
+        )
+
+    async def focus_sources(self, source_ids: list[str]) -> None:
+        factory = jobs_service.job_session_factory()
+        async with factory() as session:
+            texts = await text_unit_texts(
+                session,
+                customer_id=self.scope.customer_id,
+                source_ids=source_ids,
+            )
+            await session.rollback()
+        await self._stt.update(
+            keywords=keywords_from_text_units(texts, base=self._base_keywords),
         )
 
     async def start(self) -> None:
@@ -477,9 +497,3 @@ class LiveSpeechRuntime:
     def _next_sequence(self) -> int:
         self._sequence += 1
         return self._sequence
-
-
-def _output_sample_rate() -> int:
-    with suppress(ValueError):
-        return int(settings.live_speech_tts_output_format.rsplit("_", 1)[1])
-    raise RuntimeError("LIVE_SPEECH_TTS_OUTPUT_FORMAT must include a sample rate")
