@@ -5,10 +5,9 @@ export type VadResult = {
   abandon: boolean
 }
 
-export class EnergyVad {
+/** Turn segmentation. Speech itself comes from Silero, not from audio energy. */
+export class TurnVad {
   private readonly preroll: Float32Array[] = []
-  private noise = 0
-  private calibrationFrames = 0
   private speaking = false
   private above = 0
   private silenceMs = 0
@@ -17,37 +16,25 @@ export class EnergyVad {
   private confirmed = false
 
   constructor(
-    private readonly configuredThreshold: number,
     private readonly prerollMs: number,
     private readonly hangoverMs: number,
     private readonly minSpeechMs = 120,
     private readonly urgentMs = 120,
   ) {}
 
-  process(frame: Float32Array, sampleRate: number): VadResult {
+  push(speech: boolean, frame: Float32Array, sampleRate: number): VadResult {
     const durationMs = frame.length / sampleRate * 1000
-    const energy = rms(frame)
-    if (this.calibrationFrames < 20 && !this.speaking) {
-      this.noise = (this.noise * this.calibrationFrames + energy) / (this.calibrationFrames + 1)
-      this.calibrationFrames += 1
-    }
-    if (this.calibrationFrames < 20) {
-      this.preroll.push(frame)
-      trimPreroll(this.preroll, this.prerollMs, sampleRate)
-      return idle()
-    }
-    const active = energy >= Math.max(this.configuredThreshold, this.noise * 3)
     if (!this.speaking) {
       this.preroll.push(frame)
       trimPreroll(this.preroll, this.prerollMs, sampleRate)
-      this.above = active ? this.above + 1 : 0
+      this.above = speech ? this.above + 1 : 0
       if (this.above < 2) return idle()
       this.speaking = true
       this.speechMs = durationMs * this.above
       this.silenceMs = 0
       return this.release(false)
     }
-    if (active) {
+    if (speech) {
       this.silenceMs = 0
       this.speechMs += durationMs
       this.preroll.push(frame)
@@ -96,21 +83,24 @@ function idle(): VadResult {
   return { frames: [], started: false, commit: false, abandon: false }
 }
 
-function rms(frame: Float32Array): number {
-  if (frame.length === 0) return 0
-  let sum = 0
-  for (const sample of frame) sum += sample * sample
-  return Math.sqrt(sum / frame.length)
-}
-
-function trimPreroll(
-  frames: Float32Array[],
-  maxMs: number,
-  sampleRate: number,
-): void {
+function trimPreroll(frames: Float32Array[], maxMs: number, sampleRate: number): void {
   let samples = frames.reduce((total, frame) => total + frame.length, 0)
   const maxSamples = sampleRate * maxMs / 1000
   while (samples > maxSamples && frames.length > 1) {
     samples -= frames.shift()?.length ?? 0
   }
+}
+
+export function turnVadFromConfig(config: unknown): TurnVad {
+  const vad = config && typeof config === "object" ? config as Record<string, unknown> : {}
+  return new TurnVad(
+    finiteNumber(vad.preroll_ms, 250),
+    finiteNumber(vad.hangover_ms, 600),
+    finiteNumber(vad.min_speech_ms, 120),
+    finiteNumber(vad.urgent_ms, 120),
+  )
+}
+
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback
 }
