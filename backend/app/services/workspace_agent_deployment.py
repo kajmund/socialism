@@ -14,25 +14,28 @@ from app.database.workspace_conversations import WorkspaceAgentDeployment
 from app.services.elevenlabs_agents import ElevenLabsAgentsClient, ElevenLabsError, require_string
 from app.services.prompt_store import render_prompt, require_active_prompts
 from app.services.workspace.tool_arguments import (
-    ChartArguments, ExportArguments, GenerationArguments, IngestArguments, JobArguments,
-    ReadArguments, ResearchArguments, ReviseArguments, SearchArguments,
+    ChartArguments, ContextArguments, ExportArguments, FindDocumentsArguments, GenerationArguments,
+    IngestArguments, JobArguments, ReadArguments, ResearchArguments, ReviseArguments,
+    SearchArguments,
 )
 
 SERVER_TOOLS = (
-    "get_workspace_context", "ingest_source", "get_job_status", "search_knowledge", "read_source",
-    "compare_sources", "get_relations", "render_chart", "create_document", "revise_document",
-    "export_document", "start_research",
+    "get_workspace_context", "ingest_source", "get_job_status", "search_knowledge",
+    "find_documents", "read_source", "compare_sources", "get_relations", "render_chart",
+    "create_document", "revise_document", "export_document", "start_research",
 )
 CLIENT_TOOLS = (
-    "open_ingest_picker", "show_evidence", "show_document", "focus_anchor", "show_comparison",
+    "open_ingest_picker", "show_evidence", "show_document", "show_document_set", "focus_anchor", "show_comparison",
     "show_relations", "show_knowledge", "show_artifact",
 )
 PROMPT_PREFIX = "workspace.voice."
 TOOL_ARGUMENT_MODELS = {
     "ingest_source": IngestArguments, "get_job_status": JobArguments, "search_knowledge": SearchArguments,
-    "read_source": ReadArguments, "compare_sources": GenerationArguments, "get_relations": GenerationArguments,
+    "find_documents": FindDocumentsArguments, "read_source": ReadArguments,
+    "compare_sources": GenerationArguments, "get_relations": GenerationArguments,
     "render_chart": ChartArguments, "create_document": GenerationArguments, "revise_document": ReviseArguments,
     "export_document": ExportArguments, "start_research": ResearchArguments,
+    "get_workspace_context": ContextArguments,
 }
 
 
@@ -50,14 +53,22 @@ class AgentSnapshot:
 def argument_schema(name: str) -> dict:
     if name in TOOL_ARGUMENT_MODELS:
         return TOOL_ARGUMENT_MODELS[name].model_json_schema()
-    if name in {"open_ingest_picker", "get_workspace_context"}:
+    if name == "open_ingest_picker":
         properties = {}
     elif name == "show_document":
         properties = {"reference_id": {"type": "string"}, "source_id": {"type": "string"},
                       "page": {"type": "integer", "minimum": 1}}
+    elif name == "show_document_set":
+        properties = {
+            "title": {"type": "string", "minLength": 1, "maxLength": 255},
+            "source_ids": {
+                "type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 40,
+            },
+        }
     elif name == "focus_anchor":
         properties = {"source_id": {"type": "string"}, "quote": {"type": "string"},
-                      "reference_id": {"type": "string"}}
+                      "reference_id": {"type": "string"},
+                      "comment": {"type": "string", "description": "Kommentar som visas vid markeringen, i expertens namn. Utelämna när passagen bara ska markeras."}}
     elif name in {"show_evidence", "show_knowledge"}:
         properties = {"reference_ids": {"type": "array", "items": {"type": "string"}}}
     elif name == "show_relations":
@@ -67,34 +78,55 @@ def argument_schema(name: str) -> dict:
     result = {"type": "object", "properties": properties, "additionalProperties": False}
     if name in {"show_artifact", "show_comparison", "show_relations"}:
         result["required"] = ["artifact_id"]
+    elif name == "show_document_set":
+        result["required"] = ["title", "source_ids"]
     return result
+
+
+_FLAT_TOOL_PARAMETERS = {
+    "search_knowledge": {"type": "object", "required": ["query"], "properties": {
+        "query": {"type": "string", "description": "Vad som ska hittas, med användarens egna ord."},
+        "source_id": {"type": "string", "description": "source_object_id när dokumentet redan är identifierat."},
+        "exact": {"type": "boolean", "description": "Sant när textsträngen redan är känd. Matchar den utan semantisk sökning."}}},
+    "find_documents": {"type": "object", "required": ["query"], "properties": {
+        "query": {"type": "string", "description": "Vilka dokument som ska hittas, med användarens egna ord."},
+        "mode": {
+            "type": "string",
+            "enum": ["replace", "filter", "extend", "within"],
+            "description": (
+                "replace: ny mängd. "
+                "filter: begränsa aktivt document_set. "
+                "within: undersök aktivt document_set utan att byta urval. "
+                "extend: lägg till i aktivt document_set."
+            ),
+        }}},
+    "read_source": {"type": "object", "properties": {
+        "source_id": {"type": "string", "description": "source_object_id för dokumentet som ska läsas."},
+        "reference_id": {"type": "string", "description": "Referens från en tidigare sökträff."},
+        "quote": {"type": "string", "description": "Känd passage. Läser stycken runt den och flyttar inte vyn."},
+        "section": {"type": "string", "description": "Rubrik eller klausul från dokumentstrukturen."},
+        "outline": {"type": "boolean", "description": "Returnera rubriker och sektioner från ingest."},
+        "page": {"type": "integer", "minimum": 1, "description": "Sida från 1. Läser texten på den sidan."}}},
+    "focus_anchor": {"type": "object", "required": ["source_id", "quote"], "properties": {
+        "source_id": {"type": "string", "description": "source_id från open_documents."},
+        "quote": {"type": "string", "description": "De exakta orden i en passage. Anropa en gång per passage."},
+        "comment": {"type": "string", "description": "Kommentar som visas vid markeringen. Skriv den i samma anrop. Utelämna när passagen bara ska markeras."}}},
+    "show_document": {"type": "object", "required": ["source_id"], "properties": {
+        "source_id": {"type": "string", "description": "source_object_id från available_documents för dokumentet som ska öppnas."},
+        "reference_id": {"type": "string", "description": "Referens som ska visas, om en sådan redan finns."},
+        "page": {"type": "number", "description": "Sida, från 1."}}},
+    "show_document_set": {"type": "object", "required": ["title", "source_ids"], "properties": {
+        "title": {"type": "string", "description": "Kort rubrik som beskriver vad dokumenten söktes fram för."},
+        "source_ids": {"type": "array", "items": {"type": "string"},
+                       "description": "Unika source_object_id för dokumenten som ska visas."}}},
+}
 
 
 def tool_parameters(name: str, argument_description: str) -> dict:
     # Voice models call a named field. The arguments_json string is only for
     # tools whose contract does not fit ElevenLabs' flat parameter subset.
-    if name == "search_knowledge":
-        return {"type": "object", "required": ["query"], "properties": {
-            "query": {"type": "string", "description": "Vad som ska hittas, med användarens egna ord."},
-            "source_id": {"type": "string", "description": "source_object_id när dokumentet redan är identifierat."},
-            "exact": {"type": "boolean", "description": "Sant när textsträngen redan är känd. Matchar den utan semantisk sökning."}}}
-    if name == "read_source":
-        return {"type": "object", "properties": {
-            "source_id": {"type": "string", "description": "source_object_id för dokumentet som ska läsas."},
-            "reference_id": {"type": "string", "description": "Referens från en tidigare sökträff."},
-            "quote": {"type": "string", "description": "Känd passage. Läser stycken runt den och flyttar inte vyn."},
-            "section": {"type": "string", "description": "Rubrik eller klausul från dokumentstrukturen."},
-            "outline": {"type": "boolean", "description": "Returnera rubriker och sektioner från ingest."},
-            "page": {"type": "integer", "minimum": 1, "description": "Sida från 1. Läser texten på den sidan."}}}
-    if name == "focus_anchor":
-        return {"type": "object", "required": ["source_id", "quote"], "properties": {
-            "source_id": {"type": "string", "description": "source_id från open_documents."},
-            "quote": {"type": "string", "description": "Exakta ord i dokumentet som ska markeras, till exempel kundens namn."}}}
-    if name == "show_document":
-        return {"type": "object", "required": ["source_id"], "properties": {
-            "source_id": {"type": "string", "description": "source_object_id från available_documents för dokumentet som ska öppnas."},
-            "reference_id": {"type": "string", "description": "Referens som ska visas, om en sådan redan finns."},
-            "page": {"type": "number", "description": "Sida, från 1."}}}
+    if name in _FLAT_TOOL_PARAMETERS:
+        return _FLAT_TOOL_PARAMETERS[name]
     return {"type": "object", "required": ["arguments_json"], "properties": {
         "arguments_json": {"type": "string", "description": argument_description}}}
 

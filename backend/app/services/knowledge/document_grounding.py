@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.database.models import (
     CanonicalDocumentRecord,
-    DocumentKnowledgeItem,
     DocumentVersionRecord,
     StoredObject,
     TextUnitRecord,
@@ -62,9 +57,6 @@ async def grounded_hits(
     hit: KnowledgeHit,
     scope: KnowledgeScope,
 ) -> list[KnowledgeHit]:
-    item_id = hit.metadata.get("document_knowledge_item_id")
-    if isinstance(item_id, str):
-        return await _item_hits(session, hit, scope, item_id)
     unit_id = hit.metadata.get("text_unit_id")
     if not isinstance(unit_id, str):
         return []
@@ -76,79 +68,6 @@ async def grounded_hits(
         return []
     basis = await readable_document_passage(session, unit, scope)
     return [_passage(hit, unit, basis)] if basis else []
-
-
-async def _item_hits(
-    session: AsyncSession,
-    hit: KnowledgeHit,
-    scope: KnowledgeScope,
-    item_id: str,
-) -> list[KnowledgeHit]:
-    item = await session.scalar(
-        select(DocumentKnowledgeItem)
-        .options(
-            selectinload(DocumentKnowledgeItem.anchors),
-            selectinload(DocumentKnowledgeItem.text_unit_links),
-        )
-        .where(DocumentKnowledgeItem.id == item_id)
-    )
-    if item is None or item.status != "active" or item.customer_id != scope.customer_id:
-        return []
-    if hit.metadata.get("item_revision") != item.revision:
-        return []
-    units = await _item_units(session, hit, item)
-    if units is None:
-        return []
-    out = []
-    for unit in units:
-        basis = await readable_document_passage(session, unit, scope)
-        if basis is None or basis[0].source_object_id != item.source_object_id:
-            return []
-        passage = _passage(hit, unit, basis)
-        metadata = {
-            **passage.metadata,
-            "discovery_kind": "document_item",
-            "document_knowledge_item_id": item.id,
-            "item_revision": item.revision,
-            "qa_snapshot": {
-                "kind": item.kind,
-                "question": item.question,
-                "content": item.content,
-                "anchors": [{"locator": anchor.locator, "exact_text": anchor.exact_text} for anchor in item.anchors],
-            },
-        }
-        out.append(replace(passage, metadata=metadata))
-    return out
-
-
-async def _item_units(session: AsyncSession, hit: KnowledgeHit, item: DocumentKnowledgeItem) -> list[TextUnitRecord] | None:
-    ids = [link.text_unit_id for link in item.text_unit_links]
-    if not ids:
-        return None
-    units = list(await session.scalars(select(TextUnitRecord).where(TextUnitRecord.id.in_(ids))))
-    if len(units) != len(ids) or len({unit.document_version_id for unit in units}) != 1:
-        return None
-    if hit.metadata.get("document_version_id") != units[0].document_version_id:
-        return None
-    supplied = hit.metadata.get("text_unit_ids")
-    if not isinstance(supplied, list) or not all(isinstance(value, str) for value in supplied) or set(supplied) != set(ids):
-        return None
-    if not _anchors_grounded(item, units):
-        return None
-    return units
-
-
-def _anchors_grounded(item: DocumentKnowledgeItem, units: list[TextUnitRecord]) -> bool:
-    if not item.anchors:
-        return False
-    return all(
-        anchor.exact_text and any(
-            _normalized(anchor.exact_text) in _normalized(unit.text)
-            and (anchor.locator is None or anchor.locator == unit.locator)
-            for unit in units
-        )
-        for anchor in item.anchors
-    )
 
 
 async def readable_document_passage(
@@ -208,7 +127,3 @@ def _passage(
             "source_url": f"/underlag/{source.id}/file",
         },
     )
-
-
-def _normalized(text: str) -> str:
-    return " ".join(text.split())

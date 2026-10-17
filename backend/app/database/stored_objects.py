@@ -43,6 +43,7 @@ class StoredObject(Base):
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(String(128), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     campaign_id: Mapped[int | None] = mapped_column(
         ForeignKey("dd_campaigns.id", ondelete="CASCADE"),
         nullable=True,
