@@ -8,6 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Job
 from app.database.workspaces import Workspace, WorkspaceChatMessage
 from app.llm import complete_text
+from app.services.document_qa.from_workspace import (
+    enqueue_workspace_document_answer,
+    workspace_qa_seed,
+)
 from app.services.execution.evidence_render import render_frozen_evidence
 from app.services.execution.service import (
     get_attempt,
@@ -30,7 +34,9 @@ async def compose_research_answer(session: AsyncSession, job_id: str, attempt_id
         saved = dict(job.result or {})
         if saved.get("attempt_id") != attempt_id or saved.get("answer") != existing.content:
             raise ValueError("Persisted research reply and job result disagree")
+        seed = workspace_qa_seed(job, saved)
         await session.rollback()
+        await enqueue_workspace_document_answer(session, seed)
         return saved
     attempt = await get_attempt(session, attempt_id)
     frozen = await require_frozen_evidence_for_attempt(session, attempt)
@@ -81,7 +87,9 @@ async def compose_research_answer(session: AsyncSession, job_id: str, attempt_id
         )
     persisted_job = await session.get(Job, job_id)
     persisted_job.result = result
+    seed = workspace_qa_seed(persisted_job, result)
     await session.commit()
+    await enqueue_workspace_document_answer(session, seed)
     return result
 
 
