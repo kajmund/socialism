@@ -23,7 +23,6 @@ from app.auth.tokens import user_from_bearer_token
 from app.config import settings
 from app.database.models import Kund, Population, PopulationMember, UserAccount
 from app.services import jobs as jobs_service
-from app.services.prompt_catalog import render_prompt
 from app.services.prompt_store import require_active_prompts
 from app.services.sme_group_voice import GroupVoiceSession
 from app.services.sme_group_voice_runtime import (
@@ -157,6 +156,7 @@ class _Call:
     push_snapshot: Any
     user_id: str
     customer_id: int
+    language: str
     speaking_task: dict[str, Any]
 
 
@@ -212,9 +212,19 @@ async def _on_release_floor(call: _Call, raw: dict) -> None:
     call.session.release_floor()
     factory = jobs_service.job_session_factory()
     async with factory() as db:
-        prompts = await require_active_prompts(db)
-    keep_prompt = render_prompt(prompts, "sme.group_voice.keep_hand")
-    await call.session.decide_keep_hands(msg.transcript, keep_hand_prompt=keep_prompt)
+        prompts = await require_active_prompts(
+            db,
+            customer_id=call.customer_id,
+            module="dd",
+            language=call.language,
+        )
+    keep_prompt = prompts.get("sme.group_voice.keep_hand")
+    if keep_prompt is None or not str(keep_prompt).strip():
+        raise RuntimeError("Active configuration is missing prompt 'sme.group_voice.keep_hand'")
+    await call.session.decide_keep_hands(
+        msg.transcript,
+        keep_hand_prompt=str(keep_prompt),
+    )
     await call.push_snapshot()
 
 
@@ -332,6 +342,7 @@ async def _start_call(websocket: WebSocket, lock: asyncio.Lock, speaking_task: d
         push_snapshot=push_snapshot,
         user_id=user.id,
         customer_id=user.kund_id or 0,
+        language=start.language,
         speaking_task=speaking_task,
     )
 
