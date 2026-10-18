@@ -15,15 +15,18 @@ from websockets.exceptions import ConnectionClosedError
 from app.auth.tokens import user_from_bearer_token
 from app.config import settings
 from app.database.models import Kund, UserAccount
+from app.live_speech_settings import vad_client_config
 from app.schemas.live_speech import (
     AudioCancel,
     AudioCommit,
     AudioStart,
     ClientControl,
+    ClientLatency,
     ClientPing,
     SessionMute,
     SessionStart,
     SessionStop,
+    SttFocus,
     TurnCancel,
     client_control_adapter,
 )
@@ -31,6 +34,14 @@ from app.schemas.workspace import WorkspaceState
 from app.services import jobs as jobs_service
 from app.services.live_speech_admit import recent_interview_turns
 from app.services.live_speech_runtime import LiveSpeechRuntime, LiveSpeechScope
+from app.services.live_speech_stt_terms import (
+    TRANSCRIPTION_KEYWORDS_KEY,
+    TRANSCRIPTION_PROMPT_KEY,
+    keywords_from_text_units,
+    parse_keyword_field,
+    shown_source_ids,
+    text_unit_texts,
+)
 from app.services.live_speech_sessions import LiveSpeechLease, LiveSpeechRegistry
 from app.services.prompt_store import require_prompts_for_persona
 from app.services.workspace.service import require_expert, require_workspace
@@ -67,6 +78,12 @@ async def _scope(start: SessionStart, user: UserAccount) -> LiveSpeechScope:
         state = WorkspaceState.model_validate(workspace.state)
         state.expert_id = start.expert_id
         recent_turns = await recent_interview_turns(session, start.expert_id)
+        base_keywords = parse_keyword_field(prompts.get(TRANSCRIPTION_KEYWORDS_KEY, ""))
+        texts = await text_unit_texts(
+            session,
+            customer_id=user.kund_id,
+            source_ids=shown_source_ids(state),
+        )
         await session.rollback()
     return LiveSpeechScope(
         user_id=user.id,
@@ -78,6 +95,9 @@ async def _scope(start: SessionStart, user: UserAccount) -> LiveSpeechScope:
         workspace_state=state,
         prompts=prompts,
         recent_turns=recent_turns,
+        stt_prompt=prompts.get(TRANSCRIPTION_PROMPT_KEY, ""),
+        stt_keywords=tuple(keywords_from_text_units(texts, base=base_keywords)),
+        stt_base_keywords=tuple(base_keywords),
     )
 
 
@@ -148,13 +168,7 @@ class LiveSpeechSocket:
                     "channels": 1,
                 },
                 "stt_model": settings.live_speech_stt_model,
-                "vad": {
-                    "threshold": settings.live_speech_vad_threshold,
-                    "preroll_ms": settings.live_speech_vad_preroll_ms,
-                    "hangover_ms": settings.live_speech_vad_hangover_ms,
-                    "min_speech_ms": settings.live_speech_vad_min_speech_ms,
-                    "urgent_ms": settings.live_speech_vad_urgent_ms,
-                },
+                "vad": vad_client_config(settings),
             }
         )
         await self.emit_json({"type": "session.state", "state": "listening"})
@@ -199,6 +213,10 @@ class LiveSpeechSocket:
         elif isinstance(event, SessionStop):
             await runtime.close(event.reason)
             return True
+        elif isinstance(event, SttFocus):
+            await runtime.focus_sources(event.source_ids)
+        elif isinstance(event, ClientLatency):
+            runtime.record_client_latency(event.phase, event.milliseconds)
         elif isinstance(event, ClientPing):
             await self.emit_json(
                 {

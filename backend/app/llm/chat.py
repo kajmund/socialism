@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -19,11 +20,17 @@ from app.services.expert_session_tools import (
 from app.services.expert_async_tools import (
     acknowledge_expert_tools,
     active_library_tools,
-    complete_tool_episode,
+    current_ack_text,
 )
 from app.services.expert_reasoning_episode import history_message
+from app.services.expert_tool_stream import stream_expert_tool_reply
 from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
+from app.observability.events import log_event
+from app.services.expert_reasoning import EVENT_DATASET_EXPERT_CHAT
 from app.services.prompt_catalog import render_prompt
+from app.services.sme_open_document import attach_shown_reminder
+
+logger = logging.getLogger(__name__)
 
 MAX_FOLLOW_UPS = 3
 MAX_QUESTION_CHARS = 140
@@ -45,7 +52,7 @@ def _follow_up_reasoning_effort() -> str | None:
     return None
 
 
-def _expert_block(profile: EditablePersona) -> str:
+def expert_block(profile: EditablePersona) -> str:
     lines = [f"Namn: {profile.name}"]
     gender = (profile.kön or "").strip()
     if gender and gender != "—":
@@ -98,24 +105,20 @@ def build_chat_system_prompt(
     profile_kind: str = "persona",
 ) -> str:
     local = area_block.strip()
-    if profile_kind == "expert":
-        persona_block = _expert_block(profile)
-        profile_header = f"Profil för {profile.name} — du är den här experten:\n{persona_block}"
-    else:
-        persona_block = _persona_block(profile)
-        profile_header = f"Profil för {profile.name} — du är den här personen:\n{persona_block}"
     if mode == "interview":
         mode_rules = render_prompt(prompts, "chat.mode.interview")
         role_lock = render_prompt(prompts, "chat.role_lock", name=profile.name)
     else:
         mode_rules = render_prompt(prompts, "chat.mode.in_character")
         role_lock = render_prompt(prompts, "chat.role_lock.in_character", name=profile.name)
-    parts = [
-        mode_rules,
-        role_lock,
-        "",
-        profile_header,
-    ]
+    if profile_kind == "expert":
+        persona_block = expert_block(profile)
+        profile_header = f"Profil för {profile.name} — du är den här experten:\n{persona_block}"
+        parts = ["[ROLL]", mode_rules, role_lock, "", "[PROFIL]", profile_header]
+    else:
+        persona_block = _persona_block(profile)
+        profile_header = f"Profil för {profile.name} — du är den här personen:\n{persona_block}"
+        parts = [mode_rules, role_lock, "", profile_header]
     if local:
         parts.extend(["", f"Lokal kontext:\n{local}"])
     if simulation_context.strip():
@@ -174,26 +177,23 @@ def _chat_messages(  # noqa: PLR0913
     user_image_sha256: str | None = None,
 ) -> list[dict[str, Any]]:
     if system_prompt is None:
-        content = build_chat_system_prompt(
+        stable = build_chat_system_prompt(
             profile,
             mode,
             prompts=prompts,
             area_block=area_block,
             simulation_context=simulation_context,
-            extra_system=extra_system,
             profile_kind=profile_kind,
         )
     else:
-        content = system_prompt
-        extra = extra_system.strip()
-        if extra:
-            content = f"{content}\n\n{extra}"
-    messages: list[dict[str, Any]] = [
-        {
-            "role": "system",
-            "content": content,
-        },
-    ]
+        stable = system_prompt
+    extra = extra_system.strip()
+    user_message = attach_shown_reminder(user_message, extra)
+    messages: list[dict[str, Any]] = [{"role": "system", "content": stable}]
+    # Workspace state and tool notes stay after the stable identity so a provider
+    # that caches the prompt prefix can reuse the expert across turns.
+    if extra:
+        messages.append({"role": "system", "content": extra})
     for entry in history:
         role = entry[0]
         text = entry[1]
@@ -307,6 +307,12 @@ async def stream_reply_as_persona(  # noqa: PLR0913
         profile_kind=profile_kind,
         user_image_sha256=user_image_sha256,
     )
+    acknowledgment = current_ack_text()
+    if acknowledgment:
+        # The expert has already written this line; the reply continues it.
+        messages.append({"role": "assistant", "content": acknowledgment})
+    if profile_kind == "expert":
+        _log_expert_prompt(messages)
     if (allowed or workspace_tools) and scope is not None:
         ack = await acknowledge_expert_tools(
             messages,
@@ -315,14 +321,10 @@ async def stream_reply_as_persona(  # noqa: PLR0913
             extra_specs=workspace_tools,
             workspace_state=scope.workspace_state,
         )
-        if ack.calls:
-            reply = await complete_tool_episode(scope, ack.calls)
-        else:
-            reply = ack.text
-        if reply:
-            yield reply
-        else:
-            raise ValueError("Expert tool episode produced no reply")
+        episode = getattr(scope, "episode", None)
+        specs = () if episode is None else episode.specs
+        async for chunk in stream_expert_tool_reply(ack, scope, specs):
+            yield chunk
         return
     if allowed:
         reply = await complete_text_with_company_tools(
@@ -366,6 +368,21 @@ async def stream_reply_as_expert(  # noqa: PLR0913
         tools=tools,
     ):
         yield chunk
+
+
+def _log_expert_prompt(messages: list[dict[str, Any]]) -> None:
+    chars = sum(
+        len(message["content"])
+        for message in messages
+        if isinstance(message.get("content"), str)
+    )
+    log_event(
+        logger,
+        "expert_chat.prompt",
+        dataset=EVENT_DATASET_EXPERT_CHAT,
+        outcome="success",
+        fields={"prompt": {"input_chars": chars, "input_tokens_estimate": chars // 4}},
+    )
 
 
 def normalize_follow_up_questions(raw: list[str]) -> list[str]:
