@@ -1,0 +1,635 @@
+﻿Månad;Konto;Kontonamn;Belopp (ackumulerat räkenskapsår)
+Månad;Konto;Kontonamn;Belopp
+2024-10;3011;Försäljning tjänster, 25 % moms;-1698652.00
+2024-10;4520;Underkonsulter;44500.00
+2024-10;5010;Lokalhyra;165000.00
+2024-10;5020;El;13600.00
+2024-10;5060;Städning;8829.00
+2024-10;5420;Programvaror och licenser;259200.00
+2024-10;5615;Leasingavgifter bilar;12800.00
+2024-10;5616;Leasing IT-utrustning;24000.00
+2024-10;5800;Resekostnader;17066.00
+2024-10;5910;Marknadsföring;35000.00
+2024-10;6110;Kontorsmaterial;9531.00
+2024-10;6210;Telekommunikation;11757.00
+2024-10;6540;Redovisningstjänster;18000.00
+2024-10;6570;Bankkostnader;1250.00
+2024-10;7210;Löner tjänstemän;1649000.00
+2024-10;7290;Förändring av semesterlöneskuld;197880.00
+2024-10;7410;Pensionsförsäkringspremier;152872.60
+2024-10;7510;Lagstadgade sociala avgifter;580289.70
+2024-10;7610;Utbildning personal;8936.00
+2024-10;7699;Övriga personalkostnader;85000.00
+2024-10;8410;Räntekostnader;4566.67
+2024-11;3011;Försäljning tjänster, 25 % moms;-4917094.00
+2024-11;4520;Underkonsulter;89000.00
+2024-11;5010;Lokalhyra;330000.00
+2024-11;5020;El;28393.00
+2024-11;5060;Städning;17329.00
+2024-11;5420;Programvaror och licenser;518400.00
+2024-11;5615;Leasingavgifter bilar;25600.00
+2024-11;5616;Leasing IT-utrustning;48000.00
+2024-11;5800;Resekostnader;45811.00
+2024-11;5910;Marknadsföring;70000.00
+2024-11;6110;Kontorsmaterial;16987.00
+2024-11;6210;Telekommunikation;23643.00
+2024-11;6310;Företagsförsäkringar;21000.00
+2024-11;6540;Redovisningstjänster;36000.00
+2024-11;6570;Bankkostnader;2500.00
+2024-11;7210;Löner tjänstemän;3292000.00
+2024-11;7290;Förändring av semesterlöneskuld;395040.00
+2024-11;7410;Pensionsförsäkringspremier;303945.20
+2024-11;7510;Lagstadgade sociala avgifter;1158467.97
+2024-11;7610;Utbildning personal;17114.00
+2024-11;7699;Övriga personalkostnader;90000.00
+2024-11;7831;Avskrivningar inventarier;7500.00
+2024-11;7832;Avskrivningar datorer;20000.00
+2024-11;8410;Räntekostnader;7107.74
+2024-12;3011;Försäljning tjänster, 25 % moms;-6532200.00
+2024-12;4520;Underkonsulter;133500.00
+2024-12;5010;Lokalhyra;495000.00
+2024-12;5020;El;40286.00
+2024-12;5060;Städning;26248.00
+2024-12;5420;Programvaror och licenser;777600.00
+2024-12;5615;Leasingavgifter bilar;38400.00
+2024-12;5616;Leasing IT-utrustning;72000.00
+2024-12;5800;Resekostnader;72698.00
+2024-12;5910;Marknadsföring;105000.00
+2024-12;6072;Representation, ej avdragsgill;5250.00
+2024-12;6110;Kontorsmaterial;23824.00
+2024-12;6210;Telekommunikation;35796.00
+2024-12;6310;Företagsförsäkringar;42000.00
+2024-12;6540;Redovisningstjänster;54000.00
+2024-12;6570;Bankkostnader;3750.00
+2024-12;7210;Löner tjänstemän;4935000.00
+2024-12;7290;Förändring av semesterlöneskuld;592200.00
+2024-12;7410;Pensionsförsäkringspremier;455017.80
+2024-12;7510;Lagstadgade sociala avgifter;1736646.24
+2024-12;7610;Utbildning personal;25916.00
+2024-12;7699;Övriga personalkostnader;90000.00
+2024-12;7831;Avskrivningar inventarier;15000.00
+2024-12;7832;Avskrivningar datorer;49722.22
+2024-12;8410;Räntekostnader;9422.43
+2025-01;3011;Försäljning tjänster, 25 % moms;-9451063.00
+2025-01;4520;Underkonsulter;314000.00
+2025-01;5010;Lokalhyra;660000.00
+2025-01;5020;El;54152.00
+2025-01;5060;Städning;34770.00
+2025-01;5420;Programvaror och licenser;1039800.00
+2025-01;5615;Leasingavgifter bilar;51200.00
+2025-01;5616;Leasing IT-utrustning;96000.00
+2025-01;5800;Resekostnader;100578.00
+2025-01;5910;Marknadsföring;140000.00
+2025-01;6072;Representation, ej avdragsgill;5250.00
+2025-01;6110;Kontorsmaterial;34209.00
+2025-01;6210;Telekommunikation;48434.00
+2025-01;6310;Företagsförsäkringar;63000.00
+2025-01;6540;Redovisningstjänster;72000.00
+2025-01;6570;Bankkostnader;5000.00
+2025-01;7210;Löner tjänstemän;6626000.00
+2025-01;7290;Förändring av semesterlöneskuld;795120.00
+2025-01;7410;Pensionsförsäkringspremier;594767.26
+2025-01;7510;Lagstadgade sociala avgifter;2331715.90
+2025-01;7610;Utbildning personal;39173.00
+2025-01;7699;Övriga personalkostnader;90000.00
+2025-01;7831;Avskrivningar inventarier;22500.00
+2025-01;7832;Avskrivningar datorer;79444.44
+2025-01;8410;Räntekostnader;12364.96
+2025-02;3011;Försäljning tjänster, 25 % moms;-13633148.00
+2025-02;4520;Underkonsulter;494500.00
+2025-02;5010;Lokalhyra;825000.00
+2025-02;5020;El;69917.00
+2025-02;5060;Städning;43496.00
+2025-02;5420;Programvaror och licenser;1299000.00
+2025-02;5615;Leasingavgifter bilar;64000.00
+2025-02;5616;Leasing IT-utrustning;120000.00
+2025-02;5800;Resekostnader;131795.00
+2025-02;5910;Marknadsföring;175000.00
+2025-02;6072;Representation, ej avdragsgill;5250.00
+2025-02;6110;Kontorsmaterial;41050.00
+2025-02;6210;Telekommunikation;59841.00
+2025-02;6310;Företagsförsäkringar;105000.00
+2025-02;6540;Redovisningstjänster;90000.00
+2025-02;6570;Bankkostnader;6250.00
+2025-02;7210;Löner tjänstemän;8316000.00
+2025-02;7290;Förändring av semesterlöneskuld;997920.00
+2025-02;7410;Pensionsförsäkringspremier;734216.72
+2025-02;7510;Lagstadgade sociala avgifter;2926433.66
+2025-02;7610;Utbildning personal;48631.00
+2025-02;7699;Övriga personalkostnader;94500.00
+2025-02;7831;Avskrivningar inventarier;37500.00
+2025-02;7832;Avskrivningar datorer;138888.88
+2025-02;8410;Räntekostnader;15079.54
+2025-03;3011;Försäljning tjänster, 25 % moms;-16849062.00
+2025-03;4520;Underkonsulter;733800.00
+2025-03;5010;Lokalhyra;990000.00
+2025-03;5020;El;85120.00
+2025-03;5060;Städning;52074.00
+2025-03;5420;Programvaror och licenser;1558200.00
+2025-03;5615;Leasingavgifter bilar;76800.00
+2025-03;5616;Leasing IT-utrustning;144000.00
+2025-03;5800;Resekostnader;162980.00
+2025-03;5910;Marknadsföring;210000.00
+2025-03;6072;Representation, ej avdragsgill;5250.00
+2025-03;6110;Kontorsmaterial;51377.00
+2025-03;6210;Telekommunikation;72203.00
+2025-03;6310;Företagsförsäkringar;105000.00
+2025-03;6540;Redovisningstjänster;108000.00
+2025-03;6570;Bankkostnader;7500.00
+2025-03;7210;Löner tjänstemän;9959000.00
+2025-03;7290;Förändring av semesterlöneskuld;1195080.00
+2025-03;7410;Pensionsförsäkringspremier;871551.18
+2025-03;7510;Lagstadgade sociala avgifter;3504611.93
+2025-03;7610;Utbildning personal;108557.00
+2025-03;7699;Övriga personalkostnader;179500.00
+2025-03;7831;Avskrivningar inventarier;37500.00
+2025-03;7832;Avskrivningar datorer;138888.88
+2025-03;8410;Räntekostnader;17565.38
+2025-04;3011;Försäljning tjänster, 25 % moms;-20841374.00
+2025-04;4520;Underkonsulter;973100.00
+2025-04;5010;Lokalhyra;1155000.00
+2025-04;5020;El;98919.00
+2025-04;5060;Städning;60405.00
+2025-04;5420;Programvaror och licenser;1817400.00
+2025-04;5615;Leasingavgifter bilar;89600.00
+2025-04;5616;Leasing IT-utrustning;168000.00
+2025-04;5800;Resekostnader;188549.00
+2025-04;5910;Marknadsföring;245000.00
+2025-04;6072;Representation, ej avdragsgill;5250.00
+2025-04;6110;Kontorsmaterial;59226.00
+2025-04;6210;Telekommunikation;84447.00
+2025-04;6310;Företagsförsäkringar;126000.00
+2025-04;6540;Redovisningstjänster;126000.00
+2025-04;6570;Bankkostnader;8750.00
+2025-04;6991;Övriga externa kostnader, avdragsgilla;48000.00
+2025-04;7210;Löner tjänstemän;11705000.00
+2025-04;7290;Förändring av semesterlöneskuld;1404600.00
+2025-04;7410;Pensionsförsäkringspremier;1024453.78
+2025-04;7510;Lagstadgade sociala avgifter;4119036.31
+2025-04;7610;Utbildning personal;124980.00
+2025-04;7699;Övriga personalkostnader;179500.00
+2025-04;7831;Avskrivningar inventarier;45000.00
+2025-04;7832;Avskrivningar datorer;181944.44
+2025-04;8410;Räntekostnader;24276.70
+2025-05;3011;Försäljning tjänster, 25 % moms;-26493856.00
+2025-05;4520;Underkonsulter;1212400.00
+2025-05;5010;Lokalhyra;1320000.00
+2025-05;5020;El;114453.00
+2025-05;5060;Städning;69040.00
+2025-05;5420;Programvaror och licenser;2076600.00
+2025-05;5615;Leasingavgifter bilar;102400.00
+2025-05;5616;Leasing IT-utrustning;192000.00
+2025-05;5800;Resekostnader;206673.00
+2025-05;5910;Marknadsföring;280000.00
+2025-05;6072;Representation, ej avdragsgill;5250.00
+2025-05;6110;Kontorsmaterial;69184.00
+2025-05;6210;Telekommunikation;97305.00
+2025-05;6310;Företagsförsäkringar;147000.00
+2025-05;6540;Redovisningstjänster;144000.00
+2025-05;6570;Bankkostnader;10000.00
+2025-05;6991;Övriga externa kostnader, avdragsgilla;48000.00
+2025-05;7210;Löner tjänstemän;13451000.00
+2025-05;7290;Förändring av semesterlöneskuld;1614120.00
+2025-05;7410;Pensionsförsäkringspremier;1177356.38
+2025-05;7510;Lagstadgade sociala avgifter;4733460.69
+2025-05;7610;Utbildning personal;133688.00
+2025-05;7699;Övriga personalkostnader;184500.00
+2025-05;7831;Avskrivningar inventarier;52500.00
+2025-05;7832;Avskrivningar datorer;225000.00
+2025-05;8410;Räntekostnader;30757.70
+2025-06;3011;Försäljning tjänster, 25 % moms;-30448217.00
+2025-06;4520;Underkonsulter;1492200.00
+2025-06;5010;Lokalhyra;1485000.00
+2025-06;5020;El;125288.00
+2025-06;5060;Städning;77226.00
+2025-06;5420;Programvaror och licenser;2337500.00
+2025-06;5615;Leasingavgifter bilar;115200.00
+2025-06;5616;Leasing IT-utrustning;216000.00
+2025-06;5800;Resekostnader;236206.00
+2025-06;5910;Marknadsföring;315000.00
+2025-06;6072;Representation, ej avdragsgill;10000.00
+2025-06;6110;Kontorsmaterial;77823.00
+2025-06;6210;Telekommunikation;109088.00
+2025-06;6310;Företagsförsäkringar;168000.00
+2025-06;6540;Redovisningstjänster;162000.00
+2025-06;6570;Bankkostnader;11250.00
+2025-06;6991;Övriga externa kostnader, avdragsgilla;48000.00
+2025-06;7210;Löner tjänstemän;15197000.00
+2025-06;7290;Förändring av semesterlöneskuld;1823640.00
+2025-06;7410;Pensionsförsäkringspremier;1330258.98
+2025-06;7510;Lagstadgade sociala avgifter;5347885.07
+2025-06;7610;Utbildning personal;148748.00
+2025-06;7699;Övriga personalkostnader;184500.00
+2025-06;7831;Avskrivningar inventarier;60000.00
+2025-06;7832;Avskrivningar datorer;268055.56
+2025-06;8410;Räntekostnader;37007.58
+2025-07;3011;Försäljning tjänster, 25 % moms;-32700971.00
+2025-07;4520;Underkonsulter;1772000.00
+2025-07;5010;Lokalhyra;1650000.00
+2025-07;5020;El;140452.00
+2025-07;5060;Städning;86119.00
+2025-07;5420;Programvaror och licenser;2596700.00
+2025-07;5615;Leasingavgifter bilar;128000.00
+2025-07;5616;Leasing IT-utrustning;240000.00
+2025-07;5800;Resekostnader;264216.00
+2025-07;5910;Marknadsföring;350000.00
+2025-07;6072;Representation, ej avdragsgill;10000.00
+2025-07;6110;Kontorsmaterial;85973.00
+2025-07;6210;Telekommunikation;121208.00
+2025-07;6310;Företagsförsäkringar;189000.00
+2025-07;6540;Redovisningstjänster;180000.00
+2025-07;6570;Bankkostnader;12500.00
+2025-07;6991;Övriga externa kostnader, avdragsgilla;48000.00
+2025-07;7210;Löner tjänstemän;16897000.00
+2025-07;7290;Förändring av semesterlöneskuld;2027640.00
+2025-07;7410;Pensionsförsäkringspremier;1481091.58
+2025-07;7510;Lagstadgade sociala avgifter;5946121.87
+2025-07;7610;Utbildning personal;164753.00
+2025-07;7699;Övriga personalkostnader;269500.00
+2025-07;7831;Avskrivningar inventarier;67500.00
+2025-07;7832;Avskrivningar datorer;311111.12
+2025-07;8410;Räntekostnader;43025.54
+2025-08;3011;Försäljning tjänster, 25 % moms;-37748964.00
+2025-08;4520;Underkonsulter;2051800.00
+2025-08;5010;Lokalhyra;1815000.00
+2025-08;5020;El;152197.00
+2025-08;5060;Städning;94362.00
+2025-08;5420;Programvaror och licenser;2855900.00
+2025-08;5615;Leasingavgifter bilar;140800.00
+2025-08;5616;Leasing IT-utrustning;264000.00
+2025-08;5800;Resekostnader;288245.00
+2025-08;5910;Marknadsföring;385000.00
+2025-08;6072;Representation, ej avdragsgill;10000.00
+2025-08;6110;Kontorsmaterial;92795.00
+2025-08;6210;Telekommunikation;132787.00
+2025-08;6310;Företagsförsäkringar;210000.00
+2025-08;6540;Redovisningstjänster;198000.00
+2025-08;6570;Bankkostnader;13750.00
+2025-08;6991;Övriga externa kostnader, avdragsgilla;84000.00
+2025-08;7210;Löner tjänstemän;18649000.00
+2025-08;7290;Förändring av semesterlöneskuld;2237880.00
+2025-08;7410;Pensionsförsäkringspremier;1634678.56
+2025-08;7510;Lagstadgade sociala avgifter;6562657.68
+2025-08;7610;Utbildning personal;177339.00
+2025-08;7699;Övriga personalkostnader;269500.00
+2025-08;7831;Avskrivningar inventarier;75000.00
+2025-08;7832;Avskrivningar datorer;354166.68
+2025-08;8410;Räntekostnader;48810.79
+2025-09;3011;Försäljning tjänster, 25 % moms;-42638187.00
+2025-09;4520;Underkonsulter;2331600.00
+2025-09;5010;Lokalhyra;1980000.00
+2025-09;5020;El;164903.00
+2025-09;5060;Städning;103106.00
+2025-09;5420;Programvaror och licenser;3115100.00
+2025-09;5615;Leasingavgifter bilar;153600.00
+2025-09;5616;Leasing IT-utrustning;288000.00
+2025-09;5800;Resekostnader;320366.00
+2025-09;5910;Marknadsföring;480000.00
+2025-09;6072;Representation, ej avdragsgill;10000.00
+2025-09;6110;Kontorsmaterial;100017.00
+2025-09;6210;Telekommunikation;144121.00
+2025-09;6310;Företagsförsäkringar;231000.00
+2025-09;6540;Redovisningstjänster;216000.00
+2025-09;6570;Bankkostnader;15000.00
+2025-09;6991;Övriga externa kostnader, avdragsgilla;99000.00
+2025-09;7210;Löner tjänstemän;20588000.00
+2025-09;7290;Förändring av semesterlöneskuld;2453640.00
+2025-09;7410;Pensionsförsäkringspremier;1790335.54
+2025-09;7510;Lagstadgade sociala avgifter;7239683.27
+2025-09;7610;Utbildning personal;191540.00
+2025-09;7699;Övriga personalkostnader;273500.00
+2025-09;7831;Avskrivningar inventarier;86666.67
+2025-09;7832;Avskrivningar datorer;397222.24
+2025-09;8410;Räntekostnader;54362.51
+2025-10;3011;Försäljning tjänster, 25 % moms;-47581657.00
+2025-10;4520;Underkonsulter;2611400.00
+2025-10;5010;Lokalhyra;2145000.00
+2025-10;5020;El;176628.00
+2025-10;5060;Städning;111368.00
+2025-10;5420;Programvaror och licenser;3374300.00
+2025-10;5615;Leasingavgifter bilar;166400.00
+2025-10;5616;Leasing IT-utrustning;312000.00
+2025-10;5800;Resekostnader;354722.00
+2025-10;5910;Marknadsföring;515000.00
+2025-10;6072;Representation, ej avdragsgill;10000.00
+2025-10;6110;Kontorsmaterial;106896.00
+2025-10;6210;Telekommunikation;156885.00
+2025-10;6310;Företagsförsäkringar;252000.00
+2025-10;6540;Redovisningstjänster;234000.00
+2025-10;6570;Bankkostnader;16250.00
+2025-10;6991;Övriga externa kostnader, avdragsgilla;114000.00
+2025-10;7210;Löner tjänstemän;22386000.00
+2025-10;7290;Förändring av semesterlöneskuld;2669400.00
+2025-10;7410;Pensionsförsäkringspremier;1945992.52
+2025-10;7510;Lagstadgade sociala avgifter;7872406.66
+2025-10;7610;Utbildning personal;206777.00
+2025-10;7699;Övriga personalkostnader;273500.00
+2025-10;7831;Avskrivningar inventarier;98333.34
+2025-10;7832;Avskrivningar datorer;440277.80
+2025-10;8410;Räntekostnader;59679.90
+2025-11;3011;Försäljning tjänster, 25 % moms;-54002808.00
+2025-11;4520;Underkonsulter;2891200.00
+2025-11;5010;Lokalhyra;2310000.00
+2025-11;5020;El;189699.00
+2025-11;5060;Städning;120024.00
+2025-11;5420;Programvaror och licenser;3633500.00
+2025-11;5615;Leasingavgifter bilar;179200.00
+2025-11;5616;Leasing IT-utrustning;336000.00
+2025-11;5800;Resekostnader;381722.00
+2025-11;5910;Marknadsföring;550000.00
+2025-11;6072;Representation, ej avdragsgill;10000.00
+2025-11;6110;Kontorsmaterial;115774.00
+2025-11;6210;Telekommunikation;168102.00
+2025-11;6310;Företagsförsäkringar;273000.00
+2025-11;6420;Ersättning till revisor;95000.00
+2025-11;6540;Redovisningstjänster;252000.00
+2025-11;6570;Bankkostnader;17500.00
+2025-11;6991;Övriga externa kostnader, avdragsgilla;129000.00
+2025-11;7210;Löner tjänstemän;24122000.00
+2025-11;7290;Förändring av semesterlöneskuld;2877720.00
+2025-11;7410;Pensionsförsäkringspremier;2095895.12
+2025-11;7510;Lagstadgade sociala avgifter;8483312.00
+2025-11;7610;Utbildning personal;214334.00
+2025-11;7699;Övriga personalkostnader;278500.00
+2025-11;7831;Avskrivningar inventarier;110000.01
+2025-11;7832;Avskrivningar datorer;483333.36
+2025-11;8410;Räntekostnader;64989.90
+2025-12;3011;Försäljning tjänster, 25 % moms;-57725049.00
+2025-12;4520;Underkonsulter;3171000.00
+2025-12;5010;Lokalhyra;2475000.00
+2025-12;5020;El;201713.00
+2025-12;5060;Städning;128655.00
+2025-12;5420;Programvaror och licenser;3892700.00
+2025-12;5615;Leasingavgifter bilar;192000.00
+2025-12;5616;Leasing IT-utrustning;360000.00
+2025-12;5800;Resekostnader;412312.00
+2025-12;5910;Marknadsföring;585000.00
+2025-12;6072;Representation, ej avdragsgill;10000.00
+2025-12;6110;Kontorsmaterial;125939.00
+2025-12;6210;Telekommunikation;179441.00
+2025-12;6310;Företagsförsäkringar;294000.00
+2025-12;6420;Ersättning till revisor;95000.00
+2025-12;6540;Redovisningstjänster;270000.00
+2025-12;6570;Bankkostnader;18750.00
+2025-12;6991;Övriga externa kostnader, avdragsgilla;144000.00
+2025-12;7210;Löner tjänstemän;25858000.00
+2025-12;7290;Förändring av semesterlöneskuld;3086040.00
+2025-12;7410;Pensionsförsäkringspremier;2245797.72
+2025-12;7510;Lagstadgade sociala avgifter;9094217.34
+2025-12;7610;Utbildning personal;222691.00
+2025-12;7699;Övriga personalkostnader;278500.00
+2025-12;7831;Avskrivningar inventarier;121666.68
+2025-12;7832;Avskrivningar datorer;526388.92
+2025-12;8410;Räntekostnader;66294.90
+2026-01;3011;Försäljning tjänster, 25 % moms;-62987127.00
+2026-01;4520;Underkonsulter;3450800.00
+2026-01;5010;Lokalhyra;2647000.00
+2026-01;5020;El;213990.00
+2026-01;5060;Städning;137183.00
+2026-01;5420;Programvaror och licenser;4157900.00
+2026-01;5615;Leasingavgifter bilar;204800.00
+2026-01;5616;Leasing IT-utrustning;384000.00
+2026-01;5800;Resekostnader;444924.00
+2026-01;5910;Marknadsföring;620000.00
+2026-01;6072;Representation, ej avdragsgill;10000.00
+2026-01;6110;Kontorsmaterial;134636.00
+2026-01;6210;Telekommunikation;191049.00
+2026-01;6310;Företagsförsäkringar;315000.00
+2026-01;6351;Konstaterade kundförluster;220065.00
+2026-01;6420;Ersättning till revisor;95000.00
+2026-01;6540;Redovisningstjänster;288000.00
+2026-01;6570;Bankkostnader;20000.00
+2026-01;6991;Övriga externa kostnader, avdragsgilla;159000.00
+2026-01;7210;Löner tjänstemän;27629000.00
+2026-01;7290;Förändring av semesterlöneskuld;3298560.00
+2026-01;7410;Pensionsförsäkringspremier;2391537.72
+2026-01;7510;Lagstadgade sociala avgifter;9717439.32
+2026-01;7610;Utbildning personal;230874.00
+2026-01;7699;Övriga personalkostnader;278500.00
+2026-01;7831;Avskrivningar inventarier;133333.35
+2026-01;7832;Avskrivningar datorer;569444.48
+2026-01;8410;Räntekostnader;66294.90
+2026-02;3011;Försäljning tjänster, 25 % moms;-68564909.00
+2026-02;4520;Underkonsulter;3730600.00
+2026-02;5010;Lokalhyra;2812000.00
+2026-02;5020;El;226148.00
+2026-02;5060;Städning;145711.00
+2026-02;5420;Programvaror och licenser;4417100.00
+2026-02;5615;Leasingavgifter bilar;217600.00
+2026-02;5616;Leasing IT-utrustning;408000.00
+2026-02;5800;Resekostnader;469032.00
+2026-02;5910;Marknadsföring;655000.00
+2026-02;6072;Representation, ej avdragsgill;10000.00
+2026-02;6110;Kontorsmaterial;145384.00
+2026-02;6210;Telekommunikation;203646.00
+2026-02;6310;Företagsförsäkringar;357000.00
+2026-02;6351;Konstaterade kundförluster;220065.00
+2026-02;6420;Ersättning till revisor;95000.00
+2026-02;6540;Redovisningstjänster;306000.00
+2026-02;6570;Bankkostnader;21250.00
+2026-02;6991;Övriga externa kostnader, avdragsgilla;196000.00
+2026-02;7210;Löner tjänstemän;29354000.00
+2026-02;7290;Förändring av semesterlöneskuld;3505560.00
+2026-02;7410;Pensionsförsäkringspremier;2535207.72
+2026-02;7510;Lagstadgade sociala avgifter;10324473.72
+2026-02;7610;Utbildning personal;242429.00
+2026-02;7699;Övriga personalkostnader;373250.00
+2026-02;7831;Avskrivningar inventarier;156666.69
+2026-02;7832;Avskrivningar datorer;684444.48
+2026-02;8410;Räntekostnader;66294.90
+2026-03;3011;Försäljning tjänster, 25 % moms;-73515636.00
+2026-03;4520;Underkonsulter;4010400.00
+2026-03;5010;Lokalhyra;2977000.00
+2026-03;5020;El;240721.00
+2026-03;5060;Städning;153938.00
+2026-03;5420;Programvaror och licenser;4683300.00
+2026-03;5615;Leasingavgifter bilar;230400.00
+2026-03;5616;Leasing IT-utrustning;432000.00
+2026-03;5800;Resekostnader;493964.00
+2026-03;5910;Marknadsföring;690000.00
+2026-03;6072;Representation, ej avdragsgill;10000.00
+2026-03;6110;Kontorsmaterial;152746.00
+2026-03;6210;Telekommunikation;215042.00
+2026-03;6310;Företagsförsäkringar;357000.00
+2026-03;6351;Konstaterade kundförluster;220065.00
+2026-03;6420;Ersättning till revisor;95000.00
+2026-03;6540;Redovisningstjänster;324000.00
+2026-03;6570;Bankkostnader;22500.00
+2026-03;6991;Övriga externa kostnader, avdragsgilla;211000.00
+2026-03;7210;Löner tjänstemän;31038000.00
+2026-03;7290;Förändring av semesterlöneskuld;3707640.00
+2026-03;7410;Pensionsförsäkringspremier;2677032.72
+2026-03;7510;Lagstadgade sociala avgifter;10917080.06
+2026-03;7610;Utbildning personal;252113.00
+2026-03;7699;Övriga personalkostnader;373250.00
+2026-03;7831;Avskrivningar inventarier;156666.69
+2026-03;7832;Avskrivningar datorer;684444.48
+2026-03;8410;Räntekostnader;66294.90
+2026-04;3011;Försäljning tjänster, 25 % moms;-77894123.00
+2026-04;4520;Underkonsulter;4245700.00
+2026-04;5010;Lokalhyra;3142000.00
+2026-04;5020;El;252127.00
+2026-04;5060;Städning;162664.00
+2026-04;5420;Programvaror och licenser;4942500.00
+2026-04;5615;Leasingavgifter bilar;243200.00
+2026-04;5616;Leasing IT-utrustning;456000.00
+2026-04;5800;Resekostnader;520369.00
+2026-04;5910;Marknadsföring;725000.00
+2026-04;6072;Representation, ej avdragsgill;10000.00
+2026-04;6110;Kontorsmaterial;162235.00
+2026-04;6210;Telekommunikation;227911.00
+2026-04;6310;Företagsförsäkringar;378000.00
+2026-04;6351;Konstaterade kundförluster;220065.00
+2026-04;6420;Ersättning till revisor;95000.00
+2026-04;6540;Redovisningstjänster;342000.00
+2026-04;6570;Bankkostnader;23750.00
+2026-04;6991;Övriga externa kostnader, avdragsgilla;226000.00
+2026-04;7210;Löner tjänstemän;32698000.00
+2026-04;7290;Förändring av semesterlöneskuld;3906840.00
+2026-04;7410;Pensionsförsäkringspremier;2821730.22
+2026-04;7510;Lagstadgade sociala avgifter;11501240.70
+2026-04;7610;Utbildning personal;316820.00
+2026-04;7699;Övriga personalkostnader;373250.00
+2026-04;7831;Avskrivningar inventarier;168333.36
+2026-04;7832;Avskrivningar datorer;741944.48
+2026-04;8410;Räntekostnader;66294.90
+2026-05;3011;Försäljning tjänster, 25 % moms;-83122167.00
+2026-05;4520;Underkonsulter;4481000.00
+2026-05;5010;Lokalhyra;3307000.00
+2026-05;5020;El;265835.00
+2026-05;5060;Städning;170905.00
+2026-05;5420;Programvaror och licenser;5201700.00
+2026-05;5615;Leasingavgifter bilar;256000.00
+2026-05;5616;Leasing IT-utrustning;480000.00
+2026-05;5800;Resekostnader;554416.00
+2026-05;5910;Marknadsföring;805000.00
+2026-05;6072;Representation, ej avdragsgill;10000.00
+2026-05;6110;Kontorsmaterial;170838.00
+2026-05;6210;Telekommunikation;240443.00
+2026-05;6310;Företagsförsäkringar;399000.00
+2026-05;6351;Konstaterade kundförluster;220065.00
+2026-05;6420;Ersättning till revisor;95000.00
+2026-05;6540;Redovisningstjänster;360000.00
+2026-05;6570;Bankkostnader;25000.00
+2026-05;6991;Övriga externa kostnader, avdragsgilla;241000.00
+2026-05;7210;Löner tjänstemän;34430000.00
+2026-05;7290;Förändring av semesterlöneskuld;4114680.00
+2026-05;7410;Pensionsförsäkringspremier;2974895.22
+2026-05;7510;Lagstadgade sociala avgifter;12110738.43
+2026-05;7610;Utbildning personal;326577.00
+2026-05;7699;Övriga personalkostnader;378250.00
+2026-05;7831;Avskrivningar inventarier;180000.03
+2026-05;7832;Avskrivningar datorer;799444.48
+2026-05;8410;Räntekostnader;66294.90
+2026-06;3011;Försäljning tjänster, 25 % moms;-87315262.00
+2026-06;4520;Underkonsulter;4775100.00
+2026-06;5010;Lokalhyra;3472000.00
+2026-06;5020;El;281756.00
+2026-06;5060;Städning;179645.00
+2026-06;5420;Programvaror och licenser;5460900.00
+2026-06;5615;Leasingavgifter bilar;268800.00
+2026-06;5616;Leasing IT-utrustning;504000.00
+2026-06;5800;Resekostnader;578782.00
+2026-06;5910;Marknadsföring;840000.00
+2026-06;6072;Representation, ej avdragsgill;10000.00
+2026-06;6110;Kontorsmaterial;178116.00
+2026-06;6210;Telekommunikation;252376.00
+2026-06;6310;Företagsförsäkringar;420000.00
+2026-06;6351;Konstaterade kundförluster;220065.00
+2026-06;6420;Ersättning till revisor;95000.00
+2026-06;6540;Redovisningstjänster;378000.00
+2026-06;6570;Bankkostnader;26250.00
+2026-06;6991;Övriga externa kostnader, avdragsgilla;256000.00
+2026-06;7210;Löner tjänstemän;36115000.00
+2026-06;7290;Förändring av semesterlöneskuld;4316880.00
+2026-06;7410;Pensionsförsäkringspremier;3125945.22
+2026-06;7510;Lagstadgade sociala avgifter;12703696.67
+2026-06;7610;Utbildning personal;339629.00
+2026-06;7699;Övriga personalkostnader;378250.00
+2026-06;7831;Avskrivningar inventarier;191666.70
+2026-06;7832;Avskrivningar datorer;856944.48
+2026-06;8410;Räntekostnader;66294.90
+2026-07;3011;Försäljning tjänster, 25 % moms;-89691509.00
+2026-07;4520;Underkonsulter;5010400.00
+2026-07;5010;Lokalhyra;3685000.00
+2026-07;5020;El;294794.00
+2026-07;5060;Städning;188054.00
+2026-07;5420;Programvaror och licenser;5720100.00
+2026-07;5615;Leasingavgifter bilar;281600.00
+2026-07;5616;Leasing IT-utrustning;528000.00
+2026-07;5800;Resekostnader;607261.00
+2026-07;5910;Marknadsföring;875000.00
+2026-07;6072;Representation, ej avdragsgill;10000.00
+2026-07;6110;Kontorsmaterial;185872.00
+2026-07;6210;Telekommunikation;264199.00
+2026-07;6310;Företagsförsäkringar;441000.00
+2026-07;6351;Konstaterade kundförluster;220065.00
+2026-07;6420;Ersättning till revisor;95000.00
+2026-07;6540;Redovisningstjänster;396000.00
+2026-07;6570;Bankkostnader;27500.00
+2026-07;6991;Övriga externa kostnader, avdragsgilla;271000.00
+2026-07;7210;Löner tjänstemän;37740000.00
+2026-07;7290;Förändring av semesterlöneskuld;4511880.00
+2026-07;7410;Pensionsförsäkringspremier;3272127.72
+2026-07;7510;Lagstadgade sociala avgifter;13275540.67
+2026-07;7610;Utbildning personal;349442.00
+2026-07;7699;Övriga personalkostnader;378250.00
+2026-07;7831;Avskrivningar inventarier;203333.37
+2026-07;7832;Avskrivningar datorer;914444.48
+2026-07;8410;Räntekostnader;66294.90
+2026-08;3011;Försäljning tjänster, 25 % moms;-92961056.00
+2026-08;4520;Underkonsulter;5109700.00
+2026-08;5010;Lokalhyra;3898000.00
+2026-08;5020;El;306507.00
+2026-08;5060;Städning;196699.00
+2026-08;5420;Programvaror och licenser;5979300.00
+2026-08;5615;Leasingavgifter bilar;294400.00
+2026-08;5616;Leasing IT-utrustning;552000.00
+2026-08;5800;Resekostnader;636865.00
+2026-08;5910;Marknadsföring;910000.00
+2026-08;6072;Representation, ej avdragsgill;10000.00
+2026-08;6110;Kontorsmaterial;194373.00
+2026-08;6210;Telekommunikation;276974.00
+2026-08;6310;Företagsförsäkringar;462000.00
+2026-08;6351;Konstaterade kundförluster;220065.00
+2026-08;6420;Ersättning till revisor;95000.00
+2026-08;6540;Redovisningstjänster;414000.00
+2026-08;6570;Bankkostnader;28750.00
+2026-08;6991;Övriga externa kostnader, avdragsgilla;286000.00
+2026-08;7210;Löner tjänstemän;39365000.00
+2026-08;7290;Förändring av semesterlöneskuld;4706880.00
+2026-08;7410;Pensionsförsäkringspremier;3418310.22
+2026-08;7510;Lagstadgade sociala avgifter;13847384.67
+2026-08;7610;Utbildning personal;364141.00
+2026-08;7699;Övriga personalkostnader;382750.00
+2026-08;7831;Avskrivningar inventarier;215000.04
+2026-08;7832;Avskrivningar datorer;971944.48
+2026-08;8410;Räntekostnader;66294.90
+2026-09;3011;Försäljning tjänster, 25 % moms;-96876465.00
+2026-09;4520;Underkonsulter;5209000.00
+2026-09;5010;Lokalhyra;4111000.00
+2026-09;5020;El;322513.00
+2026-09;5060;Städning;205135.00
+2026-09;5420;Programvaror och licenser;6238500.00
+2026-09;5615;Leasingavgifter bilar;307200.00
+2026-09;5616;Leasing IT-utrustning;576000.00
+2026-09;5800;Resekostnader;661736.00
+2026-09;5910;Marknadsföring;1030000.00
+2026-09;6072;Representation, ej avdragsgill;10000.00
+2026-09;6110;Kontorsmaterial;201237.00
+2026-09;6210;Telekommunikation;288173.00
+2026-09;6310;Företagsförsäkringar;483000.00
+2026-09;6351;Konstaterade kundförluster;220065.00
+2026-09;6420;Ersättning till revisor;95000.00
+2026-09;6540;Redovisningstjänster;432000.00
+2026-09;6570;Bankkostnader;30000.00
+2026-09;6991;Övriga externa kostnader, avdragsgilla;301000.00
+2026-09;7210;Löner tjänstemän;40941000.00
+2026-09;7290;Förändring av semesterlöneskuld;4896000.00
+2026-09;7410;Pensionsförsäkringspremier;3562287.72
+2026-09;7510;Lagstadgade sociala avgifter;14401985.37
+2026-09;7610;Utbildning personal;374912.00
+2026-09;7699;Övriga personalkostnader;382750.00
+2026-09;7831;Avskrivningar inventarier;226666.71
+2026-09;7832;Avskrivningar datorer;1029444.48
+2026-09;8410;Räntekostnader;66294.90

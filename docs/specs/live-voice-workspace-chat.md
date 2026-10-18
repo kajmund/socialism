@@ -6,9 +6,9 @@ Live Speech är ett röstgränssnitt till den befintliga SME-expertchatten. Det 
 inte en separat dialogmotor.
 
 ```text
-Browser PCM + lokal VAD
+Browser PCM + Silero VAD
   → /ws/live-speech
-  → OpenAI Realtime transcription (gpt-live-transcribe, turn_detection=null)
+  → OpenAI Realtime transcription (gpt-live-transcribe, turn_detection=null, near_field)
   → accept_expert_turn + execute_expert_turn
   → befintlig Jev-routing, promptar, historik och verktyg
   → SpeechSegmenter
@@ -47,12 +47,19 @@ halvfärdig ljudtur efter socketdrop.
 
 ## VAD och avbrott
 
-Browsern kalibrerar en enkel energibaserad VAD, behåller cirka 250 ms pre-roll
+Browsern klassar tal med Silero VAD, behåller cirka 250 ms pre-roll
 och committar efter cirka 600 ms tystnad. En tur bekräftas efter cirka 120 ms
 sammanhängande tal, samma gräns som öppnar STT, så att korta ord som "ja" och
 "okey" blir en tur. Kortare brus kastas. `stopp`, `nej` och `vänta` klassas
 så fort transkriptet finns. OpenAI-sessionen
-konfigureras alltid med `turn_detection: null`.
+konfigureras alltid med `turn_detection: null` och `noise_reduction: near_field`.
+Webbläsarens brusreducering är avstängd så att bara OpenAI-filtret ligger på
+strömmen. Eko-borttagning är kvar.
+
+Prompt och basnyckelord kommer från promptkatalogen. När ett dokument visas
+läser servern dess textenheter och skickar en ny `session.update` med begreppen
+som nyckelord, utan att starta om transkriberingen. Klienten skickar bara
+käll-id, aldrig termerna.
 
 Talstart under uppläsning avbryter inte ensamt. Servern klassificerar
 partial-transkript: korta lyssnarsignaler fortsätter turen, medan en fråga,
@@ -65,8 +72,9 @@ När sessionen öppnas säger Snabb-modellen först en kort replik utifrån de
 senaste intervju-meddelandena. Den går inte via `execute_expert_turn` och
 använder inte Mem0-sökning. När användaren har talat längre än cirka fyra
 sekunder kan samma modell läsa upp en kort lyssnarsignal. Den sparas inte i
-chatten. Medan ett verktyg eller en sammanställning pågår kan den säga vad
-som faktiskt händer, utan fasta fraser och utan att skriva historik.
+chatten. När användaren har svarat och experten inte har sagt något på 50
+millisekunder sägs en kort framstegsreplik. Så fort ett verktyg körs sägs vad som
+händer, utan extra väntan. Fraserna är inte fasta och skrivs inte i historiken.
 Huvudsvaret klipper det talet. Ett textmeddelande i samma samtal avbryter
 den aktuella turen men lämnar röstsessionen öppen.
 

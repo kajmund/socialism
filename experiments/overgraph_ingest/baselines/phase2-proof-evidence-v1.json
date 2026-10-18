@@ -1,0 +1,321 @@
+{
+  "id": "phase2-proof-evidence-v1",
+  "label": "Frozen: EVIDENCE_FOUND requires a source-grounded proof object. Not the default controller.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_jev": true,
+  "no_new_controller": true,
+  "zero_false_complete": true,
+  "headline": {
+    "all_positives_found": true,
+    "false_found": [],
+    "fabricated_span_rejected": true,
+    "heading_alone_is_not_proof": true,
+    "undecided_kept": true,
+    "avtal_12_found": false,
+    "avtal_49_found": false,
+    "avtal_60_found_without_hop": true
+  },
+  "positives": [
+    {
+      "id": "Avtal_05_Konsultavtal.docx",
+      "role": "gold_positive",
+      "unit_id": "3d42c92ab0052d2658dbcf51a4691eaec71c76d82acc16d34965e28bfec6b586",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "SUPPORTED",
+      "relation_support": "linked_relation",
+      "spans": [
+        {
+          "unit_id": "3d42c92ab0052d2658dbcf51a4691eaec71c76d82acc16d34965e28bfec6b586",
+          "start": 159,
+          "end": 223,
+          "text": "dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretess",
+          "validated": true
+        }
+      ],
+      "references": [],
+      "evidence_found": true
+    },
+    {
+      "id": "Avtal_30_Ramavtal_tjanster.docx",
+      "role": "gold_positive",
+      "unit_id": "209420ba1b5402dc3468f69ae9000a463d7022b9ac7c8b4a22e60f5e313fde95",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "SUPPORTED",
+      "relation_support": "linked_relation",
+      "spans": [
+        {
+          "unit_id": "209420ba1b5402dc3468f69ae9000a463d7022b9ac7c8b4a22e60f5e313fde95",
+          "start": 21,
+          "end": 82,
+          "text": "gäller inte vid uppsåt, grov vårdslöshet, brott mot sekretess",
+          "validated": true
+        }
+      ],
+      "references": [],
+      "evidence_found": true
+    },
+    {
+      "id": "Avtal_36_Underleverantorsavtal.docx",
+      "role": "gold_positive",
+      "unit_id": "b2c3ced20215c6bd771b5ba6c6f21e7b3da6c7ca646983414ebce8274bf331ba",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "SUPPORTED",
+      "relation_support": "linked_relation",
+      "spans": [
+        {
+          "unit_id": "b2c3ced20215c6bd771b5ba6c6f21e7b3da6c7ca646983414ebce8274bf331ba",
+          "start": 106,
+          "end": 165,
+          "text": "utom vid uppsåt, grov vårdslöshet eller brott mot sekretess",
+          "validated": true
+        }
+      ],
+      "references": [],
+      "evidence_found": true
+    },
+    {
+      "id": "Avtal_46_SaaS_avtal.docx",
+      "role": "gold_positive",
+      "unit_id": "c495f54e522a9f23af5ae814cbf0692715495d1d50b28e2879993b3456fc3ac8",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "SUPPORTED",
+      "relation_support": "linked_relation",
+      "spans": [
+        {
+          "unit_id": "c495f54e522a9f23af5ae814cbf0692715495d1d50b28e2879993b3456fc3ac8",
+          "start": 21,
+          "end": 87,
+          "text": "gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess",
+          "validated": true
+        }
+      ],
+      "references": [],
+      "evidence_found": true
+    },
+    {
+      "id": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "role": "gold_positive",
+      "unit_id": "df989c8a9c611ee5e349ffdc0778fbacdb3c65fb436bba9193b8f5d67a1425cc",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "SUPPORTED",
+      "relation_support": "linked_relation",
+      "spans": [
+        {
+          "unit_id": "df989c8a9c611ee5e349ffdc0778fbacdb3c65fb436bba9193b8f5d67a1425cc",
+          "start": 84,
+          "end": 138,
+          "text": "utom vid uppsåt, grov vårdslöshet, brott mot sekretess",
+          "validated": true
+        }
+      ],
+      "references": [],
+      "evidence_found": true
+    },
+    {
+      "id": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "role": "gold_positive",
+      "unit_id": "da73d203864c51ad6af337ae79286a2a9eda50c90fe76cef5b1a909de1237dd9",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "SUPPORTED",
+      "relation_support": "linked_relation",
+      "spans": [
+        {
+          "unit_id": "da73d203864c51ad6af337ae79286a2a9eda50c90fe76cef5b1a909de1237dd9",
+          "start": 160,
+          "end": 219,
+          "text": "utom vid grov vårdslöshet, uppsåt eller brott mot sekretess",
+          "validated": true
+        }
+      ],
+      "references": [],
+      "evidence_found": true
+    },
+    {
+      "id": "Avtal_60_Pilotavtal_PoC.docx",
+      "role": "gold_positive",
+      "unit_id": "0b49e0dba5cfe93ebfb8d33d64d5151338d834866164dea2106b3c81b4aa0c6a",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "SUPPORTED",
+      "relation_support": "linked_relation",
+      "spans": [
+        {
+          "unit_id": "0b49e0dba5cfe93ebfb8d33d64d5151338d834866164dea2106b3c81b4aa0c6a",
+          "start": 0,
+          "end": 59,
+          "text": "utom vid uppsåt, grov vårdslöshet eller brott mot sekretess",
+          "validated": true
+        }
+      ],
+      "references": [],
+      "evidence_found": true
+    }
+  ],
+  "avtal_12": {
+    "claim": "liability_cap_excludes_confidentiality_breach",
+    "status": "UNDECIDED",
+    "relation_support": "not_grounded",
+    "spans": [],
+    "references": [
+      {
+        "source_unit_id": "avtal-12-b9",
+        "target_unit_id": "avtal-12-b8",
+        "reference": null,
+        "referent_matches": false,
+        "status": "not_grounded"
+      }
+    ],
+    "evidence_found": false
+  },
+  "avtal_49": {
+    "claim": "liability_cap_excludes_confidentiality_breach",
+    "status": "UNDECIDED",
+    "relation_support": "needs_navigation",
+    "spans": [],
+    "references": [
+      {
+        "source_unit_id": "avtal-49-src",
+        "target_unit_id": "avtal-49-tgt",
+        "reference": "4",
+        "referent_matches": true,
+        "status": "not_grounded"
+      }
+    ],
+    "evidence_found": false
+  },
+  "avtal_46_split": {
+    "claim": "liability_cap_excludes_confidentiality_breach",
+    "status": "SUPPORTED",
+    "relation_support": "linked_relation",
+    "spans": [
+      {
+        "unit_id": "avtal-46-carve",
+        "start": 16,
+        "end": 82,
+        "text": "gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess",
+        "validated": true
+      }
+    ],
+    "references": [],
+    "evidence_found": true,
+    "span_unit": "avtal-46-carve"
+  },
+  "avtal_60_with_irrelevant_hop": {
+    "claim": "liability_cap_excludes_confidentiality_breach",
+    "status": "SUPPORTED",
+    "relation_support": "linked_relation",
+    "spans": [
+      {
+        "unit_id": "0b49e0dba5cfe93ebfb8d33d64d5151338d834866164dea2106b3c81b4aa0c6a",
+        "start": 0,
+        "end": 59,
+        "text": "utom vid uppsåt, grov vårdslöshet eller brott mot sekretess",
+        "validated": true
+      }
+    ],
+    "references": [
+      {
+        "source_unit_id": "0b49e0dba5cfe93ebfb8d33d64d5151338d834866164dea2106b3c81b4aa0c6a",
+        "target_unit_id": "avtal-60-pub",
+        "reference": null,
+        "referent_matches": false,
+        "status": "linked_relation"
+      }
+    ],
+    "evidence_found": true,
+    "hop_does_not_create_the_span": true
+  },
+  "controls": [
+    {
+      "id": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "role": "false_complete_pair",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "UNDECIDED",
+      "relation_support": "not_grounded",
+      "spans": [],
+      "references": [
+        {
+          "source_unit_id": "Avtal_37_Allmanna_villkor_B2B.docx:src",
+          "target_unit_id": "Avtal_37_Allmanna_villkor_B2B.docx:tgt",
+          "reference": null,
+          "referent_matches": false,
+          "status": "not_grounded"
+        }
+      ],
+      "evidence_found": false
+    },
+    {
+      "id": "Avtal_47_Programvarulicensavtal.docx",
+      "role": "false_complete_pair",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "UNDECIDED",
+      "relation_support": "needs_navigation",
+      "spans": [],
+      "references": [
+        {
+          "source_unit_id": "Avtal_47_Programvarulicensavtal.docx:src",
+          "target_unit_id": "Avtal_47_Programvarulicensavtal.docx:tgt",
+          "reference": "8",
+          "referent_matches": false,
+          "status": "not_grounded"
+        }
+      ],
+      "evidence_found": false
+    },
+    {
+      "id": "Avtal_50_Support_underhallsavtal.docx",
+      "role": "false_complete_pair",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "UNDECIDED",
+      "relation_support": "not_grounded",
+      "spans": [],
+      "references": [
+        {
+          "source_unit_id": "Avtal_50_Support_underhallsavtal.docx:src",
+          "target_unit_id": "Avtal_50_Support_underhallsavtal.docx:tgt",
+          "reference": null,
+          "referent_matches": false,
+          "status": "not_grounded"
+        }
+      ],
+      "evidence_found": false
+    },
+    {
+      "id": "Avtal_77_Redovisningsuppdrag.docx",
+      "role": "false_complete_pair",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "UNDECIDED",
+      "relation_support": "not_grounded",
+      "spans": [],
+      "references": [
+        {
+          "source_unit_id": "Avtal_77_Redovisningsuppdrag.docx:src",
+          "target_unit_id": "Avtal_77_Redovisningsuppdrag.docx:tgt",
+          "reference": null,
+          "referent_matches": false,
+          "status": "not_grounded"
+        }
+      ],
+      "evidence_found": false
+    },
+    {
+      "id": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+      "role": "false_complete_pair",
+      "claim": "liability_cap_excludes_confidentiality_breach",
+      "status": "UNDECIDED",
+      "relation_support": "not_grounded",
+      "spans": [],
+      "references": [
+        {
+          "source_unit_id": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx:src",
+          "target_unit_id": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx:tgt",
+          "reference": null,
+          "referent_matches": false,
+          "status": "not_grounded"
+        }
+      ],
+      "evidence_found": false
+    }
+  ]
+}

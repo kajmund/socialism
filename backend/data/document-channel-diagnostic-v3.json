@@ -1,0 +1,2693 @@
+{
+  "experiment": "document-channel-nine-turn-diagnostic-v1",
+  "created_at": "2026-10-15T07:30:02.754002+00:00",
+  "classification": "diagnostic-only",
+  "channels": [
+    "text",
+    "voice",
+    "group_voice"
+  ],
+  "scenario_sequences": [
+    1,
+    2,
+    3
+  ],
+  "retry_policy": "one attempt per channel and scenario",
+  "rows": [
+    {
+      "case_id": "diagnostic",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 3322.895,
+      "find_calls": [
+        {
+          "query": "hyresavtal",
+          "mode": "replace",
+          "limit": 50
+        }
+      ],
+      "find_results": [
+        {
+          "status": "completed",
+          "query": "hyresavtal",
+          "mode": "replace",
+          "strategy": "category",
+          "completeness": "complete",
+          "title": "Hyresavtal",
+          "document_ids": [
+            "lease_agreement-0",
+            "lease_agreement-1",
+            "lease_agreement-2",
+            "lease_agreement-3"
+          ],
+          "source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3"
+          ],
+          "document_count": 4,
+          "presentation_source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3"
+          ],
+          "presentation_truncated": false,
+          "notes": [],
+          "counters": {
+            "embedding_calls": 0,
+            "jev_calls": 0,
+            "llm_calls": 0,
+            "text_unit_reads": 0,
+            "vector_searches": 0,
+            "category_lookups": 1
+          },
+          "db_ms": 0.12729130685329437,
+          "total_ms": 0.1520831137895584
+        }
+      ],
+      "source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "presentation_calls": [
+        {
+          "type": "workspace_tool",
+          "name": "show_document_set",
+          "arguments": {
+            "title": "Hyresavtal",
+            "source_ids": [
+              "src-lease_agreement-0",
+              "src-lease_agreement-1",
+              "src-lease_agreement-2",
+              "src-lease_agreement-3"
+            ]
+          },
+          "thread_type": "expert",
+          "thread_id": "step-b-diagnostic-text",
+          "request_id": "diagnostic-text-1"
+        }
+      ],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-diagnostic-text",
+        "request_id": "diagnostic-text-1"
+      },
+      "lifecycle_status": "succeeded",
+      "error": null,
+      "trace": [
+        {
+          "stage": "initial_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.34,
+            "ingest_source": 0.07,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.05,
+            "find_documents": 0.89,
+            "compare_sources": 0.08,
+            "get_relations": 0.09,
+            "render_chart": 0.04,
+            "create_document": 0.06,
+            "revise_document": 0.03,
+            "export_document": 0.07,
+            "start_research": 0.13,
+            "open_ingest_picker": 0.07,
+            "show_evidence": 0.13,
+            "show_document": 0.05,
+            "show_document_set": 0.46,
+            "show_comparison": 0.09,
+            "show_relations": 0.15,
+            "show_knowledge": 0.14,
+            "show_artifact": 0.21
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": false
+        },
+        {
+          "stage": "initial_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [
+            {
+              "id": "e403464da",
+              "name": "find_documents",
+              "arguments": "{\"query\":\"hyresavtal\",\"mode\":\"replace\",\"limit\":50}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "hyresavtal",
+            "mode": "replace",
+            "limit": 50
+          },
+          "result": "{\"status\": \"completed\", \"query\": \"hyresavtal\", \"mode\": \"replace\", \"strategy\": \"category\", \"completeness\": \"complete\", \"title\": \"Hyresavtal\", \"document_ids\": [\"lease_agreement-0\", \"lease_agreement-1\", \"lease_agreement-2\", \"lease_agreement-3\"], \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"], \"document_count\": 4, \"presentation_source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"], \"presentation_truncated\": false, \"notes\": [], \"counters\": {\"embedding_calls\": 0, \"jev_calls\": 0, \"llm_calls\": 0, \"text_unit_reads\": 0, \"vector_searches\": 0, \"category_lookups\": 1}, \"db_ms\": 0.12729130685329437, \"total_ms\": 0.1520831137895584, \"operation_id\": \"0a0f03a3-df57-4a84-bce9-3170123cdc92\"}"
+        },
+        {
+          "stage": "post_result_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.14,
+            "ingest_source": 0.05,
+            "get_job_status": 0.04,
+            "search_knowledge": 0.04,
+            "find_documents": 0.96,
+            "compare_sources": 0.1,
+            "get_relations": 0.08,
+            "render_chart": 0.03,
+            "create_document": 0.07,
+            "revise_document": 0.03,
+            "export_document": 0.08,
+            "start_research": 0.08,
+            "open_ingest_picker": 0.05,
+            "show_evidence": 0.19,
+            "show_document": 0.05,
+            "show_document_set": 0.95,
+            "show_comparison": 0.08,
+            "show_relations": 0.19,
+            "show_knowledge": 0.12,
+            "show_artifact": 0.26
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": true
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "f37fb9117",
+              "name": "show_document_set",
+              "arguments": "{\"title\":\"Hyresavtal\",\"source_ids\":[\"src-lease_agreement-0\",\"src-lease_agreement-1\",\"src-lease_agreement-2\",\"src-lease_agreement-3\"]}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [],
+          "has_text": true
+        }
+      ],
+      "breakpoint": "completed"
+    },
+    {
+      "case_id": "diagnostic-filter",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 2572.489,
+      "find_calls": [
+        {
+          "query": "automatisk förlängning",
+          "mode": "replace"
+        }
+      ],
+      "find_results": [
+        {
+          "status": "completed",
+          "query": "automatisk förlängning",
+          "mode": "filter",
+          "strategy": "hybrid",
+          "completeness": "partial",
+          "title": "automatisk förlängning",
+          "document_ids": [
+            "lease_agreement-0",
+            "lease_agreement-1",
+            "lease_agreement-2",
+            "lease_agreement-3"
+          ],
+          "source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3"
+          ],
+          "document_count": 4,
+          "presentation_source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3"
+          ],
+          "presentation_truncated": false,
+          "notes": [
+            "within_set",
+            "scoped_per_document"
+          ],
+          "counters": {
+            "embedding_calls": 1,
+            "jev_calls": 0,
+            "llm_calls": 0,
+            "text_unit_reads": 4,
+            "vector_searches": 4,
+            "category_lookups": 0
+          },
+          "db_ms": 0.6720828823745251,
+          "total_ms": 0.6913752295076847
+        }
+      ],
+      "source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "presentation_calls": [
+        {
+          "type": "workspace_tool",
+          "name": "show_document_set",
+          "arguments": {
+            "title": "Hyresavtal med automatisk förlängning",
+            "source_ids": [
+              "src-lease_agreement-0",
+              "src-lease_agreement-1",
+              "src-lease_agreement-2",
+              "src-lease_agreement-3"
+            ]
+          },
+          "thread_type": "expert",
+          "thread_id": "step-b-diagnostic-text",
+          "request_id": "diagnostic-text-2"
+        }
+      ],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-diagnostic-text",
+        "request_id": "diagnostic-text-2"
+      },
+      "lifecycle_status": "succeeded",
+      "error": null,
+      "trace": [
+        {
+          "stage": "initial_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_knowledge",
+            "show_document_set",
+            "show_relations",
+            "get_workspace_context",
+            "show_evidence",
+            "show_artifact",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_knowledge",
+            "show_document_set",
+            "show_relations",
+            "get_workspace_context",
+            "show_evidence",
+            "show_artifact",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.25,
+            "ingest_source": 0.08,
+            "get_job_status": 0.08,
+            "search_knowledge": 0.1,
+            "find_documents": 0.74,
+            "compare_sources": 0.1,
+            "get_relations": 0.17,
+            "render_chart": 0.06,
+            "create_document": 0.14,
+            "revise_document": 0.13,
+            "export_document": 0.09,
+            "start_research": 0.19,
+            "open_ingest_picker": 0.11,
+            "show_evidence": 0.25,
+            "show_document": 0.11,
+            "show_document_set": 0.31,
+            "show_comparison": 0.15,
+            "show_relations": 0.28,
+            "show_knowledge": 0.35,
+            "show_artifact": 0.21
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": false
+        },
+        {
+          "stage": "initial_model",
+          "offered": [
+            "find_documents",
+            "show_knowledge",
+            "show_document_set",
+            "show_relations",
+            "get_workspace_context",
+            "show_evidence",
+            "show_artifact",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [
+            {
+              "id": "de070a34b",
+              "name": "find_documents",
+              "arguments": "{\"query\":\"automatisk förlängning\",\"mode\":\"replace\"}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "automatisk förlängning",
+            "mode": "replace"
+          },
+          "result": "{\"status\": \"completed\", \"query\": \"automatisk förlängning\", \"mode\": \"filter\", \"strategy\": \"hybrid\", \"completeness\": \"partial\", \"title\": \"automatisk förlängning\", \"document_ids\": [\"lease_agreement-0\", \"lease_agreement-1\", \"lease_agreement-2\", \"lease_agreement-3\"], \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"], \"document_count\": 4, \"presentation_source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"], \"presentation_truncated\": false, \"notes\": [\"within_set\", \"scoped_per_document\"], \"counters\": {\"embedding_calls\": 1, \"jev_calls\": 0, \"llm_calls\": 0, \"text_unit_reads\": 4, \"vector_searches\": 4, \"category_lookups\": 0}, \"db_ms\": 0.6720828823745251, \"total_ms\": 0.6913752295076847, \"operation_id\": \"beaaee01-2e02-48f0-91a0-de6216edcfc8\"}"
+        },
+        {
+          "stage": "post_result_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "show_document_set",
+            "find_documents",
+            "show_evidence",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "show_document_set",
+            "find_documents",
+            "show_evidence",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.15,
+            "ingest_source": 0.05,
+            "get_job_status": 0.06,
+            "search_knowledge": 0.07,
+            "find_documents": 0.93,
+            "compare_sources": 0.15,
+            "get_relations": 0.14,
+            "render_chart": 0.04,
+            "create_document": 0.15,
+            "revise_document": 0.09,
+            "export_document": 0.12,
+            "start_research": 0.1,
+            "open_ingest_picker": 0.06,
+            "show_evidence": 0.41,
+            "show_document": 0.06,
+            "show_document_set": 0.93,
+            "show_comparison": 0.15,
+            "show_relations": 0.28,
+            "show_knowledge": 0.19,
+            "show_artifact": 0.22
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": true
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "show_document_set",
+            "find_documents",
+            "show_evidence",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "aa9204fb2",
+              "name": "show_document_set",
+              "arguments": "{\"title\": \"Hyresavtal med automatisk förlängning\", \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"]}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "show_document_set",
+            "find_documents",
+            "show_evidence",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [],
+          "has_text": true
+        }
+      ],
+      "breakpoint": "completed"
+    },
+    {
+      "case_id": "diagnostic-extend",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 2974.554,
+      "find_calls": [
+        {
+          "query": "anställningsavtal",
+          "mode": "extend"
+        }
+      ],
+      "find_results": [
+        {
+          "status": "completed",
+          "query": "anställningsavtal",
+          "mode": "extend",
+          "strategy": "category",
+          "completeness": "complete",
+          "title": "Anställningsavtal",
+          "document_ids": [
+            "lease_agreement-0",
+            "lease_agreement-1",
+            "lease_agreement-2",
+            "lease_agreement-3",
+            "employment_agreement-0",
+            "employment_agreement-1",
+            "employment_agreement-2",
+            "employment_agreement-3"
+          ],
+          "source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3",
+            "src-employment_agreement-0",
+            "src-employment_agreement-1",
+            "src-employment_agreement-2",
+            "src-employment_agreement-3"
+          ],
+          "document_count": 8,
+          "presentation_source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3",
+            "src-employment_agreement-0",
+            "src-employment_agreement-1",
+            "src-employment_agreement-2",
+            "src-employment_agreement-3"
+          ],
+          "presentation_truncated": false,
+          "notes": [
+            "extend"
+          ],
+          "counters": {
+            "embedding_calls": 0,
+            "jev_calls": 0,
+            "llm_calls": 0,
+            "text_unit_reads": 0,
+            "vector_searches": 0,
+            "category_lookups": 1
+          },
+          "db_ms": 0.11479202657938004,
+          "total_ms": 0.14474987983703613
+        }
+      ],
+      "source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "presentation_calls": [
+        {
+          "type": "workspace_tool",
+          "name": "show_document_set",
+          "arguments": {
+            "title": "Hyresavtal och anställningsavtal",
+            "source_ids": [
+              "src-lease_agreement-0",
+              "src-lease_agreement-1",
+              "src-lease_agreement-2",
+              "src-lease_agreement-3",
+              "src-employment_agreement-0",
+              "src-employment_agreement-1",
+              "src-employment_agreement-2",
+              "src-employment_agreement-3"
+            ]
+          },
+          "thread_type": "expert",
+          "thread_id": "step-b-diagnostic-text",
+          "request_id": "diagnostic-text-3"
+        }
+      ],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-diagnostic-text",
+        "request_id": "diagnostic-text-3"
+      },
+      "lifecycle_status": "succeeded",
+      "error": null,
+      "trace": [
+        {
+          "stage": "initial_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "open_ingest_picker",
+            "find_documents",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "open_ingest_picker",
+            "find_documents",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.38,
+            "ingest_source": 0.27,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.05,
+            "find_documents": 0.5,
+            "compare_sources": 0.07,
+            "get_relations": 0.07,
+            "render_chart": 0.02,
+            "create_document": 0.45,
+            "revise_document": 0.14,
+            "export_document": 0.06,
+            "start_research": 0.1,
+            "open_ingest_picker": 0.85,
+            "show_evidence": 0.07,
+            "show_document": 0.06,
+            "show_document_set": 0.08,
+            "show_comparison": 0.05,
+            "show_relations": 0.06,
+            "show_knowledge": 0.08,
+            "show_artifact": 0.08
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": false
+        },
+        {
+          "stage": "initial_model",
+          "offered": [
+            "open_ingest_picker",
+            "find_documents",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [
+            {
+              "id": "60c85a106",
+              "name": "find_documents",
+              "arguments": "{\"query\":\"anställningsavtal\",\"mode\":\"extend\"}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "anställningsavtal",
+            "mode": "extend"
+          },
+          "result": "{\"status\": \"completed\", \"query\": \"anställningsavtal\", \"mode\": \"extend\", \"strategy\": \"category\", \"completeness\": \"complete\", \"title\": \"Anställningsavtal\", \"document_ids\": [\"lease_agreement-0\", \"lease_agreement-1\", \"lease_agreement-2\", \"lease_agreement-3\", \"employment_agreement-0\", \"employment_agreement-1\", \"employment_agreement-2\", \"employment_agreement-3\"], \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\", \"src-employment_agreement-0\", \"src-employment_agreement-1\", \"src-employment_agreement-2\", \"src-employment_agreement-3\"], \"document_count\": 8, \"presentation_source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\", \"src-employment_agreement-0\", \"src-employment_agreement-1\", \"src-employment_agreement-2\", \"src-employment_agreement-3\"], \"presentation_truncated\": false, \"notes\": [\"extend\"], \"counters\": {\"embedding_calls\": 0, \"jev_calls\": 0, \"llm_calls\": 0, \"text_unit_re"
+        },
+        {
+          "stage": "post_result_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_document_set",
+            "create_document",
+            "open_ingest_picker",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_document_set",
+            "create_document",
+            "open_ingest_picker",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.21,
+            "ingest_source": 0.18,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.05,
+            "find_documents": 0.9,
+            "compare_sources": 0.1,
+            "get_relations": 0.1,
+            "render_chart": 0.03,
+            "create_document": 0.38,
+            "revise_document": 0.15,
+            "export_document": 0.09,
+            "start_research": 0.1,
+            "open_ingest_picker": 0.35,
+            "show_evidence": 0.14,
+            "show_document": 0.11,
+            "show_document_set": 0.83,
+            "show_comparison": 0.08,
+            "show_relations": 0.09,
+            "show_knowledge": 0.1,
+            "show_artifact": 0.13
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": true
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "create_document",
+            "open_ingest_picker",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "52c48e0f6",
+              "name": "show_document_set",
+              "arguments": "{\"title\":\"Hyresavtal och anställningsavtal\",\"source_ids\":[\"src-lease_agreement-0\",\"src-lease_agreement-1\",\"src-lease_agreement-2\",\"src-lease_agreement-3\",\"src-employment_agreement-0\",\"src-employment_agreement-1\",\"src-employment_agreement-2\",\"src-employment_agreement-3\"]}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "create_document",
+            "open_ingest_picker",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [],
+          "has_text": true
+        }
+      ],
+      "breakpoint": "completed"
+    },
+    {
+      "case_id": "diagnostic",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 2440.583,
+      "find_calls": [
+        {
+          "query": "hyresavtal",
+          "mode": "replace"
+        }
+      ],
+      "find_results": [
+        {
+          "status": "completed",
+          "query": "hyresavtal",
+          "mode": "replace",
+          "strategy": "category",
+          "completeness": "complete",
+          "title": "Hyresavtal",
+          "document_ids": [
+            "lease_agreement-0",
+            "lease_agreement-1",
+            "lease_agreement-2",
+            "lease_agreement-3"
+          ],
+          "source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3"
+          ],
+          "document_count": 4,
+          "presentation_source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3"
+          ],
+          "presentation_truncated": false,
+          "notes": [],
+          "counters": {
+            "embedding_calls": 0,
+            "jev_calls": 0,
+            "llm_calls": 0,
+            "text_unit_reads": 0,
+            "vector_searches": 0,
+            "category_lookups": 1
+          },
+          "db_ms": 0.06908318027853966,
+          "total_ms": 0.08283276110887527
+        }
+      ],
+      "source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "presentation_calls": [
+        {
+          "type": "workspace.tool",
+          "turn_id": "fixed-transcript-diagnostic-voice-1",
+          "name": "show_document_set",
+          "arguments": {
+            "title": "Hyresavtal",
+            "source_ids": [
+              "src-lease_agreement-0",
+              "src-lease_agreement-1",
+              "src-lease_agreement-2",
+              "src-lease_agreement-3"
+            ]
+          }
+        }
+      ],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-diagnostic-voice-1",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "succeeded",
+      "error": null,
+      "trace": [
+        {
+          "stage": "initial_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.37,
+            "ingest_source": 0.08,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.04,
+            "find_documents": 0.89,
+            "compare_sources": 0.07,
+            "get_relations": 0.09,
+            "render_chart": 0.04,
+            "create_document": 0.05,
+            "revise_document": 0.03,
+            "export_document": 0.07,
+            "start_research": 0.13,
+            "open_ingest_picker": 0.08,
+            "show_evidence": 0.14,
+            "show_document": 0.05,
+            "show_document_set": 0.39,
+            "show_comparison": 0.08,
+            "show_relations": 0.13,
+            "show_knowledge": 0.12,
+            "show_artifact": 0.22
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": false
+        },
+        {
+          "stage": "initial_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [
+            {
+              "id": "7a3c6eb9f",
+              "name": "find_documents",
+              "arguments": "{\"query\":\"hyresavtal\",\"mode\":\"replace\"}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "hyresavtal",
+            "mode": "replace"
+          },
+          "result": "{\"status\": \"completed\", \"query\": \"hyresavtal\", \"mode\": \"replace\", \"strategy\": \"category\", \"completeness\": \"complete\", \"title\": \"Hyresavtal\", \"document_ids\": [\"lease_agreement-0\", \"lease_agreement-1\", \"lease_agreement-2\", \"lease_agreement-3\"], \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"], \"document_count\": 4, \"presentation_source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"], \"presentation_truncated\": false, \"notes\": [], \"counters\": {\"embedding_calls\": 0, \"jev_calls\": 0, \"llm_calls\": 0, \"text_unit_reads\": 0, \"vector_searches\": 0, \"category_lookups\": 1}, \"db_ms\": 0.06908318027853966, \"total_ms\": 0.08283276110887527, \"operation_id\": \"61e0199f-fb17-4164-be53-af87e8137af6\"}"
+        },
+        {
+          "stage": "post_result_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.15,
+            "ingest_source": 0.05,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.04,
+            "find_documents": 0.96,
+            "compare_sources": 0.09,
+            "get_relations": 0.1,
+            "render_chart": 0.03,
+            "create_document": 0.06,
+            "revise_document": 0.03,
+            "export_document": 0.09,
+            "start_research": 0.08,
+            "open_ingest_picker": 0.05,
+            "show_evidence": 0.18,
+            "show_document": 0.05,
+            "show_document_set": 0.95,
+            "show_comparison": 0.09,
+            "show_relations": 0.1,
+            "show_knowledge": 0.12,
+            "show_artifact": 0.27
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": true
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "c7520fe68",
+              "name": "show_document_set",
+              "arguments": "{\"title\": \"Hyresavtal\", \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"]}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [],
+          "has_text": true
+        }
+      ],
+      "breakpoint": "completed"
+    },
+    {
+      "case_id": "diagnostic-filter",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 1547.779,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [
+        {
+          "type": "workspace.tool",
+          "turn_id": "fixed-transcript-diagnostic-voice-2",
+          "name": "show_document_set",
+          "arguments": {
+            "title": "Hyresavtal med automatisk förlängning",
+            "source_ids": [
+              "src-lease_agreement-0",
+              "src-lease_agreement-1",
+              "src-lease_agreement-2",
+              "src-lease_agreement-3"
+            ]
+          }
+        }
+      ],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-diagnostic-voice-2",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "succeeded",
+      "error": null,
+      "trace": [
+        {
+          "stage": "initial_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_knowledge",
+            "show_relations",
+            "show_document_set",
+            "get_workspace_context",
+            "show_evidence",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_knowledge",
+            "show_relations",
+            "show_document_set",
+            "get_workspace_context",
+            "show_evidence",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.26,
+            "ingest_source": 0.08,
+            "get_job_status": 0.08,
+            "search_knowledge": 0.11,
+            "find_documents": 0.72,
+            "compare_sources": 0.11,
+            "get_relations": 0.18,
+            "render_chart": 0.05,
+            "create_document": 0.14,
+            "revise_document": 0.14,
+            "export_document": 0.09,
+            "start_research": 0.17,
+            "open_ingest_picker": 0.12,
+            "show_evidence": 0.26,
+            "show_document": 0.11,
+            "show_document_set": 0.29,
+            "show_comparison": 0.14,
+            "show_relations": 0.29,
+            "show_knowledge": 0.41,
+            "show_artifact": 0.17
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": false
+        },
+        {
+          "stage": "initial_model",
+          "offered": [
+            "find_documents",
+            "show_knowledge",
+            "show_relations",
+            "show_document_set",
+            "get_workspace_context",
+            "show_evidence",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [
+            {
+              "id": "b9105aac8",
+              "name": "show_document_set",
+              "arguments": "{\"title\":\"Hyresavtal med automatisk förlängning\",\"source_ids\":[\"src-lease_agreement-0\",\"src-lease_agreement-1\",\"src-lease_agreement-2\",\"src-lease_agreement-3\"]}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_knowledge",
+            "show_relations",
+            "show_document_set",
+            "get_workspace_context",
+            "show_evidence",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [],
+          "has_text": true
+        }
+      ],
+      "breakpoint": "initial_model_decision"
+    },
+    {
+      "case_id": "diagnostic-extend",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 2558.523,
+      "find_calls": [
+        {
+          "query": "employment agreement",
+          "mode": "extend"
+        }
+      ],
+      "find_results": [
+        {
+          "status": "completed",
+          "query": "employment agreement",
+          "mode": "extend",
+          "strategy": "hybrid",
+          "completeness": "partial",
+          "title": "employment agreement",
+          "document_ids": [
+            "lease_agreement-0",
+            "lease_agreement-1",
+            "lease_agreement-2",
+            "lease_agreement-3",
+            "employment_agreement-0",
+            "employment_agreement-1",
+            "employment_agreement-2",
+            "employment_agreement-3",
+            "consulting_agreement-0",
+            "consulting_agreement-1",
+            "consulting_agreement-2",
+            "consulting_agreement-3",
+            "nda-0",
+            "nda-1",
+            "nda-2",
+            "nda-3",
+            "supply_agreement-0",
+            "supply_agreement-1",
+            "supply_agreement-2",
+            "supply_agreement-3"
+          ],
+          "source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3",
+            "src-employment_agreement-0",
+            "src-employment_agreement-1",
+            "src-employment_agreement-2",
+            "src-employment_agreement-3",
+            "src-consulting_agreement-0",
+            "src-consulting_agreement-1",
+            "src-consulting_agreement-2",
+            "src-consulting_agreement-3",
+            "src-nda-0",
+            "src-nda-1",
+            "src-nda-2",
+            "src-nda-3",
+            "src-supply_agreement-0",
+            "src-supply_agreement-1",
+            "src-supply_agreement-2",
+            "src-supply_agreement-3"
+          ],
+          "document_count": 20,
+          "presentation_source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3",
+            "src-employment_agreement-0",
+            "src-employment_agreement-1",
+            "src-employment_agreement-2",
+            "src-employment_agreement-3",
+            "src-consulting_agreement-0",
+            "src-consulting_agreement-1",
+            "src-consulting_agreement-2",
+            "src-consulting_agreement-3",
+            "src-nda-0",
+            "src-nda-1",
+            "src-nda-2",
+            "src-nda-3",
+            "src-supply_agreement-0",
+            "src-supply_agreement-1",
+            "src-supply_agreement-2",
+            "src-supply_agreement-3"
+          ],
+          "presentation_truncated": false,
+          "notes": [
+            "extend"
+          ],
+          "counters": {
+            "embedding_calls": 1,
+            "jev_calls": 0,
+            "llm_calls": 0,
+            "text_unit_reads": 20,
+            "vector_searches": 1,
+            "category_lookups": 0
+          },
+          "db_ms": 2.3236251436173916,
+          "total_ms": 2.357916906476021
+        }
+      ],
+      "source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "presentation_calls": [
+        {
+          "type": "workspace.tool",
+          "turn_id": "fixed-transcript-diagnostic-voice-3",
+          "name": "show_document_set",
+          "arguments": {
+            "title": "Hyres- och anställningsavtal",
+            "source_ids": [
+              "src-lease_agreement-0",
+              "src-lease_agreement-1",
+              "src-lease_agreement-2",
+              "src-lease_agreement-3",
+              "src-employment_agreement-0",
+              "src-employment_agreement-1",
+              "src-employment_agreement-2",
+              "src-employment_agreement-3"
+            ]
+          }
+        }
+      ],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-diagnostic-voice-3",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "succeeded",
+      "error": null,
+      "trace": [
+        {
+          "stage": "initial_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "open_ingest_picker",
+            "find_documents",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "open_ingest_picker",
+            "find_documents",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.39,
+            "ingest_source": 0.29,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.05,
+            "find_documents": 0.46,
+            "compare_sources": 0.06,
+            "get_relations": 0.07,
+            "render_chart": 0.02,
+            "create_document": 0.44,
+            "revise_document": 0.12,
+            "export_document": 0.06,
+            "start_research": 0.1,
+            "open_ingest_picker": 0.85,
+            "show_evidence": 0.07,
+            "show_document": 0.06,
+            "show_document_set": 0.07,
+            "show_comparison": 0.05,
+            "show_relations": 0.06,
+            "show_knowledge": 0.08,
+            "show_artifact": 0.08
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": false
+        },
+        {
+          "stage": "initial_model",
+          "offered": [
+            "open_ingest_picker",
+            "find_documents",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [
+            {
+              "id": "7ad082f59",
+              "name": "find_documents",
+              "arguments": "{\"query\":\"employment agreement\",\"mode\":\"extend\"}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "employment agreement",
+            "mode": "extend"
+          },
+          "result": "{\"status\": \"completed\", \"query\": \"employment agreement\", \"mode\": \"extend\", \"strategy\": \"hybrid\", \"completeness\": \"partial\", \"title\": \"employment agreement\", \"document_ids\": [\"lease_agreement-0\", \"lease_agreement-1\", \"lease_agreement-2\", \"lease_agreement-3\", \"employment_agreement-0\", \"employment_agreement-1\", \"employment_agreement-2\", \"employment_agreement-3\", \"consulting_agreement-0\", \"consulting_agreement-1\", \"consulting_agreement-2\", \"consulting_agreement-3\", \"nda-0\", \"nda-1\", \"nda-2\", \"nda-3\", \"supply_agreement-0\", \"supply_agreement-1\", \"supply_agreement-2\", \"supply_agreement-3\"], \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\", \"src-employment_agreement-0\", \"src-employment_agreement-1\", \"src-employment_agreement-2\", \"src-employment_agreement-3\", \"src-consulting_agreement-0\", \"src-consulting_agreement-1\", \"src-consulting_agreement-2\", \"src-consulting_agreement-3\", \"src-nda-0\", \"src-nda-1\", \"src-nda-2\", \"src-nda-3\", \"s"
+        },
+        {
+          "stage": "post_result_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_document_set",
+            "open_ingest_picker",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_document_set",
+            "open_ingest_picker",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.27,
+            "ingest_source": 0.24,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.06,
+            "find_documents": 0.87,
+            "compare_sources": 0.09,
+            "get_relations": 0.09,
+            "render_chart": 0.03,
+            "create_document": 0.45,
+            "revise_document": 0.13,
+            "export_document": 0.08,
+            "start_research": 0.12,
+            "open_ingest_picker": 0.56,
+            "show_evidence": 0.13,
+            "show_document": 0.12,
+            "show_document_set": 0.72,
+            "show_comparison": 0.07,
+            "show_relations": 0.09,
+            "show_knowledge": 0.09,
+            "show_artifact": 0.12
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": true
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "open_ingest_picker",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "41405618d",
+              "name": "show_document_set",
+              "arguments": "{\"title\": \"Hyres- och anställningsavtal\", \"source_ids\": [\"src-lease_agreement-0\",\"src-lease_agreement-1\",\"src-lease_agreement-2\",\"src-lease_agreement-3\",\"src-employment_agreement-0\",\"src-employment_agreement-1\",\"src-employment_agreement-2\",\"src-employment_agreement-3\"]}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "open_ingest_picker",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [],
+          "has_text": true
+        }
+      ],
+      "breakpoint": "completed"
+    },
+    {
+      "case_id": "diagnostic",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 2689.622,
+      "find_calls": [
+        {
+          "query": "hyresavtal",
+          "mode": "replace"
+        }
+      ],
+      "find_results": [
+        {
+          "status": "completed",
+          "query": "hyresavtal",
+          "mode": "replace",
+          "strategy": "category",
+          "completeness": "complete",
+          "title": "Hyresavtal",
+          "document_ids": [
+            "lease_agreement-0",
+            "lease_agreement-1",
+            "lease_agreement-2",
+            "lease_agreement-3"
+          ],
+          "source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3"
+          ],
+          "document_count": 4,
+          "presentation_source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3"
+          ],
+          "presentation_truncated": false,
+          "notes": [],
+          "counters": {
+            "embedding_calls": 0,
+            "jev_calls": 0,
+            "llm_calls": 0,
+            "text_unit_reads": 0,
+            "vector_searches": 0,
+            "category_lookups": 1
+          },
+          "db_ms": 0.3677499480545521,
+          "total_ms": 0.3954996354877949
+        }
+      ],
+      "source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "presentation_calls": [
+        {
+          "type": "workspace.tool",
+          "name": "show_document_set",
+          "arguments": {
+            "title": "Hyresavtal",
+            "source_ids": [
+              "src-lease_agreement-0",
+              "src-lease_agreement-1",
+              "src-lease_agreement-2",
+              "src-lease_agreement-3"
+            ]
+          }
+        }
+      ],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-diagnostic-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "succeeded",
+      "error": null,
+      "trace": [
+        {
+          "stage": "initial_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.41,
+            "ingest_source": 0.08,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.04,
+            "find_documents": 0.89,
+            "compare_sources": 0.08,
+            "get_relations": 0.09,
+            "render_chart": 0.04,
+            "create_document": 0.06,
+            "revise_document": 0.03,
+            "export_document": 0.06,
+            "start_research": 0.14,
+            "open_ingest_picker": 0.08,
+            "show_evidence": 0.13,
+            "show_document": 0.05,
+            "show_document_set": 0.44,
+            "show_comparison": 0.08,
+            "show_relations": 0.14,
+            "show_knowledge": 0.13,
+            "show_artifact": 0.23
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": false
+        },
+        {
+          "stage": "initial_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [
+            {
+              "id": "0dd79e952",
+              "name": "find_documents",
+              "arguments": "{\"query\":\"hyresavtal\",\"mode\":\"replace\"}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "hyresavtal",
+            "mode": "replace"
+          },
+          "result": "{\"status\": \"completed\", \"query\": \"hyresavtal\", \"mode\": \"replace\", \"strategy\": \"category\", \"completeness\": \"complete\", \"title\": \"Hyresavtal\", \"document_ids\": [\"lease_agreement-0\", \"lease_agreement-1\", \"lease_agreement-2\", \"lease_agreement-3\"], \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"], \"document_count\": 4, \"presentation_source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"], \"presentation_truncated\": false, \"notes\": [], \"counters\": {\"embedding_calls\": 0, \"jev_calls\": 0, \"llm_calls\": 0, \"text_unit_reads\": 0, \"vector_searches\": 0, \"category_lookups\": 1}, \"db_ms\": 0.3677499480545521, \"total_ms\": 0.3954996354877949, \"operation_id\": \"55a07b83-d81b-415b-8129-a5dc23192883\"}"
+        },
+        {
+          "stage": "post_result_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "show_document_set",
+            "find_documents",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "show_document_set",
+            "find_documents",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.15,
+            "ingest_source": 0.05,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.04,
+            "find_documents": 0.96,
+            "compare_sources": 0.1,
+            "get_relations": 0.09,
+            "render_chart": 0.03,
+            "create_document": 0.06,
+            "revise_document": 0.03,
+            "export_document": 0.08,
+            "start_research": 0.08,
+            "open_ingest_picker": 0.05,
+            "show_evidence": 0.18,
+            "show_document": 0.05,
+            "show_document_set": 0.96,
+            "show_comparison": 0.09,
+            "show_relations": 0.16,
+            "show_knowledge": 0.15,
+            "show_artifact": 0.23
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": true
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "show_document_set",
+            "find_documents",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "e5ca8e2ae",
+              "name": "show_document_set",
+              "arguments": "{\"title\": \"Hyresavtal\", \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"]}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "show_document_set",
+            "find_documents",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [],
+          "has_text": true
+        }
+      ],
+      "breakpoint": "completed"
+    },
+    {
+      "case_id": "diagnostic-filter",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 3246.142,
+      "find_calls": [
+        {
+          "query": "automatisk förlängning",
+          "mode": "replace"
+        }
+      ],
+      "find_results": [
+        {
+          "status": "completed",
+          "query": "automatisk förlängning",
+          "mode": "filter",
+          "strategy": "hybrid",
+          "completeness": "partial",
+          "title": "automatisk förlängning",
+          "document_ids": [
+            "lease_agreement-0",
+            "lease_agreement-1",
+            "lease_agreement-2",
+            "lease_agreement-3"
+          ],
+          "source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3"
+          ],
+          "document_count": 4,
+          "presentation_source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3"
+          ],
+          "presentation_truncated": false,
+          "notes": [
+            "within_set",
+            "scoped_per_document"
+          ],
+          "counters": {
+            "embedding_calls": 1,
+            "jev_calls": 0,
+            "llm_calls": 0,
+            "text_unit_reads": 4,
+            "vector_searches": 4,
+            "category_lookups": 0
+          },
+          "db_ms": 0.5351672880351543,
+          "total_ms": 0.5507920868694782
+        }
+      ],
+      "source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "presentation_calls": [
+        {
+          "type": "workspace.tool",
+          "name": "show_document_set",
+          "arguments": {
+            "title": "Hyresavtal med automatisk förlängning",
+            "source_ids": [
+              "src-lease_agreement-0",
+              "src-lease_agreement-1",
+              "src-lease_agreement-2",
+              "src-lease_agreement-3"
+            ]
+          }
+        }
+      ],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-diagnostic-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "succeeded",
+      "error": null,
+      "trace": [
+        {
+          "stage": "initial_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_relations",
+            "show_knowledge",
+            "show_document_set",
+            "get_workspace_context",
+            "show_evidence",
+            "show_artifact",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_relations",
+            "show_knowledge",
+            "show_document_set",
+            "get_workspace_context",
+            "show_evidence",
+            "show_artifact",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.27,
+            "ingest_source": 0.08,
+            "get_job_status": 0.08,
+            "search_knowledge": 0.11,
+            "find_documents": 0.73,
+            "compare_sources": 0.1,
+            "get_relations": 0.17,
+            "render_chart": 0.05,
+            "create_document": 0.15,
+            "revise_document": 0.14,
+            "export_document": 0.1,
+            "start_research": 0.19,
+            "open_ingest_picker": 0.12,
+            "show_evidence": 0.27,
+            "show_document": 0.12,
+            "show_document_set": 0.27,
+            "show_comparison": 0.15,
+            "show_relations": 0.39,
+            "show_knowledge": 0.39,
+            "show_artifact": 0.23
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": false
+        },
+        {
+          "stage": "initial_model",
+          "offered": [
+            "find_documents",
+            "show_relations",
+            "show_knowledge",
+            "show_document_set",
+            "get_workspace_context",
+            "show_evidence",
+            "show_artifact",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [
+            {
+              "id": "4606b8238",
+              "name": "find_documents",
+              "arguments": "{\"query\":\"automatisk förlängning\",\"mode\":\"replace\"}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "automatisk förlängning",
+            "mode": "replace"
+          },
+          "result": "{\"status\": \"completed\", \"query\": \"automatisk förlängning\", \"mode\": \"filter\", \"strategy\": \"hybrid\", \"completeness\": \"partial\", \"title\": \"automatisk förlängning\", \"document_ids\": [\"lease_agreement-0\", \"lease_agreement-1\", \"lease_agreement-2\", \"lease_agreement-3\"], \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"], \"document_count\": 4, \"presentation_source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"], \"presentation_truncated\": false, \"notes\": [\"within_set\", \"scoped_per_document\"], \"counters\": {\"embedding_calls\": 1, \"jev_calls\": 0, \"llm_calls\": 0, \"text_unit_reads\": 4, \"vector_searches\": 4, \"category_lookups\": 0}, \"db_ms\": 0.5351672880351543, \"total_ms\": 0.5507920868694782, \"operation_id\": \"a0316bac-e2ae-4b7b-90f6-98aa0a8e8dca\"}"
+        },
+        {
+          "stage": "post_result_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_document_set",
+            "show_evidence",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_document_set",
+            "show_evidence",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.15,
+            "ingest_source": 0.05,
+            "get_job_status": 0.06,
+            "search_knowledge": 0.08,
+            "find_documents": 0.94,
+            "compare_sources": 0.16,
+            "get_relations": 0.12,
+            "render_chart": 0.04,
+            "create_document": 0.17,
+            "revise_document": 0.08,
+            "export_document": 0.11,
+            "start_research": 0.12,
+            "open_ingest_picker": 0.06,
+            "show_evidence": 0.42,
+            "show_document": 0.06,
+            "show_document_set": 0.93,
+            "show_comparison": 0.15,
+            "show_relations": 0.26,
+            "show_knowledge": 0.25,
+            "show_artifact": 0.21
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": true
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "show_evidence",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "fa6c71d1f",
+              "name": "show_document_set",
+              "arguments": "{\"title\": \"Hyresavtal med automatisk förlängning\", \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\"]}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "show_evidence",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [],
+          "has_text": true
+        }
+      ],
+      "breakpoint": "completed"
+    },
+    {
+      "case_id": "diagnostic-extend",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 3315.991,
+      "find_calls": [
+        {
+          "query": "employment agreement",
+          "mode": "extend",
+          "limit": 50
+        }
+      ],
+      "find_results": [
+        {
+          "status": "completed",
+          "query": "employment agreement",
+          "mode": "extend",
+          "strategy": "hybrid",
+          "completeness": "partial",
+          "title": "employment agreement",
+          "document_ids": [
+            "lease_agreement-0",
+            "lease_agreement-1",
+            "lease_agreement-2",
+            "lease_agreement-3",
+            "employment_agreement-0",
+            "employment_agreement-1",
+            "employment_agreement-2",
+            "employment_agreement-3",
+            "consulting_agreement-0",
+            "consulting_agreement-1",
+            "consulting_agreement-2",
+            "consulting_agreement-3",
+            "nda-0",
+            "nda-1",
+            "nda-2",
+            "nda-3",
+            "supply_agreement-0",
+            "supply_agreement-1",
+            "supply_agreement-2",
+            "supply_agreement-3"
+          ],
+          "source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3",
+            "src-employment_agreement-0",
+            "src-employment_agreement-1",
+            "src-employment_agreement-2",
+            "src-employment_agreement-3",
+            "src-consulting_agreement-0",
+            "src-consulting_agreement-1",
+            "src-consulting_agreement-2",
+            "src-consulting_agreement-3",
+            "src-nda-0",
+            "src-nda-1",
+            "src-nda-2",
+            "src-nda-3",
+            "src-supply_agreement-0",
+            "src-supply_agreement-1",
+            "src-supply_agreement-2",
+            "src-supply_agreement-3"
+          ],
+          "document_count": 20,
+          "presentation_source_ids": [
+            "src-lease_agreement-0",
+            "src-lease_agreement-1",
+            "src-lease_agreement-2",
+            "src-lease_agreement-3",
+            "src-employment_agreement-0",
+            "src-employment_agreement-1",
+            "src-employment_agreement-2",
+            "src-employment_agreement-3",
+            "src-consulting_agreement-0",
+            "src-consulting_agreement-1",
+            "src-consulting_agreement-2",
+            "src-consulting_agreement-3",
+            "src-nda-0",
+            "src-nda-1",
+            "src-nda-2",
+            "src-nda-3",
+            "src-supply_agreement-0",
+            "src-supply_agreement-1",
+            "src-supply_agreement-2",
+            "src-supply_agreement-3"
+          ],
+          "presentation_truncated": false,
+          "notes": [
+            "extend"
+          ],
+          "counters": {
+            "embedding_calls": 1,
+            "jev_calls": 0,
+            "llm_calls": 0,
+            "text_unit_reads": 20,
+            "vector_searches": 1,
+            "category_lookups": 0
+          },
+          "db_ms": 1.504791434854269,
+          "total_ms": 1.535292249172926
+        }
+      ],
+      "source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "presentation_calls": [
+        {
+          "type": "workspace.tool",
+          "name": "show_document_set",
+          "arguments": {
+            "title": "Hyres- och anställningsavtal",
+            "source_ids": [
+              "src-lease_agreement-0",
+              "src-lease_agreement-1",
+              "src-lease_agreement-2",
+              "src-lease_agreement-3",
+              "src-employment_agreement-0",
+              "src-employment_agreement-1",
+              "src-employment_agreement-2",
+              "src-employment_agreement-3"
+            ]
+          }
+        }
+      ],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-diagnostic-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "succeeded",
+      "error": null,
+      "trace": [
+        {
+          "stage": "initial_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "open_ingest_picker",
+            "find_documents",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "open_ingest_picker",
+            "find_documents",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.35,
+            "ingest_source": 0.26,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.05,
+            "find_documents": 0.48,
+            "compare_sources": 0.06,
+            "get_relations": 0.08,
+            "render_chart": 0.02,
+            "create_document": 0.42,
+            "revise_document": 0.13,
+            "export_document": 0.05,
+            "start_research": 0.09,
+            "open_ingest_picker": 0.84,
+            "show_evidence": 0.07,
+            "show_document": 0.06,
+            "show_document_set": 0.07,
+            "show_comparison": 0.05,
+            "show_relations": 0.06,
+            "show_knowledge": 0.08,
+            "show_artifact": 0.08
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": false
+        },
+        {
+          "stage": "initial_model",
+          "offered": [
+            "open_ingest_picker",
+            "find_documents",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [
+            {
+              "id": "0d4b19665",
+              "name": "find_documents",
+              "arguments": "{\"query\":\"employment agreement\",\"mode\":\"extend\",\"limit\":50}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "workspace_tool_execution",
+          "name": "find_documents",
+          "arguments": {
+            "query": "employment agreement",
+            "mode": "extend",
+            "limit": 50
+          },
+          "result": "{\"status\": \"completed\", \"query\": \"employment agreement\", \"mode\": \"extend\", \"strategy\": \"hybrid\", \"completeness\": \"partial\", \"title\": \"employment agreement\", \"document_ids\": [\"lease_agreement-0\", \"lease_agreement-1\", \"lease_agreement-2\", \"lease_agreement-3\", \"employment_agreement-0\", \"employment_agreement-1\", \"employment_agreement-2\", \"employment_agreement-3\", \"consulting_agreement-0\", \"consulting_agreement-1\", \"consulting_agreement-2\", \"consulting_agreement-3\", \"nda-0\", \"nda-1\", \"nda-2\", \"nda-3\", \"supply_agreement-0\", \"supply_agreement-1\", \"supply_agreement-2\", \"supply_agreement-3\"], \"source_ids\": [\"src-lease_agreement-0\", \"src-lease_agreement-1\", \"src-lease_agreement-2\", \"src-lease_agreement-3\", \"src-employment_agreement-0\", \"src-employment_agreement-1\", \"src-employment_agreement-2\", \"src-employment_agreement-3\", \"src-consulting_agreement-0\", \"src-consulting_agreement-1\", \"src-consulting_agreement-2\", \"src-consulting_agreement-3\", \"src-nda-0\", \"src-nda-1\", \"src-nda-2\", \"src-nda-3\", \"s"
+        },
+        {
+          "stage": "post_result_route",
+          "offered": [
+            "get_workspace_context",
+            "ingest_source",
+            "get_job_status",
+            "search_knowledge",
+            "find_documents",
+            "read_source",
+            "compare_sources",
+            "get_relations",
+            "render_chart",
+            "create_document",
+            "revise_document",
+            "export_document",
+            "start_research",
+            "open_ingest_picker",
+            "show_evidence",
+            "show_document",
+            "show_document_set",
+            "focus_anchor",
+            "show_comparison",
+            "show_relations",
+            "show_knowledge",
+            "show_artifact"
+          ],
+          "exposed": [
+            "find_documents",
+            "show_document_set",
+            "open_ingest_picker",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "ranking": [
+            "find_documents",
+            "show_document_set",
+            "open_ingest_picker",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "scores": {
+            "get_workspace_context": 0.24,
+            "ingest_source": 0.22,
+            "get_job_status": 0.05,
+            "search_knowledge": 0.06,
+            "find_documents": 0.86,
+            "compare_sources": 0.1,
+            "get_relations": 0.09,
+            "render_chart": 0.02,
+            "create_document": 0.49,
+            "revise_document": 0.14,
+            "export_document": 0.08,
+            "start_research": 0.11,
+            "open_ingest_picker": 0.56,
+            "show_evidence": 0.13,
+            "show_document": 0.12,
+            "show_document_set": 0.71,
+            "show_comparison": 0.07,
+            "show_relations": 0.09,
+            "show_knowledge": 0.09,
+            "show_artifact": 0.13
+          },
+          "require_tool": true,
+          "fallback": false,
+          "error_category": null,
+          "tool_result_present": true
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "open_ingest_picker",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "required",
+          "tool_calls": [
+            {
+              "id": "89de2dd6c",
+              "name": "show_document_set",
+              "arguments": "{\"title\": \"Hyres- och anställningsavtal\", \"source_ids\": [\"src-lease_agreement-0\",\"src-lease_agreement-1\",\"src-lease_agreement-2\",\"src-lease_agreement-3\",\"src-employment_agreement-0\",\"src-employment_agreement-1\",\"src-employment_agreement-2\",\"src-employment_agreement-3\"]}"
+            }
+          ],
+          "has_text": false
+        },
+        {
+          "stage": "continuation_model",
+          "offered": [
+            "find_documents",
+            "show_document_set",
+            "open_ingest_picker",
+            "create_document",
+            "get_workspace_context",
+            "search_knowledge"
+          ],
+          "tool_choice": "auto",
+          "tool_calls": [],
+          "has_text": true
+        }
+      ],
+      "breakpoint": "completed"
+    }
+  ],
+  "summary": {
+    "text": {
+      "breakpoints": {
+        "completed": 3
+      },
+      "errors": {}
+    },
+    "group_voice": {
+      "breakpoints": {
+        "completed": 3
+      },
+      "errors": {}
+    },
+    "voice": {
+      "breakpoints": {
+        "completed": 2,
+        "initial_model_decision": 1
+      },
+      "errors": {}
+    }
+  }
+}

@@ -273,6 +273,8 @@ async def create_panel_message(
         customer_id=customer_id,
         user=user,
         message=body.message,
+        workspace_id=body.workspace_id,
+        mentions=body.document_mentions,
     )
 
 

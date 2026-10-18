@@ -1,0 +1,507 @@
+﻿Månad;Konto;Kontonamn;Belopp
+Månad;Konto;Kontonamn;Belopp
+2024-10;1220;Inventarier;450000.00
+2024-10;1229;Ackumulerade avskrivningar inventarier;-180000.00
+2024-10;1250;Datorer och kringutrustning;720000.00
+2024-10;1259;Ackumulerade avskrivningar datorer;-260000.00
+2024-10;1510;Kundfordringar;3535815.00
+2024-10;1710;Förutbetalda kostnader och upplupna intäkter;63000.00
+2024-10;1930;Företagskonto;2270760.00
+2024-10;2081;Aktiekapital;-250000.00
+2024-10;2091;Balanserat resultat;-911020.00
+2024-10;2350;Banklån;-734766.67
+2024-10;2380;Checkräkningskredit;-400000.00
+2024-10;2440;Leverantörsskulder;-1281514.50
+2024-10;2510;Skatteskulder;-425000.00
+2024-10;2611;Utgående moms 25 %;-424663.00
+2024-10;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2024-10;2641;Ingående moms;191222.90
+2024-10;2645;Ingående moms omvänd skattskyldighet;25300.00
+2024-10;2710;Personalens källskatt;-524110.00
+2024-10;2730;Lagstadgade sociala avgifter;-518115.80
+2024-10;2920;Upplupna semesterlöner;-2097880.00
+2024-10;2940;Upplupna sociala avgifter (semesterlön);-659153.90
+2024-10;2990;Övriga upplupna kostnader;-85000.00
+2024-11;1220;Inventarier;450000.00
+2024-11;1229;Ackumulerade avskrivningar inventarier;-187500.00
+2024-11;1250;Datorer och kringutrustning;1070000.00
+2024-11;1259;Ackumulerade avskrivningar datorer;-280000.00
+2024-11;1510;Kundfordringar;5149615.00
+2024-11;1710;Förutbetalda kostnader och upplupna intäkter;42000.00
+2024-11;1930;Företagskonto;510712.10
+2024-11;2081;Aktiekapital;-250000.00
+2024-11;2091;Balanserat resultat;-911020.00
+2024-11;2350;Banklån;-669307.74
+2024-11;2440;Leverantörsskulder;-1403613.25
+2024-11;2510;Skatteskulder;-400000.00
+2024-11;2611;Utgående moms 25 %;-804610.50
+2024-11;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2024-11;2641;Ingående moms;259482.65
+2024-11;2645;Ingående moms omvänd skattskyldighet;25300.00
+2024-11;2710;Personalens källskatt;-525130.00
+2024-11;2730;Lagstadgade sociala avgifter;-516230.60
+2024-11;2920;Upplupna semesterlöner;-2295040.00
+2024-11;2940;Upplupna sociala avgifter (semesterlön);-721101.57
+2024-11;2990;Övriga upplupna kostnader;-85000.00
+2024-12;1220;Inventarier;450000.00
+2024-12;1229;Ackumulerade avskrivningar inventarier;-195000.00
+2024-12;1250;Datorer och kringutrustning;1070000.00
+2024-12;1259;Ackumulerade avskrivningar datorer;-309722.22
+2024-12;1510;Kundfordringar;5069965.00
+2024-12;1710;Förutbetalda kostnader och upplupna intäkter;21000.00
+2024-12;1930;Företagskonto;-1404136.35
+2024-12;2081;Aktiekapital;-250000.00
+2024-12;2091;Balanserat resultat;-911020.00
+2024-12;2350;Banklån;-603622.43
+2024-12;2440;Leverantörsskulder;-1150120.25
+2024-12;2510;Skatteskulder;-375000.00
+2024-12;2611;Utgående moms 25 %;-403776.50
+2024-12;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2024-12;2641;Ingående moms;170965.90
+2024-12;2645;Ingående moms omvänd skattskyldighet;25300.00
+2024-12;2710;Personalens källskatt;-525130.00
+2024-12;2730;Lagstadgade sociala avgifter;-516230.60
+2024-12;2920;Upplupna semesterlöner;-2492200.00
+2024-12;2940;Upplupna sociala avgifter (semesterlön);-783049.24
+2024-12;2990;Övriga upplupna kostnader;-85000.00
+2025-01;1220;Inventarier;450000.00
+2025-01;1229;Ackumulerade avskrivningar inventarier;-202500.00
+2025-01;1250;Datorer och kringutrustning;1070000.00
+2025-01;1259;Ackumulerade avskrivningar datorer;-339444.44
+2025-01;1510;Kundfordringar;4459066.25
+2025-01;1710;Förutbetalda kostnader och upplupna intäkter;252000.00
+2025-01;1930;Företagskonto;-624085.30
+2025-01;2081;Aktiekapital;-250000.00
+2025-01;2091;Balanserat resultat;-911020.00
+2025-01;2350;Banklån;-537709.96
+2025-01;2380;Checkräkningskredit;-190000.00
+2025-01;2440;Leverantörsskulder;-1443696.83
+2025-01;2510;Skatteskulder;-350000.00
+2025-01;2611;Utgående moms 25 %;-729715.75
+2025-01;2614;Utgående moms omvänd skattskyldighet;-26050.00
+2025-01;2641;Ingående moms;267899.37
+2025-01;2645;Ingående moms omvänd skattskyldighet;26050.00
+2025-01;2710;Personalens källskatt;-540970.00
+2025-01;2730;Lagstadgade sociala avgifter;-531312.20
+2025-01;2920;Upplupna semesterlöner;-2695120.00
+2025-01;2940;Upplupna sociala avgifter (semesterlön);-846806.70
+2025-01;2990;Övriga upplupna kostnader;-85000.00
+2025-02;1220;Inventarier;450000.00
+2025-02;1229;Ackumulerade avskrivningar inventarier;-217500.00
+2025-02;1250;Datorer och kringutrustning;1070000.00
+2025-02;1259;Ackumulerade avskrivningar datorer;-398888.88
+2025-02;1510;Kundfordringar;5901657.50
+2025-02;1710;Förutbetalda kostnader och upplupna intäkter;210000.00
+2025-02;1930;Företagskonto;-887253.88
+2025-02;2081;Aktiekapital;-250000.00
+2025-02;2091;Balanserat resultat;-911020.00
+2025-02;2350;Banklån;-471569.54
+2025-02;2380;Checkräkningskredit;-190000.00
+2025-02;2440;Leverantörsskulder;-1300591.16
+2025-02;2510;Skatteskulder;-325000.00
+2025-02;2611;Utgående moms 25 %;-1045521.25
+2025-02;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-02;2641;Ingående moms;204040.87
+2025-02;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-02;2710;Personalens källskatt;-540030.00
+2025-02;2730;Lagstadgade sociala avgifter;-530998.00
+2025-02;2920;Upplupna semesterlöner;-2897920.00
+2025-02;2940;Upplupna sociala avgifter (semesterlön);-910526.46
+2025-02;2990;Övriga upplupna kostnader;-85000.00
+2025-03;1220;Inventarier;450000.00
+2025-03;1229;Ackumulerade avskrivningar inventarier;-217500.00
+2025-03;1250;Datorer och kringutrustning;1550000.00
+2025-03;1259;Ackumulerade avskrivningar datorer;-398888.88
+2025-03;1510;Kundfordringar;9230450.00
+2025-03;1710;Förutbetalda kostnader och upplupna intäkter;210000.00
+2025-03;1930;Företagskonto;-4580477.17
+2025-03;2081;Aktiekapital;-250000.00
+2025-03;2091;Balanserat resultat;-911020.00
+2025-03;2350;Banklån;-405200.38
+2025-03;2380;Checkräkningskredit;-190000.00
+2025-03;2440;Leverantörsskulder;-2009050.58
+2025-03;2510;Skatteskulder;-300000.00
+2025-03;2611;Utgående moms 25 %;-803978.50
+2025-03;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-03;2641;Ingående moms;373003.87
+2025-03;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-03;2710;Personalens källskatt;-524050.00
+2025-03;2730;Lagstadgade sociala avgifter;-516230.60
+2025-03;2920;Upplupna semesterlöner;-3095080.00
+2025-03;2940;Upplupna sociala avgifter (semesterlön);-972474.13
+2025-03;2990;Övriga upplupna kostnader;-85000.00
+2025-04;1220;Inventarier;450000.00
+2025-04;1229;Ackumulerade avskrivningar inventarier;-225000.00
+2025-04;1250;Datorer och kringutrustning;1550000.00
+2025-04;1259;Ackumulerade avskrivningar datorer;-441944.44
+2025-04;1510;Kundfordringar;7076133.75
+2025-04;1710;Förutbetalda kostnader och upplupna intäkter;189000.00
+2025-04;1930;Företagskonto;-1043258.65
+2025-04;2081;Aktiekapital;-250000.00
+2025-04;2091;Balanserat resultat;-911020.00
+2025-04;2350;Banklån;-338601.70
+2025-04;2380;Checkräkningskredit;-1180000.00
+2025-04;2440;Leverantörsskulder;-1444390.08
+2025-04;2510;Skatteskulder;-275000.00
+2025-04;2611;Utgående moms 25 %;-998078.00
+2025-04;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-04;2641;Ingående moms;234304.40
+2025-04;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-04;2710;Personalens källskatt;-556710.00
+2025-04;2730;Lagstadgade sociala avgifter;-548593.20
+2025-04;2920;Upplupna semesterlöner;-3304600.00
+2025-04;2940;Upplupna sociala avgifter (semesterlön);-1038305.31
+2025-04;2990;Övriga upplupna kostnader;-85000.00
+2025-05;1220;Inventarier;450000.00
+2025-05;1229;Ackumulerade avskrivningar inventarier;-232500.00
+2025-05;1250;Datorer och kringutrustning;1550000.00
+2025-05;1259;Ackumulerade avskrivningar datorer;-485000.00
+2025-05;1510;Kundfordringar;9148650.00
+2025-05;1710;Förutbetalda kostnader och upplupna intäkter;168000.00
+2025-05;1930;Företagskonto;-461361.03
+2025-05;2081;Aktiekapital;-250000.00
+2025-05;2091;Balanserat resultat;-911020.00
+2025-05;2350;Banklån;-271772.70
+2025-05;2380;Checkräkningskredit;-1180000.00
+2025-05;2440;Leverantörsskulder;-1395852.75
+2025-05;2510;Skatteskulder;-250000.00
+2025-05;2611;Utgående moms 25 %;-1413120.50
+2025-05;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-05;2641;Ingående moms;219704.90
+2025-05;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-05;2710;Personalens källskatt;-556710.00
+2025-05;2730;Lagstadgade sociala avgifter;-548593.20
+2025-05;2920;Upplupna semesterlöner;-3514120.00
+2025-05;2940;Upplupna sociala avgifter (semesterlön);-1104136.49
+2025-05;2990;Övriga upplupna kostnader;-85000.00
+2025-06;1220;Inventarier;450000.00
+2025-06;1229;Ackumulerade avskrivningar inventarier;-240000.00
+2025-06;1250;Datorer och kringutrustning;1550000.00
+2025-06;1259;Ackumulerade avskrivningar datorer;-528055.56
+2025-06;1510;Kundfordringar;8198941.25
+2025-06;1710;Förutbetalda kostnader och upplupna intäkter;147000.00
+2025-06;1930;Företagskonto;-1320107.13
+2025-06;2081;Aktiekapital;-250000.00
+2025-06;2091;Balanserat resultat;-911020.00
+2025-06;2350;Banklån;-204712.58
+2025-06;2380;Checkräkningskredit;-1180000.00
+2025-06;2440;Leverantörsskulder;-1461126.50
+2025-06;2510;Skatteskulder;225000.00
+2025-06;2611;Utgående moms 25 %;-988590.25
+2025-06;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-06;2641;Ingående moms;232809.65
+2025-06;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-06;2710;Personalens källskatt;-1234717.20
+2025-06;2730;Lagstadgade sociala avgifter;-1235786.30
+2025-06;2920;Upplupna semesterlöner;-1536520.00
+2025-06;2940;Upplupna sociala avgifter (semesterlön);-482774.57
+2025-06;2990;Övriga upplupna kostnader;-85000.00
+2025-07;1220;Inventarier;450000.00
+2025-07;1229;Ackumulerade avskrivningar inventarier;-247500.00
+2025-07;1250;Datorer och kringutrustning;1550000.00
+2025-07;1259;Ackumulerade avskrivningar datorer;-571111.12
+2025-07;1510;Kundfordringar;5506568.75
+2025-07;1710;Förutbetalda kostnader och upplupna intäkter;126000.00
+2025-07;1930;Företagskonto;-1757232.73
+2025-07;2081;Aktiekapital;-250000.00
+2025-07;2091;Balanserat resultat;-911020.00
+2025-07;2350;Banklån;-137420.54
+2025-07;2380;Checkräkningskredit;-1180000.00
+2025-07;2440;Leverantörsskulder;-1372168.25
+2025-07;2510;Skatteskulder;250000.00
+2025-07;2611;Utgående moms 25 %;-563188.50
+2025-07;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-07;2641;Ingående moms;254193.65
+2025-07;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-07;2710;Personalens källskatt;-541530.00
+2025-07;2730;Lagstadgade sociala avgifter;-534140.00
+2025-07;2920;Upplupna semesterlöner;-1740520.00
+2025-07;2940;Upplupna sociala avgifter (semesterlön);-546871.37
+2025-07;2990;Övriga upplupna kostnader;-85000.00
+2025-08;1220;Inventarier;700000.00
+2025-08;1229;Ackumulerade avskrivningar inventarier;-255000.00
+2025-08;1250;Datorer och kringutrustning;1550000.00
+2025-08;1259;Ackumulerade avskrivningar datorer;-614166.68
+2025-08;1510;Kundfordringar;7921675.00
+2025-08;1710;Förutbetalda kostnader och upplupna intäkter;105000.00
+2025-08;1930;Företagskonto;-1912570.83
+2025-08;2081;Aktiekapital;-250000.00
+2025-08;2091;Balanserat resultat;-911020.00
+2025-08;2350;Banklån;-69895.79
+2025-08;2380;Checkräkningskredit;-1180000.00
+2025-08;2440;Leverantörsskulder;-1610188.73
+2025-08;2510;Skatteskulder;275000.00
+2025-08;2611;Utgående moms 25 %;-1261998.25
+2025-08;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-08;2641;Ingående moms;301797.75
+2025-08;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-08;2710;Personalens källskatt;-558170.00
+2025-08;2730;Lagstadgade sociala avgifter;-550478.40
+2025-08;2920;Upplupna semesterlöner;-1950760.00
+2025-08;2940;Upplupna sociala avgifter (semesterlön);-612928.78
+2025-08;2990;Övriga upplupna kostnader;-85000.00
+2025-09;1220;Inventarier;700000.00
+2025-09;1229;Ackumulerade avskrivningar inventarier;-266666.67
+2025-09;1250;Datorer och kringutrustning;1550000.00
+2025-09;1259;Ackumulerade avskrivningar datorer;-657222.24
+2025-09;1510;Kundfordringar;10044345.00
+2025-09;1710;Förutbetalda kostnader och upplupna intäkter;84000.00
+2025-09;1930;Företagskonto;-3025169.71
+2025-09;2081;Aktiekapital;-250000.00
+2025-09;2091;Balanserat resultat;-911020.00
+2025-09;2350;Banklån;-2137.51
+2025-09;2380;Checkräkningskredit;-1180000.00
+2025-09;2440;Leverantörsskulder;-1367181.23
+2025-09;2510;Skatteskulder;300000.00
+2025-09;2611;Utgående moms 25 %;-1222305.75
+2025-09;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-09;2641;Ingående moms;252396.25
+2025-09;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-09;2710;Personalens källskatt;-616140.00
+2025-09;2730;Lagstadgade sociala avgifter;-609233.80
+2025-09;2920;Upplupna semesterlöner;-2166520.00
+2025-09;2940;Upplupna sociala avgifter (semesterlön);-680720.57
+2025-09;2990;Övriga upplupna kostnader;-85000.00
+2025-10;1220;Inventarier;700000.00
+2025-10;1229;Ackumulerade avskrivningar inventarier;-278333.34
+2025-10;1250;Datorer och kringutrustning;1550000.00
+2025-10;1259;Ackumulerade avskrivningar datorer;-700277.80
+2025-10;1510;Kundfordringar;9828380.00
+2025-10;1710;Förutbetalda kostnader och upplupna intäkter;63000.00
+2025-10;1930;Företagskonto;-1456606.64
+2025-10;2081;Aktiekapital;-250000.00
+2025-10;2091;Balanserat resultat;-911020.00
+2025-10;2380;Checkräkningskredit;-1180000.00
+2025-10;2440;Leverantörsskulder;-1291799.98
+2025-10;2510;Skatteskulder;330000.00
+2025-10;2611;Utgående moms 25 %;-1235867.50
+2025-10;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-10;2641;Ingående moms;238120.00
+2025-10;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-10;2710;Personalens källskatt;-572430.00
+2025-10;2730;Lagstadgade sociala avgifter;-564931.60
+2025-10;2920;Upplupna semesterlöner;-2382280.00
+2025-10;2940;Upplupna sociala avgifter (semesterlön);-748512.36
+2025-10;2990;Övriga upplupna kostnader;-85000.00
+2025-11;1220;Inventarier;700000.00
+2025-11;1229;Ackumulerade avskrivningar inventarier;-290000.01
+2025-11;1250;Datorer och kringutrustning;1550000.00
+2025-11;1259;Ackumulerade avskrivningar datorer;-743333.36
+2025-11;1510;Kundfordringar;9917951.25
+2025-11;1710;Förutbetalda kostnader och upplupna intäkter;42000.00
+2025-11;1930;Företagskonto;1833381.78
+2025-11;2081;Aktiekapital;-250000.00
+2025-11;2091;Balanserat resultat;-911020.00
+2025-11;2380;Checkräkningskredit;-1180000.00
+2025-11;2440;Leverantörsskulder;-1392302.00
+2025-11;2510;Skatteskulder;360000.00
+2025-11;2611;Utgående moms 25 %;-1605287.75
+2025-11;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-11;2641;Ingående moms;257220.40
+2025-11;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-11;2710;Personalens källskatt;-552590.00
+2025-11;2730;Lagstadgade sociala avgifter;-545451.20
+2025-11;2920;Upplupna semesterlöner;-2590600.00
+2025-11;2940;Upplupna sociala avgifter (semesterlön);-813966.50
+2025-11;2990;Övriga upplupna kostnader;-85000.00
+2025-12;1220;Inventarier;700000.00
+2025-12;1229;Ackumulerade avskrivningar inventarier;-301666.68
+2025-12;1250;Datorer och kringutrustning;1550000.00
+2025-12;1259;Ackumulerade avskrivningar datorer;-786388.92
+2025-12;1510;Kundfordringar;9338210.00
+2025-12;1710;Förutbetalda kostnader och upplupna intäkter;21000.00
+2025-12;1930;Företagskonto;1121548.73
+2025-12;2081;Aktiekapital;-250000.00
+2025-12;2091;Balanserat resultat;-911020.00
+2025-12;2380;Checkräkningskredit;-290000.00
+2025-12;2440;Leverantörsskulder;-1274448.25
+2025-12;2510;Skatteskulder;390000.00
+2025-12;2611;Utgående moms 25 %;-930560.25
+2025-12;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2025-12;2641;Ingående moms;234649.65
+2025-12;2645;Ingående moms omvänd skattskyldighet;25300.00
+2025-12;2710;Personalens källskatt;-552590.00
+2025-12;2730;Lagstadgade sociala avgifter;-545451.20
+2025-12;2920;Upplupna semesterlöner;-2798920.00
+2025-12;2940;Upplupna sociala avgifter (semesterlön);-879420.64
+2025-12;2990;Övriga upplupna kostnader;-85000.00
+2026-01;1220;Inventarier;700000.00
+2026-01;1229;Ackumulerade avskrivningar inventarier;-313333.35
+2026-01;1250;Datorer och kringutrustning;1550000.00
+2026-01;1259;Ackumulerade avskrivningar datorer;-829444.48
+2026-01;1510;Kundfordringar;9108543.75
+2026-01;1710;Förutbetalda kostnader och upplupna intäkter;252000.00
+2026-01;1930;Företagskonto;3110837.43
+2026-01;2081;Aktiekapital;-250000.00
+2026-01;2091;Balanserat resultat;-911020.00
+2026-01;2440;Leverantörsskulder;-1601506.25
+2026-01;2510;Skatteskulder;420000.00
+2026-01;2611;Utgående moms 25 %;-1315519.50
+2026-01;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2026-01;2641;Ingående moms;300061.25
+2026-01;2645;Ingående moms omvänd skattskyldighet;25300.00
+2026-01;2710;Personalens källskatt;-562740.00
+2026-01;2730;Lagstadgade sociala avgifter;-556448.20
+2026-01;2920;Upplupna semesterlöner;-3011440.00
+2026-01;2940;Upplupna sociala avgifter (semesterlön);-946194.42
+2026-01;2990;Övriga upplupna kostnader;-85000.00
+2026-02;1220;Inventarier;700000.00
+2026-02;1229;Ackumulerade avskrivningar inventarier;-336666.69
+2026-02;1250;Datorer och kringutrustning;1550000.00
+2026-02;1259;Ackumulerade avskrivningar datorer;-944444.48
+2026-02;1510;Kundfordringar;8865920.00
+2026-02;1710;Förutbetalda kostnader och upplupna intäkter;210000.00
+2026-02;1930;Företagskonto;5381765.98
+2026-02;2081;Aktiekapital;-250000.00
+2026-02;2091;Balanserat resultat;-911020.00
+2026-02;2440;Leverantörsskulder;-1409655.00
+2026-02;2510;Skatteskulder;450000.00
+2026-02;2611;Utgående moms 25 %;-1394445.50
+2026-02;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2026-02;2641;Ingående moms;260741.00
+2026-02;2645;Ingående moms omvänd skattskyldighet;25300.00
+2026-02;2710;Personalens källskatt;-548480.00
+2026-02;2730;Lagstadgade sociala avgifter;-541995.00
+2026-02;2920;Upplupna semesterlöner;-3218440.00
+2026-02;2940;Upplupna sociala avgifter (semesterlön);-1011233.82
+2026-02;2990;Övriga upplupna kostnader;-85000.00
+2026-03;1220;Inventarier;700000.00
+2026-03;1229;Ackumulerade avskrivningar inventarier;-336666.69
+2026-03;1250;Datorer och kringutrustning;1550000.00
+2026-03;1259;Ackumulerade avskrivningar datorer;-944444.48
+2026-03;1510;Kundfordringar;9240405.00
+2026-03;1710;Förutbetalda kostnader och upplupna intäkter;210000.00
+2026-03;1930;Företagskonto;6561962.73
+2026-03;2081;Aktiekapital;-250000.00
+2026-03;2091;Balanserat resultat;-911020.00
+2026-03;2440;Leverantörsskulder;-1444786.25
+2026-03;2510;Skatteskulder;480000.00
+2026-03;2611;Utgående moms 25 %;-1237681.75
+2026-03;2614;Utgående moms omvänd skattskyldighet;-27050.00
+2026-03;2641;Ingående moms;231399.75
+2026-03;2645;Ingående moms omvänd skattskyldighet;27050.00
+2026-03;2710;Personalens källskatt;-535770.00
+2026-03;2730;Lagstadgade sociala avgifter;-529112.80
+2026-03;2920;Upplupna semesterlöner;-3420520.00
+2026-03;2940;Upplupna sociala avgifter (semesterlön);-1074727.36
+2026-03;2990;Övriga upplupna kostnader;-85000.00
+2026-04;1220;Inventarier;700000.00
+2026-04;1229;Ackumulerade avskrivningar inventarier;-348333.36
+2026-04;1250;Datorer och kringutrustning;1550000.00
+2026-04;1259;Ackumulerade avskrivningar datorer;-1001944.48
+2026-04;1510;Kundfordringar;6914968.75
+2026-04;1710;Förutbetalda kostnader och upplupna intäkter;189000.00
+2026-04;1930;Företagskonto;9857387.93
+2026-04;2081;Aktiekapital;-250000.00
+2026-04;2091;Balanserat resultat;-911020.00
+2026-04;2440;Leverantörsskulder;-1455230.63
+2026-04;2510;Skatteskulder;510000.00
+2026-04;2611;Utgående moms 25 %;-1094621.75
+2026-04;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2026-04;2641;Ingående moms;235349.88
+2026-04;2645;Ingående moms omvänd skattskyldighet;25300.00
+2026-04;2710;Personalens källskatt;-526800.00
+2026-04;2730;Lagstadgade sociala avgifter;-521572.00
+2026-04;2920;Upplupna semesterlöner;-3619720.00
+2026-04;2940;Upplupna sociala avgifter (semesterlön);-1137316.00
+2026-04;2990;Övriga upplupna kostnader;-85000.00
+2026-05;1220;Inventarier;700000.00
+2026-05;1229;Ackumulerade avskrivningar inventarier;-360000.03
+2026-05;1250;Datorer och kringutrustning;1550000.00
+2026-05;1259;Ackumulerade avskrivningar datorer;-1059444.48
+2026-05;1510;Kundfordringar;10500368.75
+2026-05;1710;Förutbetalda kostnader och upplupna intäkter;168000.00
+2026-05;1930;Företagskonto;8411630.31
+2026-05;2081;Aktiekapital;-250000.00
+2026-05;2091;Balanserat resultat;-911020.00
+2026-05;2440;Leverantörsskulder;-1472263.13
+2026-05;2510;Skatteskulder;540000.00
+2026-05;2611;Utgående moms 25 %;-1307011.00
+2026-05;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2026-05;2641;Ingående moms;237038.25
+2026-05;2645;Ingående moms omvänd skattskyldighet;25300.00
+2026-05;2710;Personalens källskatt;-549840.00
+2026-05;2730;Lagstadgade sociala avgifter;-544194.40
+2026-05;2920;Upplupna semesterlöner;-3827560.00
+2026-05;2940;Upplupna sociala avgifter (semesterlön);-1202619.33
+2026-05;2990;Övriga upplupna kostnader;-85000.00
+2026-06;1220;Inventarier;700000.00
+2026-06;1229;Ackumulerade avskrivningar inventarier;-371666.70
+2026-06;1250;Datorer och kringutrustning;1550000.00
+2026-06;1259;Ackumulerade avskrivningar datorer;-1116944.48
+2026-06;1510;Kundfordringar;8053968.75
+2026-06;1710;Förutbetalda kostnader och upplupna intäkter;147000.00
+2026-06;1930;Företagskonto;9950942.23
+2026-06;2081;Aktiekapital;-250000.00
+2026-06;2091;Balanserat resultat;-911020.00
+2026-06;2440;Leverantörsskulder;-1485456.25
+2026-06;2510;Skatteskulder;570000.00
+2026-06;2611;Utgående moms 25 %;-1048273.75
+2026-06;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2026-06;2641;Ingående moms;238560.00
+2026-06;2645;Ingående moms omvänd skattskyldighet;25300.00
+2026-06;2710;Personalens källskatt;-1220727.20
+2026-06;2730;Lagstadgade sociala avgifter;-1223218.30
+2026-06;2920;Upplupna semesterlöner;-1821640.00
+2026-06;2940;Upplupna sociala avgifter (semesterlön);-572359.27
+2026-06;2990;Övriga upplupna kostnader;-85000.00
+2026-07;1220;Inventarier;700000.00
+2026-07;1229;Ackumulerade avskrivningar inventarier;-383333.37
+2026-07;1250;Datorer och kringutrustning;1550000.00
+2026-07;1259;Ackumulerade avskrivningar datorer;-1174444.48
+2026-07;1510;Kundfordringar;5700916.25
+2026-07;1710;Förutbetalda kostnader och upplupna intäkter;126000.00
+2026-07;1930;Företagskonto;9622160.48
+2026-07;2081;Aktiekapital;-250000.00
+2026-07;2091;Balanserat resultat;-911020.00
+2026-07;2440;Leverantörsskulder;-1477763.13
+2026-07;2510;Skatteskulder;600000.00
+2026-07;2611;Utgående moms 25 %;-612061.75
+2026-07;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2026-07;2641;Ingående moms;234150.13
+2026-07;2645;Ingående moms omvänd skattskyldighet;25300.00
+2026-07;2710;Personalens källskatt;-519410.00
+2026-07;2730;Lagstadgade sociala avgifter;-510575.00
+2026-07;2920;Upplupna semesterlöner;-2016640.00
+2026-07;2940;Upplupna sociala avgifter (semesterlön);-633628.27
+2026-07;2990;Övriga upplupna kostnader;-85000.00
+2026-08;1220;Inventarier;700000.00
+2026-08;1229;Ackumulerade avskrivningar inventarier;-395000.04
+2026-08;1250;Datorer och kringutrustning;1550000.00
+2026-08;1259;Ackumulerade avskrivningar datorer;-1231944.48
+2026-08;1510;Kundfordringar;4967348.75
+2026-08;1710;Förutbetalda kostnader och upplupna intäkter;105000.00
+2026-08;1930;Företagskonto;10602890.11
+2026-08;2081;Aktiekapital;-250000.00
+2026-08;2091;Balanserat resultat;-911020.00
+2026-08;2440;Leverantörsskulder;-1297452.51
+2026-08;2510;Skatteskulder;630000.00
+2026-08;2611;Utgående moms 25 %;-817386.75
+2026-08;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2026-08;2641;Ingående moms;201804.88
+2026-08;2645;Ingående moms omvänd skattskyldighet;25300.00
+2026-08;2710;Personalens källskatt;-519410.00
+2026-08;2730;Lagstadgade sociala avgifter;-510575.00
+2026-08;2920;Upplupna semesterlöner;-2211640.00
+2026-08;2940;Upplupna sociala avgifter (semesterlön);-694897.27
+2026-08;2990;Övriga upplupna kostnader;-85000.00
+2026-09;1220;Inventarier;700000.00
+2026-09;1229;Ackumulerade avskrivningar inventarier;-406666.71
+2026-09;1250;Datorer och kringutrustning;1550000.00
+2026-09;1259;Ackumulerade avskrivningar datorer;-1289444.48
+2026-09;1510;Kundfordringar;7641517.50
+2026-09;1710;Förutbetalda kostnader och upplupna intäkter;84000.00
+2026-09;1930;Företagskonto;8959661.36
+2026-09;2081;Aktiekapital;-250000.00
+2026-09;2091;Balanserat resultat;-911020.00
+2026-09;2440;Leverantörsskulder;-1386708.76
+2026-09;2510;Skatteskulder;660000.00
+2026-09;2611;Utgående moms 25 %;-978852.25
+2026-09;2614;Utgående moms omvänd skattskyldighet;-25300.00
+2026-09;2641;Ingående moms;220556.13
+2026-09;2645;Ingående moms omvänd skattskyldighet;25300.00
+2026-09;2710;Personalens källskatt;-504220.00
+2026-09;2730;Lagstadgade sociala avgifter;-495179.20
+2026-09;2920;Upplupna semesterlöner;-2400760.00
+2026-09;2940;Upplupna sociala avgifter (semesterlön);-754318.77
+2026-09;2990;Övriga upplupna kostnader;-85000.00

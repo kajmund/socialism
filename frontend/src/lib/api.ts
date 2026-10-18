@@ -1,6 +1,7 @@
 import { authAdapter } from "@/lib/auth"
 import { env } from "@/lib/env"
 import { ApiError, httpRequest, type HttpRequestOptions } from "@/lib/http"
+import { uploadForm } from "@/lib/uploadForm"
 
 export { ApiError }
 
@@ -52,6 +53,18 @@ export const api = {
     options?: Pick<HttpRequestOptions, "timeoutMs">,
   ): Promise<T> {
     return call<T>(path, { method: "POST", body: form, jsonBody: false, ...options })
+  },
+  async postFormWithProgress<T>(
+    path: string,
+    form: FormData,
+    options: Pick<HttpRequestOptions, "timeoutMs"> & { onProgress?: (percent: number) => void } = {},
+  ): Promise<T> {
+    const token = await accessToken()
+    return uploadForm<T>(buildUrl(path), form, {
+      token,
+      timeoutMs: options.timeoutMs,
+      onProgress: options.onProgress,
+    })
   },
   put<T>(path: string, body?: unknown): Promise<T> {
     return call<T>(path, { method: "PUT", body })

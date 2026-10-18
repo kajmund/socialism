@@ -1,0 +1,66 @@
+{
+  "id": "phase2-evidence-curve-v1",
+  "label": "Frozen: verified-positive documents versus cumulative Jev classifications from C@8 and Coverage v3. Do not optimize first YES.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "do_not_optimize_first_yes": true,
+  "budget_exhausted_is_not_absent": true,
+  "evidence_contracts": {
+    "document_existence": "first_verified_positive_may_answer",
+    "workspace_inventory": "every_document_verified_or_unresolved"
+  },
+  "ranking_verified": "gold_passage_and_jev_yes",
+  "workspace_verified": "gold_document_and_jev_yes",
+  "ranking_checkpoints": {
+    "auto-renewal": {"10": 8, "25": 18, "50": 19},
+    "notice-period": {"10": 6, "25": 10, "50": 11},
+    "liability-cap": {"10": 5, "25": 9, "50": 11},
+    "confidentiality": {"10": 1, "25": 3, "50": 6},
+    "liability-secrecy-carveout": {"10": 4, "25": 5, "50": 5}
+  },
+  "workspace_checkpoints": {
+    "auto-renewal": {"50": 19, "100": 19, "150": 19, "200": 19},
+    "notice-period": {"50": 11, "100": 11, "150": 11, "200": 11},
+    "liability-cap": {"50": 25, "100": 25, "150": 28, "200": 28},
+    "confidentiality": {"50": 8, "100": 8, "150": 10, "200": 13},
+    "liability-secrecy-carveout": {"50": 7, "100": 7, "150": 7, "200": 7}
+  },
+  "workspace_tail": {
+    "auto-renewal": {
+      "last_new_positive_at": 50,
+      "classifications_after_last_new_positive": 363,
+      "verified_positive_documents": 19,
+      "documents_expected": 20,
+      "budget_exhausted_documents": 76
+    },
+    "notice-period": {
+      "last_new_positive_at": 213,
+      "classifications_after_last_new_positive": 195,
+      "verified_positive_documents": 13,
+      "documents_expected": 13,
+      "budget_exhausted_documents": 65
+    },
+    "liability-cap": {
+      "last_new_positive_at": 122,
+      "classifications_after_last_new_positive": 245,
+      "verified_positive_documents": 28,
+      "documents_expected": 28,
+      "budget_exhausted_documents": 59
+    },
+    "confidentiality": {
+      "last_new_positive_at": 196,
+      "classifications_after_last_new_positive": 158,
+      "verified_positive_documents": 13,
+      "documents_expected": 13,
+      "budget_exhausted_documents": 56
+    },
+    "liability-secrecy-carveout": {
+      "last_new_positive_at": 50,
+      "classifications_after_last_new_positive": 432,
+      "verified_positive_documents": 7,
+      "documents_expected": 7,
+      "budget_exhausted_documents": 92
+    }
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "summary": {
+    "passed": 16,
+    "failed": 0,
+    "not_tested": 0,
+    "total": 16
+  },
+  "checks": [
+    {
+      "check": 1,
+      "name": "Varje verifikation balanserar",
+      "status": "PASS",
+      "details": [
+        "Alla 3637 verifikationer balanserar (summa 0,00)."
+      ]
+    },
+    {
+      "check": 2,
+      "name": "Ingående och utgående saldon är konsekventa (SIE-korsavstämning)",
+      "status": "PASS",
+      "details": [
+        "UB 0 i FY2025-filen == IB 0 i FY2026-filen för samtliga konton."
+      ]
+    },
+    {
+      "check": 3,
+      "name": "Balansräkningen balanserar",
+      "status": "PASS",
+      "details": [
+        "Totalsumma alla konton = 0,00 (balans)."
+      ]
+    },
+    {
+      "check": 4,
+      "name": "Kundreskontra överensstämmer med huvudboken (1510)",
+      "status": "PASS",
+      "details": [
+        "1510 = 6981670.00 = öppna kundfordringar 6981670.00."
+      ]
+    },
+    {
+      "check": 5,
+      "name": "Leverantörsreskontra överensstämmer med huvudboken (2440)",
+      "status": "PASS",
+      "details": [
+        "2440 = -1203980.63 = öppna leverantörsskulder 1203980.63."
+      ]
+    },
+    {
+      "check": 6,
+      "name": "Banktransaktioner kan avstämmas mot huvudboken (1930)",
+      "status": "PASS",
+      "details": [
+        "1930 = 9436780.73 = banktransaktioner 9436780.73."
+      ]
+    },
+    {
+      "check": 7,
+      "name": "Fakturor refererar till giltiga kunder och avtal",
+      "status": "PASS",
+      "details": [
+        "889 kundfakturor har giltiga kund-/avtalsreferenser."
+      ]
+    },
+    {
+      "check": 8,
+      "name": "Avtalspriser och fakturering stämmer (med dokumenterade avvikelser)",
+      "status": "PASS",
+      "details": [
+        "Alla löpande fakturor matchar timmar × pris; avvikelser är de dokumenterade händelserna."
+      ]
+    },
+    {
+      "check": 9,
+      "name": "Lönekostnader och löneunderlag stämmer",
+      "status": "PASS",
+      "details": [
+        "7210 = 40941000.00 = löneunderlag 40941000.00."
+      ]
+    },
+    {
+      "check": 10,
+      "name": "Projektkostnader och intäkter har korrekt koppling",
+      "status": "PASS",
+      "details": [
+        "Alla faktura- och schemareferenser pekar på befintliga projekt."
+      ]
+    },
+    {
+      "check": 11,
+      "name": "Dokument- och entitetsreferenser är giltiga",
+      "status": "PASS",
+      "details": [
+        "377 dokument registrerade; händelsereferenser och författare giltiga."
+      ]
+    },
+    {
+      "check": 12,
+      "name": "200 unika Golden Questions finns",
+      "status": "PASS",
+      "details": [
+        "200 unika fråge-ID:n (GQ-001..GQ-200)."
+      ]
+    },
+    {
+      "check": 13,
+      "name": "Varje besvarbar fråga har verifierbart facit",
+      "status": "PASS",
+      "details": [
+        "Facit finns för alla 171 besvarbara frågor."
+      ]
+    },
+    {
+      "check": 14,
+      "name": "Frågor med otillräckligt underlag är korrekt markerade",
+      "status": "PASS",
+      "details": [
+        "Alla 8 INSUFFICIENT_EVIDENCE-frågor är markerade i täckningsmatrisen."
+      ]
+    },
+    {
+      "check": 15,
+      "name": "Inga facitdata läcker in i ingestpaketet",
+      "status": "PASS",
+      "details": [
+        "Inga facitmarkörer i ingestfiler."
+      ]
+    },
+    {
+      "check": 16,
+      "name": "SIE-filerna kan läsas tillbaka utan förlust",
+      "status": "PASS",
+      "details": [
+        "Båda SIE4-filerna läses tillbaka: SIETYP 4, PC8, balanserade verifikationer, saldon matchar GL."
+      ]
+    }
+  ]
+}

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { voiceWorkspaces, type KnowledgeResult, type SourceReference, type VoiceWorkspaceParent, type Workspace, type WorkspaceArtifact, type WorkspaceSelection, type WorkspaceState, type WorkspaceSummary } from "@/api/voiceWorkspaces"
+import { voiceWorkspaces, type KnowledgeResult, type PassageComment, type SourceReference, type VoiceWorkspaceParent, type Workspace, type WorkspaceArtifact, type WorkspaceSelection, type WorkspaceState, type WorkspaceSummary } from "@/api/voiceWorkspaces"
 import { useLocale } from "@/i18n"
 import { useJobsRealtime } from "@/realtime/JobsRealtimeProvider"
-import { commitWorkspaceState, openWorkspaceDocument, requiredString, sameWorkspaceState, takeReadyGenerationArtifact, workspaceErrorMessage } from "./workspaceChatLogic"
+import { artifactWorkspaceView, clientArguments, commitWorkspaceState, documentSetSourceIds, openWorkspaceDocument, openWorkspaceDocumentSet, requiredString, resolveDocumentSetSourceIds, sameWorkspaceState, takeReadyGenerationArtifact, withArtifactTab, workspaceErrorMessage } from "./workspaceChatLogic"
 import { workspaceFocusReference } from "./workspaceDocumentFocus"
 import { captureWorkspaceTurn, type WorkspaceTurnSnapshot } from "./workspaceTurnSnapshot"
-import { captureDocumentTurn, clearLocalDocumentSelection, localSelectionMatchesReference, mergeMaterializedSelection, type LocalDocumentSelection } from "./workspaceLocalSelection"
+import { mergePassageComments, type CommentGuard } from "./documentCommentLayout"
+import { addLocalDocumentSelection, captureDocumentTurn, clearLocalDocumentSelection, dropLocalPassage, localSelectionMatchesReference, mergeMaterializedSelection, type LocalDocumentSelection } from "./workspaceLocalSelection"
 
 export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const { t, locale } = useLocale()
@@ -17,6 +18,8 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const [picker, setPicker] = useState(false)
   const [localSelection, setLocalSelection] = useState<LocalDocumentSelection | null>(null)
   const localSelectionRef = useRef<LocalDocumentSelection | null>(null)
+  const commentGuard = useRef<CommentGuard>({ saved: new Set(), removed: new Set() })
+  const removedReferences = useRef(new Set<string>())
   const current = useRef<Workspace | null>(null)
   const persisted = useRef<Workspace | null>(null)
   const turnSnapshot = useRef<Promise<WorkspaceTurnSnapshot | null>>(Promise.resolve(null))
@@ -24,6 +27,8 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const pendingChanges = useRef(0)
   const generation = useRef(0)
   const queue = useRef(Promise.resolve())
+  const toolChain = useRef(Promise.resolve())
+  const openingSources = useRef(new Set<string>())
   const ready = useRef(new Set<string>())
   const pending = useRef(new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: number; selectionSensitive: boolean }>())
   const generationStatus = useRef(new Map<string, string>())
@@ -33,10 +38,16 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const report = useCallback((caught: unknown) => setError(workspaceErrorMessage(caught, t, "voiceWorkspaceChat.operationError")), [t])
   const labels = useRef(t), errors = useRef(report)
   labels.current = t; errors.current = report
-  const apply = useCallback((value: Workspace) => { persisted.current = value; current.current = value; if (!pendingTurn.current) turnSnapshot.current = captureWorkspaceTurn(value); setWorkspace(value) }, [])
+  const apply = useCallback((value: Workspace) => {
+    const previous = current.current
+    const comments = previous?.id === value.id ? mergePassageComments(value.comments, previous.comments, commentGuard.current) : value.comments ?? []
+    const references = (previous?.id === value.id ? [...value.references, ...previous.references.filter((row) => !value.references.some((server) => server.reference_id === row.reference_id))] : value.references).filter((row) => !removedReferences.current.has(row.reference_id))
+    const next = { ...value, comments, references }
+    persisted.current = next; current.current = next; if (!pendingTurn.current) turnSnapshot.current = captureWorkspaceTurn(next); setWorkspace(next)
+  }, [])
   const selectDocument = useCallback((sourceId: string, selection: WorkspaceSelection | null) => {
     if (!current.current) return
-    localSelectionRef.current = selection ? { sourceId, selection: structuredClone(selection), clearedSourceIds: localSelectionRef.current?.clearedSourceIds?.filter((id) => id !== sourceId) }
+    localSelectionRef.current = selection ? addLocalDocumentSelection(localSelectionRef.current, sourceId, selection)
       : clearLocalDocumentSelection(current.current.state, current.current.references, localSelectionRef.current, sourceId)
     setLocalSelection(localSelectionRef.current)
     for (const [key, waiter] of pending.current) if (waiter.selectionSensitive) { window.clearTimeout(waiter.timer); pending.current.delete(key); waiter.reject(new Error(labels.current("voiceWorkspaceChat.selectionChanged"))) }
@@ -44,6 +55,8 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
   const snapshot = useCallback(() => captureDocumentTurn(turnSnapshot.current, localSelectionRef.current), [])
   const select = useCallback(async (id: string) => {
     const request = ++generation.current
+    commentGuard.current = { saved: new Set(), removed: new Set() }
+    removedReferences.current = new Set()
     current.current = null; persisted.current = null; turnSnapshot.current = Promise.resolve(null); pendingTurn.current = false; pendingChanges.current = 0; setWorkspace(null); ready.current.clear(); setKnowledge({ items: [], gaps: [] }); setError(null)
     localSelectionRef.current = null; setLocalSelection(null)
     for (const waiter of pending.current.values()) { window.clearTimeout(waiter.timer); waiter.reject(new Error(labels.current("voiceWorkspaceChat.presentationError"))) }
@@ -161,22 +174,40 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
     if (!result.items || !result.gaps) throw new Error(t("voiceWorkspaceChat.operationError"))
     setKnowledge({ items: result.items, gaps: result.gaps }); await refresh()
   }, [refresh, t])
-  const tool = useCallback(async (name: string, args: Record<string, unknown>, isCurrent: () => boolean = () => true) => {
+  const applyTool = useCallback(async (name: string, args: Record<string, unknown>, isCurrent: () => boolean = () => true) => {
     const ensureCurrent = () => { if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.presentationError")) }
     ensureCurrent()
     if (name === "open_ingest_picker") { if (!picker) ready.current.delete("ingest-picker"); setPicker(true); await wait("ingest-picker"); ensureCurrent(); return { status: "completed" } }
     const value = await refresh()
     if (!value) throw new Error(t("voiceWorkspaceChat.loadError"))
     ensureCurrent()
-    if (name === "show_document" || name === "focus_anchor") {
-      if (name === "focus_anchor" && typeof args.reference_id !== "string") {
-        const marked = await voiceWorkspaces.tool(value.id, "focus_passage", { source_id: requiredString(args, "source_id"), quote: requiredString(args, "quote").slice(0, 4000) })
-        ensureCurrent()
-        if (typeof marked.reference_id !== "string") throw new Error(t("voiceWorkspaceChat.presentationError"))
-        args = { reference_id: marked.reference_id }
-        await refresh()
+    if (name === "show_document_set") {
+      const params = clientArguments(args)
+      const title = requiredString(params, "title").trim().slice(0, 255)
+      const requested = documentSetSourceIds(params)
+      const sources = (current.current ?? value).sources
+      const sourceIds = resolveDocumentSetSourceIds(requested, sources)
+      if (!title || !sourceIds.length) throw new Error(t("voiceWorkspaceChat.presentationError"))
+      const knownIds = new Set(sources.map((source) => source.id))
+      for (const sourceId of sourceIds) {
+        if (!knownIds.has(sourceId)) await voiceWorkspaces.tool(value.id, "ingest_source", { source_id: sourceId })
         ensureCurrent()
       }
+      if (sourceIds.some((sourceId) => !knownIds.has(sourceId))) await refresh()
+      ensureCurrent()
+      const next = openWorkspaceDocumentSet((current.current ?? value).state, title, sourceIds)
+      const readyKey = `document-set:${next.active_document_set_id}`
+      ready.current.delete(readyKey)
+      await change((state) => openWorkspaceDocumentSet(state, title, sourceIds), isCurrent)
+      ensureCurrent()
+      const shown = current.current?.state
+      // Gallery paint is synchronous. Waiting on onReady hung when the same set was
+      // already open (no state change → no effect) while the expert already claimed success.
+      if (shown?.view !== "document_set" || shown.active_document_set_id !== next.active_document_set_id) {
+        throw new Error(t("voiceWorkspaceChat.presentationError"))
+      }
+      markReady(readyKey)
+    } else if (name === "show_document" || name === "focus_anchor") {
       if (name === "focus_anchor") {
         if (typeof args.reference_id === "string" && !(current.current ?? value).references.some((row) => row.reference_id === args.reference_id)) await loadReference(value.id, args.reference_id)
         try { workspaceFocusReference(current.current ?? value, args.reference_id) }
@@ -193,7 +224,7 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
           ensureCurrent()
         }
         ready.current.delete(`source:${sourceId}:`)
-        await change((state) => ({ ...openWorkspaceDocument(state, sourceId, typeof args.page === "number" ? args.page : 1), active_artifact_id: null, selection: null }), isCurrent)
+        await change((state) => ({ ...openWorkspaceDocument(state, sourceId, typeof args.page === "number" ? args.page : undefined), active_artifact_id: null, selection: null }), isCurrent)
         await wait(`source:${sourceId}:`)
       }
     } else if (name === "show_evidence" || name === "show_knowledge") {
@@ -208,12 +239,66 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
       const artifactId = requiredString(args, "artifact_id")
       const artifact = value.artifacts.find((row) => row.id === artifactId)
       if (!artifact || artifact.status !== "ready") throw new Error(t("voiceWorkspaceChat.notReady"))
-      const view = artifact.kind === "relations" ? "relations" : artifact.kind === "comparison" ? "comparison" : "documents"
+      const view = artifactWorkspaceView(artifact.kind)
       ready.current.delete(`artifact:${artifact.id}:${artifact.revision}`)
-      await change((state) => ({ ...state, view, active_artifact_id: artifact.id, selection: { artifact_id: artifact.id, artifact_revision: artifact.revision, ...(typeof args.node_id === "string" ? { node_id: args.node_id } : {}), ...(typeof args.edge_id === "string" ? { edge_id: args.edge_id } : {}) } }), isCurrent); await wait(`artifact:${artifact.id}:${artifact.revision}`)
+      await change((state) => ({ ...withArtifactTab(state, artifact.id), view, active_artifact_id: artifact.id, selection: { artifact_id: artifact.id, artifact_revision: artifact.revision, ...(typeof args.node_id === "string" ? { node_id: args.node_id } : {}), ...(typeof args.edge_id === "string" ? { edge_id: args.edge_id } : {}) } }), isCurrent); await wait(`artifact:${artifact.id}:${artifact.revision}`)
     }
     return { status: "completed", workspace_revision: current.current?.revision }
-  }, [change, loadReference, open, picker, refresh, t, wait])
+  }, [change, loadReference, markReady, open, picker, refresh, t, wait])
+  const notePassageComment = useCallback((workspaceId: string, comment: PassageComment) => {
+    commentGuard.current.removed.delete(comment.id)
+    commentGuard.current.saved.add(comment.id)
+    const value = current.current
+    if (!value || value.id !== workspaceId) return
+    const comments = [...(value.comments ?? []).filter((row) => row.id !== comment.id), comment]
+    const next = { ...value, comments }
+    current.current = next
+    if (persisted.current?.id === workspaceId) persisted.current = { ...persisted.current, comments }
+    setWorkspace(next)
+  }, [])
+  const notePassageCommentRemoved = useCallback((workspaceId: string, id: string, removedReferenceIds: string[] = []) => {
+    commentGuard.current.saved.delete(id)
+    commentGuard.current.removed.add(id)
+    for (const referenceId of removedReferenceIds) removedReferences.current.add(referenceId)
+    const value = current.current
+    if (!value || value.id !== workspaceId) return
+    const removed = (value.comments ?? []).find((row) => row.id === id)
+    const comments = (value.comments ?? []).filter((row) => row.id !== id)
+    const references = value.references.filter((row) => !removedReferences.current.has(row.reference_id))
+    const next = { ...value, comments, references }
+    current.current = next
+    if (persisted.current?.id === workspaceId) persisted.current = { ...persisted.current, comments, references }
+    setWorkspace(next)
+    if (removed?.author_kind === "user" && !comments.some((row) => row.passage_key === removed.passage_key && row.author_kind === "user" && row.author_id === removed.author_id)) {
+      localSelectionRef.current = dropLocalPassage(localSelectionRef.current, removed.source_id, removed.passage_key)
+      setLocalSelection(localSelectionRef.current)
+    }
+  }, [])
+  const markSpokenPassage = useCallback(async (args: Record<string, unknown>, isCurrent: () => boolean) => {
+    if (!isCurrent()) throw new Error(t("voiceWorkspaceChat.presentationError"))
+    const value = current.current
+    if (!value) throw new Error(t("voiceWorkspaceChat.loadError"))
+    const comment = typeof args.comment === "string" ? args.comment.trim().slice(0, 4000) : ""
+    const marked = await voiceWorkspaces.tool(value.id, "focus_passage", { source_id: requiredString(args, "source_id"), quote: requiredString(args, "quote").slice(0, 4000), ...(typeof args.expert_id === "string" && args.expert_id ? { expert_id: args.expert_id } : {}), ...(comment ? { comment } : {}) })
+    if (!isCurrent() || current.current?.id !== value.id) throw new Error(t("voiceWorkspaceChat.presentationError"))
+    if (typeof marked.reference_id !== "string") throw new Error(t("voiceWorkspaceChat.presentationError"))
+    if (marked.comment) notePassageComment(value.id, marked.comment)
+    await loadReference(value.id, marked.reference_id)
+    const sourceId = requiredString(args, "source_id")
+    const documents = current.current?.state.documents ?? []
+    if (!documents.some((row) => row.source_id === sourceId) && !openingSources.current.has(sourceId)) {
+      openingSources.current.add(sourceId)
+      const run = toolChain.current.then(() => applyTool("show_document", { source_id: sourceId }, isCurrent))
+      toolChain.current = run.then(() => undefined, () => undefined).finally(() => { openingSources.current.delete(sourceId) })
+    }
+    return { status: "completed" as const, workspace_revision: current.current?.revision }
+  }, [applyTool, loadReference, notePassageComment, t])
+  const tool = useCallback((name: string, args: Record<string, unknown>, isCurrent: () => boolean = () => true) => {
+    if (name === "focus_anchor" && typeof args.reference_id !== "string") return markSpokenPassage(args, isCurrent)
+    const run = toolChain.current.then(() => applyTool(name, args, isCurrent))
+    toolChain.current = run.then(() => undefined, () => undefined)
+    return run
+  }, [applyTool, markSpokenPassage])
   const saved = useCallback((artifact: WorkspaceArtifact) => { const value = current.current; if (!value) return; const artifacts = value.artifacts.map((row) => row.id === artifact.id ? artifact : row); current.current = { ...value, artifacts }; if (persisted.current?.id === value.id) persisted.current = { ...persisted.current, artifacts }; setWorkspace(current.current); if (value.state.selection?.artifact_id === artifact.id) void change((state) => ({ ...state, selection: { ...state.selection, artifact_revision: artifact.revision } })).catch(report) }, [change, report])
   const relevantJobs = jobs.filter((job) => job.request.voice_workspace_id === workspace?.id || workspace?.sources.some((source) => source.knowledge_job_id === job.id) || workspace?.research.some((research) => research.run_id === job.id || research.attempt_id === job.request.attempt_id))
   const jobContext = JSON.stringify(relevantJobs.map((job) => ({ id: job.id, status: job.status, error: job.error })))
@@ -225,5 +310,5 @@ export function useWorkspace(parent: VoiceWorkspaceParent | null) {
     })
     if (artifactId) void tool("show_artifact", { artifact_id: artifactId }).catch(report)
   }, [jobs, workspace, tool, report])
-  return { workspace, list, knowledge, setKnowledge, error, picker, setPicker, setError, current, turnSnapshot, localSelection, selectDocument, snapshot, select, create, refresh, change, markReady, presentationError, open, search, tool, saved, report, onContext, queue }
+  return { workspace, list, knowledge, setKnowledge, error, picker, setPicker, setError, current, turnSnapshot, localSelection, selectDocument, snapshot, select, create, refresh, change, markReady, presentationError, open, search, tool, saved, notePassageComment, notePassageCommentRemoved, report, onContext, queue }
 }

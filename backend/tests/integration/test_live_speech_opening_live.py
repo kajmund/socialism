@@ -1,4 +1,4 @@
-"""Live check: an empty interview still gets a spoken opening greeting.
+"""Live check: an empty interview opening stays silent.
 
 Opt-in. Default pytest skips it, including CI.
 
@@ -102,7 +102,7 @@ async def _empty_interview(
     return prompt, turns
 
 
-async def test_empty_interview_opening_is_a_greeting() -> None:
+async def test_empty_interview_opening_is_silent() -> None:
     if not _opted_in():
         pytest.skip(f"set {_ENV_FLAG}=1 to ask Snabb for an opening with no interview")
     env_file = _dotenv_values()
@@ -138,13 +138,7 @@ async def test_empty_interview_opening_is_a_greeting() -> None:
             default_configuration_id=None,
         )
         set_structured_completer(None)
-    assert result.silence is False, (
-        "Snabb valde tystnad för tom intervju. "
+    assert result.silence is True, (
+        "Snabb hälsade trots tom historik. "
         f"live_has_text={has_text} turns={turns!r} result={result!r}"
     )
-    phrase = result.phrase.strip()
-    assert phrase, (
-        "Snabb gav ingen hälsningsfras. "
-        f"live_has_text={has_text} turns={turns!r} result={result!r}"
-    )
-    assert len(phrase.split()) <= 32

@@ -1,0 +1,47 @@
+{
+  "experiment": "document-channel-nine-turn-diagnostic-v2",
+  "classification": "post-fix-verification",
+  "source_artifact": "backend/data/document-channel-diagnostic-v3.json",
+  "fixes_applied": [
+    "continuation-call-dedupe",
+    "panel-lease-commit-before-external-work",
+    "normalize-find-mode-for-active-set",
+    "release-required-tool-choice-after-presentation"
+  ],
+  "scenarios": [
+    "Visa alla hyresavtal.",
+    "Visa bara dem med automatisk förlängning.",
+    "Lägg till anställningsavtalen."
+  ],
+  "channels": {
+    "text": {
+      "completed": 3,
+      "delivered_shows": 3,
+      "effective_modes": ["replace", "filter", "extend"],
+      "external_or_model_errors": 0
+    },
+    "voice": {
+      "completed": 2,
+      "delivered_shows": 3,
+      "initial_model_skipped_find": 1,
+      "external_or_model_errors": 0
+    },
+    "group_voice": {
+      "completed": 3,
+      "delivered_shows": 3,
+      "effective_filter_coercion": 1,
+      "external_or_model_errors": 0
+    }
+  },
+  "acceptance": {
+    "delivered_presentations": "9/9",
+    "orchestration_p0_regressions": 0,
+    "provider_structured_output_errors": 0,
+    "approved_for_150_rerun": true,
+    "notes": [
+      "One Voice filter turn skipped find_documents and showed the active set directly; presentation still delivered.",
+      "Content follow-ups that requested mode=replace were coerced to filter when an active set existed.",
+      "English employment-agreement queries can still broaden hybrid retrieval; Swedish category labels remain the reliable path."
+    ]
+  }
+}

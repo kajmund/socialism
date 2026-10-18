@@ -1,0 +1,347 @@
+{
+  "id": "phase2-tabular-dense-errors-v1",
+  "label": "Frozen: D vs E error transitions. Ten new gold-negative false answers. Nine cited a unit that hybrid top-5 did not contain. Avtal 13 cited settlement secrecy over the gold trade-secret duty. Hybrid D stays the baseline. No prompt change.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_tabular_v1": true,
+  "does_not_replace_tabular_direct": true,
+  "does_not_replace_tabular_dense": true,
+  "no_new_model": true,
+  "no_prompt_change": true,
+  "default_hybrid_unchanged": true,
+  "default_k_unchanged": true,
+  "performance_reference": "D",
+  "same_mapping": "gold-map-v2",
+  "headline": {
+    "error_to_correct": 7,
+    "correct_to_error": 10,
+    "uncertain_to_error": 0,
+    "error_to_other_error": 0,
+    "correct_to_uncertain": 1,
+    "same": 82,
+    "new_gold_negative_false_answers": 10,
+    "cited_new_dense": 9,
+    "cited_hybrid_already": 1,
+    "gold_narrow": 3,
+    "wrong_relation": 7,
+    "also_k10_false_positive": 7,
+    "avtal_13_same_cite": true,
+    "avtal_13_gold_in_dense_top5": true,
+    "verdict": "new_dense_units_drive_false_answers",
+    "next": "do_not_change_prompt_until_read"
+  },
+  "transitions": {
+    "error_to_correct": 7,
+    "correct_to_error": 10,
+    "uncertain_to_error": 0,
+    "error_to_other_error": 0,
+    "correct_to_uncertain": 1,
+    "same": 82,
+    "other": 0,
+    "cells": 100
+  },
+  "rows": [
+    {
+      "document_id": "Avtal_04_Timanstallning_behovsanstallning",
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+      "question_id": "auto-renewal",
+      "question": "Förlängs avtalet automatiskt?",
+      "d_status": "NOT_FOUND",
+      "e_status": "ANSWERED",
+      "e_status_is_answered": true,
+      "added_keys": [
+        "d04867761d56d4be8e8aabee036473682c1e649ccc4eea1335b0097466c3673f",
+        "84a0a7cfb9a9db9733fd299dede62953f1c81c928f92593169e66befc3b21a7f"
+      ],
+      "removed_keys": [
+        "88f6b345a44e4ca6980ff6dad1be1f3eb5b78688c97d88c14baed8bb16fc7fc6",
+        "fa520811dc5730565f5ae5f3b589872dfe38eeaea26ad94f930ce91ccc6344a3"
+      ],
+      "cited_unit_id": "d04867761d56d4be8e8aabee036473682c1e649ccc4eea1335b0097466c3673f",
+      "cited_rank": 2,
+      "cited_in_hybrid": false,
+      "cited_new_dense": true,
+      "excerpt": "8. Ramavtalets giltighet\nRamavtalet gäller från och med den [2022-06-01] tills vidare. Båda parter kan säga upp ramavtalet med omedelbar verkan. Ett pågående eller bekräftat pass ska dock fullgöras eller ersättas enligt punkt 3.4.",
+      "clause_number": "8",
+      "label": "gold_narrow",
+      "note": "Tills vidare with immediate termination. Gold excludes tills vidare.",
+      "also_k10_false_positive": true,
+      "d_outcome": "correct_not_found",
+      "e_outcome": "false_answer"
+    },
+    {
+      "document_id": "Avtal_04_Timanstallning_behovsanstallning",
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+      "question_id": "confidentiality",
+      "question": "Finns det en sekretessplikt i avtalet?",
+      "d_status": "NOT_FOUND",
+      "e_status": "ANSWERED",
+      "e_status_is_answered": true,
+      "added_keys": [
+        "dc9d6ebc4368445a9372b43c665deb83e0718362f84edf806f6a4b289226fb3d"
+      ],
+      "removed_keys": [
+        "88f6b345a44e4ca6980ff6dad1be1f3eb5b78688c97d88c14baed8bb16fc7fc6"
+      ],
+      "cited_unit_id": "dc9d6ebc4368445a9372b43c665deb83e0718362f84edf806f6a4b289226fb3d",
+      "cited_rank": 1,
+      "cited_in_hybrid": false,
+      "cited_new_dense": true,
+      "excerpt": "7. Sekretess\nArbetstagaren har tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella uppgifter.",
+      "clause_number": "7",
+      "label": "gold_narrow",
+      "note": "Operative tystnadsplikt. Gold lists the same duty on Avtal 02/03, not 04.",
+      "also_k10_false_positive": true,
+      "d_outcome": "correct_not_found",
+      "e_outcome": "false_answer"
+    },
+    {
+      "document_id": "Avtal_08_Konkurrensforbudsavtal",
+      "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx",
+      "question_id": "liability-cap",
+      "question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "d_status": "NOT_FOUND",
+      "e_status": "ANSWERED",
+      "e_status_is_answered": true,
+      "added_keys": [
+        "17113921867ba41b0ebc3f3ed68b94f6443fb727a1a9156744ce138b3a211d5d",
+        "924e884f7ec130b1b9e179a344683ac99a26a2fc194f298ce4c78bc36fd0e583",
+        "a7214f62344a9a990223f9a2563add3a6ddcd678b9426e11b78a4b39254a9128"
+      ],
+      "removed_keys": [
+        "b31f35eba9cdd00e33b19566e18293c13849f89b6063866d546a6289bc740e5e",
+        "ebc932d058efdf0499303f7bb0f264f11f1b0a6976fd2bdb16cf8117ba872010",
+        "02d7fff43092405610d04a1ecc0e046a2f72cfd84dab7477691eb89d1f0728d5"
+      ],
+      "cited_unit_id": "17113921867ba41b0ebc3f3ed68b94f6443fb727a1a9156744ce138b3a211d5d",
+      "cited_rank": 1,
+      "cited_in_hybrid": false,
+      "cited_new_dense": true,
+      "excerpt": "6. Vite\nOm Arbetstagaren bryter mot förbudet ska Arbetstagaren betala ett vite som motsvarar [sex] genomsnittliga månadslöner för varje överträdelse. Arbetsgivaren har rätt till ersättning för skada som överstiger vitet.",
+      "clause_number": "6",
+      "label": "wrong_relation",
+      "note": "Vite plus excess damages. That is not a liability cap.",
+      "also_k10_false_positive": true,
+      "d_outcome": "correct_not_found",
+      "e_outcome": "false_answer"
+    },
+    {
+      "document_id": "Avtal_09_Kundbearbetningsforbud_varvningsforbud",
+      "relative_path": "Avtal_09_Kundbearbetningsforbud_varvningsforbud.docx",
+      "question_id": "liability-cap",
+      "question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "d_status": "NOT_FOUND",
+      "e_status": "ANSWERED",
+      "e_status_is_answered": true,
+      "added_keys": [
+        "e5e3d3bbd4cbd3e3fc6280e2c6162be295fa398be4257453686749ff95df99f6"
+      ],
+      "removed_keys": [
+        "917c48dd2ac984a090fc0afa059372aed007b89b8c45294ca6b916b364059b2c"
+      ],
+      "cited_unit_id": "228befbaae5b26ccb82d9181f044fc5def09df33b726025e1986201365cc685d",
+      "cited_rank": 1,
+      "cited_in_hybrid": true,
+      "cited_new_dense": false,
+      "excerpt": "6. Vite\nVid överträdelse ska Den Bundne betala ett vite på [Belopp, t.ex. motsvarande två månadslöner] per överträdelse. Bolaget har rätt till ersättning för skada som överstiger vitet.",
+      "clause_number": "6",
+      "label": "wrong_relation",
+      "note": "Vite plus excess damages. Already in hybrid top-5; D said NOT_FOUND.",
+      "also_k10_false_positive": false,
+      "d_outcome": "correct_not_found",
+      "e_outcome": "false_answer"
+    },
+    {
+      "document_id": "Avtal_10_Arbetstidsavtal_flextid",
+      "relative_path": "Avtal_10_Arbetstidsavtal_flextid.docx",
+      "question_id": "notice-period",
+      "question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "d_status": "NOT_FOUND",
+      "e_status": "ANSWERED",
+      "e_status_is_answered": true,
+      "added_keys": [
+        "1ba1fa6f94f1e4579413a31c5cfd1904db0ddc6edbb803b77221cb0ceb141468"
+      ],
+      "removed_keys": [
+        "b2fd604533b1c29c0bc22f3247107e25bc7373b00cc108e989ceea2293fae233"
+      ],
+      "cited_unit_id": "1ba1fa6f94f1e4579413a31c5cfd1904db0ddc6edbb803b77221cb0ceb141468",
+      "cited_rank": 1,
+      "cited_in_hybrid": false,
+      "cited_new_dense": true,
+      "excerpt": "7.2 Båda parter kan säga upp detta tilläggsavtal med [en månads] varsel.",
+      "clause_number": "7.2",
+      "label": "gold_narrow",
+      "note": "Notice for the flextid addendum, not the employment agreement gold.",
+      "also_k10_false_positive": true,
+      "d_outcome": "correct_not_found",
+      "e_outcome": "false_answer"
+    },
+    {
+      "document_id": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut",
+      "relative_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "question_id": "liability-cap",
+      "question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "d_status": "NOT_FOUND",
+      "e_status": "ANSWERED",
+      "e_status_is_answered": true,
+      "added_keys": [
+        "6c635f61d317cc7819d76bc144674bc908ecdc67bf9d5afda3d2e85eed10c32a",
+        "1aa8387023be30dd2849bacee093de2d0e5f044ef57a8e8d53b5048272e68166"
+      ],
+      "removed_keys": [
+        "d99667455120a2a6c215d2678fa107c028f466dc7ccc53ae055eabf2bd72ffea",
+        "461724f9ec85b455bad4f9252b569232cf6323ab7449400fa5de8c88857b1781"
+      ],
+      "cited_unit_id": "6c635f61d317cc7819d76bc144674bc908ecdc67bf9d5afda3d2e85eed10c32a",
+      "cited_rank": 1,
+      "cited_in_hybrid": false,
+      "cited_new_dense": true,
+      "excerpt": "B9. Slutreglering\nMed fullgörandet av denna överenskommelse har parterna inga ytterligare anspråk på varandra med anledning av anställningen eller dess upphörande. Undantag gäller för pensionsförmåner, ansvar enligt lagen om företagshemligheter och fel i slutlöneberäkningen.",
+      "clause_number": "B9",
+      "label": "wrong_relation",
+      "note": "Settlement release, not a standing contractual cap.",
+      "also_k10_false_positive": true,
+      "d_outcome": "correct_not_found",
+      "e_outcome": "false_answer"
+    },
+    {
+      "document_id": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut",
+      "relative_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "question_id": "liability-secrecy-carveout",
+      "question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "d_status": "NOT_FOUND",
+      "e_status": "ANSWERED",
+      "e_status_is_answered": true,
+      "added_keys": [
+        "6c635f61d317cc7819d76bc144674bc908ecdc67bf9d5afda3d2e85eed10c32a",
+        "e5a2bf1f061aca413e9034edf1cffdc4ced9daa8d6d249e4bd597d6bc88f7113"
+      ],
+      "removed_keys": [
+        "38c04094f4a01b80f0429fd84e19e21bdfdea29a1efcf799f2b84591fd92163b",
+        "d99667455120a2a6c215d2678fa107c028f466dc7ccc53ae055eabf2bd72ffea"
+      ],
+      "cited_unit_id": "6c635f61d317cc7819d76bc144674bc908ecdc67bf9d5afda3d2e85eed10c32a",
+      "cited_rank": 3,
+      "cited_in_hybrid": false,
+      "cited_new_dense": true,
+      "excerpt": "Undantag gäller för pensionsförmåner, ansvar enligt lagen om företagshemligheter och fel i slutlöneberäkningen.",
+      "clause_number": "B9",
+      "label": "wrong_relation",
+      "note": "Exception from a settlement release, not from a liability cap.",
+      "also_k10_false_positive": true,
+      "d_outcome": "correct_not_found",
+      "e_outcome": "false_answer"
+    },
+    {
+      "document_id": "Avtal_13_Avgangsvederlagsavtal",
+      "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+      "question_id": "liability-cap",
+      "question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "d_status": "NOT_FOUND",
+      "e_status": "ANSWERED",
+      "e_status_is_answered": true,
+      "added_keys": [
+        "bcd3daeab33a62bac024baa40da054e6aad578356b7eac4f8307d3740fee2c05",
+        "45d9a8b3bde26a0afa9e32c1e506b7a5c647db7295956d40f7ec2bae56282bb7",
+        "4dc7c185d7b0aac2a22246daec620b62abd1eff67ad19887d2b884cf0a0acf38"
+      ],
+      "removed_keys": [
+        "ff41e5c5654b4e520e730650a098eeab8064afc3d96c641ab3408a56fa8dfdd7",
+        "ced757ddf4961121843c54133d95552b55ee605a9db06a0a644f14b4ed649d9b",
+        "5a14fa69ecd574d4eadba1977ed11c1f727d9c6cb468545e566c2b07b05faded"
+      ],
+      "cited_unit_id": "4dc7c185d7b0aac2a22246daec620b62abd1eff67ad19887d2b884cf0a0acf38",
+      "cited_rank": 5,
+      "cited_in_hybrid": false,
+      "cited_new_dense": true,
+      "excerpt": "9.1 När Arbetsgivaren har betalat enligt detta avtal har Arbetstagaren inga ytterligare krav mot Arbetsgivaren med anledning av anställningen eller dess upphörande. Det omfattar bland annat krav på lön, skadestånd enligt LAS eller diskrimineringslagen och ogiltigförklaring av uppsägning.",
+      "clause_number": "9.1",
+      "label": "wrong_relation",
+      "note": "Settlement release after severance pay, not a standing cap.",
+      "also_k10_false_positive": false,
+      "d_outcome": "correct_not_found",
+      "e_outcome": "false_answer"
+    },
+    {
+      "document_id": "Avtal_17_Hyresavtal_lokal",
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+      "question_id": "liability-cap",
+      "question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "d_status": "NOT_FOUND",
+      "e_status": "ANSWERED",
+      "e_status_is_answered": true,
+      "added_keys": [
+        "22c71a064e2ae5e976ce965e11ba29298b54f248ec10859a131657324ec9d54f",
+        "d67a4db5fa68c9f7274c556e10f6f2077bfedb64d138c03bd1f4325f4c0b24eb",
+        "6ed9de358d9f469fbf3a8dd9c3690cc57dded45f8667fef302963b3e19ea90fa",
+        "6ec94f231524a9546e8929655f28aa613ba551bd67c7b066ab182d7d5ea397ae"
+      ],
+      "removed_keys": [
+        "c66e13cebf775031a13e2ee9f56c644cc2c15f9c5f3870490c0d30a51d151f3d",
+        "c8eada203a8c3a71107800d7f35479fa3b49b2760bb2d9a9c1f6c7c970ef2f52",
+        "d49bd9a0a6512e02805a4f78712b43301b5cb6c9d2e7d580daa4932a9a1a3057",
+        "2c8bafd8ecc35b0a6eaa6d788fb00e02957af04aeeb3e3a4669c8a13f09ce590"
+      ],
+      "cited_unit_id": "22c71a064e2ae5e976ce965e11ba29298b54f248ec10859a131657324ec9d54f",
+      "cited_rank": 2,
+      "cited_in_hybrid": false,
+      "cited_new_dense": true,
+      "excerpt": "9.3 Hyresvärden ansvarar inte för Hyresgästens förlust på grund av driftavbrott som Hyresvärden inte har orsakat genom vårdslöshet.",
+      "clause_number": "9.3",
+      "label": "wrong_relation",
+      "note": "Operational driftavbrott disclaimer, not a general cap.",
+      "also_k10_false_positive": true,
+      "d_outcome": "correct_not_found",
+      "e_outcome": "false_answer"
+    },
+    {
+      "document_id": "Avtal_36_Underleverantorsavtal",
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "question_id": "notice-period",
+      "question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "d_status": "NOT_FOUND",
+      "e_status": "ANSWERED",
+      "e_status_is_answered": true,
+      "added_keys": [
+        "ae926e606fb168e9f38da9870234c8240cd53db1739015c96946999fc5271383",
+        "3376cb1b9b1509e0598af1ff6b2db7c2e5f234f4c6f6e0732a1345d2d3963693",
+        "22f1913c1049bbb012db4ccb959066843d87f04c5a7982ae8219d776db716b4a"
+      ],
+      "removed_keys": [
+        "b2c3ced20215c6bd771b5ba6c6f21e7b3da6c7ca646983414ebce8274bf331ba",
+        "faa501477a54bef0a358f2610218f937a5851bbf0cec734e766395f29ccc9486",
+        "82540ac42b7aba8694fcff248383eb1244cac7495edd7b7180da884cbec0ffd4"
+      ],
+      "cited_unit_id": "3376cb1b9b1509e0598af1ff6b2db7c2e5f234f4c6f6e0732a1345d2d3963693",
+      "cited_rank": 3,
+      "cited_in_hybrid": false,
+      "cited_new_dense": true,
+      "excerpt": "12.2 Om Huvudavtalet upphör eller Slutkunden avbeställer Uppdraget får DevBrains avbeställa Uppdraget med [30] dagars varsel.",
+      "clause_number": "12.2",
+      "label": "wrong_relation",
+      "note": "Cancellation if the main contract ends, not the general notice.",
+      "also_k10_false_positive": false,
+      "d_outcome": "correct_not_found",
+      "e_outcome": "false_answer"
+    }
+  ],
+  "avtal_13": {
+    "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+    "question_id": "confidentiality",
+    "question": "Finns det en sekretessplikt i avtalet?",
+    "d_cited": "45d9a8b3bde26a0afa9e32c1e506b7a5c647db7295956d40f7ec2bae56282bb7",
+    "e_cited": "45d9a8b3bde26a0afa9e32c1e506b7a5c647db7295956d40f7ec2bae56282bb7",
+    "same_cite": true,
+    "gold_keys": [
+      "6c4fe5260fafdf612aa9e8aa8afd2584ffab5b0d8c12d66573cd051f8fd05c05"
+    ],
+    "cited_is_gold": false,
+    "dense_gold_rank": 3,
+    "hybrid_gold_rank": 9,
+    "cited_excerpt": "6.3 Innehållet i detta avtal är konfidentiellt. Det får dock lämnas ut till myndigheter, a-kassa, rådgivare och familj.",
+    "gold_contains": "Arbetstagaren har fortsatt tystnadsplikt om Arbetsgivarens företagshemligheter",
+    "label": "wrong_relation",
+    "note": "Cited confidentiality of this settlement. Gold is the ongoing trade-secret duty. Same cite as hybrid D; gold was dense rank 3."
+  }
+}

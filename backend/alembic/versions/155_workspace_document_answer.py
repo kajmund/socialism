@@ -3,7 +3,7 @@
 import sqlalchemy as sa
 from alembic import op
 
-from app.services.prompt_catalog import PROMPT_FIELDS
+from app.services.workspace_prompt_defaults import workspace_prompt_fields
 
 revision = "155_workspace_document_answer"
 down_revision = "154_workspace_chat_turn_prompt"
@@ -12,17 +12,17 @@ depends_on = None
 
 _SYSTEM = "workspace.voice.system"
 _PARAGRAPHS = {
-    "sv": "open_documents i kontexten är text från dokument som visas, eller från det enda färdiga dokumentet. "
+    "sv": "Dokument som visas i kontexten är texten för de dokument som ligger framme, för alla experter. "
     "När användaren ber dig läsa ett avtal eller hitta en part: svara i samma tur utifrån den texten och namnge "
     "parten hen menar. Säg inte att du letar, läser eller återkommer, och fråga inte om användaren är kvar, "
     "förrän svaret finns. search_companies slår upp bolag i ett register och läser inte avtalet. Om svaret "
-    "saknas i open_documents, anropa read_source med source_id eller search_knowledge med query och tala först "
+    "saknas i Dokument som visas, anropa read_source med source_id eller search_knowledge med query och tala först "
     "när verktyget har returnerat text.",
-    "en": "open_documents in the context is text from documents on screen, or from the only ready document. "
+    "en": "The documents on screen in the context are the text of what is already open, for every expert. "
     "When the user asks you to read a contract or find a party, answer in the same turn from that text and "
     "name the party they mean. Do not say you are searching, reading or will come back, and do not ask if the "
     "user is still there, before you have the answer. search_companies looks up companies in a registry and "
-    "does not read the contract. If the answer is not in open_documents, call read_source with source_id or "
+    "does not read the contract. If the answer is not in the documents on screen, call read_source with source_id or "
     "search_knowledge with query and speak only after the tool returns the text.",
 }
 _PARAGRAPHS["nb"] = _PARAGRAPHS["sv"]
@@ -41,8 +41,22 @@ _TOOL_OLD = {
 }
 
 
+def _make_field(
+    key: str,
+    _section: str,
+    _label_sv: str,
+    _label_en: str,
+    _hint_sv: str,
+    _hint_en: str,
+    default_sv: str,
+    default_en: str,
+) -> dict:
+    return {"key": key, "defaults": {"sv": default_sv, "en": default_en, "nb": default_sv}}
+
+
 def _catalog(key: str) -> dict[str, str]:
-    for field in PROMPT_FIELDS:
+    # Pre-split legacy texts: 180 applies the compact overrides, not this migration.
+    for field in workspace_prompt_fields(_make_field, apply_overrides=False):
         if field["key"] == key:
             return field["defaults"]
     raise RuntimeError(f"missing prompt catalog field {key}")

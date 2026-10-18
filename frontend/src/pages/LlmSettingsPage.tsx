@@ -36,7 +36,7 @@ type Draft = {
 
 function defaultRoleForProfile(profileId: string): LlmSelectionRole {
   if (profileId === "deepseek-v4-pro") return "deep"
-  if (profileId === "deepseek-flash" || profileId === "qwen-3.8-27b") return "fast"
+  if (profileId === "gpt-oss-120b" || profileId === "deepseek-flash" || profileId === "qwen-3.8-27b") return "fast"
   return "balanced"
 }
 
@@ -55,7 +55,7 @@ function draftFromProfile(profile: LlmCatalogProfile, name: string): Draft {
     capabilityStructuredOutput: true,
     capabilityLongContext: profile.provider === "deepseek",
     enabledForAuto: true,
-    priority: 100,
+    priority: profile.id === "gpt-oss-120b" ? 10 : 100,
   }
 }
 

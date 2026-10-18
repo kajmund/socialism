@@ -36,18 +36,75 @@ export function upsertTranscript(messages: WorkspaceMessage[], message: Workspac
   return messages.map((row, i) => i === index ? message : row)
 }
 
-export function openWorkspaceDocument(state: WorkspaceState, sourceId: string, page = 1): WorkspaceState {
+export function artifactWorkspaceView(kind: string): WorkspaceState["view"] {
+  if (kind === "relations") return "relations"
+  if (kind === "comparison") return "comparison"
+  return "documents"
+}
+
+export function withArtifactTab(state: WorkspaceState, id: string): WorkspaceState {
+  const current = state.open_artifact_ids ?? []
+  const ids = current.includes(id) ? current : [...current, id]
+  return { ...state, open_artifact_ids: ids.slice(0, 20) }
+}
+
+export function activeWorkspaceSourceId(state: WorkspaceState): string | null {
+  if (state.active_source_id && state.documents.some((row) => row.source_id === state.active_source_id)) {
+    return state.active_source_id
+  }
+  return state.documents[0]?.source_id ?? null
+}
+
+export function openWorkspaceDocument(state: WorkspaceState, sourceId: string, page?: number): WorkspaceState {
   const current = state.documents.find((document) => document.source_id === sourceId)
-  const document = { source_id: sourceId, page, zoom: current?.zoom ?? 1 }
-  const split = state.split_source_ids.length === 2 && !state.split_source_ids.includes(sourceId) ? [sourceId, state.split_source_ids[0]] : state.split_source_ids
-  return { ...state, view: "documents", split_source_ids: split, documents: [document, ...state.documents.filter((row) => row.source_id !== sourceId)] }
+  const document = { source_id: sourceId, page: page ?? current?.page ?? 1, zoom: current?.zoom ?? 1 }
+  const split = state.split_source_ids.length === 2 && !state.split_source_ids.includes(sourceId)
+    ? [sourceId, state.split_source_ids[0]]
+    : state.split_source_ids
+  const documents = current
+    ? state.documents.map((row) => row.source_id === sourceId ? { ...row, page: document.page, zoom: document.zoom } : row)
+    : [...state.documents, document].slice(0, 20)
+  return {
+    ...state,
+    view: "documents",
+    active_document_set_id: null,
+    active_source_id: sourceId,
+    split_source_ids: split,
+    documents,
+  }
+}
+
+export function openWorkspaceDocumentSet(state: WorkspaceState, title: string, sourceIds: string[]): WorkspaceState {
+  const ids = [...new Set(sourceIds)].slice(0, 40)
+  const signature = `${title.trim()}\u0000${ids.join("\u0000")}`
+  let hash = 2166136261
+  for (let index = 0; index < signature.length; index += 1) {
+    hash ^= signature.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  const id = `document-set-${(hash >>> 0).toString(36)}`
+  const documentSet = { id, title: title.trim(), source_ids: ids }
+  const existing = state.document_sets ?? []
+  const documentSets = (existing.some((row) => row.id === id)
+    ? existing.map((row) => row.id === id ? documentSet : row)
+    : [...existing, documentSet]
+  ).slice(0, 10)
+  return {
+    ...state,
+    view: "document_set",
+    document_sets: documentSets,
+    active_document_set_id: id,
+    active_artifact_id: null,
+    split_source_ids: [],
+    selection: null,
+  }
 }
 
 export function navigateWorkspaceDocument(state: WorkspaceState, sourceId: string, page: number, zoom: number): WorkspaceState {
   return { ...state, documents: state.documents.map((row) => row.source_id === sourceId ? { ...row, page, zoom } : row) }
 }
 
-export const workspaceClientToolNames = ["open_ingest_picker", "show_evidence", "show_document", "focus_anchor", "show_comparison", "show_relations", "show_knowledge", "show_artifact"] as const
+export const workspaceClientToolNames = ["open_ingest_picker", "show_evidence", "show_document", "show_document_set", "focus_anchor", "show_comparison", "show_relations", "show_knowledge", "show_artifact"] as const
 export const workspaceServerToolNames = ["get_workspace_context", "ingest_source", "get_job_status", "search_knowledge", "read_source", "start_research", "compare_sources", "get_relations", "render_chart", "create_document", "revise_document", "export_document", "expert_tool"] as const
 const workspaceToolNames = new Set<string>([...workspaceClientToolNames, ...workspaceServerToolNames])
 // The shared ElevenLabs agent also carries live-voice tools such as search_companies.
@@ -72,6 +129,63 @@ export function clientArguments(raw: unknown): Record<string, unknown> {
   const parsed: unknown = JSON.parse(record.arguments_json)
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid tool parameters")
   return parsed as Record<string, unknown>
+}
+
+function documentSetSourceToken(item: unknown): string | null {
+  if (typeof item === "string" && item.trim()) return item.trim()
+  if (typeof item === "number" && Number.isFinite(item)) return String(item)
+  if (item && typeof item === "object") {
+    const row = item as { source_id?: unknown; sourceId?: unknown }
+    if (typeof row.source_id === "string" && row.source_id.trim()) return row.source_id.trim()
+    if (typeof row.sourceId === "string" && row.sourceId.trim()) return row.sourceId.trim()
+    if (typeof row.source_id === "number" && Number.isFinite(row.source_id)) return String(row.source_id)
+  }
+  return null
+}
+
+export function documentSetSourceIds(args: Record<string, unknown>): string[] {
+  const raw = args.source_ids ?? args.sourceIds
+  const fromList = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return []
+    return value.flatMap((item) => {
+      const token = documentSetSourceToken(item)
+      return token ? [token] : []
+    })
+  }
+  if (Array.isArray(raw)) return [...new Set(fromList(raw))].slice(0, 40)
+  if (typeof raw === "string" && raw.trim()) {
+    const text = raw.trim()
+    if (text.startsWith("[")) {
+      try { return documentSetSourceIds({ source_ids: JSON.parse(text) as unknown }) } catch { /* fall through */ }
+    }
+    return [...new Set(text.split(/[\s,;]+/).map((part) => part.trim()).filter(Boolean))].slice(0, 40)
+  }
+  if (typeof raw === "number" && Number.isFinite(raw)) return [String(raw)]
+  const single = documentSetSourceToken(args.source_id)
+  return single ? [single] : []
+}
+
+/** Map model tokens (ids or filename fragments like "17") onto workspace source ids. */
+export function resolveDocumentSetSourceIds(
+  tokens: string[],
+  sources: { id: string; filename: string }[],
+): string[] {
+  const resolved: string[] = []
+  const push = (id: string) => { if (!resolved.includes(id)) resolved.push(id) }
+  for (const token of tokens) {
+    if (sources.some((source) => source.id === token)) {
+      push(token)
+      continue
+    }
+    const needle = token.toLowerCase()
+    const matches = sources.filter((source) => {
+      const parts = source.filename.toLowerCase().split(/[^0-9a-zåäö]+/i).filter(Boolean)
+      return parts.includes(needle) || source.filename.toLowerCase() === needle
+    })
+    if (matches.length === 1) push(matches[0].id)
+    else if (matches.length === 0) push(token)
+  }
+  return resolved.slice(0, 40)
 }
 
 export function requiredString(args: Record<string, unknown>, key: string): string {

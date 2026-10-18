@@ -1,0 +1,37 @@
+{
+  "name": "expert-prompt-routing-v1",
+  "source": "workspace prompts before the three-level split",
+  "do_not_overwrite": true,
+  "measurement": {
+    "routing": "live model first-choice run with the pre-split prompts; find/show continuation also probed",
+    "tokens": "characters and chars_div_4 estimate",
+    "latency": "Jev exposure wall clock"
+  },
+  "cases": [
+    {"id": "smalltalk", "message": "Tack, det var allt.", "expected_sequence": []},
+    {"id": "open_filename", "message": "Öppna Ramavtal.pdf.", "expected_sequence": ["show_document"]},
+    {"id": "find_type", "message": "Visa alla hyresavtal.", "expected_sequence": ["find_documents", "show_document_set"]},
+    {"id": "find_filter", "message": "Visa bara dem med automatisk förlängning.", "expected_sequence": ["find_documents", "show_document_set"]},
+    {"id": "find_party", "message": "Var står det om Acme AB?", "expected_sequence": ["search_knowledge", "show_document"]},
+    {"id": "mark_passage", "message": "Markera den exakta passagen ”Automatisk förlängning” i det öppna dokumentet.", "expected_sequence": ["focus_anchor"]}
+  ],
+  "headline": {
+    "top1_tool_accuracy": 0.8333,
+    "sequence_contract_rate": 0.6667,
+    "smalltalk_no_tool_rate": 1.0,
+    "find_show_chain_rate": 0.0,
+    "unnecessary_calls": 2,
+    "system_chars": 6138,
+    "turn_chars": 1550,
+    "system_plus_turn_chars": 7688,
+    "estimated_system_plus_turn_tokens": 1922
+  },
+  "tool_description_chars": {
+    "find_documents": 342,
+    "show_document_set": 188,
+    "search_knowledge": 424,
+    "show_document": 211,
+    "read_source": 296,
+    "focus_anchor": 482
+  }
+}

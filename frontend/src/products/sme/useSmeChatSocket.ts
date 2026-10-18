@@ -8,6 +8,7 @@ type Options = {
   onSuggestions: (threadId: string, questions: string[]) => void
   onError: (threadId: string | null, detail: string, requestId: string | null) => void
   onToken: (threadId: string, text: string, requestId: string) => void
+  onDraftToken: (threadId: string, text: string, requestId: string) => void
   onThreadMessage: (threadId: string, messages: SmeMessage[]) => void
   onConsultAnswered: (threadId: string) => void
   onWorkspaceTool: (threadId: string, name: string, args: Record<string, unknown>) => void
@@ -52,6 +53,7 @@ export function useSmeChatSocket({
   onSuggestions,
   onError,
   onToken,
+  onDraftToken,
   onThreadMessage,
   onConsultAnswered,
   onWorkspaceTool,
@@ -68,6 +70,7 @@ export function useSmeChatSocket({
     onSuggestions,
     onError,
     onToken,
+    onDraftToken,
     onThreadMessage,
     onConsultAnswered,
     onWorkspaceTool,
@@ -80,6 +83,7 @@ export function useSmeChatSocket({
     onSuggestions,
     onError,
     onToken,
+    onDraftToken,
     onThreadMessage,
     onConsultAnswered,
     onWorkspaceTool,
@@ -119,6 +123,11 @@ export function useSmeChatSocket({
           case "token":
             if (threadId && requestId && typeof event.text === "string") {
               callbacksRef.current.onToken(threadId, event.text, requestId)
+            }
+            break
+          case "draft_token":
+            if (threadId && requestId && typeof event.text === "string") {
+              callbacksRef.current.onDraftToken(threadId, event.text, requestId)
             }
             break
           case "done":

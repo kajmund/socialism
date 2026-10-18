@@ -1,0 +1,61 @@
+{
+  "id": "phase2-document-tags-lifecycle-v1",
+  "label": "Document-tag lifecycle review. User labels versus extracted properties. No Jev. No new 16-document run.",
+  "do_not_overwrite": true,
+  "does_not_run_jev": true,
+  "models_not_run": true,
+  "does_not_change_document_tags_run": true,
+  "does_not_change_doctype_baseline": true,
+  "does_not_change_answer_cell": true,
+  "no_production_integration": true,
+  "automatic_tags_are_proposals": true,
+  "a_is_cheap_ingest_candidate": true,
+  "b_is_experimental_semantic_alternative": true,
+  "kinds": {
+    "extracted_property": "Automatic or user-reviewed document property. Source-verified only when the excerpt is validated.",
+    "user_label": "Organizational label such as important or customer X. No document source is required."
+  },
+  "rules": [
+    "Same Tag nodes. Kind distinguishes meaning.",
+    "Identity is tenant, workspace, document, class, and value.",
+    "Origin is an attribute, not the identity.",
+    "User labels start verified and never require a source.",
+    "Extracted tags stay proposals until a user reviews them.",
+    "Rejected values stay rejected on re-ingest.",
+    "Correcting a value rejects the old value and locks the new one.",
+    "Unreviewed automatic tags not re-proposed are withdrawn.",
+    "User decisions survive re-ingest, reclassify, and document delete.",
+    "Delete hides the document from filters and keeps tag tombstones.",
+    "Restore plus ingest of the same document id reapplies those decisions.",
+    "Socialism must key decisions on a stable workspace document id.",
+    "Automatic extraction should read effective_type, not predicted_type."
+  ],
+  "gaps_closed": [
+    "value_correction_did_not_block_old_value",
+    "tag_identity_included_origin",
+    "no_document_delete_path",
+    "user_label_and_extracted_property_not_named",
+    "stale_unreviewed_proposals_stayed_visible"
+  ],
+  "proof": {
+    "user_label_kind": "user_label",
+    "user_label_source_verified": false,
+    "corrected_old_rejected": true,
+    "corrected_new_locked": true,
+    "probationary_stays_rejected": true,
+    "notice_withdrawn": true,
+    "unvalidated_extracted_not_source_verified": true,
+    "deleted_hidden_from_filter": true,
+    "restored_effective_type_locked": true,
+    "user_label_survives_delete": true,
+    "permanent_survives_reingest": true,
+    "kinds_share_tag_nodes": true,
+    "automatic_tags_are_proposals": true
+  },
+  "headline": {
+    "models_not_run": true,
+    "kinds": 2,
+    "rules": 13,
+    "proof_ok": true
+  }
+}
