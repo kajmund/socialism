@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.config import settings
 from app.database.base import Base
-from app.database.models import CanonicalDocumentRecord, Kund
+from app.database.models import CanonicalDocumentRecord, Kund, StoredObject, UserAccount
 from app.llm import complete_with_tools, reset_client
 from app.llm.chat import _chat_messages
 from app.llm.tool_messages import assistant_message_dict
@@ -33,6 +33,7 @@ from app.services.workspace import tool_handlers as handlers
 from app.services.workspace.tool_handlers import ToolContext, find_documents
 from app.services.workspace_chat_tools import workspace_openai_tools, workspace_turn_text
 from app.services.workspace_task_context import workspace_task_context
+from app.services.workspaces import ensure_company_workspace
 
 pytestmark = pytest.mark.integration
 
@@ -78,8 +79,11 @@ def _apply_live_settings() -> None:
     reset_client()
 
 
-async def _seed(session, catalog) -> None:
+async def _seed(session, catalog) -> str:
     session.add(Kund(id=1, name="C1", slug="c1", available_modules=[]))
+    session.add(UserAccount(id="user-1", email="user-1@test.local", role="user", kund_id=1))
+    await session.flush()
+    common = await ensure_company_workspace(session, customer_id=1)
     for index in range(5):
         document_id = f"lease-{index}"
         await add_document(
@@ -89,6 +93,18 @@ async def _seed(session, catalog) -> None:
             opening="Hyresavtal för lokal.",
             passages=[("Hyresavtal text.", vector(0.1, 0.9))],
         )
+        session.add(StoredObject(
+            id=f"src-{document_id}",
+            customer_id=1,
+            workspace_id=common.id,
+            module="dd",
+            kind="document",
+            bucket="c1",
+            object_key=f"src-{document_id}",
+            filename=f"{document_id}.pdf",
+            content_type="application/pdf",
+            size_bytes=1,
+        ))
         session.add(CanonicalDocumentRecord(
             id=document_id,
             scope_type="customer",
@@ -101,6 +117,7 @@ async def _seed(session, catalog) -> None:
             extra={},
         ))
     await session.commit()
+    return common.id
 
 
 def _assistant_tool_message(reply) -> dict:
@@ -154,7 +171,7 @@ async def test_expert_find_show_handoff_latency(tmp_path, monkeypatch):
         await connection.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as seed_session:
-        await _seed(seed_session, registry.open_for(1))
+        common_id = await _seed(seed_session, registry.open_for(1))
     prompts = default_prompts("sv")
     state = WorkspaceState()
     catalog_specs = workspace_openai_tools(prompts)
@@ -214,6 +231,7 @@ async def test_expert_find_show_handoff_latency(tmp_path, monkeypatch):
                     session=session,
                     workspace=SimpleNamespace(
                         id="ws-1",
+                        workspace_id=common_id,
                         customer_id=1,
                         owner_user_id="user-1",
                     ),

@@ -1,4 +1,6 @@
 """Small handlers behind the common workspace command boundary."""
+import asyncio
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,13 +22,20 @@ from app.services.workspace.tool_arguments import (
 )
 from app.services.document_navigation import exact_workspace_search, read_document_part
 from app.services.document_find import (
+    FindRequest,
+    FindResult,
+    empty_scope_result,
     needs_embedding,
     normalize_find_mode,
     presentation_slice,
     run_find,
     suggested_title,
 )
-from app.services.document_find.id_map import document_ids_for_sources, source_ids_for_documents
+from app.services.document_find.id_map import (
+    document_ids_for_sources,
+    readable_document_ids,
+    readable_source_ids_for_documents,
+)
 from app.services.document_qa.tenants import require_tenant_catalogs
 from app.services.knowledge.embeddings import OpenAIEmbeddingProvider, require_embedding_vectors
 from app.services.workspace_document_context import (
@@ -36,6 +45,7 @@ from app.services.workspace_document_context import (
 from app.services.workspace_quote_focus import focus_passage
 from app.services.workspace.source_ingest_retry import retry_failed_source
 from app.services.workspace_turn_state import answered_workspace_context
+from app.services.workspaces import resolve_readable_workspace_ids
 
 @dataclass
 class ToolContext:
@@ -57,15 +67,30 @@ async def context(context: ToolContext, arguments: dict) -> dict:
 
 
 async def find_documents(context: ToolContext, arguments: dict) -> dict:
-    """OverGraph document find → complete source_ids for show_document_set."""
+    """OverGraph document find → complete source_ids for show_document_set.
+
+    Only documents whose source object sits in one of the user's readable
+    organisation workspaces may be searched or returned. The readable id set
+    is materialized and committed before the embedding call and before the
+    blocking tenant-catalog open/search, which runs on a worker thread.
+    """
     session = context.session
     workspace = context.workspace
+    user = context.user
     state = context.state
     args = FindDocumentsArguments.model_validate(arguments)
+    customer_id = workspace.customer_id
     current_sources = _active_set_source_ids(state)
     current_docs = await document_ids_for_sources(session, current_sources)
-    workspace_id = workspace.id
-    customer_id = workspace.customer_id
+    readable_ids = await resolve_readable_workspace_ids(
+        session,
+        customer_id=customer_id,
+        user_id=user.id,
+        workspace_id=workspace.workspace_id,
+    )
+    allowed_documents = await readable_document_ids(
+        session, customer_id=customer_id, workspace_ids=readable_ids,
+    )
     mode = normalize_find_mode(
         args.mode,
         has_current_set=bool(current_docs),
@@ -73,7 +98,7 @@ async def find_documents(context: ToolContext, arguments: dict) -> dict:
     )
     await session.commit()
 
-    embed = needs_embedding(
+    embed = bool(allowed_documents) and needs_embedding(
         args.query, mode=mode, has_current_set=bool(current_docs),
     )
     dense_query = None
@@ -81,18 +106,37 @@ async def find_documents(context: ToolContext, arguments: dict) -> dict:
         context.operation.external_started = True
         dense_query = await _find_query_embedding(args.query)
 
-    catalogs = require_tenant_catalogs()
-    result = run_find(
-        catalogs.open_for(customer_id),
+    if allowed_documents:
+        result = await asyncio.to_thread(
+            _find_in_catalog,
+            customer_id,
+            query=args.query,
+            mode=mode,
+            current_document_ids=current_docs,
+            dense_query=dense_query,
+            limit=args.limit,
+            allowed_document_ids=allowed_documents,
+        )
+    else:
+        result = empty_scope_result(args.query)
+    await require_workspace(session, workspace.id, context.user)
+    document_ids = [doc_id for doc_id in result.document_ids if doc_id in allowed_documents]
+    if len(document_ids) != len(result.document_ids):
+        result = FindResult(
+            document_ids=tuple(document_ids),
+            strategy=result.strategy,
+            completeness=result.completeness,
+            counters=result.counters,
+            db_ms=result.db_ms,
+            total_ms=result.total_ms,
+            notes=(*result.notes, "readable_scope"),
+        )
+    source_ids = await readable_source_ids_for_documents(
+        session,
+        document_ids,
         customer_id=customer_id,
-        query=args.query,
-        mode=mode,
-        current_document_ids=current_docs,
-        dense_query=dense_query,
-        limit=args.limit,
+        workspace_ids=readable_ids,
     )
-    await require_workspace(session, workspace_id, context.user)
-    source_ids = await source_ids_for_documents(session, result.document_ids)
     shown, truncated = presentation_slice(source_ids)
     title = suggested_title(args.query, result)
     return {
@@ -102,7 +146,7 @@ async def find_documents(context: ToolContext, arguments: dict) -> dict:
         "strategy": result.strategy,
         "completeness": result.completeness,
         "title": title,
-        "document_ids": list(result.document_ids),
+        "document_ids": list(document_ids),
         "source_ids": source_ids,
         "document_count": len(source_ids),
         "presentation_source_ids": shown,
@@ -119,6 +163,31 @@ async def find_documents(context: ToolContext, arguments: dict) -> dict:
         "db_ms": result.db_ms,
         "total_ms": result.total_ms,
     }
+
+
+def _find_in_catalog(
+    customer_id: int,
+    *,
+    query: str,
+    mode: str,
+    current_document_ids: Sequence[str],
+    dense_query: tuple[float, ...] | None,
+    limit: int,
+    allowed_document_ids: Collection[str],
+) -> FindResult:
+    """Blocking tenant-catalog open + search. Run via asyncio.to_thread only."""
+    return run_find(
+        require_tenant_catalogs().open_for(customer_id),
+        FindRequest(
+            customer_id=customer_id,
+            query=query,
+            mode=mode,
+            current=tuple(current_document_ids),
+            dense_query=dense_query,
+            limit=limit,
+            allowed=frozenset(allowed_document_ids),
+        ),
+    )
 
 
 async def _find_query_embedding(query: str) -> tuple[float, ...]:
