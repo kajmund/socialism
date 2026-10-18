@@ -189,4 +189,179 @@ describe("LiveSpeechClient lifecycle", () => {
     client["play"](new ArrayBuffer(4))
     expect(createBuffer).toHaveBeenCalledOnce()
   })
+
+  it("stops playback on an urgent partial without waiting for the server", async () => {
+    vi.stubGlobal("window", { location: { hash: "", search: "" } })
+    const { LiveSpeechClient } = await import("./useLiveSpeechConversation")
+    const client = new LiveSpeechClient("workspace", "expert", "sv", {
+      state: vi.fn(),
+      message: vi.fn(),
+      preview: vi.fn(),
+      tool: vi.fn(async () => undefined),
+      error: vi.fn(),
+      trace: vi.fn(),
+    })
+    const send = vi.fn()
+    client["send"] = send
+    const createBuffer = vi.fn(() => ({
+      getChannelData: () => ({ set: vi.fn() }),
+      duration: 0.1,
+    }))
+    const source = { buffer: null, connect: vi.fn(), start: vi.fn(), onended: null }
+    client["playback"] = {
+      createBuffer,
+      createBufferSource: () => source,
+      currentTime: 0,
+      destination: {},
+    } as unknown as AudioContext
+
+    client["handleControl"](JSON.stringify({
+      type: "transcript.final",
+      turn_id: "turn-1",
+      item_id: "item",
+      text: "Berätta om avtalet",
+    }))
+    client["handleControl"](JSON.stringify({
+      type: "audio.output.start",
+      turn_id: "turn-1",
+      response_id: "turn-1",
+      generation_id: 3,
+      sequence: 1,
+      codec: "pcm16",
+      sample_rate: 24000,
+    }))
+    client["handleControl"](JSON.stringify({
+      type: "transcript.partial",
+      item_id: "item-2",
+      revision: 1,
+      text: "Stopp",
+    }))
+
+    expect(send).toHaveBeenCalledWith({
+      type: "turn.cancel",
+      turn_id: "turn-1",
+      reason: "urgent",
+    })
+    client["play"](new ArrayBuffer(4))
+    expect(createBuffer).not.toHaveBeenCalled()
+  })
+
+  it("plays nothing after audio.output.end until the next generation starts", async () => {
+    vi.stubGlobal("window", { location: { hash: "", search: "" } })
+    const { LiveSpeechClient } = await import("./useLiveSpeechConversation")
+    const client = new LiveSpeechClient("workspace", "expert", "sv", {
+      state: vi.fn(),
+      message: vi.fn(),
+      preview: vi.fn(),
+      tool: vi.fn(async () => undefined),
+      error: vi.fn(),
+      trace: vi.fn(),
+    })
+    const createBuffer = vi.fn(() => ({
+      getChannelData: () => ({ set: vi.fn() }),
+      duration: 0.1,
+    }))
+    const source = { buffer: null, connect: vi.fn(), start: vi.fn(), onended: null }
+    client["playback"] = {
+      createBuffer,
+      createBufferSource: () => source,
+      currentTime: 0,
+      destination: {},
+    } as unknown as AudioContext
+
+    const start = (generation: number) => client["handleControl"](JSON.stringify({
+      type: "audio.output.start",
+      turn_id: "turn-1",
+      response_id: "turn-1",
+      generation_id: generation,
+      sequence: generation,
+      codec: "pcm16",
+      sample_rate: 24000,
+    }))
+    const end = (generation: number) => client["handleControl"](JSON.stringify({
+      type: "audio.output.end",
+      turn_id: "turn-1",
+      response_id: "turn-1",
+      generation_id: generation,
+      sequence: generation,
+    }))
+
+    start(1)
+    client["play"](new ArrayBuffer(4))
+    expect(createBuffer).toHaveBeenCalledTimes(1)
+    end(1)
+    client["play"](new ArrayBuffer(4))
+    expect(createBuffer).toHaveBeenCalledTimes(1)
+    start(2)
+    client["play"](new ArrayBuffer(4))
+    expect(createBuffer).toHaveBeenCalledTimes(2)
+  })
+
+  it("keeps a locally cancelled generation blocked while later ones play", async () => {
+    vi.stubGlobal("window", { location: { hash: "", search: "" } })
+    const { LiveSpeechClient } = await import("./useLiveSpeechConversation")
+    const client = new LiveSpeechClient("workspace", "expert", "sv", {
+      state: vi.fn(),
+      message: vi.fn(),
+      preview: vi.fn(),
+      tool: vi.fn(async () => undefined),
+      error: vi.fn(),
+      trace: vi.fn(),
+    })
+    const createBuffer = vi.fn(() => ({
+      getChannelData: () => ({ set: vi.fn() }),
+      duration: 0.1,
+    }))
+    const source = { buffer: null, connect: vi.fn(), start: vi.fn(), onended: null }
+    client["playback"] = {
+      createBuffer,
+      createBufferSource: () => source,
+      currentTime: 0,
+      destination: {},
+    } as unknown as AudioContext
+    const start = (generation: number) => client["handleControl"](JSON.stringify({
+      type: "audio.output.start",
+      turn_id: "turn-1",
+      response_id: "turn-1",
+      generation_id: generation,
+      sequence: generation,
+      codec: "pcm16",
+      sample_rate: 24000,
+    }))
+
+    start(1)
+    client.cancel()
+    start(1)
+    client["play"](new ArrayBuffer(4))
+    expect(createBuffer).not.toHaveBeenCalled()
+    start(2)
+    client["play"](new ArrayBuffer(4))
+    expect(createBuffer).toHaveBeenCalledOnce()
+  })
+
+  it("cancels the opening line like any other response", async () => {
+    vi.stubGlobal("window", { location: { hash: "", search: "" } })
+    const { LiveSpeechClient } = await import("./useLiveSpeechConversation")
+    const client = new LiveSpeechClient("workspace", "expert", "sv", {
+      state: vi.fn(),
+      message: vi.fn(),
+      preview: vi.fn(),
+      tool: vi.fn(async () => undefined),
+      error: vi.fn(),
+      trace: vi.fn(),
+    })
+    const send = vi.fn()
+    client["send"] = send
+    client["handleControl"](JSON.stringify({
+      type: "assistant.opening",
+      turn_id: "opening",
+      text: "Vi var inne på avtalet.",
+    }))
+    client.cancel()
+    expect(send).toHaveBeenCalledWith({
+      type: "turn.cancel",
+      turn_id: "opening",
+      reason: "user",
+    })
+  })
 })
