@@ -29,8 +29,9 @@ export function SmeClearChatButton({ name, disabled, onClear }: {
   }
 
   return <>
-    <AdminButton variant="secondary" size="sm" className="size-8 px-0" disabled={disabled || busy} aria-label={t("sme.clearChatAria", { name })} title={t("sme.clearChat")} onClick={() => { setError(null); setOpen(true) }}>
+    <AdminButton variant="secondary" size="sm" className="w-full justify-start gap-1.5" disabled={disabled || busy} aria-label={t("sme.clearChatAria", { name })} title={t("sme.clearChat")} onClick={() => { setError(null); setOpen(true) }}>
       <Trash2 size={15} aria-hidden="true" />
+      {t("sme.clearChat")}
     </AdminButton>
     <Dialog open={open} onOpenChange={(next) => { if (!busy) setOpen(next) }}>
       <DialogContent className="theme-admin max-w-md">

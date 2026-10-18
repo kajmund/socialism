@@ -35,7 +35,7 @@ export function ModelTraceButton({ entries }: { entries: ModelTraceEntry[] }) {
     <>
       <button
         type="button"
-        className="ml-auto mb-1 grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-db-ink-50 hover:text-db-ink-950"
+        className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-db-ink-50 hover:text-db-ink-950"
         aria-label={t("voiceWorkspaceChat.modelTrace")}
         onClick={() => setOpen(true)}
       >

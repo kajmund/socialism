@@ -44,10 +44,12 @@ export function clearSmePanelMessages(panelId: string): Promise<void> {
 export function sendSmePanelMessage(
   panelId: string,
   message: string,
+  workspaceId: string,
+  documentMentions: { display_name: string; source_object_id: string }[] = [],
 ): Promise<SmeMessage[]> {
   return api.post<SmeMessage[]>(
     `/sme/panels/${panelId}/messages`,
-    { message },
+    { message, workspace_id: workspaceId, document_mentions: documentMentions },
     { timeoutMs: 120_000 },
   )
 }
