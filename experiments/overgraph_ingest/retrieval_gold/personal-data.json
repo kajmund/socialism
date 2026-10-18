@@ -1,0 +1,90 @@
+{
+  "id": "personal-data",
+  "kind": "unit",
+  "proof_kind": "EXISTS",
+  "split": "decision_held_out",
+  "query": "Vilka avtal reglerar behandling av personuppgifter?",
+  "classify_question": "Innehåller texten att personuppgifter behandlas, eller att någon är personuppgiftsansvarig eller personuppgiftsbiträde?",
+  "notes": "Reserved for the expansion-decision test. The query is ordinary Swedish; several contracts answer with GDPR, personuppgiftsbiträde, or integritetspolicy. Headings, annex lists, and liability carve-outs that only name the DPA are not relevant.",
+  "relevant_units": [
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "contains": "Om Konsulten behandlar personuppgifter för Beställarens räkning ska parterna ingå ett personuppgiftsbiträdesavtal"
+    },
+    {
+      "relative_path": "Avtal_16_Praktikavtal.docx",
+      "contains": "Praktikplatsen behandlar Praktikantens personuppgifter för att administrera praktiken"
+    },
+    {
+      "relative_path": "Avtal_22_Kontorshotell_coworking.docx",
+      "contains": "Leverantören behandlar personuppgifter om DevBrains kontaktpersoner och kortinnehavare som personuppgiftsansvarig"
+    },
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "contains": "När DevBrains behandlar personuppgifter för Kundens räkning är DevBrains personuppgiftsbiträde"
+    },
+    {
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "contains": "Agenten behandlar personuppgifter om kunder och kontaktpersoner"
+    },
+    {
+      "relative_path": "Avtal_46_SaaS_avtal.docx",
+      "contains": "DevBrains är personuppgiftsbiträde för Kunden. Personuppgiftsbiträdesavtalet i Bilaga 3 gäller."
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "contains": "DevBrains är personuppgiftsbiträde vid hantering av testdata och produktionsdata"
+    },
+    {
+      "relative_path": "Avtal_49_IT_drift_hostingavtal.docx",
+      "contains": "Leverantören är personuppgiftsbiträde (eller underbiträde, i förhållande till DevBrains kunder)"
+    },
+    {
+      "relative_path": "Avtal_58_IT_policy_BYOD.docx",
+      "contains": "DevBrains behandlar Arbetstagarens personuppgifter enligt dataskyddsförordningen"
+    },
+    {
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "contains": "När Biträdet utför tjänsterna behandlar Biträdet personuppgifter för DevBrains räkning"
+    },
+    {
+      "relative_path": "Avtal_62_PUB_GDPR_databehandlingsavtal.docx",
+      "contains": "DevBrains behandlar personuppgifter endast enligt Kundens dokumenterade instruktioner"
+    },
+    {
+      "relative_path": "Avtal_66_Foto_filmavtal_bildlicens.docx",
+      "contains": "DevBrains är personuppgiftsansvarig för bilderna och behandlar dem med stöd av mitt samtycke"
+    },
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "contains": "Anläggningen behandlar namn och kostuppgifter om deltagarna som personuppgiftsansvarig"
+    },
+    {
+      "relative_path": "Avtal_69_Kundavtal_B2C_villkor.docx",
+      "contains": "Vi behandlar dina personuppgifter enligt vår integritetspolicy"
+    },
+    {
+      "relative_path": "Avtal_76_Uppdragsbrev_revision.docx",
+      "contains": "Revisorn behandlar personuppgifter som finns i Bolagets räkenskaper som personuppgiftsansvarig"
+    }
+  ],
+  "hard_negatives": [
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "contains": "9. Personuppgifter",
+      "reason": "Heading only"
+    },
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "contains": "Begränsningarna gäller inte vid uppsåt, grov vårdslöshet, brott mot sekretess eller brott mot personuppgiftsbiträdesavtalet",
+      "reason": "Liability carve-out that names the DPA without stating the processing rule"
+    }
+  ],
+  "watch_negatives": [
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "contains": "3 Personuppgiftsbiträdesavtal, 4 Prislista",
+      "reason": "Annex list"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "phase2-overgraph-hybrid-search",
+  "label": "Experimental OverGraph search baseline: hybrid k=50 on 2548 TextUnits. Not the official classify baseline. Do not optimize the engine from this number.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "do_not_optimize_engine": true,
+  "previous_1s2_was_python_exhaustive": true,
+  "query": "Vilka avtal innehåller en sekretessplikt?",
+  "units": 2548,
+  "dense_model": "text-embedding-3-large",
+  "dense_dimension": 3072,
+  "k": 50,
+  "repeats": 5,
+  "headline": {
+    "encode_warm_seconds": 0.21719194995239377,
+    "engine_dense_seconds": 0.011700250115245581,
+    "engine_sparse_seconds": 0.0000674499198794365,
+    "engine_hybrid_seconds": 0.011648683436214924,
+    "hydrate_overhead_seconds": 0.0006548913195729266,
+    "normal_retrieval_seconds": 0.2295,
+    "python_dense_then_sparse_seconds": 1.2117683503776788
+  }
+}

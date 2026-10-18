@@ -1,0 +1,146 @@
+bucket,run,case_id,status,expected_status,outcome,split,excerpt
+eval,1,selection_true:Avtal_17_Hyresavtal_lokal.docx:auto-renewal:hybrid,ANSWERED,ANSWERED,true_answered,,4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.
+eval,2,selection_true:Avtal_17_Hyresavtal_lokal.docx:auto-renewal:hybrid,ANSWERED,ANSWERED,true_answered,,4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.
+eval,3,selection_true:Avtal_17_Hyresavtal_lokal.docx:auto-renewal:hybrid,ANSWERED,ANSWERED,true_answered,,4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.
+eval,4,selection_true:Avtal_17_Hyresavtal_lokal.docx:auto-renewal:hybrid,ANSWERED,ANSWERED,true_answered,,4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.
+eval,5,selection_true:Avtal_17_Hyresavtal_lokal.docx:auto-renewal:hybrid,ANSWERED,ANSWERED,true_answered,,4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.
+eval,1,selection_true:Avtal_18_Hyresavtal_bostad.docx:notice-period:hybrid,ANSWERED,ANSWERED,true_answered,,"Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen."
+eval,2,selection_true:Avtal_18_Hyresavtal_bostad.docx:notice-period:hybrid,ANSWERED,ANSWERED,true_answered,,"Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen."
+eval,3,selection_true:Avtal_18_Hyresavtal_bostad.docx:notice-period:hybrid,ANSWERED,ANSWERED,true_answered,,"Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen."
+eval,4,selection_true:Avtal_18_Hyresavtal_bostad.docx:notice-period:hybrid,ANSWERED,ANSWERED,true_answered,,"Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen."
+eval,5,selection_true:Avtal_18_Hyresavtal_bostad.docx:notice-period:hybrid,ANSWERED,ANSWERED,true_answered,,"Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen."
+eval,1,selection_true:Avtal_05_Konsultavtal.docx:liability-cap:hybrid,ANSWERED,ANSWERED,true_answered,,"Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+eval,2,selection_true:Avtal_05_Konsultavtal.docx:liability-cap:hybrid,ANSWERED,ANSWERED,true_answered,,"Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+eval,3,selection_true:Avtal_05_Konsultavtal.docx:liability-cap:hybrid,ANSWERED,ANSWERED,true_answered,,"Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+eval,4,selection_true:Avtal_05_Konsultavtal.docx:liability-cap:hybrid,ANSWERED,ANSWERED,true_answered,,"Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+eval,5,selection_true:Avtal_05_Konsultavtal.docx:liability-cap:hybrid,ANSWERED,ANSWERED,true_answered,,"Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+eval,1,selection_true:Avtal_06_Sekretessavtal_ensidigt_NDA.docx:confidentiality:hybrid,ANSWERED,ANSWERED,true_answered,,4.1 Mottagaren ska hålla Konfidentiell Information hemlig och får inte röja den för tredje man utan Utlämnande Parts skriftliga samtycke.
+eval,2,selection_true:Avtal_06_Sekretessavtal_ensidigt_NDA.docx:confidentiality:hybrid,ANSWERED,ANSWERED,true_answered,,4.1 Mottagaren ska hålla Konfidentiell Information hemlig och får inte röja den för tredje man utan Utlämnande Parts skriftliga samtycke.
+eval,3,selection_true:Avtal_06_Sekretessavtal_ensidigt_NDA.docx:confidentiality:hybrid,ANSWERED,ANSWERED,true_answered,,4.1 Mottagaren ska hålla Konfidentiell Information hemlig och får inte röja den för tredje man utan Utlämnande Parts skriftliga samtycke.
+eval,4,selection_true:Avtal_06_Sekretessavtal_ensidigt_NDA.docx:confidentiality:hybrid,ANSWERED,ANSWERED,true_answered,,4.1 Mottagaren ska hålla Konfidentiell Information hemlig och får inte röja den för tredje man utan Utlämnande Parts skriftliga samtycke.
+eval,5,selection_true:Avtal_06_Sekretessavtal_ensidigt_NDA.docx:confidentiality:hybrid,ANSWERED,ANSWERED,true_answered,,4.1 Mottagaren ska hålla Konfidentiell Information hemlig och får inte röja den för tredje man utan Utlämnande Parts skriftliga samtycke.
+eval,1,selection_true:Avtal_05_Konsultavtal.docx:liability-secrecy-carveout:hybrid,ANSWERED,ANSWERED,true_answered,,"Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+eval,2,selection_true:Avtal_05_Konsultavtal.docx:liability-secrecy-carveout:hybrid,ANSWERED,ANSWERED,true_answered,,"Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+eval,3,selection_true:Avtal_05_Konsultavtal.docx:liability-secrecy-carveout:hybrid,ANSWERED,ANSWERED,true_answered,,"Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+eval,4,selection_true:Avtal_05_Konsultavtal.docx:liability-secrecy-carveout:hybrid,ANSWERED,ANSWERED,true_answered,,"Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+eval,5,selection_true:Avtal_05_Konsultavtal.docx:liability-secrecy-carveout:hybrid,ANSWERED,ANSWERED,true_answered,,"Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekretessåtagandet."
+eval,1,selection_neg:Avtal_05_Konsultavtal.docx:auto-renewal:hybrid,UNCERTAIN,NOT_FOUND,status_mismatch,,
+eval,2,selection_neg:Avtal_05_Konsultavtal.docx:auto-renewal:hybrid,UNCERTAIN,NOT_FOUND,status_mismatch,,
+eval,3,selection_neg:Avtal_05_Konsultavtal.docx:auto-renewal:hybrid,UNCERTAIN,NOT_FOUND,status_mismatch,,
+eval,4,selection_neg:Avtal_05_Konsultavtal.docx:auto-renewal:hybrid,UNCERTAIN,NOT_FOUND,status_mismatch,,
+eval,5,selection_neg:Avtal_05_Konsultavtal.docx:auto-renewal:hybrid,UNCERTAIN,NOT_FOUND,status_mismatch,,
+eval,1,selection_neg:Avtal_06_Sekretessavtal_ensidigt_NDA.docx:notice-period:hybrid,UNCERTAIN,NOT_FOUND,status_mismatch,,
+eval,2,selection_neg:Avtal_06_Sekretessavtal_ensidigt_NDA.docx:notice-period:hybrid,UNCERTAIN,NOT_FOUND,status_mismatch,,
+eval,3,selection_neg:Avtal_06_Sekretessavtal_ensidigt_NDA.docx:notice-period:hybrid,UNCERTAIN,NOT_FOUND,status_mismatch,,
+eval,4,selection_neg:Avtal_06_Sekretessavtal_ensidigt_NDA.docx:notice-period:hybrid,UNCERTAIN,NOT_FOUND,status_mismatch,,
+eval,5,selection_neg:Avtal_06_Sekretessavtal_ensidigt_NDA.docx:notice-period:hybrid,UNCERTAIN,NOT_FOUND,status_mismatch,,
+eval,1,selection_neg:Avtal_18_Hyresavtal_bostad.docx:liability-cap:hybrid,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,2,selection_neg:Avtal_18_Hyresavtal_bostad.docx:liability-cap:hybrid,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,3,selection_neg:Avtal_18_Hyresavtal_bostad.docx:liability-cap:hybrid,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,4,selection_neg:Avtal_18_Hyresavtal_bostad.docx:liability-cap:hybrid,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,5,selection_neg:Avtal_18_Hyresavtal_bostad.docx:liability-cap:hybrid,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,1,selection_neg:Avtal_17_Hyresavtal_lokal.docx:confidentiality:hybrid,NOT_FOUND,NOT_FOUND,true_not_found,,
+eval,2,selection_neg:Avtal_17_Hyresavtal_lokal.docx:confidentiality:hybrid,NOT_FOUND,NOT_FOUND,true_not_found,,
+eval,3,selection_neg:Avtal_17_Hyresavtal_lokal.docx:confidentiality:hybrid,NOT_FOUND,NOT_FOUND,true_not_found,,
+eval,4,selection_neg:Avtal_17_Hyresavtal_lokal.docx:confidentiality:hybrid,NOT_FOUND,NOT_FOUND,true_not_found,,
+eval,5,selection_neg:Avtal_17_Hyresavtal_lokal.docx:confidentiality:hybrid,NOT_FOUND,NOT_FOUND,true_not_found,,
+eval,1,selection_neg:Avtal_17_Hyresavtal_lokal.docx:liability-secrecy-carveout:hybrid,NOT_FOUND,NOT_FOUND,true_not_found,,
+eval,2,selection_neg:Avtal_17_Hyresavtal_lokal.docx:liability-secrecy-carveout:hybrid,NOT_FOUND,NOT_FOUND,true_not_found,,
+eval,3,selection_neg:Avtal_17_Hyresavtal_lokal.docx:liability-secrecy-carveout:hybrid,NOT_FOUND,NOT_FOUND,true_not_found,,
+eval,4,selection_neg:Avtal_17_Hyresavtal_lokal.docx:liability-secrecy-carveout:hybrid,NOT_FOUND,NOT_FOUND,true_not_found,,
+eval,5,selection_neg:Avtal_17_Hyresavtal_lokal.docx:liability-secrecy-carveout:hybrid,NOT_FOUND,NOT_FOUND,true_not_found,,
+eval,1,error:Avtal_13:confidentiality:dense,ANSWERED,ANSWERED,true_answered,,6.1 Arbetstagaren har fortsatt tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella information.
+eval,2,error:Avtal_13:confidentiality:dense,ANSWERED,ANSWERED,true_answered,,6.1 Arbetstagaren har fortsatt tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella information.
+eval,3,error:Avtal_13:confidentiality:dense,ANSWERED,ANSWERED,true_answered,,6.1 Arbetstagaren har fortsatt tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella information.
+eval,4,error:Avtal_13:confidentiality:dense,ANSWERED,ANSWERED,true_answered,,6.1 Arbetstagaren har fortsatt tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella information.
+eval,5,error:Avtal_13:confidentiality:dense,ANSWERED,ANSWERED,true_answered,,6.1 Arbetstagaren har fortsatt tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella information.
+eval,1,error:Avtal_09:liability-cap:dense,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,2,error:Avtal_09:liability-cap:dense,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,3,error:Avtal_09:liability-cap:dense,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,4,error:Avtal_09:liability-cap:dense,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,5,error:Avtal_09:liability-cap:dense,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,1,error:Avtal_17:liability-cap:dense,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,2,error:Avtal_17:liability-cap:dense,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,3,error:Avtal_17:liability-cap:dense,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,4,error:Avtal_17:liability-cap:dense,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,5,error:Avtal_17:liability-cap:dense,UNCERTAIN,UNCERTAIN,true_uncertain,,
+eval,1,hard_pos:Avtal_19:auto-renewal,ANSWERED,ANSWERED,true_answered,,"Därefter förlängs den med [tolv] månader i taget, om inte avtalet sägs upp senast [nio] månader före hyrestidens utgång."
+eval,2,hard_pos:Avtal_19:auto-renewal,ANSWERED,ANSWERED,true_answered,,"Därefter förlängs den med [tolv] månader i taget, om inte avtalet sägs upp senast [nio] månader före hyrestidens utgång."
+eval,3,hard_pos:Avtal_19:auto-renewal,ANSWERED,ANSWERED,true_answered,,"Därefter förlängs den med [tolv] månader i taget, om inte avtalet sägs upp senast [nio] månader före hyrestidens utgång."
+eval,4,hard_pos:Avtal_19:auto-renewal,ANSWERED,ANSWERED,true_answered,,"Därefter förlängs den med [tolv] månader i taget, om inte avtalet sägs upp senast [nio] månader före hyrestidens utgång."
+eval,5,hard_pos:Avtal_19:auto-renewal,ANSWERED,ANSWERED,true_answered,,"Därefter förlängs den med [tolv] månader i taget, om inte avtalet sägs upp senast [nio] månader före hyrestidens utgång."
+eval,1,hard_pos:Avtal_21:notice-period,ANSWERED,ANSWERED,true_answered,,6.2 Avtalet kan sägas upp av båda parter med [tre (3)] månaders uppsägningstid.
+eval,2,hard_pos:Avtal_21:notice-period,ANSWERED,ANSWERED,true_answered,,6.2 Avtalet kan sägas upp av båda parter med [tre (3)] månaders uppsägningstid.
+eval,3,hard_pos:Avtal_21:notice-period,ANSWERED,ANSWERED,true_answered,,6.2 Avtalet kan sägas upp av båda parter med [tre (3)] månaders uppsägningstid.
+eval,4,hard_pos:Avtal_21:notice-period,ANSWERED,ANSWERED,true_answered,,6.2 Avtalet kan sägas upp av båda parter med [tre (3)] månaders uppsägningstid.
+eval,5,hard_pos:Avtal_21:notice-period,ANSWERED,ANSWERED,true_answered,,6.2 Avtalet kan sägas upp av båda parter med [tre (3)] månaders uppsägningstid.
+eval,1,hard_pos:Avtal_31:liability-cap,ANSWERED,ANSWERED,true_answered,,"10.2 Leverantörens sammanlagda ansvar enligt detta avtal är begränsat till köpeskillingen, utom vid uppsåt eller grov vårdslöshet."
+eval,2,hard_pos:Avtal_31:liability-cap,ANSWERED,ANSWERED,true_answered,,"10.2 Leverantörens sammanlagda ansvar enligt detta avtal är begränsat till köpeskillingen, utom vid uppsåt eller grov vårdslöshet."
+eval,3,hard_pos:Avtal_31:liability-cap,ANSWERED,ANSWERED,true_answered,,"10.2 Leverantörens sammanlagda ansvar enligt detta avtal är begränsat till köpeskillingen, utom vid uppsåt eller grov vårdslöshet."
+eval,4,hard_pos:Avtal_31:liability-cap,ANSWERED,ANSWERED,true_answered,,"10.2 Leverantörens sammanlagda ansvar enligt detta avtal är begränsat till köpeskillingen, utom vid uppsåt eller grov vårdslöshet."
+eval,5,hard_pos:Avtal_31:liability-cap,ANSWERED,ANSWERED,true_answered,,"10.2 Leverantörens sammanlagda ansvar enligt detta avtal är begränsat till köpeskillingen, utom vid uppsåt eller grov vårdslöshet."
+eval,1,hard_pos:Avtal_34:confidentiality,ANSWERED,ANSWERED,true_answered,,"11. Sekretess
+Parterna ska behandla konfidentiell information om den andra parten, Slutkunder och priser konfidentiellt under avtalstiden och i [tre (3)] år därefter."
+eval,2,hard_pos:Avtal_34:confidentiality,ANSWERED,ANSWERED,true_answered,,"11. Sekretess
+Parterna ska behandla konfidentiell information om den andra parten, Slutkunder och priser konfidentiellt under avtalstiden och i [tre (3)] år därefter."
+eval,3,hard_pos:Avtal_34:confidentiality,ANSWERED,ANSWERED,true_answered,,"11. Sekretess
+Parterna ska behandla konfidentiell information om den andra parten, Slutkunder och priser konfidentiellt under avtalstiden och i [tre (3)] år därefter."
+eval,4,hard_pos:Avtal_34:confidentiality,ANSWERED,ANSWERED,true_answered,,"11. Sekretess
+Parterna ska behandla konfidentiell information om den andra parten, Slutkunder och priser konfidentiellt under avtalstiden och i [tre (3)] år därefter."
+eval,5,hard_pos:Avtal_34:confidentiality,ANSWERED,ANSWERED,true_answered,,"11. Sekretess
+Parterna ska behandla konfidentiell information om den andra parten, Slutkunder och priser konfidentiellt under avtalstiden och i [tre (3)] år därefter."
+eval,1,hard_pos:Avtal_46:carveout,ANSWERED,ANSWERED,true_answered,,"12.4 Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess."
+eval,2,hard_pos:Avtal_46:carveout,ANSWERED,ANSWERED,true_answered,,"12.4 Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess."
+eval,3,hard_pos:Avtal_46:carveout,ANSWERED,ANSWERED,true_answered,,"12.4 Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess."
+eval,4,hard_pos:Avtal_46:carveout,ANSWERED,ANSWERED,true_answered,,"12.4 Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess."
+eval,5,hard_pos:Avtal_46:carveout,ANSWERED,ANSWERED,true_answered,,"12.4 Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess."
+eval,1,hard_neg:Avtal_38:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:vite,
+eval,2,hard_neg:Avtal_38:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:vite,
+eval,3,hard_neg:Avtal_38:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:vite,
+eval,4,hard_neg:Avtal_38:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:vite,
+eval,5,hard_neg:Avtal_38:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:vite,
+eval,1,hard_neg:Avtal_70:confidentiality,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:avtalets_innehall,
+eval,2,hard_neg:Avtal_70:confidentiality,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:avtalets_innehall,
+eval,3,hard_neg:Avtal_70:confidentiality,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:avtalets_innehall,
+eval,4,hard_neg:Avtal_70:confidentiality,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:avtalets_innehall,
+eval,5,hard_neg:Avtal_70:confidentiality,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:avtalets_innehall,
+eval,1,hard_neg:Avtal_14:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:tills_vidare,
+eval,2,hard_neg:Avtal_14:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:tills_vidare,
+eval,3,hard_neg:Avtal_14:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:tills_vidare,
+eval,4,hard_neg:Avtal_14:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:tills_vidare,
+eval,5,hard_neg:Avtal_14:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:tills_vidare,
+eval,1,hard_neg:Avtal_19:notice-period,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:havning_huvudavtal,
+eval,2,hard_neg:Avtal_19:notice-period,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:havning_huvudavtal,
+eval,3,hard_neg:Avtal_19:notice-period,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:havning_huvudavtal,
+eval,4,hard_neg:Avtal_19:notice-period,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:havning_huvudavtal,
+eval,5,hard_neg:Avtal_19:notice-period,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:havning_huvudavtal,
+eval,1,hard_neg:Avtal_45:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:tills_vidare,
+eval,2,hard_neg:Avtal_45:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:tills_vidare,
+eval,3,hard_neg:Avtal_45:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:tills_vidare,
+eval,4,hard_neg:Avtal_45:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:tills_vidare,
+eval,5,hard_neg:Avtal_45:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,in_distribution:tills_vidare,
+holdout,1,holdout:Avtal_35:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:optional_renewal_right,
+holdout,2,holdout:Avtal_35:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:optional_renewal_right,
+holdout,3,holdout:Avtal_35:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:optional_renewal_right,
+holdout,4,holdout:Avtal_35:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:optional_renewal_right,
+holdout,5,holdout:Avtal_35:auto-renewal,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:optional_renewal_right,
+holdout,1,holdout:Avtal_92:liability-cap,ANSWERED,UNCERTAIN,false_answered,unseen:settlement_no_further_claims,"Ingen part har några ytterligare krav mot den andra, med undantag för pension och försäkringar enligt kollektivavtal eller lag, och för rättigheter enligt detta avtal."
+holdout,2,holdout:Avtal_92:liability-cap,ANSWERED,UNCERTAIN,false_answered,unseen:settlement_no_further_claims,"Ingen part har några ytterligare krav mot den andra, med undantag för pension och försäkringar enligt kollektivavtal eller lag, och för rättigheter enligt detta avtal."
+holdout,3,holdout:Avtal_92:liability-cap,ANSWERED,UNCERTAIN,false_answered,unseen:settlement_no_further_claims,"Ingen part har några ytterligare krav mot den andra, med undantag för pension och försäkringar enligt kollektivavtal eller lag, och för rättigheter enligt detta avtal."
+holdout,4,holdout:Avtal_92:liability-cap,ANSWERED,UNCERTAIN,false_answered,unseen:settlement_no_further_claims,"Ingen part har några ytterligare krav mot den andra, med undantag för pension och försäkringar enligt kollektivavtal eller lag, och för rättigheter enligt detta avtal."
+holdout,5,holdout:Avtal_92:liability-cap,ANSWERED,UNCERTAIN,false_answered,unseen:settlement_no_further_claims,"Ingen part har några ytterligare krav mot den andra, med undantag för pension och försäkringar enligt kollektivavtal eller lag, och för rättigheter enligt detta avtal."
+holdout,1,holdout:Avtal_20:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:liability_insurance,
+holdout,2,holdout:Avtal_20:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:liability_insurance,
+holdout,3,holdout:Avtal_20:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:liability_insurance,
+holdout,4,holdout:Avtal_20:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:liability_insurance,
+holdout,5,holdout:Avtal_20:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:liability_insurance,
+holdout,1,holdout:Avtal_76:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:abl_statutory_liability,
+holdout,2,holdout:Avtal_76:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:abl_statutory_liability,
+holdout,3,holdout:Avtal_76:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:abl_statutory_liability,
+holdout,4,holdout:Avtal_76:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:abl_statutory_liability,
+holdout,5,holdout:Avtal_76:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:abl_statutory_liability,
+holdout,1,holdout:Avtal_52:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:hold_harmless_product_insurance,
+holdout,2,holdout:Avtal_52:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:hold_harmless_product_insurance,
+holdout,3,holdout:Avtal_52:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:hold_harmless_product_insurance,
+holdout,4,holdout:Avtal_52:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:hold_harmless_product_insurance,
+holdout,5,holdout:Avtal_52:liability-cap,UNCERTAIN,UNCERTAIN,true_uncertain,unseen:hold_harmless_product_insurance,

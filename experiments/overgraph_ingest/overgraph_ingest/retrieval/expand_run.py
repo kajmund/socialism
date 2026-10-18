@@ -8,15 +8,22 @@ from pathlib import Path
 
 from overgraph_ingest.config import RetrievalConfig
 from overgraph_ingest.coverage.evaluate import coverage_curve
-from overgraph_ingest.coverage.run import _golds, _ranked_hits
+from overgraph_ingest.coverage.run import _golds
 from overgraph_ingest.graph.writer import GraphWriter, open_database, resolve_dimension
 from overgraph_ingest.retrieval.encode import LexicalSparseEncoder
 from overgraph_ingest.retrieval.evaluate import evaluate_strategy, judge_units, metrics_payload
-from overgraph_ingest.retrieval.expand import APPEND, BASELINE, FUSE, expansion_for, load_expansions
+from overgraph_ingest.retrieval.expand import (
+    APPEND,
+    BASELINE,
+    EXPANSION_POLICY,
+    FUSE,
+    expansion_for,
+    load_expansions,
+)
 from overgraph_ingest.retrieval.gold import RetrievalGold
 from overgraph_ingest.retrieval.index import load_published_units
 from overgraph_ingest.retrieval.run import _dense_encoder
-from overgraph_ingest.retrieval.search import SearchHit, encode_query, rrf_fuse
+from overgraph_ingest.retrieval.search import SearchHit, encode_query, exhaustive_rank, rrf_fuse
 
 MODES = ("dense", "sparse", "hybrid")
 DEFAULT_KS = (5, 10, 20, 50, 100)
@@ -34,7 +41,7 @@ def run_query_expansion(
     expansions_path: Path | None = None,
     ks: tuple[int, ...] = DEFAULT_KS,
 ) -> ExpansionReport:
-    golds = _golds(config.gold_path, gold_dir)
+    golds = _golds(config.gold_path, gold_dir, include_held_out=True)
     expansions = load_expansions(expansions_path)
     dimension = resolve_dimension(config.db_path, config.dense_dimension)
     dense = _dense_encoder(config, dimension)
@@ -55,21 +62,17 @@ def run_query_expansion(
                 BASELINE: gold.query,
                 APPEND: expansion.append(gold.query),
             }
-            encoded = {
-                name: encode_query(text, dense=dense, sparse=sparse)
+            timed = {
+                name: _timed_rankings(text, units=units, dense=dense, sparse=sparse)
                 for name, text in queries.items()
             }
-            rankings = {
-                name: {
-                    mode: _ranked_hits(units, mode, dense_q, sparse_q)
-                    for mode in MODES
-                }
-                for name, (dense_q, sparse_q) in encoded.items()
-            }
+            rankings = {name: timed[name]["rankings"] for name in queries}
+            fuse_started = time.perf_counter()
             rankings[FUSE] = {
                 mode: rrf_fuse([rankings[BASELINE][mode], rankings[APPEND][mode]])
                 for mode in MODES
             }
+            fuse_seconds = time.perf_counter() - fuse_started
             variants = {}
             for name, ranked in rankings.items():
                 variants[name] = {
@@ -96,15 +99,28 @@ def run_query_expansion(
                     "relevant_units": len(relevant),
                     "relevant_documents": gold.relevant_documents,
                     "absent_from_graph": [item.__dict__ for item in absent],
+                    "split": gold.split,
+                    "latency": {
+                        BASELINE: timed[BASELINE]["latency"],
+                        APPEND: timed[APPEND]["latency"],
+                        FUSE: {
+                            "fusion_seconds": fuse_seconds,
+                            "encode_seconds": None,
+                            "dense_search_seconds": None,
+                            "sparse_search_seconds": None,
+                        },
+                    },
                     "delta_at_50": _delta(variants),
                     "variants": variants,
                 }
             )
         payload = {
             "operation": "retrieval",
-            "experiment": "query_expansion_v1",
+            "experiment": "query_expansion_v2_generalization",
             "classify_unchanged": True,
             "expansion": "deterministic_lexicon",
+            "default_retriever_unchanged": True,
+            "expansion_policy": dict(EXPANSION_POLICY),
             "dense_model": dense.model,
             "ks": list(ks),
             "golds": gold_rows,
@@ -113,6 +129,39 @@ def run_query_expansion(
     finally:
         db.close()
     return ExpansionReport(payload=payload)
+
+
+def _timed_rankings(query: str, *, units, dense, sparse) -> dict[str, object]:
+    encode_started = time.perf_counter()
+    dense_query, sparse_query = encode_query(query, dense=dense, sparse=sparse)
+    encode_seconds = time.perf_counter() - encode_started
+    dense_started = time.perf_counter()
+    dense_hits = exhaustive_rank(
+        units, mode="dense", dense_query=dense_query, sparse_query=sparse_query
+    )
+    dense_seconds = time.perf_counter() - dense_started
+    sparse_started = time.perf_counter()
+    sparse_hits = exhaustive_rank(
+        units, mode="sparse", dense_query=dense_query, sparse_query=sparse_query
+    )
+    sparse_seconds = time.perf_counter() - sparse_started
+    hybrid_started = time.perf_counter()
+    hybrid_hits = rrf_fuse([dense_hits, sparse_hits])
+    hybrid_seconds = time.perf_counter() - hybrid_started
+    return {
+        "rankings": {
+            "dense": dense_hits,
+            "sparse": sparse_hits,
+            "hybrid": hybrid_hits,
+        },
+        "latency": {
+            "encode_seconds": encode_seconds,
+            "dense_search_seconds": dense_seconds,
+            "sparse_search_seconds": sparse_seconds,
+            "fusion_seconds": hybrid_seconds,
+            "ranking_seconds": dense_seconds + sparse_seconds + hybrid_seconds,
+        },
+    }
 
 
 def _mode_metrics(

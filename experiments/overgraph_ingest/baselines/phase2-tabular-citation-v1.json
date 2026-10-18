@@ -1,0 +1,308 @@
+{
+  "id": "phase2-tabular-citation-v1",
+  "label": "Frozen: Tabular citation accuracy is retrieval, not source selection. Jev B is the quality reference. Model comparisons are paused. Does not replace C@8, Coverage v3, tabular v1, or tabular Qwen. Does not start navigation.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_replace_tabular_v1": true,
+  "does_not_replace_tabular_qwen": true,
+  "navigation_not_changed": true,
+  "model_comparisons_paused": true,
+  "quality_reference": "B",
+  "no_new_model": true,
+  "no_new_retrieval": true,
+  "same_mapping": "gold-map-v2",
+  "selection_is_diagnostic": true,
+  "verdict": "retrieval_not_selection",
+  "next": "document_local_retrieval",
+  "not_next": [
+    "source_selection",
+    "more_models",
+    "navigation"
+  ],
+  "headline": {
+    "selection_is_diagnostic": true,
+    "selection_is_not_general_quality": true,
+    "quality_reference": "B",
+    "model_comparisons_paused": true,
+    "verdict": "retrieval_not_selection",
+    "next": "document_local_retrieval",
+    "gold_positive_cells": 27,
+    "gold_hit@3": 0.7037037037037037,
+    "gold_hit@5": 0.7407407407407407,
+    "gold_hit@10": 0.9259259259259259,
+    "gold_recall@3": 0.6666666666666666,
+    "gold_recall@5": 0.7222222222222222,
+    "gold_recall@10": 0.9074074074074074,
+    "source_selection_when_present": {
+      "B": 1.0,
+      "C": 1.0,
+      "Q": 0.95
+    },
+    "citation_accuracy": {
+      "B": 0.5405405405405406,
+      "C": 0.47619047619047616,
+      "Q": 0.5428571428571428
+    },
+    "citation_accuracy_when_present": {
+      "B": 1.0,
+      "C": 1.0,
+      "Q": 0.95
+    },
+    "missing_gold_at_k5": 7,
+    "recoverable_at_k10": 5,
+    "still_missing_at_k10": 2,
+    "missing_are_confidentiality": true,
+    "jev_cited_gold_whenever_present": true,
+    "citation_failures_are_mostly_gold_negative": true,
+    "missing_documents": [
+      "Avtal_01_Tillsvidareanstallningsavtal",
+      "Avtal_02_Provanstallningsavtal",
+      "Avtal_03_Visstidsanstallning",
+      "Avtal_05_Konsultavtal",
+      "Avtal_13_Avgangsvederlagsavtal",
+      "Avtal_22_Kontorshotell_coworking",
+      "Avtal_36_Underleverantorsavtal"
+    ]
+  },
+  "retrieval": {
+    "cells": 27,
+    "gold_hit@3": 0.7037037037037037,
+    "gold_hit@5": 0.7407407407407407,
+    "gold_hit@10": 0.9259259259259259,
+    "gold_hit@3_count": 19,
+    "gold_hit@5_count": 20,
+    "gold_hit@10_count": 25,
+    "gold_recall@3": 0.6666666666666666,
+    "gold_recall@5": 0.7222222222222222,
+    "gold_recall@10": 0.9074074074074074,
+    "present_at_k5": 20,
+    "missing_at_k5": 7,
+    "recoverable_at_k10": 5,
+    "still_missing_at_k10": 2,
+    "missing_are_confidentiality": true,
+    "by_question": {
+      "auto-renewal": {
+        "gold_positive": 5,
+        "gold_hit@3": 5,
+        "gold_hit@5": 5,
+        "gold_hit@10": 5,
+        "seed_has_gold": 5
+      },
+      "notice-period": {
+        "gold_positive": 6,
+        "gold_hit@3": 6,
+        "gold_hit@5": 6,
+        "gold_hit@10": 6,
+        "seed_has_gold": 6
+      },
+      "liability-cap": {
+        "gold_positive": 5,
+        "gold_hit@3": 5,
+        "gold_hit@5": 5,
+        "gold_hit@10": 5,
+        "seed_has_gold": 5
+      },
+      "confidentiality": {
+        "gold_positive": 8,
+        "gold_hit@3": 0,
+        "gold_hit@5": 1,
+        "gold_hit@10": 6,
+        "seed_has_gold": 1
+      },
+      "liability-secrecy-carveout": {
+        "gold_positive": 3,
+        "gold_hit@3": 3,
+        "gold_hit@5": 3,
+        "gold_hit@10": 3,
+        "seed_has_gold": 3
+      }
+    }
+  },
+  "variants": {
+    "A": {
+      "cells": 100,
+      "answered": 34,
+      "citation_accuracy": 0.5294117647058824,
+      "citation_accuracy_gold_positive_answered": 0.8571428571428571,
+      "citation_accuracy_when_present": 1.0,
+      "source_selection_when_present": 0.9,
+      "cited_gold_when_present": 18,
+      "wrong_pick_when_present": 0,
+      "no_answer_when_present": 2,
+      "present_at_k5": 20,
+      "citation_failures": {
+        "answered_without_gold_citation": 16,
+        "gold_negative_false_answer": 13,
+        "missing_gold": 3,
+        "wrong_pick": 0
+      },
+      "gold_positive_failures": 9,
+      "gold_positive_failures_missing_gold": 7,
+      "missing_gold_errors": 7
+    },
+    "B": {
+      "cells": 100,
+      "answered": 37,
+      "citation_accuracy": 0.5405405405405406,
+      "citation_accuracy_gold_positive_answered": 0.8695652173913043,
+      "citation_accuracy_when_present": 1.0,
+      "source_selection_when_present": 1.0,
+      "cited_gold_when_present": 20,
+      "wrong_pick_when_present": 0,
+      "no_answer_when_present": 0,
+      "present_at_k5": 20,
+      "citation_failures": {
+        "answered_without_gold_citation": 17,
+        "gold_negative_false_answer": 14,
+        "missing_gold": 3,
+        "wrong_pick": 0
+      },
+      "gold_positive_failures": 7,
+      "gold_positive_failures_missing_gold": 7,
+      "missing_gold_errors": 7
+    },
+    "C": {
+      "cells": 100,
+      "answered": 42,
+      "citation_accuracy": 0.47619047619047616,
+      "citation_accuracy_gold_positive_answered": 0.8695652173913043,
+      "citation_accuracy_when_present": 1.0,
+      "source_selection_when_present": 1.0,
+      "cited_gold_when_present": 20,
+      "wrong_pick_when_present": 0,
+      "no_answer_when_present": 0,
+      "present_at_k5": 20,
+      "citation_failures": {
+        "answered_without_gold_citation": 22,
+        "gold_negative_false_answer": 19,
+        "missing_gold": 3,
+        "wrong_pick": 0
+      },
+      "gold_positive_failures": 7,
+      "gold_positive_failures_missing_gold": 7,
+      "missing_gold_errors": 7
+    },
+    "Q": {
+      "cells": 100,
+      "answered": 35,
+      "citation_accuracy": 0.5428571428571428,
+      "citation_accuracy_gold_positive_answered": 0.8260869565217391,
+      "citation_accuracy_when_present": 0.95,
+      "source_selection_when_present": 0.95,
+      "cited_gold_when_present": 19,
+      "wrong_pick_when_present": 1,
+      "no_answer_when_present": 0,
+      "present_at_k5": 20,
+      "citation_failures": {
+        "answered_without_gold_citation": 16,
+        "gold_negative_false_answer": 12,
+        "missing_gold": 3,
+        "wrong_pick": 1
+      },
+      "gold_positive_failures": 8,
+      "gold_positive_failures_missing_gold": 7,
+      "missing_gold_errors": 7
+    }
+  },
+  "missing_cells": [
+    {
+      "document_id": "Avtal_01_Tillsvidareanstallningsavtal",
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "question_id": "confidentiality",
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "recoverable_at_k10": false,
+      "statuses": {
+        "B": "NOT_FOUND",
+        "C": "NOT_FOUND",
+        "Q": "NOT_FOUND"
+      }
+    },
+    {
+      "document_id": "Avtal_02_Provanstallningsavtal",
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "question_id": "confidentiality",
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "recoverable_at_k10": true,
+      "statuses": {
+        "B": "NOT_FOUND",
+        "C": "NOT_FOUND",
+        "Q": "NOT_FOUND"
+      }
+    },
+    {
+      "document_id": "Avtal_03_Visstidsanstallning",
+      "relative_path": "Avtal_03_Visstidsanstallning.docx",
+      "question_id": "confidentiality",
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "recoverable_at_k10": true,
+      "statuses": {
+        "B": "NOT_FOUND",
+        "C": "NOT_FOUND",
+        "Q": "NOT_FOUND"
+      }
+    },
+    {
+      "document_id": "Avtal_05_Konsultavtal",
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "question_id": "confidentiality",
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "recoverable_at_k10": true,
+      "statuses": {
+        "B": "ANSWERED",
+        "C": "ANSWERED",
+        "Q": "ANSWERED"
+      }
+    },
+    {
+      "document_id": "Avtal_13_Avgangsvederlagsavtal",
+      "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+      "question_id": "confidentiality",
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "recoverable_at_k10": true,
+      "statuses": {
+        "B": "ANSWERED",
+        "C": "ANSWERED",
+        "Q": "ANSWERED"
+      }
+    },
+    {
+      "document_id": "Avtal_22_Kontorshotell_coworking",
+      "relative_path": "Avtal_22_Kontorshotell_coworking.docx",
+      "question_id": "confidentiality",
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "recall@10": 0.0,
+      "recoverable_at_k10": false,
+      "statuses": {
+        "B": "NOT_FOUND",
+        "C": "NOT_FOUND",
+        "Q": "NOT_FOUND"
+      }
+    },
+    {
+      "document_id": "Avtal_36_Underleverantorsavtal",
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "question_id": "confidentiality",
+      "recall@3": 0.0,
+      "recall@5": 0.0,
+      "recall@10": 1.0,
+      "recoverable_at_k10": true,
+      "statuses": {
+        "B": "ANSWERED",
+        "C": "ANSWERED",
+        "Q": "ANSWERED"
+      }
+    }
+  ]
+}
