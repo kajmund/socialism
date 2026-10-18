@@ -10,10 +10,13 @@ from sqlalchemy.exc import DataError, IntegrityError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.graph_v2 import GraphIngestWork
-from app.services.graph_v2.identity import stable_id
-from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
+from app.services.document_qa.apply import apply_document_qa_work
+from app.services.document_qa.catalog_apply import apply_document_catalog_work
+from app.services.document_qa.kinds import DOCUMENT_CATALOG_WRITE, DOCUMENT_QA_WRITE, work_kind
 from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
 from app.services.graph_v2.errors import PermanentGraphError
+from app.services.graph_v2.identity import stable_id
+from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
 from app.services.graph_v2.legal_writeback import write_legal_facts
 from app.services.knowledge.claims import KnowledgeClaim
 from app.services.knowledge.embeddings import EmbeddingProvider, OpenAIEmbeddingProvider
@@ -97,14 +100,26 @@ async def process_graph_work(
     node_judge: JevNodeJudge | None = None,
 ) -> dict[str, int]:
     completed = failed = 0
-    inner = embedder or OpenAIEmbeddingProvider.from_settings()
-    provider = inner if isinstance(inner, GraphEmbeddingCacheProvider) else GraphEmbeddingCacheProvider(factory, inner)
+    provider: GraphEmbeddingCacheProvider | EmbeddingProvider | None = None
     for _ in range(limit):
         claim = await claim_graph_work(factory)
         if claim is None:
             break
         work_id, attempt = claim
         try:
+            kind = await _peek_kind(factory, work_id)
+            if kind == DOCUMENT_QA_WRITE:
+                completed += await apply_document_qa_work(factory, work_id, attempt)
+                continue
+            if kind == DOCUMENT_CATALOG_WRITE:
+                if provider is None:
+                    provider = _legal_embedder(factory, embedder)
+                completed += await apply_document_catalog_work(
+                    factory, work_id, attempt, provider,
+                )
+                continue
+            if provider is None:
+                provider = _legal_embedder(factory, embedder)
             async with factory.begin() as session:
                 row = await session.get(GraphIngestWork, work_id)
                 claims, entities, module = _deserialize(row)
@@ -137,6 +152,24 @@ async def process_graph_work(
             # A failed item stays eligible after this batch, but not in a tight loop.
             break
     return {"completed": completed, "failed": failed}
+
+
+async def _peek_kind(factory: async_sessionmaker[AsyncSession], work_id: str) -> str:
+    async with factory.begin() as session:
+        row = await session.get(GraphIngestWork, work_id)
+        if row is None:
+            raise PermanentGraphError("graph ingest work is missing")
+        return work_kind(row.payload)
+
+
+def _legal_embedder(
+    factory: async_sessionmaker[AsyncSession],
+    embedder: EmbeddingProvider | None,
+) -> GraphEmbeddingCacheProvider | EmbeddingProvider:
+    inner = embedder or OpenAIEmbeddingProvider.from_settings()
+    if isinstance(inner, GraphEmbeddingCacheProvider):
+        return inner
+    return GraphEmbeddingCacheProvider(factory, inner)
 
 
 def _is_permanent_graph_error(exc: Exception) -> bool:

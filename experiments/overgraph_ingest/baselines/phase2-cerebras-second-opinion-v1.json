@@ -1,0 +1,233 @@
+{
+  "id": "phase2-cerebras-second-opinion-v1",
+  "label": "Frozen: replay of Jev C@8 labels versus GPT-OSS output v1 on overlapping hybrid top-50 keys. Same gold-map v2. No new model calls and no router. Lists are not identical; only the intersection is compared. Does not replace C@8 or output v1. k=200 is not started. 24/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_replace_cerebras_output": true,
+  "no_new_jev": true,
+  "no_new_cerebras": true,
+  "no_router": true,
+  "k200_not_started": true,
+  "applied_to_v3": false,
+  "same_mapping": "gold-map-v2",
+  "task": "formulation_presence",
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "summary": {
+      "golds": 5,
+      "total_overlap": 233,
+      "total_jev_only": 17,
+      "total_cerebras_only": 17,
+      "total_jev_errors": 27,
+      "total_jev_correct": 197,
+      "total_corrected": 8,
+      "total_worsened": 7,
+      "total_same_error": 19,
+      "total_shared_error": 0,
+      "total_both_correct": 188,
+      "total_jev_uncertain": 9,
+      "total_uncertain_resolved_correct": 9,
+      "total_uncertain_resolved_wrong": 0,
+      "mean_jev_precision": 0.7522058823529412,
+      "mean_cerebras_precision": 0.7471620227038184,
+      "mean_jev_recall": 0.99,
+      "mean_cerebras_recall": 1.0,
+      "uncertain_review_precision": 0.7522058823529412,
+      "uncertain_review_recall": 0.99
+    },
+    "golds": [
+      {
+        "gold_id": "auto-renewal",
+        "overlap": 45,
+        "jev_only": 5,
+        "cerebras_only": 5,
+        "relevant_in_overlap": 20,
+        "original_jev_relevant": 20,
+        "jev_errors": 2,
+        "corrected": 2,
+        "worsened": 0,
+        "same_error": 0,
+        "shared_error": 0,
+        "jev_uncertain": 5,
+        "uncertain_resolved_correct": 5,
+        "uncertain_resolved_wrong": 0,
+        "jev_rescored": {
+          "relevant": 20,
+          "positive": 20,
+          "true_positive": 19,
+          "precision": 0.95,
+          "recall": 0.95
+        },
+        "cerebras_rescored": {
+          "relevant": 20,
+          "positive": 20,
+          "true_positive": 20,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "uncertain_review": {
+          "reviewed": 5,
+          "precision": 0.95,
+          "recall": 0.95,
+          "resolved_correct": 5,
+          "resolved_wrong": 0
+        }
+      },
+      {
+        "gold_id": "notice-period",
+        "overlap": 46,
+        "jev_only": 4,
+        "cerebras_only": 4,
+        "relevant_in_overlap": 11,
+        "original_jev_relevant": 11,
+        "jev_errors": 5,
+        "corrected": 0,
+        "worsened": 3,
+        "same_error": 5,
+        "shared_error": 0,
+        "jev_uncertain": 0,
+        "uncertain_resolved_correct": 0,
+        "uncertain_resolved_wrong": 0,
+        "jev_rescored": {
+          "relevant": 11,
+          "positive": 16,
+          "true_positive": 11,
+          "precision": 0.6875,
+          "recall": 1.0
+        },
+        "cerebras_rescored": {
+          "relevant": 11,
+          "positive": 19,
+          "true_positive": 11,
+          "precision": 0.5789473684210527,
+          "recall": 1.0
+        },
+        "uncertain_review": {
+          "reviewed": 0,
+          "precision": 0.6875,
+          "recall": 1.0,
+          "resolved_correct": 0,
+          "resolved_wrong": 0
+        }
+      },
+      {
+        "gold_id": "liability-cap",
+        "overlap": 48,
+        "jev_only": 2,
+        "cerebras_only": 2,
+        "relevant_in_overlap": 28,
+        "original_jev_relevant": 11,
+        "jev_errors": 6,
+        "corrected": 2,
+        "worsened": 2,
+        "same_error": 4,
+        "shared_error": 0,
+        "jev_uncertain": 0,
+        "uncertain_resolved_correct": 0,
+        "uncertain_resolved_wrong": 0,
+        "jev_rescored": {
+          "relevant": 28,
+          "positive": 34,
+          "true_positive": 28,
+          "precision": 0.8235294117647058,
+          "recall": 1.0
+        },
+        "cerebras_rescored": {
+          "relevant": 28,
+          "positive": 34,
+          "true_positive": 28,
+          "precision": 0.8235294117647058,
+          "recall": 1.0
+        },
+        "uncertain_review": {
+          "reviewed": 0,
+          "precision": 0.8235294117647058,
+          "recall": 1.0,
+          "resolved_correct": 0,
+          "resolved_wrong": 0
+        }
+      },
+      {
+        "gold_id": "confidentiality",
+        "overlap": 45,
+        "jev_only": 5,
+        "cerebras_only": 5,
+        "relevant_in_overlap": 6,
+        "original_jev_relevant": 6,
+        "jev_errors": 14,
+        "corrected": 4,
+        "worsened": 2,
+        "same_error": 10,
+        "shared_error": 0,
+        "jev_uncertain": 3,
+        "uncertain_resolved_correct": 3,
+        "uncertain_resolved_wrong": 0,
+        "jev_rescored": {
+          "relevant": 6,
+          "positive": 20,
+          "true_positive": 6,
+          "precision": 0.3,
+          "recall": 1.0
+        },
+        "cerebras_rescored": {
+          "relevant": 6,
+          "positive": 18,
+          "true_positive": 6,
+          "precision": 0.3333333333333333,
+          "recall": 1.0
+        },
+        "uncertain_review": {
+          "reviewed": 3,
+          "precision": 0.3,
+          "recall": 1.0,
+          "resolved_correct": 3,
+          "resolved_wrong": 0
+        }
+      },
+      {
+        "gold_id": "liability-secrecy-carveout",
+        "overlap": 49,
+        "jev_only": 1,
+        "cerebras_only": 1,
+        "relevant_in_overlap": 7,
+        "original_jev_relevant": 5,
+        "jev_errors": 0,
+        "corrected": 0,
+        "worsened": 0,
+        "same_error": 0,
+        "shared_error": 0,
+        "jev_uncertain": 1,
+        "uncertain_resolved_correct": 1,
+        "uncertain_resolved_wrong": 0,
+        "jev_rescored": {
+          "relevant": 7,
+          "positive": 7,
+          "true_positive": 7,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "cerebras_rescored": {
+          "relevant": 7,
+          "positive": 7,
+          "true_positive": 7,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "uncertain_review": {
+          "reviewed": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "resolved_correct": 1,
+          "resolved_wrong": 0
+        }
+      }
+    ]
+  }
+}

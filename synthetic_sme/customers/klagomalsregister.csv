@@ -1,0 +1,11 @@
+﻿ID;Kund;Tjänst;Kategori;Datum;Svarstid (dagar);Åtgärd;Status
+CL-2024-01;Norrhamns Hamn AB;NH-Logistikportal;Prestanda;2024-09-04;5;Åtgärdat (indexoptimering);Stängd
+CL-2024-02;Norrhamns Hamn AB;NH-Logistikportal;Prestanda;2024-11-06;4;Åtgärdat (cachejustering);Stängd
+CL-2024-03;Norrhamns Hamn AB;NH-Logistikportal;Prestanda;2024-12-18;3;Åtgärdsplan DOC-COM-001;Stängd 2025-01
+CL-2025-01;Örby Handel & Logistik AB;ÖH-Webbplattform;Acceptans;2025-02-28;10;Tvist – förlikningsförsök pågår;Öppen
+CL-2025-02;Timmervikens Såg AB;TS-Produktionsportal;Försening;2025-11-18;7;Återhämtningsplan;Stängd
+CL-2026-01;Blåklintens Vård AB;BV-Journalsystem;Svarstider;2026-02-19;8;Åtgärdsplan;Stängd
+CL-2026-02;Blåklintens Vård AB;BV-Journalsystem;Svarstider;2026-05-12;11;Åtgärdsplan;Stängd
+CL-2026-03;Blåklintens Vård AB;BV-Journalsystem;Svarstider;2026-09-10;14;Åtgärdsplan DOC-COM-002;Öppen
+CL-2026-04;Timmervikens Såg AB;TS-Produktionsportal;Försening/vite;2026-04-21;9;Förlikning: kreditnota 90 000 kr 2026-06-30;Stängd
+CL-2026-05;Solvind Kraft AB;SV-Molnmigrering;Överlämning;2026-01-14;6;Kompletterande dokumentation;Stängd

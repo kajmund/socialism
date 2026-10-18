@@ -26,6 +26,30 @@
       "id": "liability-secrecy-carveout",
       "path": "liability-secrecy-carveout.json",
       "status": "gold_only"
+    },
+    {
+      "id": "governing-law",
+      "path": "governing-law.json",
+      "status": "held_out_expansion",
+      "split": "held_out"
+    },
+    {
+      "id": "force-majeure",
+      "path": "force-majeure.json",
+      "status": "held_out_expansion",
+      "split": "held_out"
+    },
+    {
+      "id": "personal-data",
+      "path": "personal-data.json",
+      "status": "decision_held_out",
+      "split": "decision_held_out"
+    },
+    {
+      "id": "assignment",
+      "path": "assignment.json",
+      "status": "decision_held_out",
+      "split": "decision_held_out"
     }
   ]
 }

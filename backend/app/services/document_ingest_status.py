@@ -8,6 +8,10 @@ from app.services.document_knowledge import DOCUMENT_INGEST_JOB_KIND
 from app.services.object_storage import KIND_UNDERLAG
 
 
+def document_text_ready(source: StoredObject) -> bool:
+    return source.extraction_status == "ok" and bool((source.extracted_text or "").strip())
+
+
 async def reconcile_failed_document_ingest(session: AsyncSession, *, message: str) -> None:
     current_job = select(Job.id).where(
         Job.id == StoredObject.knowledge_job_id,

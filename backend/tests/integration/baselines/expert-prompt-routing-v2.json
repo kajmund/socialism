@@ -1,0 +1,44 @@
+{
+  "name": "expert-prompt-routing-v2",
+  "compared_to": "expert-prompt-routing-v1",
+  "do_not_overwrite": true,
+  "measured_at": "2026-10-14",
+  "model": "configured expert chat model",
+  "cases": 6,
+  "headline": {
+    "top1_tool_accuracy": 1.0,
+    "smalltalk_no_tool_rate": 1.0,
+    "find_show_chain_rate": 1.0,
+    "unnecessary_calls": 0,
+    "system_chars": 1057,
+    "turn_chars": 695,
+    "system_plus_turn_chars": 1752,
+    "estimated_system_plus_turn_tokens": 438,
+    "always_on_char_reduction_percent": 77.2
+  },
+  "latency_ms": {
+    "first_tool_choice_mean_single_pass": 435.2,
+    "find_show_chain_wall": 1279.3,
+    "notes": "Live external-service timings are observational and not CI thresholds."
+  },
+  "find_show_chain": {
+    "sequence": [
+      "find_documents",
+      "show_document_set"
+    ],
+    "rerouted_tools": [
+      "find_documents",
+      "show_document_set",
+      "get_workspace_context",
+      "search_knowledge"
+    ],
+    "completeness": "complete",
+    "full_source_ids_preserved": true
+  },
+  "quality": {
+    "smalltalk_answer_present": true,
+    "explicit_highlight_selected_focus_anchor": true,
+    "active_set_filter_selected_find_documents": true,
+    "multiple_find_results_selected_gallery": true
+  }
+}

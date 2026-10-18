@@ -9,7 +9,7 @@ from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.database.base import Base
-from app.database.models import CanonicalDocumentRecord, DocumentKnowledgeAnchor, DocumentKnowledgeItem, DocumentKnowledgeItemTextUnit, DocumentVersionRecord, Kund, StoredObject, UserAccount
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund, StoredObject, UserAccount
 from app.database.workspace_models import VoiceWorkspace, WorkspaceReference
 from app.services.knowledge.models import KnowledgeHit, KnowledgeQuery, KnowledgeScope
 from app.services.knowledge.provider import SUPABASE_PROVIDER_ID
@@ -146,48 +146,52 @@ async def test_non_pdf_or_no_hits_does_not_load_original(pdf_search_db, monkeypa
     assert all(candidate[2] is None for candidate in found)
 
 
-async def test_qa_discovery_rectangles_use_original_quote_after_canonical_grounding(pdf_search_db, monkeypatch):
+async def test_document_item_vector_hits_are_ignored(pdf_search_db, monkeypatch):
     factory, ids = pdf_search_db
-    identity, quote = "synthetic-receipt-0", "Amount 43.50 SEK."
-    async with factory() as session:
-        item = DocumentKnowledgeItem(id="synthetic-qa", source_object_id=identity, customer_id=1,
-            kind="qa", origin="generated", status="active", revision=1, title="Synthetic amount",
-            question="What was paid?", content="Generated answer: parking cost forty-three fifty.")
-        session.add(item)
-        await session.flush()
-        session.add_all([
-            DocumentKnowledgeAnchor(id="synthetic-qa-anchor", item_id=item.id, ordinal=0,
-                anchor_type="text", page_number=1, locator="page:1", exact_text=quote, rects=[]),
-            DocumentKnowledgeItemTextUnit(item_id=item.id, text_unit_id=f"unit-{identity}", ordinal=0),
-        ])
-        await session.commit()
-    calls = configure_external_calls(factory, monkeypatch, hit_count=0)
-    class QAVectors:
+    identity = "synthetic-receipt-0"
+    class ItemVectors:
         async def search(self, query):
             await another_client(factory)
             if query.query.scope.allowed_source_object_ids != (identity,):
                 return []
-            return [KnowledgeHit(document_id="item-vector-synthetic-qa", provider=SUPABASE_PROVIDER_ID,
-                title="Generated synthetic answer", excerpt="Generated answer: parking cost forty-three fifty.",
-                locator="page:999", score=.9, metadata={"document_knowledge_item_id": "synthetic-qa", "item_revision": 1,
-                    "document_version_id": f"version-{identity}", "text_unit_ids": [f"unit-{identity}"],
-                    "qa_snapshot": {"anchors": [{"locator": "page:999", "exact_text": "Untrusted generated quote"}]}})]
-    quotes = []
-    def rects(data, page, exact):
-        quotes.append((data, page, exact))
-        return [{"x": .1, "y": .2, "width": .3, "height": .04}]
-    monkeypatch.setattr(search, "require_knowledge_vector_store", QAVectors)
-    monkeypatch.setattr(search, "_pdf_quote_rects", rects)
+            return [KnowledgeHit(
+                document_id="item-vector-synthetic-qa",
+                provider=SUPABASE_PROVIDER_ID,
+                title="Generated synthetic answer",
+                excerpt="Generated answer: parking cost forty-three fifty.",
+                locator="page:999",
+                score=.9,
+                metadata={
+                    "document_knowledge_item_id": "synthetic-qa",
+                    "item_revision": 1,
+                    "document_version_id": f"version-{identity}",
+                    "text_unit_ids": [f"unit-{identity}"],
+                    "qa_snapshot": {"anchors": [{"locator": "page:999", "exact_text": "Untrusted generated quote"}]},
+                },
+            )]
+    class Embeddings:
+        dimension = 2
+        async def embed(self, _texts):
+            await another_client(factory)
+            return [[1.0, 0.0]]
+    async def storage(bucket, key):
+        await another_client(factory)
+        return key.encode(), "application/pdf"
+    monkeypatch.setattr(search.OpenAIEmbeddingProvider, "from_settings", Embeddings)
+    monkeypatch.setattr(search, "require_knowledge_vector_store", ItemVectors)
+    monkeypatch.setattr(search, "get_object", storage)
     async with factory() as session:
         user = await session.get(UserAccount, ids[0])
-        result = await execute_workspace_tool(session, workspace_id=ids[1], user=user, tool_name="search_knowledge",
-            arguments={"query": "Synthetic amount"}, idempotency_key="qa-original-quote")
-    assert calls["storage"] == [("synthetic", f"{identity}.pdf")]
-    assert quotes == [(f"{identity}.pdf".encode(), 1, quote)]
-    cited, = result["items"]
-    assert cited["anchor"]["exact_text"] == quote and cited["excerpt"] == quote
-    assert cited["anchor"]["page_number"] == 1 and cited["anchor"]["locator"] == "page:1"
-    assert cited["snapshot"]["qa_snapshot"]["content"] == "Generated answer: parking cost forty-three fifty."
+        result = await execute_workspace_tool(
+            session,
+            workspace_id=ids[1],
+            user=user,
+            tool_name="search_knowledge",
+            arguments={"query": "Synthetic amount"},
+            idempotency_key="document-item-ignored",
+        )
+    assert result["items"] == []
+    assert all("qa_snapshot" not in item.get("snapshot", {}) for item in result["items"])
 
 
 async def test_source_changed_during_pdf_load_is_rejected_after_external_work(pdf_search_db, monkeypatch):

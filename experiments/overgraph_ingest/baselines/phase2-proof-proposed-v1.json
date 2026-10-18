@@ -1,0 +1,251 @@
+{
+  "id": "phase2-proof-proposed-v1",
+  "label": "Frozen: the 17 proposed predicates are not one problem. More hops do not verify them. Do not loosen verified.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_jev": true,
+  "no_looser_verified_rule": true,
+  "headline": {
+    "proposed_count": 17,
+    "more_information_can_verify_count": 0,
+    "semantic_paraphrase_count": 7,
+    "other_relation_count": 7,
+    "missing_relation_in_span_count": 3,
+    "incomplete_reference_count": 0,
+    "ambiguous_count": 0
+  },
+  "causes": {
+    "paraphrase_without_operator": [
+      "synonym_ansvarstak_tystnadsplikt",
+      "synonym_rojande_konfidentiell",
+      "synonym_obegransat",
+      "synonym_tystnadsplikt",
+      "synonym_konfidentiell_gilt",
+      "synonym_undantas",
+      "synonym_inte_tillamplig"
+    ],
+    "other_legal_relation": [
+      "negation_gäller_även",
+      "negation_gäller_också",
+      "negation_gäller_utan_inte",
+      "negation_tillampas_aven",
+      "negation_inget_undantag",
+      "negation_endast_uppsat",
+      "negation_dock_vid"
+    ],
+    "missing_relation_in_span": [
+      "reference_punkt_8_secrecy",
+      "reference_abc_verify_c",
+      "cooccurrence_abc_then_link"
+    ],
+    "incomplete_reference": [],
+    "ambiguous_wording": []
+  },
+  "rows": [
+    {
+      "id": "synonym_ansvarstak_tystnadsplikt",
+      "phase": "before",
+      "group": "synonym",
+      "operator": "does_not_apply",
+      "excerpt": "Ansvarstaket ska inte tillämpas på överträdelser av tystnadsplikten.",
+      "reason": "paraphrase_unverified",
+      "cause": "paraphrase_without_operator",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "synonym_rojande_konfidentiell",
+      "phase": "before",
+      "group": "synonym",
+      "operator": "does_not_apply",
+      "excerpt": "Skador till följd av röjande av konfidentiell information omfattas inte av ansvarsbegränsningen.",
+      "reason": "paraphrase_unverified",
+      "cause": "paraphrase_without_operator",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "synonym_obegransat",
+      "phase": "before",
+      "group": "synonym",
+      "operator": "does_not_apply",
+      "excerpt": "Parternas ansvar för brott mot sekretessåtagandet är obegränsat.",
+      "reason": "paraphrase_unverified",
+      "cause": "paraphrase_without_operator",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "synonym_tystnadsplikt",
+      "phase": "before",
+      "group": "synonym",
+      "operator": "does_not_apply",
+      "excerpt": "Begränsningen gäller inte vid brott mot tystnadsplikten.",
+      "reason": "paraphrase_unverified",
+      "cause": "paraphrase_without_operator",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "synonym_konfidentiell_gilt",
+      "phase": "before",
+      "group": "synonym",
+      "operator": "does_not_apply",
+      "excerpt": "Ansvarsbegränsningen gäller inte vid röjande av konfidentiell information.",
+      "reason": "paraphrase_unverified",
+      "cause": "paraphrase_without_operator",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "synonym_undantas",
+      "phase": "before",
+      "group": "synonym",
+      "operator": "does_not_apply",
+      "excerpt": "Brott mot sekretess undantas från ansvarsbegränsningen.",
+      "reason": "paraphrase_unverified",
+      "cause": "paraphrase_without_operator",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "synonym_inte_tillamplig",
+      "phase": "before",
+      "group": "synonym",
+      "operator": "does_not_apply",
+      "excerpt": "Ansvarsbegränsningen är inte tillämplig på sekretessbrott.",
+      "reason": "paraphrase_unverified",
+      "cause": "paraphrase_without_operator",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "negation_gäller_även",
+      "phase": "before",
+      "group": "negation",
+      "operator": "applies",
+      "excerpt": "Ansvarsbegränsningen gäller även vid brott mot sekretessförpliktelserna.",
+      "reason": "applies_unverified",
+      "cause": "other_legal_relation",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "negation_gäller_också",
+      "phase": "before",
+      "group": "negation",
+      "operator": "applies",
+      "excerpt": "Ansvarstaket gäller också vid sekretessbrott.",
+      "reason": "applies_unverified",
+      "cause": "other_legal_relation",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "negation_gäller_utan_inte",
+      "phase": "before",
+      "group": "negation",
+      "operator": "applies",
+      "excerpt": "Ansvarsbegränsningen gäller vid brott mot sekretessförpliktelserna.",
+      "reason": "applies_unverified",
+      "cause": "other_legal_relation",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "negation_tillampas_aven",
+      "phase": "before",
+      "group": "negation",
+      "operator": "applies",
+      "excerpt": "Ansvarsbegränsningen ska tillämpas även vid brott mot sekretess.",
+      "reason": "applies_unverified",
+      "cause": "other_legal_relation",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "negation_inget_undantag",
+      "phase": "before",
+      "group": "negation",
+      "operator": "applies",
+      "excerpt": "Inget undantag görs för sekretessbrott från ansvarsbegränsningen.",
+      "reason": "applies_unverified",
+      "cause": "other_legal_relation",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "negation_endast_uppsat",
+      "phase": "before",
+      "group": "negation",
+      "operator": "applies",
+      "excerpt": "Endast uppsåt och grov vårdslöshet undantas från ansvarsbegränsningen, inte sekretessbrott.",
+      "reason": "applies_unverified",
+      "cause": "other_legal_relation",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "negation_dock_vid",
+      "phase": "before",
+      "group": "negation",
+      "operator": "applies",
+      "excerpt": "Begränsningen gäller dock vid brott mot sekretess.",
+      "reason": "applies_unverified",
+      "cause": "other_legal_relation",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "reference_punkt_8_secrecy",
+      "phase": "after",
+      "group": "reference",
+      "operator": "does_not_apply",
+      "excerpt": "Begränsningen gäller inte vid överträdelser av punkt 8.",
+      "reason": "paraphrase_unverified",
+      "cause": "missing_relation_in_span",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "reference_abc_verify_c",
+      "phase": "after",
+      "group": "reference",
+      "operator": "does_not_apply",
+      "excerpt": "Begränsningen gäller inte vid överträdelse av punkt 3.",
+      "reason": "paraphrase_unverified",
+      "cause": "missing_relation_in_span",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    },
+    {
+      "id": "cooccurrence_abc_then_link",
+      "phase": "after",
+      "group": "cooccurrence",
+      "operator": "does_not_apply",
+      "excerpt": "Begränsningen gäller inte vid överträdelse av punkt 3.",
+      "reason": "paraphrase_unverified",
+      "cause": "missing_relation_in_span",
+      "more_information_can_verify": false,
+      "supports_claim": false,
+      "should_stay_undecided": true
+    }
+  ]
+}

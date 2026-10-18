@@ -1,4 +1,5 @@
 from app.database.answer_review import KnowledgeAnswerReview
+from app.database import document_ingest_batches as document_ingest_batches
 from app.database import graph_v2 as graph_v2
 from app.database import workspace_models as workspace_models
 from app.database import workspace_conversations as workspace_conversations

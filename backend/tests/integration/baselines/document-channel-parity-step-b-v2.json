@@ -1,0 +1,59 @@
+{
+  "experiment": "document-presentation-channel-parity-step-b-v2",
+  "classification": "post-orchestration-fix",
+  "source_artifact": "backend/data/document-channel-parity-step-b-v4.json",
+  "compared_to": "document-channel-parity-step-b-v1",
+  "actual_execute_expert_turn_calls": 150,
+  "acceptance": {
+    "strictly_correct_channel_cases": 87,
+    "previous_strictly_correct": 28,
+    "missed_explicit_shows": 0,
+    "previous_missed_explicit_shows": 75,
+    "erroneous_auto_displays": 30,
+    "duplicate_presentations": 0,
+    "external_or_model_errors": 2,
+    "previous_external_or_model_errors": 45,
+    "approved": false
+  },
+  "channels_summary": {
+    "text": {
+      "latency_ms": {"median": 3042.114, "p95": 15423.603},
+      "strictly_correct_cases": 30,
+      "correct_document_selections": 47,
+      "missed_explicit_shows": 0,
+      "erroneous_auto_displays": 11,
+      "external_or_model_errors": 0
+    },
+    "voice": {
+      "latency_ms": {"median": 2852.302, "p95": 14097.886},
+      "strictly_correct_cases": 26,
+      "correct_document_selections": 44,
+      "missed_explicit_shows": 0,
+      "erroneous_auto_displays": 11,
+      "external_or_model_errors": 1
+    },
+    "group_voice": {
+      "latency_ms": {"median": 2808.109, "p95": 12334.636},
+      "strictly_correct_cases": 31,
+      "correct_document_selections": 45,
+      "missed_explicit_shows": 0,
+      "erroneous_auto_displays": 8,
+      "external_or_model_errors": 1
+    }
+  },
+  "remaining_issues": {
+    "erroneous_auto_displays_by_intent": {
+      "ambiguous": 24,
+      "analyze": 6,
+      "count": 0
+    },
+    "wrong_mode_transitions": 43,
+    "provider_structured_output_errors": 2,
+    "notes": [
+      "Explicit show requests are no longer dropped before delivery.",
+      "Group Voice now reaches find_documents and matches text/voice latency.",
+      "Presentation intent for ambiguous/analyze still auto-opens galleries via the required continuation path.",
+      "Mode transitions remain model-authored beyond content-only replace→filter coercion."
+    ]
+  }
+}

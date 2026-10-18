@@ -1,0 +1,40 @@
+{
+  "name": "expert-find-show-e2e-v1",
+  "measured_at": "2026-10-14",
+  "do_not_overwrite": true,
+  "chain": "expert -> initial Jev -> first LLM -> find_documents -> post-result Jev -> second LLM -> show_document_set call",
+  "fixture": {
+    "message": "Visa alla hyresavtal.",
+    "documents": 5,
+    "strategy": "category",
+    "completeness": "complete"
+  },
+  "calls_per_sample": {
+    "llm": 2,
+    "jev": 2,
+    "embedding": 0,
+    "overgraph_category_lookup": 1
+  },
+  "samples_ms": [
+    {"initial_jev": 383.633, "first_llm": 381.487, "find_documents": 3.369, "post_result_jev": 290.372, "second_llm": 431.982, "handoff_total": 1491.436},
+    {"initial_jev": 312.146, "first_llm": 514.919, "find_documents": 4.288, "post_result_jev": 264.808, "second_llm": 601.094, "handoff_total": 1697.901},
+    {"initial_jev": 294.183, "first_llm": 1950.619, "find_documents": 4.821, "post_result_jev": 373.460, "second_llm": 418.172, "handoff_total": 3041.823},
+    {"initial_jev": 378.229, "first_llm": 344.595, "find_documents": 3.308, "post_result_jev": 296.876, "second_llm": 248.252, "handoff_total": 1271.955},
+    {"initial_jev": 288.162, "first_llm": 348.965, "find_documents": 3.935, "post_result_jev": 269.247, "second_llm": 277.749, "handoff_total": 1188.587}
+  ],
+  "summary_ms": {
+    "post_result_jev_mean": 298.953,
+    "post_result_jev_median": 290.372,
+    "handoff_total_mean": 1738.340,
+    "handoff_total_median": 1491.436,
+    "handoff_total_min": 1188.587,
+    "handoff_total_max": 3041.823
+  },
+  "quality": {
+    "show_document_set_successes": 5,
+    "samples": 5,
+    "full_source_ids_preserved": true
+  },
+  "measurement_boundary": "show_document_set tool call produced by the backend model loop",
+  "frontend_render_included": false
+}

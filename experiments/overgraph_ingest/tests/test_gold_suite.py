@@ -28,7 +28,17 @@ def test_gold_suite_lists_measured_and_new_questions() -> None:
         "liability-cap",
         "confidentiality",
         "liability-secrecy-carveout",
+        "governing-law",
+        "force-majeure",
+        "personal-data",
+        "assignment",
     }
+    held_out = {gold.id for gold in golds if gold.split == "held_out"}
+    assert held_out == {"governing-law", "force-majeure"}
+    reserved = {gold.id for gold in golds if gold.split == "decision_held_out"}
+    assert reserved == {"personal-data", "assignment"}
+    assert next(gold for gold in golds if gold.id == "governing-law").proof_kind == "EXISTS"
+    assert len(next(gold for gold in golds if gold.id == "force-majeure").relevant_units) == 5
     assert golds[0].classify_question
     carveout = next(gold for gold in golds if gold.id == "liability-secrecy-carveout")
     assert carveout.kind == "multi_clause"

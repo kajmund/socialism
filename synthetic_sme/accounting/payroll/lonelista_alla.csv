@@ -1,0 +1,38 @@
+﻿Anstnr;Namn;Befattning;Anställd;Slutade;Aktiv
+1;Maja Lindqvist;Verkställande direktör;2018-03-12;;JA
+2;Jonas Sandberg;CTO;2018-03-12;;JA
+3;Anders Bergström;CFO;2021-01-11;;JA
+4;Petra Wahlgren;HR- och kontorschef;2020-08-17;;JA
+5;Sara Holm;Försäljningschef;2021-04-06;;JA
+6;Lisa Sundberg;Marknadsansvarig;2023-02-01;;JA
+7;Erik Norén;Leveranschef;2019-05-06;;JA
+8;David Ekström;Projektledare;2019-09-02;;JA
+9;Karin Olsson;Projektledare;2021-03-15;;JA
+10;Magnus Ryd;Projektledare;2022-11-01;2026-03-31;NEJ
+11;Tomas Berg;Lösningsarkitekt;2019-01-07;;JA
+12;Nadia Haddad;Lösningsarkitekt;2026-05-04;;JA
+13;Fredrik Lund;Senior utvecklare;2019-04-01;;JA
+14;Emma Persson;Senior utvecklare;2020-03-09;;JA
+15;Johan Wall;Senior utvecklare;2020-09-14;;JA
+16;Sofia Lindgren;Senior utvecklare;2021-08-23;2026-06-30;NEJ
+17;Oskar Nilsson;Senior utvecklare;2022-04-04;;JA
+18;Camilla Westin;Senior utvecklare;2025-02-03;;JA
+19;Viktor Lind;Utvecklare;2025-01-12;;JA
+20;Elin Andersson;Utvecklare;2023-08-14;;JA
+21;Robin Åkerlund;Utvecklare;2025-09-01;2026-01-31;NEJ
+22;Alice Forsberg;Junior utvecklare;2025-04-01;;JA
+23;Hugo Larsson;Junior utvecklare;2026-01-12;;JA
+24;Maria Gustavsson;Testledare;2020-11-02;;JA
+25;Johanna Sjöberg;UX-designer;2022-02-07;;JA
+26;Daniel Nyström;Data/AI-specialist;2023-05-08;;JA
+27;Patrik Öberg;DevOps-ingenjör;2024-11-01;;JA
+28;Simon Dahl;DevOps-ingenjör;2025-08-18;;JA
+29;Björn Falk;Utvecklare;2021-02-15;2026-08-31;NEJ
+30;Klara Månsson;Supportansvarig;2022-09-05;2026-09-30;NEJ
+31;Lukas Ek;Dataanalytiker;2024-06-10;2026-05-31;NEJ
+32;Gustav Pettersson;Senior utvecklare;2019-11-04;2024-11-15;NEJ
+33;Martina Bergqvist;Projektledare;2021-09-20;2025-01-31;NEJ
+34;Tobias Lindqvist;Utvecklare;2023-03-13;2025-03-14;NEJ
+35;Jenny Lindholm;Testare;2022-05-09;2025-06-30;NEJ
+36;Rasmus Holm;Senior utvecklare;2020-10-12;2025-10-31;NEJ
+37;Anna Westberg;Marknadskoordinator;2023-06-19;2026-02-28;NEJ

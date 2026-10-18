@@ -75,7 +75,7 @@ async def generate_progress_phrase(prompt: str, context: ProgressContext) -> str
     user = (
         f"kind={context.kind}\ntool={context.tool_name}\nremaining={context.remaining}\n"
         f"summary:\n{context.summary or '(none)'}\n"
-        f"already spoken:\n{context.spoken or '(none)'}\n"
+        f"already spoken (do not reuse these wordings):\n{context.spoken or '(none)'}\n"
         f"user:\n{context.user_text or '(none)'}"
     )
     return await _phrase(prompt, user, PROGRESS_PROMPT_KEY, max_words=24)

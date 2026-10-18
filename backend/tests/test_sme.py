@@ -222,59 +222,27 @@ async def test_sme_user_can_list_jobs(client_db) -> None:
 
 
 @pytest.mark.asyncio
-async def test_panel_chat_uses_expert_tools_and_hides_start_research(
-    client_db, monkeypatch
-) -> None:
+async def test_a_typed_panel_reply_uses_the_live_voice_turn(client_db, monkeypatch) -> None:
     client, factory = client_db
     await _enable_sme(client)
-    panel_id, expert = await _create_panel(factory)
-    async with factory() as session:
-        stored = await session.get(Persona, expert.id)
-        assert stored is not None
-        stored.tools = ["search_wiki", "start_research"]
-        await session.commit()
+    panel_id, _expert = await _create_panel(factory)
+    captured: list[tuple[str, str, list]] = []
 
-    captured: list[tuple[list[str] | None, object]] = []
+    async def fake_reply(_factory, *, user_text, context, **_kwargs):
+        captured.append((user_text, context[3], context[2]))
+        return "Samma tur"
 
-    async def fake_reply(*_args, **kwargs):
-        captured.append((kwargs.get("tools"), kwargs.get("research_tool_handler")))
-        return "Verktygssvar"
-
-    monkeypatch.setattr("app.services.sme_panel_chat.reply_as_persona", fake_reply)
+    monkeypatch.setattr("app.services.sme_panel_chat.expert_group_reply", fake_reply)
     sent = await client.post(
         f"/sme/panels/{panel_id}/messages",
-        json={"message": "Sök bakgrunden"},
+        json={"message": "Vad står i avtalet?"},
     )
     assert sent.status_code == 200
-    assert captured == [(["search_wiki"], None)]
-
-
-@pytest.mark.asyncio
-async def test_panel_chat_without_company_tools_does_not_enable_them(
-    client_db, monkeypatch
-) -> None:
-    client, factory = client_db
-    await _enable_sme(client)
-    panel_id, expert = await _create_panel(factory)
-    async with factory() as session:
-        stored = await session.get(Persona, expert.id)
-        assert stored is not None
-        stored.tools = []
-        await session.commit()
-
-    captured: list[list[str] | None] = []
-
-    async def fake_reply(*_args, **kwargs):
-        captured.append(kwargs.get("tools"))
-        return "Profilsvar"
-
-    monkeypatch.setattr("app.services.sme_panel_chat.reply_as_persona", fake_reply)
-    sent = await client.post(
-        f"/sme/panels/{panel_id}/messages",
-        json={"message": "Hej"},
-    )
-    assert sent.status_code == 200
-    assert captured == [[]]
+    assert sent.json()[1]["content"] == "Samma tur"
+    message, note, history = captured[0]
+    assert message == "Vad står i avtalet?"
+    assert note.startswith("Du sitter i en expertpanel")
+    assert history == []
 
 
 @pytest.mark.asyncio
@@ -292,14 +260,14 @@ async def test_concurrent_panel_turns_serialize_across_two_sessions(
     release_first = asyncio.Event()
     seen_histories: list[list[str]] = []
 
-    async def fake_reply(_profile, _mode, history, message, **_kwargs):
-        seen_histories.append([row[1] for row in history] + [message])
-        if message == "första":
+    async def fake_reply(_factory, *, user_text, context, **_kwargs):
+        seen_histories.append([row[1] for row in context[2]] + [user_text])
+        if user_text == "första":
             started.set()
             await release_first.wait()
-        return f"svar:{message}"
+        return f"svar:{user_text}"
 
-    monkeypatch.setattr("app.services.sme_panel_chat.reply_as_persona", fake_reply)
+    monkeypatch.setattr("app.services.sme_panel_chat.expert_group_reply", fake_reply)
 
     class _User:
         id = user_id
@@ -417,17 +385,17 @@ async def test_panel_lease_heartbeat_blocks_second_session_after_ttl(
     seen_histories: list[list[str]] = []
     second_started_during_first = False
 
-    async def fake_reply(_profile, _mode, history, message, **_kwargs):
+    async def fake_reply(_factory, *, user_text, context, **_kwargs):
         nonlocal second_started_during_first
-        seen_histories.append([row[1] for row in history] + [message])
-        if message == "första":
+        seen_histories.append([row[1] for row in context[2]] + [user_text])
+        if user_text == "första":
             started.set()
             await release_first.wait()
         else:
             second_started_during_first = True
-        return f"svar:{message}"
+        return f"svar:{user_text}"
 
-    monkeypatch.setattr("app.services.sme_panel_chat.reply_as_persona", fake_reply)
+    monkeypatch.setattr("app.services.sme_panel_chat.expert_group_reply", fake_reply)
 
     class _User:
         id = user_id

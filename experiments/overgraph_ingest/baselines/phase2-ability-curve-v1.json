@@ -1,0 +1,34 @@
+{
+  "id": "phase2-ability-curve-v1",
+  "label": "Frozen: ability curve. Hop-always is gold outcomes, not verified proofs. Same gold-map v2 after the chain contract.",
+  "do_not_overwrite": true,
+  "headline": {
+    "curve": [
+      {
+        "experiment": "hop-always",
+        "true_support": 39,
+        "false_approvals": 2,
+        "repaired_uncertain": 3,
+        "note": "gold_document_outcomes_not_verified_proofs"
+      },
+      {
+        "experiment": "grounded-chain",
+        "true_support": 12,
+        "false_approvals": 0,
+        "repaired_uncertain": 0
+      },
+      {
+        "experiment": "clause-resolve",
+        "true_support": 15,
+        "false_approvals": 0,
+        "repaired_uncertain": 0
+      },
+      {
+        "experiment": "anaphor-list",
+        "true_support": 19,
+        "false_approvals": 0,
+        "repaired_uncertain": 0
+      }
+    ]
+  }
+}

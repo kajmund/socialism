@@ -13,6 +13,15 @@ BASELINE = "baseline"
 APPEND = "append"
 FUSE = "fuse"
 VARIANTS = (BASELINE, APPEND, FUSE)
+EXPANSION_POLICY = {
+    "capability": "optional_deterministic_lexicon",
+    "default_retriever_unchanged": True,
+    "router_unsolved": True,
+    "jaccard_routing": "rejected",
+    "do_not_tune_jaccard_on_existing_golds": True,
+    "does_not_replace_c8": True,
+    "does_not_replace_coverage_v3": True,
+}
 
 
 @dataclass(frozen=True)

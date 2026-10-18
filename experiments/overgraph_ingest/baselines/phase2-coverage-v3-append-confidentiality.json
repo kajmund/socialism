@@ -1,0 +1,105 @@
+{
+  "id": "phase2-coverage-v3-append-confidentiality",
+  "label": "Experimental: deterministic append query expansion plus Coverage v3 on confidentiality. Not the official classify or coverage baseline.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "default_retriever_unchanged": true,
+  "expansion_policy": {
+    "capability": "optional_deterministic_lexicon",
+    "default_retriever_unchanged": true,
+    "router_unsolved": true,
+    "does_not_replace_c8": true,
+    "does_not_replace_coverage_v3": true
+  },
+  "gold_id": "confidentiality",
+  "query_variant": "append",
+  "controller": "deterministic_v3",
+  "classify_unchanged": true,
+  "headline": {
+    "recall_at_50": 0.8461538461538461,
+    "baseline_recall_at_50": 0.46153846153846156,
+    "first_complete_budget": 2,
+    "baseline_first_complete_budget": 5,
+    "classified": 165,
+    "baseline_classified": 354,
+    "cumulative_jev_calls": 131,
+    "baseline_cumulative_jev_calls": 306,
+    "wall_seconds_to_complete": 10.177743666805327,
+    "baseline_wall_seconds_to_complete": 21.501186332665384,
+    "false_negative_documents": [],
+    "budget_exhausted_documents": 56,
+    "cache_hits_at_b1": 28,
+    "leftover_at_b1": [
+      "Avtal_06_Sekretessavtal_ensidigt_NDA.docx"
+    ]
+  },
+  "budgets": [
+    {
+      "budget": 1,
+      "classified": 100,
+      "jev_calls": 72,
+      "cache_hits": 28,
+      "document_recall": 0.9230769230769231,
+      "jev_yes_document_recall": 0.9230769230769231,
+      "budget_exhausted_documents": 58,
+      "unresolved_relevant_documents": [
+        "Avtal_06_Sekretessavtal_ensidigt_NDA.docx"
+      ],
+      "false_negative_documents": [],
+      "wall_seconds": 5.9315255000256
+    },
+    {
+      "budget": 2,
+      "classified": 165,
+      "jev_calls": 59,
+      "cache_hits": 106,
+      "document_recall": 1.0,
+      "jev_yes_document_recall": 1.0,
+      "budget_exhausted_documents": 56,
+      "unresolved_relevant_documents": [],
+      "false_negative_documents": [],
+      "wall_seconds": 10.177743666805327
+    },
+    {
+      "budget": 3,
+      "classified": 225,
+      "jev_calls": 56,
+      "cache_hits": 169,
+      "document_recall": 1.0,
+      "jev_yes_document_recall": 1.0,
+      "budget_exhausted_documents": 56,
+      "unresolved_relevant_documents": [],
+      "false_negative_documents": [],
+      "wall_seconds": 14.862069791648537
+    },
+    {
+      "budget": 5,
+      "classified": 339,
+      "jev_calls": 112,
+      "cache_hits": 227,
+      "document_recall": 1.0,
+      "jev_yes_document_recall": 1.0,
+      "budget_exhausted_documents": 54,
+      "unresolved_relevant_documents": [],
+      "false_negative_documents": [],
+      "wall_seconds": 22.716668707784265
+    }
+  ],
+  "versus_first_complete": {
+    "baseline": {
+      "budget": 5,
+      "classified": 354,
+      "jev_calls": 115,
+      "cumulative_jev_calls": 306,
+      "document_recall": 1.0
+    },
+    "treatment": {
+      "budget": 2,
+      "classified": 165,
+      "jev_calls": 59,
+      "cumulative_jev_calls": 131,
+      "document_recall": 1.0
+    }
+  }
+}

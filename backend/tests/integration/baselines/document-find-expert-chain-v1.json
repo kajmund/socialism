@@ -1,0 +1,16 @@
+{
+  "chain": "find_documents_category",
+  "document_count": 5,
+  "strategy": "category",
+  "db_ms": 0.0788750039646402,
+  "total_ms": 0.0959169992711395,
+  "wall_ms": 2.623416999995243,
+  "counters": {
+    "embedding_calls": 0,
+    "jev_calls": 0,
+    "llm_calls": 0,
+    "text_unit_reads": 0,
+    "vector_searches": 0,
+    "category_lookups": 1
+  }
+}

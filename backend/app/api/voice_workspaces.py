@@ -9,9 +9,13 @@ from app.database.models import UserAccount
 from app.database.session import get_session
 from app.database.transaction_state import has_pending_writes
 from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifactRevision, WorkspaceOperation, WorkspaceSource
-from app.schemas.workspace import WorkspaceArtifactPatch, WorkspaceCreate, WorkspacePatch, WorkspaceSourceAdd, WorkspaceToolRequest
+from app.schemas.workspace import (
+    PassageCommentPatch, PassageCommentWrite, WorkspaceArtifactPatch, WorkspaceCreate, WorkspacePatch,
+    WorkspaceSourceAdd, WorkspaceToolRequest,
+)
 from app.services import jobs as jobs_service
 from app.services.object_storage import MAX_UNDERLAG_BYTES
+from app.services.workspace.passage_comments import create_passage_comment, delete_passage_comment, update_passage_comment
 from app.services.workspace.service import (
     accept_operation, artifact_out, create_workspace, fingerprint, patch_workspace,
     require_artifact, require_workspace, workspace_out,
@@ -179,6 +183,30 @@ async def get_workspace_source_file(workspace_id: str, source_id: str, *, sessio
                     headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(filename)}",
                              "X-Workspace-Source-Version": version,
                              "X-Workspace-File-Sha256": sha256(data).hexdigest()})
+
+
+@router.post("/{workspace_id}/passage-comments", status_code=201)
+async def post_passage_comment(workspace_id: str, body: PassageCommentWrite, *, session: AsyncSession = Depends(get_session), user: UserAccount = Depends(get_current_user)) -> dict:
+    workspace = await require_workspace(session, workspace_id, user)
+    result = await create_passage_comment(session, workspace, user, body)
+    await session.commit()
+    return result
+
+
+@router.patch("/{workspace_id}/passage-comments/{comment_id}")
+async def patch_passage_comment(workspace_id: str, comment_id: str, body: PassageCommentPatch, *, session: AsyncSession = Depends(get_session), user: UserAccount = Depends(get_current_user)) -> dict:
+    workspace = await require_workspace(session, workspace_id, user)
+    result = await update_passage_comment(session, workspace, user, comment_id=comment_id, body=body)
+    await session.commit()
+    return result
+
+
+@router.delete("/{workspace_id}/passage-comments/{comment_id}")
+async def remove_passage_comment(workspace_id: str, comment_id: str, *, session: AsyncSession = Depends(get_session), user: UserAccount = Depends(get_current_user)) -> dict:
+    workspace = await require_workspace(session, workspace_id, user)
+    removed = await delete_passage_comment(session, workspace, user, comment_id)
+    await session.commit()
+    return {"removed_reference_ids": removed}
 
 
 @router.post("/{workspace_id}/tools/{tool_name}")

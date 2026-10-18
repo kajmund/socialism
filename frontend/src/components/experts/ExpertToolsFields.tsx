@@ -33,6 +33,7 @@ const WORKSPACE_TOOL_LABEL: Record<WorkspaceChatToolId, MessageKey> = {
   ingest_source: "experts.tools.workspace.ingest_source",
   get_job_status: "experts.tools.workspace.get_job_status",
   search_knowledge: "experts.tools.workspace.search_knowledge",
+  find_documents: "experts.tools.workspace.find_documents",
   read_source: "experts.tools.workspace.read_source",
   compare_sources: "experts.tools.workspace.compare_sources",
   get_relations: "experts.tools.workspace.get_relations",
@@ -44,6 +45,7 @@ const WORKSPACE_TOOL_LABEL: Record<WorkspaceChatToolId, MessageKey> = {
   open_ingest_picker: "experts.tools.workspace.open_ingest_picker",
   show_evidence: "experts.tools.workspace.show_evidence",
   show_document: "experts.tools.workspace.show_document",
+  show_document_set: "experts.tools.workspace.show_document_set",
   focus_anchor: "experts.tools.workspace.focus_anchor",
   show_comparison: "experts.tools.workspace.show_comparison",
   show_relations: "experts.tools.workspace.show_relations",
@@ -72,6 +74,7 @@ export type ExpertToolsFieldsProps = {
   titleKey?: MessageKey
   introKey?: MessageKey
   includeWorkspaceTools?: boolean
+  triggerClassName?: string
 }
 
 function ExpertToolsTable({
@@ -159,6 +162,7 @@ export function ExpertToolsFields({
   titleKey = "experts.composer.layerTools",
   introKey = "experts.tools.intro",
   includeWorkspaceTools = false,
+  triggerClassName,
 }: ExpertToolsFieldsProps) {
   const { t } = useLocale()
   const [open, setOpen] = useState(false)
@@ -186,7 +190,7 @@ export function ExpertToolsFields({
     <>
       <button
         type="button"
-        className="results-icon-btn"
+        className={triggerClassName ?? "results-icon-btn"}
         title={t("experts.tools.openAria")}
         aria-label={t("experts.tools.openAria")}
         aria-haspopup="dialog"
@@ -195,6 +199,7 @@ export function ExpertToolsFields({
         onClick={() => setOpen(true)}
       >
         <Wrench className="size-3.5" aria-hidden />
+        {triggerClassName ? <span>{t("experts.tools.openAria")}</span> : null}
       </button>
       {open
         ? createPortal(
