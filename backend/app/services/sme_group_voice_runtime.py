@@ -23,6 +23,7 @@ from app.services.openai_live_transcription import (
     TranscriptEvent,
 )
 from app.services.sme_group_voice import GroupVoiceSession
+from app.services.tts_cache import CachedTts, cached_tts
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class GroupVoiceAudioRuntime:
             language=scope.language,
             on_event=self._on_transcript,
         )
-        self._tts_cache: dict[str, ElevenLabsTts] = {}
+        self._tts_cache: dict[str, CachedTts] = {}
         self._closed = False
         self._speaking_task: asyncio.Task[None] | None = None
 
@@ -161,15 +162,18 @@ class GroupVoiceAudioRuntime:
                 {"type": "assistant.done", "persona_id": persona_id, "turn_id": turn_id}
             )
 
-    def _tts_for(self, voice_id: str) -> ElevenLabsTts:
+    def _tts_for(self, voice_id: str) -> CachedTts:
         cached = self._tts_cache.get(voice_id)
         if cached is not None:
             return cached
-        tts = ElevenLabsTts(
+        tts = cached_tts(
+            ElevenLabsTts,
             api_key=settings.elevenlabs_api_key,
             voice_id=voice_id,
             model_id=settings.live_speech_tts_model,
             output_format=settings.live_speech_tts_output_format,
+            cache_dir=settings.tts_cache_dir,
+            max_bytes=settings.tts_cache_max_bytes,
         )
         self._tts_cache[voice_id] = tts
         return tts

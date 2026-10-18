@@ -206,6 +206,7 @@ Fail fast on missing required config.
 - [Runs: interviews, branches, quality](guides/runs-interviews-and-quality.md)
 - [CI](guides/ci.md)
 - [Backend setup](guides/backend-setup.md)
+- [TTS cache](guides/tts-cache.md) and the [word-level caching investigation](guides/tts-word-cache.md)
 - [Frontend setup](guides/frontend-setup.md)
 - [Supabase](guides/supabase-setup.md)
 - [Client brief](client-brief.md)

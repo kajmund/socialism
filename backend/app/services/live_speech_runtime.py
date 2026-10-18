@@ -35,6 +35,7 @@ from app.services.speech_segmenter import (
     VisibleSpeechText,
     strip_voice_tags,
 )
+from app.services.tts_cache import cached_tts
 
 EmitJson = Callable[[dict], Awaitable[None]]
 EmitAudio = Callable[[bytes], Awaitable[None]]
@@ -73,12 +74,12 @@ class LiveSpeechRuntime:
             language=scope.language,
             on_event=self._on_transcript,
         )
-        self._tts = ElevenLabsTts(
-            api_key=settings.elevenlabs_api_key,
-            voice_id=scope.voice_id,
+        self._tts = cached_tts(
+            ElevenLabsTts,
+            api_key=settings.elevenlabs_api_key, voice_id=scope.voice_id,
             model_id=settings.live_speech_tts_model,
             output_format=settings.live_speech_tts_output_format,
-        )
+            cache_dir=settings.tts_cache_dir, max_bytes=settings.tts_cache_max_bytes)
         self._partials: dict[str, str] = {}
         self._revisions: dict[str, int] = {}
         self._turn_task: asyncio.Task[None] | None = None

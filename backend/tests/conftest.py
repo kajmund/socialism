@@ -64,6 +64,8 @@ _IMAGE_CACHE_ROOT = tempfile.mkdtemp(prefix="image-cache-")
 settings.image_cache_dir = _IMAGE_CACHE_ROOT
 _BOLAGSAPI_CACHE_ROOT = tempfile.mkdtemp(prefix="bolagsapi-cache-")
 settings.bolagsapi_cache_dir = _BOLAGSAPI_CACHE_ROOT
+_TTS_CACHE_ROOT = tempfile.mkdtemp(prefix="tts-cache-")
+settings.tts_cache_dir = _TTS_CACHE_ROOT
 settings.log_dir = ""
 settings.logstash_url = ""
 settings.logstash_username = ""

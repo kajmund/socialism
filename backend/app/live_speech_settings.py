@@ -20,3 +20,7 @@ class LiveSpeechSettings:
     live_speech_waiting_suppress_ms: int = Field(default=350, ge=50, le=2000)
     live_speech_tool_progress_ms: int = Field(default=800, ge=100, le=5000)
     live_speech_phrase_timeout_seconds: float = Field(default=1.5, gt=0.2, le=8)
+    # ElevenLabs live-speech PCM segment cache (SHA256 keys). Pure disk, no database.
+    tts_cache_dir: str = "data/tts_cache"
+    # LRU cap for tts_cache_dir: oldest .pcm entries are evicted above it.
+    tts_cache_max_bytes: int = Field(default=536_870_912, ge=1_048_576)
