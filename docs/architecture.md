@@ -38,7 +38,7 @@ flowchart LR
 | Frontend | Vite · React · TypeScript · Tailwind · shadcn · React Router |
 | Backend | Python 3.12+ · FastAPI · SQLAlchemy · Alembic · pydantic-settings |
 | Database | Supabase Postgres via `psycopg` for durable shared state; SQLite via `aiosqlite` for isolated local work and tests |
-| Knowledge graph | OverGraph embedded catalogs (knowledge 3072, memory 1536); see [overgraph-knowledge-engine.md](specs/overgraph-knowledge-engine.md) |
+| Knowledge graph | OverGraph embedded catalogs (knowledge 3072, memory 1536); see [overgraph-knowledge-engine.md](specs/overgraph-knowledge-engine.md). Approved tenant-file model (not wired): one tenant, one file, one lifecycle lock, one active Catalog — [document-qa-overgraph.md](specs/document-qa-overgraph.md) |
 | API logs | Rotating file `backend/data/logs/app.log` (uvicorn stdout unchanged) |
 | LLM | Cerebras `gpt-oss-120b` default (`CEREBRAS_API_KEY`); DeepSeek via `LLM_PROVIDER=deepseek` |
 | Embeddings (SSR) | OpenAI `text-embedding-3-large` (`OPENAI_API_KEY` required) |
@@ -69,8 +69,8 @@ flowchart LR
 | **ExecutionRun** | Generic work/investigation container (product name: Run). Table `execution_runs`. Not a legal case and not a simulation körning. |
 | **ExecutionAttempt** | One concrete execution of an ExecutionRun (product: Attempt), with immutable snapshots once started. Table `execution_attempts`. |
 | **EvidenceSet** | Building, frozen, or failed knowledge snapshot reused by Attempts in the same ExecutionRun. |
-| **CanonicalDocument** | Stable source identity (upload, lagen.nu via adapter, later APIs). Deduplicated on `(customer_id, source_type, canonical_uri)`. |
-| **DocumentVersion** | Immutable temporal occurrence of a CanonicalDocument. Reuse only the current version when the hash matches; a recurring historical hash creates a new row. |
+| **CanonicalDocument** | Stable source identity (upload, lagen.nu via adapter, later APIs). Deduplicated on `(customer_id, source_type, canonical_uri)`. Planned catalog type, user labels, and corrections belong here; see [document-catalog-integration.md](specs/document-catalog-integration.md). |
+| **DocumentVersion** | Immutable temporal occurrence of a CanonicalDocument. Reuse only the current version when the hash matches; a recurring historical hash creates a new row. Planned extracted properties and source excerpts belong on the version where the text was found. |
 | **DocumentSection** | Hierarchical structural region inside a DocumentVersion. |
 | **TextUnit** | Canonical passage belonging to one DocumentVersion. Embeddings, Q&A, and later claims/research ground here. |
 | **PersonaMessage** | Chat turns — library chat (`run_id` null) or run-scoped interview |

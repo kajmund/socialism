@@ -6,10 +6,8 @@ from dataclasses import replace
 import pytest
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import selectinload
-
 from app.database.base import Base
-from app.database.models import CanonicalDocumentRecord, DocumentKnowledgeItem, DocumentVersionRecord, Kund, StoredObject, UserAccount
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund, StoredObject, UserAccount
 from app.serializers import utcnow
 from app.services.document_knowledge import create_manual_document_knowledge, supporting_text_unit_ids
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
@@ -20,7 +18,6 @@ from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
 from app.services.knowledge.shared_document_grounding import readable_shared_document_passage
 from app.services.knowledge.units import hash_text
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
-from app.services.research.composition import set_knowledge_vector_store_factory
 from app.services.research.knowledge_source import KnowledgeResearchSource
 from app.services.research.models import ResearchContext, ResearchNeed
 from app.services.research.workspace_grounding import passages_allowed
@@ -143,74 +140,31 @@ async def test_same_hash_reuses_sql_ids_and_vectors(documents):
     assert len(embeddings.calls) == before_calls
 
 
-async def _create_qa(documents, monkeypatch):
-    factory, store, embeddings, _workspace_ids = documents
-    set_knowledge_vector_store_factory(lambda: store)
-    monkeypatch.setattr("app.services.document_knowledge.OpenAIEmbeddingProvider.from_settings", lambda: embeddings)
-    try:
-        async with factory() as session:
-            source = await session.get(StoredObject, "source-1")
-            item = await create_manual_document_knowledge(
-                session, source=source, user_id="workspace-user",
-                body=DocumentKnowledgeItemWrite(
-                    kind="qa", title="Avtalets uppsägningstid", question="Vad är avtalets uppsägningstid?",
-                    content="Sammanfattat svar: sex månader.",
-                    anchors=[{"anchor_type": "text", "locator": "line:1", "exact_text": SOURCE_TEXT}],
-                ),
-            )
-            item_id = item.id
-            await session.commit()
-    finally:
-        set_knowledge_vector_store_factory(None)
-    return item_id
-
-
-async def test_qa_discovery_returns_original_passage_and_frozen_revision(documents, monkeypatch):
-    item_id = await _create_qa(documents, monkeypatch)
-    _factory, _store, _embeddings, (_common, first, _second) = documents
-    hits = await _search(documents, KnowledgeScope(customer_id=1, workspace_id=first), filters={"knowledge_kind": "document_item"})
-    assert len(hits) == 1
-    hit = hits[0]
-    assert hit.document_id == "source-1"
-    assert hit.excerpt == SOURCE_TEXT
-    assert hit.metadata["document_knowledge_item_id"] == item_id
-    assert hit.metadata["item_revision"] == 1
-    assert hit.metadata["qa_snapshot"]["content"] == "Sammanfattat svar: sex månader."
-    assert hit.metadata["document_version_id"]
-    assert hit.metadata["text_unit_ids"] == [hit.metadata["text_unit_id"]]
-
-
-async def test_qa_card_filter_preserves_selected_snapshot_when_cards_share_passage(documents, monkeypatch):
-    first_item = await _create_qa(documents, monkeypatch)
-    second_item = await _create_qa(documents, monkeypatch)
-    _factory, _store, _embeddings, (_common, first, _second) = documents
-    scope = KnowledgeScope(customer_id=1, workspace_id=first)
-    unselected = await _search(documents, scope, filters={"knowledge_kind": "document_item"})
-    assert len(unselected) == 1
-    assert first_item != second_item
-    for selected_item in (first_item, second_item):
-        hits = await _search(documents, scope, filters={
-            "knowledge_kind": "document_item", "item_kind": "qa",
-            "document_knowledge_item_id": selected_item,
-        })
-        assert len(hits) == 1
-        assert hits[0].metadata["document_knowledge_item_id"] == selected_item
-        assert hits[0].excerpt == SOURCE_TEXT
-
-
-@pytest.mark.parametrize("change", ["needs_review", "revision", "fabricated_quote"])
-async def test_stale_or_ungrounded_qa_vectors_are_rejected(documents, monkeypatch, change):
-    item_id = await _create_qa(documents, monkeypatch)
+async def test_manual_qa_is_not_in_vector_search(documents):
     factory, _store, _embeddings, (_common, first, _second) = documents
-    async with factory.begin() as session:
-        item = await session.scalar(select(DocumentKnowledgeItem).options(selectinload(DocumentKnowledgeItem.anchors)).where(DocumentKnowledgeItem.id == item_id))
-        if change == "revision":
-            item.revision += 1
-        elif change == "needs_review":
-            item.status = "needs_review"
-        else:
-            item.anchors[0].exact_text = "Avtalets uppsägningstid är tre månader."
-    assert await _search(documents, KnowledgeScope(customer_id=1, workspace_id=first), filters={"knowledge_kind": "document_item"}) == []
+    async with factory() as session:
+        source = await session.get(StoredObject, "source-1")
+        await create_manual_document_knowledge(
+            session, source=source, user_id="workspace-user",
+            body=DocumentKnowledgeItemWrite(
+                kind="qa", title="Avtalets uppsägningstid", question="Vad är avtalets uppsägningstid?",
+                content="Sammanfattat svar: sex månader.",
+                anchors=[{"anchor_type": "text", "locator": "line:1", "exact_text": SOURCE_TEXT}],
+            ),
+        )
+        await session.commit()
+    item_hits = await _search(
+        documents,
+        KnowledgeScope(customer_id=1, workspace_id=first),
+        filters={"knowledge_kind": "document_item"},
+    )
+    assert item_hits == []
+    hits = await _search(documents, KnowledgeScope(customer_id=1, workspace_id=first))
+    assert hits
+    assert all(hit.excerpt == SOURCE_TEXT for hit in hits)
+    assert all(hit.metadata.get("knowledge_kind") == "document_chunk" for hit in hits)
+    assert all("document_knowledge_item_id" not in hit.metadata for hit in hits)
+    assert all("qa_snapshot" not in hit.metadata for hit in hits)
 
 
 async def test_locator_cannot_validate_fabricated_quote(documents):

@@ -2,7 +2,9 @@
 
 DeepSeek V4 rejects replayed assistant/tool turns that drop `type` on
 tool_calls or omit `reasoning_content` after a thinking-mode tool call.
-Cerebras gets standard OpenAI-compatible dicts without that extra field.
+A tools-carrying request must pass back ``reasoning_content`` on every
+assistant turn, so missing values are sent as an empty string. Cerebras
+gets standard OpenAI-compatible dicts without that extra field.
 Always send plain dicts (not SDK models) so `type` is not stripped.
 """
 
@@ -61,7 +63,11 @@ def normalize_messages_for_openai(messages: list[dict[str, Any]]) -> list[dict[s
 def _normalize_message(message: object, *, include_reasoning: bool) -> dict[str, Any]:
     if not isinstance(message, dict):
         payload = assistant_message_dict(message)
-        if not include_reasoning:
+        if include_reasoning:
+            # DeepSeek tools requests require the field on every assistant
+            # turn; empty stands in for a turn whose reasoning was never kept.
+            payload["reasoning_content"] = payload.get("reasoning_content") or ""
+        else:
             payload.pop("reasoning_content", None)
         return payload
 
@@ -72,9 +78,7 @@ def _normalize_message(message: object, *, include_reasoning: bool) -> dict[str,
             "content": _text_content(message.get("content")),
         }
         if include_reasoning:
-            reasoning = message.get("reasoning_content")
-            if reasoning is not None:
-                payload["reasoning_content"] = reasoning
+            payload["reasoning_content"] = message.get("reasoning_content") or ""
         normalized = _normalize_tool_calls(message.get("tool_calls"))
         if normalized:
             payload["tool_calls"] = normalized

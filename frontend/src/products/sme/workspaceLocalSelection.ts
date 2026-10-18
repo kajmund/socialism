@@ -1,15 +1,74 @@
+import type { DocumentKnowledgeAnchor } from "@/api/underlag"
 import type { SourceReference, WorkspaceSelection, WorkspaceState } from "@/api/voiceWorkspaces"
 import type { WorkspaceTurnSnapshot } from "./workspaceTurnSnapshot"
 import { clearWorkspaceDocumentSelection } from "./workspaceDocumentFocus"
+import { passageCommentKey } from "./passageCommentKey"
 
-export type LocalDocumentSelection = { sourceId: string; selection: WorkspaceSelection | null; clearedSourceIds?: string[] }
+export type LocalDocumentSelection = {
+  sourceId: string
+  selection: WorkspaceSelection | null
+  earlierBySource?: Record<string, WorkspaceSelection[]>
+  clearedSourceIds?: string[]
+}
+
+function keptMarks(marks: Record<string, WorkspaceSelection[]>): Record<string, WorkspaceSelection[]> | undefined {
+  return Object.keys(marks).length ? marks : undefined
+}
+
+export function addLocalDocumentSelection(local: LocalDocumentSelection | null, sourceId: string, selection: WorkspaceSelection): LocalDocumentSelection {
+  const earlierBySource = { ...(local?.earlierBySource ?? {}) }
+  const previous = local?.selection
+  if (previous?.anchor && local?.sourceId && !(local.sourceId === sourceId && selectionsSameGeometry(previous, selection))) {
+    const bucket = earlierBySource[local.sourceId] ?? []
+    if (!bucket.some((row) => selectionsSameGeometry(row, previous))) earlierBySource[local.sourceId] = [...bucket, structuredClone(previous)]
+  }
+  earlierBySource[sourceId] = (earlierBySource[sourceId] ?? []).filter((row) => !selectionsSameGeometry(row, selection))
+  if (!earlierBySource[sourceId]?.length) delete earlierBySource[sourceId]
+  return {
+    sourceId,
+    selection: structuredClone(selection),
+    earlierBySource: keptMarks(earlierBySource),
+    clearedSourceIds: (local?.clearedSourceIds ?? []).filter((id) => id !== sourceId),
+  }
+}
+
+export function localUserAnchors(local: LocalDocumentSelection | null, sourceId: string): DocumentKnowledgeAnchor[] | null {
+  if (!local) return null
+  if (local.clearedSourceIds?.includes(sourceId)) return []
+  const earlier = (local.earlierBySource?.[sourceId] ?? []).flatMap((row) => row.anchor ? [row.anchor] : [])
+  const active = local.sourceId === sourceId && local.selection?.anchor ? [local.selection.anchor] : []
+  if (!earlier.length && !active.length) return null
+  return [...earlier, ...active]
+}
+
+export function dropLocalPassage(local: LocalDocumentSelection | null, sourceId: string, passageKey: string): LocalDocumentSelection | null {
+  if (!local) return null
+  const matches = (row: WorkspaceSelection | null | undefined) => Boolean(
+    row?.anchor && row.source_id === sourceId && passageCommentKey(sourceId, row.anchor) === passageKey,
+  )
+  const earlierBySource = { ...(local.earlierBySource ?? {}) }
+  const bucket = earlierBySource[sourceId]
+  if (bucket) {
+    const kept = bucket.filter((row) => !matches(row))
+    if (kept.length) earlierBySource[sourceId] = kept
+    else delete earlierBySource[sourceId]
+  }
+  return {
+    ...local,
+    selection: matches(local.selection) ? null : local.selection,
+    earlierBySource: keptMarks(earlierBySource),
+  }
+}
 
 export function clearLocalDocumentSelection(state: WorkspaceState, references: SourceReference[], local: LocalDocumentSelection | null, sourceId: string): LocalDocumentSelection {
   const visible = withLocalDocumentSelection(state, local)
   const cleared = clearWorkspaceDocumentSelection(visible, sourceId, references)
   const clearedSourceIds = [...new Set([...(local?.clearedSourceIds ?? []), sourceId])]
-  if (local && cleared.selection === visible.selection) return { ...local, clearedSourceIds }
-  return { sourceId, selection: cleared.selection ?? null, clearedSourceIds }
+  const earlierBySource = { ...(local?.earlierBySource ?? {}) }
+  delete earlierBySource[sourceId]
+  const kept = keptMarks(earlierBySource)
+  if (local && cleared.selection === visible.selection) return { ...local, clearedSourceIds, earlierBySource: kept }
+  return { sourceId, selection: cleared.selection ?? null, clearedSourceIds, earlierBySource: kept }
 }
 
 function normalizedQuote(text: string | null | undefined): string {

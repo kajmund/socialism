@@ -1,0 +1,142 @@
+{
+  "id": "phase2-blind-carveout-gold-v1",
+  "label": "Frozen: blind gold E versus the seen-corpus detectors. Do not loosen verified. Gold is synthetic.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_jev": true,
+  "gold_is_synthetic": true,
+  "headline": {
+    "yes_count": 53,
+    "yes_link": 0,
+    "yes_claim_form": 0,
+    "no_link": 0,
+    "uncertain_link": [
+      "avtal_138",
+      "avtal_173"
+    ],
+    "yes_multi_clause": 34,
+    "no_secrecy_word": 28
+  },
+  "yes_relations": {
+    "confidentiality_breach_excluded_from_cap": 37,
+    "confidentiality_breach_excluded_from_cap_one_party_only": 3,
+    "confidentiality_breach_subject_to_separate_higher_cap": 4,
+    "confidentiality_breach_partially_excluded": 6,
+    "confidentiality_breach_excluded_from_cap_via_special_terms": 2,
+    "confidentiality_breach_excluded_from_cap_selected_alternative": 1
+  },
+  "yes_wording": {
+    "no_secrecy_word": 28,
+    "has_sekretess": 7,
+    "has_defined_term": 10,
+    "has_tystnadsplikt": 8,
+    "anaphor": 9
+  },
+  "yes_samples": [
+    {
+      "id": "avtal_103",
+      "quote": "Inget i denna punkt ska begränsa parts ansvar för brott mot avsnitt 4.",
+      "why_missed": "heading reference, no secrecy word, no LINK_RE lexicon"
+    },
+    {
+      "id": "avtal_106",
+      "quote": "Detsamma gäller skada som uppkommer till följd av att part åsidosätter sin tystnadsplikt.",
+      "why_missed": "anaphor plus tystnadsplikt; LINK_RE wants sekretess in the same span"
+    },
+    {
+      "id": "avtal_121",
+      "quote": "Ansvarsbegränsningen ovan gäller inte i följande fall: / brott mot klausul 7",
+      "why_missed": "letter list; secrecy lives in the resolved heading"
+    },
+    {
+      "id": "avtal_140",
+      "quote": "skada till följd av obehörigt röjande av Förtrolig Information",
+      "why_missed": "defined term, not the word sekretess"
+    }
+  ],
+  "no_relations": {
+    "carveout_for_other_matter_only": 8,
+    "no_liability_cap": 9,
+    "carveout_for_data_protection_not_confidentiality": 1,
+    "superseded_prior_carveout": 1,
+    "carveout_removed_by_higher_ranking_terms": 2,
+    "no_carveout": 7,
+    "reference_leads_to_other_obligation": 2,
+    "carveout_for_information_security_not_confidentiality": 1,
+    "struck_text_not_part_of_agreement": 1,
+    "penalty_clause_not_carveout": 1,
+    "cap_expressly_applies_to_confidentiality": 4,
+    "alternative_not_selected": 1,
+    "no_liability_cap_to_carve_out_from": 1
+  },
+  "no_traps": {
+    "co_occurrence_without_relation": 7,
+    "none": 17,
+    "topical_similarity": 2,
+    "superseded_provision": 1,
+    "precedence_override": 2,
+    "wrong_reference": 2,
+    "struck_text": 1,
+    "penalty_mistaken_for_carveout": 1,
+    "negation": 3,
+    "relation_present_but_inverse": 1,
+    "conditional_alternative_not_selected": 1,
+    "no_limitation_to_carve_out": 1
+  },
+  "no_samples": [
+    {
+      "id": "avtal_101",
+      "trap": "co_occurrence_without_relation",
+      "quote": "Begränsningarna enligt ovan gäller inte om part har orsakat skadan uppsåtligen eller genom grov vårdslöshet."
+    },
+    {
+      "id": "avtal_132",
+      "trap": "wrong_reference",
+      "quote": "Begränsningen gäller inte heller vid brott mot § 12."
+    },
+    {
+      "id": "avtal_156",
+      "trap": "negation",
+      "quote": "Det förhållandet att en skada har uppkommit genom röjande av information som omfattas av tystnadsplikten medför inte att begränsningen i klausul 8.2 upphör att gälla."
+    },
+    {
+      "id": "avtal_162",
+      "trap": "relation_present_but_inverse",
+      "quote": "Begränsningarna gäller även för skada till följd av brott mot sekretessåtagandet."
+    },
+    {
+      "id": "avtal_119",
+      "trap": "precedence_override",
+      "quote": "Med ändring av punkt 2.4 i Bilaga 2 gäller ansvarsbegränsningen även vid brott mot sekretess."
+    },
+    {
+      "id": "avtal_109",
+      "trap": "topical_similarity",
+      "quote": "Begränsningen gäller inte heller för ansvar enligt artikel 82 i dataskyddsförordningen"
+    }
+  ],
+  "uncertain_relations": {
+    "reference_to_external_document": 2,
+    "ambiguous_relation_cap_confidentiality": 4,
+    "named_obligation_but_reference_points_elsewhere": 2
+  },
+  "uncertain_samples": [
+    {
+      "id": "avtal_138",
+      "quote": "Begränsningen gäller inte heller vid brott mot sekretessåtagandet i punkt 12.",
+      "why": "LINK_RE matches, gold leaves UNCERTAIN: the number points elsewhere"
+    },
+    {
+      "id": "avtal_173",
+      "quote": "Begränsningen gäller inte heller vid brott mot sekretessåtagandet i punkt 8.",
+      "why": "same falsa demonstratio as avtal_138"
+    }
+  ],
+  "error_layers": {
+    "retrieval": "not measured here; Recall@50 is capped by candidate budget",
+    "classification": "Jev C@8 is a candidate filter, not a proof",
+    "proof_evaluation": "LINK_RE and claim-form miss every gold YES quote"
+  },
+  "live_false_completes_not_in_workspace": true
+}

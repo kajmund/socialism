@@ -1,0 +1,53 @@
+{
+  "experiment": "document-presentation-channel-parity-step-b-v4",
+  "classification": "intent-decision-quality-baseline",
+  "source_artifact": "backend/data/document-channel-parity-step-b-v8.json",
+  "compared_to": "document-channel-parity-step-b-v3",
+  "actual_execute_expert_turn_calls": 150,
+  "acceptance": {
+    "strictly_correct_channel_cases": 150,
+    "previous_strictly_correct": 149,
+    "missed_explicit_shows": 0,
+    "erroneous_auto_displays": 0,
+    "duplicate_presentations": 0,
+    "external_or_model_errors": 0,
+    "wrong_mode_transitions": 0,
+    "approved_intent_orchestration": true,
+    "approved_deterministic_fast_path": false
+  },
+  "channels_summary": {
+    "text": {
+      "latency_ms": {"median": 2665.146, "p95": 5781.389},
+      "strictly_correct_cases": 50,
+      "correct_document_selections": 50,
+      "missed_explicit_shows": 0,
+      "erroneous_auto_displays": 0,
+      "wrong_mode_transitions": 0,
+      "external_or_model_errors": 0
+    },
+    "voice": {
+      "latency_ms": {"median": 2733.106, "p95": 4855.566},
+      "strictly_correct_cases": 50,
+      "correct_document_selections": 50,
+      "missed_explicit_shows": 0,
+      "erroneous_auto_displays": 0,
+      "wrong_mode_transitions": 0,
+      "external_or_model_errors": 0
+    },
+    "group_voice": {
+      "latency_ms": {"median": 2594.993, "p95": 4875.033},
+      "strictly_correct_cases": 50,
+      "correct_document_selections": 50,
+      "missed_explicit_shows": 0,
+      "erroneous_auto_displays": 0,
+      "wrong_mode_transitions": 0,
+      "external_or_model_errors": 0
+    }
+  },
+  "notes": [
+    "IntentDecision locks operation, presentation, scope, and query before tools.",
+    "Blocked presentation never terminates the episode without a text reply.",
+    "After find_documents with presentation none/uncertain, find_documents is dropped from continuation specs so rounds are not burned on re-search.",
+    "Deterministic presentation fast path remains unapproved; this baseline is for IntentDecision + shared channel orchestration only."
+  ]
+}

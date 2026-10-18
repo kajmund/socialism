@@ -9,6 +9,7 @@ OPENAI_API_KEY=...
 ELEVENLABS_API_KEY=...
 ELEVENLABS_VOICE_ID=...
 LIVE_SPEECH_STT_MODEL=gpt-live-transcribe
+LIVE_SPEECH_NOISE_REDUCTION=near_field
 LIVE_SPEECH_TTS_MODEL=eleven_v4_turbo
 LIVE_SPEECH_TTS_OUTPUT_FORMAT=pcm_24000
 ```
@@ -19,13 +20,18 @@ dependencies with `uv sync` and `pnpm install`.
 ## Runtime
 
 The browser connects to `/ws/live-speech` with the existing access token.
-`useLiveSpeechConversation` captures 30 ms microphone frames, performs local
-energy VAD with a minimum speech duration and an urgent gate, and sends only
-active PCM16 audio. Speech while the assistant talks is classified as
+`useLiveSpeechConversation` captures 30 ms microphone frames. Silero VAD
+decides speech, with a minimum speech duration and an urgent gate, and the
+browser sends only active PCM16 audio. Browser noise suppression is off;
+OpenAI near-field noise reduction is the filter on that audio. Opening a
+document sends `stt.focus` with that document's source id. The server loads
+its text units and updates the transcription keywords with `session.update`.
+Speech while the assistant talks is classified as
 backchannel or barge-in. The session opens with a Fast line from the latest
 interview messages so the expert speaks first. A long user turn can get a
-Fast listener cue. Slow tools can get Fast progress talk that is not
-persisted. The backend
+Fast listener cue. If the expert has not spoken within 50 milliseconds of the
+user's answer, a Fast waiting line is spoken. Tool progress is spoken as soon
+as a tool runs. Neither line is persisted. The backend
 transcribes with OpenAI Realtime and calls the same `execute_expert_turn`
 used by `/ws/sme`. A typed message during speech cancels the turn and keeps
 the voice session.
@@ -55,7 +61,8 @@ citations such as `[R1]` remain unchanged.
 
 - JSON controls and binary audio share one socket.
 - Input and output are PCM16 mono at 24 kHz.
-- OpenAI transcription has `turn_detection: null`; browser VAD sends commit.
+- OpenAI transcription has `turn_detection: null` and `noise_reduction: near_field`; browser VAD sends commit.
+- `stt.focus` carries source ids. The server turns the open document's text units into keywords.
 - Binary output belongs to the most recent `audio.output.start`.
 - Invalid sequences fail visibly. V1 does not reconnect in the middle of a turn.
 - Starting a second session for the same user/workspace revokes the first.

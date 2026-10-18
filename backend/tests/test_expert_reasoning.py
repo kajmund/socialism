@@ -9,12 +9,15 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.jev.system import JevSystemOneResult, JevUsage
+from app.jev.system import JevClientError, JevSystemOneResult, JevUsage
 from app.llm.chat_model import chat_model_label
 from app.llm.runtime_override import LlmResolution, LlmRuntimeView
-from app.services.expert_async_tools import PlannedCall
+from app.services.expert_async_tools import PlannedCall, begin_library_tools
+from app.services.expert_reasoning_turn import route_expert_turn
 from app.services.expert_reasoning_episode import trace_events
+from app.services.expert_chat_prompts import _reasoning_assessment_questions
 from app.services.expert_reasoning import (
+    SCORE_KEYS,
     ReasoningScores,
     assess_expert_reasoning,
     higher_profile,
@@ -23,6 +26,16 @@ from app.services.expert_reasoning import (
     spawn_should_expose,
 )
 from app.services.prompt_catalog import default_prompts
+
+
+def test_reasoning_assessment_questions_match_score_keys():
+    for language in ("sv", "en"):
+        questions = json.loads(_reasoning_assessment_questions(language))
+        assert set(questions) == set(SCORE_KEYS)
+        for question in questions.values():
+            assert question["type"] == "noul"
+            assert question["instructions"]
+            assert "criteria" not in question
 
 
 def _scores(**overrides: float) -> ReasoningScores:
@@ -237,6 +250,85 @@ async def test_jev_wait_does_not_hold_committed_database_connection(tmp_path):
         assert decision.profile == "balanced"
     finally:
         await engine.dispose()
+
+
+def _spec(name: str) -> dict:
+    return {"type": "function", "function": {"name": name, "description": name, "parameters": {}}}
+
+
+class _CountingJev:
+    def __init__(self, answers: dict | None = None, error: Exception | None = None) -> None:
+        self.answers = answers
+        self.error = error
+        self.calls: list[dict] = []
+
+    async def ask(self, *, state, questions, model, timeout_seconds):
+        del state, model, timeout_seconds
+        self.calls.append(questions)
+        if self.error is not None:
+            raise self.error
+        answered = {key: {"noul": 0.05} for key in questions}
+        answered.update(self.answers or {})
+        return JevSystemOneResult(
+            answers=answered,
+            model="jev-test",
+            latency_ms=12,
+            input_chars=10,
+            usage=JevUsage(),
+            raw={},
+        )
+
+
+def _route_scope():
+    return begin_library_tools(
+        persona_id="p1",
+        mode="interview",
+        actor_user_id="u1",
+        history=[],
+        user_message="Var står det om vite?",
+        enabled=True,
+        workspace=("ws-1", {"documents": [{"source_id": "doc", "page": 1}]}),
+    )
+
+
+@pytest.mark.asyncio
+async def test_initial_route_asks_once_for_tools_and_profile(monkeypatch):
+    jev = _CountingJev({
+        "simple_operation": {"noul": 0.97},
+        "search_knowledge": {"noul": 0.96},
+    })
+    monkeypatch.setattr(
+        "app.services.expert_reasoning_turn.HttpJevSystemOne", lambda: jev,
+    )
+    specs = [_spec("search_knowledge"), _spec("read_source")]
+    profile = await route_expert_turn(
+        _route_scope(), default_prompts("sv"), "expert", ([], specs),
+    )
+    assert profile == "fast"
+    assert len(jev.calls) == 1
+    assert set(SCORE_KEYS) <= set(jev.calls[0])
+    assert {"search_knowledge", "read_source"} <= set(jev.calls[0])
+    assert [spec["function"]["name"] for spec in specs] == ["search_knowledge"]
+
+
+@pytest.mark.asyncio
+async def test_shared_ask_failure_keeps_tools_and_balanced_profile(monkeypatch):
+    jev = _CountingJev(error=JevClientError("down", category="timeout"))
+    monkeypatch.setattr(
+        "app.services.expert_reasoning_turn.HttpJevSystemOne", lambda: jev,
+    )
+    scope = _route_scope()
+    specs = [_spec("search_knowledge"), _spec("read_source")]
+    profile = await route_expert_turn(
+        scope, default_prompts("sv"), "expert", ([], specs),
+    )
+    assert profile == "balanced"
+    assert scope.reasoning_decision is not None
+    assert scope.reasoning_decision.fallback is True
+    assert len(jev.calls) == 1
+    assert [spec["function"]["name"] for spec in specs] == [
+        "search_knowledge", "read_source",
+    ]
 
 
 def test_trace_shows_context_message_tools_and_the_model() -> None:

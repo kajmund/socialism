@@ -1,0 +1,40 @@
+{
+  "id": "phase2-cerebras-second-opinion-rejected-v1",
+  "label": "Negative experiment: GPT-OSS is rejected as a general second opinion on Jev. Net +1 on 233 overlapping keys. 19 of 27 Jev errors are shared. UNCERTAIN is not an escalation signal. Do not build a model router. Jev C@8 remains the classify reference. Does not replace C@8 or output v1. 24/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "verdict": "rejected_for_general_escalation",
+  "do_not_deploy": true,
+  "do_not_build_model_router": true,
+  "disagreement_is_not_uncertainty": true,
+  "uncertain_does_not_steer_escalation": true,
+  "classify_reference": "phase2-jev-classify-c8",
+  "measurement": "phase2-cerebras-second-opinion-v1",
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_replace_cerebras_output": true,
+  "applied_to_v3": false,
+  "k200_not_started": true,
+  "task": "formulation_presence",
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "summary": {
+      "overlap": 233,
+      "jev_errors": 27,
+      "corrected": 8,
+      "worsened": 7,
+      "same_error": 19,
+      "net": 1,
+      "jev_uncertain": 9,
+      "uncertain_resolved_correct": 9,
+      "uncertain_resolved_wrong": 0,
+      "mean_jev_precision": 0.7522058823529412,
+      "mean_cerebras_precision": 0.7471620227038184
+    }
+  }
+}

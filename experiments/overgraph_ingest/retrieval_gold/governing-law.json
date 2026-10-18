@@ -1,0 +1,325 @@
+{
+  "id": "governing-law",
+  "kind": "unit",
+  "proof_kind": "EXISTS",
+  "split": "held_out",
+  "query": "Vilka avtal innehåller en lagvalsklausul?",
+  "classify_question": "Innehåller texten att en viss nations lag ska tillämpas på avtalet?",
+  "notes": "Held-out expansion test. The query says lagvalsklausul; the contracts say Svensk lag gäller. Relevant is an operative choice-of-law sentence, not a heading and not a pointer to another contract's clause.",
+  "relevant_units": [
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_29_Samarbetsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_19_Andrahandsuthyrning_lokal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_53_Overlatelse_immateriella_rattigheter.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_41_Borgensforbindelse.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_34_Aterforsaljaravtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_91_Inkramsoverlatelse.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_42_Factoringavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_88_Teckningsavtal_nyemission.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_68_Hyresavtal_fordon.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_28_Aktieagaravtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_63_Appavtal_utveckling_publicering.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_57_Penetrationstest.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_82_Uppdragsavtal_styrelseledamot.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_22_Kontorshotell_coworking.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_77_Redovisningsuppdrag.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_72_Utbildningsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_93_Avveckling_av_samarbete.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_46_SaaS_avtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_64_Byraavtal_reklam.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_69_Kundavtal_B2C_villkor.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_50_Support_underhallsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_83_Teckningsoptionsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_43_Leasingavtal_utrustning.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_40_Laneavtal_revers.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "contains": "Svensk lag ska gälla för avtalet."
+    },
+    {
+      "relative_path": "Avtal_03_Visstidsanstallning.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_60_Pilotavtal_PoC.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_55_Overlatelse_domannamn.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_54_Kallkodsdeposition_escrow.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_49_IT_drift_hostingavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_79_Hyresavtal_lokal_Goteborg.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_15_Bonusavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_66_Foto_filmavtal_bildlicens.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_56_Bidragsavtal_CLA.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_09_Kundbearbetningsforbud_varvningsforbud.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_86_Aktieoverlatelseavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_75_Visselblasarfunktion.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_18_Hyresavtal_bostad.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_100_Djurkopeavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_35_Franchiseavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_71_Konstnarsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_52_Licensavtal_varumarke.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_39_Avsiktsforklaring_LOI.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_44_Avbetalningsplan.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_85_Konvertibelt_laneavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_84_Villkorat_aktieagartillskott.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_21_Parkeringsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_65_Sponsringsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_20_Arrendeavtal_lagenhetsarrende.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_89_Aktieagaravtal_uppdaterat.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_07_Sekretessavtal_omsesidigt.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_87_Investeringsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_62_PUB_GDPR_databehandlingsavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_47_Programvarulicensavtal.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_94_Kopeavtal_los_egendom.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_24_Kopeavtal_fastighet.docx",
+      "contains": "Svensk lag gäller."
+    },
+    {
+      "relative_path": "Avtal_25_Fastighetsservice_stadning.docx",
+      "contains": "Svensk lag gäller."
+    }
+  ],
+  "hard_negatives": [
+    {
+      "relative_path": "Avtal_90_Anslutningsavtal.docx",
+      "contains": "Bestämmelserna om tillämplig lag och tvister i Aktieägaravtalet gäller även detta avtal.",
+      "reason": "Pointer to another contract; no independent choice of law"
+    }
+  ],
+  "watch_negatives": [
+    {
+      "relative_path": "Avtal_32_Inkopsavtal.docx",
+      "contains": "10. Tillämplig lag och tvister",
+      "reason": "Heading only if the body is missing from this unit"
+    }
+  ]
+}

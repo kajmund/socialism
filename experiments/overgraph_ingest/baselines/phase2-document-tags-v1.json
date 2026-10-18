@@ -1,0 +1,3195 @@
+{
+  "id": "phase2-document-tags-v1",
+  "label": "Document tags and stored classification. Structure-only A vs Jev B on frozen document type plus relevant text.",
+  "do_not_overwrite": true,
+  "reuses_frozen_doctype_b": true,
+  "does_not_rerun_doctype_jev": true,
+  "does_not_change_text_units": true,
+  "does_not_change_retrieval": true,
+  "does_not_change_answer_cell": true,
+  "does_not_change_doctype_baseline": true,
+  "default_remains_d": true,
+  "no_production_integration": true,
+  "no_automatic_approval_threshold": true,
+  "confidence_is_not_legal_probability": true,
+  "prepared_knowledge_not_legal_proof": true,
+  "gold_id": "document-tags-gold-v1",
+  "catalog_version": "document-tags-v1",
+  "documents": [
+    "Avtal_01_Tillsvidareanstallningsavtal.docx",
+    "Avtal_02_Provanstallningsavtal.docx",
+    "Avtal_03_Visstidsanstallning.docx",
+    "Avtal_04_Timanstallning_behovsanstallning.docx",
+    "Avtal_05_Konsultavtal.docx",
+    "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+    "Avtal_07_Sekretessavtal_omsesidigt.docx",
+    "Avtal_08_Konkurrensforbudsavtal.docx",
+    "Avtal_11_Distansarbetsavtal.docx",
+    "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+    "Avtal_13_Avgangsvederlagsavtal.docx",
+    "Avtal_17_Hyresavtal_lokal.docx",
+    "Avtal_36_Underleverantorsavtal.docx",
+    "Avtal_38_Projektavtal_fast_pris.docx",
+    "Avtal_59_Agilt_IT_konsultavtal.docx",
+    "Avtal_81_VD_anstallningsavtal.docx"
+  ],
+  "headline": {
+    "A": {
+      "gold_n": 34,
+      "predicted_n": 37,
+      "hits": 32,
+      "extras": 5,
+      "misses": 2,
+      "precision": 0.8648648648648649,
+      "recall": 0.9411764705882353,
+      "per_class": {
+        "employment_type": {
+          "gold_n": 7,
+          "predicted_n": 9,
+          "hits": 7,
+          "extras": 2,
+          "misses": 0,
+          "precision": 0.7777777777777778,
+          "recall": 1.0
+        },
+        "notice_period": {
+          "gold_n": 7,
+          "predicted_n": 6,
+          "hits": 6,
+          "extras": 0,
+          "misses": 1,
+          "precision": 1.0,
+          "recall": 0.8571428571428571
+        },
+        "confidentiality": {
+          "gold_n": 12,
+          "predicted_n": 12,
+          "hits": 11,
+          "extras": 1,
+          "misses": 1,
+          "precision": 0.9166666666666666,
+          "recall": 0.9166666666666666
+        },
+        "non_compete": {
+          "gold_n": 2,
+          "predicted_n": 3,
+          "hits": 2,
+          "extras": 1,
+          "misses": 0,
+          "precision": 0.6666666666666666,
+          "recall": 1.0
+        },
+        "billing_model": {
+          "gold_n": 4,
+          "predicted_n": 5,
+          "hits": 4,
+          "extras": 1,
+          "misses": 0,
+          "precision": 0.8,
+          "recall": 1.0
+        },
+        "work_location": {
+          "gold_n": 2,
+          "predicted_n": 2,
+          "hits": 2,
+          "extras": 0,
+          "misses": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      },
+      "source": {
+        "hits": 32,
+        "validated": 32,
+        "passage_ok": 29,
+        "unvalidated": 0,
+        "wrong_passage": 3,
+        "position_is_not_legal_proof": true
+      },
+      "normalization_errors": [
+        {
+          "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "tag_class": "billing_model",
+          "predicted": [
+            "hourly"
+          ],
+          "gold": [
+            "time_and_materials"
+          ]
+        },
+        {
+          "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "tag_class": "employment_type",
+          "predicted": [
+            "probationary"
+          ],
+          "gold": [
+            "permanent"
+          ]
+        },
+        {
+          "relative_path": "Avtal_03_Visstidsanstallning.docx",
+          "tag_class": "employment_type",
+          "predicted": [
+            "permanent"
+          ],
+          "gold": [
+            "fixed_term"
+          ]
+        }
+      ],
+      "confidence": {
+        "n": 0,
+        "min": null,
+        "max": null,
+        "mean": null,
+        "not_calibrated_legal_probability": true,
+        "not_used_as_threshold": true
+      },
+      "extra_rows": [
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "employment_type",
+          "probationary"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_08_Konkurrensforbudsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_13_Avgangsvederlagsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ],
+        [
+          "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "billing_model",
+          "hourly"
+        ]
+      ],
+      "miss_rows": [
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_36_Underleverantorsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ]
+      ],
+      "hit_rows": [
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "employment_type",
+          "probationary"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "notice_period",
+          "2_weeks"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "employment_type",
+          "fixed_term"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "employment_type",
+          "fixed_term"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "employment_type",
+          "hourly"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "billing_model",
+          "hourly"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "notice_period",
+          "30_days"
+        ],
+        [
+          "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_07_Sekretessavtal_omsesidigt.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_08_Konkurrensforbudsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ],
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "work_location",
+          "remote"
+        ],
+        [
+          "Avtal_13_Avgangsvederlagsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_17_Hyresavtal_lokal.docx",
+          "notice_period",
+          "9_months"
+        ],
+        [
+          "Avtal_36_Underleverantorsavtal.docx",
+          "billing_model",
+          "hourly"
+        ],
+        [
+          "Avtal_38_Projektavtal_fast_pris.docx",
+          "billing_model",
+          "fixed_price"
+        ],
+        [
+          "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "billing_model",
+          "time_and_materials"
+        ],
+        [
+          "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "notice_period",
+          "6_months"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "work_location",
+          "stockholm"
+        ]
+      ],
+      "jev_calls": 0,
+      "latency_ms": 0.0
+    },
+    "B": {
+      "gold_n": 34,
+      "predicted_n": 35,
+      "hits": 32,
+      "extras": 3,
+      "misses": 2,
+      "precision": 0.9142857142857143,
+      "recall": 0.9411764705882353,
+      "per_class": {
+        "employment_type": {
+          "gold_n": 7,
+          "predicted_n": 5,
+          "hits": 5,
+          "extras": 0,
+          "misses": 2,
+          "precision": 1.0,
+          "recall": 0.7142857142857143
+        },
+        "notice_period": {
+          "gold_n": 7,
+          "predicted_n": 7,
+          "hits": 7,
+          "extras": 0,
+          "misses": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "confidentiality": {
+          "gold_n": 12,
+          "predicted_n": 13,
+          "hits": 12,
+          "extras": 1,
+          "misses": 0,
+          "precision": 0.9230769230769231,
+          "recall": 1.0
+        },
+        "non_compete": {
+          "gold_n": 2,
+          "predicted_n": 3,
+          "hits": 2,
+          "extras": 1,
+          "misses": 0,
+          "precision": 0.6666666666666666,
+          "recall": 1.0
+        },
+        "billing_model": {
+          "gold_n": 4,
+          "predicted_n": 5,
+          "hits": 4,
+          "extras": 1,
+          "misses": 0,
+          "precision": 0.8,
+          "recall": 1.0
+        },
+        "work_location": {
+          "gold_n": 2,
+          "predicted_n": 2,
+          "hits": 2,
+          "extras": 0,
+          "misses": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      },
+      "source": {
+        "hits": 32,
+        "validated": 22,
+        "passage_ok": 20,
+        "unvalidated": 10,
+        "wrong_passage": 2,
+        "position_is_not_legal_proof": true
+      },
+      "normalization_errors": [
+        {
+          "relative_path": "Avtal_05_Konsultavtal.docx",
+          "tag_class": "billing_model",
+          "predicted": [
+            "fixed_price"
+          ],
+          "gold": [
+            "hourly"
+          ]
+        }
+      ],
+      "confidence": {
+        "n": 35,
+        "min": 0.02,
+        "max": 1.0,
+        "mean": 0.8711428571428571,
+        "not_calibrated_legal_probability": true,
+        "not_used_as_threshold": true
+      },
+      "extra_rows": [
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "billing_model",
+          "fixed_price"
+        ],
+        [
+          "Avtal_08_Konkurrensforbudsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_13_Avgangsvederlagsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ]
+      ],
+      "miss_rows": [
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "employment_type",
+          "fixed_term"
+        ]
+      ],
+      "hit_rows": [
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "employment_type",
+          "probationary"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "notice_period",
+          "2_weeks"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "employment_type",
+          "fixed_term"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "employment_type",
+          "hourly"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "billing_model",
+          "hourly"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "notice_period",
+          "30_days"
+        ],
+        [
+          "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_07_Sekretessavtal_omsesidigt.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_08_Konkurrensforbudsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ],
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "work_location",
+          "remote"
+        ],
+        [
+          "Avtal_13_Avgangsvederlagsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_17_Hyresavtal_lokal.docx",
+          "notice_period",
+          "9_months"
+        ],
+        [
+          "Avtal_36_Underleverantorsavtal.docx",
+          "billing_model",
+          "hourly"
+        ],
+        [
+          "Avtal_36_Underleverantorsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_38_Projektavtal_fast_pris.docx",
+          "billing_model",
+          "fixed_price"
+        ],
+        [
+          "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "billing_model",
+          "time_and_materials"
+        ],
+        [
+          "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "notice_period",
+          "6_months"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "work_location",
+          "stockholm"
+        ]
+      ],
+      "jev_calls": 16,
+      "latency_ms": 384.07626570551656
+    }
+  },
+  "decision": {
+    "best_variant": "A",
+    "jev_adds_measurable_quality": false,
+    "no_quality_threshold": true,
+    "confidence_is_not_legal_probability": true,
+    "no_automatic_approval_threshold": true,
+    "prepared_knowledge_not_legal_proof": true,
+    "reason": "A hits 32 / gold 34, B hits 32 / gold 34. Choose from the table. No quality threshold was set."
+  },
+  "store": {
+    "documents": 16,
+    "tags": 36,
+    "text_units_before": 0,
+    "text_units_after": 0,
+    "text_units_unchanged": true,
+    "write_seconds": 0.01797379180788994,
+    "filter_seconds": 0.0020451657474040985,
+    "type_correction_survives_reclassify": true,
+    "rejected_tag_stays_rejected": true,
+    "user_tag_stored": true,
+    "filter_by_corrected_type": [
+      "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "Avtal_08_Konkurrensforbudsavtal.docx"
+    ],
+    "filter_by_user_tag": [
+      "Avtal_01_Tillsvidareanstallningsavtal.docx"
+    ],
+    "other_tenant_paths": [
+      "other.docx"
+    ],
+    "tenant_isolation": true
+  },
+  "cost": {
+    "jev_calls": 16,
+    "jev_calls_per_document": {
+      "A": 0.0,
+      "B": 1.0
+    },
+    "latency_ms_per_document": {
+      "A": 0.0,
+      "B": 384.07626570551656
+    },
+    "wall_seconds": 6.3506270833313465,
+    "filter_seconds": 0.0020451657474040985,
+    "store_write_seconds": 0.01797379180788994
+  },
+  "paired": {
+    "A_B": {
+      "precision_delta": 0.049420849420849344,
+      "recall_delta": 0.0,
+      "extra_delta": -2,
+      "miss_delta": 0,
+      "source_validated_delta": -10
+    }
+  },
+  "variants": {
+    "A": {
+      "gold_n": 34,
+      "predicted_n": 37,
+      "hits": 32,
+      "extras": 5,
+      "misses": 2,
+      "precision": 0.8648648648648649,
+      "recall": 0.9411764705882353,
+      "per_class": {
+        "employment_type": {
+          "gold_n": 7,
+          "predicted_n": 9,
+          "hits": 7,
+          "extras": 2,
+          "misses": 0,
+          "precision": 0.7777777777777778,
+          "recall": 1.0
+        },
+        "notice_period": {
+          "gold_n": 7,
+          "predicted_n": 6,
+          "hits": 6,
+          "extras": 0,
+          "misses": 1,
+          "precision": 1.0,
+          "recall": 0.8571428571428571
+        },
+        "confidentiality": {
+          "gold_n": 12,
+          "predicted_n": 12,
+          "hits": 11,
+          "extras": 1,
+          "misses": 1,
+          "precision": 0.9166666666666666,
+          "recall": 0.9166666666666666
+        },
+        "non_compete": {
+          "gold_n": 2,
+          "predicted_n": 3,
+          "hits": 2,
+          "extras": 1,
+          "misses": 0,
+          "precision": 0.6666666666666666,
+          "recall": 1.0
+        },
+        "billing_model": {
+          "gold_n": 4,
+          "predicted_n": 5,
+          "hits": 4,
+          "extras": 1,
+          "misses": 0,
+          "precision": 0.8,
+          "recall": 1.0
+        },
+        "work_location": {
+          "gold_n": 2,
+          "predicted_n": 2,
+          "hits": 2,
+          "extras": 0,
+          "misses": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      },
+      "source": {
+        "hits": 32,
+        "validated": 32,
+        "passage_ok": 29,
+        "unvalidated": 0,
+        "wrong_passage": 3,
+        "position_is_not_legal_proof": true
+      },
+      "normalization_errors": [
+        {
+          "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "tag_class": "billing_model",
+          "predicted": [
+            "hourly"
+          ],
+          "gold": [
+            "time_and_materials"
+          ]
+        },
+        {
+          "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "tag_class": "employment_type",
+          "predicted": [
+            "probationary"
+          ],
+          "gold": [
+            "permanent"
+          ]
+        },
+        {
+          "relative_path": "Avtal_03_Visstidsanstallning.docx",
+          "tag_class": "employment_type",
+          "predicted": [
+            "permanent"
+          ],
+          "gold": [
+            "fixed_term"
+          ]
+        }
+      ],
+      "confidence": {
+        "n": 0,
+        "min": null,
+        "max": null,
+        "mean": null,
+        "not_calibrated_legal_probability": true,
+        "not_used_as_threshold": true
+      },
+      "extra_rows": [
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "employment_type",
+          "probationary"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_08_Konkurrensforbudsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_13_Avgangsvederlagsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ],
+        [
+          "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "billing_model",
+          "hourly"
+        ]
+      ],
+      "miss_rows": [
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_36_Underleverantorsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ]
+      ],
+      "hit_rows": [
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "employment_type",
+          "probationary"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "notice_period",
+          "2_weeks"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "employment_type",
+          "fixed_term"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "employment_type",
+          "fixed_term"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "employment_type",
+          "hourly"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "billing_model",
+          "hourly"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "notice_period",
+          "30_days"
+        ],
+        [
+          "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_07_Sekretessavtal_omsesidigt.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_08_Konkurrensforbudsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ],
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "work_location",
+          "remote"
+        ],
+        [
+          "Avtal_13_Avgangsvederlagsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_17_Hyresavtal_lokal.docx",
+          "notice_period",
+          "9_months"
+        ],
+        [
+          "Avtal_36_Underleverantorsavtal.docx",
+          "billing_model",
+          "hourly"
+        ],
+        [
+          "Avtal_38_Projektavtal_fast_pris.docx",
+          "billing_model",
+          "fixed_price"
+        ],
+        [
+          "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "billing_model",
+          "time_and_materials"
+        ],
+        [
+          "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "notice_period",
+          "6_months"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "work_location",
+          "stockholm"
+        ]
+      ],
+      "jev_calls": 0,
+      "latency_ms": 0.0
+    },
+    "B": {
+      "gold_n": 34,
+      "predicted_n": 35,
+      "hits": 32,
+      "extras": 3,
+      "misses": 2,
+      "precision": 0.9142857142857143,
+      "recall": 0.9411764705882353,
+      "per_class": {
+        "employment_type": {
+          "gold_n": 7,
+          "predicted_n": 5,
+          "hits": 5,
+          "extras": 0,
+          "misses": 2,
+          "precision": 1.0,
+          "recall": 0.7142857142857143
+        },
+        "notice_period": {
+          "gold_n": 7,
+          "predicted_n": 7,
+          "hits": 7,
+          "extras": 0,
+          "misses": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "confidentiality": {
+          "gold_n": 12,
+          "predicted_n": 13,
+          "hits": 12,
+          "extras": 1,
+          "misses": 0,
+          "precision": 0.9230769230769231,
+          "recall": 1.0
+        },
+        "non_compete": {
+          "gold_n": 2,
+          "predicted_n": 3,
+          "hits": 2,
+          "extras": 1,
+          "misses": 0,
+          "precision": 0.6666666666666666,
+          "recall": 1.0
+        },
+        "billing_model": {
+          "gold_n": 4,
+          "predicted_n": 5,
+          "hits": 4,
+          "extras": 1,
+          "misses": 0,
+          "precision": 0.8,
+          "recall": 1.0
+        },
+        "work_location": {
+          "gold_n": 2,
+          "predicted_n": 2,
+          "hits": 2,
+          "extras": 0,
+          "misses": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      },
+      "source": {
+        "hits": 32,
+        "validated": 22,
+        "passage_ok": 20,
+        "unvalidated": 10,
+        "wrong_passage": 2,
+        "position_is_not_legal_proof": true
+      },
+      "normalization_errors": [
+        {
+          "relative_path": "Avtal_05_Konsultavtal.docx",
+          "tag_class": "billing_model",
+          "predicted": [
+            "fixed_price"
+          ],
+          "gold": [
+            "hourly"
+          ]
+        }
+      ],
+      "confidence": {
+        "n": 35,
+        "min": 0.02,
+        "max": 1.0,
+        "mean": 0.8711428571428571,
+        "not_calibrated_legal_probability": true,
+        "not_used_as_threshold": true
+      },
+      "extra_rows": [
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "billing_model",
+          "fixed_price"
+        ],
+        [
+          "Avtal_08_Konkurrensforbudsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_13_Avgangsvederlagsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ]
+      ],
+      "miss_rows": [
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "employment_type",
+          "fixed_term"
+        ]
+      ],
+      "hit_rows": [
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_01_Tillsvidareanstallningsavtal.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "employment_type",
+          "probationary"
+        ],
+        [
+          "Avtal_02_Provanstallningsavtal.docx",
+          "notice_period",
+          "2_weeks"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "employment_type",
+          "fixed_term"
+        ],
+        [
+          "Avtal_03_Visstidsanstallning.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_04_Timanstallning_behovsanstallning.docx",
+          "employment_type",
+          "hourly"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "billing_model",
+          "hourly"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_05_Konsultavtal.docx",
+          "notice_period",
+          "30_days"
+        ],
+        [
+          "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_07_Sekretessavtal_omsesidigt.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_08_Konkurrensforbudsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ],
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "notice_period",
+          "1_month"
+        ],
+        [
+          "Avtal_11_Distansarbetsavtal.docx",
+          "work_location",
+          "remote"
+        ],
+        [
+          "Avtal_13_Avgangsvederlagsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_17_Hyresavtal_lokal.docx",
+          "notice_period",
+          "9_months"
+        ],
+        [
+          "Avtal_36_Underleverantorsavtal.docx",
+          "billing_model",
+          "hourly"
+        ],
+        [
+          "Avtal_36_Underleverantorsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_38_Projektavtal_fast_pris.docx",
+          "billing_model",
+          "fixed_price"
+        ],
+        [
+          "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "billing_model",
+          "time_and_materials"
+        ],
+        [
+          "Avtal_59_Agilt_IT_konsultavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "confidentiality",
+          "secrecy_obligation"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "employment_type",
+          "permanent"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "non_compete",
+          "non_compete"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "notice_period",
+          "6_months"
+        ],
+        [
+          "Avtal_81_VD_anstallningsavtal.docx",
+          "work_location",
+          "stockholm"
+        ]
+      ],
+      "jev_calls": 16,
+      "latency_ms": 384.07626570551656
+    }
+  },
+  "scored": {
+    "A": [
+      {
+        "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+        "document_id": "70f30ce1ad30de0be6cefeedfeb537d03fbd6cb92dcd9eec39cd849d1a536ddd",
+        "tag_class": "employment_type",
+        "value": "permanent",
+        "display_value": "Tillsvidare",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "3f3376a148be74cb342008e26573b8698843718f5d0671685a1e3cc960255173",
+          "excerpt": "Avtal 1 – Tillsvidareanställningsavtal\nNär används det: När du anställer någon utan slutdatum.",
+          "start": 0,
+          "end": 94,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+        "document_id": "70f30ce1ad30de0be6cefeedfeb537d03fbd6cb92dcd9eec39cd849d1a536ddd",
+        "tag_class": "employment_type",
+        "value": "probationary",
+        "display_value": "Provanställning",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "f1df53ba99a692d6fb6c5a846edf0a992a9d22ea233538dbcd76851bcf260e88",
+          "excerpt": "2.3 [Alternativ: Anställningen inleds med en provanställning på [antal] månader, se avtal 2 (Provanställningsavtal).]",
+          "start": 579,
+          "end": 696,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+        "document_id": "70f30ce1ad30de0be6cefeedfeb537d03fbd6cb92dcd9eec39cd849d1a536ddd",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "bf8a5e00c3b2f666299d431e32945224cdb5d8cd398b3badcc3ad7f61a1ed1ef",
+          "excerpt": "10.1 Arbetstagaren får inte, varken under anställningen eller efter att den upphört, obehörigen röja eller använda Arbetsgivarens företagshemligheter enligt lagen (2018:558) om företagshemligheter eller annan konfidentiell information.",
+          "start": 2469,
+          "end": 2704,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+        "document_id": "70f30ce1ad30de0be6cefeedfeb537d03fbd6cb92dcd9eec39cd849d1a536ddd",
+        "tag_class": "notice_period",
+        "value": "1_month",
+        "display_value": "1 månad",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "ea21d29c9ed8a42c84d746f8dbdea7590ef0e9b0be0e67a93adf962af5c444c8",
+          "excerpt": "För Arbetstagaren är den en (1) månad.",
+          "start": 3297,
+          "end": 3335,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+        "document_id": "4605ee39f7aba310b9a7f34ad38a6f2d87f5bb994d5d88ddd3f9e654f87232e6",
+        "tag_class": "employment_type",
+        "value": "probationary",
+        "display_value": "Provanställning",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "3302735790b5fe1fa2021bf4148ae30f03ad1de40e779658f541435961fd81f5",
+          "excerpt": "Avtal 2 – Provanställningsavtal\nNär används det: När du vill pröva en nyanställd i upp till sex månader innan anställningen automatiskt övergår i en tillsvidareanställning.",
+          "start": 0,
+          "end": 172,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+        "document_id": "4605ee39f7aba310b9a7f34ad38a6f2d87f5bb994d5d88ddd3f9e654f87232e6",
+        "tag_class": "employment_type",
+        "value": "permanent",
+        "display_value": "Tillsvidare",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "3302735790b5fe1fa2021bf4148ae30f03ad1de40e779658f541435961fd81f5",
+          "excerpt": "Avtal 2 – Provanställningsavtal\nNär används det: När du vill pröva en nyanställd i upp till sex månader innan anställningen automatiskt övergår i en tillsvidareanställning.",
+          "start": 0,
+          "end": 172,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+        "document_id": "4605ee39f7aba310b9a7f34ad38a6f2d87f5bb994d5d88ddd3f9e654f87232e6",
+        "tag_class": "notice_period",
+        "value": "2_weeks",
+        "display_value": "14 dagar",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "1e2aa170c62b40397a1de8d88c2ea00127845fffdc4f981ea36d457cec248115",
+          "excerpt": "4.1 Båda parter får avbryta provanställningen före provtidens utgång [utan uppsägningstid / med [två veckors] varsel].",
+          "start": 957,
+          "end": 1075,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+        "document_id": "4605ee39f7aba310b9a7f34ad38a6f2d87f5bb994d5d88ddd3f9e654f87232e6",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "2403548e6296023d010af6a0601cad068335f31eae60498f64bafb91b3ed86cf",
+          "excerpt": "Sekretess\nArbetstagaren har tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella uppgifter, både under och efter anställningen.",
+          "start": 1909,
+          "end": 2054,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_03_Visstidsanstallning.docx",
+        "document_id": "738ae9be6425cd2cdb45d8b7fdb73dfd68ce85d094f969699721b697e0c752f9",
+        "tag_class": "employment_type",
+        "value": "fixed_term",
+        "display_value": "Visstid",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "b12daf818a2f35928775c2a2724cda07a5d1dcd9d63e45338b2f6fb2efb66d15",
+          "excerpt": "Avtal 3 – Visstidsanställning (särskild visstidsanställning)\nNär används det: När du behöver en anställd under en begränsad tid, t.ex.",
+          "start": 0,
+          "end": 134,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_03_Visstidsanstallning.docx",
+        "document_id": "738ae9be6425cd2cdb45d8b7fdb73dfd68ce85d094f969699721b697e0c752f9",
+        "tag_class": "notice_period",
+        "value": "1_month",
+        "display_value": "1 månad",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "1f846218f145a3d1ed6ac3d19db69320f5115f1f093e298f61fd189e1ff81277",
+          "excerpt": "3.2 [Ömsesidig uppsägningsrätt: Båda parter får säga upp anställningen i förtid med [en (1) månads] uppsägningstid.]",
+          "start": 1033,
+          "end": 1149,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_03_Visstidsanstallning.docx",
+        "document_id": "738ae9be6425cd2cdb45d8b7fdb73dfd68ce85d094f969699721b697e0c752f9",
+        "tag_class": "employment_type",
+        "value": "permanent",
+        "display_value": "Tillsvidare",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "29c82ac9f2fd9e62097e8c96ea5037d2a379e3b62f699771b118265718d8f660",
+          "excerpt": "Övergång till tillsvidareanställning",
+          "start": 1153,
+          "end": 1189,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_03_Visstidsanstallning.docx",
+        "document_id": "738ae9be6425cd2cdb45d8b7fdb73dfd68ce85d094f969699721b697e0c752f9",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "8e5b98c6967f2196c7c7e70103ba11e572fdb31a66ff9cee0daf91a1b102d1bf",
+          "excerpt": "Sekretess\nArbetstagaren har tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella information, både under och efter anställningen.",
+          "start": 1778,
+          "end": 1925,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+        "document_id": "d153768cd87e6b15971deb418be21f04a64a230d9f57971c455bc09a8ffd9486",
+        "tag_class": "employment_type",
+        "value": "hourly",
+        "display_value": "Timanställning",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "88f6b345a44e4ca6980ff6dad1be1f3eb5b78688c97d88c14baed8bb16fc7fc6",
+          "excerpt": "Avtal 4 – Timanställning / behovsanställning\nNär används det: När du behöver personal som arbetar vid behov, utan garanterad arbetstid, t.ex.",
+          "start": 0,
+          "end": 141,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+        "document_id": "d153768cd87e6b15971deb418be21f04a64a230d9f57971c455bc09a8ffd9486",
+        "tag_class": "employment_type",
+        "value": "fixed_term",
+        "display_value": "Visstid",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "c11f51205be9716f60be9fe4142f17c9270aa8b6047ed0b604b1861eede71957",
+          "excerpt": "2.2 Varje arbetspass som Arbetstagaren accepterar utgör en särskild visstidsanställning enligt 5 § 1 LAS.",
+          "start": 578,
+          "end": 683,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+        "document_id": "d153768cd87e6b15971deb418be21f04a64a230d9f57971c455bc09a8ffd9486",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "dc9d6ebc4368445a9372b43c665deb83e0718362f84edf806f6a4b289226fb3d",
+          "excerpt": "Sekretess\nArbetstagaren har tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella uppgifter.",
+          "start": 1777,
+          "end": 1886,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_05_Konsultavtal.docx",
+        "document_id": "693c6ecc83be2f731d8c0ac92c117d00f782acf58b3c30e692bf809cc0495500",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "072d0be4951ad7272a2bd4dce987f1ecbdde6ce2c388155e3128bad0f9a54941",
+          "excerpt": "Konfidentiell information: All information om Beställarens eller dess kunders verksamhet som inte är allmänt känd.",
+          "start": 941,
+          "end": 1055,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_05_Konsultavtal.docx",
+        "document_id": "693c6ecc83be2f731d8c0ac92c117d00f782acf58b3c30e692bf809cc0495500",
+        "tag_class": "billing_model",
+        "value": "hourly",
+        "display_value": "Timarvode",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "f14aad6b4b90a82cfc3a6843a04115fa52e2edc0d7084653d1b1760bb7c8b110",
+          "excerpt": "6.1 Arvode: [Belopp] kronor per timme exklusive moms.",
+          "start": 1665,
+          "end": 1718,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_05_Konsultavtal.docx",
+        "document_id": "693c6ecc83be2f731d8c0ac92c117d00f782acf58b3c30e692bf809cc0495500",
+        "tag_class": "notice_period",
+        "value": "30_days",
+        "display_value": "30 dagar",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "fb7318783212730f677d9136f226a6fedbe0486f0bd1c3f8b18c36a786243d84",
+          "excerpt": "11.1 Båda parter får säga upp avtalet med [30] dagars uppsägningstid.",
+          "start": 3634,
+          "end": 3703,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+        "document_id": "bab589e16736e3eb5536ada342b1b9c0c91ae537f8e6bd4bb7866071d849ec51",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "c875f601bdd54692c3b3d4a855a8a2e29679adf2241db4c5a32c99f49858f84f",
+          "excerpt": "Avtal 6 – Sekretessavtal ensidigt (NDA)\nNär används det: När bara den ena parten lämnar ut konfidentiell information, t.ex.",
+          "start": 0,
+          "end": 123,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_07_Sekretessavtal_omsesidigt.docx",
+        "document_id": "2b29080bc86ea561514b1e31b0b0e61a298f9db52db67e387d242caff34eb561",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "860424eb5c80d4ecb0c7a607662005b86a62fc2d1c6070b76c8a42af9ea238e0",
+          "excerpt": "Avtal 7 – Sekretessavtal ömsesidigt\nNär används det: När båda parter lämnar ut konfidentiell information till varandra, t.ex.",
+          "start": 0,
+          "end": 125,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx",
+        "document_id": "8a7eb6cc3dc149b7599ea6bb8f073d0ffaf46bd937fad8714ff926f1a1c57e08",
+        "tag_class": "non_compete",
+        "value": "non_compete",
+        "display_value": "Konkurrensförbud",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "02d7fff43092405610d04a1ecc0e046a2f72cfd84dab7477691eb89d1f0728d5",
+          "excerpt": "Avtal 8 – Konkurrensförbudsavtal\nNär används det: När en nyckelperson inte ska få börja hos en konkurrent eller starta konkurrerande verksamhet under en begränsad tid efter att anställningen har upphört.",
+          "start": 0,
+          "end": 203,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx",
+        "document_id": "8a7eb6cc3dc149b7599ea6bb8f073d0ffaf46bd937fad8714ff926f1a1c57e08",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "8b744ba2d4ac058545090d4b5811d9e2b070cbfb6ffdfae1b0aeb50def16784b",
+          "excerpt": "Förhållande till andra åtaganden\nDetta avtal påverkar inte Arbetstagarens tystnadsplikt eller skyldigheter enligt lagen om företagshemligheter.",
+          "start": 2615,
+          "end": 2758,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+        "document_id": "cb6ccaeb401b783402a896b596fdf68beee3dd414e31b69f1b236a0494068071",
+        "tag_class": "work_location",
+        "value": "remote",
+        "display_value": "Distans",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "1bfb382a017abfcf333ac2794d343c77abb375aa04c5830009704dfea34456d2",
+          "excerpt": "2.1 Arbetstagaren får arbeta på distans [antal] dagar per vecka [alternativ: helt på distans] från följande adress: [Adress] (\"Distansarbetsplatsen\").",
+          "start": 516,
+          "end": 666,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+        "document_id": "cb6ccaeb401b783402a896b596fdf68beee3dd414e31b69f1b236a0494068071",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "115595fd9d59701ab3e7e6ca102a1c8a9fd89dd8175cd3a8a2a3e1718735a224",
+          "excerpt": "6.2 Konfidentiella handlingar ska förvaras så att obehöriga inte kan ta del av dem.",
+          "start": 2300,
+          "end": 2383,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+        "document_id": "979de1b8ae4ea638b8a14d8bafd97871d449f9e037e7c513439c1513f5a65fcb",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "6c4fe5260fafdf612aa9e8aa8afd2584ffab5b0d8c12d66573cd051f8fd05c05",
+          "excerpt": "6.1 Arbetstagaren har fortsatt tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella information.",
+          "start": 2114,
+          "end": 2228,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+        "document_id": "979de1b8ae4ea638b8a14d8bafd97871d449f9e037e7c513439c1513f5a65fcb",
+        "tag_class": "non_compete",
+        "value": "non_compete",
+        "display_value": "Konkurrensförbud",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "084515b89af624ea6c50096d627e7d61e17028fd82a6136417ea39af29840077",
+          "excerpt": "Konkurrensförbud\n[Konkurrensförbudet i avtal daterat [Datum] gäller enligt sina villkor / Arbetsgivaren avstår härmed från konkurrensförbudet.]",
+          "start": 2419,
+          "end": 2562,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+        "document_id": "748397de86a0124cd620493651f3efe760099c4a65e88a8c743c89bdac48267f",
+        "tag_class": "notice_period",
+        "value": "9_months",
+        "display_value": "9 månader",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "c168f4a49c3eba5270e7c70e4557900df35e8f08a0704ca48eaaa92de3e5920e",
+          "excerpt": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång.",
+          "start": 1122,
+          "end": 1197,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+        "document_id": "228045a4ff611b98c024c2dbfdda9d4eb8ad202b9eb4a943d74eef5d172493c6",
+        "tag_class": "billing_model",
+        "value": "hourly",
+        "display_value": "Timarvode",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "70bdf984cfa5afdeedda2bf778e9905ca5e6a571d43fa5adf76589f8bf1dd8f0",
+          "excerpt": "5.1 Ersättning utgår med [Belopp] kronor per timme exklusive moms, dock högst [Belopp] kronor för hela Uppdraget (takpris).",
+          "start": 1858,
+          "end": 1981,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_38_Projektavtal_fast_pris.docx",
+        "document_id": "682d56ab79808490da0ef99e3a2e907f6243811644434ec5625053583fa7f64a",
+        "tag_class": "billing_model",
+        "value": "fixed_price",
+        "display_value": "Fast pris",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "2c3f2b306778bb588e1368241c65bf74b1b07e1c0a19e091a11d0327a6441b07",
+          "excerpt": "Avtal 38 – Projektavtal (fast pris)\nNär används det: När ett företag åtar sig att leverera ett avgränsat projekt till ett fast pris, med fastställd omfattning, tidplan och godkännandeprocess.",
+          "start": 0,
+          "end": 191,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+        "document_id": "51c36adb671a39efe09d03ad2665b3151a0caf03c2db54c52524f8687ba52ef2",
+        "tag_class": "billing_model",
+        "value": "hourly",
+        "display_value": "Timarvode",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "d33d0d5b3628411fb92aa616a910bb867580470e260db1ddb450e429ca4284ee",
+          "excerpt": "3.1 Leverantören tillhandahåller följande team (\"Teamet\"):\nRoll\nAntal\nOmfattning\nTimpris (kr exkl.",
+          "start": 811,
+          "end": 909,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+        "document_id": "51c36adb671a39efe09d03ad2665b3151a0caf03c2db54c52524f8687ba52ef2",
+        "tag_class": "billing_model",
+        "value": "time_and_materials",
+        "display_value": "Löpande räkning",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "dfa5ef009cc1de82b5a8c024d2fd6fc0eef118643bbd973412a192c9e79a266c",
+          "excerpt": "5.1 Ersättning utgår på löpande räkning enligt timpriserna i punkt 3.1, för faktiskt utförd tid.",
+          "start": 1888,
+          "end": 1984,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+        "document_id": "51c36adb671a39efe09d03ad2665b3151a0caf03c2db54c52524f8687ba52ef2",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "4595f32003c1a0fc830cc970af761389d9ba98a3d65f04a30deeaa2a584363ba",
+          "excerpt": "8.1 Leverantören och konsulterna ska följa sekretess om DevBrains och Kundprojektet.",
+          "start": 2821,
+          "end": 2905,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+        "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+        "tag_class": "work_location",
+        "value": "stockholm",
+        "display_value": "Stockholm",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "cedc39d4111a9c4b3a503834fd17d78f8e4f1f0bc76ef080b9a04aedcf4b8299",
+          "excerpt": "Placeringsort är Stockholm.",
+          "start": 1334,
+          "end": 1361,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+        "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+        "tag_class": "employment_type",
+        "value": "permanent",
+        "display_value": "Tillsvidare",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "bb93c7c64e39b5764f2b0b70b739d4a5bf62633f650f6c2418819d64d23cedef",
+          "excerpt": "7.1 Avtalet gäller tills vidare.",
+          "start": 2208,
+          "end": 2240,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+        "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+        "tag_class": "notice_period",
+        "value": "6_months",
+        "display_value": "6 månader",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "bb93c7c64e39b5764f2b0b70b739d4a5bf62633f650f6c2418819d64d23cedef",
+          "excerpt": "Ömsesidig uppsägningstid är sex (6) månader.",
+          "start": 2241,
+          "end": 2285,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+        "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "76ba5285fbc5a9f7ce51d66405731c2f2deb7ff67f38904bc3362e558bdc3c9e",
+          "excerpt": "8.1 VD har tystnadsplikt om Bolagets affärs- och yrkeshemligheter under och efter anställningen, i enlighet med lagen (2018:558) om företagshemligheter.",
+          "start": 2808,
+          "end": 2960,
+          "validated": true
+        }
+      },
+      {
+        "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+        "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+        "tag_class": "non_compete",
+        "value": "non_compete",
+        "display_value": "Konkurrensförbud",
+        "origin": "structure",
+        "method": "structure",
+        "model": "",
+        "confidence": null,
+        "probabilities": null,
+        "source": {
+          "unit_id": "697aacc7e9da6c318e54b0fedeccc9d47e0d36d2c9b9613a80d265c190b2af01",
+          "excerpt": "8.3 Under tolv (12) månader efter anställningens upphörande får VD inte ta anställning i eller driva verksamhet som konkurrerar med Bolaget.",
+          "start": 3119,
+          "end": 3259,
+          "validated": true
+        }
+      }
+    ],
+    "B": [
+      {
+        "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+        "document_id": "70f30ce1ad30de0be6cefeedfeb537d03fbd6cb92dcd9eec39cd849d1a536ddd",
+        "tag_class": "employment_type",
+        "value": "permanent",
+        "display_value": "Tillsvidare",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.99,
+        "probabilities": {
+          "permanent": 0.99,
+          "probationary": 0.0,
+          "fixed_term": 0.0,
+          "hourly": 0.0,
+          "none": 0.01
+        },
+        "source": {
+          "unit_id": "2c4e6dad5b92e755215a464f474dcb6959d9adae042154677e594d6cd345bebf",
+          "excerpt": "2.1 Anställningen är en tillsvidareanställning enligt 4 § lagen (1982:80) om anställningsskydd (LAS).",
+          "start": 421,
+          "end": 522,
+          "validated": true
+        },
+        "latency_ms": 504.58879163488746,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+        "document_id": "70f30ce1ad30de0be6cefeedfeb537d03fbd6cb92dcd9eec39cd849d1a536ddd",
+        "tag_class": "notice_period",
+        "value": "1_month",
+        "display_value": "1 månad",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.96,
+        "probabilities": {
+          "2_weeks": 0.0,
+          "30_days": 0.0,
+          "1_month": 0.97,
+          "6_months": 0.0,
+          "9_months": 0.0,
+          "none": 0.03
+        },
+        "source": {
+          "unit_id": "",
+          "excerpt": "",
+          "start": null,
+          "end": null,
+          "validated": false
+        },
+        "latency_ms": 504.58879163488746,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+        "document_id": "70f30ce1ad30de0be6cefeedfeb537d03fbd6cb92dcd9eec39cd849d1a536ddd",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.98,
+        "probabilities": {
+          "secrecy_obligation": 0.99,
+          "none": 0.01
+        },
+        "source": {
+          "unit_id": "bf8a5e00c3b2f666299d431e32945224cdb5d8cd398b3badcc3ad7f61a1ed1ef",
+          "excerpt": "10.1 Arbetstagaren får inte, varken under anställningen eller efter att den upphört, obehörigen röja eller använda Arbetsgivarens företagshemligheter enligt lagen (2018:558) om företagshemligheter eller annan konfidentiell information.",
+          "start": 2469,
+          "end": 2704,
+          "validated": true
+        },
+        "latency_ms": 504.58879163488746,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+        "document_id": "4605ee39f7aba310b9a7f34ad38a6f2d87f5bb994d5d88ddd3f9e654f87232e6",
+        "tag_class": "employment_type",
+        "value": "probationary",
+        "display_value": "Provanställning",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.97,
+        "probabilities": {
+          "permanent": 0.01,
+          "probationary": 0.98,
+          "fixed_term": 0.0,
+          "hourly": 0.0,
+          "none": 0.01
+        },
+        "source": {
+          "unit_id": "",
+          "excerpt": "",
+          "start": null,
+          "end": null,
+          "validated": false
+        },
+        "latency_ms": 401.1783329769969,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+        "document_id": "4605ee39f7aba310b9a7f34ad38a6f2d87f5bb994d5d88ddd3f9e654f87232e6",
+        "tag_class": "notice_period",
+        "value": "2_weeks",
+        "display_value": "14 dagar",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.54,
+        "probabilities": {
+          "2_weeks": 0.62,
+          "30_days": 0.0,
+          "1_month": 0.0,
+          "6_months": 0.04,
+          "9_months": 0.0,
+          "none": 0.34
+        },
+        "source": {
+          "unit_id": "1e2aa170c62b40397a1de8d88c2ea00127845fffdc4f981ea36d457cec248115",
+          "excerpt": "4.1 Båda parter får avbryta provanställningen före provtidens utgång [utan uppsägningstid / med [två veckors] varsel].",
+          "start": 957,
+          "end": 1075,
+          "validated": true
+        },
+        "latency_ms": 401.1783329769969,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+        "document_id": "4605ee39f7aba310b9a7f34ad38a6f2d87f5bb994d5d88ddd3f9e654f87232e6",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 1.0,
+        "probabilities": {
+          "secrecy_obligation": 1.0,
+          "none": 0.0
+        },
+        "source": {
+          "unit_id": "2403548e6296023d010af6a0601cad068335f31eae60498f64bafb91b3ed86cf",
+          "excerpt": "Sekretess\nArbetstagaren har tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella uppgifter, både under och efter anställningen.",
+          "start": 1909,
+          "end": 2054,
+          "validated": true
+        },
+        "latency_ms": 401.1783329769969,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_03_Visstidsanstallning.docx",
+        "document_id": "738ae9be6425cd2cdb45d8b7fdb73dfd68ce85d094f969699721b697e0c752f9",
+        "tag_class": "employment_type",
+        "value": "fixed_term",
+        "display_value": "Visstid",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.92,
+        "probabilities": {
+          "permanent": 0.0,
+          "probationary": 0.0,
+          "fixed_term": 0.9400000000000001,
+          "hourly": 0.0,
+          "none": 0.06
+        },
+        "source": {
+          "unit_id": "",
+          "excerpt": "",
+          "start": null,
+          "end": null,
+          "validated": false
+        },
+        "latency_ms": 431.8942502140999,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_03_Visstidsanstallning.docx",
+        "document_id": "738ae9be6425cd2cdb45d8b7fdb73dfd68ce85d094f969699721b697e0c752f9",
+        "tag_class": "notice_period",
+        "value": "1_month",
+        "display_value": "1 månad",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.94,
+        "probabilities": {
+          "2_weeks": 0.0,
+          "30_days": 0.0,
+          "1_month": 0.95,
+          "6_months": 0.0,
+          "9_months": 0.0,
+          "none": 0.05
+        },
+        "source": {
+          "unit_id": "",
+          "excerpt": "",
+          "start": null,
+          "end": null,
+          "validated": false
+        },
+        "latency_ms": 431.8942502140999,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_03_Visstidsanstallning.docx",
+        "document_id": "738ae9be6425cd2cdb45d8b7fdb73dfd68ce85d094f969699721b697e0c752f9",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 1.0,
+        "probabilities": {
+          "secrecy_obligation": 1.0,
+          "none": 0.0
+        },
+        "source": {
+          "unit_id": "8e5b98c6967f2196c7c7e70103ba11e572fdb31a66ff9cee0daf91a1b102d1bf",
+          "excerpt": "Sekretess\nArbetstagaren har tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella information, både under och efter anställningen.",
+          "start": 1778,
+          "end": 1925,
+          "validated": true
+        },
+        "latency_ms": 431.8942502140999,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+        "document_id": "d153768cd87e6b15971deb418be21f04a64a230d9f57971c455bc09a8ffd9486",
+        "tag_class": "employment_type",
+        "value": "hourly",
+        "display_value": "Timanställning",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.54,
+        "probabilities": {
+          "permanent": 0.0,
+          "probationary": 0.0,
+          "fixed_term": 0.35,
+          "hourly": 0.63,
+          "none": 0.02
+        },
+        "source": {
+          "unit_id": "",
+          "excerpt": "",
+          "start": null,
+          "end": null,
+          "validated": false
+        },
+        "latency_ms": 325.13004168868065,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+        "document_id": "d153768cd87e6b15971deb418be21f04a64a230d9f57971c455bc09a8ffd9486",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 1.0,
+        "probabilities": {
+          "secrecy_obligation": 1.0,
+          "none": 0.0
+        },
+        "source": {
+          "unit_id": "dc9d6ebc4368445a9372b43c665deb83e0718362f84edf806f6a4b289226fb3d",
+          "excerpt": "Sekretess\nArbetstagaren har tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella uppgifter.",
+          "start": 1777,
+          "end": 1886,
+          "validated": true
+        },
+        "latency_ms": 325.13004168868065,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_05_Konsultavtal.docx",
+        "document_id": "693c6ecc83be2f731d8c0ac92c117d00f782acf58b3c30e692bf809cc0495500",
+        "tag_class": "billing_model",
+        "value": "hourly",
+        "display_value": "Timarvode",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.77,
+        "probabilities": {
+          "hourly": 0.83,
+          "fixed_price": 0.01,
+          "time_and_materials": 0.0,
+          "none": 0.16
+        },
+        "source": {
+          "unit_id": "f14aad6b4b90a82cfc3a6843a04115fa52e2edc0d7084653d1b1760bb7c8b110",
+          "excerpt": "6.1 Arvode: [Belopp] kronor per timme exklusive moms.",
+          "start": 1665,
+          "end": 1718,
+          "validated": true
+        },
+        "latency_ms": 402.3129171691835,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_05_Konsultavtal.docx",
+        "document_id": "693c6ecc83be2f731d8c0ac92c117d00f782acf58b3c30e692bf809cc0495500",
+        "tag_class": "billing_model",
+        "value": "fixed_price",
+        "display_value": "Fast pris",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.19,
+        "probabilities": {
+          "hourly": 0.38,
+          "fixed_price": 0.39,
+          "time_and_materials": 0.01,
+          "none": 0.22
+        },
+        "source": {
+          "unit_id": "f14aad6b4b90a82cfc3a6843a04115fa52e2edc0d7084653d1b1760bb7c8b110",
+          "excerpt": "[Alternativ: fast pris [Belopp] kronor exklusive moms.]",
+          "start": 1719,
+          "end": 1774,
+          "validated": true
+        },
+        "latency_ms": 402.3129171691835,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_05_Konsultavtal.docx",
+        "document_id": "693c6ecc83be2f731d8c0ac92c117d00f782acf58b3c30e692bf809cc0495500",
+        "tag_class": "notice_period",
+        "value": "30_days",
+        "display_value": "30 dagar",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.96,
+        "probabilities": {
+          "2_weeks": 0.0,
+          "30_days": 0.97,
+          "1_month": 0.0,
+          "6_months": 0.0,
+          "9_months": 0.0,
+          "none": 0.03
+        },
+        "source": {
+          "unit_id": "",
+          "excerpt": "",
+          "start": null,
+          "end": null,
+          "validated": false
+        },
+        "latency_ms": 402.3129171691835,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_05_Konsultavtal.docx",
+        "document_id": "693c6ecc83be2f731d8c0ac92c117d00f782acf58b3c30e692bf809cc0495500",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 1.0,
+        "probabilities": {
+          "secrecy_obligation": 1.0,
+          "none": 0.0
+        },
+        "source": {
+          "unit_id": "2561abe6cdafb67d4b42cc1a3f7b9244bed9e449fdb6dbfd67b86407adf9907e",
+          "excerpt": "Sekretess\nKonsulten ska hålla Konfidentiell information hemlig under avtalstiden och i [fem (5)] år därefter.",
+          "start": 2705,
+          "end": 2814,
+          "validated": true
+        },
+        "latency_ms": 402.3129171691835,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+        "document_id": "bab589e16736e3eb5536ada342b1b9c0c91ae537f8e6bd4bb7866071d849ec51",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 1.0,
+        "probabilities": {
+          "secrecy_obligation": 1.0,
+          "none": 0.0
+        },
+        "source": {
+          "unit_id": "5f0af61c2603a3f476274997aeb9dfa98049c213168ef6fab1674b194ba7d42d",
+          "excerpt": "4.1 Mottagaren ska hålla Konfidentiell Information hemlig och får inte röja den för tredje man utan Utlämnande Parts skriftliga samtycke.",
+          "start": 1458,
+          "end": 1595,
+          "validated": true
+        },
+        "latency_ms": 327.83220801502466,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_07_Sekretessavtal_omsesidigt.docx",
+        "document_id": "2b29080bc86ea561514b1e31b0b0e61a298f9db52db67e387d242caff34eb561",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.98,
+        "probabilities": {
+          "secrecy_obligation": 0.99,
+          "none": 0.01
+        },
+        "source": {
+          "unit_id": "792bf9ce01e928405dded6301d8eab8aae90d1c142ab5f43d0d1b32137391d69",
+          "excerpt": "4.1 Varje Mottagande Part ska\na) hålla Konfidentiell Information hemlig och inte röja den för tredje man;\nb) använda den endast för Syftet;\nc) begränsa åtkomsten till anställda, styrelseledamöter och rådgivare som behöver den och som omfattas av tystnadsplikt; och\nd) skydda informationen med minst rimlig omsorg.",
+          "start": 1410,
+          "end": 1723,
+          "validated": true
+        },
+        "latency_ms": 291.22120793908834,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx",
+        "document_id": "8a7eb6cc3dc149b7599ea6bb8f073d0ffaf46bd937fad8714ff926f1a1c57e08",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.66,
+        "probabilities": {
+          "secrecy_obligation": 0.83,
+          "none": 0.17
+        },
+        "source": {
+          "unit_id": "8b744ba2d4ac058545090d4b5811d9e2b070cbfb6ffdfae1b0aeb50def16784b",
+          "excerpt": "Förhållande till andra åtaganden\nDetta avtal påverkar inte Arbetstagarens tystnadsplikt eller skyldigheter enligt lagen om företagshemligheter.",
+          "start": 2615,
+          "end": 2758,
+          "validated": true
+        },
+        "latency_ms": 428.46958292648196,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx",
+        "document_id": "8a7eb6cc3dc149b7599ea6bb8f073d0ffaf46bd937fad8714ff926f1a1c57e08",
+        "tag_class": "non_compete",
+        "value": "non_compete",
+        "display_value": "Konkurrensförbud",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.98,
+        "probabilities": {
+          "non_compete": 0.99,
+          "none": 0.01
+        },
+        "source": {
+          "unit_id": "47cc4c8568b3488ba2750025223aa74ba57451b3fe5dba70eb3dcfdfcfa576de",
+          "excerpt": "3.1 Under [tolv (12)] månader (högst 18) efter anställningens upphörande (\"Bindningstiden\") får Arbetstagaren inte, direkt eller indirekt,\na) ta anställning hos eller utföra uppdrag åt ett företag som bedriver verksamhet som konkurrerar med Arbetsgivarens verksamhet inom utveckling och försäljning av SaaS-lösningar för leveransspårning och logistik; eller\nb) starta, äga en betydande andel i eller vara verksam i sådan konkurrerande verksamhet.",
+          "start": 857,
+          "end": 1303,
+          "validated": true
+        },
+        "latency_ms": 428.46958292648196,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+        "document_id": "cb6ccaeb401b783402a896b596fdf68beee3dd414e31b69f1b236a0494068071",
+        "tag_class": "notice_period",
+        "value": "1_month",
+        "display_value": "1 månad",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.95,
+        "probabilities": {
+          "2_weeks": 0.0,
+          "30_days": 0.01,
+          "1_month": 0.96,
+          "6_months": 0.0,
+          "9_months": 0.0,
+          "none": 0.03
+        },
+        "source": {
+          "unit_id": "",
+          "excerpt": "",
+          "start": null,
+          "end": null,
+          "validated": false
+        },
+        "latency_ms": 411.8827502243221,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+        "document_id": "cb6ccaeb401b783402a896b596fdf68beee3dd414e31b69f1b236a0494068071",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.94,
+        "probabilities": {
+          "secrecy_obligation": 0.97,
+          "none": 0.03
+        },
+        "source": {
+          "unit_id": "115595fd9d59701ab3e7e6ca102a1c8a9fd89dd8175cd3a8a2a3e1718735a224",
+          "excerpt": "6.2 Konfidentiella handlingar ska förvaras så att obehöriga inte kan ta del av dem.",
+          "start": 2300,
+          "end": 2383,
+          "validated": true
+        },
+        "latency_ms": 411.8827502243221,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+        "document_id": "cb6ccaeb401b783402a896b596fdf68beee3dd414e31b69f1b236a0494068071",
+        "tag_class": "work_location",
+        "value": "remote",
+        "display_value": "Distans",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.95,
+        "probabilities": {
+          "remote": 0.97,
+          "stockholm": 0.0,
+          "none": 0.03
+        },
+        "source": {
+          "unit_id": "1bfb382a017abfcf333ac2794d343c77abb375aa04c5830009704dfea34456d2",
+          "excerpt": "2.1 Arbetstagaren får arbeta på distans [antal] dagar per vecka [alternativ: helt på distans] från följande adress: [Adress] (\"Distansarbetsplatsen\").",
+          "start": 516,
+          "end": 666,
+          "validated": true
+        },
+        "latency_ms": 411.8827502243221,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+        "document_id": "979de1b8ae4ea638b8a14d8bafd97871d449f9e037e7c513439c1513f5a65fcb",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.98,
+        "probabilities": {
+          "secrecy_obligation": 0.99,
+          "none": 0.01
+        },
+        "source": {
+          "unit_id": "6c4fe5260fafdf612aa9e8aa8afd2584ffab5b0d8c12d66573cd051f8fd05c05",
+          "excerpt": "6.1 Arbetstagaren har fortsatt tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella information.",
+          "start": 2114,
+          "end": 2228,
+          "validated": true
+        },
+        "latency_ms": 301.48341692984104,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+        "document_id": "979de1b8ae4ea638b8a14d8bafd97871d449f9e037e7c513439c1513f5a65fcb",
+        "tag_class": "non_compete",
+        "value": "non_compete",
+        "display_value": "Konkurrensförbud",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.02,
+        "probabilities": {
+          "non_compete": 0.51,
+          "none": 0.49
+        },
+        "source": {
+          "unit_id": "084515b89af624ea6c50096d627e7d61e17028fd82a6136417ea39af29840077",
+          "excerpt": "Konkurrensförbud\n[Konkurrensförbudet i avtal daterat [Datum] gäller enligt sina villkor / Arbetsgivaren avstår härmed från konkurrensförbudet.]",
+          "start": 2419,
+          "end": 2562,
+          "validated": true
+        },
+        "latency_ms": 301.48341692984104,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+        "document_id": "748397de86a0124cd620493651f3efe760099c4a65e88a8c743c89bdac48267f",
+        "tag_class": "notice_period",
+        "value": "9_months",
+        "display_value": "9 månader",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.99,
+        "probabilities": {
+          "2_weeks": 0.0,
+          "30_days": 0.0,
+          "1_month": 0.0,
+          "6_months": 0.0,
+          "9_months": 0.99,
+          "none": 0.01
+        },
+        "source": {
+          "unit_id": "",
+          "excerpt": "",
+          "start": null,
+          "end": null,
+          "validated": false
+        },
+        "latency_ms": 305.0654591061175,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+        "document_id": "228045a4ff611b98c024c2dbfdda9d4eb8ad202b9eb4a943d74eef5d172493c6",
+        "tag_class": "billing_model",
+        "value": "hourly",
+        "display_value": "Timarvode",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.81,
+        "probabilities": {
+          "hourly": 0.86,
+          "fixed_price": 0.02,
+          "time_and_materials": 0.02,
+          "none": 0.1
+        },
+        "source": {
+          "unit_id": "70bdf984cfa5afdeedda2bf778e9905ca5e6a571d43fa5adf76589f8bf1dd8f0",
+          "excerpt": "5.1 Ersättning utgår med [Belopp] kronor per timme exklusive moms, dock högst [Belopp] kronor för hela Uppdraget (takpris).",
+          "start": 1858,
+          "end": 1981,
+          "validated": true
+        },
+        "latency_ms": 296.1906250566244,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+        "document_id": "228045a4ff611b98c024c2dbfdda9d4eb8ad202b9eb4a943d74eef5d172493c6",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 1.0,
+        "probabilities": {
+          "secrecy_obligation": 1.0,
+          "none": 0.0
+        },
+        "source": {
+          "unit_id": "61e82a20f5022bd9871af18b5b60f9f8a6d3a659d6a3ef60cd8027884f4ef3e0",
+          "excerpt": "Sekretess\nUnderleverantören ska hålla information om DevBrains, Slutkunden och Uppdraget konfidentiell under avtalstiden och i fem (5) år därefter, och se till att dess personal är bunden av motsvarande sekretess.",
+          "start": 3185,
+          "end": 3398,
+          "validated": true
+        },
+        "latency_ms": 296.1906250566244,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_38_Projektavtal_fast_pris.docx",
+        "document_id": "682d56ab79808490da0ef99e3a2e907f6243811644434ec5625053583fa7f64a",
+        "tag_class": "billing_model",
+        "value": "fixed_price",
+        "display_value": "Fast pris",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.99,
+        "probabilities": {
+          "hourly": 0.0,
+          "fixed_price": 0.99,
+          "time_and_materials": 0.0,
+          "none": 0.01
+        },
+        "source": {
+          "unit_id": "",
+          "excerpt": "",
+          "start": null,
+          "end": null,
+          "validated": false
+        },
+        "latency_ms": 278.42891681939363,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+        "document_id": "51c36adb671a39efe09d03ad2665b3151a0caf03c2db54c52524f8687ba52ef2",
+        "tag_class": "billing_model",
+        "value": "time_and_materials",
+        "display_value": "Löpande räkning",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.68,
+        "probabilities": {
+          "hourly": 0.2,
+          "fixed_price": 0.0,
+          "time_and_materials": 0.76,
+          "none": 0.04
+        },
+        "source": {
+          "unit_id": "dfa5ef009cc1de82b5a8c024d2fd6fc0eef118643bbd973412a192c9e79a266c",
+          "excerpt": "5.1 Ersättning utgår på löpande räkning enligt timpriserna i punkt 3.1, för faktiskt utförd tid.",
+          "start": 1888,
+          "end": 1984,
+          "validated": true
+        },
+        "latency_ms": 441.22891686856747,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+        "document_id": "51c36adb671a39efe09d03ad2665b3151a0caf03c2db54c52524f8687ba52ef2",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 1.0,
+        "probabilities": {
+          "secrecy_obligation": 1.0,
+          "none": 0.0
+        },
+        "source": {
+          "unit_id": "4595f32003c1a0fc830cc970af761389d9ba98a3d65f04a30deeaa2a584363ba",
+          "excerpt": "8.1 Leverantören och konsulterna ska följa sekretess om DevBrains och Kundprojektet.",
+          "start": 2821,
+          "end": 2905,
+          "validated": true
+        },
+        "latency_ms": 441.22891686856747,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+        "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+        "tag_class": "employment_type",
+        "value": "permanent",
+        "display_value": "Tillsvidare",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.97,
+        "probabilities": {
+          "permanent": 0.98,
+          "probationary": 0.0,
+          "fixed_term": 0.0,
+          "hourly": 0.0,
+          "none": 0.02
+        },
+        "source": {
+          "unit_id": "bb93c7c64e39b5764f2b0b70b739d4a5bf62633f650f6c2418819d64d23cedef",
+          "excerpt": "7.1 Avtalet gäller tills vidare.",
+          "start": 2208,
+          "end": 2240,
+          "validated": true
+        },
+        "latency_ms": 630.3634997457266,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+        "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+        "tag_class": "notice_period",
+        "value": "6_months",
+        "display_value": "6 månader",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.94,
+        "probabilities": {
+          "2_weeks": 0.0,
+          "30_days": 0.0,
+          "1_month": 0.0,
+          "6_months": 0.95,
+          "9_months": 0.0,
+          "none": 0.05
+        },
+        "source": {
+          "unit_id": "",
+          "excerpt": "",
+          "start": null,
+          "end": null,
+          "validated": false
+        },
+        "latency_ms": 630.3634997457266,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+        "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+        "tag_class": "confidentiality",
+        "value": "secrecy_obligation",
+        "display_value": "Sekretessåtagande",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.98,
+        "probabilities": {
+          "secrecy_obligation": 0.99,
+          "none": 0.01
+        },
+        "source": {
+          "unit_id": "76ba5285fbc5a9f7ce51d66405731c2f2deb7ff67f38904bc3362e558bdc3c9e",
+          "excerpt": "8.1 VD har tystnadsplikt om Bolagets affärs- och yrkeshemligheter under och efter anställningen, i enlighet med lagen (2018:558) om företagshemligheter.",
+          "start": 2808,
+          "end": 2960,
+          "validated": true
+        },
+        "latency_ms": 630.3634997457266,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+        "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+        "tag_class": "non_compete",
+        "value": "non_compete",
+        "display_value": "Konkurrensförbud",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.94,
+        "probabilities": {
+          "non_compete": 0.97,
+          "none": 0.03
+        },
+        "source": {
+          "unit_id": "e9f3a26d86b165be395e26246bcb9079f8c106216d3e876b854f99051b930b34",
+          "excerpt": "6.2 VD får inte bedriva eller delta i konkurrerande verksamhet under anställningen.",
+          "start": 2110,
+          "end": 2193,
+          "validated": true
+        },
+        "latency_ms": 630.3634997457266,
+        "jev_calls": 1
+      },
+      {
+        "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+        "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+        "tag_class": "work_location",
+        "value": "stockholm",
+        "display_value": "Stockholm",
+        "origin": "jev",
+        "method": "jev",
+        "model": "jev-1.13.0",
+        "confidence": 0.97,
+        "probabilities": {
+          "remote": 0.0,
+          "stockholm": 0.98,
+          "none": 0.02
+        },
+        "source": {
+          "unit_id": "cedc39d4111a9c4b3a503834fd17d78f8e4f1f0bc76ef080b9a04aedcf4b8299",
+          "excerpt": "Placeringsort är Stockholm.",
+          "start": 1334,
+          "end": 1361,
+          "validated": true
+        },
+        "latency_ms": 630.3634997457266,
+        "jev_calls": 1
+      }
+    ]
+  },
+  "classifications": [
+    {
+      "predicted_type": "employment_agreement",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 1.0,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "70f30ce1ad30de0be6cefeedfeb537d03fbd6cb92dcd9eec39cd849d1a536ddd",
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx"
+    },
+    {
+      "predicted_type": "employment_agreement",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 1.0,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "4605ee39f7aba310b9a7f34ad38a6f2d87f5bb994d5d88ddd3f9e654f87232e6",
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx"
+    },
+    {
+      "predicted_type": "employment_agreement",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 1.0,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "738ae9be6425cd2cdb45d8b7fdb73dfd68ce85d094f969699721b697e0c752f9",
+      "relative_path": "Avtal_03_Visstidsanstallning.docx"
+    },
+    {
+      "predicted_type": "employment_agreement",
+      "confidence": 0.99,
+      "probabilities": {
+        "employment_agreement": 0.99,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.01
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "d153768cd87e6b15971deb418be21f04a64a230d9f57971c455bc09a8ffd9486",
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx"
+    },
+    {
+      "predicted_type": "consulting_agreement",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 0.0,
+        "consulting_agreement": 1.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "693c6ecc83be2f731d8c0ac92c117d00f782acf58b3c30e692bf809cc0495500",
+      "relative_path": "Avtal_05_Konsultavtal.docx"
+    },
+    {
+      "predicted_type": "nda",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 0.0,
+        "consulting_agreement": 0.0,
+        "nda": 1.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "bab589e16736e3eb5536ada342b1b9c0c91ae537f8e6bd4bb7866071d849ec51",
+      "relative_path": "Avtal_06_Sekretessavtal_ensidigt_NDA.docx"
+    },
+    {
+      "predicted_type": "nda",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 0.0,
+        "consulting_agreement": 0.0,
+        "nda": 1.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "2b29080bc86ea561514b1e31b0b0e61a298f9db52db67e387d242caff34eb561",
+      "relative_path": "Avtal_07_Sekretessavtal_omsesidigt.docx"
+    },
+    {
+      "predicted_type": "other",
+      "confidence": 0.76,
+      "probabilities": {
+        "employment_agreement": 0.2,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.01,
+        "other": 0.79
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "8a7eb6cc3dc149b7599ea6bb8f073d0ffaf46bd937fad8714ff926f1a1c57e08",
+      "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx"
+    },
+    {
+      "predicted_type": "employment_agreement",
+      "confidence": 0.66,
+      "probabilities": {
+        "employment_agreement": 0.7,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.3
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "cb6ccaeb401b783402a896b596fdf68beee3dd414e31b69f1b236a0494068071",
+      "relative_path": "Avtal_11_Distansarbetsavtal.docx"
+    },
+    {
+      "predicted_type": "employment_termination_agreement",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 0.0,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 1.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "ac3511202bd9080857af380229670b0ac12493cd296c15791b5fc45aa112a52a",
+      "relative_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx"
+    },
+    {
+      "predicted_type": "employment_termination_agreement",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 0.0,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 1.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "979de1b8ae4ea638b8a14d8bafd97871d449f9e037e7c513439c1513f5a65fcb",
+      "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx"
+    },
+    {
+      "predicted_type": "lease_agreement",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 0.0,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 1.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "748397de86a0124cd620493651f3efe760099c4a65e88a8c743c89bdac48267f",
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx"
+    },
+    {
+      "predicted_type": "supply_agreement",
+      "confidence": 0.81,
+      "probabilities": {
+        "employment_agreement": 0.0,
+        "consulting_agreement": 0.13,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.83,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.04
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "228045a4ff611b98c024c2dbfdda9d4eb8ad202b9eb4a943d74eef5d172493c6",
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx"
+    },
+    {
+      "predicted_type": "supply_agreement",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 0.0,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 1.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "682d56ab79808490da0ef99e3a2e907f6243811644434ec5625053583fa7f64a",
+      "relative_path": "Avtal_38_Projektavtal_fast_pris.docx"
+    },
+    {
+      "predicted_type": "consulting_agreement",
+      "confidence": 0.98,
+      "probabilities": {
+        "employment_agreement": 0.0,
+        "consulting_agreement": 0.98,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.02,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "51c36adb671a39efe09d03ad2665b3151a0caf03c2db54c52524f8687ba52ef2",
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx"
+    },
+    {
+      "predicted_type": "employment_agreement",
+      "confidence": 1.0,
+      "probabilities": {
+        "employment_agreement": 1.0,
+        "consulting_agreement": 0.0,
+        "nda": 0.0,
+        "dpa": 0.0,
+        "supply_agreement": 0.0,
+        "lease_agreement": 0.0,
+        "employment_termination_agreement": 0.0,
+        "other": 0.0
+      },
+      "model": "jev-1.13.0",
+      "taxonomy_version": "document-types-v1",
+      "document_id": "d546ee0ec3eb4baf63c280bed982976570669e87af5864dd991f8ae4e15abf20",
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx"
+    }
+  ],
+  "jev_calls": 16,
+  "wall_seconds": 6.3506270833313465
+}

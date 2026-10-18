@@ -1,0 +1,95 @@
+{
+  "experiment": "document-presentation-channel-parity-step-b-v1",
+  "classification": "observational-rejected",
+  "source_artifact": "backend/data/document-channel-parity-step-b-v3.json",
+  "case_count": 50,
+  "channels": [
+    "text",
+    "voice",
+    "group_voice"
+  ],
+  "actual_execute_expert_turn_calls": 150,
+  "acceptance": {
+    "required_channel_cases": 150,
+    "strictly_correct_channel_cases": 28,
+    "correct_document_selections": 85,
+    "correct_mode_transitions": 70,
+    "correct_presentation_decisions": 75,
+    "erroneous_auto_displays": 0,
+    "missed_explicit_shows": 75,
+    "duplicate_presentations": 0,
+    "external_or_model_errors": 45,
+    "approved": false
+  },
+  "channels_summary": {
+    "text": {
+      "latency_ms": {
+        "median": 10991.897,
+        "p95": 14702.197
+      },
+      "strictly_correct_cases": 14,
+      "correct_document_selections": 43,
+      "correct_mode_transitions": 37,
+      "correct_presentation_decisions": 25,
+      "external_or_model_errors": 4
+    },
+    "voice": {
+      "latency_ms": {
+        "median": 10440.723,
+        "p95": 14710.788
+      },
+      "strictly_correct_cases": 14,
+      "correct_document_selections": 42,
+      "correct_mode_transitions": 33,
+      "correct_presentation_decisions": 25,
+      "external_or_model_errors": 10
+    },
+    "group_voice": {
+      "latency_ms": {
+        "median": 29503.753,
+        "p95": 32413.966
+      },
+      "strictly_correct_cases": 0,
+      "correct_document_selections": 0,
+      "correct_mode_transitions": 0,
+      "correct_presentation_decisions": 25,
+      "external_or_model_errors": 31
+    }
+  },
+  "cross_channel": {
+    "text_voice_identical_source_ids": 45,
+    "text_voice_identical_find_calls": 34,
+    "text_group_identical_source_ids": 1,
+    "text_group_identical_find_calls": 0,
+    "all_channels_identical_presentation_calls": 50
+  },
+  "diagnostics": {
+    "text_mode_errors": {
+      "within_to_filter": 6,
+      "replace_to_extend": 3,
+      "filter_to_replace": 2,
+      "extend_then_replace": 1,
+      "replace_to_filter": 1
+    },
+    "voice_mode_errors": {
+      "within_to_filter": 9,
+      "filter_to_replace": 4,
+      "replace_to_extend": 3,
+      "filter_then_replace_filter": 1
+    },
+    "group_voice_find_documents_calls": 0,
+    "structured_output_errors": {
+      "text": 4,
+      "voice": 10,
+      "group_voice": 3
+    },
+    "group_voice_no_reply_errors": 28
+  },
+  "method_notes": [
+    "Each stochastic case was run once; failed cases were not retried.",
+    "Voice used the same fixed transcript text as chat.",
+    "All channels entered the production execute_expert_turn path.",
+    "The SQLite-only periodic lease heartbeat was delayed to avoid a writer-lock artifact; admission, fencing, terminal status, and production turn execution remained active.",
+    "Step A delivery-safety failures remained unresolved, so this run was observational and could not approve production changes."
+  ]
+}

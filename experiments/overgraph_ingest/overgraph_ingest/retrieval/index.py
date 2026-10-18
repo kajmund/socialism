@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from overgraph_ingest.graph.schema import DOCUMENT, TEXT_UNIT
 from overgraph_ingest.graph.writer import GraphWriter
-from overgraph_ingest.retrieval.encode import DenseEncoder, LexicalSparseEncoder
+from overgraph_ingest.retrieval.encode import DenseEncoder, SparseEncoder
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,10 @@ class StoredUnit:
     sparse: list[tuple[int, float]] | None
     structure_id: str = ""
     sequence: int | None = None
+    char_start: int | None = None
+    char_end: int | None = None
+    content_hash: str = ""
+    props: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
@@ -51,6 +55,10 @@ def load_published_units(writer: GraphWriter) -> list[StoredUnit]:
                 sparse=sparse,
                 structure_id=str(props.get("structure_id") or ""),
                 sequence=int(props["sequence"]) if props.get("sequence") is not None else None,
+                char_start=_optional_int(props.get("char_start")),
+                char_end=_optional_int(props.get("char_end")),
+                content_hash=str(props.get("content_hash") or ""),
+                props=props,
             )
         )
     return units
@@ -60,24 +68,56 @@ def embed_published_units(
     writer: GraphWriter,
     *,
     dense: DenseEncoder,
-    sparse: LexicalSparseEncoder,
+    sparse: SparseEncoder,
+    write_dense: bool = True,
+    write_sparse: bool = True,
 ) -> IndexStats:
+    if not write_dense and not write_sparse:
+        raise ValueError("embed_published_units requires write_dense or write_sparse")
     units = load_published_units(writer)
+    stats, payloads = encode_unit_vectors(
+        units,
+        dense=dense,
+        sparse=sparse,
+        write_dense=write_dense,
+        write_sparse=write_sparse,
+    )
+    writer.write_vectors(payloads)
+    writer.db.flush()
+    return stats
+
+
+def encode_unit_vectors(
+    units: list[StoredUnit],
+    *,
+    dense: DenseEncoder,
+    sparse: SparseEncoder,
+    write_dense: bool = True,
+    write_sparse: bool = True,
+) -> tuple[IndexStats, list[dict[str, object]]]:
+    """Embed materialized units and return upsert payloads. No database access."""
     stats = IndexStats(units=len(units))
     if not units:
-        return stats
+        return stats, []
     texts = [unit.text for unit in units]
-    sparse.fit(texts)
-    dense_vectors = dense.embed(texts)
-    sparse_vectors = sparse.embed(texts)
+    if write_sparse:
+        sparse.fit(texts)
+        sparse_vectors = sparse.embed(texts)
+    else:
+        sparse_vectors = [unit.sparse or [] for unit in units]
+    if write_dense:
+        dense_vectors = dense.embed(texts)
+    else:
+        if any(unit.dense is None for unit in units):
+            raise RuntimeError("cannot keep dense vectors; some TextUnits have none")
+        dense_vectors = [unit.dense or [] for unit in units]
     payloads = []
     for unit, dense_vector, sparse_vector in zip(units, dense_vectors, sparse_vectors, strict=True):
-        view = writer.get_node(TEXT_UNIT, unit.key)
-        if view is None:
-            raise KeyError(f"missing TextUnit {unit.key}")
-        props = dict(view.props)
-        props["dense_model"] = dense.model
-        props["sparse_encoder"] = sparse.encoder_id
+        props = dict(unit.props)
+        if write_dense:
+            props["dense_model"] = dense.model
+        if write_sparse:
+            props["sparse_encoder"] = sparse.encoder_id
         payloads.append(
             {
                 "labels": [TEXT_UNIT],
@@ -87,10 +127,8 @@ def embed_published_units(
                 "sparse_vector": list(sparse_vector),
             }
         )
-    writer.write_vectors(payloads)
-    writer.db.flush()
     stats.embedded = len(payloads)
-    return stats
+    return stats, payloads
 
 
 def _document_paths(writer: GraphWriter) -> dict[str, str]:
@@ -112,3 +150,9 @@ def _sparse(raw: Any) -> list[tuple[int, float]] | None:
     if not raw:
         return None
     return [(int(index), float(value)) for index, value in raw]
+
+
+def _optional_int(raw: Any) -> int | None:
+    if raw is None or raw == "":
+        return None
+    return int(raw)
