@@ -14,11 +14,9 @@ from app.config import settings
 from app.database.models import PersonaMessage, UserAccount
 from app.database.workspace_conversations import WorkspaceConversationEvent, WorkspaceConversationSession
 from app.database.workspace_models import VoiceWorkspace
-from app.schemas.domain import EXPERT_CHAT_MODE
 from app.schemas.workspace import WorkspaceState
 from app.services.elevenlabs_agents import ElevenLabsAgentsClient, ElevenLabsError
 from app.services.live_voice import expert_live_voice
-from app.services.persona_chat import library_chat_filter
 from app.services.workspace_memory_context import workspace_memory_context
 from app.services.workspace_document_context import voice_document_context
 from app.services.workspace.service import require_expert, require_workspace, validate_state
@@ -168,7 +166,6 @@ async def clear_thread_messages(session: AsyncSession, *, workspace: VoiceWorksp
     await session.execute(delete(PersonaMessage).where(PersonaMessage.id.in_(linked_ids)))
     await session.execute(delete(WorkspaceConversationEvent).where(
         WorkspaceConversationEvent.session_id.in_(session_ids)))
-    await session.execute(delete(PersonaMessage).where(*library_chat_filter(expert_id, EXPERT_CHAT_MODE)))
     await session.execute(update(WorkspaceConversationSession).where(
         *scope, WorkspaceConversationSession.status.in_(("starting", "active")),
     ).values(status="revoked"))
