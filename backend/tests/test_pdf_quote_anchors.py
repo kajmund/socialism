@@ -6,7 +6,6 @@ from types import SimpleNamespace
 import pdfplumber
 import pytest
 
-from app.services.document_knowledge import _quote_rects
 from app.services.pdf_quote_anchors import _normalized, first_quote_page, quote_rects
 from app.services.workspace.search import _pdf_quote_rects
 from app.services.workspace.tool_arguments import FocusPassageArguments
@@ -51,7 +50,7 @@ def test_multiline_quote_uses_visual_order_even_when_draw_stream_differs():
         drawn = " ".join(word["text"] for word in page.extract_words(use_text_flow=True))
         visual = " ".join(word["text"] for word in page.extract_words(use_text_flow=False))
         assert QUOTE not in drawn and QUOTE in visual
-        rects = _quote_rects(pdf, 1, QUOTE)
+        rects = quote_rects(pdf, 1, QUOTE)
         assert len(rects) == 3
         assert [rect["y"] for rect in rects] == sorted(rect["y"] for rect in rects)
         assert all(rect["x"] == pytest.approx(72 / page.width) for rect in rects)
@@ -86,7 +85,7 @@ def test_whole_word_amount_match_selects_later_exact_amount():
     data = _synthetic_pdf(amount_line="150 SEK 50 SEK")
     with pdfplumber.open(BytesIO(data)) as pdf:
         words = pdf.pages[1].extract_words()
-        rect, = _quote_rects(pdf, 2, "50 SEK")
+        rect, = quote_rects(pdf, 2, "50 SEK")
         assert rect["x"] == pytest.approx(words[2]["x0"] / pdf.pages[1].width)
         assert rect["width"] == pytest.approx((words[3]["x1"] - words[2]["x0"]) / pdf.pages[1].width)
 

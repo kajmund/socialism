@@ -1,8 +1,10 @@
 export const WORKSPACE_CHAT_TOOLS = [
   "get_workspace_context",
   "search_knowledge",
+  "find_documents",
   "read_source",
   "show_document",
+  "show_document_set",
   "focus_anchor",
   "show_evidence",
   "show_knowledge",

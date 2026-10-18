@@ -23,10 +23,12 @@ from app.database.models import (
     StoredObject,
     TextUnitRecord,
 )
-from app.database.workspace_models import VoiceWorkspace, WorkspaceSource
+from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifact, WorkspaceSource
+from app.services.document_ingest_status import document_text_ready
 from app.services.workspace.service import require_source
 from app.services.workspace.sources import citation, reference_out, source_version
 from app.services.workspace.tool_arguments import ReadArguments
+from app.services.workspace_document_context import artifact_readable_text, ready_created_document
 
 _TEXT_LIMIT = 8000
 _PARAGRAPH = re.compile(r"\n\s*\n")
@@ -303,7 +305,10 @@ async def exact_workspace_search(
     )
     member_ids = {member.source_id for member in members}
     if source_id is not None and source_id not in member_ids:
-        raise HTTPException(status_code=404, detail="workspace_source_not_found")
+        created = await ready_created_document(session, workspace, source_id)
+        if created is None:
+            raise HTTPException(status_code=404, detail="workspace_source_not_found")
+        return {"items": await _created_exact_items(session, workspace, query, limit=limit, only_id=source_id), "gaps": []}
     chosen = [member.source_id for member in members if source_id is None or member.source_id == source_id]
     items: list[dict] = []
     gaps: list[dict] = []
@@ -311,12 +316,49 @@ async def exact_workspace_search(
         if len(items) >= limit:
             break
         source = await require_source(session, workspace, member_id)
-        if source.knowledge_status != "ready" or not (source.extracted_text or "").strip():
+        if not document_text_ready(source):
             gaps.append({"source_id": source.id, "status": source.knowledge_status, "detail": source.knowledge_error})
             continue
         hits = await _exact_hits(session, workspace, source, query, limit=limit - len(items))
         items.extend(hits)
+    if source_id is None and len(items) < limit:
+        items.extend(await _created_exact_items(
+            session, workspace, query, limit=limit - len(items), only_id=None,
+        ))
     return {"items": items, "gaps": gaps}
+
+
+async def _created_exact_items(
+    session: AsyncSession,
+    workspace: VoiceWorkspace,
+    query: str,
+    *,
+    limit: int,
+    only_id: str | None,
+) -> list[dict]:
+    rows = list(await session.scalars(select(WorkspaceArtifact).where(
+        WorkspaceArtifact.workspace_id == workspace.id,
+        WorkspaceArtifact.kind.in_(("document", "relations")),
+        WorkspaceArtifact.status == "ready",
+    )))
+    if only_id is not None:
+        rows = [row for row in rows if row.id == only_id]
+    needle = collapsed(query)
+    items = []
+    for artifact in rows:
+        if len(items) >= limit or not needle:
+            break
+        text = artifact_readable_text(artifact)
+        if needle not in collapsed(text):
+            continue
+        window = window_around(text, query, 1) or query
+        ref = await citation(
+            session, workspace, kind=artifact.kind, source_id=artifact.id, version=str(artifact.revision),
+            anchor={"anchor_type": "text", "page_number": None, "locator": "document", "exact_text": query, "rects": []},
+            snapshot={"title": artifact.title, "excerpt": window[:500], "kind": "exact_text"},
+        )
+        items.append(reference_out(ref))
+    return items
 
 
 async def _exact_hits(

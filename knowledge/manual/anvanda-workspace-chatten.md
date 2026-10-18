@@ -54,13 +54,17 @@ Källorna visas vid researchresultatet. En dokumentkälla öppnar den citerade o
 
 Dokumentets genererade frågor och svar hjälper research att hitta relevanta avsnitt. Källhänvisningen går till originalpassagen som stöder uppgiften.
 
-Du kan öppna hela PDF:en utan att markera ett särskilt avsnitt. När du öppnar ett citat behöver dess källhänvisning peka ut den exakta passagen på en entydig plats i originalet. Om passagen inte kan lokaliseras visas ett fel, och PDF:en ligger kvar så att du kan läsa den. Sök fram avsnittet på fliken **Evidens** och öppna dess källhänvisning. Sök igen om en äldre hänvisning saknar markeringspositioner.
+Du kan öppna hela PDF:en utan att markera ett särskilt avsnitt. Bläddra mellan sidorna genom att scrolla. Sidnumret följer den sida som syns. När du öppnar ett citat behöver dess källhänvisning peka ut den exakta passagen på en entydig plats i originalet. Om passagen inte kan lokaliseras visas ett fel, och PDF:en ligger kvar så att du kan läsa den. Sök fram avsnittet på fliken **Evidens** och öppna dess källhänvisning. Sök igen om en äldre hänvisning saknar markeringspositioner.
 
 ## Markera en passage och ställ en fråga
 
-Dra över text i PDF:en eller textdokumentet för att välja den passage som nästa fråga ska gälla. Din egen markering är ett lokalt utkast tills du skickar frågan. Att markera, byta markering eller ta bort den sparar ingen ny källhänvisning.
+Dra över text i PDF:en eller textdokumentet för att välja den passage som nästa fråga ska gälla. Markeringen följer det stycke du drar över. Du kan markera flera passager. De tidigare ligger kvar när du markerar nästa. Din markering är gul och visar ditt namn. En experts markering har expertens egen färg och namn. När flera experter markerar i samma avtal syns varje passage de markerat. Säger experten att en passage är markerad syns den i dokumentet. Experterna ser vem som har markerat vilken passage. Din egen markering är ett lokalt utkast tills du skickar frågan. Att markera, byta markering eller ta bort den sparar ingen ny källhänvisning.
 
-Klicka i dokumentet för att ta bort den aktiva markeringen. Du kan sedan dra över texten för att välja ett nytt avsnitt. Markeringen ligger kvar när du navigerar i arbetsytan, zoomar eller uppdaterar dess innehåll. Om du laddar om webbsidan försvinner en markering som ännu inte har använts i en fråga.
+En markering kan ha en kommentar. Kommentarerna visas i en ruta till höger om dokumentet, i höjd med passagen. I PDF-huvudet sitter ikonen till vänster om sidbläddringen. Den visar eller döljer rutan. I ett textdokument sitter samma ikon i huvudet. Klicka en markering, eller markera texten, och skriv kommentaren där. Kommentaren sparas. Den och dess markering ligger kvar när du laddar om sidan.
+
+Du kan lämna en kommentar på någon annans markering. Markeringen ändras inte, och du kan inte ändra den personens kommentar. En expert kan skriva en kommentar tillsammans med sin markering. Den visas i expertens namn vid passagen. Du kan ta bort kommentaren, även när en expert har skrivit den. Markeringen tas bort tillsammans med kommentaren.
+
+Klicka i dokumentet för att ta bort de markeringar du just gjort där och som inte har en kommentar. Du kan sedan dra över texten för att välja ett nytt avsnitt. Markeringen ligger kvar när du navigerar i arbetsytan, zoomar eller uppdaterar dess innehåll. Om du laddar om webbsidan försvinner markeringar som ännu inte har använts i en fråga och som inte har en kommentar.
 
 När du skickar en textfråga låses den aktuella markeringen och dokumentversionen till just den frågan. I ett röstsamtal sker det när din färdiga replik kommer in i chatten. Behåll därför rätt markering tills repliken syns. Om du byter markering medan frågan behandlas gäller den nya markeringen nästa fråga; den tidigare frågans passage ändras inte.
 

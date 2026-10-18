@@ -1,4 +1,4 @@
-"""SME panel turns: per-expert tools, no research initiation, DB-serialized."""
+"""SME panel turns use the same expert turn as live voice, DB-serialized."""
 
 from __future__ import annotations
 
@@ -17,14 +17,18 @@ from app.database.models import (
     SmePanelMessage,
     UserAccount,
 )
-from app.llm.chat import reply_as_persona
-from app.schemas.domain import EXPERT_CHAT_MODE
 from app.schemas.sme import SmeMessageOut
-from app.serializers import profile_from_dict, utcnow
-from app.services.district_context import area_block_for_name
-from app.services.expert_tools import panel_chat_tools
-from app.services.persona_chat import expert_memory_context, schedule_expert_memory_update
+from app.schemas.workspace import DocumentMention
+from app.serializers import utcnow
+from app.services.prompt_render import prompt_template
 from app.services.prompt_store import require_prompts_for_persona
+from app.services.sme_group_voice import GroupVoiceSession, raised_hand_line
+from app.services.sme_group_voice_turns import expert_group_reply, group_history, speaker_note
+from app.services.sme_open_document import (
+    load_open_workspace,
+    publish_document_open,
+    publish_speaker_tools,
+)
 from app.services.sme_panel_lease import (
     PanelLeaseHeartbeat,
     acquire_panel_lease,
@@ -53,6 +57,46 @@ async def _require_panel(
     return panel
 
 
+ChannelLine = tuple[str, str | None, str]
+
+
+def channel_history(
+    expert_id: str,
+    names: dict[str, str],
+    lines: list[ChannelLine],
+) -> list[tuple[str, str]]:
+    """Panel transcript for one expert. Other experts stay named in the channel."""
+    history: list[tuple[str, str]] = []
+    for role, speaker_id, content in lines:
+        if role == "assistant" and speaker_id == expert_id:
+            history.append(("assistant", content))
+            continue
+        if role == "assistant":
+            history.append(("user", f"{names.get(speaker_id or '', 'Expert')}: {content}"))
+            continue
+        history.append(("user", content))
+    return history
+
+
+def hand_aware_context(context: str, others: list[str]) -> str:
+    return f"{context}\n\n{raised_hand_line(others)}".strip()
+
+
+async def speakers_for_utterance(
+    experts: list[Persona], utterance: str, raise_prompt: str
+) -> tuple[list[Persona], set[str], GroupVoiceSession]:
+    """The expert closest to the utterance speaks. Others speak only if they have something to add."""
+    names = {expert.id: expert.name for expert in experts}
+    session = GroupVoiceSession(panel_id="panel", member_ids=set(names), member_names=names)
+    winner = await session.decide_raise_hands(utterance, raise_hand_prompt=raise_prompt)
+    hands = set(session.hands)
+    chosen = set(hands)
+    if winner is not None:
+        chosen.add(winner)
+    speakers = [expert for expert in experts if expert.id in chosen]
+    return speakers, hands, session
+
+
 def _message_out(row: SmePanelMessage, persona_name: str | None) -> SmeMessageOut:
     return SmeMessageOut(
         id=row.id,
@@ -71,6 +115,8 @@ async def run_panel_message(  # noqa: PLR0915
     customer_id: int,
     user: UserAccount,
     message: str,
+    workspace_id: str | None = None,
+    mentions: list[DocumentMention] | None = None,
 ) -> list[SmeMessageOut]:
     text = message.strip()
     if not text:
@@ -94,50 +140,57 @@ async def run_panel_message(  # noqa: PLR0915
                 .order_by(SmePanelMessage.id.asc())
             )
             previous = list(previous_result.scalars().all())
-            reply_inputs: list[
-                tuple[Persona, list[tuple[str, str]], object, dict[str, str], str, str]
-            ] = []
-            for expert in experts:
-                history = [
-                    (row.role, row.content)
-                    for row in previous
-                    if row.role == "user" or row.persona_id == expert.id
-                ]
-                profile = profile_from_dict(expert.profile, expert.name)
-                prompts = await require_prompts_for_persona(session, expert)
-                area_block = await area_block_for_name(session, profile.ort or expert.district)
-                memory_context = await expert_memory_context(expert, text, prompts)
-                reply_inputs.append((expert, history, profile, prompts, area_block, memory_context))
+            lines = [(row.role, row.persona_id, row.content) for row in previous]
+            prompts = await require_prompts_for_persona(session, experts[0])
+            raise_prompt = prompt_template(prompts, "sme.group_voice.raise_hand")
             await session.commit()
+        await publish_document_open(
+            session_factory,
+            customer_id=customer_id,
+            user_id=user.id,
+            panel_id=panel_id,
+            workspace_id=workspace_id,
+            message=text,
+            history=[(role, content, None) for role, _speaker, content in lines],
+        )
+        opened = await load_open_workspace(
+            session_factory,
+            workspace_id=workspace_id,
+            user_id=user.id,
+            customer_id=customer_id,
+            mentions=mentions,
+        )
+        state = None if opened is None else opened[0]
+        experts, _hands, voice_session = await speakers_for_utterance(experts, text, raise_prompt)
+        sent: set[tuple[str, ...]] = set()
 
-        from app.services.actor_profiles import ActorProfileTools
-
-        async def panel_reply(expert, history, profile, prompts, area_block, memory_context):  # noqa: PLR0917
-            async with session_factory() as actor_session:
-                return await reply_as_persona(
-                    profile,
-                    EXPERT_CHAT_MODE,
-                    history,
-                    text,
-                    prompts=prompts,
-                    area_block=area_block,
-                    extra_system=memory_context,
-                    profile_kind="expert",
-                    tools=panel_chat_tools(expert.tools),
-                    actor_tool_handler=ActorProfileTools(
-                        actor_session,
-                        user_id=user.id,
-                        customer_id=customer_id,
-                        conversation=f"panel:{panel_id}",
-                    ),
+        async def one_reply(expert: Persona) -> str:
+            async def emit_tools(calls: list[dict]) -> None:
+                await publish_speaker_tools(
+                    customer_id=customer_id,
+                    user_id=user.id,
+                    panel_id=panel_id,
+                    calls=calls,
+                    sent=sent,
+                    expert_id=expert.id,
                 )
 
-        replies = await asyncio.gather(
-            *[
-                panel_reply(expert, history, profile, prompts, area_block, memory_context)
-                for expert, history, profile, prompts, area_block, memory_context in reply_inputs
-            ]
-        )
+            return await expert_group_reply(
+                session_factory,
+                customer_id=customer_id,
+                user_id=user.id,
+                persona_id=expert.id,
+                user_text=text,
+                context=(
+                    workspace_id,
+                    state,
+                    group_history(voice_session, expert.id, lines),
+                    speaker_note(voice_session, expert.id),
+                ),
+                on_client_tools=emit_tools,
+            )
+
+        replies = await asyncio.gather(*[one_reply(expert) for expert in experts])
         if heartbeat.lost.is_set():
             raise HTTPException(status_code=409, detail="stale_panel_turn")
 
@@ -156,6 +209,8 @@ async def run_panel_message(  # noqa: PLR0915
             await session.flush()
             created: list[tuple[SmePanelMessage, str | None]] = [(user_row, None)]
             for expert, reply in zip(experts, replies, strict=True):
+                if not reply:
+                    continue
                 reply_row = SmePanelMessage(
                     customer_id=customer_id,
                     population_id=panel_id,
@@ -168,14 +223,6 @@ async def run_panel_message(  # noqa: PLR0915
                 await session.flush()
                 created.append((reply_row, expert.name))
             await session.commit()
-            for expert, reply in zip(experts, replies, strict=True):
-                schedule_expert_memory_update(
-                    expert,
-                    message=text,
-                    reply=reply,
-                    image_sha256=None,
-                    source="panel_chat",
-                )
         return [_message_out(row, name) for row, name in created]
     finally:
         await heartbeat.aclose()

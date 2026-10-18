@@ -42,6 +42,10 @@ class PDFSelectionProof:
     file_sha256: str
 
 
+def _account_name(user: UserAccount) -> str:
+    return " ".join(part for part in (user.first_name, user.last_name) if part) or user.email
+
+
 def _binding(workspace: VoiceWorkspace) -> tuple[str, str, int, str]:
     return workspace.workspace_id, workspace.chat_id, workspace.customer_id, workspace.owner_user_id
 
@@ -193,10 +197,13 @@ async def materialize_pdf_selection(session: AsyncSession, state: WorkspaceState
     selection.anchor = DocumentKnowledgeAnchorWrite.model_validate(proof.anchor)
     selection.anchor.exact_text = proof.quote
     selection.source_file_sha256 = proof.file_sha256
+    actor = await session.get(UserAccount, proof.original.actor_id)
+    snapshot = {"title": source.filename, "excerpt": proof.quote, "selection_verified": True,
+                "source_file_sha256": proof.file_sha256}
+    if actor is not None:
+        snapshot["marked_by"] = {"kind": "user", "id": actor.id, "name": _account_name(actor)}
     reference = await citation(session, workspace, kind="underlag", source_id=source.id,
-        version=source_version(source), anchor=selection.anchor.model_dump(),
-        snapshot={"title": source.filename, "excerpt": proof.quote, "selection_verified": True,
-                  "source_file_sha256": proof.file_sha256})
+        version=source_version(source), anchor=selection.anchor.model_dump(), snapshot=snapshot)
     selection.reference_id = reference.id
     return workspace
 

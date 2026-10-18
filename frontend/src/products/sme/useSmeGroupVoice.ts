@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { encodePcm16 } from "@/components/chat/liveVoiceAudio"
 import { authAdapter } from "@/lib/auth"
 import { env } from "@/lib/env"
-import { EnergyVad } from "./liveSpeechVad"
+import { liveSpeechMicrophone } from "./liveSpeechMicrophone"
+import { createSpeechVad, type SpeechVad } from "./speechVad"
+import { PcmQueue } from "./pcmQueue"
 
 export type GroupVoiceMember = { id: string; name: string }
 
@@ -26,18 +28,22 @@ export type GroupVoiceStatus =
 
 type Options = {
   panelId: string | null
+  workspaceId: string | null
   enabled: boolean
   onUserTranscript?: (text: string) => void
   onUserPartial?: (text: string | null) => void
   onExpertSpeech?: (personaId: string, name: string | null, text: string) => void
+  onWorkspaceTool?: (name: string, args: Record<string, unknown>) => void
 }
 
 export function useSmeGroupVoice({
   panelId,
+  workspaceId,
   enabled,
   onUserTranscript,
   onUserPartial,
   onExpertSpeech,
+  onWorkspaceTool,
 }: Options) {
   const [snapshot, setSnapshot] = useState<GroupVoiceSnapshot | null>(null)
   const [connected, setConnected] = useState(false)
@@ -48,12 +54,16 @@ export function useSmeGroupVoice({
   const media = useRef<MediaStream | null>(null)
   const captureCtx = useRef<AudioContext | null>(null)
   const playbackCtx = useRef<AudioContext | null>(null)
-  const nextPlayback = useRef(0)
-  const vad = useRef(new EnergyVad(0.018, 250, 600))
+  const queue = useRef(new PcmQueue())
+  const dropIncoming = useRef(false)
+  const vadConfig = useRef<unknown>(undefined)
+  const vad = useRef<SpeechVad | null>(null)
   const mutedRef = useRef(false)
-  const callbacks = useRef({ onUserTranscript, onUserPartial, onExpertSpeech })
-  callbacks.current = { onUserTranscript, onUserPartial, onExpertSpeech }
+  const callbacks = useRef({ onUserTranscript, onUserPartial, onExpertSpeech, onWorkspaceTool })
+  callbacks.current = { onUserTranscript, onUserPartial, onExpertSpeech, onWorkspaceTool }
   const members = useRef<GroupVoiceMember[]>([])
+  const workspace = useRef(workspaceId)
+  workspace.current = workspaceId
 
   const send = useCallback((payload: Record<string, unknown>) => {
     if (socket.current?.readyState === WebSocket.OPEN) {
@@ -69,25 +79,18 @@ export function useSmeGroupVoice({
   }, [])
 
   const playPcm = useCallback((pcm: ArrayBuffer) => {
+    if (dropIncoming.current) return
     if (!playbackCtx.current) {
       playbackCtx.current = new AudioContext({ sampleRate: 24000 })
     }
     const ctx = playbackCtx.current
     if (ctx.state === "suspended") void ctx.resume()
-    const view = new DataView(pcm)
-    const samples = new Float32Array(Math.floor(pcm.byteLength / 2))
-    for (let index = 0; index < samples.length; index += 1) {
-      const value = view.getInt16(index * 2, true)
-      samples[index] = value < 0 ? value / 0x8000 : value / 0x7fff
-    }
-    const buffer = ctx.createBuffer(1, samples.length, 24000)
-    buffer.copyToChannel(samples, 0)
-    const source = ctx.createBufferSource()
-    source.buffer = buffer
-    source.connect(ctx.destination)
-    const start = Math.max(ctx.currentTime + 0.01, nextPlayback.current)
-    source.start(start)
-    nextPlayback.current = start + buffer.duration
+    queue.current.play(ctx, pcm)
+  }, [])
+
+  const stopPlayback = useCallback(() => {
+    dropIncoming.current = true
+    queue.current.stop(playbackCtx.current)
   }, [])
 
   const applySnapshot = useCallback((data: Partial<GroupVoiceSnapshot>) => {
@@ -115,19 +118,26 @@ export function useSmeGroupVoice({
     let cancelled = false
     let ws: WebSocket | null = null
     let worklet: AudioWorkletNode | null = null
+    const queued = queue.current
     setStatus("connecting")
-    vad.current = new EnergyVad(0.018, 250, 600)
+    vad.current = null
+    vadConfig.current = undefined
+    let hearing = Promise.resolve()
 
     function sendFrame(frame: Float32Array, sampleRate: number) {
-      if (mutedRef.current || socket.current?.readyState !== WebSocket.OPEN) return
-      const result = vad.current.process(frame, sampleRate)
-      for (const item of result.frames) {
-        if (socket.current?.readyState === WebSocket.OPEN) {
-          socket.current.send(encodePcm16(item, sampleRate))
+      const current = vad.current
+      if (!current || mutedRef.current || socket.current?.readyState !== WebSocket.OPEN) return
+      hearing = hearing.then(() => current.push(frame, sampleRate)).then((result) => {
+        for (const item of result.frames) {
+          if (socket.current?.readyState === WebSocket.OPEN) {
+            socket.current.send(encodePcm16(item, sampleRate))
+          }
         }
-      }
-      if (result.abandon) send({ type: "clear_audio" })
-      if (result.commit) send({ type: "commit_audio" })
+        if (result.abandon) send({ type: "clear_audio" })
+        if (result.commit) send({ type: "commit_audio" })
+      }).catch(() => {
+        if (!cancelled) setStatus("error")
+      })
     }
 
     async function startCapture(stream: MediaStream) {
@@ -158,9 +168,7 @@ export function useSmeGroupVoice({
         return
       }
       try {
-        media.current = await navigator.mediaDevices.getUserMedia({
-          audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        })
+        media.current = await navigator.mediaDevices.getUserMedia({ audio: liveSpeechMicrophone })
       } catch {
         if (!cancelled) {
           setError("microphone_unavailable")
@@ -178,21 +186,39 @@ export function useSmeGroupVoice({
         if (cancelled) return
         setConnected(true)
         setError(null)
-        ws?.send(JSON.stringify({ type: "start", panel_id: panelId }))
-        const stream = media.current
-        if (stream) void startCapture(stream).catch(() => { if (!cancelled) setStatus("error") })
+        ws?.send(JSON.stringify({
+          type: "start",
+          panel_id: panelId,
+          ...(workspace.current ? { workspace_id: workspace.current } : {}),
+        }))
       }
 
       ws.onmessage = (event) => {
         if (cancelled) return
         if (event.data instanceof ArrayBuffer) {
-          setStatus("speaking")
+          if (!dropIncoming.current) setStatus("speaking")
           playPcm(event.data)
           return
         }
         try {
-          const data = JSON.parse(String(event.data)) as { type?: string; text?: string; persona_id?: string; floor_name?: string } & Partial<GroupVoiceSnapshot>
-          if (data.type === "snapshot") {
+          const data = JSON.parse(String(event.data)) as {
+            type?: string
+            text?: string
+            persona_id?: string
+            floor_name?: string
+            vad?: unknown
+            name?: string
+            arguments?: Record<string, unknown>
+          } & Partial<GroupVoiceSnapshot>
+          if (data.type === "ready") {
+            vadConfig.current = data.vad
+            void createSpeechVad(data.vad).then((created) => {
+              if (cancelled) return
+              vad.current = created
+              const stream = media.current
+              if (stream) void startCapture(stream).catch(() => { if (!cancelled) setStatus("error") })
+            }).catch(() => { if (!cancelled) setStatus("error") })
+          } else if (data.type === "snapshot") {
             applySnapshot(data)
           } else if (data.type === "transcript.partial") {
             callbacks.current.onUserPartial?.(data.text ?? "")
@@ -202,12 +228,18 @@ export function useSmeGroupVoice({
             if (data.text) callbacks.current.onUserTranscript?.(data.text)
             setStatus("thinking")
           } else if (data.type === "assistant.speaking") {
+            dropIncoming.current = false
             const personaId = data.persona_id ?? ""
             const name = members.current.find((member) => member.id === personaId)?.name ?? null
             if (data.text) callbacks.current.onExpertSpeech?.(personaId, name, data.text)
             setStatus("speaking")
-          } else if (data.type === "assistant.done") {
+          } else if (data.type === "assistant.cancelled") {
+            stopPlayback()
             setStatus(mutedRef.current ? "paused" : "listening")
+          } else if (data.type === "assistant.done" || data.type === "listening") {
+            setStatus(mutedRef.current ? "paused" : "listening")
+          } else if (data.type === "workspace.tool" && data.name && data.arguments) {
+            callbacks.current.onWorkspaceTool?.(data.name, data.arguments)
           } else if (data.type === "error") {
             setError(String((data as { detail?: string }).detail ?? "error"))
           }
@@ -242,17 +274,18 @@ export function useSmeGroupVoice({
       media.current = null
       void captureCtx.current?.close()
       captureCtx.current = null
-      void playbackCtx.current?.close()
+      const playback = playbackCtx.current
+      queued.stop(playback)
+      void playback?.close()
       playbackCtx.current = null
-      nextPlayback.current = 0
     }
-  }, [applySnapshot, enabled, panelId, playPcm, send])
+  }, [applySnapshot, enabled, panelId, playPcm, send, stopPlayback])
 
   const toggleMute = useCallback(() => {
     mutedRef.current = !mutedRef.current
     setMuted(mutedRef.current)
     if (mutedRef.current) {
-      vad.current = new EnergyVad(0.018, 250, 600)
+      vad.current?.reset()
       send({ type: "clear_audio" })
       setStatus("paused")
     } else {

@@ -33,6 +33,7 @@ class RetrievalGold:
     proof_kind: str = "EXISTS"
     coverage_groups: list[CoverageGroup] = field(default_factory=list)
     document_gold: tuple[str, ...] = ()
+    split: str = "seen"
 
     @property
     def passage_documents(self) -> list[str]:
@@ -70,6 +71,7 @@ def load_retrieval_gold(path: Path) -> RetrievalGold:
         document_gold=tuple(
             str(path) for path in payload.get("relevant_documents") or []
         ),
+        split=str(payload.get("split") or "seen"),
     )
 
 
@@ -79,6 +81,7 @@ def load_gold_suite(directory: Path) -> list[RetrievalGold]:
 
 
 def span_matches(text: str, span: GoldSpan) -> bool:
+    # Historical v1. Space-run locate lives in gold_map, not here.
     return span.contains in text
 
 

@@ -67,14 +67,18 @@ async def run_checks(factory, appclient, report: dict, observation) -> dict:
             "active_generated_items_by_kind": snapshot["generated_items_by_kind"],
             "qa_count": snapshot["qa_count"],
             "items_created": result.get("items_created"),
-            "successful_batches": result.get("successful_batches"),
-            "failed_batches": result.get("failed_batches"),
         }
         _check(
             checks,
             f"{label}_sql_units_have_canonical_version",
             bool(snapshot["text_unit_ids"])
             and snapshot["unit_version_ids"] == [snapshot["document_version_id"]],
+        )
+        _check(
+            checks,
+            f"{label}_ingest_creates_no_generated_cards",
+            snapshot["generated_items_by_kind"] == {} and result.get("items_created") == 0,
+            {"items_created": result.get("items_created")},
         )
     customer_id = common["customer_id"]
     common_id = common["workspace_id"]
@@ -100,7 +104,7 @@ async def run_checks(factory, appclient, report: dict, observation) -> dict:
     after = await _snapshot(factory, sources["client_a"]["id"])
     _check(
         checks,
-        "same_hash_reuses_canonical_ids_and_qa_revisions",
+        "same_hash_reuses_canonical_ids",
         repeated["reused_version"] and before == after,
     )
     shared_id = await _shared_source(factory, prefix, store, embeddings)
@@ -159,7 +163,6 @@ async def _scope_checks(factory, appclient, checks, *, chat_a, sources, scope):
                 "När börjar avtalet gälla?",
                 scope,
                 limit=12,
-                filters={"knowledge_kind": "document_item"},
             )
         )
         default_hits = await provider.search(
@@ -291,7 +294,7 @@ async def _snapshot(factory, source_id: str) -> dict:
 
 
 async def run_manual_qa_checks(factory, appclient, report: dict, ingest: dict) -> dict:
-    """Exercise actual editable Q&A independently of optional auto-generation."""
+    """Manual marks stay editable and do not enter the vector index."""
     source = ingest["sources"]["client_a"]
     chat = ingest["client_a_chat"]
     async with factory() as session:
@@ -347,7 +350,7 @@ async def run_manual_qa_checks(factory, appclient, report: dict, ingest: dict) -
         provider = SupabaseKnowledgeProvider(
             session, require_knowledge_vector_store(), OpenAIEmbeddingProvider.from_settings()
         )
-        hits = await provider.search(
+        item_hits = await provider.search(
             KnowledgeQuery(
                 question,
                 scope,
@@ -359,15 +362,21 @@ async def run_manual_qa_checks(factory, appclient, report: dict, ingest: dict) -
                 },
             )
         )
-    actual = [hit for hit in hits if hit.metadata.get("document_knowledge_item_id") == item["id"]]
+        chunk_hits = await provider.search(KnowledgeQuery(question, scope, limit=12))
+    actual = [hit for hit in chunk_hits if hit.excerpt == original["text"]]
     checks = report.setdefault("document_ingest_checks", [])
     _check(
         checks,
-        "manual_qa_real_embedding_and_grounding",
+        "manual_qa_is_not_vector_indexed",
+        item_hits == [],
+        {"item_id": item["id"]},
+    )
+    _check(
+        checks,
+        "original_text_is_searchable_after_manual_qa",
         bool(actual)
         and all(
-            hit.metadata.get("qa_snapshot", {}).get("question") == question
-            and hit.metadata.get("item_revision") == item["revision"]
+            hit.metadata.get("knowledge_kind") == "document_chunk"
             and hit.metadata.get("document_version_id") == original["document_version_id"]
             and hit.excerpt == original["text"]
             for hit in actual

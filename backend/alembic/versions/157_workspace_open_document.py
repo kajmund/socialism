@@ -3,7 +3,7 @@
 import sqlalchemy as sa
 from alembic import op
 
-from app.services.prompt_catalog import PROMPT_FIELDS
+from app.services.workspace_prompt_defaults import workspace_prompt_fields
 
 revision = "157_workspace_open_document"
 down_revision = "156_workspace_focus_passage"
@@ -20,21 +20,32 @@ _PARAGRAPHS = {
     "but not open. Confirm only after show_document returns completed. If several files could match, ask which one.",
 }
 _PARAGRAPHS["nb"] = _PARAGRAPHS["sv"]
-# 158 replaced this paragraph in the catalog. A fresh upgrade still has to find the text that is there.
+# Later catalog edits replaced the paragraph. A fresh upgrade still has to find the text that is there.
 _LATER = {
     "sv": "När användaren ber dig öppna ett dokument eller avtal och namnet står i ett filnamn i available_documents, "
-    "anropa show_document i samma tur med den source_id. Om användaren nämner en part, ett bolag eller ett ämne "
-    "som inte står i något filnamn, anropa search_knowledge med de orden innan du svarar. Filnamn visar inte att "
-    "innehållet saknas. När sökningen ger träffar i ett dokument, anropa show_document med träffens source_id. "
-    "Fråga vilken fil bara om sökningen träffar flera olika dokument. Fråga inte om du ska öppna det, och säg "
-    "inte att filen finns men inte är öppen. Bekräfta först när show_document har svarat completed.",
+    "anropa show_document i samma tur med den source_id. När användaren vill se en dokumenttyp eller en mängd "
+    "dokument (till exempel alla hyresavtal), anropa find_documents med query satt till en kompakt sökterm för "
+    "dokumenttypen eller ämnet (till exempel \"anställningsavtal\") — inte en hel mening och inte användarens "
+    "ordagranna formulering. Använd mode=filter eller within när hen filtrerar det aktiva document_set, och "
+    "mode=extend när hen vill lägga till fler. När find_documents returnerar source_ids: anropa show_document_set "
+    "med title och presentation_source_ids (eller source_ids om presentation_truncated är false). Sökresultatets "
+    "source_ids och document_count är alltid hela mängden; galleriet kan visa ett urval. Om användaren nämner en "
+    "part, ett bolag eller en plats i texten, anropa search_knowledge. Filnamn visar inte att innehållet saknas. "
+    "När sökningen ger träff i ett dokument, anropa show_document med träffens source_id. Fråga inte vilken fil "
+    "när användaren har bett att få se sökresultatet. Fråga inte om du ska öppna det, och säg inte att filen finns "
+    "men inte är öppen. Bekräfta först när klientverktyget har svarat completed.",
     "en": "When the user asks you to open a document or contract and the name appears in a filename in "
-    "available_documents, call show_document in the same turn with that source_id. If the user names a party, "
-    "company or subject that is not in any filename, call search_knowledge with those words before you answer. "
-    "Filenames do not show that the content is missing. When the search hits one document, call show_document "
-    "with that hit's source_id. Ask which file only when the search hits several different documents. Do not "
-    "ask whether to open it, and do not say the file is available but not open. Confirm only after "
-    "show_document returns completed.",
+    "available_documents, call show_document in the same turn with that source_id. When the user wants a document "
+    "type or set (for example all lease agreements), call find_documents with query set to a compact search term "
+    "for the document type or subject (for example \"employment agreements\") — not a full sentence and not the "
+    "user's verbatim wording. Use mode=filter or within when they filter the active document_set, and mode=extend "
+    "when they want to add more. When find_documents returns source_ids, call show_document_set with title and "
+    "presentation_source_ids (or source_ids when presentation_truncated is false). The search result source_ids and "
+    "document_count are always the full set; the gallery may show a subset. If the user names a party, company or "
+    "place in the text, call search_knowledge. Filenames do not show that the content is missing. When the search "
+    "hits one document, call show_document with that hit's source_id. Do not ask which file when the user asked to "
+    "see the search result. Do not ask whether to open it, and do not say the file is available but not open. "
+    "Confirm only after the client tool returns completed.",
 }
 _LATER["nb"] = _LATER["sv"]
 
@@ -46,8 +57,22 @@ _TOOL_OLD = {
 }
 
 
+def _make_field(
+    key: str,
+    _section: str,
+    _label_sv: str,
+    _label_en: str,
+    _hint_sv: str,
+    _hint_en: str,
+    default_sv: str,
+    default_en: str,
+) -> dict:
+    return {"key": key, "defaults": {"sv": default_sv, "en": default_en, "nb": default_sv}}
+
+
 def _catalog(key: str) -> dict[str, str]:
-    for field in PROMPT_FIELDS:
+    # Pre-split legacy texts: 180 applies the compact overrides, not this migration.
+    for field in workspace_prompt_fields(_make_field, apply_overrides=False):
         if field["key"] == key:
             return field["defaults"]
     raise RuntimeError(f"missing prompt catalog field {key}")

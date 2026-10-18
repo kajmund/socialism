@@ -1,0 +1,7 @@
+﻿Datum;Incident;Allvarlighetsgrad;Beskrivning/åtgärd;Status
+2024-10-15;Phishing till ekonomiavdelningen;Medel;Två medarbetare klickade, lösenord återställda, inget konstaterat dataintrång (DOC-SEC-001);Stängd
+2025-03-22;Misstänkta inloggningsförsök mot M365;Låg;Blockerat av MFA, konton granskade;Stängd
+2026-01-18;MFA-trötthetsattacker (push-spam);Låg;Utbildningsinsats, nummermatchning aktiverad;Stängd
+2026-08-04;Driftstörning Nordhost (6 h);Hög;Ej säkerhetsrelaterad men inkluderad p.g.a. kundpåverkan (DOC-IT-002);Stängd
+2026-09-02;AI-svar utan källstöd i kundrapporter;Medel;Rapporter korrigerade, loggning saknades (DOC-IT-003);Åtgärd pågår
+2026-09-28;Credential stuffing-försök mot CRM-inloggning;Medel;Ingen åtkomst konstaterad, MFA höll, IP-blockering införd;Öppen

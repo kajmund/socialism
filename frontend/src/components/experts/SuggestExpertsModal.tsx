@@ -99,7 +99,8 @@ export function SuggestExpertsModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="theme-admin max-h-[min(880px,92vh)] w-full max-w-2xl overflow-hidden bg-db-ink-0 p-0 sm:max-w-2xl"
+        overlayClassName="z-[1400]"
+        className="theme-admin z-[1400] max-h-[min(880px,92vh)] w-full max-w-2xl overflow-hidden bg-db-ink-0 p-0 sm:max-w-2xl"
         showCloseButton={false}
       >
         <div className="flex max-h-[min(880px,92vh)] flex-col">

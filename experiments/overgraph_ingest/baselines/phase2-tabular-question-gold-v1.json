@@ -1,0 +1,255 @@
+{
+  "id": "phase2-tabular-question-gold-v1",
+  "label": "Frozen diagnosis: tabular user questions are not the same task as retrieval/classify gold. Historical 78% is agreement with passage gold, not user-question quality. Retrieval gold is unchanged. Default P0 stays.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_change_gold": true,
+  "do_not_retune_gold_to_model": true,
+  "historical_cell_accuracy_is_not_user_quality": true,
+  "user_question_is_the_contract": true,
+  "headline": {
+    "three_wordings_are_not_the_same_task": true,
+    "gold_negative_false_answers": 14,
+    "wrong_citation_on_gold_positive": 3,
+    "counts": {
+      "nearby_relation": 7,
+      "gold_narrower": 7,
+      "product_polarity": 1,
+      "gold_omission": 2
+    },
+    "next_is_not_parameter_tuning": true
+  },
+  "wordings": [
+    {
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "gold_query": "Vilka avtal innehåller bestämmelser om automatisk förlängning?",
+      "classify_question": "Innehåller texten en bestämmelse där avtalet förlängs automatiskt utan ett nytt uttryckligt godkännande från båda parterna?",
+      "gold_notes": "Relevant is a standing tacit-renewal or auto-renewal term. Ongoing 'tills vidare', one-shot amendments, optional renewal rights, and 'förlängs inte automatiskt' are not relevant.",
+      "gold_positive_in_selection": [
+        "Avtal_17_Hyresavtal_lokal.docx",
+        "Avtal_18_Hyresavtal_bostad.docx",
+        "Avtal_22_Kontorshotell_coworking.docx",
+        "Avtal_25_Fastighetsservice_stadning.docx",
+        "Avtal_30_Ramavtal_tjanster.docx"
+      ],
+      "user_equals_gold_query": false,
+      "user_equals_classify": false
+    },
+    {
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "gold_query": "Vilka avtal innehåller en uppsägningstid?",
+      "classify_question": "Innehåller texten en stående uppsägningstid för att avsluta avtalet?",
+      "gold_notes": "Relevant is a standing notice period for terminating this agreement. A termination letter that only records a period, a one-shot waiver of notice, or a purely optional bracketed alternative is not relevant.",
+      "gold_positive_in_selection": [
+        "Avtal_17_Hyresavtal_lokal.docx",
+        "Avtal_18_Hyresavtal_bostad.docx",
+        "Avtal_01_Tillsvidareanstallningsavtal.docx",
+        "Avtal_05_Konsultavtal.docx",
+        "Avtal_22_Kontorshotell_coworking.docx",
+        "Avtal_11_Distansarbetsavtal.docx"
+      ],
+      "user_equals_gold_query": false,
+      "user_equals_classify": false
+    },
+    {
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "gold_query": "Vilka avtal begränsar ansvaret för skada?",
+      "classify_question": "Innehåller texten en avtalsenlig ansvarsbegränsning, till exempel ett takbelopp eller ett undantag för indirekt skada?",
+      "gold_notes": "Passage gold is an operative contractual cap or exclusion of indirect loss. A heading without a limit, a statutory GDPR allocation, a parking/car disclaimer, and a carve-out sentence that only names exceptions are not passage-relevant. Document gold is the contract that contains at least one such passage. Corrected after C@8: Jev YES on genuine caps that the first gold omitted were added; YES on operational disclaimers and insurance schedules were not.",
+      "gold_positive_in_selection": [
+        "Avtal_05_Konsultavtal.docx",
+        "Avtal_22_Kontorshotell_coworking.docx",
+        "Avtal_25_Fastighetsservice_stadning.docx",
+        "Avtal_30_Ramavtal_tjanster.docx",
+        "Avtal_36_Underleverantorsavtal.docx"
+      ],
+      "user_equals_gold_query": false,
+      "user_equals_classify": false
+    },
+    {
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "gold_query": "Vilka avtal innehåller en sekretessplikt?",
+      "classify_question": "Innehåller texten en skyldighet att hålla information hemlig eller att inte röja konfidentiella uppgifter?",
+      "gold_notes": "Relevant is an operative confidentiality or non-disclosure duty. A heading without body, a cover-page blurb, or a pointer to another NDA is not enough.",
+      "gold_positive_in_selection": [
+        "Avtal_01_Tillsvidareanstallningsavtal.docx",
+        "Avtal_05_Konsultavtal.docx",
+        "Avtal_22_Kontorshotell_coworking.docx",
+        "Avtal_02_Provanstallningsavtal.docx",
+        "Avtal_03_Visstidsanstallning.docx",
+        "Avtal_36_Underleverantorsavtal.docx",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+        "Avtal_13_Avgangsvederlagsavtal.docx"
+      ],
+      "user_equals_gold_query": false,
+      "user_equals_classify": false
+    },
+    {
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "gold_query": "Vilka avtal undantar brott mot sekretess från ansvarsbegränsningen?",
+      "classify_question": "Innehåller texten att ansvarsbegränsningen inte gäller vid brott mot sekretess?",
+      "gold_notes": "Passage gold is an operative carve-out of confidentiality breach from a liability cap. A cap that only carves out intent, gross negligence, GDPR/PUB or a numbered cross-reference is not passage-relevant. Document gold is the contract that contains such a carve-out. Avtal 46 splits the cap and the carve-out; coverage_groups records that both must be found for the document-level conclusion. Corrected after C@8: Avtal 30 and 36 were genuine carve-outs omitted from the first gold.",
+      "gold_positive_in_selection": [
+        "Avtal_05_Konsultavtal.docx",
+        "Avtal_30_Ramavtal_tjanster.docx",
+        "Avtal_36_Underleverantorsavtal.docx"
+      ],
+      "user_equals_gold_query": false,
+      "user_equals_classify": false
+    }
+  ],
+  "labeled": [
+    {
+      "document_id": "Avtal_05_Konsultavtal",
+      "question_id": "confidentiality",
+      "gold_positive": true,
+      "citation_relevant": false,
+      "kind": "nearby_relation",
+      "reason": "Gold-positive document, cited the liability cap."
+    },
+    {
+      "document_id": "Avtal_25_Fastighetsservice_stadning",
+      "question_id": "notice-period",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "gold_narrower",
+      "reason": "Notice to stop auto-renewal. User question asks which notice applies. Gold wants a standing terminate-the-agreement term."
+    },
+    {
+      "document_id": "Avtal_25_Fastighetsservice_stadning",
+      "question_id": "confidentiality",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "nearby_relation",
+      "reason": "Staff may not look at papers. Not an operative NDA duty."
+    },
+    {
+      "document_id": "Avtal_02_Provanstallningsavtal",
+      "question_id": "auto-renewal",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "gold_narrower",
+      "reason": "Probation converts automatically. User question can read that as yes. Gold wants commercial tacit renewal."
+    },
+    {
+      "document_id": "Avtal_02_Provanstallningsavtal",
+      "question_id": "notice-period",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "gold_narrower",
+      "reason": "Notice after conversion to permanent employment. Not in gold."
+    },
+    {
+      "document_id": "Avtal_03_Visstidsanstallning",
+      "question_id": "auto-renewal",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "product_polarity",
+      "reason": "ANSWERED with a clause that the employment ends. That is a no, not a yes."
+    },
+    {
+      "document_id": "Avtal_03_Visstidsanstallning",
+      "question_id": "notice-period",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "gold_narrower",
+      "reason": "Optional bracketed early-termination notice. Gold notes exclude that."
+    },
+    {
+      "document_id": "Avtal_30_Ramavtal_tjanster",
+      "question_id": "notice-period",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "gold_narrower",
+      "reason": "Same: notice attached to auto-renewal, not listed as standing notice."
+    },
+    {
+      "document_id": "Avtal_30_Ramavtal_tjanster",
+      "question_id": "confidentiality",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "gold_omission",
+      "reason": "Operative secrecy duty. Matches gold notes. Missing from relevant_units."
+    },
+    {
+      "document_id": "Avtal_36_Underleverantorsavtal",
+      "question_id": "auto-renewal",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "nearby_relation",
+      "reason": "Duration until the assignment is finished is not automatic period renewal."
+    },
+    {
+      "document_id": "Avtal_36_Underleverantorsavtal",
+      "question_id": "confidentiality",
+      "gold_positive": true,
+      "citation_relevant": false,
+      "kind": "nearby_relation",
+      "reason": "Gold-positive document, cited the liability cap."
+    },
+    {
+      "document_id": "Avtal_04_Timanstallning_behovsanstallning",
+      "question_id": "notice-period",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "gold_narrower",
+      "reason": "Immediate termination answers 'vilken uppsägningstid'. Gold wants a standing period."
+    },
+    {
+      "document_id": "Avtal_07_Sekretessavtal_omsesidigt",
+      "question_id": "confidentiality",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "gold_omission",
+      "reason": "Operative NDA duty. Matches gold notes. Missing from relevant_units."
+    },
+    {
+      "document_id": "Avtal_08_Konkurrensforbudsavtal",
+      "question_id": "confidentiality",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "nearby_relation",
+      "reason": "Says this agreement does not affect an existing duty. Pointer, not the duty."
+    },
+    {
+      "document_id": "Avtal_09_Kundbearbetningsforbud_varvningsforbud",
+      "question_id": "liability-cap",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "nearby_relation",
+      "reason": "Vite is a sanction, not a cap. Gold and a careful reading of the user question agree."
+    },
+    {
+      "document_id": "Avtal_11_Distansarbetsavtal",
+      "question_id": "auto-renewal",
+      "gold_positive": false,
+      "citation_relevant": false,
+      "kind": "gold_narrower",
+      "reason": "Gäller tills vidare from day one. Gold notes exclude that. User question does not."
+    },
+    {
+      "document_id": "Avtal_13_Avgangsvederlagsavtal",
+      "question_id": "confidentiality",
+      "gold_positive": true,
+      "citation_relevant": false,
+      "kind": "nearby_relation",
+      "reason": "Cited 6.3 (avtalets innehåll) instead of gold 6.1 (tystnadsplikt)."
+    }
+  ],
+  "counts": {
+    "nearby_relation": 7,
+    "gold_narrower": 7,
+    "product_polarity": 1,
+    "gold_omission": 2
+  },
+  "internal_gold_tension": {
+    "question_id": "auto-renewal",
+    "notes_exclude": "tills vidare",
+    "gold_includes": "Avtal_18_Hyresavtal_bostad.docx: Annars förlängs avtalet tills vidare."
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Building2, Plus } from "lucide-react"
 import { listKunder, type Kund } from "@/api/kunder"
 import { createClientWorkspace, listWorkspaces, type Workspace } from "@/api/workspaces"
@@ -11,10 +11,11 @@ import { workspaceErrorMessage } from "./workspaceChatLogic"
 
 export type SmeWorkspaceParent = VoiceWorkspaceParent & { workspace: Workspace }
 
-export function SmeWorkspaceSelector({ parent, onChange, beforeChange }: {
+export function SmeWorkspaceSelector({ parent, onChange, beforeChange, children }: {
   parent: SmeWorkspaceParent | null
   onChange: (parent: SmeWorkspaceParent | null) => void
   beforeChange: () => Promise<void>
+  children?: ReactNode
 }) {
   const { user, isAdmin } = useAuth()
   const { t } = useLocale()
@@ -74,16 +75,16 @@ export function SmeWorkspaceSelector({ parent, onChange, beforeChange }: {
   }
 
   return <>
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-white px-4 py-2">
+    <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto border-b bg-white px-4 py-2">
       {requiresCustomer ? <select className="w-full min-w-0 rounded border bg-white px-2 py-2 text-sm sm:w-auto sm:max-w-48" aria-label={t("workspaceChat.organization")} value={customerId ?? ""} disabled={busy} onChange={(event) => {
         const next = event.target.value ? Number(event.target.value) : undefined
         void choose("", next).then((changed) => { if (changed) setCustomerId(next) })
       }}><option value="">{t("workspaceChat.chooseOrganization")}</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select> : null}
       <Building2 size={18} className="shrink-0 text-db-gold-600" aria-hidden="true" />
-      <select className="min-w-0 flex-1 rounded border bg-white px-3 py-2 text-sm sm:max-w-80" aria-label={t("workspaceChat.workspace")} value={parent?.workspaceId ?? ""} disabled={busy || !rows.length} onChange={(event) => { void choose(event.target.value) }}><option value="" disabled>{t("workspaceChat.workspace")}</option>{rows.map((row) => <option key={row.id} value={row.id}>{row.name}{row.kind === "company" ? ` · ${t("workspaceChat.company")}` : ""}</option>)}</select>
+      <select className="min-w-0 rounded border bg-white px-3 py-2 text-sm sm:max-w-80" aria-label={t("workspaceChat.workspace")} value={parent?.workspaceId ?? ""} disabled={busy || !rows.length} onChange={(event) => { void choose(event.target.value) }}><option value="" disabled>{t("workspaceChat.workspace")}</option>{rows.map((row) => <option key={row.id} value={row.id}>{row.name}{row.kind === "company" ? ` · ${t("workspaceChat.company")}` : ""}</option>)}</select>
       <AdminButton variant="secondary" size="sm" disabled={busy || !parent} aria-label={t("workspaceChat.newWorkspace")} onClick={() => { setName(""); setOpen(true) }}><Plus size={16} aria-hidden="true" /><span className="hidden sm:inline">{t("workspaceChat.newWorkspace")}</span></AdminButton>
-      <span className="hidden min-w-0 truncate text-xs text-muted-foreground lg:block">{parent ? t(rows.find((row) => row.id === parent.workspaceId)?.kind === "client" ? "workspaceChat.clientIntro" : "workspaceChat.companyIntro") : null}</span>
-      {error ? <span role="alert" className="w-full text-sm text-destructive">{error}</span> : null}
+      {children}
+      {error ? <span role="alert" className="shrink-0 text-sm text-destructive">{error}</span> : null}
     </div>
     <Dialog open={open} onOpenChange={(value) => { if (!busy) setOpen(value) }}><DialogContent className="theme-admin max-w-md"><form className="grid gap-4" onSubmit={(event) => { event.preventDefault(); void create() }}><DialogHeader><DialogTitle>{t("workspaceChat.newWorkspace")}</DialogTitle><DialogDescription>{t("workspaceChat.workspaceIntro")}</DialogDescription></DialogHeader><label className="grid gap-2 text-sm">{t("workspaceChat.workspaceName")}<input autoFocus required maxLength={200} value={name} onChange={(event) => setName(event.target.value)} className="rounded border bg-white p-3" /></label>{error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}<DialogFooter><AdminButton type="button" variant="secondary" disabled={busy} onClick={() => setOpen(false)}>{t("workspaceChat.cancel")}</AdminButton><AdminButton type="submit" disabled={busy || !name.trim()}>{t("workspaceChat.create")}</AdminButton></DialogFooter></form></DialogContent></Dialog>
   </>

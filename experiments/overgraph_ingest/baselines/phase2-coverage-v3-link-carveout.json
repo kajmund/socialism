@@ -1,0 +1,133 @@
+{
+  "id": "phase2-coverage-v3-link-carveout",
+  "label": "Experimental: Coverage v3 with source-grounded relation proof on liability-secrecy-carveout. Not the default controller.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "ready_for_default_controller": false,
+  "controller": "deterministic_v3",
+  "proof_rule": "link",
+  "classify_unchanged": true,
+  "default_retriever_unchanged": true,
+  "discovery_unchanged": true,
+  "gold_id": "liability-secrecy-carveout",
+  "headline": {
+    "document_recall_b1": 1.0,
+    "leftover_at_b1": [],
+    "first_complete_budget": 1,
+    "baseline_first_complete_budget": 3,
+    "first_complete_classified": 39,
+    "baseline_first_complete_classified": 150,
+    "classified_b5": 477,
+    "baseline_classified_b5": 482,
+    "jev_calls_b5": 186,
+    "hop_fetches_b5": 5,
+    "work_after_complete": 61,
+    "baseline_work_after_complete": 148,
+    "false_complete": [],
+    "false_complete_count": 0,
+    "budget_exhausted_documents": 91,
+    "wall_seconds": 32.55534379184246
+  },
+  "budgets": [
+    {
+      "budget": 1,
+      "classified": 100,
+      "jev_calls": 62,
+      "cache_hits": 38,
+      "document_recall": 1.0,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": 39,
+      "hop_fetches": 0,
+      "budget_exhausted_documents": 91,
+      "unresolved_relevant_documents": [],
+      "evidence_found_nonrelevant": [],
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 91,
+        "EVIDENCE_FOUND": 7,
+        "NEEDS_ANALYSIS": 2
+      },
+      "wall_seconds": 5.302302083931863
+    },
+    {
+      "budget": 2,
+      "classified": 198,
+      "jev_calls": 87,
+      "cache_hits": 111,
+      "document_recall": 1.0,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": 50,
+      "hop_fetches": 1,
+      "budget_exhausted_documents": 92,
+      "unresolved_relevant_documents": [],
+      "evidence_found_nonrelevant": [],
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 92,
+        "EVIDENCE_FOUND": 7,
+        "NEEDS_ANALYSIS": 1
+      },
+      "wall_seconds": 11.110445541795343
+    },
+    {
+      "budget": 3,
+      "classified": 291,
+      "jev_calls": 93,
+      "cache_hits": 198,
+      "document_recall": 1.0,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": 50,
+      "hop_fetches": 3,
+      "budget_exhausted_documents": 92,
+      "unresolved_relevant_documents": [],
+      "evidence_found_nonrelevant": [],
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 92,
+        "EVIDENCE_FOUND": 7,
+        "NEEDS_ANALYSIS": 1
+      },
+      "wall_seconds": 18.636041874997318
+    },
+    {
+      "budget": 5,
+      "classified": 477,
+      "jev_calls": 186,
+      "cache_hits": 291,
+      "document_recall": 1.0,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": 50,
+      "hop_fetches": 5,
+      "budget_exhausted_documents": 91,
+      "unresolved_relevant_documents": [],
+      "evidence_found_nonrelevant": [],
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 91,
+        "EVIDENCE_FOUND": 7,
+        "NEEDS_ANALYSIS": 2
+      },
+      "wall_seconds": 32.061893249861896
+    }
+  ],
+  "versus_first_complete_evidence": {
+    "baseline": {
+      "budget": 3,
+      "classified": 298,
+      "first_complete_classified": 150,
+      "jev_calls": 98,
+      "cumulative_jev_calls": 249,
+      "work_after_complete": 148,
+      "hop_fetches": 10,
+      "evidence_found_nonrelevant": []
+    },
+    "treatment": {
+      "budget": 1,
+      "classified": 100,
+      "first_complete_classified": 39,
+      "jev_calls": 62,
+      "cumulative_jev_calls": 62,
+      "work_after_complete": 61,
+      "hop_fetches": 0,
+      "evidence_found_nonrelevant": []
+    }
+  },
+  "zero_false_complete": true
+}

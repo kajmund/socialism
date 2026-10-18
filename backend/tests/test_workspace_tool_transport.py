@@ -28,17 +28,25 @@ async def test_active_database_transport_prompt_applies_to_native_and_expert_too
             assert parameters["required"] == ["query"]
             assert set(parameters["properties"]) == {"query", "source_id", "exact"}
             continue
+        if config["name"] == "find_documents":
+            assert parameters["required"] == ["query"]
+            assert set(parameters["properties"]) == {"query", "mode"}
+            continue
         if config["name"] == "read_source":
             assert set(parameters["properties"]) == {"source_id", "reference_id", "quote", "section", "outline", "page"}
             continue
         if config["name"] == "focus_anchor":
             assert parameters["required"] == ["source_id", "quote"]
-            assert set(parameters["properties"]) == {"source_id", "quote"}
+            assert set(parameters["properties"]) == {"source_id", "quote", "comment"}
             continue
         if config["name"] == "show_document":
             assert parameters["required"] == ["source_id"]
             assert set(parameters["properties"]) == {"source_id", "reference_id", "page"}
             assert parameters["properties"]["page"]["type"] == "number"
+            continue
+        if config["name"] == "show_document_set":
+            assert parameters["required"] == ["title", "source_ids"]
+            assert set(parameters["properties"]) == {"title", "source_ids"}
             continue
         assert parameters["required"] == ["arguments_json"]
         assert set(parameters["properties"]) == {"arguments_json"}

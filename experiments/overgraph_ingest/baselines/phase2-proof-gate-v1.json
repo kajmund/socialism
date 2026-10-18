@@ -1,0 +1,158 @@
+{
+  "id": "phase2-proof-gate-v1",
+  "label": "Frozen: reference integrity and polarity gate. Jev is not a standalone proof evaluator.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "classify_unchanged": true,
+  "jev_prompt_unchanged": true,
+  "proof_jev_rejected_for_standalone": true,
+  "proof_gate_applied_to_v3": false,
+  "zero_false_complete": true,
+  "headline": {
+    "reference_pass": true,
+    "stacked_class_blocked": true,
+    "false_complete_after_gate": [],
+    "inverted_exception": {
+      "predicted_jev": "CONTRADICTED",
+      "admitted": "CONTRADICTED",
+      "blocked": false
+    },
+    "paraphrase_still_admitted": true,
+    "jev_model": "jev-1.13.0"
+  },
+  "references": [
+    {
+      "id": "ref_punkt8_wrong_heading",
+      "integrity": {
+        "has_reference": true,
+        "reference": "8",
+        "target_clause": "11",
+        "referent_matches": false,
+        "status": "unresolved"
+      },
+      "admitted": "UNDECIDED",
+      "blocked": true,
+      "reason": "unresolved_reference",
+      "identity_ok": false,
+      "pass": true
+    },
+    {
+      "id": "ref_punkt8_matching_heading",
+      "integrity": {
+        "has_reference": true,
+        "reference": "8",
+        "target_clause": "8",
+        "referent_matches": true,
+        "status": "resolved"
+      },
+      "admitted": "SUPPORTED",
+      "blocked": false,
+      "reason": null,
+      "identity_ok": true,
+      "pass": true
+    },
+    {
+      "id": "ref_punkt4_infosec",
+      "integrity": {
+        "has_reference": true,
+        "reference": "4",
+        "target_clause": "4",
+        "referent_matches": true,
+        "status": "resolved"
+      },
+      "admitted": "SUPPORTED",
+      "blocked": false,
+      "reason": null,
+      "identity_ok": true,
+      "pass": true
+    },
+    {
+      "id": "ref_no_pointer_secrecy_heading",
+      "integrity": {
+        "has_reference": false,
+        "reference": null,
+        "target_clause": "8",
+        "referent_matches": false,
+        "status": "no_reference"
+      },
+      "admitted": "UNDECIDED",
+      "blocked": true,
+      "reason": "no_reference",
+      "identity_ok": false,
+      "pass": true
+    }
+  ],
+  "polarities": [
+    {
+      "id": "polarity_inte_vid",
+      "text": "Begränsningen gäller inte vid sekretessbrott.",
+      "polarity": "resolved",
+      "expected_jev": "SUPPORTED",
+      "predicted_jev": "SUPPORTED",
+      "admitted": "SUPPORTED",
+      "blocked": false,
+      "reason": null,
+      "gate_polarity_ok": true,
+      "false_complete": false
+    },
+    {
+      "id": "polarity_aven_vid",
+      "text": "Begränsningen gäller även vid sekretessbrott.",
+      "polarity": "resolved",
+      "expected_jev": "CONTRADICTED",
+      "predicted_jev": "CONTRADICTED",
+      "admitted": "CONTRADICTED",
+      "blocked": false,
+      "reason": null,
+      "gate_polarity_ok": true,
+      "false_complete": false
+    },
+    {
+      "id": "polarity_inte_utom",
+      "text": "Begränsningen gäller inte, utom vid sekretessbrott.",
+      "polarity": "unresolved",
+      "expected_jev": "CONTRADICTED",
+      "predicted_jev": "CONTRADICTED",
+      "admitted": "CONTRADICTED",
+      "blocked": false,
+      "reason": null,
+      "gate_polarity_ok": true,
+      "false_complete": false
+    },
+    {
+      "id": "polarity_gäller_utom",
+      "text": "Begränsningen gäller, utom vid sekretessbrott.",
+      "polarity": "resolved",
+      "expected_jev": "SUPPORTED",
+      "predicted_jev": "SUPPORTED",
+      "admitted": "SUPPORTED",
+      "blocked": false,
+      "reason": null,
+      "gate_polarity_ok": true,
+      "false_complete": false
+    }
+  ],
+  "stacked_polarity_class": [
+    {
+      "text": "Begränsningen gäller inte, utom vid sekretessbrott.",
+      "polarity": "unresolved",
+      "blocked": true
+    },
+    {
+      "text": "Begränsningen gäller inte, dock vid sekretessbrott.",
+      "polarity": "unresolved",
+      "blocked": true
+    },
+    {
+      "text": "Begränsningen gäller inte, endast vid sekretessbrott.",
+      "polarity": "unresolved",
+      "blocked": true
+    },
+    {
+      "text": "Ansvarsbegränsningen gäller inte utom vid brott mot sekretess.",
+      "polarity": "unresolved",
+      "blocked": true
+    }
+  ]
+}
