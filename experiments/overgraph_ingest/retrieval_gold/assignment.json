@@ -1,0 +1,62 @@
+{
+  "id": "assignment",
+  "kind": "unit",
+  "proof_kind": "EXISTS",
+  "split": "decision_held_out",
+  "query": "Vilka avtal förbjuder partsbyte utan samtycke?",
+  "classify_question": "Innehåller texten att en part inte får överlåta avtalet, hyresrätten eller sina skyldigheter utan den andra partens samtycke?",
+  "notes": "Reserved for the expansion-decision test. The query says partsbyte; the contracts say överlåta avtalet. Relevant is a restriction on assigning the contract itself, not a transfer of IP or a sale of assets.",
+  "relevant_units": [
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "contains": "Ingen part får överlåta avtalet utan motpartens skriftliga samtycke."
+    },
+    {
+      "relative_path": "Avtal_07_Sekretessavtal_omsesidigt.docx",
+      "contains": "Ingen Part får överlåta avtalet utan den andra Partens samtycke."
+    },
+    {
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+      "contains": "Hyresgästen får inte hyra ut Lokalen i andra hand eller överlåta hyresrätten utan Hyresvärdens skriftliga samtycke."
+    },
+    {
+      "relative_path": "Avtal_19_Andrahandsuthyrning_lokal.docx",
+      "contains": "Andrahandshyresgästen får inte göra ändringar i Lokalen, hyra ut den vidare eller överlåta avtalet."
+    },
+    {
+      "relative_path": "Avtal_21_Parkeringsavtal.docx",
+      "contains": "DevBrains får inte överlåta avtalet eller upplåta Platserna till tredje man utan Upplåtarens skriftliga samtycke."
+    },
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "contains": "Ingen part får överlåta avtalet utan den andra partens skriftliga samtycke."
+    },
+    {
+      "relative_path": "Avtal_35_Franchiseavtal.docx",
+      "contains": "Franchisetagaren får inte överlåta avtalet eller verksamheten utan Franchisegivarens skriftliga samtycke."
+    },
+    {
+      "relative_path": "Avtal_40_Laneavtal_revers.docx",
+      "contains": "Låntagaren får inte överlåta sina skyldigheter."
+    }
+  ],
+  "hard_negatives": [
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "contains": "Äganderätt, upphovsrätt och andra immateriella rättigheter till Resultatet övergår till Beställaren",
+      "reason": "IP transfer, not assignment of the contract"
+    },
+    {
+      "relative_path": "Avtal_91_Inkramsoverlatelse.docx",
+      "contains": "inhämta deras samtycke till att avtalen överlåts",
+      "reason": "Asset deal that assigns customer contracts, not a prohibition on partsbyte"
+    }
+  ],
+  "watch_negatives": [
+    {
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+      "contains": "8. Andrahandsupplåtelse och överlåtelse",
+      "reason": "Heading"
+    }
+  ]
+}

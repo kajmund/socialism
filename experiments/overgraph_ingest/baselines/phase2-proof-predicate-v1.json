@@ -1,0 +1,66 @@
+{
+  "id": "phase2-proof-predicate-v1",
+  "label": "Frozen: Jev extracts a typed predicate; structure admits verified only. Proposed is not EVIDENCE_FOUND. Not applied to v3.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_change_evidence_contract": true,
+  "not_a_supported_classifier": true,
+  "zero_false_complete": true,
+  "headline": {
+    "judgment_count": 46,
+    "operator_matches": 34,
+    "paraphrase_operator_recall": 1.0,
+    "inverted_operator": "inverted",
+    "inverted_not_found": true,
+    "avtal_60_picks_carveout_sentence": true,
+    "avtal_60_not_indirect_damage": true,
+    "avtal_60_found": true,
+    "cooccurrence_none": true,
+    "wrong_clause_none": false,
+    "wrong_clause_object": "other",
+    "wrong_clause_uses_heading_11": false,
+    "matching_heading_after": {
+      "operator": "does_not_apply",
+      "object": "secrecy_breach",
+      "tier": "proposed",
+      "evidence_found": false
+    },
+    "proposed_is_not_evidence_found": true,
+    "zero_false_complete": true,
+    "verified_count": 11,
+    "proposed_count": 17,
+    "insufficient_count": 18,
+    "false_found": []
+  },
+  "groups": {
+    "synonym": {
+      "count": 10,
+      "operator_matches": 10,
+      "false_found": [],
+      "proposed": 7,
+      "verified": 3
+    },
+    "negation": {
+      "count": 10,
+      "operator_matches": 10,
+      "false_found": [],
+      "proposed": 7,
+      "verified": 2
+    },
+    "reference": {
+      "count": 14,
+      "operator_matches": 3,
+      "false_found": [],
+      "proposed": 2,
+      "verified": 2
+    },
+    "cooccurrence": {
+      "count": 11,
+      "operator_matches": 10,
+      "false_found": [],
+      "proposed": 1,
+      "verified": 3
+    }
+  }
+}

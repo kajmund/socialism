@@ -73,6 +73,14 @@ class DenseEncoder(Protocol):
     def embed(self, texts: Sequence[str]) -> list[list[float]]: ...
 
 
+class SparseEncoder(Protocol):
+    encoder_id: str
+
+    def fit(self, texts: Sequence[str]) -> None: ...
+
+    def embed(self, texts: Sequence[str]) -> list[list[tuple[int, float]]]: ...
+
+
 def tokenize(text: str) -> list[str]:
     return [
         stemmed
@@ -163,12 +171,16 @@ class OpenAIDenseEncoder:
         self.model = model
         self.dimension = dimension
         self.batch_size = batch_size
+        self.prompt_tokens = 0
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
         vectors: list[list[float]] = []
         for start in range(0, len(texts), self.batch_size):
             batch = list(texts[start : start + self.batch_size])
             response = self._client.embeddings.create(model=self.model, input=batch)
+            usage = getattr(response, "usage", None)
+            if usage is not None and getattr(usage, "prompt_tokens", None) is not None:
+                self.prompt_tokens += int(usage.prompt_tokens)
             ordered = sorted(response.data, key=lambda item: item.index)
             for item in ordered:
                 vector = list(item.embedding)
@@ -178,6 +190,43 @@ class OpenAIDenseEncoder:
                     )
                 vectors.append(vector)
         return vectors
+
+
+def build_dense_encoder(
+    *,
+    model: str,
+    dimension: int,
+    openai_api_key: str | None = None,
+    openai_base_url: str | None = None,
+) -> DenseEncoder:
+    if model in {"BAAI/bge-m3", "bge-m3"}:
+        from overgraph_ingest.retrieval.bge_m3 import BGE_M3_DENSE_DIMENSION, BgeM3DenseEncoder
+
+        if dimension != BGE_M3_DENSE_DIMENSION:
+            raise ValueError(f"bge-m3 requires dense dimension {BGE_M3_DENSE_DIMENSION}")
+        return BgeM3DenseEncoder(dimension)
+    if model == "hashed-dense-v1":
+        return HashedDenseEncoder(dimension)
+    if model == DENSE_MODEL:
+        if openai_api_key is None:
+            raise ValueError("--openai-api-key is required for text-embedding-3-large")
+        return OpenAIDenseEncoder(
+            api_key=openai_api_key,
+            model=model,
+            dimension=dimension,
+            base_url=openai_base_url,
+        )
+    raise ValueError(f"unknown dense model {model!r}")
+
+
+def build_sparse_encoder(name: str) -> SparseEncoder:
+    if name in {SPARSE_ENCODER_ID, "tfidf"}:
+        return LexicalSparseEncoder()
+    if name in {"bge-m3", "bge-m3-sparse-v1"}:
+        from overgraph_ingest.retrieval.bge_m3 import BgeM3SparseEncoder
+
+        return BgeM3SparseEncoder()
+    raise ValueError(f"unknown sparse encoder {name!r}")
 
 
 def cosine(left: Sequence[float], right: Sequence[float]) -> float:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { acceptModelTraceWorkspace, appendModelTrace, modelTraceEntry } from "./modelTrace"
+import { acceptModelTraceWorkspace, appendModelTrace, modelTraceEntry, modelTraceStorageKeys } from "./modelTrace"
 
 describe("modelTraceEntry", () => {
   it("keeps a model message and a tool call", () => {
@@ -64,6 +64,12 @@ describe("modelTraceEntry", () => {
     expect(acceptModelTraceWorkspace("", "workspace-1")).toBe(true)
     expect(acceptModelTraceWorkspace("workspace-1", "workspace-1")).toBe(true)
     expect(acceptModelTraceWorkspace("workspace-2", "workspace-1")).toBe(false)
+  })
+
+  it("stores panel traces under both the speaker and the active panel", () => {
+    expect(modelTraceStorageKeys("alfons", { thread_type: "panel", thread_id: "42" })).toEqual(["alfons", "42"])
+    expect(modelTraceStorageKeys("alfons", { thread_type: "expert", thread_id: "alfons" })).toEqual(["alfons"])
+    expect(modelTraceStorageKeys("42", { thread_type: "panel", thread_id: "42" })).toEqual(["42"])
   })
 
   it("appends a new trace and skips a duplicate id", () => {

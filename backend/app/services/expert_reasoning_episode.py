@@ -12,34 +12,48 @@ import asyncio
 import json
 import logging
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from enum import StrEnum
 from typing import Any
-from uuid import uuid4
 
 from app.database.models import PersonaMessage
-from app.llm import complete_with_tools
+from app.llm import complete_text, complete_with_tools
 from app.llm.chat_model import current_chat_model
-from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.llm.tool_messages import assistant_message_dict, tool_result_message
-from app.services.dd.company_mcp import visible_assistant_text
 from app.llm.vision_content import user_content_with_optional_image
+from app.services.dd.company_mcp import visible_assistant_text
 from app.services.expert_async_tools import (
     PlannedCall,
     ToolWork,
     _planned_calls,
     active_library_tools,
 )
+from app.services.expert_reasoning_episode_support import (
+    _PRESENTATION_TOOLS,
+    _TEXT_REPLY_NOTICE,
+    _TRACE_LIMIT,
+    _empty_reply_notice,
+    _text_reply_notice_seen,
+    emit_model_traces as emit_model_traces,
+    schedule_model_traces,
+    trace_events,
+    trace_model_reply as trace_model_reply,
+    wait_model_traces as wait_model_traces,
+)
 from app.services.expert_tool_run import tool_failure_text
 from app.services.expert_worker_spawn import withhold_incomplete_spawn
+from app.services.passage_mark_claim import latest_assistant_text, missing_passage_mark_notice
 from app.services.workspace_chat_tools import CLIENT_TOOL_NAMES
+from app.services.workspace_intent import presentation_tools_allowed
 
 logger = logging.getLogger(__name__)
 
 _MAX_ROUNDS = 4
-_TRACE_LIMIT = 4000
-_DISPATCHED = "Dispatched to the document view."
+_DISPATCHED = (
+    "Sent to the client view. Do not claim it is visible until a later tool result "
+    "or user turn confirms completed."
+)
 _MISSING = "No result."
-_trace_tasks: set[asyncio.Task[None]] = set()
 
 RunCall = Callable[[PlannedCall, ToolWork], Awaitable[str]]
 PublishCalls = Callable[[list[PlannedCall]], Awaitable[None]]
@@ -52,6 +66,7 @@ class ExpertEpisode:
     prompt_key: str | None
     reasoning_content: str | None
     customer_id: int | None = None
+    tool_choice: str = "auto"
 
 
 def episode_assistant(payload: dict[str, Any], calls: tuple[PlannedCall, ...]) -> dict[str, Any]:
@@ -127,150 +142,53 @@ def history_message(
     return payload
 
 
-def trace_events(
-    messages: Sequence[dict[str, Any]],
-    specs: Sequence[dict[str, Any]],
-    text: str,
-    calls: Sequence[PlannedCall],
-    *,
-    model: str,
-) -> list[dict[str, Any]]:
-    events: list[dict[str, Any]] = []
-    context = _context_text(messages)
-    if context:
-        events.append(_traced(kind="context", text=context))
-    question = _latest_user_text(messages)
-    if question:
-        events.append(_traced(kind="message", role="user", text=question))
-    offered = _offered_tools(specs)
-    if offered:
-        events.append(_traced(kind="tools", text=offered))
-    visible = text.strip()
-    if visible:
-        reply: dict[str, Any] = {"kind": "message", "role": "assistant", "text": visible[:_TRACE_LIMIT]}
-        if model:
-            reply["model"] = model
-        events.append(_traced(**reply))
-    events.extend(
-        {
-            "kind": "tool_call",
-            "name": call.name,
-            "call_id": call.id,
-            "arguments": call.arguments,
-        }
-        for call in calls
-    )
-    return events
+class _RoundOutcome(StrEnum):
+    CONTINUE = "continue"
+    RETURN = "return"
+    BREAK = "break"
 
 
-def trace_model_reply(
+async def _handle_call_free_round(
     work: ToolWork,
-    messages: Sequence[dict[str, Any]],
+    messages: list[dict[str, Any]],
+    *,
+    reply: Any,
+    payload: dict[str, Any],
     text: str,
-    specs: Sequence[dict[str, Any]] = (),
-) -> None:
-    episode = work.episode
-    customer_id = None if episode is None else episode.customer_id
-    schedule_model_traces(
-        customer_id,
-        work.persona_id,
-        trace_events(messages, specs, text, (), model=current_chat_model()),
-        target_user_id=work.actor_user_id,
-        workspace_id=work.workspace_id,
+    last_text: str,
+    episode: ExpertEpisode,
+) -> tuple[_RoundOutcome, str]:
+    """Append the right notice for a round with no planned tool calls.
+
+    Returns the loop outcome and the visible text to surface on return.
+    """
+    notice = withhold_incomplete_spawn(messages)
+    if notice is not None:
+        messages.append(notice)
+        _remember_transcript(work, messages)
+        return _RoundOutcome.CONTINUE, ""
+    mark_notice = missing_passage_mark_notice(text or last_text, messages, episode.specs)
+    if mark_notice is not None:
+        messages.append(mark_notice)
+        _remember_transcript(work, messages)
+        return _RoundOutcome.CONTINUE, ""
+    text_notice = _empty_reply_notice(
+        reply,
+        text=text,
+        last_text=last_text,
+        offered=frozenset(str(spec["function"]["name"]) for spec in episode.specs),
+        messages=messages,
     )
-
-
-def _traced(**fields: Any) -> dict[str, Any]:
-    return {"trace_id": uuid4().hex, **fields}
-
-
-def _context_text(messages: Sequence[dict[str, Any]]) -> str:
-    parts = [
-        _text_content(message.get("content"))
-        for message in messages
-        if message.get("role") == "system"
-    ]
-    return "\n\n".join(part for part in parts if part)[:_TRACE_LIMIT]
-
-
-def _latest_user_text(messages: Sequence[dict[str, Any]]) -> str:
-    for message in reversed(messages):
-        if message.get("role") == "user":
-            return _text_content(message.get("content"))[:_TRACE_LIMIT]
-    return ""
-
-
-def _offered_tools(specs: Sequence[dict[str, Any]]) -> str:
-    names: list[str] = []
-    for spec in specs:
-        function = spec.get("function") if isinstance(spec, dict) else None
-        name = function.get("name") if isinstance(function, dict) else ""
-        if name:
-            names.append(str(name))
-    return "\n".join(names)
-
-
-def _text_content(content: Any) -> str:
-    if isinstance(content, str):
-        return content.strip()
-    if not isinstance(content, list):
-        return ""
-    parts: list[str] = []
-    for item in content:
-        if isinstance(item, str) and item.strip():
-            parts.append(item.strip())
-        elif isinstance(item, dict) and item.get("type") == "text":
-            text = str(item.get("text") or "").strip()
-            if text:
-                parts.append(text)
-    return "\n".join(parts)
-
-
-def schedule_model_traces(
-    customer_id: int | None,
-    persona_id: str,
-    events: Sequence[dict[str, Any]],
-    *,
-    target_user_id: str | None,
-    workspace_id: str | None,
-) -> None:
-    if customer_id is None or not events:
-        return
-    task = asyncio.create_task(
-        emit_model_traces(
-            customer_id,
-            persona_id,
-            events,
-            target_user_id=target_user_id,
-            workspace_id=workspace_id,
-        )
-    )
-    _trace_tasks.add(task)
-    task.add_done_callback(_trace_tasks.discard)
-
-
-async def wait_model_traces() -> None:
-    while _trace_tasks:
-        await asyncio.gather(*list(_trace_tasks))
-
-
-async def emit_model_traces(
-    customer_id: int,
-    persona_id: str,
-    events: Sequence[dict[str, Any]],
-    *,
-    target_user_id: str | None,
-    workspace_id: str | None,
-) -> None:
-    for event in events:
-        await library_chat_broadcast.publish(customer_id, persona_id, {
-            "type": "model_trace",
-            "thread_type": "expert",
-            "thread_id": persona_id,
-            "target_user_id": target_user_id,
-            "workspace_id": workspace_id,
-            **event,
-        })
+    if text_notice is not None:
+        messages.append(text_notice)
+        _remember_transcript(work, messages)
+        return _RoundOutcome.CONTINUE, ""
+    _trace_reply(work, messages, text or last_text, ())
+    visible = text or last_text
+    if visible.strip():
+        return _RoundOutcome.RETURN, visible
+    # Empty visible reply: leave the loop for text-only recovery.
+    return _RoundOutcome.BREAK, ""
 
 
 async def continue_expert_episode(
@@ -286,14 +204,25 @@ async def continue_expert_episode(
         return "", None
     messages = [dict(message) for message in episode.messages]
     _trace_rows(work, _append_results(messages, _result_by_id(work.calls, results)))
+    _drop_find_after_lookup(work, work.calls)
     _remember_transcript(work, messages)
+    opening_notice = missing_passage_mark_notice(
+        latest_assistant_text(messages), messages, episode.specs,
+    )
+    if opening_notice is not None:
+        messages.append(opening_notice)
+        _remember_transcript(work, messages)
     last_text = ""
     last_reasoning: str | None = None
     for _ in range(_MAX_ROUNDS):
+        episode = work.episode
+        if episode is None:
+            break
         reply = await complete_with_tools(
             messages,
             list(episode.specs),
             prompt_key=episode.prompt_key,
+            tool_choice=episode.tool_choice,
         )
         payload = assistant_message_dict(reply)
         text = visible_assistant_text(payload)
@@ -311,13 +240,23 @@ async def continue_expert_episode(
             )
         )
         if not calls:
-            notice = withhold_incomplete_spawn(messages)
-            if notice is not None:
-                messages.append(notice)
-                _remember_transcript(work, messages)
+            outcome, visible = await _handle_call_free_round(
+                work,
+                messages,
+                reply=reply,
+                payload=payload,
+                text=text,
+                last_text=last_text,
+                episode=episode,
+            )
+            if outcome is _RoundOutcome.CONTINUE:
                 continue
-            _trace_reply(work, messages, text or last_text, ())
-            return text or last_text, _reasoning_text(payload.get("reasoning_content")) or last_reasoning
+            last_reasoning = (
+                _reasoning_text(payload.get("reasoning_content")) or last_reasoning
+            )
+            if outcome is _RoundOutcome.RETURN:
+                return visible, last_reasoning
+            break
         _trace_reply(work, messages, text, calls)
         assistant = episode_assistant(payload, calls)
         messages.append(assistant)
@@ -325,7 +264,11 @@ async def continue_expert_episode(
             last_text = text
         last_reasoning = _reasoning_text(assistant.get("reasoning_content")) or last_reasoning
         await _finish_round(messages, calls, work, run_call=run_call, publish=publish)
+        _drop_find_after_lookup(work, calls)
         _remember_transcript(work, messages)
+    recovered = await _recover_empty_text_reply(work, messages, last_text)
+    if recovered is not None:
+        return recovered, last_reasoning
     return last_text, last_reasoning
 
 
@@ -339,6 +282,7 @@ def _remember_transcript(work: ToolWork, messages: list[dict[str, Any]]) -> None
         prompt_key=episode.prompt_key,
         reasoning_content=episode.reasoning_content,
         customer_id=episode.customer_id,
+        tool_choice=episode.tool_choice,
     )
 
 
@@ -364,6 +308,52 @@ def _append_results(messages: list[dict[str, Any]], by_id: dict[str, str]) -> li
     return rows
 
 
+def _drop_find_after_lookup(work: ToolWork, calls: Sequence[PlannedCall]) -> None:
+    """After find_documents, stop re-searching when presentation is locked off.
+
+    Otherwise the model can burn every continuation round on identical finds
+    and never produce the required plain-text answer.
+    """
+    if not any(call.name == "find_documents" for call in calls):
+        return
+    if presentation_tools_allowed(work.workspace_intent):
+        return
+    episode = work.episode
+    if episode is None:
+        return
+    kept = tuple(
+        spec
+        for spec in episode.specs
+        if str(spec.get("function", {}).get("name") or "") != "find_documents"
+    )
+    if len(kept) == len(episode.specs):
+        return
+    work.episode = replace(episode, specs=kept)
+
+
+async def _recover_empty_text_reply(
+    work: ToolWork,
+    messages: list[dict[str, Any]],
+    last_text: str,
+) -> str | None:
+    if last_text.strip():
+        return None
+    if not any(message.get("role") == "tool" for message in messages):
+        return None
+    episode = work.episode
+    prompt_key = "chat.mode.in_character" if episode is None else (
+        episode.prompt_key or "chat.mode.in_character"
+    )
+    if not _text_reply_notice_seen(messages):
+        messages.append({"role": "user", "content": _TEXT_REPLY_NOTICE})
+        _remember_transcript(work, messages)
+    recovered = (await complete_text(messages, prompt_key=prompt_key)).strip()
+    if not recovered:
+        return None
+    _trace_reply(work, messages, recovered, ())
+    return recovered
+
+
 async def _finish_round(
     messages: list[dict[str, Any]],
     calls: tuple[PlannedCall, ...],
@@ -374,8 +364,13 @@ async def _finish_round(
 ) -> None:
     client = [call for call in calls if call.name in CLIENT_TOOL_NAMES]
     server = [call for call in calls if call.name not in CLIENT_TOOL_NAMES]
+    # Client calls are claimed by publish → defer. Server calls skip defer, so
+    # mark them here before execution so a later round cannot replay them.
     if client:
         await publish(client)
+        _release_required_tool_choice(work, client)
+    for call in server:
+        work.seen_call_ids.add(call.id)
     texts = await asyncio.gather(
         *(_run_safely(run_call, call, work) for call in server)
     )
@@ -383,6 +378,21 @@ async def _finish_round(
     for call in client:
         produced[call.id] = _DISPATCHED
     _trace_rows(work, _append_results(messages, produced))
+
+
+def _release_required_tool_choice(work: ToolWork, client: list[PlannedCall]) -> None:
+    """Stop forcing tools after a presentation call has already been queued.
+
+    Post-find routing may set tool_choice=required so the model must call
+    show_document_set. Once that call is published, further required rounds
+    only add failure risk before finish_workspace_turn can deliver it.
+    """
+    episode = work.episode
+    if episode is None or episode.tool_choice != "required":
+        return
+    if not any(call.name in _PRESENTATION_TOOLS for call in client):
+        return
+    work.episode = replace(episode, tool_choice="auto")
 
 
 async def _run_safely(run_call: RunCall, call: PlannedCall, work: ToolWork) -> str:

@@ -666,6 +666,67 @@ async def test_complete_with_tools_normalizes_per_provider(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_complete_with_tools_deepseek_replays_reasoning_on_every_assistant_turn(
+    monkeypatch,
+):
+    """The SME expert-chat shape: history rows without stored reasoning plus a
+    synthetic quick-draft assistant line. DeepSeek thinking mode 400s
+    ("reasoning_content must be passed back") when any assistant turn lacks the
+    field, so every assistant message must carry it — empty when unknown."""
+    set_tools_completer(None)
+    set_text_completer(None)
+    seen: list[list] = []
+
+    async def fake_create(**kwargs):
+        seen.append(kwargs)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content="ok"))],
+            usage=None,
+        )
+
+    monkeypatch.setattr(
+        "app.llm.get_client",
+        lambda: SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    messages = [
+        {"role": "user", "content": "visa mig avtal 18"},
+        {"role": "assistant", "content": "Jag har skickat avtal 18 till vyn."},
+        {"role": "assistant", "content": "Jag tittar närmare på det."},
+        {"role": "user", "content": "Sammanfatta riskerna i avtalet."},
+    ]
+    tools = [
+        {
+            "type": "function",
+            "function": {"name": "read_source", "parameters": {"type": "object"}},
+        }
+    ]
+    settings.llm_provider = "deepseek"
+    await complete_with_tools(messages, tools)
+    settings.llm_provider = "cerebras"
+    await complete_with_tools(messages, tools)
+    deepseek_kwargs, cerebras_kwargs = seen
+    deepseek_assistants = [
+        m for m in deepseek_kwargs["messages"] if m["role"] == "assistant"
+    ]
+    assert deepseek_assistants == [
+        {
+            "role": "assistant",
+            "content": "Jag har skickat avtal 18 till vyn.",
+            "reasoning_content": "",
+        },
+        {
+            "role": "assistant",
+            "content": "Jag tittar närmare på det.",
+            "reasoning_content": "",
+        },
+    ]
+    for message in cerebras_kwargs["messages"]:
+        assert "reasoning_content" not in message
+
+
+@pytest.mark.asyncio
 async def test_complete_with_tools_keeps_required_by_disabling_deepseek_thinking(
     monkeypatch,
 ):

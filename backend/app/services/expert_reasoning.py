@@ -28,8 +28,11 @@ ASSESSMENT_PROMPT_KEY = "chat.expert.reasoning_assessment"
 EXPERT_PROMPT_KEYS = frozenset(
     {
         "chat.mode.interview",
+        "chat.mode.in_character",
         "chat.expert.tool_ack",
         "chat.expert.tool_result",
+        "chat.expert.quick_draft",
+        "chat.expert.quick_progress",
         "chat.expert.live_speech_listener",
         "chat.expert.live_speech_progress",
         "chat.expert.live_speech_backchannel",
@@ -50,6 +53,7 @@ SCORE_KEYS = (
 NAVIGATION_TOOLS = frozenset(
     {
         "show_document",
+        "show_document_set",
         "focus_anchor",
         "show_evidence",
         "show_artifact",
@@ -173,6 +177,28 @@ def _deep_reason(scores: ReasoningScores, *, complex_analysis: bool) -> str | No
     return None
 
 
+def decision_from_answers(answers: dict[str, Any], *, latency_ms: float) -> RoutingDecision:
+    scores = ReasoningScores(**{key: _score_value(answers, key) for key in SCORE_KEYS})
+    profile, reason = route_scores(scores)
+    return RoutingDecision(
+        profile=profile,
+        scores=scores,
+        reason=reason,
+        latency_ms=latency_ms,
+    )
+
+
+def decision_from_failure(exc: BaseException, *, latency_ms: float) -> RoutingDecision:
+    return RoutingDecision(
+        profile="balanced",
+        scores=None,
+        reason="routing_failure",
+        latency_ms=latency_ms,
+        fallback=True,
+        error_category=classify_jev_error(exc),
+    )
+
+
 async def assess_expert_reasoning(
     *,
     prompts: dict[str, str],
@@ -181,35 +207,24 @@ async def assess_expert_reasoning(
 ) -> RoutingDecision:
     started = time.perf_counter()
     try:
-        questions = _assessment_questions(prompts)
         result = await (jev or HttpJevSystemOne()).ask(
             state=_clip_state(state),
-            questions=questions,
+            questions=assessment_questions(prompts),
             model=settings.jev_model,
             timeout_seconds=settings.expert_reasoning_timeout_seconds,
         )
-        scores = ReasoningScores(
-            **{key: _score_value(result.answers, key) for key in SCORE_KEYS}
-        )
-        profile, reason = route_scores(scores)
-        return RoutingDecision(
-            profile=profile,
-            scores=scores,
-            reason=reason,
+        return decision_from_answers(
+            result.answers,
             latency_ms=(time.perf_counter() - started) * 1000,
         )
     except (JevClientError, KeyError, TypeError, ValueError) as exc:
-        return RoutingDecision(
-            profile="balanced",
-            scores=None,
-            reason="routing_failure",
+        return decision_from_failure(
+            exc,
             latency_ms=(time.perf_counter() - started) * 1000,
-            fallback=True,
-            error_category=classify_jev_error(exc),
         )
 
 
-def _assessment_questions(prompts: dict[str, str]) -> dict[str, Any]:
+def assessment_questions(prompts: dict[str, str]) -> dict[str, Any]:
     raw = prompts.get(ASSESSMENT_PROMPT_KEY)
     if not raw:
         raise JevClientError(
@@ -236,8 +251,12 @@ def _score_value(answers: dict[str, Any], key: str) -> float:
     return parse_noul(answers, key)
 
 
-def _clip_state(state: dict[str, Any]) -> dict[str, Any]:
-    budget = settings.expert_reasoning_state_char_budget
+def clip_routing_state(state: dict[str, Any], budget: int) -> dict[str, Any]:
+    return _clip_state(state, budget=budget)
+
+
+def _clip_state(state: dict[str, Any], *, budget: int | None = None) -> dict[str, Any]:
+    budget = settings.expert_reasoning_state_char_budget if budget is None else budget
     compact = json.dumps(state, ensure_ascii=False, default=str)
     if len(compact) <= budget:
         return state
@@ -267,6 +286,10 @@ def build_turn_state(
     }
     if tool_result is not None:
         state["tool_result"] = tool_result
+    if isinstance(workspace_state, dict):
+        turns = workspace_state.get("recent_turns")
+        if isinstance(turns, list) and turns:
+            state["recent_turns"] = [str(line)[:240] for line in turns[:4]]
     return state
 
 
@@ -276,21 +299,45 @@ def _workspace_summary(
     if state is None:
         return {"document_count": 0, "documents": [], "selection": None, "explicit_document_ids": []}
     payload = state.model_dump() if isinstance(state, WorkspaceState) else state
-    documents = payload.get("documents") or []
-    selection = payload.get("selection")
-    return {
+    documents = [row for row in (payload.get("documents") or []) if isinstance(row, dict)]
+    summary: dict[str, Any] = {
         "document_count": len(documents),
-        "documents": [
-            {"source_id": row.get("source_id"), "page": row.get("page")}
-            for row in documents
-            if isinstance(row, dict)
-        ],
-        "selection": selection if isinstance(selection, dict) else None,
+        "documents": [_document_summary(row) for row in documents],
+        "selection": _selection_summary(payload.get("selection")),
         "explicit_document_ids": [
             row.get("source_object_id")
             for row in (payload.get("document_mentions") or [])
             if isinstance(row, dict) and row.get("source_object_id")
         ],
+    }
+    view = payload.get("view")
+    if isinstance(view, str):
+        summary["view"] = view
+    for key in ("active_source_id", "active_artifact_id"):
+        if payload.get(key):
+            summary[key] = payload[key]
+    return summary
+
+
+def _document_summary(row: dict) -> dict[str, Any]:
+    item: dict[str, Any] = {"source_id": row.get("source_id"), "page": row.get("page")}
+    title = row.get("title") or row.get("filename")
+    if isinstance(title, str) and title.strip():
+        item["title"] = title.strip()
+    return item
+
+
+def _selection_summary(selection: object) -> dict[str, Any] | None:
+    if not isinstance(selection, dict):
+        return None
+    anchor = selection.get("anchor") if isinstance(selection.get("anchor"), dict) else {}
+    exact = str(anchor.get("exact_text") or selection.get("text") or "").strip()
+    page = anchor.get("page_number", selection.get("page"))
+    return {
+        "source_id": selection.get("source_id"),
+        "selection_id": selection.get("selection_id") or selection.get("reference_id"),
+        "page": page if isinstance(page, int) else None,
+        "has_text": bool(exact) or bool(selection.get("has_text")),
     }
 
 

@@ -1,0 +1,67 @@
+{
+  "id": "phase2-gold-map-v2",
+  "label": "Frozen: gold-map v2 space-run locate, original offsets. Historical measurements unchanged. Not a new controller.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_change_default_contains": true,
+  "does_not_rewrite_history": true,
+  "headline": {
+    "version": "gold-map-v2",
+    "avtal_160": {
+      "relative_path": "avtal_160.docx",
+      "v1_exact": false,
+      "v2_status": "unique",
+      "how": "space_collapsed",
+      "exact_quote": "Alternativ A ☒  Begränsningen i § 6 första stycket gäller inte vid brott mot § 5.",
+      "unit_start": 0,
+      "unit_end": 81,
+      "source_char_start": null,
+      "source_char_end": null,
+      "preserves_ballot": true,
+      "preserves_negation": true,
+      "preserves_two_spaces_after_ballot": true,
+      "is_ranking_miss": false,
+      "is_ingest_information_loss": false,
+      "source_text_unchanged": true
+    },
+    "avtal_160_in_graph": {
+      "relative_path": "avtal_160.docx",
+      "gold_contains": "Alternativ A ☒ Begränsningen i § 6 första stycket gäller inte vid brott mot § 5.",
+      "status": "unique",
+      "v1_exact": false,
+      "hits": [
+        {
+          "relative_path": "avtal_160.docx",
+          "unit_key": "d8ed905d5404a491cdb939fbc5ec76cde92a3dc3b1bd30507bd7a5aff86f22f3",
+          "unit_start": 336,
+          "unit_end": 417,
+          "exact_quote": "Alternativ A ☒  Begränsningen i § 6 första stycket gäller inte vid brott mot § 5.",
+          "how": "space_collapsed",
+          "source_char_start": 2639,
+          "source_char_end": 2720
+        }
+      ]
+    },
+    "rematch_counts": {
+      "relevant_units": 53,
+      "v1_exact": 52,
+      "unique": 53,
+      "ambiguous": 0,
+      "absent": 0
+    },
+    "answer_contract": {
+      "gold_tests": "prevailing_terms",
+      "examined_support": "supported_by_examined_material",
+      "exhaustive_absence": "entire_document_examined_no_further_provisions",
+      "examined_support_is_not_exhaustive_absence": true,
+      "unseen_amendment_is_not_proof_of_absence": true
+    },
+    "next_completion_replaces_yes_plus_hop": true,
+    "failure_kinds_must_not_share_a_fix": [
+      "wrong_decision_contract",
+      "lacking_semantic_understanding",
+      "gold_mapping_miss"
+    ]
+  }
+}

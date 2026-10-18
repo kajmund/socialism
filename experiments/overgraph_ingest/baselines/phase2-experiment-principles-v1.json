@@ -1,0 +1,43 @@
+{
+  "id": "phase2-experiment-principles-v1",
+  "label": "Frozen: three bench requirements after the static review. Measurement integrity, independent generalization, later consolidation. Does not change v3. Does not start the next ability.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "does_not_start_next_ability": true,
+  "headline": {
+    "quality_reference": {
+      "true_support": 19,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 34,
+      "source": "phase2-anaphor-list-v1"
+    },
+    "parts": {
+      "coverage_v3": "frozen_yes_plus_hop",
+      "experimental_evidence_chain": "19/53_on_frozen_material",
+      "future_proof_evaluation": "not_decided"
+    },
+    "requirements": {
+      "measurement_integrity": "Quality metrics must say whether evidence came from retrieval or was supplied from gold. Official comparisons require a named C@8 baseline, not the first run in a cache file.",
+      "independent_generalization": "New legal formulations are tested without first adapting the rules to those formulations.",
+      "later_architectural_consolidation": "Experimental proof rules are not production architecture. Do not stack them into the default controller."
+    },
+    "known_issues_left_in_place": [
+      "evidence_run_gold_snippet_fallback",
+      "c8_cache_first_run_fallback",
+      "v3_composite_yes_plus_hop"
+    ],
+    "experimental_rules_are_not_production": [
+      "proof_link",
+      "proof_relation",
+      "chain_contract",
+      "clause_resolve",
+      "anaphor_resolve",
+      "proof_gate",
+      "proof_predicate"
+    ],
+    "search_is_closer_to_done_than_legal_verification": true
+  }
+}

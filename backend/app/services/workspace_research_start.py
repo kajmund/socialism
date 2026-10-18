@@ -10,6 +10,7 @@ from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, 
 from app.database.workspaces import WorkspaceChat, WorkspaceChatMessage
 from app.schemas.workspace_chat import WorkspaceResearchRequest
 from app.serializers import utcnow
+from app.services.document_ingest_status import document_text_ready
 from app.services.workspace_chats import list_chat_files, require_chat
 from app.services.workspaces import resolve_readable_workspace_ids
 
@@ -26,7 +27,7 @@ async def document_manifest(
     ids = list(visible) if selected is None else list(dict.fromkeys(selected))
     if any(identity not in visible for identity in ids):
         raise HTTPException(status_code=404, detail="research_document_not_found")
-    if any(visible[identity].knowledge_status != "ready" for identity in ids):
+    if any(not document_text_ready(visible[identity]) for identity in ids):
         raise HTTPException(status_code=409, detail="research_documents_not_ready")
     records = (
         await session.execute(

@@ -7,12 +7,12 @@ identity and extracted text. This module does not import provider adapters.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import CanonicalDocumentRecord
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord
 from app.services.knowledge.chunking import KnowledgeChunker, text_unit_to_chunk
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.extractors import ExtractedDocument
@@ -42,6 +42,24 @@ from app.services.knowledge.vector_store import KnowledgeVectorStore
 _MISSING_EMBEDDINGS = "missing ingest embeddings"
 
 
+@dataclass(frozen=True)
+class PersistedExtractedSource:
+    result: KnowledgeIngestResult
+    document: KnowledgeDocument
+
+
+@dataclass(frozen=True)
+class ExtractedSourceIdentity:
+    """Where an extracted document comes from and who may read it."""
+
+    source_type: str
+    canonical_uri: str
+    content_hash: str
+    customer_id: int | None = None
+    scope: KnowledgeTenantScope | None = None
+    source_object_id: str | None = None
+
+
 async def ingest_extracted_source(  # noqa: PLR0913
     session: AsyncSession,
     *,
@@ -58,108 +76,157 @@ async def ingest_extracted_source(  # noqa: PLR0913
     chunker: KnowledgeChunker | None = None,
 ) -> KnowledgeIngestResult:
     """Segment, persist, and index TextUnits for any citable source."""
-    persist_scope = require_persist_scope(scope=scope, customer_id=customer_id)
+    persisted = await persist_extracted_source(
+        session,
+        extracted=extracted,
+        document=document,
+        identity=ExtractedSourceIdentity(
+            source_type=source_type,
+            canonical_uri=canonical_uri,
+            content_hash=content_hash,
+            customer_id=customer_id,
+            scope=scope,
+            source_object_id=source_object_id,
+        ),
+        chunker=chunker,
+    )
+    return await index_persisted_source(
+        persisted, embeddings=embeddings, vector_store=vector_store,
+    )
+
+
+async def persist_extracted_source(
+    session: AsyncSession,
+    *,
+    extracted: ExtractedDocument,
+    document: KnowledgeDocument,
+    identity: ExtractedSourceIdentity,
+    chunker: KnowledgeChunker | None = None,
+) -> PersistedExtractedSource:
+    """Write TextUnits and commit. Does not embed or touch the vector store."""
+    persist_scope = require_persist_scope(scope=identity.scope, customer_id=identity.customer_id)
     if document.scope.tenant != persist_scope:
         raise ValueError("ingest document scope does not match persist scope")
-    if persist_scope.scope_type == "shared" and source_object_id is not None:
+    if persist_scope.scope_type == "shared" and identity.source_object_id is not None:
         raise ValueError("Customer-owned stored objects cannot be ingested as global knowledge")
     if extracted.status != "ok" or not any(block.text.strip() for block in extracted.blocks):
-        return KnowledgeIngestResult(
-            document_id=document.document_id,
-            status="empty" if extracted.status == "ok" else extracted.status,
-            chunks_indexed=0,
-            content_hash=content_hash,
-            message=extracted.message,
-            extracted=extracted,
+        return PersistedExtractedSource(
+            KnowledgeIngestResult(
+                document_id=document.document_id,
+                status="empty" if extracted.status == "ok" else extracted.status,
+                chunks_indexed=0,
+                content_hash=identity.content_hash,
+                message=extracted.message,
+                extracted=extracted,
+            ),
+            document,
         )
 
     existing = await get_canonical_document_by_identity(
         session,
         scope=persist_scope,
-        source_type=source_type,
-        canonical_uri=canonical_uri,
+        source_type=identity.source_type,
+        canonical_uri=identity.canonical_uri,
     )
-    resolved_document = document
-    if existing is not None:
-        resolved_document = replace(document, document_id=existing.id)
-
-    splitter = chunker or KnowledgeChunker()
-    segmented = splitter.segment(
+    resolved = replace(document, document_id=existing.id) if existing is not None else document
+    segmented = (chunker or KnowledgeChunker()).segment(
         extracted,
-        resolved_document,
-        content_hash=content_hash,
-        source_type=source_type,
-        canonical_uri=canonical_uri,
+        resolved,
+        content_hash=identity.content_hash,
+        source_type=identity.source_type,
+        canonical_uri=identity.canonical_uri,
     )
     if not segmented.text_units:
-        return KnowledgeIngestResult(
-            document_id=resolved_document.document_id,
-            status="empty",
-            chunks_indexed=0,
-            content_hash=content_hash,
-            document_version_id=segmented.version.id,
-            extracted=extracted,
-            segmented=segmented,
+        return PersistedExtractedSource(
+            KnowledgeIngestResult(
+                document_id=resolved.document_id,
+                status="empty",
+                chunks_indexed=0,
+                content_hash=identity.content_hash,
+                document_version_id=segmented.version.id,
+                extracted=extracted,
+                segmented=segmented,
+            ),
+            resolved,
         )
 
-    persisted = await persist_segmented_document(
+    written = await persist_segmented_document(
         session,
         scope=persist_scope,
-        source_object_id=source_object_id,
+        source_object_id=identity.source_object_id,
         segmented=segmented,
     )
-    segmented = await persisted_segment(session, segmented, persisted.version)
-    # Release the row lock and the pool connection before embedding. The
-    # research session otherwise holds both until the need finishes, then
-    # rolls the insert back when it closes.
+    segmented = await persisted_segment(session, segmented, written.version)
+    # Release the row lock and the pool connection before embedding.
     await session.commit()
-    if persisted.reused_current:
-        # A matching content hash reuses the SQL version. The current vector
-        # index can still be empty after an index switch, so write the
-        # persisted TextUnits when this index does not already have them.
-        units = list(segmented.text_units)
-        if not units:
-            raise RuntimeError(
-                f"reused document {resolved_document.document_id} has no current TextUnits"
-            )
-        if not await _index_has_text_units(
-            vector_store,
-            document_id=resolved_document.document_id,
-            document_version_id=persisted.version.id,
-            units=units,
-        ):
-            await _embed_and_upsert(
-                embeddings=embeddings,
-                vector_store=vector_store,
-                document=resolved_document,
-                units=units,
-            )
-        return KnowledgeIngestResult(
-            document_id=resolved_document.document_id,
+    units = list(segmented.text_units)
+    if written.reused_current and not units:
+        raise RuntimeError(f"reused document {resolved.document_id} has no current TextUnits")
+    return PersistedExtractedSource(
+        KnowledgeIngestResult(
+            document_id=resolved.document_id,
             status="indexed",
             chunks_indexed=len(units),
-            content_hash=content_hash,
-            document_version_id=persisted.version.id,
-            reused_version=True,
+            content_hash=identity.content_hash,
+            document_version_id=written.version.id,
+            reused_version=written.reused_current,
             extracted=extracted,
             segmented=segmented,
-        )
+        ),
+        resolved,
+    )
 
+
+async def index_persisted_source(
+    persisted: PersistedExtractedSource,
+    *,
+    embeddings: EmbeddingProvider,
+    vector_store: KnowledgeVectorStore,
+) -> KnowledgeIngestResult:
+    """Embed persisted TextUnits. Upsert only; never scan or replace the index."""
+    result = persisted.result
+    if result.status != "indexed" or result.segmented is None:
+        return result
+    units = list(result.segmented.text_units)
+    if not units:
+        return result
+    if result.reused_version and await _index_has_text_units(
+        vector_store,
+        document_id=persisted.document.document_id,
+        document_version_id=result.document_version_id or "",
+        units=units,
+    ):
+        return result
     await _embed_and_upsert(
         embeddings=embeddings,
         vector_store=vector_store,
-        document=resolved_document,
-        units=segmented.text_units,
+        document=persisted.document,
+        units=units,
     )
-    return KnowledgeIngestResult(
-        document_id=resolved_document.document_id,
-        status="indexed",
-        chunks_indexed=len(segmented.text_units),
-        content_hash=content_hash,
-        document_version_id=persisted.version.id,
-        extracted=extracted,
-        segmented=segmented,
-    )
+    return result
+
+
+async def embed_persisted_document(
+    session: AsyncSession,
+    *,
+    document_id: str,
+    embeddings: EmbeddingProvider,
+    vector_store: KnowledgeVectorStore,
+) -> None:
+    """Embed one persisted document. Session must not be in a transaction."""
+    if session.in_transaction():
+        raise RuntimeError("Document embed requires a session without an active transaction")
+    try:
+        inputs = await _current_index_inputs(session, document_id=document_id)
+    finally:
+        await session.rollback()
+    for document, units in inputs:
+        await _embed_and_upsert(
+            embeddings=embeddings,
+            vector_store=vector_store,
+            document=document,
+            units=units,
+        )
 
 
 async def index_missing_persisted_documents(
@@ -216,24 +283,42 @@ async def _current_index_inputs(
         units = [text_unit_from_record(unit) for unit in await current_text_units(session, row.id)]
         if not units:
             continue
-        tenant = scope_from_row(row)
-        document = KnowledgeDocument(
-            document_id=row.id,
-            provider=row.source_type,
-            external_id=row.canonical_uri,
-            title=row.title,
-            mime_type=version.mime_type,
-            scope=KnowledgeScope(
-                customer_id=tenant.customer_id,
-                scope_type=tenant.scope_type,
-                workspace_id=(row.extra or {}).get("workspace_id"),
-            ),
-            version=version.version,
-            source_type=row.source_type,
-            canonical_uri=row.canonical_uri,
-        )
-        inputs.append((document, units))
+        inputs.append((_knowledge_document_for_index(row, version), units))
     return inputs
+
+
+def _knowledge_document_for_index(
+    row: CanonicalDocumentRecord,
+    version: DocumentVersionRecord,
+) -> KnowledgeDocument:
+    extra = dict(row.extra or {})
+    tenant = scope_from_row(row)
+    provider = extra.get("provider")
+    return KnowledgeDocument(
+        document_id=row.id,
+        provider=str(provider).strip() if isinstance(provider, str) and provider.strip() else row.source_type,
+        external_id=str(extra.get("external_id") or row.canonical_uri),
+        title=row.title,
+        mime_type=version.mime_type,
+        scope=KnowledgeScope(
+            customer_id=tenant.customer_id,
+            scope_type=tenant.scope_type,
+            case_id=_optional_str(extra.get("case_id")) or row.source_object_id,
+            module=_optional_str(extra.get("module")),
+            workspace_id=_optional_str(extra.get("workspace_id")),
+        ),
+        version=version.version,
+        source_type=row.source_type,
+        canonical_uri=row.canonical_uri,
+        metadata=extra,
+    )
+
+
+def _optional_str(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
 
 
 async def _index_has_text_units(

@@ -1,0 +1,167 @@
+{
+  "id": "phase2-coverage-v3-relation-carveout",
+  "label": "Experimental: Coverage v3 with Rule B (relation-in-text) on liability-secrecy-carveout. Not ready for the default controller.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "ready_for_default_controller": false,
+  "replay_14_is_not_the_live_result": true,
+  "controller": "deterministic_v3",
+  "proof_rule": "relation",
+  "classify_unchanged": true,
+  "default_retriever_unchanged": true,
+  "gold_id": "liability-secrecy-carveout",
+  "false_complete_reason": "joined_units_treat_secrecy_heading_as_carveout",
+  "headline": {
+    "document_recall_b1": 0.8571428571428571,
+    "leftover_at_b1": [
+      "Avtal_46_SaaS_avtal.docx"
+    ],
+    "leftover_at_b2": [
+      "Avtal_46_SaaS_avtal.docx"
+    ],
+    "first_complete_budget": 3,
+    "baseline_first_complete_budget": 3,
+    "first_complete_classified": 143,
+    "baseline_first_complete_classified": 150,
+    "classified_b5": 468,
+    "baseline_classified_b5": 482,
+    "jev_calls_b5": 178,
+    "hop_fetches_b5": 6,
+    "baseline_hop_fetches_b5": 12,
+    "work_after_complete_b3": 147,
+    "baseline_work_after_complete_b3": 148,
+    "false_complete": [
+      "Avtal_37_Allmanna_villkor_B2B.docx",
+      "Avtal_47_Programvarulicensavtal.docx",
+      "Avtal_50_Support_underhallsavtal.docx",
+      "Avtal_77_Redovisningsuppdrag.docx",
+      "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx"
+    ],
+    "false_complete_count": 5,
+    "avtal_49_falsely_complete": false,
+    "wall_seconds": 34.86508991615847
+  },
+  "budgets": [
+    {
+      "budget": 1,
+      "classified": 100,
+      "jev_calls": 62,
+      "cache_hits": 38,
+      "document_recall": 0.8571428571428571,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": null,
+      "hop_fetches": 0,
+      "budget_exhausted_documents": 89,
+      "unresolved_relevant_documents": [
+        "Avtal_46_SaaS_avtal.docx"
+      ],
+      "evidence_found_nonrelevant": [],
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 89,
+        "EVIDENCE_FOUND": 6,
+        "NEEDS_ANALYSIS": 5
+      },
+      "wall_seconds": 7.649519040714949
+    },
+    {
+      "budget": 2,
+      "classified": 198,
+      "jev_calls": 87,
+      "cache_hits": 111,
+      "document_recall": 0.8571428571428571,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": null,
+      "hop_fetches": 1,
+      "budget_exhausted_documents": 87,
+      "unresolved_relevant_documents": [
+        "Avtal_46_SaaS_avtal.docx"
+      ],
+      "evidence_found_nonrelevant": [
+        "Avtal_47_Programvarulicensavtal.docx",
+        "Avtal_50_Support_underhallsavtal.docx"
+      ],
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 87,
+        "EVIDENCE_FOUND": 8,
+        "NEEDS_ANALYSIS": 5
+      },
+      "wall_seconds": 13.627504957839847
+    },
+    {
+      "budget": 3,
+      "classified": 290,
+      "jev_calls": 92,
+      "cache_hits": 198,
+      "document_recall": 1.0,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": 143,
+      "hop_fetches": 4,
+      "budget_exhausted_documents": 84,
+      "unresolved_relevant_documents": [],
+      "evidence_found_nonrelevant": [
+        "Avtal_37_Allmanna_villkor_B2B.docx",
+        "Avtal_47_Programvarulicensavtal.docx",
+        "Avtal_50_Support_underhallsavtal.docx"
+      ],
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 84,
+        "EVIDENCE_FOUND": 10,
+        "NEEDS_ANALYSIS": 6
+      },
+      "wall_seconds": 20.962829374708235
+    },
+    {
+      "budget": 5,
+      "classified": 468,
+      "jev_calls": 178,
+      "cache_hits": 290,
+      "document_recall": 1.0,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": 143,
+      "hop_fetches": 6,
+      "budget_exhausted_documents": 79,
+      "unresolved_relevant_documents": [],
+      "evidence_found_nonrelevant": [
+        "Avtal_37_Allmanna_villkor_B2B.docx",
+        "Avtal_47_Programvarulicensavtal.docx",
+        "Avtal_50_Support_underhallsavtal.docx",
+        "Avtal_77_Redovisningsuppdrag.docx",
+        "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx"
+      ],
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 79,
+        "EVIDENCE_FOUND": 12,
+        "NEEDS_ANALYSIS": 9
+      },
+      "wall_seconds": 34.278612915892154
+    }
+  ],
+  "versus_first_complete_evidence": {
+    "baseline": {
+      "budget": 3,
+      "classified": 298,
+      "first_complete_classified": 150,
+      "jev_calls": 98,
+      "cumulative_jev_calls": 249,
+      "work_after_complete": 148,
+      "hop_fetches": 10,
+      "evidence_found_nonrelevant": []
+    },
+    "treatment": {
+      "budget": 3,
+      "classified": 290,
+      "first_complete_classified": 143,
+      "jev_calls": 92,
+      "cumulative_jev_calls": 241,
+      "work_after_complete": 147,
+      "hop_fetches": 4,
+      "evidence_found_nonrelevant": [
+        "Avtal_37_Allmanna_villkor_B2B.docx",
+        "Avtal_47_Programvarulicensavtal.docx",
+        "Avtal_50_Support_underhallsavtal.docx"
+      ]
+    }
+  },
+  "extra_classifications_are_mostly": "other_document_discovery"
+}

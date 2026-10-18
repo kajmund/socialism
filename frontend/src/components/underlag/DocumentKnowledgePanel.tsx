@@ -140,7 +140,7 @@ export function DocumentKnowledgePanel({
 
         {loading ? (
           <p className="text-sm text-muted-foreground">{t("underlag.knowledge.loading")}</p>
-        ) : items.length === 0 && file.knowledge_status === "ready" ? (
+        ) : items.length === 0 && file.extraction_status === "ok" ? (
           <p className="text-sm text-muted-foreground">{t("underlag.knowledge.empty")}</p>
         ) : (
           <div className="space-y-2">

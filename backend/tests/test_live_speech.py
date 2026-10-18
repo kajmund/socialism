@@ -130,9 +130,80 @@ async def test_openai_transcription_uses_transcription_intent(
         "extra_query": {"intent": "transcription"},
         "max_retries": 0,
     }
-    assert sent[0]["session"]["audio"]["input"]["transcription"]["model"] == (
-        "gpt-live-transcribe"
+    audio = sent[0]["session"]["audio"]["input"]
+    assert audio["transcription"]["model"] == "gpt-live-transcribe"
+    assert audio["noise_reduction"] == {"type": "near_field"}
+    assert audio["turn_detection"] is None
+    assert "keywords" not in audio["transcription"]
+
+
+@pytest.mark.asyncio
+async def test_transcription_update_sends_keywords_without_reconnecting(monkeypatch) -> None:
+    sent: list[dict] = []
+
+    class Connection:
+        async def send(self, payload):
+            sent.append(payload)
+
+        def __aiter__(self):
+            async def events():
+                if False:
+                    yield None
+
+            return events()
+
+    class Manager:
+        async def __aenter__(self):
+            return Connection()
+
+        async def __aexit__(self, *_args):
+            return None
+
+    class Realtime:
+        def connect(self, **_kwargs):
+            return Manager()
+
+    class Client:
+        def __init__(self, *, api_key):
+            assert api_key == "key"
+            self.realtime = Realtime()
+
+        async def close(self):
+            return None
+
+    monkeypatch.setattr(openai_live_transcription, "AsyncOpenAI", Client)
+    stream = OpenAITranscriptionStream(
+        api_key="key",
+        model="gpt-live-transcribe",
+        language="sv",
+        prompt="Ett svenskt samtal om juridik, avtal och dokumentanalys.",
+        keywords=["avtalslagen", "lag <ok>\n"],
+        on_event=lambda _event: asyncio.sleep(0),
     )
+    await stream.start()
+    await stream.update(keywords=["avtalslagen", "fastighetsbildning"])
+    await stream.update(keywords=["avtalslagen", "fastighetsbildning"])
+    await stream.close()
+
+    assert len(sent) == 2
+    first = sent[0]["session"]["audio"]["input"]["transcription"]
+    assert first["prompt"].startswith("Ett svenskt samtal")
+    assert first["keywords"] == ["avtalslagen", "lag ok"]
+    assert sent[1]["session"]["audio"]["input"]["transcription"]["keywords"] == [
+        "avtalslagen",
+        "fastighetsbildning",
+    ]
+
+
+def test_stt_focus_accepts_source_ids() -> None:
+    parsed = client_control_adapter.validate_python(
+        {"type": "stt.focus", "source_ids": ["avtal"]}
+    )
+    assert parsed.source_ids == ["avtal"]
+    with pytest.raises(ValidationError):
+        client_control_adapter.validate_python(
+            {"type": "stt.focus", "source_ids": ["a", "b", "c", "d", "e"]}
+        )
 
 
 def test_speech_segmenter_preserves_url_and_drops_cancelled_buffer() -> None:

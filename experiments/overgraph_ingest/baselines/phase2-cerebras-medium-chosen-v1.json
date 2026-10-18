@@ -1,0 +1,70 @@
+{
+  "id": "phase2-cerebras-medium-chosen-v1",
+  "label": "Frozen decision: GPT-OSS-120B medium with minimal JSON is the best measured quality setting for naive rerank. Stop tuning model parameters on the same five questions. Low is cheaper, not quality-equivalent. Qwen is rejected for this task. Next isolated measurement is k=100, not second opinion.",
+  "do_not_overwrite": true,
+  "verdict": "keep_medium_minimal",
+  "best_naive_rerank": "phase2-cerebras-output-v1",
+  "best_setting": "gpt-oss-120b-medium-minimal-json",
+  "do_not_tune_reasoning_on_same_five": true,
+  "low_is_not_quality_equivalent": true,
+  "qwen_rejected_for_naive_rerank": true,
+  "reasoning_off_supported": false,
+  "next_isolated_experiment": "k100",
+  "k200_not_started": true,
+  "second_opinion_not_started": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "task": "formulation_presence",
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "k": 50,
+    "model": "gpt-oss-120b",
+    "reasoning_effort": "medium",
+    "variant": "minimal",
+    "rate_card_date": "2026-10-09",
+    "summary": {
+      "mean_precision": 0.7347058823529411,
+      "mean_candidate_recall": 1.0,
+      "mean_model_seconds": 1.3277015000581742,
+      "total_prompt_tokens": 16278,
+      "total_completion_tokens": 9588,
+      "true_matches": 72,
+      "cost_usd": 0.0128883,
+      "cost_per_true_match_usd": 0.00017900416666666666
+    },
+    "golds": [
+      {
+        "gold_id": "auto-renewal",
+        "precision": 1.0,
+        "candidate_recall": 1.0
+      },
+      {
+        "gold_id": "notice-period",
+        "precision": 0.55,
+        "candidate_recall": 1.0
+      },
+      {
+        "gold_id": "liability-cap",
+        "precision": 0.8235294117647058,
+        "candidate_recall": 1.0
+      },
+      {
+        "gold_id": "confidentiality",
+        "precision": 0.3,
+        "candidate_recall": 1.0
+      },
+      {
+        "gold_id": "liability-secrecy-carveout",
+        "precision": 1.0,
+        "candidate_recall": 1.0
+      }
+    ]
+  }
+}

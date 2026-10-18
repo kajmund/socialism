@@ -1,0 +1,348 @@
+{
+  "id": "phase2-two-stage-retrieval-v1",
+  "label": "Frozen: two-stage document-then-local retrieval at a fixed candidate budget of 50. Same scores, so any gain is budget allocation. No Jev, no controller, no proof change. 24/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "no_new_jev": true,
+  "no_new_controller": true,
+  "does_not_change_proof": true,
+  "does_not_repeat_coverage_budget": true,
+  "structure_guided_local_not_started": true,
+  "improvement_is_budget_allocation": true,
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "total_budget": 50,
+    "improvement_is_budget_allocation": true,
+    "stage1_document_discovery": [
+      {
+        "documents_selected": 10,
+        "leftover_documents": [],
+        "leftover_document_recall": 0.0,
+        "unlocks": []
+      },
+      {
+        "documents_selected": 25,
+        "leftover_documents": [
+          "avtal_121.docx",
+          "avtal_155.docx",
+          "avtal_160.docx"
+        ],
+        "leftover_document_recall": 0.21428571428571427,
+        "unlocks": []
+      },
+      {
+        "documents_selected": 50,
+        "leftover_documents": [
+          "avtal_111.docx",
+          "avtal_121.docx",
+          "avtal_127.docx",
+          "avtal_130.docx",
+          "avtal_155.docx",
+          "avtal_158.docx",
+          "avtal_160.docx"
+        ],
+        "leftover_document_recall": 0.5,
+        "unlocks": []
+      },
+      {
+        "documents_selected": 100,
+        "leftover_documents": [
+          "avtal_111.docx",
+          "avtal_114.docx",
+          "avtal_121.docx",
+          "avtal_127.docx",
+          "avtal_130.docx",
+          "avtal_135.docx",
+          "avtal_155.docx",
+          "avtal_158.docx",
+          "avtal_159.docx",
+          "avtal_160.docx",
+          "avtal_168.docx",
+          "avtal_169.docx",
+          "avtal_181.docx",
+          "avtal_196.docx"
+        ],
+        "leftover_document_recall": 1.0,
+        "unlocks": [
+          "avtal_135.docx",
+          "avtal_159.docx",
+          "avtal_168.docx"
+        ]
+      }
+    ],
+    "strategies": {
+      "global_top_50": {
+        "name": "global_top_50",
+        "documents_selected": null,
+        "passages_per_document": null,
+        "total_budget": 50,
+        "examines_all_documents": false,
+        "improvement_is_budget_allocation": false,
+        "candidates": 50,
+        "unique_documents": 45,
+        "leftover_document_recall": 0.5,
+        "leftover_passage_recall": 0.14285714285714285,
+        "leftover_documents": [
+          "avtal_111.docx",
+          "avtal_121.docx",
+          "avtal_127.docx",
+          "avtal_130.docx",
+          "avtal_155.docx",
+          "avtal_158.docx",
+          "avtal_160.docx"
+        ],
+        "leftover_passages": [
+          "avtal_121.docx",
+          "avtal_127.docx"
+        ],
+        "unlocks_documents": [],
+        "unlocks_passages": []
+      },
+      "two_stage_50x1": {
+        "name": "two_stage_50x1",
+        "documents_selected": 50,
+        "passages_per_document": 1,
+        "total_budget": 50,
+        "examines_all_documents": false,
+        "improvement_is_budget_allocation": true,
+        "candidates": 50,
+        "unique_documents": 50,
+        "leftover_document_recall": 0.5,
+        "leftover_passage_recall": 0.07142857142857142,
+        "leftover_documents": [
+          "avtal_111.docx",
+          "avtal_121.docx",
+          "avtal_127.docx",
+          "avtal_130.docx",
+          "avtal_155.docx",
+          "avtal_158.docx",
+          "avtal_160.docx"
+        ],
+        "leftover_passages": [
+          "avtal_127.docx"
+        ],
+        "unlocks_documents": [],
+        "unlocks_passages": []
+      },
+      "two_stage_25x2": {
+        "name": "two_stage_25x2",
+        "documents_selected": 25,
+        "passages_per_document": 2,
+        "total_budget": 50,
+        "examines_all_documents": false,
+        "improvement_is_budget_allocation": true,
+        "candidates": 50,
+        "unique_documents": 25,
+        "leftover_document_recall": 0.21428571428571427,
+        "leftover_passage_recall": 0.14285714285714285,
+        "leftover_documents": [
+          "avtal_121.docx",
+          "avtal_155.docx",
+          "avtal_160.docx"
+        ],
+        "leftover_passages": [
+          "avtal_121.docx",
+          "avtal_160.docx"
+        ],
+        "unlocks_documents": [],
+        "unlocks_passages": []
+      },
+      "two_stage_10x5": {
+        "name": "two_stage_10x5",
+        "documents_selected": 10,
+        "passages_per_document": 5,
+        "total_budget": 50,
+        "examines_all_documents": false,
+        "improvement_is_budget_allocation": true,
+        "candidates": 50,
+        "unique_documents": 10,
+        "leftover_document_recall": 0.0,
+        "leftover_passage_recall": 0.0,
+        "leftover_documents": [],
+        "leftover_passages": [],
+        "unlocks_documents": [],
+        "unlocks_passages": []
+      },
+      "two_stage_5x10": {
+        "name": "two_stage_5x10",
+        "documents_selected": 5,
+        "passages_per_document": 10,
+        "total_budget": 50,
+        "examines_all_documents": false,
+        "improvement_is_budget_allocation": true,
+        "candidates": 50,
+        "unique_documents": 5,
+        "leftover_document_recall": 0.0,
+        "leftover_passage_recall": 0.0,
+        "leftover_documents": [],
+        "leftover_passages": [],
+        "unlocks_documents": [],
+        "unlocks_passages": []
+      }
+    },
+    "rows": {
+      "avtal_111.docx": {
+        "relative_path": "avtal_111.docx",
+        "first_document_rank": 43,
+        "first_relevant_passage_rank": 95,
+        "local_passage_rank": 2,
+        "document_identification_rank": 39,
+        "document_text_units": 59,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 78
+      },
+      "avtal_114.docx": {
+        "relative_path": "avtal_114.docx",
+        "first_document_rank": 112,
+        "first_relevant_passage_rank": 112,
+        "local_passage_rank": 1,
+        "document_identification_rank": 74,
+        "document_text_units": 52,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 74
+      },
+      "avtal_121.docx": {
+        "relative_path": "avtal_121.docx",
+        "first_document_rank": 18,
+        "first_relevant_passage_rank": 28,
+        "local_passage_rank": 2,
+        "document_identification_rank": 18,
+        "document_text_units": 54,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 36
+      },
+      "avtal_127.docx": {
+        "relative_path": "avtal_127.docx",
+        "first_document_rank": 44,
+        "first_relevant_passage_rank": 44,
+        "local_passage_rank": 1,
+        "document_identification_rank": 40,
+        "document_text_units": 57,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 40
+      },
+      "avtal_130.docx": {
+        "relative_path": "avtal_130.docx",
+        "first_document_rank": 47,
+        "first_relevant_passage_rank": 116,
+        "local_passage_rank": 2,
+        "document_identification_rank": 43,
+        "document_text_units": 56,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 86
+      },
+      "avtal_135.docx": {
+        "relative_path": "avtal_135.docx",
+        "first_document_rank": 184,
+        "first_relevant_passage_rank": 301,
+        "local_passage_rank": 2,
+        "document_identification_rank": 88,
+        "document_text_units": 58,
+        "same_intra_document_order": true,
+        "would_admit_if_found": true,
+        "min_two_stage_budget": 176
+      },
+      "avtal_155.docx": {
+        "relative_path": "avtal_155.docx",
+        "first_document_rank": 16,
+        "first_relevant_passage_rank": 728,
+        "local_passage_rank": 10,
+        "document_identification_rank": 16,
+        "document_text_units": 60,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 160
+      },
+      "avtal_158.docx": {
+        "relative_path": "avtal_158.docx",
+        "first_document_rank": 42,
+        "first_relevant_passage_rank": 101,
+        "local_passage_rank": 3,
+        "document_identification_rank": 38,
+        "document_text_units": 30,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 114
+      },
+      "avtal_159.docx": {
+        "relative_path": "avtal_159.docx",
+        "first_document_rank": 64,
+        "first_relevant_passage_rank": 372,
+        "local_passage_rank": 5,
+        "document_identification_rank": 51,
+        "document_text_units": 58,
+        "same_intra_document_order": true,
+        "would_admit_if_found": true,
+        "min_two_stage_budget": 255
+      },
+      "avtal_160.docx": {
+        "relative_path": "avtal_160.docx",
+        "first_document_rank": 22,
+        "first_relevant_passage_rank": 55,
+        "local_passage_rank": 2,
+        "document_identification_rank": 22,
+        "document_text_units": 14,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 44
+      },
+      "avtal_168.docx": {
+        "relative_path": "avtal_168.docx",
+        "first_document_rank": 106,
+        "first_relevant_passage_rank": 407,
+        "local_passage_rank": 5,
+        "document_identification_rank": 72,
+        "document_text_units": 67,
+        "same_intra_document_order": true,
+        "would_admit_if_found": true,
+        "min_two_stage_budget": 360
+      },
+      "avtal_169.docx": {
+        "relative_path": "avtal_169.docx",
+        "first_document_rank": 78,
+        "first_relevant_passage_rank": 78,
+        "local_passage_rank": 1,
+        "document_identification_rank": 60,
+        "document_text_units": 48,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 60
+      },
+      "avtal_181.docx": {
+        "relative_path": "avtal_181.docx",
+        "first_document_rank": 109,
+        "first_relevant_passage_rank": 109,
+        "local_passage_rank": 1,
+        "document_identification_rank": 73,
+        "document_text_units": 67,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 73
+      },
+      "avtal_196.docx": {
+        "relative_path": "avtal_196.docx",
+        "first_document_rank": 91,
+        "first_relevant_passage_rank": 91,
+        "local_passage_rank": 1,
+        "document_identification_rank": 69,
+        "document_text_units": 27,
+        "same_intra_document_order": true,
+        "would_admit_if_found": false,
+        "min_two_stage_budget": 69
+      }
+    }
+  }
+}

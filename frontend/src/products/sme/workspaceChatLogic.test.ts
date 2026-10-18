@@ -1,7 +1,7 @@
 import { ApiError } from "@/lib/http"
 import { describe, expect, it } from "vitest"
 import type { WorkspaceMessage, WorkspaceState } from "@/api/voiceWorkspaces"
-import { artifactPresentationKey, clientArguments, clientToolFailure, commitWorkspaceState, expertProxyToolNames, interviewTranscriptMessage, isCurrentConversation, isWorkspaceSourceReread, mergeTranscript, navigateWorkspaceDocument, openWorkspaceDocument, sameArtifactContent, sameWorkspaceState, takeReadyGenerationArtifact, upsertTranscript, workspaceGenerationDraft, workspaceSessionTool, workspaceThreadKey, workspaceErrorMessage } from "./workspaceChatLogic"
+import { artifactPresentationKey, artifactWorkspaceView, clientArguments, clientToolFailure, commitWorkspaceState, documentSetSourceIds, expertProxyToolNames, interviewTranscriptMessage, isCurrentConversation, isWorkspaceSourceReread, mergeTranscript, navigateWorkspaceDocument, openWorkspaceDocument, openWorkspaceDocumentSet, resolveDocumentSetSourceIds, sameArtifactContent, sameWorkspaceState, takeReadyGenerationArtifact, upsertTranscript, withArtifactTab, workspaceGenerationDraft, workspaceSessionTool, workspaceThreadKey, workspaceErrorMessage } from "./workspaceChatLogic"
 const state: WorkspaceState = { language: "sv", knowledge_scope: "workspace", view: "relations", documents: [{ source_id: "first", page: 3, zoom: 1.5 }, { source_id: "second", page: 7, zoom: 0.8 }], split_source_ids: ["first", "second"], research_attempt_ids: [], selection: { node_id: "event" } }
 const message: WorkspaceMessage = { id: 10, role: "agent", content: "The complete response", session_id: "session-a", event_key: "agent:4", created_at: "2026-10-04T12:00:00Z" }
 describe("workspace conversation state", () => {
@@ -27,6 +27,13 @@ describe("workspace conversation state", () => {
       read: async () => latest,
     })
     expect(saved).toBe(latest)
+  })
+  it("keeps a comparison tab beside the artifact that was already open", () => {
+    expect(artifactWorkspaceView("relations")).toBe("relations")
+    expect(artifactWorkspaceView("comparison")).toBe("comparison")
+    expect(artifactWorkspaceView("document")).toBe("documents")
+    const next = withArtifactTab({ ...state, active_artifact_id: "draft", open_artifact_ids: ["draft"] }, "compare")
+    expect(next.open_artifact_ids).toEqual(["draft", "compare"])
   })
   it("treats a repeated view as the same workspace state", () => {
     expect(sameWorkspaceState(state, { ...state, view: "relations" })).toBe(true)
@@ -99,8 +106,28 @@ describe("workspace conversation state", () => {
   })
   it("opens the cited page and preserves each document's own zoom", () => {
     const next = openWorkspaceDocument(state, "second", 9)
-    expect(next.documents).toEqual([{ source_id: "second", page: 9, zoom: 0.8 }, state.documents[0]])
+    expect(next.documents).toEqual([state.documents[0], { source_id: "second", page: 9, zoom: 0.8 }])
+    expect(next.active_source_id).toBe("second")
     expect(state.documents[1].page).toBe(7)
+  })
+  it("keeps tab order when activating an already open document", () => {
+    const next = openWorkspaceDocument(state, "second")
+    expect(next.documents.map((row) => row.source_id)).toEqual(["first", "second"])
+    expect(next.active_source_id).toBe("second")
+  })
+  it("opens a repeatable document collection and keeps its source order", () => {
+    const next = openWorkspaceDocumentSet(state, "Hyresavtal under 2004", ["second", "first", "second"])
+    expect(next.view).toBe("document_set")
+    expect(next.document_sets?.[0]).toMatchObject({
+      title: "Hyresavtal under 2004",
+      source_ids: ["second", "first"],
+    })
+    expect(next.active_document_set_id).toBe(next.document_sets?.[0].id)
+    const opened = openWorkspaceDocument(next, "second")
+    expect(opened.view).toBe("documents")
+    expect(opened.active_document_set_id).toBeNull()
+    expect(opened.active_source_id).toBe("second")
+    expect(opened.documents.map((row) => row.source_id)).toEqual(["first", "second"])
   })
   it("keeps the passage highlight when the pdf page changes", () => {
     const marked = { ...state, selection: { reference_id: "passage", source_id: "first" }, documents: [{ source_id: "first", page: 3, zoom: 1.5, reference_id: "passage" }, state.documents[1]] }
@@ -131,6 +158,24 @@ describe("workspace conversation state", () => {
     expect(clientArguments({ arguments_json: '{"reference_id":"ref-a"}' })).toEqual({ reference_id: "ref-a" })
     expect(() => clientArguments({ arguments_json: "[]" })).toThrow()
     expect(() => clientArguments({ arguments_json: "{" })).toThrow()
+  })
+  it("accepts document-set source ids from arrays, json strings and single ids", () => {
+    expect(documentSetSourceIds({ source_ids: ["a", "b", "a"] })).toEqual(["a", "b"])
+    expect(documentSetSourceIds({ source_ids: [17, 18, "19"] })).toEqual(["17", "18", "19"])
+    expect(documentSetSourceIds({ source_ids: '["a","b"]' })).toEqual(["a", "b"])
+    expect(documentSetSourceIds({ source_ids: "a, b; c" })).toEqual(["a", "b", "c"])
+    expect(documentSetSourceIds({ source_id: "only" })).toEqual(["only"])
+    expect(documentSetSourceIds(clientArguments({ arguments_json: '{"title":"Hyra","source_ids":["a","b"]}' }))).toEqual(["a", "b"])
+  })
+  it("resolves document-set tokens from filenames when the model omits source ids", () => {
+    const sources = [
+      { id: "id-17", filename: "Hyresavtal_17.pdf" },
+      { id: "id-18", filename: "Hyresavtal_18.pdf" },
+      { id: "id-170", filename: "Hyresavtal_170.pdf" },
+    ]
+    expect(resolveDocumentSetSourceIds(["17", "18"], sources)).toEqual(["id-17", "id-18"])
+    expect(resolveDocumentSetSourceIds(["id-17"], sources)).toEqual(["id-17"])
+    expect(resolveDocumentSetSourceIds(["missing"], sources)).toEqual(["missing"])
   })
   it("signals a ready document artifact once the documents view is showing it", () => {
     const artifact = { id: "draft-a", kind: "document", status: "ready", revision: 1 }

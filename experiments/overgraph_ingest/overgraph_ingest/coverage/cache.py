@@ -16,9 +16,13 @@ class CachedAnswer:
     source: str
 
 
+def load_c8_judgments(payload: dict[str, object]) -> list[dict[str, object]]:
+    return _judgment_rows(payload)
+
+
 def load_gold_cache(path: Path, *, source: str) -> dict[str, CachedAnswer]:
     payload = json.loads(path.read_text(encoding="utf-8"))
-    rows = _judgment_rows(payload)
+    rows = load_c8_judgments(payload)
     cache: dict[str, CachedAnswer] = {}
     for row in rows:
         key = str(row.get("key") or "")
