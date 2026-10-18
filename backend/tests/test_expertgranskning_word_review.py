@@ -92,7 +92,6 @@ from app.services.kund_store import BOLAG_DEMO_KUND_SLUG
 from app.services.panel.schemas import PanelExpertSlot
 from app.services.prompt_catalog import default_prompts, render_prompt
 from app.services.word.actions import load_word_actions
-from app.services.word.anchors import reviewed_text_from_job_request
 from tests.conftest import (
     BOLAG_USER_ID,
     TEST_CUSTOMER_ID,
@@ -2263,36 +2262,6 @@ async def test_word_structured_does_not_retry_semantic_validation():
 async def test_word_paragraph_review_rejects_panel_session_dispatch():
     with pytest.raises(ValueError, match="expertgranskning_word_review"):
         await word_paragraph_review(None, PanelSession(id="ps_word"), {})  # type: ignore[arg-type]
-
-
-def test_reviewed_text_from_job_request_walks_sections():
-    request = {
-        "sections": [
-            {
-                "heading": "Inledning",
-                "heading_paragraph_index": 0,
-                "paragraphs": [
-                    {"index": 1, "text": "Första stycket."},
-                    {"index": 4, "text": "Andra stycket."},
-                ],
-            }
-        ]
-    }
-    assert reviewed_text_from_job_request(request, 0) == "Inledning"
-    assert reviewed_text_from_job_request(request, 1) == "Första stycket."
-    assert reviewed_text_from_job_request(request, 4) == "Andra stycket."
-    assert reviewed_text_from_job_request(request, 9) is None
-    assert reviewed_text_from_job_request(None, 1) is None
-    implicit = {
-        "sections": [
-            {
-                "heading": "",
-                "heading_paragraph_index": 0,
-                "paragraphs": [{"index": 0, "text": "Ingress utan rubrik."}],
-            }
-        ]
-    }
-    assert reviewed_text_from_job_request(implicit, 0) == "Ingress utan rubrik."
 
 
 def test_word_job_rejects_unsupported_locale_and_oversized_document():

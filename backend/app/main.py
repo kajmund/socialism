@@ -36,6 +36,7 @@ from app.api import (
     workspace_chats,
     users,
     voice_workspaces,
+    document_ingest_batches,
     voice_workspace_inbox,
     workspace_exports,
     workspace_conversations,
@@ -48,7 +49,7 @@ from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
 from app.services.expertgranskning.memory import close_default_expert_memory
-from app.services.graph_v2.worker import start_graph_ingest_loop, stop_graph_ingest_loop
+from app.services.graph_v2.worker import start_graph_owner, stop_graph_owner
 from app.services.overgraph.catalogs import catalog_root, open_runtime, set_runtime
 from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
 from app.services.knowledge.vector_store import SupabaseVectorBucketStore
@@ -117,7 +118,6 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
     set_runtime(graph_runtime)
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None
-    graph_task = None
     set_lagen_nu_selector_factory(LlmLagenNuSelector)
     _app.state.live_speech_registry = LiveSpeechRegistry()
     if settings.research_worker_loop_enabled:
@@ -131,15 +131,14 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
             "dimension": vector_runtime.health.dimension,
         }
         reclaim_stop = start_research_reclaim_loop()
-        graph_task = start_graph_ingest_loop(factory)
+    graph_task = start_graph_owner(factory)
     try:
         yield
     finally:
         await _app.state.live_speech_registry.close_all()
         if reclaim_stop is not None:
             await stop_research_reclaim_loop(reclaim_stop)
-        if graph_task is not None:
-            await stop_graph_ingest_loop(graph_task)
+        await stop_graph_owner(graph_task)
         set_knowledge_vector_store_factory(None)
         set_lagen_nu_selector_factory(None)
         if vector_runtime is not None:
@@ -178,6 +177,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(sme_group_voice_ws.router)
     app.include_router(live_speech.router)
     app.include_router(voice_workspaces.router)
+    app.include_router(document_ingest_batches.router)
     app.include_router(voice_workspace_inbox.router)
     app.include_router(workspace_exports.router)
     app.include_router(workspace_conversations.router)

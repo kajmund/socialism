@@ -387,14 +387,6 @@ def sample_expert_identity(rng: Random | None = None) -> tuple[str, int, str]:
     return f"{first} {last}", age, kon
 
 
-def sample_politik_person_identity(rng: Random | None = None) -> GeneratedPersonaOut:
-    """Sample display name, age, kön and ort using the same catalog rules as politik stub generate."""
-    if rng is None:
-        rng = Random(secrets.randbits(32))
-    recipe = politik_identity_recipe(seed=rng.randint(0, 65535))
-    return stub_persona(recipe, rng)
-
-
 def library_candidate(  # noqa: PLR0917
     persona_id: str,
     name: str,

@@ -16,13 +16,7 @@ Reusable persistent knowledge for research. This is a seam on the existing engin
 
 A runtime need may resolve to a `KnowledgeQuestion`. Execution state never moves into the graph. A provider document is stored once as `EvidenceSource`; each distinct locator/content combination is stored once as an immutable `EvidencePassage`. EvidenceSets and KnowledgeQuestions only link to those passages. Multiple ResearchNeeds can link the same EvidenceSet item without copying source text.
 
-Identity starts with the existing deterministic `research_question_key` (normalized casefold + whitespace) plus an explicit namespace. On an exact miss, production uses `SemanticQuestionIdentityMatcher` against the same Supabase Vector Bucket as document knowledge. Question vectors use a dedicated vector customer partition plus `knowledge_kind=knowledge_question` and namespace metadata, so ordinary document retrieval cannot return them. The canonical SQL row remains authoritative; the vector index only proposes one of the SQL candidates. Model, embedding version, and dimension are persisted together on `knowledge_questions`.
-
-The similarity threshold and candidate bound are configured with
-`RESEARCH_QUESTION_SEMANTIC_MATCH_THRESHOLD` and
-`RESEARCH_QUESTION_SEMANTIC_MATCH_LIMIT`. Public and tenant questions use
-different namespaces, and tenant questions cannot match another customer's
-vectors.
+Identity is the existing deterministic `research_question_key` (normalized casefold + whitespace) plus an explicit namespace. Production resolves identities with exact SQL matching (`ExactQuestionIdentityMatcher`); `QuestionIdentityMatcher` is an injectable seam for tests only. Public and tenant questions use different namespaces, so a tenant question cannot match another customer's question. Model, embedding version, and dimension are persisted together on `knowledge_questions`.
 
 ## Target flow
 
@@ -75,7 +69,7 @@ Only active facts within their validity interval are returned. Documents, versio
 
 Candidate freshness is based on the source version's `ingested_at`, not a new retrieval timestamp. An optional `RESEARCH_KNOWLEDGE_FRESHNESS_MAX_AGE_SECONDS` ages out old candidates; an unset max-age adds no age limit. Validity and supersession checks always apply. Fresh candidates still cannot bypass assessment.
 
-There is one read path. Graph, SQL, canonicalization, embedding and write-back errors propagate; they are never converted into an empty successful lookup. External provider retrieval is normal research after a successful graph read, not an error fallback. Canonical SQL and in-memory/Graphiti question adapters remain identity/write test seams; they do not provide alternate evidence reads.
+There is one read path. Graph, SQL, canonicalization, embedding and write-back errors propagate; they are never converted into an empty successful lookup. External provider retrieval is normal research after a successful graph read, not an error fallback. Canonical SQL and the in-memory test double remain identity/write test seams; they do not provide alternate evidence reads.
 
 Bounds use `RESEARCH_KNOWLEDGE_LOOKUP_LIMIT`. An actually empty grounded graph requires no embedding request. With graph data present, query embedding failure aborts instead of switching to lexical-only search. `research.graph_v2.retrieval.completed` reports candidate/evidence counts and `research.graph_v2.external_search` records why provider retrieval is needed.
 

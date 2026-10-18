@@ -71,21 +71,6 @@ def serialize_word_action(row: WordAction) -> WordActionOut:
     )
 
 
-async def load_word_action(
-    session: AsyncSession,
-    *,
-    job_id: str,
-    action_id: str,
-    customer_id: int,
-) -> WordAction | None:
-    row = await session.get(WordAction, action_id)
-    if row is None:
-        return None
-    if row.job_id != job_id or row.customer_id != customer_id:
-        return None
-    return row
-
-
 async def load_word_action_by_source(
     session: AsyncSession,
     *,

@@ -42,7 +42,7 @@ Failures retain source URI when available, stage flags and diagnostic detail. Si
 From `backend`, with model credentials available through normal settings:
 
 ```sh
-uv run pytest tests/test_research_36_integration.py --live-research-sources --live-research-model -q
+uv run pytest tests/integration/test_research_36_live.py --live-research-sources --live-research-model -q
 uv run python -m scripts.evaluate_36_avtl --mode sources --output /tmp/36-sources.json
 uv run python -m scripts.evaluate_36_avtl --mode topics --output /tmp/36-topics.json
 ```

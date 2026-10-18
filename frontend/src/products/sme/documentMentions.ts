@@ -3,6 +3,18 @@ export type DocumentMention = {
   source_object_id: string
 }
 
+export type MentionFile = { id: string; filename: string }
+
+export function mentionableDocuments(
+  sources: MentionFile[],
+  artifacts: { id: string; title: string; kind: string; status: string }[],
+): MentionFile[] {
+  const created = artifacts
+    .filter((row) => row.kind === "document" && row.status === "ready")
+    .map((row) => ({ id: row.id, filename: row.title }))
+  return [...sources.map((row) => ({ id: row.id, filename: row.filename })), ...created]
+}
+
 const WORD = /[\p{L}\p{N}_]/u
 const END_BOUNDARY = /[\s.,;:!?)]/u
 
@@ -88,5 +100,5 @@ export function resolveDocumentMentions(
     seen.add(file.id)
     mentions.push({ display_name: file.filename, source_object_id: file.id })
   }
-  return mentions
+  return mentions.slice(0, 8)
 }

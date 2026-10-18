@@ -1,4 +1,4 @@
-export const LOCALES = ["sv", "en"] as const
+const LOCALES = ["sv", "en"] as const
 export type Locale = (typeof LOCALES)[number]
 export const DEFAULT_LOCALE: Locale = "sv"
 
@@ -11,7 +11,6 @@ export const messages = {
     tokenLabel: "Åtkomsttoken",
     tokenHint: "Klistra in token från inloggningslänken. Den sparas i tillägget.",
     tokenSave: "Spara token",
-    tokenSaved: "Token sparad.",
     tokenEmpty: "Klistra in en token innan du sparar.",
     tokenPersistFailed: "Token används nu, men tillägget kunde inte spara den till nästa gång.",
     tokenChange: "Byt token",
@@ -27,7 +26,6 @@ export const messages = {
     interviewQuestionProgress: "Fråga {current} av {total}",
     interviewNext: "Nästa",
     interviewBack: "Tillbaka",
-    interviewStart: "Granska",
     interviewRestart: "Läs om dokumentet",
     interviewEmpty: "Dokumentet räckte. Lägg till övrigt nedan om du vill, och klicka Granska.",
     interviewHint:
@@ -50,7 +48,6 @@ export const messages = {
     statusPreparing: "Läser dokumentet och tar fram frågor…",
     statusInterview:
       "Svara på frågorna. Granska blir aktiv när alla obligatoriska svar är ifyllda. Du kan gå tillbaka och ändra.",
-    statusConnecting: "Startar granskning…",
     statusLive:
       "Förslag visas i sidopanelen. Tillämpa eller avfärda dem. Inget skrivs i dokumentet förrän du väljer Tillämpa.",
     statusResume:
@@ -64,12 +61,6 @@ export const messages = {
     officeMissing: "Öppna tillägget i Word. Webbläsaren kan inte läsa dokumentet.",
     noParagraphs: "Dokumentet har inga stycken att granska.",
     noSections: "Kunde inte bygga en sektionsstruktur av dokumentet.",
-    inserted: "Infogade kommentarer och omskrivningar: {count}",
-    appliedSummary: "{applied} resultat applicerade",
-    unplacedSummary:
-      "{unplaced} kunde inte placeras säkert eftersom dokumentet ändrats.",
-    applicationSummary:
-      "{applied} resultat applicerade, {unplaced} kunde inte placeras säkert eftersom dokumentet ändrats.",
     rewritePrefix: "Föreslagen omskrivning:",
     language: "Språk",
     queueHeading: "Förslag",
@@ -104,7 +95,6 @@ export const messages = {
     tokenLabel: "Access token",
     tokenHint: "Paste the token from the magic-link sign-in. It is stored in the add-in.",
     tokenSave: "Save token",
-    tokenSaved: "Token saved.",
     tokenEmpty: "Paste a token before saving.",
     tokenPersistFailed: "The token is in use now, but the add-in could not store it for next time.",
     tokenChange: "Change token",
@@ -120,7 +110,6 @@ export const messages = {
     interviewQuestionProgress: "Question {current} of {total}",
     interviewNext: "Next",
     interviewBack: "Back",
-    interviewStart: "Review",
     interviewRestart: "Recapture document",
     interviewEmpty: "The document was enough. Add anything else below if you want, then click Review.",
     interviewHint:
@@ -143,7 +132,6 @@ export const messages = {
     statusPreparing: "Reading the document and generating questions…",
     statusInterview:
       "Answer the questions. Review becomes active when every required answer is filled in. You can go back and change them.",
-    statusConnecting: "Starting review…",
     statusLive:
       "Proposals appear in the pane. Apply or dismiss them. Nothing is written to the document until you choose Apply.",
     statusResume:
@@ -156,11 +144,6 @@ export const messages = {
     officeMissing: "Open the add-in in Word. The browser cannot read the document.",
     noParagraphs: "The document has no paragraphs to review.",
     noSections: "Could not build a section structure from the document.",
-    inserted: "Comments and rewrites inserted: {count}",
-    appliedSummary: "{applied} results applied",
-    unplacedSummary: "{unplaced} could not be placed safely because the document changed.",
-    applicationSummary:
-      "{applied} results applied, {unplaced} could not be placed safely because the document changed.",
     rewritePrefix: "Suggested rewrite:",
     language: "Language",
     queueHeading: "Proposals",

@@ -46,9 +46,6 @@ Defaults:
 SUPABASE_VECTOR_BUCKET=research-knowledge
 SUPABASE_VECTOR_INDEX=documents-openai
 SUPABASE_VECTOR_DISTANCE_METRIC=cosine
-RESEARCH_QUESTION_SEMANTIC_MATCH_THRESHOLD=0.88
-RESEARCH_QUESTION_SEMANTIC_MATCH_LIMIT=8
-RESEARCH_QUESTION_EMBEDDING_VERSION=knowledge-question-v1
 ```
 
 At startup, the research worker creates a missing bucket/index and verifies `float32`,
@@ -63,11 +60,11 @@ document chunks and from other customers. SQL stores the canonical question
 and its embedding model, version, and dimension; the vector match is only a
 candidate selector.
 
-Underlag ingest also reuses this index for case-scoped raw document chunks and
-curated document facts/Q&A. Metadata distinguishes `document_chunk` and
-`document_item` from canonical questions. The uploaded object's id is the
-`case_id`, so a document item cannot leak into unrelated research. Bookmarks
-and notes are stored in SQL only and are not indexed as evidence.
+Underlag ingest also reuses this index for case-scoped raw document chunks.
+Metadata distinguishes `document_chunk` from canonical questions. The uploaded
+object's id is the `case_id`, so a document cannot leak into unrelated
+research. Manual bookmarks and notes are stored in SQL only and are not
+indexed as evidence.
 
 The Python transport serializes multiple metadata constraints as an explicit
 S3 Vectors `$and` filter. Supabase accepts a flat object for one field but

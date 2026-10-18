@@ -1,0 +1,97 @@
+{
+  "id": "phase2-leftover-29-v1",
+  "label": "Frozen: 15 examined and 14 unexamined leftover YES after citation labels. Fork is semantics versus discovery. Does not start the next ability. 24/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "does_not_start_next_ability": true,
+  "does_not_add_another_parser_rule": true,
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "summary": {
+      "leftover": 29,
+      "examined": 15,
+      "unexamined": 14,
+      "tracks": {
+        "semantic_understanding": {
+          "count": 10,
+          "documents": [
+            "avtal_120.docx",
+            "avtal_129.docx",
+            "avtal_134.docx",
+            "avtal_157.docx",
+            "avtal_163.docx",
+            "avtal_172.docx",
+            "avtal_184.docx",
+            "avtal_190.docx",
+            "avtal_193.docx",
+            "avtal_194.docx"
+          ]
+        },
+        "discovery": {
+          "count": 14,
+          "documents": [
+            "avtal_111.docx",
+            "avtal_114.docx",
+            "avtal_121.docx",
+            "avtal_127.docx",
+            "avtal_130.docx",
+            "avtal_135.docx",
+            "avtal_155.docx",
+            "avtal_158.docx",
+            "avtal_159.docx",
+            "avtal_160.docx",
+            "avtal_168.docx",
+            "avtal_169.docx",
+            "avtal_181.docx",
+            "avtal_196.docx"
+          ]
+        },
+        "remaining_structure": {
+          "count": 4,
+          "documents": [
+            "avtal_105.docx",
+            "avtal_161.docx",
+            "avtal_180.docx",
+            "avtal_192.docx"
+          ]
+        },
+        "needs_two_abilities": {
+          "count": 1,
+          "documents": [
+            "avtal_137.docx"
+          ]
+        }
+      },
+      "unlocks_if_examined_with_current_abilities": [
+        "avtal_135.docx",
+        "avtal_159.docx",
+        "avtal_168.docx"
+      ],
+      "removed_by_citation_labels": [
+        "avtal_118.docx",
+        "avtal_125.docx",
+        "avtal_141.docx",
+        "avtal_153.docx",
+        "avtal_179.docx"
+      ],
+      "quality_reference": {
+        "true_support": 24,
+        "expected_yes": 53,
+        "false_approvals": 0,
+        "leftover_genuine": 29,
+        "source": "phase2-citation-label-v1"
+      },
+      "does_not_choose_next_ability": true,
+      "does_not_add_another_parser_rule": true,
+      "fork_is_semantics_versus_discovery": true
+    }
+  }
+}

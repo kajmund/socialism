@@ -1,0 +1,683 @@
+{
+  "id": "phase2-doctype-gold-v1",
+  "label": "Document-type gold for the 100 published contracts. Principal function only. Locked before Jev.",
+  "do_not_overwrite": true,
+  "does_not_run_jev": true,
+  "models_not_run": true,
+  "does_not_change_text_units": true,
+  "does_not_change_retrieval": true,
+  "does_not_change_answer_cell": true,
+  "default_remains_d": true,
+  "principal_function_not_clauses": true,
+  "gold_id": "doctype-gold-v1",
+  "taxonomy_version": "document-types-v1",
+  "documents": [
+    "Avtal_01_Tillsvidareanstallningsavtal.docx",
+    "Avtal_02_Provanstallningsavtal.docx",
+    "Avtal_03_Visstidsanstallning.docx",
+    "Avtal_04_Timanstallning_behovsanstallning.docx",
+    "Avtal_05_Konsultavtal.docx",
+    "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+    "Avtal_07_Sekretessavtal_omsesidigt.docx",
+    "Avtal_08_Konkurrensforbudsavtal.docx",
+    "Avtal_09_Kundbearbetningsforbud_varvningsforbud.docx",
+    "Avtal_10_Arbetstidsavtal_flextid.docx",
+    "Avtal_11_Distansarbetsavtal.docx",
+    "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+    "Avtal_13_Avgangsvederlagsavtal.docx",
+    "Avtal_14_Tjanstebilsavtal.docx",
+    "Avtal_15_Bonusavtal.docx",
+    "Avtal_16_Praktikavtal.docx",
+    "Avtal_17_Hyresavtal_lokal.docx",
+    "Avtal_18_Hyresavtal_bostad.docx",
+    "Avtal_19_Andrahandsuthyrning_lokal.docx",
+    "Avtal_20_Arrendeavtal_lagenhetsarrende.docx",
+    "Avtal_21_Parkeringsavtal.docx",
+    "Avtal_22_Kontorshotell_coworking.docx",
+    "Avtal_23_Tillaggsavtal_hyresavtal_lokal.docx",
+    "Avtal_24_Kopeavtal_fastighet.docx",
+    "Avtal_25_Fastighetsservice_stadning.docx",
+    "Avtal_26_Stiftelseurkund.docx",
+    "Avtal_27_Bolagsordning.docx",
+    "Avtal_28_Aktieagaravtal.docx",
+    "Avtal_29_Samarbetsavtal.docx",
+    "Avtal_30_Ramavtal_tjanster.docx",
+    "Avtal_31_Leveransavtal.docx",
+    "Avtal_32_Inkopsavtal.docx",
+    "Avtal_33_Agentavtal.docx",
+    "Avtal_34_Aterforsaljaravtal.docx",
+    "Avtal_35_Franchiseavtal.docx",
+    "Avtal_36_Underleverantorsavtal.docx",
+    "Avtal_37_Allmanna_villkor_B2B.docx",
+    "Avtal_38_Projektavtal_fast_pris.docx",
+    "Avtal_39_Avsiktsforklaring_LOI.docx",
+    "Avtal_40_Laneavtal_revers.docx",
+    "Avtal_41_Borgensforbindelse.docx",
+    "Avtal_42_Factoringavtal.docx",
+    "Avtal_43_Leasingavtal_utrustning.docx",
+    "Avtal_44_Avbetalningsplan.docx",
+    "Avtal_45_Fullmakt.docx",
+    "Avtal_46_SaaS_avtal.docx",
+    "Avtal_47_Programvarulicensavtal.docx",
+    "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+    "Avtal_49_IT_drift_hostingavtal.docx",
+    "Avtal_50_Support_underhallsavtal.docx",
+    "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+    "Avtal_52_Licensavtal_varumarke.docx",
+    "Avtal_53_Overlatelse_immateriella_rattigheter.docx",
+    "Avtal_54_Kallkodsdeposition_escrow.docx",
+    "Avtal_55_Overlatelse_domannamn.docx",
+    "Avtal_56_Bidragsavtal_CLA.docx",
+    "Avtal_57_Penetrationstest.docx",
+    "Avtal_58_IT_policy_BYOD.docx",
+    "Avtal_59_Agilt_IT_konsultavtal.docx",
+    "Avtal_60_Pilotavtal_PoC.docx",
+    "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+    "Avtal_62_PUB_GDPR_databehandlingsavtal.docx",
+    "Avtal_63_Appavtal_utveckling_publicering.docx",
+    "Avtal_64_Byraavtal_reklam.docx",
+    "Avtal_65_Sponsringsavtal.docx",
+    "Avtal_66_Foto_filmavtal_bildlicens.docx",
+    "Avtal_67_Evenemangsavtal.docx",
+    "Avtal_68_Hyresavtal_fordon.docx",
+    "Avtal_69_Kundavtal_B2C_villkor.docx",
+    "Avtal_70_Offertvillkor_orderbekraftelse.docx",
+    "Avtal_71_Konstnarsavtal.docx",
+    "Avtal_72_Utbildningsavtal.docx",
+    "Avtal_73_Volontaravtal.docx",
+    "Avtal_74_Forsakringsavtal.docx",
+    "Avtal_75_Visselblasarfunktion.docx",
+    "Avtal_76_Uppdragsbrev_revision.docx",
+    "Avtal_77_Redovisningsuppdrag.docx",
+    "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+    "Avtal_79_Hyresavtal_lokal_Goteborg.docx",
+    "Avtal_80_Styrelsens_arbetsordning.docx",
+    "Avtal_81_VD_anstallningsavtal.docx",
+    "Avtal_82_Uppdragsavtal_styrelseledamot.docx",
+    "Avtal_83_Teckningsoptionsavtal.docx",
+    "Avtal_84_Villkorat_aktieagartillskott.docx",
+    "Avtal_85_Konvertibelt_laneavtal.docx",
+    "Avtal_86_Aktieoverlatelseavtal.docx",
+    "Avtal_87_Investeringsavtal.docx",
+    "Avtal_88_Teckningsavtal_nyemission.docx",
+    "Avtal_89_Aktieagaravtal_uppdaterat.docx",
+    "Avtal_90_Anslutningsavtal.docx",
+    "Avtal_91_Inkramsoverlatelse.docx",
+    "Avtal_92_Forlikningsavtal.docx",
+    "Avtal_93_Avveckling_av_samarbete.docx",
+    "Avtal_94_Kopeavtal_los_egendom.docx",
+    "Avtal_95_Gavobrev.docx",
+    "Avtal_96_Testamente.docx",
+    "Avtal_97_Skuldebrev.docx",
+    "Avtal_98_Samboavtal.docx",
+    "Avtal_99_Aktenskapsforord.docx",
+    "Avtal_100_Djurkopeavtal.docx"
+  ],
+  "headline": {
+    "documents": 100,
+    "counts": {
+      "employment_agreement": 5,
+      "consulting_agreement": 9,
+      "nda": 2,
+      "dpa": 2,
+      "supply_agreement": 10,
+      "lease_agreement": 9,
+      "employment_termination_agreement": 2,
+      "other": 61
+    },
+    "hard_cases": 6,
+    "models_not_run": true
+  },
+  "hard_cases": [
+    {
+      "case_id": "employment_vs_termination_notice",
+      "left_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "left_type": "employment_agreement",
+      "right_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "right_type": "employment_termination_agreement",
+      "note": "Creating employment is not the instrument that ends it."
+    },
+    {
+      "case_id": "consulting_vs_supply",
+      "left_path": "Avtal_05_Konsultavtal.docx",
+      "left_type": "consulting_agreement",
+      "right_path": "Avtal_31_Leveransavtal.docx",
+      "right_type": "supply_agreement",
+      "note": "An independent assignment is not a sale of goods or a finished deliverable."
+    },
+    {
+      "case_id": "nda_vs_secrecy_clause",
+      "left_path": "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+      "left_type": "nda",
+      "right_path": "Avtal_05_Konsultavtal.docx",
+      "right_type": "consulting_agreement",
+      "note": "A consulting agreement with secrecy is not an NDA."
+    },
+    {
+      "case_id": "dpa_vs_main_with_privacy",
+      "left_path": "Avtal_62_PUB_GDPR_databehandlingsavtal.docx",
+      "left_type": "dpa",
+      "right_path": "Avtal_46_SaaS_avtal.docx",
+      "right_type": "supply_agreement",
+      "note": "A SaaS main contract that mentions data protection is not a DPA."
+    },
+    {
+      "case_id": "employment_vs_termination_settlement",
+      "left_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "left_type": "employment_agreement",
+      "right_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+      "right_type": "employment_termination_agreement",
+      "note": "Severance that ends employment is not the employment agreement."
+    },
+    {
+      "case_id": "termination_vs_dispute_settlement",
+      "left_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "left_type": "employment_termination_agreement",
+      "right_path": "Avtal_92_Forlikningsavtal.docx",
+      "right_type": "other",
+      "note": "A later settlement of a dispute about a past termination is not the termination instrument."
+    }
+  ],
+  "labels": [
+    {
+      "relative_path": "Avtal_01_Tillsvidareanstallningsavtal.docx",
+      "document_type": "employment_agreement",
+      "label": "Anställningsavtal"
+    },
+    {
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "document_type": "employment_agreement",
+      "label": "Anställningsavtal"
+    },
+    {
+      "relative_path": "Avtal_03_Visstidsanstallning.docx",
+      "document_type": "employment_agreement",
+      "label": "Anställningsavtal"
+    },
+    {
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+      "document_type": "employment_agreement",
+      "label": "Anställningsavtal"
+    },
+    {
+      "relative_path": "Avtal_05_Konsultavtal.docx",
+      "document_type": "consulting_agreement",
+      "label": "Konsultavtal"
+    },
+    {
+      "relative_path": "Avtal_06_Sekretessavtal_ensidigt_NDA.docx",
+      "document_type": "nda",
+      "label": "Sekretessavtal"
+    },
+    {
+      "relative_path": "Avtal_07_Sekretessavtal_omsesidigt.docx",
+      "document_type": "nda",
+      "label": "Sekretessavtal"
+    },
+    {
+      "relative_path": "Avtal_08_Konkurrensforbudsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_09_Kundbearbetningsforbud_varvningsforbud.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_10_Arbetstidsavtal_flextid.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "document_type": "employment_termination_agreement",
+      "label": "Överenskommelse om anställningens upphörande"
+    },
+    {
+      "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+      "document_type": "employment_termination_agreement",
+      "label": "Överenskommelse om anställningens upphörande"
+    },
+    {
+      "relative_path": "Avtal_14_Tjanstebilsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_15_Bonusavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_16_Praktikavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_17_Hyresavtal_lokal.docx",
+      "document_type": "lease_agreement",
+      "label": "Hyresavtal"
+    },
+    {
+      "relative_path": "Avtal_18_Hyresavtal_bostad.docx",
+      "document_type": "lease_agreement",
+      "label": "Hyresavtal"
+    },
+    {
+      "relative_path": "Avtal_19_Andrahandsuthyrning_lokal.docx",
+      "document_type": "lease_agreement",
+      "label": "Hyresavtal"
+    },
+    {
+      "relative_path": "Avtal_20_Arrendeavtal_lagenhetsarrende.docx",
+      "document_type": "lease_agreement",
+      "label": "Hyresavtal"
+    },
+    {
+      "relative_path": "Avtal_21_Parkeringsavtal.docx",
+      "document_type": "lease_agreement",
+      "label": "Hyresavtal"
+    },
+    {
+      "relative_path": "Avtal_22_Kontorshotell_coworking.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_23_Tillaggsavtal_hyresavtal_lokal.docx",
+      "document_type": "lease_agreement",
+      "label": "Hyresavtal"
+    },
+    {
+      "relative_path": "Avtal_24_Kopeavtal_fastighet.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_25_Fastighetsservice_stadning.docx",
+      "document_type": "supply_agreement",
+      "label": "Leveransavtal"
+    },
+    {
+      "relative_path": "Avtal_26_Stiftelseurkund.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_27_Bolagsordning.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_28_Aktieagaravtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_29_Samarbetsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "document_type": "supply_agreement",
+      "label": "Leveransavtal"
+    },
+    {
+      "relative_path": "Avtal_31_Leveransavtal.docx",
+      "document_type": "supply_agreement",
+      "label": "Leveransavtal"
+    },
+    {
+      "relative_path": "Avtal_32_Inkopsavtal.docx",
+      "document_type": "supply_agreement",
+      "label": "Leveransavtal"
+    },
+    {
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_34_Aterforsaljaravtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_35_Franchiseavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_36_Underleverantorsavtal.docx",
+      "document_type": "consulting_agreement",
+      "label": "Konsultavtal"
+    },
+    {
+      "relative_path": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_38_Projektavtal_fast_pris.docx",
+      "document_type": "supply_agreement",
+      "label": "Leveransavtal"
+    },
+    {
+      "relative_path": "Avtal_39_Avsiktsforklaring_LOI.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_40_Laneavtal_revers.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_41_Borgensforbindelse.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_42_Factoringavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_43_Leasingavtal_utrustning.docx",
+      "document_type": "lease_agreement",
+      "label": "Hyresavtal"
+    },
+    {
+      "relative_path": "Avtal_44_Avbetalningsplan.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_45_Fullmakt.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_46_SaaS_avtal.docx",
+      "document_type": "supply_agreement",
+      "label": "Leveransavtal"
+    },
+    {
+      "relative_path": "Avtal_47_Programvarulicensavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "document_type": "supply_agreement",
+      "label": "Leveransavtal"
+    },
+    {
+      "relative_path": "Avtal_49_IT_drift_hostingavtal.docx",
+      "document_type": "supply_agreement",
+      "label": "Leveransavtal"
+    },
+    {
+      "relative_path": "Avtal_50_Support_underhallsavtal.docx",
+      "document_type": "supply_agreement",
+      "label": "Leveransavtal"
+    },
+    {
+      "relative_path": "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_52_Licensavtal_varumarke.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_53_Overlatelse_immateriella_rattigheter.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_54_Kallkodsdeposition_escrow.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_55_Overlatelse_domannamn.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_56_Bidragsavtal_CLA.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_57_Penetrationstest.docx",
+      "document_type": "consulting_agreement",
+      "label": "Konsultavtal"
+    },
+    {
+      "relative_path": "Avtal_58_IT_policy_BYOD.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "document_type": "consulting_agreement",
+      "label": "Konsultavtal"
+    },
+    {
+      "relative_path": "Avtal_60_Pilotavtal_PoC.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "document_type": "dpa",
+      "label": "Personuppgiftsbiträdesavtal"
+    },
+    {
+      "relative_path": "Avtal_62_PUB_GDPR_databehandlingsavtal.docx",
+      "document_type": "dpa",
+      "label": "Personuppgiftsbiträdesavtal"
+    },
+    {
+      "relative_path": "Avtal_63_Appavtal_utveckling_publicering.docx",
+      "document_type": "supply_agreement",
+      "label": "Leveransavtal"
+    },
+    {
+      "relative_path": "Avtal_64_Byraavtal_reklam.docx",
+      "document_type": "consulting_agreement",
+      "label": "Konsultavtal"
+    },
+    {
+      "relative_path": "Avtal_65_Sponsringsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_66_Foto_filmavtal_bildlicens.docx",
+      "document_type": "consulting_agreement",
+      "label": "Konsultavtal"
+    },
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_68_Hyresavtal_fordon.docx",
+      "document_type": "lease_agreement",
+      "label": "Hyresavtal"
+    },
+    {
+      "relative_path": "Avtal_69_Kundavtal_B2C_villkor.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_70_Offertvillkor_orderbekraftelse.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_71_Konstnarsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_72_Utbildningsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_73_Volontaravtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_74_Forsakringsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_75_Visselblasarfunktion.docx",
+      "document_type": "consulting_agreement",
+      "label": "Konsultavtal"
+    },
+    {
+      "relative_path": "Avtal_76_Uppdragsbrev_revision.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_77_Redovisningsuppdrag.docx",
+      "document_type": "consulting_agreement",
+      "label": "Konsultavtal"
+    },
+    {
+      "relative_path": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+      "document_type": "consulting_agreement",
+      "label": "Konsultavtal"
+    },
+    {
+      "relative_path": "Avtal_79_Hyresavtal_lokal_Goteborg.docx",
+      "document_type": "lease_agreement",
+      "label": "Hyresavtal"
+    },
+    {
+      "relative_path": "Avtal_80_Styrelsens_arbetsordning.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "document_type": "employment_agreement",
+      "label": "Anställningsavtal"
+    },
+    {
+      "relative_path": "Avtal_82_Uppdragsavtal_styrelseledamot.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_83_Teckningsoptionsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_84_Villkorat_aktieagartillskott.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_85_Konvertibelt_laneavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_86_Aktieoverlatelseavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_87_Investeringsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_88_Teckningsavtal_nyemission.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_89_Aktieagaravtal_uppdaterat.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_90_Anslutningsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_91_Inkramsoverlatelse.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_92_Forlikningsavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_93_Avveckling_av_samarbete.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_94_Kopeavtal_los_egendom.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_95_Gavobrev.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_96_Testamente.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_97_Skuldebrev.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_98_Samboavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_99_Aktenskapsforord.docx",
+      "document_type": "other",
+      "label": "Annat"
+    },
+    {
+      "relative_path": "Avtal_100_Djurkopeavtal.docx",
+      "document_type": "other",
+      "label": "Annat"
+    }
+  ]
+}

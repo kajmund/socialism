@@ -225,12 +225,6 @@ async def run_company_tool(name: str, arguments: dict[str, Any]) -> str:
         return await client.call_tool(name, arguments)
 
 
-def candidates_from_company_text(
-    text: str,
-) -> list[DdCandidateCompany]:
-    return candidates_from_mcp_text(text)
-
-
 def parse_tool_args(raw: object) -> dict[str, Any]:
     if isinstance(raw, dict):
         return raw

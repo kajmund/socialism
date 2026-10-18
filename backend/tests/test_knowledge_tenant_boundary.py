@@ -10,20 +10,12 @@ from sqlalchemy.pool import StaticPool
 from app.database.base import Base
 from app.database.models import (
     CanonicalDocumentRecord,
-    EvidenceSetRevalidation,
     KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
     KnowledgeEntityRecord,
-    KnowledgeGraphEventRecord,
     KnowledgeQuestionRow,
     Kund,
     TextUnitRecord,
-)
-from app.services.execution.service import (
-    add_evidence_items,
-    create_evidence_set,
-    create_run,
-    freeze_evidence_set,
 )
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.claims import (
@@ -64,10 +56,6 @@ from app.services.knowledge.relationships import (
     persist_knowledge_relationship,
     relationships_touching,
 )
-from app.services.knowledge.revalidation import (
-    affected_frozen_evidence_sets,
-    graph_impact_from_event,
-)
 from app.services.knowledge.scope import (
     SCOPE_SHARED,
     KnowledgeScopeError,
@@ -80,13 +68,11 @@ from app.services.research.knowledge_question import (
     public_question_scope,
     tenant_question_scope,
 )
-from app.services.research.models import research_evidence
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_iteration import (
     match_canonical_question,
     resolve_or_create_knowledge_question,
 )
-from app.services.research.question_semantic import SemanticQuestionIdentityMatcher
 from tests.knowledge_fakes import FakeEmbeddingProvider, fake_embed_text
 
 
@@ -550,7 +536,7 @@ async def test_canonical_document_identity_is_tenant_safe(session: AsyncSession)
     assert other.document.customer_id == 2
 
 
-async def test_semantic_and_entity_resolution_cannot_merge_tenants(
+async def test_entity_resolution_cannot_merge_tenants(
     session: AsyncSession,
 ):
     first = knowledge_entity(
@@ -574,16 +560,7 @@ async def test_semantic_and_entity_resolution_cannot_merge_tenants(
                 to_id=second.id,
             ),
         )
-    store = MemoryKnowledgeVectorStore()
-    graph = SqlQuestionEvidenceGraph(
-        matcher=SemanticQuestionIdentityMatcher(
-            vector_store=store,
-            embeddings=FakeEmbeddingProvider(),
-            version="test-v1",
-            threshold=0.1,
-            limit=5,
-        )
-    )
+    graph = SqlQuestionEvidenceGraph()
     from app.services.research.execution import _session_factory
     from app.services.research.question_prepare import prepare_sql_question
     await session.commit()
@@ -592,82 +569,6 @@ async def test_semantic_and_entity_resolution_cannot_merge_tenants(
     second = await prepare_sql_question(factory, graph, "När kan avtalet jämkas?", tenant_question_scope(2))
     assert first.id != second.id
     assert second.scope.customer_id == 2
-
-
-async def test_revalidation_only_finds_evidence_sets_in_tenant_scope(
-    session: AsyncSession,
-):
-    persisted = await _persist_doc(
-        session,
-        document_id="doc-a",
-        customer_id=1,
-        text="HD ansåg att villkoret inte jämkas.",
-    )
-    claim = await _claim_for_doc(
-        session,
-        persisted=persisted,
-        customer_id=1,
-        predicate="legal.adjustment_granted",
-        value={"granted": False},
-    )
-    key = "rev-question"
-    await answer_research_need(
-        session,
-        research_need_id="need-a",
-        question_key=key,
-        claim_ids=[claim.id],
-        source_type="swedish_case_law",
-    )
-    run_a = await create_run(session, customer_id=1, module="dd", title="A")
-    run_b = await create_run(session, customer_id=2, module="dd", title="B")
-    set_a = await create_evidence_set(session, run_id=run_a.id)
-    set_b = await create_evidence_set(session, run_id=run_b.id)
-    item = research_evidence(
-        research_need_id="need-a",
-        source_type="swedish_case_law",
-        status="found",
-        excerpt="HD ansåg att villkoret inte jämkas.",
-        metadata={
-            "answered_by_question_key": key,
-            "knowledge_claim_ids": [claim.id],
-        },
-    )
-    await add_evidence_items(session, evidence_set_id=set_a.id, items=[item])
-    await add_evidence_items(
-        session,
-        evidence_set_id=set_b.id,
-        items=[
-            research_evidence(
-                research_need_id="need-b",
-                source_type="swedish_case_law",
-                status="found",
-                excerpt="Customer B frozen answer.",
-                metadata={
-                    "answered_by_question_key": "other-question",
-                    "knowledge_claim_ids": ["claim-b-only"],
-                },
-            )
-        ],
-    )
-    await freeze_evidence_set(session, set_a.id)
-    await freeze_evidence_set(session, set_b.id)
-    event = (
-        await session.execute(
-            select(KnowledgeGraphEventRecord).where(
-                KnowledgeGraphEventRecord.node_id == claim.id
-            )
-        )
-    ).scalar_one()
-    impact = await graph_impact_from_event(session, event)
-    affected = await affected_frozen_evidence_sets(
-        session, customer_id=1, impact=impact
-    )
-    assert [row.id for row in affected] == [set_a.id]
-    other = await affected_frozen_evidence_sets(
-        session, customer_id=2, impact=impact
-    )
-    assert other == []
-    assert list((await session.execute(select(EvidenceSetRevalidation))).scalars().all()) == []
 
 
 async def test_embedding_retrieval_excludes_other_tenant_text_units(

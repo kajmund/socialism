@@ -44,10 +44,12 @@ export function clearSmePanelMessages(panelId: string): Promise<void> {
 export function sendSmePanelMessage(
   panelId: string,
   message: string,
+  workspaceId: string,
+  documentMentions: { display_name: string; source_object_id: string }[] = [],
 ): Promise<SmeMessage[]> {
   return api.post<SmeMessage[]>(
     `/sme/panels/${panelId}/messages`,
-    { message },
+    { message, workspace_id: workspaceId, document_mentions: documentMentions },
     { timeoutMs: 120_000 },
   )
 }
@@ -57,17 +59,4 @@ export function markSmeThreadRead(
   id: string,
 ): Promise<{ last_read_message_id: number | null }> {
   return api.post(`/sme/threads/${type}/${id}/read`)
-}
-
-export type SmeExpertTurn = {
-  request_id: string
-  thread_type: "expert"
-  thread_id: string
-  status: "accepted" | "running" | "succeeded" | "failed"
-  error: string | null
-  messages: SmeMessage[]
-}
-
-export function getSmeExpertTurn(requestId: string): Promise<SmeExpertTurn> {
-  return api.get<SmeExpertTurn>(`/sme/expert-turns/${requestId}`)
 }

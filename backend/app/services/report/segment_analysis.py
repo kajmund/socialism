@@ -206,10 +206,6 @@ def interview_respondent_label(snippet: SegmentInterviewSnippet, *, locale: Repo
     return f"{day_l} — {who}"
 
 
-def interview_quote_label(snippet: SegmentInterviewSnippet, *, locale: ReportLocale) -> str:
-    return interview_respondent_label(snippet, locale=locale)
-
-
 def build_segment_narrative(  # noqa: C901, PLR0912, PLR0915
     seg: AudienceSegmentSummary,
     *,

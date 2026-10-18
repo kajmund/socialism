@@ -29,6 +29,17 @@ def test_population_action_names_default_excludes_create_post():
     assert "LIKE_POST" in names
     assert "INTERVIEW" not in names
     assert names[0] != "CREATE_POST"
+    for name in (
+        "FOLLOW",
+        "UNFOLLOW",
+        "MUTE",
+        "SEARCH_POSTS",
+        "REPORT_POST",
+        "TREND",
+        "REPOST",
+        "QUOTE_POST",
+    ):
+        assert name in names
 
 
 def test_population_action_names_reddit_omits_repost_quote():
@@ -36,11 +47,14 @@ def test_population_action_names_reddit_omits_repost_quote():
     assert "REPOST" not in names
     assert "QUOTE_POST" not in names
     assert "LIKE_POST" in names
+    assert "CREATE_COMMENT" in names
+    assert "TREND" in names
 
 
 def test_population_action_names_with_create_post_first():
     names = population_action_names(allow_population_create_post=True)
     assert names[0] == "CREATE_POST"
+    assert "CREATE_COMMENT" in names
     reddit = population_action_names(
         allow_population_create_post=True, platform="reddit"
     )

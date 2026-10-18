@@ -58,12 +58,12 @@ export function SmeExpertMemoryButton({
       <AdminButton
         variant="secondary"
         size="sm"
-        className="gap-1.5"
+        className="w-full justify-start gap-1.5"
         aria-label={t("experts.memory.logAria", { name })}
         onClick={() => void openMemoryLog()}
       >
         <Brain size={15} aria-hidden="true" />
-        <span className="hidden sm:inline">{t("experts.memory.log")}</span>
+        <span>{t("experts.memory.log")}</span>
       </AdminButton>
       <ExpertMemoryDialog
         open={open}

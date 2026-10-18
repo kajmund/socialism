@@ -1,0 +1,227 @@
+{
+  "id": "phase2-coverage-v3-gate-carveout",
+  "label": "Experimental: Coverage v3 with the reference/polarity gate on liability-secrecy-carveout. Not the default controller.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "ready_for_default_controller": false,
+  "controller": "deterministic_v3",
+  "proof_rule": "current",
+  "proof_gate": true,
+  "classify_unchanged": true,
+  "default_retriever_unchanged": true,
+  "discovery_unchanged": true,
+  "gold_id": "liability-secrecy-carveout",
+  "headline": {
+    "document_recall_b1": 0.0,
+    "leftover_at_b1": [
+      "Avtal_30_Ramavtal_tjanster.docx",
+      "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "Avtal_36_Underleverantorsavtal.docx",
+      "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "Avtal_60_Pilotavtal_PoC.docx",
+      "Avtal_05_Konsultavtal.docx",
+      "Avtal_46_SaaS_avtal.docx"
+    ],
+    "first_complete_budget": null,
+    "baseline_first_complete_budget": 3,
+    "first_complete_classified": null,
+    "baseline_first_complete_classified": 150,
+    "classified_b5": 482,
+    "baseline_classified_b5": 482,
+    "jev_calls_b5": 184,
+    "hop_fetches_b5": 12,
+    "work_after_complete": null,
+    "baseline_work_after_complete": 148,
+    "false_complete": [
+      "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx"
+    ],
+    "false_complete_count": 1,
+    "blocked_false_complete": [],
+    "blocked_true_positive": [
+      "Avtal_60_Pilotavtal_PoC.docx"
+    ],
+    "undecided_count": 1,
+    "budget_exhausted_documents": 92,
+    "wall_seconds": 35.783322624862194
+  },
+  "budgets": [
+    {
+      "budget": 1,
+      "classified": 100,
+      "jev_calls": 62,
+      "cache_hits": 38,
+      "document_recall": 0.0,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": null,
+      "hop_fetches": 0,
+      "budget_exhausted_documents": 92,
+      "unresolved_relevant_documents": [
+        "Avtal_30_Ramavtal_tjanster.docx",
+        "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+        "Avtal_36_Underleverantorsavtal.docx",
+        "Avtal_59_Agilt_IT_konsultavtal.docx",
+        "Avtal_60_Pilotavtal_PoC.docx",
+        "Avtal_05_Konsultavtal.docx",
+        "Avtal_46_SaaS_avtal.docx"
+      ],
+      "evidence_found_nonrelevant": [],
+      "gate_undecided": [],
+      "gate_blocked": {
+        "documents": [],
+        "blocked_false_complete": [],
+        "blocked_true_positive": [],
+        "undecided_count": 0
+      },
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 92,
+        "NEEDS_ANALYSIS": 8
+      },
+      "wall_seconds": 5.078603624831885
+    },
+    {
+      "budget": 2,
+      "classified": 200,
+      "jev_calls": 89,
+      "cache_hits": 111,
+      "document_recall": 0.14285714285714285,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": null,
+      "hop_fetches": 3,
+      "budget_exhausted_documents": 92,
+      "unresolved_relevant_documents": [
+        "Avtal_30_Ramavtal_tjanster.docx",
+        "Avtal_36_Underleverantorsavtal.docx",
+        "Avtal_59_Agilt_IT_konsultavtal.docx",
+        "Avtal_60_Pilotavtal_PoC.docx",
+        "Avtal_05_Konsultavtal.docx",
+        "Avtal_46_SaaS_avtal.docx"
+      ],
+      "evidence_found_nonrelevant": [],
+      "gate_undecided": [
+        "Avtal_60_Pilotavtal_PoC.docx"
+      ],
+      "gate_blocked": {
+        "documents": [
+          {
+            "relative_path": "Avtal_60_Pilotavtal_PoC.docx",
+            "relevant": true,
+            "reason": "unresolved_polarity",
+            "status": "UNDECIDED",
+            "would_have_completed": true
+          }
+        ],
+        "blocked_false_complete": [],
+        "blocked_true_positive": [
+          "Avtal_60_Pilotavtal_PoC.docx"
+        ],
+        "undecided_count": 1
+      },
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 92,
+        "NEEDS_ANALYSIS": 6,
+        "EVIDENCE_FOUND": 1,
+        "UNDECIDED": 1
+      },
+      "wall_seconds": 12.150054749567062
+    },
+    {
+      "budget": 3,
+      "classified": 298,
+      "jev_calls": 98,
+      "cache_hits": 200,
+      "document_recall": 0.8571428571428571,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": null,
+      "hop_fetches": 10,
+      "budget_exhausted_documents": 92,
+      "unresolved_relevant_documents": [
+        "Avtal_60_Pilotavtal_PoC.docx"
+      ],
+      "evidence_found_nonrelevant": [
+        "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx"
+      ],
+      "gate_undecided": [
+        "Avtal_60_Pilotavtal_PoC.docx"
+      ],
+      "gate_blocked": {
+        "documents": [
+          {
+            "relative_path": "Avtal_60_Pilotavtal_PoC.docx",
+            "relevant": true,
+            "reason": "unresolved_polarity",
+            "status": "UNDECIDED",
+            "would_have_completed": true
+          }
+        ],
+        "blocked_false_complete": [],
+        "blocked_true_positive": [
+          "Avtal_60_Pilotavtal_PoC.docx"
+        ],
+        "undecided_count": 1
+      },
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 92,
+        "EVIDENCE_FOUND": 7,
+        "UNDECIDED": 1
+      },
+      "wall_seconds": 19.475907291751355
+    },
+    {
+      "budget": 5,
+      "classified": 482,
+      "jev_calls": 184,
+      "cache_hits": 298,
+      "document_recall": 0.8571428571428571,
+      "jev_yes_document_recall": 1.0,
+      "first_complete_classified": null,
+      "hop_fetches": 12,
+      "budget_exhausted_documents": 92,
+      "unresolved_relevant_documents": [
+        "Avtal_60_Pilotavtal_PoC.docx"
+      ],
+      "evidence_found_nonrelevant": [
+        "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx"
+      ],
+      "gate_undecided": [
+        "Avtal_60_Pilotavtal_PoC.docx"
+      ],
+      "gate_blocked": {
+        "documents": [
+          {
+            "relative_path": "Avtal_60_Pilotavtal_PoC.docx",
+            "relevant": true,
+            "reason": "unresolved_polarity",
+            "status": "UNDECIDED",
+            "would_have_completed": true
+          }
+        ],
+        "blocked_false_complete": [],
+        "blocked_true_positive": [
+          "Avtal_60_Pilotavtal_PoC.docx"
+        ],
+        "undecided_count": 1
+      },
+      "status_counts": {
+        "BUDGET_EXHAUSTED": 92,
+        "EVIDENCE_FOUND": 7,
+        "UNDECIDED": 1
+      },
+      "wall_seconds": 35.19756258279085
+    }
+  ],
+  "versus_first_complete_evidence": {
+    "baseline": {
+      "budget": 3,
+      "classified": 298,
+      "first_complete_classified": 150,
+      "jev_calls": 98,
+      "cumulative_jev_calls": 249,
+      "work_after_complete": 148,
+      "hop_fetches": 10,
+      "evidence_found_nonrelevant": []
+    },
+    "treatment": null
+  },
+  "zero_false_complete": false
+}

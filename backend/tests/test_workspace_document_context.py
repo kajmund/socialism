@@ -6,17 +6,19 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 
+from app.database.workspace_models import WorkspaceArtifact
 from app.services.workspace_document_context import (
-    build_excerpts,
+    created_document_rows,
+    matching_artifact_id,
     matching_source_id,
     open_request_terms,
     select_excerpt_ids,
 )
 
 
-def test_one_ready_document_is_included_when_nothing_is_open():
+def test_a_closed_ready_document_stays_out_when_nothing_is_open():
     inventory = [{"source_object_id": "contract", "filename": "avtal.pdf", "knowledge_status": "ready"}]
-    assert select_excerpt_ids(inventory, []) == ["contract"]
+    assert select_excerpt_ids(inventory, []) == []
 
 
 def test_several_files_stay_out_of_the_turn_until_one_is_open():
@@ -42,14 +44,57 @@ def test_open_request_matches_the_customer_inside_the_contract():
     assert matching_source_id(inventory, texts, terms, "") == "contract"
     assert open_request_terms("öppna det", ["öppna avtalet med ateles som kund"]) == ["ateles"]
     assert matching_source_id(inventory, texts, ["ateles", "nyhetsbrev"], "") is None
+    assert matching_source_id(inventory, texts, [], "") == "contract"
+    assert matching_source_id(
+        [{"source_object_id": "only", "filename": "underlag.pdf"}],
+        {"only": "text"},
+        [],
+        "",
+    ) == "only"
+    assert matching_source_id(
+        [
+            {"source_object_id": "a", "filename": "Avtal.pdf"},
+            {"source_object_id": "b", "filename": "Avtal-2.pdf"},
+        ],
+        {"a": "ett", "b": "två"},
+        [],
+        "",
+    ) is None
 
 
-def test_excerpt_keeps_the_opening_pages_and_marks_the_rest():
-    inventory = {"contract": {"filename": "avtal.pdf", "knowledge_status": "ready"}}
-    excerpts = build_excerpts(["contract"], inventory, {"contract": "Kund: Aurora AB. " + ("x" * 50)}, limit=20)
-    assert excerpts[0]["text"].startswith("Kund: Aurora AB.")
-    assert excerpts[0]["truncated"] is True
-    assert len(excerpts[0]["text"]) == 20
+def test_a_named_draft_opens_and_several_drafts_do_not_guess():
+    drafts = [
+        WorkspaceArtifact(id="points", workspace_id="workspace", kind="document", title="Förhandlingspunkter", status="ready", revision=1, content={"blocks": []}),
+        WorkspaceArtifact(id="summary", workspace_id="workspace", kind="document", title="Sammanfattning", status="ready", revision=1, content={"blocks": []}),
+    ]
+    assert matching_artifact_id(drafts, ["förhandlingspunkter"]) == "points"
+    assert matching_artifact_id(drafts, ["saknas"]) is None
+    assert matching_artifact_id(drafts, []) is None
+    assert matching_artifact_id(drafts[:1], []) == "points"
+
+
+def test_only_an_open_draft_is_named_and_its_text_stays_out():
+    shown = WorkspaceArtifact(
+        id="points", workspace_id="workspace", kind="document", title="Förhandlingspunkter",
+        status="ready", revision=1, content={"blocks": [
+            {"type": "paragraph", "text": "8 600 kr i månaden"},
+            {"type": "heading", "text": "Säkerhet"},
+        ]},
+    )
+    other = WorkspaceArtifact(
+        id="summary", workspace_id="workspace", kind="document", title="Sammanfattning",
+        status="ready", revision=1, content={"blocks": [{"text": "annan text"}]},
+    )
+    hidden = WorkspaceArtifact(
+        id="chart", workspace_id="workspace", kind="comparison", title="Jämförelse",
+        status="failed", revision=0, content={},
+    )
+    rows = created_document_rows([other, hidden, shown], "points", open_ids={"points", "summary"})
+    assert [row["artifact_id"] for row in rows] == ["points", "summary"]
+    assert rows[0]["shown"] is True
+    assert "text" not in rows[0]
+    assert rows[1]["shown"] is False
+    assert created_document_rows([other, shown], "points", open_ids=set()) == []
 
 
 @pytest.fixture
@@ -241,7 +286,7 @@ def test_document_search_upgrade_replaces_the_filename_question(search_prompt_mi
         "SELECT default_sv,default_en,default_nb FROM prompt_fields WHERE key = :key"
     ), {"key": migration._SYSTEM}).one()
     assert tuple(row) == tuple(system[language] for language in ("sv", "en", "nb"))
-    assert "anropa search_knowledge med de orden" in row[0]
+    assert "anropa find_documents med query satt till en kompakt sökterm" in row[0]
     search_tool = connection.execute(sa.text("SELECT default_sv FROM prompt_fields WHERE key = :key"),
                                      {"key": "workspace.voice.tool.search_knowledge"}).scalar_one()
     assert search_tool == migration._catalog("workspace.voice.tool.search_knowledge")["sv"]
@@ -252,4 +297,57 @@ def test_document_search_upgrade_replaces_the_filename_question(search_prompt_mi
     restored = connection.execute(sa.text(
         "SELECT default_sv FROM prompt_fields WHERE key = :key"), {"key": migration._SYSTEM}).scalar_one()
     assert restored == previous["sv"]
-    assert "anropa search_knowledge med de orden" not in restored
+    assert "anropa find_documents med query satt till en kompakt sökterm" not in restored
+
+
+@pytest.fixture
+def created_document_prompt_migration(monkeypatch):
+    path = Path(__file__).parents[1] / "alembic/versions/167_created_documents_are_readable.py"
+    spec = importlib.util.spec_from_file_location("created_documents_prompt_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    engine = sa.create_engine("sqlite://")
+    with engine.begin() as connection:
+        connection.execute(sa.text(
+            "CREATE TABLE prompt_fields (id INTEGER PRIMARY KEY, key TEXT UNIQUE, "
+            "default_sv TEXT, default_en TEXT, default_nb TEXT)"
+        ))
+        connection.execute(sa.text(
+            "CREATE TABLE prompt_overrides (prompt_field_id INTEGER, customer_id INTEGER, language TEXT, text TEXT)"
+        ))
+        monkeypatch.setattr(migration.op, "get_bind", lambda: connection)
+        yield migration, connection
+    engine.dispose()
+
+
+def test_created_documents_upgrade_names_the_draft(created_document_prompt_migration):
+    migration, connection = created_document_prompt_migration
+    migration._SYSTEM_OLD["nb"] = migration._SYSTEM_OLD["sv"]
+    migration._SYSTEM_NEW["nb"] = migration._SYSTEM_NEW["sv"]
+    migration._TOOL_OLD["nb"] = migration._TOOL_OLD["sv"]
+    migration._TOOL_NEW["nb"] = migration._TOOL_NEW["sv"]
+    connection.execute(sa.text(
+        "INSERT INTO prompt_fields (id,key,default_sv,default_en,default_nb) VALUES (1,:key,:sv,:en,:nb)"
+    ), {"key": migration._SYSTEM, **migration._SYSTEM_OLD})
+    connection.execute(sa.text(
+        "INSERT INTO prompt_fields (id,key,default_sv,default_en,default_nb) VALUES (2,:key,:sv,:en,:nb)"
+    ), {"key": migration._TOOL, **migration._TOOL_OLD})
+    connection.execute(sa.text(
+        "INSERT INTO prompt_overrides VALUES (1,1,'sv',:text)"
+    ), {"text": migration._SYSTEM_OLD["sv"]})
+    connection.execute(sa.text("INSERT INTO prompt_overrides VALUES (1,2,'sv','egen text')"))
+    migration.upgrade()
+    migration.upgrade()
+    system = connection.execute(sa.text(
+        "SELECT default_sv,default_en,default_nb FROM prompt_fields WHERE key = :key"
+    ), {"key": migration._SYSTEM}).one()
+    assert tuple(system) == tuple(migration._SYSTEM_NEW[language] for language in ("sv", "en", "nb"))
+    overrides = connection.execute(sa.text(
+        "SELECT customer_id,text FROM prompt_overrides ORDER BY customer_id"
+    )).all()
+    assert overrides == [(1, migration._SYSTEM_NEW["sv"]), (2, "egen text")]
+    migration.downgrade()
+    restored = connection.execute(sa.text(
+        "SELECT default_sv FROM prompt_fields WHERE key = :key"
+    ), {"key": migration._SYSTEM}).scalar_one()
+    assert restored == migration._SYSTEM_OLD["sv"]

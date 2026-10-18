@@ -211,9 +211,10 @@ async def test_job_state_events_release_single_connection_before_broadcast(tmp_p
 @pytest.mark.asyncio
 async def test_job_snapshot_filters_owners_and_releases_pool_before_socket(tmp_path, monkeypatch):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from starlette.websockets import WebSocketDisconnect
+    from app.api.workspace_job_watch import watch_workspace_jobs
     from app.database.base import Base
     from app.serializers import utcnow
-    from app.services.job_watch import send_jobs_snapshot
     from app.database.workspaces import Workspace as CoreWorkspace
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/snapshot.db", pool_size=1, max_overflow=0, pool_timeout=0.3)
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -228,14 +229,39 @@ async def test_job_snapshot_filters_owners_and_releases_pool_before_socket(tmp_p
                 request={"workspace_id": "parent", "owner_user_id": owner, "source_context": "private"}, created_at=utcnow(), updated_at=utcnow()))
         await session.commit()
     events = []
+
     class CheckedSocket:
+        async def accept(self):
+            return None
+
+        async def receive_json(self):
+            return {"type": "hello", "scope": "jobs_watch"}
+
         async def send_json(self, event):
             async with factory() as reader:
                 assert await reader.get(Job, "job-admin") is not None
             events.append(event)
+
+        async def receive_text(self):
+            raise WebSocketDisconnect()
+
+    async def authenticate(_websocket):
+        return UserAccount(id="admin", email="admin@example.test", role="admin")
+
+    async def send_error(_websocket, _message):
+        return None
+
+    async def close_auth_error(_websocket, _exc):
+        return None
+
     monkeypatch.setattr(jobs, "job_session_factory", lambda: factory)
     try:
-        await send_jobs_snapshot(CheckedSocket(), UserAccount(id="admin", email="admin@example.test", role="admin"), customer_id=None)
+        await watch_workspace_jobs(
+            CheckedSocket(),
+            authenticate=authenticate,
+            send_error=send_error,
+            close_auth_error=close_auth_error,
+        )
     finally:
         await engine.dispose()
     assert [job["id"] for job in events[0]["jobs"]] == ["job-admin"]

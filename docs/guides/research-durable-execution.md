@@ -116,8 +116,8 @@ Startup no longer marks in-flight research failed.
 
 ## Out of scope
 
-WebSocket progress (later spec), distributed schedulers, Graphiti, report
-jobs, and explicit cancellation.
+WebSocket progress (later spec), distributed schedulers, report jobs, and
+explicit cancellation.
 
 ## Answer review scheduling
 

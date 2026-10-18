@@ -59,7 +59,7 @@ export function formatAppointments(bolag: DdResearchPersonCompany[]): string {
   return bolag.map((row) => (row.orgnr ? `${row.namn} (${row.orgnr})` : row.namn)).join(", ")
 }
 
-export function isAuditorRole(roll: string): boolean {
+function isAuditorRole(roll: string): boolean {
   return roll.toLowerCase().includes("revisor")
 }
 
@@ -151,7 +151,7 @@ export function appointmentBreakdown(
   }
 }
 
-export function matchesPersonSearch(person: DdResearchPerson, query: string): boolean {
+function matchesPersonSearch(person: DdResearchPerson, query: string): boolean {
   const q = query.trim().toLowerCase()
   if (!q) return true
   if (person.namn.toLowerCase().includes(q)) return true

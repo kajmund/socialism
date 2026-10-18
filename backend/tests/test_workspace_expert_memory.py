@@ -11,7 +11,7 @@ from app.services.research.expert_knowledge import (
     publish_research_question_knowledge,
     remember_published_question,
 )
-from app.services.research.question_graph_memory import InMemoryQuestionEvidenceGraph
+from tests.question_graph_memory import InMemoryQuestionEvidenceGraph
 from tests.test_research_question_attempt_worker import _setup
 
 

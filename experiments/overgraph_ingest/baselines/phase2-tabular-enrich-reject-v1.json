@@ -1,0 +1,28 @@
+{
+  "id": "phase2-tabular-enrich-reject-v1",
+  "label": "Negative experiment: heading-enriched embeddings are not the Tabular Review search representation. Original TextUnit embeddings stay. C is not run.",
+  "do_not_overwrite": true,
+  "verdict": "rejected",
+  "rejected": "B",
+  "kept": "A",
+  "does_not_run_c": true,
+  "does_not_run_jev": true,
+  "original_embeddings_stay": true,
+  "next_is_candidate_presentation": true,
+  "default_remains_d": true,
+  "headline": {
+    "hit@5": 0.9642857142857143,
+    "gold_hits_at_5": 81,
+    "a_hit@3": 0.9523809523809523,
+    "b_hit@3": 0.9404761904761905,
+    "a_hit@10": 0.9642857142857143,
+    "b_hit@10": 0.9880952380952381,
+    "a_mrr": 0.7648046398046398,
+    "b_mrr": 0.7817830978545265,
+    "a_hard_negative@5": 0.023809523809523808,
+    "b_hard_negative@5": 0.023809523809523808,
+    "a_tokens": 57517,
+    "b_tokens": 105506
+  },
+  "reason": "B did not add gold to the k=5 budget. It nearly doubled embedding tokens. Nearby-clause errors remain a Jev problem."
+}

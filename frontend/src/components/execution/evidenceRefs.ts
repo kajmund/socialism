@@ -40,7 +40,7 @@ export function foundItemsInOrdinalOrder(items: readonly EvidenceSetItem[]): Evi
     .sort((a, b) => a.ordinal - b.ordinal || a.id.localeCompare(b.id))
 }
 
-export function itemIdFromEvidenceRefs(
+function itemIdFromEvidenceRefs(
   ref: string,
   evidenceRefs: Record<string, unknown> | null | undefined,
 ): string | null {

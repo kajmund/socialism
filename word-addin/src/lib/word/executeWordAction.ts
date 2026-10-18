@@ -5,7 +5,7 @@ import {
 } from "@/lib/office"
 import type { WordAction } from "@/lib/types"
 
-export type WordActionKind = "comment" | "replace" | "unsupported"
+type WordActionKind = "comment" | "replace" | "unsupported"
 
 export type WordActionExecutionOutcome =
   | { status: "resolved"; wordArtifactId: string }

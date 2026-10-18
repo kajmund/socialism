@@ -361,13 +361,6 @@ def schedule_research_progress_delivery(
     )
 
 
-async def deliver_research_progress_events(
-    events: list[ResearchProgressEvent],
-) -> None:
-    """Best-effort live fan-out. Persistence already committed; never raise."""
-    schedule_research_progress_delivery(events)
-
-
 async def _deliver_research_progress_payloads(
     payloads: list[tuple[str, dict[str, Any]]],
 ) -> None:

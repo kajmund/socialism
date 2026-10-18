@@ -1,10 +1,10 @@
-"""Workspace upload with database inputs released before conversion and S3."""
+"""Workspace upload with database inputs released before S3."""
 
 from __future__ import annotations
 
+import hashlib
 import secrets
 from dataclasses import dataclass
-from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -13,7 +13,6 @@ from app.database.transaction_state import has_pending_writes
 from app.serializers import utcnow
 from app.services.object_storage import (
     KIND_UNDERLAG,
-    UNDERLAG_DOCX_TYPE,
     bucket_name,
     ensure_bucket,
     module_prefix,
@@ -21,7 +20,6 @@ from app.services.object_storage import (
     safe_filename,
     validate_underlag,
 )
-from app.services.underlag_pdf import UnderlagPdfConversionError, convert_docx_to_pdf_async
 from app.services.workspaces import resolve_workspace
 
 
@@ -63,7 +61,7 @@ async def upload_document(session: AsyncSession, upload: UnderlagUpload) -> Stor
         if customer is None:
             raise LookupError("Customer not found")
         bucket = bucket_name(customer.slug)
-    name, data, content_type = await _upload_content(upload, resolved_type)
+    name, data, content_type = safe_filename(upload.filename), upload.data, resolved_type
     await ensure_bucket(bucket)
     object_id = secrets.token_hex(16)
     key = f"{module_prefix(upload.module)}/workspaces/{workspace_id}/underlag/{object_id}/{name}"
@@ -72,6 +70,7 @@ async def upload_document(session: AsyncSession, upload: UnderlagUpload) -> Stor
         id=object_id, customer_id=upload.customer_id, workspace_id=workspace_id,
         module=upload.module, kind=KIND_UNDERLAG, bucket=bucket, object_key=key,
         filename=name, content_type=content_type, size_bytes=len(data),
+        content_sha256=hashlib.sha256(data).hexdigest(),
         owner_user_id=upload.owner_user_id, folder_id=upload.folder_id,
         extracted_text=None, extraction_status="pending", knowledge_status="pending",
         knowledge_error=None, knowledge_job_id=None, created_at=utcnow(),
@@ -79,14 +78,3 @@ async def upload_document(session: AsyncSession, upload: UnderlagUpload) -> Stor
     session.add(row)
     await session.flush()
     return row
-
-
-async def _upload_content(upload: UnderlagUpload, resolved_type: str) -> tuple[str, bytes, str]:
-    name = safe_filename(upload.filename)
-    if resolved_type != UNDERLAG_DOCX_TYPE:
-        return name, upload.data, resolved_type
-    try:
-        data = await convert_docx_to_pdf_async(upload.data, filename=name)
-    except UnderlagPdfConversionError as exc:
-        raise ValueError(str(exc)) from exc
-    return f"{Path(name).stem or 'document'}.pdf", data, "application/pdf"

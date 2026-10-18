@@ -79,7 +79,7 @@ export function editableToWrite(
   }
 }
 
-export function listPersonas(params?: {
+function listPersonas(params?: {
   q?: string
   origin?: string
   exclude_origin?: string

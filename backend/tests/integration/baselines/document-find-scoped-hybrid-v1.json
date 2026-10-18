@@ -1,0 +1,49 @@
+{
+  "chosen_default": "scoped_per_document",
+  "corpus": {
+    "documents_total": 48,
+    "lease_documents": 8,
+    "gold_leases": 5,
+    "noise_documents": 40,
+    "text_units_total": 96,
+    "limit": 5
+  },
+  "scoped_from_category": {
+    "ids": [],
+    "recall_at_limit": 0.0,
+    "vector_searches": 1,
+    "db_ms": 0.09837500692810863,
+    "total_ms": 0.11249999806750566,
+    "text_unit_reads": 0,
+    "note": "OverGraph scope from Category node returned no usable hits in v1"
+  },
+  "scoped_per_document": {
+    "ids": [
+      "lease-ext-0",
+      "lease-ext-1",
+      "lease-ext-2",
+      "lease-ext-3",
+      "lease-ext-4"
+    ],
+    "recall_at_limit": 1.0,
+    "vector_searches": 8,
+    "db_ms": 0.4445829981705174,
+    "total_ms": 0.4505419929046184,
+    "text_unit_reads": 8
+  },
+  "global_post_filter": {
+    "ids": [],
+    "recall_at_limit": 0.0,
+    "vector_searches": 1,
+    "db_ms": 0.18083301256410778,
+    "total_ms": 0.18404200091026723,
+    "text_unit_reads": 5
+  },
+  "gold": [
+    "lease-ext-0",
+    "lease-ext-1",
+    "lease-ext-2",
+    "lease-ext-3",
+    "lease-ext-4"
+  ]
+}

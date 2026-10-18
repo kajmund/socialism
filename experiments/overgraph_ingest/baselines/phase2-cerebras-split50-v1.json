@@ -1,0 +1,383 @@
+{
+  "id": "phase2-cerebras-split50-v1",
+  "label": "Frozen: hybrid top-100 judged as two sequential GPT-OSS medium calls of 50 with minimal JSON and the working 8192 cap. Measures whether the naive rerank scales without one-shot k=100. Does not replace C@8, output v1, or the k=100 retrieval freeze. k=200 and second opinion are not started. 24/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_replace_cerebras_output": true,
+  "does_not_replace_cerebras_k100": true,
+  "k200_not_started": true,
+  "second_opinion_not_started": true,
+  "one_shot_k100_not_retried": true,
+  "does_not_change_reasoning": true,
+  "applied_to_v3": false,
+  "same_retrieval_strategy": "hybrid",
+  "task": "formulation_presence",
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "k": 100,
+    "batch_size": 50,
+    "calls_per_question": 2,
+    "model": "gpt-oss-120b",
+    "setting": "medium",
+    "variant": "minimal",
+    "max_completion_tokens": 8192,
+    "rate_card_date": "2026-10-09",
+    "model_completes": true,
+    "summary": {
+      "golds": 5,
+      "mean_precision": 0.6668233450842147,
+      "mean_candidate_recall": 1.0,
+      "mean_corpus_recall": 0.876923076923077,
+      "mean_corpus_document_recall": 0.876923076923077,
+      "mean_ttft_seconds": 1.6640684248879551,
+      "mean_model_seconds": 2.9095506417565047,
+      "total_prompt_tokens": 33251,
+      "total_completion_tokens": 17246,
+      "cost_usd": 0.02457235,
+      "total_id_errors": 0,
+      "total_reasoning_tokens": 16212,
+      "total_true_matches": 79,
+      "total_visible_json_chars": 1105,
+      "total_lost_from_k50_true_matches": 0,
+      "total_model_caught_gain": 7,
+      "total_model_missed_from_k50": 0,
+      "cost_per_true_match_usd": 0.00031104240506329116,
+      "reference_true_matches": 72,
+      "reference_cost_usd": 0.0128883,
+      "reference_cost_per_true_match_usd": 0.00017900416666666666,
+      "mean_top50_overlap": 50.0,
+      "total_retrieval_gain": 7,
+      "mean_retrieval_corpus_recall": 0.876923076923077,
+      "mean_precision_delta": -0.06788253726872653,
+      "mean_candidate_recall_delta": 0.0
+    },
+    "golds": [
+      {
+        "gold_id": "auto-renewal",
+        "precision": 1.0,
+        "candidate_recall": 1.0,
+        "corpus_recall": 1.0,
+        "retrieval_corpus_recall": 1.0,
+        "relevant_in_candidates": 20,
+        "relevant_in_corpus": 20,
+        "true_matches": 20,
+        "match": 20,
+        "uncertain": 0,
+        "id_errors": 0,
+        "prompt_tokens": 6929,
+        "completion_tokens": 3183,
+        "reasoning_tokens": 3035,
+        "cost_usd": 0.0048124,
+        "cost_per_true_match_usd": 0.00024061999999999998,
+        "model_seconds": 2.214261249639094,
+        "effects": {
+          "top50_overlap": 50,
+          "relevant_in_frozen_50": 20,
+          "relevant_in_new_50": 20,
+          "relevant_in_100": 20,
+          "retrieval_gain": 0,
+          "still_missing": 0,
+          "model_missed_from_k50": 0,
+          "model_caught_gain": 0,
+          "retrieval_gain_keys": [],
+          "model_missed_from_k50_keys": []
+        },
+        "group_effects": {
+          "first50_previous_match": 20,
+          "first50_batch_match": 20,
+          "lost_from_k50_matches": 0,
+          "lost_from_k50_true_matches": 0,
+          "new_on_k50_matches": 0,
+          "lost_from_k50_true_match_keys": []
+        },
+        "batch_quality": {
+          "first50": {
+            "relevant": 20,
+            "match": 20,
+            "true_matches": 20,
+            "precision": 1.0,
+            "candidate_recall": 1.0
+          },
+          "second50": {
+            "relevant": 0,
+            "match": 0,
+            "true_matches": 0,
+            "precision": 0.0,
+            "candidate_recall": 0.0
+          }
+        },
+        "delta": {
+          "precision": 0.0,
+          "candidate_recall": 0.0,
+          "true_matches": 0,
+          "completion_tokens": 1221,
+          "model_seconds": 0.9164244579151273
+        }
+      },
+      {
+        "gold_id": "notice-period",
+        "precision": 0.4782608695652174,
+        "candidate_recall": 1.0,
+        "corpus_recall": 0.8461538461538461,
+        "retrieval_corpus_recall": 0.8461538461538461,
+        "relevant_in_candidates": 11,
+        "relevant_in_corpus": 13,
+        "true_matches": 11,
+        "match": 23,
+        "uncertain": 16,
+        "id_errors": 0,
+        "prompt_tokens": 6494,
+        "completion_tokens": 3263,
+        "reasoning_tokens": 3041,
+        "cost_usd": 0.004720149999999999,
+        "cost_per_true_match_usd": 0.0004291045454545454,
+        "model_seconds": 2.510969125200063,
+        "effects": {
+          "top50_overlap": 50,
+          "relevant_in_frozen_50": 11,
+          "relevant_in_new_50": 11,
+          "relevant_in_100": 11,
+          "retrieval_gain": 0,
+          "still_missing": 2,
+          "model_missed_from_k50": 0,
+          "model_caught_gain": 0,
+          "retrieval_gain_keys": [],
+          "model_missed_from_k50_keys": []
+        },
+        "group_effects": {
+          "first50_previous_match": 20,
+          "first50_batch_match": 20,
+          "lost_from_k50_matches": 0,
+          "lost_from_k50_true_matches": 0,
+          "new_on_k50_matches": 0,
+          "lost_from_k50_true_match_keys": []
+        },
+        "batch_quality": {
+          "first50": {
+            "relevant": 11,
+            "match": 20,
+            "true_matches": 11,
+            "precision": 0.55,
+            "candidate_recall": 1.0
+          },
+          "second50": {
+            "relevant": 0,
+            "match": 3,
+            "true_matches": 0,
+            "precision": 0.0,
+            "candidate_recall": 0.0
+          }
+        },
+        "delta": {
+          "precision": -0.07173913043478264,
+          "candidate_recall": 0.0,
+          "true_matches": 0,
+          "completion_tokens": 1700,
+          "model_seconds": 1.4836183753795922
+        }
+      },
+      {
+        "gold_id": "liability-cap",
+        "precision": 0.6666666666666666,
+        "candidate_recall": 1.0,
+        "corpus_recall": 1.0,
+        "retrieval_corpus_recall": 1.0,
+        "relevant_in_candidates": 34,
+        "relevant_in_corpus": 34,
+        "true_matches": 34,
+        "match": 51,
+        "uncertain": 2,
+        "id_errors": 0,
+        "prompt_tokens": 6085,
+        "completion_tokens": 4873,
+        "reasoning_tokens": 4556,
+        "cost_usd": 0.0057845,
+        "cost_per_true_match_usd": 0.00017013235294117645,
+        "model_seconds": 3.697405083104968,
+        "effects": {
+          "top50_overlap": 50,
+          "relevant_in_frozen_50": 28,
+          "relevant_in_new_50": 28,
+          "relevant_in_100": 34,
+          "retrieval_gain": 6,
+          "still_missing": 0,
+          "model_missed_from_k50": 0,
+          "model_caught_gain": 6,
+          "retrieval_gain_keys": [
+            "41adb933d6e3fab8a7b76b4122b8c174d6c6cc5237bee641a93d326da1e06fe1",
+            "5966e3a929c10c11e8ba2307e1ab32df0d86962b02b16e2082ee62ea25393e55",
+            "8a7d4080897f85ea2af63a0537ec79130970c1ebab79d338d591e3b4f3765b02",
+            "91068dd536112040916d2fd7ae3ad6710ebf0e227cea20931f343894504ba568",
+            "92f49817381f1f40e37c98030df722711c09f4cbdb64b833099a486f645650bc",
+            "eee5210d3e3003af9361d308e5c1c1839d56f0447b6c0d07db36dd87682716e7"
+          ],
+          "model_missed_from_k50_keys": []
+        },
+        "group_effects": {
+          "first50_previous_match": 34,
+          "first50_batch_match": 35,
+          "lost_from_k50_matches": 0,
+          "lost_from_k50_true_matches": 0,
+          "new_on_k50_matches": 1,
+          "lost_from_k50_true_match_keys": []
+        },
+        "batch_quality": {
+          "first50": {
+            "relevant": 28,
+            "match": 35,
+            "true_matches": 28,
+            "precision": 0.8,
+            "candidate_recall": 1.0
+          },
+          "second50": {
+            "relevant": 6,
+            "match": 16,
+            "true_matches": 6,
+            "precision": 0.375,
+            "candidate_recall": 1.0
+          }
+        },
+        "delta": {
+          "precision": -0.1568627450980392,
+          "candidate_recall": 0.0,
+          "true_matches": 6,
+          "completion_tokens": 2053,
+          "model_seconds": 1.4729131660424173
+        }
+      },
+      {
+        "gold_id": "confidentiality",
+        "precision": 0.1891891891891892,
+        "candidate_recall": 1.0,
+        "corpus_recall": 0.5384615384615384,
+        "retrieval_corpus_recall": 0.5384615384615384,
+        "relevant_in_candidates": 7,
+        "relevant_in_corpus": 13,
+        "true_matches": 7,
+        "match": 37,
+        "uncertain": 7,
+        "id_errors": 0,
+        "prompt_tokens": 7526,
+        "completion_tokens": 2795,
+        "reasoning_tokens": 2521,
+        "cost_usd": 0.00473035,
+        "cost_per_true_match_usd": 0.0006757642857142858,
+        "model_seconds": 3.13286487525329,
+        "effects": {
+          "top50_overlap": 50,
+          "relevant_in_frozen_50": 6,
+          "relevant_in_new_50": 6,
+          "relevant_in_100": 7,
+          "retrieval_gain": 1,
+          "still_missing": 6,
+          "model_missed_from_k50": 0,
+          "model_caught_gain": 1,
+          "retrieval_gain_keys": [
+            "4a5ffcfa7ca13933ed18e89e3c8c8b8933695d9ecc054cb5a5605cbc8a058362"
+          ],
+          "model_missed_from_k50_keys": []
+        },
+        "group_effects": {
+          "first50_previous_match": 20,
+          "first50_batch_match": 21,
+          "lost_from_k50_matches": 0,
+          "lost_from_k50_true_matches": 0,
+          "new_on_k50_matches": 1,
+          "lost_from_k50_true_match_keys": []
+        },
+        "batch_quality": {
+          "first50": {
+            "relevant": 6,
+            "match": 21,
+            "true_matches": 6,
+            "precision": 0.2857142857142857,
+            "candidate_recall": 1.0
+          },
+          "second50": {
+            "relevant": 1,
+            "match": 16,
+            "true_matches": 1,
+            "precision": 0.0625,
+            "candidate_recall": 1.0
+          }
+        },
+        "delta": {
+          "precision": -0.11081081081081079,
+          "candidate_recall": 0.0,
+          "true_matches": 1,
+          "completion_tokens": 1093,
+          "model_seconds": 2.082288750447333
+        }
+      },
+      {
+        "gold_id": "liability-secrecy-carveout",
+        "precision": 1.0,
+        "candidate_recall": 1.0,
+        "corpus_recall": 1.0,
+        "retrieval_corpus_recall": 1.0,
+        "relevant_in_candidates": 7,
+        "relevant_in_corpus": 7,
+        "true_matches": 7,
+        "match": 7,
+        "uncertain": 0,
+        "id_errors": 0,
+        "prompt_tokens": 6217,
+        "completion_tokens": 3132,
+        "reasoning_tokens": 3059,
+        "cost_usd": 0.00452495,
+        "cost_per_true_match_usd": 0.0006464214285714286,
+        "model_seconds": 2.992252875585109,
+        "effects": {
+          "top50_overlap": 50,
+          "relevant_in_frozen_50": 7,
+          "relevant_in_new_50": 7,
+          "relevant_in_100": 7,
+          "retrieval_gain": 0,
+          "still_missing": 0,
+          "model_missed_from_k50": 0,
+          "model_caught_gain": 0,
+          "retrieval_gain_keys": [],
+          "model_missed_from_k50_keys": []
+        },
+        "group_effects": {
+          "first50_previous_match": 7,
+          "first50_batch_match": 7,
+          "lost_from_k50_matches": 0,
+          "lost_from_k50_true_matches": 0,
+          "new_on_k50_matches": 0,
+          "lost_from_k50_true_match_keys": []
+        },
+        "batch_quality": {
+          "first50": {
+            "relevant": 7,
+            "match": 7,
+            "true_matches": 7,
+            "precision": 1.0,
+            "candidate_recall": 1.0
+          },
+          "second50": {
+            "relevant": 0,
+            "match": 0,
+            "true_matches": 0,
+            "precision": 0.0,
+            "candidate_recall": 0.0
+          }
+        },
+        "delta": {
+          "precision": 0.0,
+          "candidate_recall": 0.0,
+          "true_matches": 0,
+          "completion_tokens": 1591,
+          "model_seconds": 1.9540009587071836
+        }
+      }
+    ]
+  }
+}

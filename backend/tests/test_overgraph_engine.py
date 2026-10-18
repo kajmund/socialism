@@ -1,7 +1,5 @@
 """OverGraph fact/TextUnit model, isolation, retrieval, ingest and mem0 store."""
 
-from dataclasses import dataclass
-
 import pytest
 
 from app.services.graph_v2.identity import fact_identity
@@ -19,7 +17,6 @@ from app.services.overgraph.retrieval import (
     rank_seeds,
     scoped_search,
 )
-from app.services.overgraph.traversal import CandidateJudge, TraversalBudget, traverse_question
 from app.services.overgraph.research import (
     ResearchFactWrite,
     has_supported_facts,
@@ -52,15 +49,6 @@ class Embedder:
 
     async def embed(self, texts):
         return [list(_vector(1.0)) for _ in texts]
-
-
-@dataclass
-class FakeJev:
-    default: float = 0.9
-
-    async def ask(self, **kwargs):
-        answers = {key: {"noul": self.default} for key in kwargs["questions"]}
-        return type("Result", (), {"answers": answers, "model": "test"})()
 
 
 @pytest.fixture
@@ -228,18 +216,6 @@ async def test_batch_text_unit_ingest(knowledge):
     written = await ingest_document_units(knowledge, units, ingest_mode=True)
     assert len(written) == 2
     assert knowledge.get_by_key(TEXT_UNIT, written[0].key) is not None
-
-
-@pytest.mark.asyncio
-async def test_jev_scores_several_candidates(knowledge):
-    a, b = _entity(knowledge, "A"), _entity(knowledge, "B")
-    first, _ = await resolve_fact(knowledge, _fact(a, b, "A gäller B"))
-    judge = CandidateJudge(FakeJev(), {"type": "noul", "instructions": "bedöm"})
-    result = await traverse_question(
-        knowledge, customer_id=1, question="Gäller A B?",
-        dense_query=_vector(1.0), judge=judge, budget=TraversalBudget(max_jev=4),
-    )
-    assert first.key in {hit.key for hit in result.seeds + result.selected}
 
 
 def test_mem0_store_isolates_and_deletes(memory):

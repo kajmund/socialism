@@ -109,14 +109,6 @@ def set_lagen_nu_selector_factory(
     set_passage_selector_factory(factory)
 
 
-def set_research_need_normalizer_factory(
-    factory: NeedNormalizerFactory | None,
-) -> None:
-    """Test seam for domain need normalization. Production leaves this unset."""
-    global _need_normalizer_factory
-    _need_normalizer_factory = factory
-
-
 def require_knowledge_vector_store() -> KnowledgeVectorStore:
     """Return the configured shared vector store for ingest and research."""
     if _vector_store_factory is None:

@@ -93,7 +93,9 @@ def test_reviewed_text_from_job_request_walks_sections() -> None:
     request = _request()
     assert reviewed_text_from_job_request(request, 0) == "Inledning"
     assert reviewed_text_from_job_request(request, 1) == "Första stycket."
+    assert reviewed_text_from_job_request(request, 4) == "Sista stycket."
     assert reviewed_text_from_job_request(request, 9) is None
+    assert reviewed_text_from_job_request(None, 1) is None
     implicit = {
         "sections": [
             {

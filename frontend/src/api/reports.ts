@@ -1,5 +1,4 @@
 import { api, ApiError } from "@/lib/api"
-import { env } from "@/lib/env"
 import type { Locale } from "@/i18n"
 
 export type ReportStatus = "pending" | "running" | "succeeded" | "failed"
@@ -152,11 +151,6 @@ export function bulkDeleteReports(ids: string[]): Promise<ReportBulkDeleteResult
   return api.post<ReportBulkDeleteResult>("/reports/bulk-delete", { ids })
 }
 
-export function reportHtmlUrl(id: string): string {
-  const base = env.apiBaseUrl.replace(/\/$/, "")
-  return `${base}/reports/${id}/html`
-}
-
 export async function getReportHtml(id: string): Promise<string> {
   const body = await api.get<unknown>(`/reports/${id}/html`)
   if (typeof body !== "string" || !body.trim()) {
@@ -167,35 +161,4 @@ export async function getReportHtml(id: string): Promise<string> {
 
 export function getReportSourcePdf(id: string): Promise<Blob> {
   return api.getBlob(`/reports/${id}/source-pdf`)
-}
-
-export type RecommendationSnapshot = {
-  score: number
-  action: string
-  recommended_arm: string | null
-  verdict_key: string
-}
-
-export type VerdictCalibration = {
-  report_id: string
-  matches: boolean | null
-  note: string | null
-  recommendation: RecommendationSnapshot | null
-  updated_at: string | null
-}
-
-export type VerdictCalibrationWrite = {
-  matches: boolean
-  note?: string | null
-}
-
-export function getVerdictCalibration(reportId: string): Promise<VerdictCalibration> {
-  return api.get<VerdictCalibration>(`/reports/${reportId}/verdict-calibration`)
-}
-
-export function saveVerdictCalibration(
-  reportId: string,
-  body: VerdictCalibrationWrite,
-): Promise<VerdictCalibration> {
-  return api.post<VerdictCalibration>(`/reports/${reportId}/verdict-calibration`, body)
 }

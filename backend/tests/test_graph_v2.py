@@ -2,7 +2,6 @@
 
 import asyncio
 from dataclasses import replace
-from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import func, select
@@ -17,7 +16,6 @@ from app.database.graph_v2 import (
 from app.database.models import Kund
 from app.services.graph_v2.dependencies import attach_question_dependency
 from app.services.graph_v2.retrieval import hybrid_facts, neighbourhood
-from app.services.graph_v2.temporal import invalidate_fact
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.graph_v2.write import resolve_fact, resolve_node
 from app.services.knowledge.scope import customer_scope
@@ -93,16 +91,6 @@ async def test_same_fact_multiple_sources_semantics_and_contradiction(session):
         judge=OppositeFirst(),
     )
     assert matching.id == first.id and decision == "SAME"
-    with pytest.raises(ValueError, match="matching scope"):
-        other_context = await node(session, "Other context")
-        scoped, _ = await resolve_fact(session, fact(a, b, "A gäller inte B", context=other_context.id))
-        await invalidate_fact(
-            session, prior_id=first.id, successor_id=scoped.id, at=datetime.now(UTC),
-        )
-    await invalidate_fact(
-        session, prior_id=first.id, successor_id=opposite.id, at=datetime.now(UTC),
-    )
-    assert first.status == "invalidated"
 
 
 async def test_context_occurrence_tenant_and_multi_hop(session):

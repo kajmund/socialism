@@ -1,0 +1,280 @@
+{
+  "id": "liability-secrecy-carveout",
+  "kind": "multi_clause",
+  "proof_kind": "COMPOSITE",
+  "query": "Vilka avtal undantar brott mot sekretess från ansvarsbegränsningen?",
+  "classify_question": "Innehåller texten att ansvarsbegränsningen inte gäller vid brott mot sekretess?",
+  "notes": "Synthetic contracts_v2 gold. Not legally reviewed. UNCERTAIN is not NO. Gold tests prevailing terms of the document, not mere formulation presence.",
+  "relevant_documents": [
+    "avtal_103.docx",
+    "avtal_105.docx",
+    "avtal_106.docx",
+    "avtal_107.docx",
+    "avtal_111.docx",
+    "avtal_113.docx",
+    "avtal_114.docx",
+    "avtal_116.docx",
+    "avtal_118.docx",
+    "avtal_120.docx",
+    "avtal_121.docx",
+    "avtal_122.docx",
+    "avtal_123.docx",
+    "avtal_125.docx",
+    "avtal_127.docx",
+    "avtal_129.docx",
+    "avtal_130.docx",
+    "avtal_134.docx",
+    "avtal_135.docx",
+    "avtal_136.docx",
+    "avtal_137.docx",
+    "avtal_139.docx",
+    "avtal_140.docx",
+    "avtal_141.docx",
+    "avtal_144.docx",
+    "avtal_153.docx",
+    "avtal_155.docx",
+    "avtal_157.docx",
+    "avtal_158.docx",
+    "avtal_159.docx",
+    "avtal_160.docx",
+    "avtal_161.docx",
+    "avtal_163.docx",
+    "avtal_164.docx",
+    "avtal_167.docx",
+    "avtal_168.docx",
+    "avtal_169.docx",
+    "avtal_171.docx",
+    "avtal_172.docx",
+    "avtal_175.docx",
+    "avtal_176.docx",
+    "avtal_179.docx",
+    "avtal_180.docx",
+    "avtal_181.docx",
+    "avtal_184.docx",
+    "avtal_187.docx",
+    "avtal_190.docx",
+    "avtal_192.docx",
+    "avtal_193.docx",
+    "avtal_194.docx",
+    "avtal_195.docx",
+    "avtal_196.docx",
+    "avtal_199.docx"
+  ],
+  "relevant_units": [
+    {
+      "relative_path": "avtal_103.docx",
+      "contains": "Inget i denna punkt ska begränsa parts ansvar för brott mot avsnitt 4."
+    },
+    {
+      "relative_path": "avtal_105.docx",
+      "contains": "Ansvarsbegränsningen enligt bestämmelsen under rubriken ”Begränsning av ansvar” är inte tillämplig på skada som uppstår genom att part bryter mot sina åtaganden enligt bestämmelsen under rubriken ”Skydd för information”."
+    },
+    {
+      "relative_path": "avtal_106.docx",
+      "contains": "Begränsningen i denna punkt ska inte tillämpas om skadan har orsakats uppsåtligen eller genom grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_107.docx",
+      "contains": "Begränsningarna i denna punkt ska inte tillämpas om skadan har orsakats uppsåtligen eller genom grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_111.docx",
+      "contains": "Begränsningen i punkt 6.1 i huvudavtalet gäller inte för skada till följd av brott mot punkt 4 i huvudavtalet."
+    },
+    {
+      "relative_path": "avtal_113.docx",
+      "contains": "Begränsningarna ovan gäller inte vid skada som har orsakats genom uppsåt eller grov vårdslöshet, och inte heller vid brott mot parts skyldigheter avseende Konfidentiell Information."
+    },
+    {
+      "relative_path": "avtal_114.docx",
+      "contains": "Ansvarsbegränsningen enligt avsnitt 6.1 är inte tillämplig på skada som uppstår genom att part bryter mot sina åtaganden enligt avsnitt 5."
+    },
+    {
+      "relative_path": "avtal_116.docx",
+      "contains": "Begränsningen gäller inte Leverantörens ansvar för skada som uppkommer genom att Leverantören röjer Förtrolig Information i strid med avtalet."
+    },
+    {
+      "relative_path": "avtal_118.docx",
+      "contains": "Inget i denna punkt ska begränsa parts ansvar för brott mot artikel 4."
+    },
+    {
+      "relative_path": "avtal_120.docx",
+      "contains": "För skada till följd av brott mot artikel 7 gäller i stället för begränsningen ovan en särskild högsta ersättning om 10 000 000 kronor."
+    },
+    {
+      "relative_path": "avtal_121.docx",
+      "contains": "Ansvarsbegränsningen ovan gäller inte i följande fall:"
+    },
+    {
+      "relative_path": "avtal_122.docx",
+      "contains": "Om part uppsåtligen röjer information som omfattas av tystnadsplikten gäller inte begränsningarna i denna punkt för den skada som röjandet orsakar."
+    },
+    {
+      "relative_path": "avtal_123.docx",
+      "contains": "Ansvarsbegränsningen ska inte tillämpas i fråga om ansvar för röjande av Konfidentiell Information eller om part har agerat med uppsåt eller grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_125.docx",
+      "contains": "Begränsningen i punkt VIII.2 gäller inte för ansvar vid brott mot avsnitt VI."
+    },
+    {
+      "relative_path": "avtal_127.docx",
+      "contains": "Begränsningarna i denna punkt gäller inte för:"
+    },
+    {
+      "relative_path": "avtal_129.docx",
+      "contains": "Begränsningen gäller inte Hyresvärdens ansvar för skada som uppkommer genom att Hyresvärden röjer Skyddad Information i strid med avtalet."
+    },
+    {
+      "relative_path": "avtal_130.docx",
+      "contains": "Ansvarsbegränsningen enligt punkt 6.2 är inte tillämplig på skada som uppstår genom att part bryter mot sina åtaganden enligt punkt 4."
+    },
+    {
+      "relative_path": "avtal_134.docx",
+      "contains": "Begränsningen i denna punkt omfattar inte skada till följd av brott mot sekretessåtagandet och inte heller skada som vållats uppsåtligen eller av grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_135.docx",
+      "contains": "Begränsningarna enligt ovan gäller inte vid uppsåt eller grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_136.docx",
+      "contains": "Begränsningen ovan gäller inte vid skada som har orsakats genom uppsåt eller grov vårdslöshet, och inte heller vid brott mot parts skyldigheter avseende information som omfattas av tystnadsplikten."
+    },
+    {
+      "relative_path": "avtal_137.docx",
+      "contains": "För skada till följd av brott mot § 5 gäller i stället för begränsningen ovan en särskild högsta ersättning om 4 000 000 kronor."
+    },
+    {
+      "relative_path": "avtal_139.docx",
+      "contains": "Om part uppsåtligen röjer Förtrolig Information gäller inte begränsningarna i denna punkt för den skada som röjandet orsakar."
+    },
+    {
+      "relative_path": "avtal_140.docx",
+      "contains": "Ansvarsbegränsningen ovan gäller inte i följande fall:"
+    },
+    {
+      "relative_path": "avtal_141.docx",
+      "contains": "Begränsningen i klausul 8.1 gäller inte för ansvar vid brott mot klausul 6."
+    },
+    {
+      "relative_path": "avtal_144.docx",
+      "contains": "Om part uppsåtligen röjer Sekretessbelagd Information gäller inte begränsningarna i denna punkt för den skada som röjandet orsakar."
+    },
+    {
+      "relative_path": "avtal_153.docx",
+      "contains": "Begränsningen i klausul 6.1 gäller inte för ansvar vid brott mot klausul 5."
+    },
+    {
+      "relative_path": "avtal_155.docx",
+      "contains": "Begränsningen i denna punkt ska inte tillämpas om skadan har orsakats uppsåtligen eller genom grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_157.docx",
+      "contains": "För skada till följd av brott mot avsnitt 9 gäller i stället för begränsningen ovan en särskild högsta ersättning om 3 000 000 kronor."
+    },
+    {
+      "relative_path": "avtal_158.docx",
+      "contains": "Med ändring av punkt 2.1 i Bilaga 2 gäller att begränsningen inte omfattar skada till följd av brott mot punkt 1 i Bilaga 2."
+    },
+    {
+      "relative_path": "avtal_159.docx",
+      "contains": "Begränsningen gäller inte Konsultens ansvar för skada som uppkommer genom att Konsulten röjer konfidentiell information i strid med avtalet."
+    },
+    {
+      "relative_path": "avtal_160.docx",
+      "contains": "Alternativ A ☒ Begränsningen i § 6 första stycket gäller inte vid brott mot § 5."
+    },
+    {
+      "relative_path": "avtal_161.docx",
+      "contains": "Begränsningarna i denna punkt ska inte tillämpas om skadan har orsakats uppsåtligen eller genom grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_163.docx",
+      "contains": "Begränsningarna i denna punkt omfattar inte skada till följd av brott mot sekretessåtagandet och inte heller skada som vållats uppsåtligen eller av grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_164.docx",
+      "contains": "Om part uppsåtligen röjer konfidentiell information gäller inte begränsningarna i denna punkt för den skada som röjandet orsakar."
+    },
+    {
+      "relative_path": "avtal_167.docx",
+      "contains": "Begränsningen gäller inte vid brott mot punkt 5."
+    },
+    {
+      "relative_path": "avtal_168.docx",
+      "contains": "Begränsningen enligt ovan gäller inte vid uppsåt eller grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_169.docx",
+      "contains": "Ansvarsbegränsningen enligt artikel 7.2 är inte tillämplig på skada som uppstår genom att part bryter mot sina åtaganden enligt artikel 5."
+    },
+    {
+      "relative_path": "avtal_171.docx",
+      "contains": "Begränsningarna enligt ovan gäller inte vid uppsåt eller grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_172.docx",
+      "contains": "Begränsningarna i denna punkt omfattar inte skada till följd av brott mot sekretessåtagandet och inte heller skada som vållats uppsåtligen eller av grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_175.docx",
+      "contains": "Begränsningarna i denna punkt ska inte tillämpas om skadan har orsakats uppsåtligen eller genom grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_176.docx",
+      "contains": "Begränsningen i denna punkt ska inte tillämpas om skadan har orsakats uppsåtligen eller genom grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_179.docx",
+      "contains": "Inget i denna punkt ska begränsa parts ansvar för brott mot klausul 7."
+    },
+    {
+      "relative_path": "avtal_180.docx",
+      "contains": "Begränsningen i punkt 2.2 gäller inte för ansvar vid brott mot punkt 1."
+    },
+    {
+      "relative_path": "avtal_181.docx",
+      "contains": "Med ändring av punkt 2.2 i Bilaga 2 gäller att begränsningen inte omfattar skada till följd av brott mot punkt 1 i Bilaga 2."
+    },
+    {
+      "relative_path": "avtal_184.docx",
+      "contains": "Begränsningarna i denna punkt omfattar inte skada till följd av brott mot sekretessåtagandet och inte heller skada som vållats uppsåtligen eller av grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_187.docx",
+      "contains": "Begränsningarna ovan gäller inte vid skada som har orsakats genom uppsåt eller grov vårdslöshet, och inte heller vid brott mot parts skyldigheter avseende information som omfattas av tystnadsplikten."
+    },
+    {
+      "relative_path": "avtal_190.docx",
+      "contains": "Begränsningen i denna punkt omfattar inte skada till följd av brott mot sekretessåtagandet och inte heller skada som vållats uppsåtligen eller av grov vårdslöshet."
+    },
+    {
+      "relative_path": "avtal_192.docx",
+      "contains": "Begränsningen i § 10 andra stycket gäller inte för ansvar vid brott mot § 3."
+    },
+    {
+      "relative_path": "avtal_193.docx",
+      "contains": "Ingenting i denna punkt ska tolkas så att ansvaret för obehörigt röjande av information som omfattas av tystnadsplikten inte skulle vara obegränsat."
+    },
+    {
+      "relative_path": "avtal_194.docx",
+      "contains": "För skada till följd av brott mot artikel 5 gäller i stället för begränsningen ovan en särskild högsta ersättning om 4 000 000 kronor."
+    },
+    {
+      "relative_path": "avtal_195.docx",
+      "contains": "Begränsningarna i denna punkt gäller inte för:"
+    },
+    {
+      "relative_path": "avtal_196.docx",
+      "contains": "Ansvarsbegränsningen enligt § 10 första stycket är inte tillämplig på skada som uppstår genom att part bryter mot sina åtaganden enligt § 3."
+    },
+    {
+      "relative_path": "avtal_199.docx",
+      "contains": "Begränsningen gäller inte vid brott mot avsnitt 5."
+    }
+  ],
+  "hard_negatives": [],
+  "coverage_groups": [],
+  "split": "seen"
+}

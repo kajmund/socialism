@@ -1,6 +1,6 @@
 """Strict argument contracts for workspace commands."""
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 class ToolArguments(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -19,6 +19,20 @@ class SearchArguments(ToolArguments):
         default=False,
         description="Sant när textsträngen redan är känd. Matchar den i befintliga textenheter utan semantisk sökning.",
     )
+
+
+class FindDocumentsArguments(ToolArguments):
+    query: str = Field(min_length=1, max_length=4000)
+    mode: Literal["replace", "filter", "extend", "within"] = Field(
+        default="replace",
+        description=(
+            "replace: ny dokumentmängd. "
+            "filter: begränsa aktivt document_set till träffarna. "
+            "within: undersök aktivt document_set utan att byta urval. "
+            "extend: lägg till i aktivt document_set utan dubbletter."
+        ),
+    )
+    limit: int = Field(default=50, ge=1, le=500)
 
 
 class ReadArguments(ToolArguments):
@@ -56,6 +70,16 @@ class ReadArguments(ToolArguments):
 class FocusPassageArguments(ToolArguments):
     source_id: str = Field(min_length=1, max_length=64)
     quote: str = Field(min_length=1, max_length=4000)
+    expert_id: str | None = Field(default=None, max_length=64)
+    comment: str | None = Field(default=None, max_length=4000)
+
+    @field_validator("comment")
+    @classmethod
+    def clean_comment(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
 
 
 class IngestArguments(ToolArguments):
@@ -110,3 +134,13 @@ class ResearchArguments(ToolArguments):
     objective: str = Field(min_length=1, max_length=4000)
     confirmed: bool = False
     source_object_ids: list[str] | None = Field(default=None, max_length=100)
+
+
+class ContextArguments(ToolArguments):
+    """Saved marks stay out until a source or expert filter is set."""
+
+    source_ids: list[str] = Field(default_factory=list, max_length=40)
+    expert_ids: list[str] = Field(default_factory=list, max_length=20)
+    limit: int = Field(default=50, ge=1, le=50)
+    offset: int = Field(default=0, ge=0, le=500)
+    include_relations: bool = False

@@ -1,0 +1,36 @@
+{
+  "id": "phase2-proof-gap-v1",
+  "label": "Frozen: first signal to complete proof on C@8 and Coverage v3. Discovery and proof completion are different work. No new controller.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_controller": true,
+  "no_new_stop_rule": true,
+  "work_kinds": {
+    "discovery": "find_unseen_relevant_documents",
+    "proof_completion": "finish_known_evidence"
+  },
+  "headline": {
+    "composite_documents_missing_complementary_passage": 1,
+    "composite_hop_possible": 1,
+    "avtal_46_first_yes_rank": 2,
+    "avtal_46_parts_found": 1,
+    "avtal_46_parts_needed": 2,
+    "avtal_46_hop_relation": "PREVIOUS",
+    "avtal_46_navigation_recall": 1.0,
+    "avtal_46_extra_text_units": 2,
+    "workspace_classifications_between_yes_and_complete": 100,
+    "open_reference_avtal_49_punkt": "4"
+  },
+  "unseen_in_c8": {
+    "auto-renewal": ["Avtal_18_Hyresavtal_bostad.docx"],
+    "notice-period": ["Avtal_17_Hyresavtal_lokal.docx", "Avtal_79_Hyresavtal_lokal_Goteborg.docx"],
+    "liability-cap": [
+      "Avtal_41_Borgensforbindelse.docx",
+      "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+      "Avtal_67_Evenemangsavtal.docx"
+    ],
+    "confidentiality": 5,
+    "liability-secrecy-carveout": 0
+  }
+}
