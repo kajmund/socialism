@@ -8,6 +8,8 @@ from pathlib import Path
 
 from overgraph_ingest.config import RetrievalConfig
 from overgraph_ingest.coverage.budget import budget_metrics, run_budget_controller
+from overgraph_ingest.coverage.decision_trace import traces_for_found
+from overgraph_ingest.coverage.proof_relation import PROOF_CURRENT
 from overgraph_ingest.coverage.cache import CachedAnswer
 from overgraph_ingest.coverage.run import _golds, _ranked_hits
 from overgraph_ingest.coverage.v2 import DEFAULT_CACHE, _cache_for
@@ -45,8 +47,11 @@ def run_coverage_v3(
     scorer: str = "hybrid",
     query_variant: str = BASELINE,
     gold_ids: tuple[str, ...] | None = None,
+    proof_rule: str = PROOF_CURRENT,
+    proof_gate: bool = False,
+    decision_trace: bool = False,
 ) -> CoverageV3Report:
-    golds = _golds(config.gold_path, gold_dir)
+    golds = _golds(config.gold_path, gold_dir, include_held_out=bool(gold_ids))
     if gold_ids:
         wanted = set(gold_ids)
         golds = [gold for gold in golds if gold.id in wanted]
@@ -64,6 +69,7 @@ def run_coverage_v3(
         if any(unit.dense is None or unit.sparse is None for unit in context.units):
             raise RuntimeError("TextUnits are missing vectors; rerun with --embed")
         sparse.fit([unit.text for unit in context.units])
+        by_key = context.by_key()
         gold_rows: list[dict[str, object]] = []
         for gold in golds:
             gold_started = time.perf_counter()
@@ -88,6 +94,8 @@ def run_coverage_v3(
                     concurrency=concurrency,
                     global_k=global_k,
                     budget=budget,
+                    proof_rule=proof_rule,
+                    proof_gate=proof_gate,
                 )
                 for judged in result.judgments:
                     cache.setdefault(
@@ -96,6 +104,14 @@ def run_coverage_v3(
                     )
                 payload = budget_metrics(result, gold, budget=budget)
                 payload["wall_seconds"] = time.perf_counter() - gold_started
+                if decision_trace:
+                    payload["decision_traces"] = traces_for_found(
+                        result.documents,
+                        gold,
+                        proof_rule=proof_rule,
+                        units_by_key=by_key,
+                        budget=budget,
+                    )
                 budget_rows.append(payload)
                 if payload["matched_v2_recall"] and matched_at is None:
                     matched_at = {
@@ -121,6 +137,10 @@ def run_coverage_v3(
         payload = {
             "operation": "coverage",
             "controller": "deterministic_v3",
+            "proof_rule": proof_rule,
+            "proof_gate": proof_gate,
+            "decision_trace": decision_trace,
+            "does_not_replace_coverage_v3": proof_rule != PROOF_CURRENT or proof_gate,
             "classify_unchanged": True,
             "verified_absent_requires_absence_and_all_units": True,
             "budget_exhausted_is_not_absent": True,

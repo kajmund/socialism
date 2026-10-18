@@ -1,0 +1,107 @@
+{
+  "id": "phase2-decision-contract-v1",
+  "label": "Frozen: grounded-chain contract versus hop-always, both scored with gold-map v2. Not applied to v3. Historical reports unchanged.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_rewrite_history": true,
+  "applied_to_v3": false,
+  "same_mapping_for_both_variants": "gold-map-v2",
+  "headline": {
+    "mapping": "gold-map-v2",
+    "mapping_fix_is_not_proof_improvement": true,
+    "approved_chain_does_not_upgrade_investigation": true,
+    "reference_counts": {
+      "admitted": 44,
+      "true_support": 39,
+      "false_approvals": 2,
+      "repaired_uncertain": 3,
+      "leftover_genuine": 14
+    },
+    "treatment_counts": {
+      "admitted": 12,
+      "true_support": 12,
+      "false_approvals": 0,
+      "repaired_uncertain": 0,
+      "leftover_genuine": 41
+    },
+    "treatment_false_approvals": [],
+    "treatment_repaired_uncertain": [],
+    "cases": {
+      "avtal_119.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "unhandled_examined_amendment",
+        "navigation": [
+          "account_for_examined_amendment",
+          "resolve_cited_material"
+        ],
+        "investigation": "PARTIAL"
+      },
+      "avtal_200.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "unhandled_examined_amendment",
+        "navigation": [
+          "account_for_examined_amendment",
+          "resolve_cited_material"
+        ],
+        "investigation": "PARTIAL"
+      },
+      "avtal_103.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "unresolved_citation",
+        "navigation": [
+          "resolve_cited_material"
+        ],
+        "investigation": "PARTIAL"
+      },
+      "avtal_106.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "existing_link_in_unit",
+        "navigation": [],
+        "investigation": "PARTIAL"
+      },
+      "avtal_107.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "unresolved_anaphor",
+        "navigation": [
+          "resolve_anaphor_antecedent"
+        ],
+        "investigation": "PARTIAL"
+      },
+      "avtal_113.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "existing_link_in_unit",
+        "navigation": [],
+        "investigation": "PARTIAL"
+      },
+      "avtal_140.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "existing_link_in_unit",
+        "navigation": [],
+        "investigation": "PARTIAL"
+      },
+      "avtal_138.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "unresolved_citation",
+        "navigation": [
+          "resolve_cited_material"
+        ],
+        "investigation": "PARTIAL"
+      },
+      "avtal_142.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "oskaligt_is_not_the_claim",
+        "navigation": [],
+        "investigation": "PARTIAL"
+      },
+      "avtal_173.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "unresolved_citation",
+        "navigation": [
+          "resolve_cited_material"
+        ],
+        "investigation": "PARTIAL"
+      }
+    }
+  }
+}

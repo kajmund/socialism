@@ -1,0 +1,109 @@
+{
+  "id": "phase2-phase-close-v1",
+  "label": "Frozen close of the measured OverGraph ingest phase. The bench separates fast clause search, document coverage, and legal proof. That split is the result. Do not transfer experimental proof rules or a model router into Socialism. Do not start the next ability from this file. 24/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "does_not_start_next_ability": true,
+  "does_not_start_socialism_integration": true,
+  "does_not_build_model_router": true,
+  "k200_not_started": true,
+  "same_mapping": "gold-map-v2",
+  "original_goal": "analyse_200_contracts_quickly",
+  "measured_split": [
+    "fast_clause_search",
+    "document_coverage",
+    "legal_proof_evaluation"
+  ],
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "consider_for_socialism": [
+      {
+        "ability": "docx_ingest",
+        "status": "consider",
+        "why": "Official sequential 100-DOCX ingest is closed and stable.",
+        "source": "phase1-sequential-100-docx"
+      },
+      {
+        "ability": "hybrid_search",
+        "status": "consider",
+        "why": "Default retriever is openai-tfidf. Engine search is not to be optimized from this bench.",
+        "source": "phase2-overgraph-hybrid-search"
+      },
+      {
+        "ability": "jev_c8_classify",
+        "status": "consider",
+        "why": "One TextUnit per prompt, concurrency 8, remains the economic classify reference.",
+        "source": "phase2-jev-classify-c8"
+      }
+    ],
+    "keep_as_research": [
+      {
+        "ability": "coverage_v3",
+        "status": "research",
+        "why": "Hop-always is not proof. Workspace inventory is unsolved and expensive.",
+        "source": "phase2-coverage-v3-blind-trace-v1"
+      },
+      {
+        "ability": "proof_evaluation",
+        "status": "research",
+        "why": "Formulation presence is not prevailing terms. Experimental proof rules are not production.",
+        "source": "phase2-experiment-principles-v1"
+      },
+      {
+        "ability": "cerebras_naive_rerank",
+        "status": "research",
+        "why": "Useful for reading a larger candidate list. Measured on five questions. Does not replace Jev.",
+        "source": "phase2-cerebras-modes-v1"
+      }
+    ],
+    "rejected": [
+      {
+        "ability": "second_opinion_escalation",
+        "verdict": "rejected_for_general_escalation",
+        "source": "phase2-cerebras-second-opinion-rejected-v1"
+      },
+      {
+        "ability": "qwen_naive_rerank",
+        "verdict": "rejected_for_naive_rerank",
+        "source": "phase2-cerebras-qwen-v1"
+      },
+      {
+        "ability": "bge_m3",
+        "verdict": "rejected",
+        "source": "phase2-bge-m3-rejected"
+      },
+      {
+        "ability": "jaccard_expansion_routing",
+        "verdict": "rejected",
+        "source": "phase2-jaccard-expansion-routing-rejected"
+      },
+      {
+        "ability": "jev_prompt_batching",
+        "verdict": "rejected_for_classify",
+        "source": "phase2-jev-classify-c8"
+      },
+      {
+        "ability": "jev_standalone_proof",
+        "verdict": "rejected_for_standalone",
+        "source": "phase2-proof-jev-morph-v1"
+      }
+    ],
+    "do_not_start": [
+      "k200",
+      "model_router",
+      "automatic_k_routing",
+      "majority_vote",
+      "uncertain_escalation",
+      "socialism_integration",
+      "default_controller_change"
+    ]
+  }
+}

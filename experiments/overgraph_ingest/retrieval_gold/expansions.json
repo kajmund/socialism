@@ -30,6 +30,30 @@
       "brott mot sekretess",
       "undantag från ansvarsbegränsning",
       "gäller inte vid sekretess"
+    ],
+    "governing_law": [
+      "tillämplig lag",
+      "tillämplig rätt",
+      "lagval",
+      "vilket lands lag"
+    ],
+    "force_majeure": [
+      "force majeure",
+      "vis major",
+      "hinder utanför kontroll",
+      "kontrollansvar"
+    ],
+    "personal_data": [
+      "GDPR",
+      "dataskyddsförordningen",
+      "dataskydd",
+      "integritetspolicy"
+    ],
+    "assignment": [
+      "överlåtelseförbud",
+      "cession",
+      "assignment",
+      "överlåtelseklausul"
     ]
   },
   "golds": {
@@ -37,6 +61,10 @@
     "notice-period": "notice_period",
     "liability-cap": "liability_cap",
     "confidentiality": "confidentiality",
-    "liability-secrecy-carveout": "secrecy_carveout"
+    "liability-secrecy-carveout": "secrecy_carveout",
+    "governing-law": "governing_law",
+    "force-majeure": "force_majeure",
+    "personal-data": "personal_data",
+    "assignment": "assignment"
   }
 }
