@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 
 from app.services.document_find.category_index import (
     apply_effective_type,
@@ -51,6 +51,7 @@ def find_by_category(
     *,
     document_type: str | None = None,
     user_phrase: str | None = None,
+    allowed_document_ids: Collection[str] | None = None,
 ) -> FindResult:
     """Strategy A: indexed category lookup. Zero embeddings / Jev / TextUnits."""
     started = time.perf_counter()
@@ -71,6 +72,9 @@ def find_by_category(
     require_type(resolved)
     db_started = time.perf_counter()
     ids = documents_for_type(catalog, resolved, counters=ops)
+    if allowed_document_ids is not None:
+        allowed = frozenset(allowed_document_ids)
+        ids = [doc for doc in ids if doc in allowed]
     db_ms = (time.perf_counter() - db_started) * 1000
     return FindResult(
         document_ids=tuple(ids),
@@ -88,17 +92,26 @@ def find_by_hybrid(
     customer_id: int,
     dense_query: Sequence[float],
     limit: int = 50,
+    allowed_document_ids: Collection[str] | None = None,
 ) -> FindResult:
-    """Strategy B: dense/hybrid retrieval → group by document_id."""
+    """Strategy B: dense/hybrid retrieval → group by document_id.
+
+    Unreadable hits are dropped before grouping, so fetch a wider window when
+    a readable scope is given and truncate back to `limit` afterwards.
+    """
     started = time.perf_counter()
     ops = OpCounters()
     ops.vector_searches += 1
+    allowed = frozenset(allowed_document_ids) if allowed_document_ids is not None else None
+    fetch = limit * 4 if allowed is not None else limit
     db_started = time.perf_counter()
     hits = hybrid_search(
-        catalog, customer_id=customer_id, dense_query=dense_query, limit=limit,
+        catalog, customer_id=customer_id, dense_query=dense_query, limit=fetch,
     )
     ops.text_unit_reads += sum(1 for hit in hits if hit.kind == "text_unit")
-    ids = document_ids_from_hits(hits)
+    if allowed is not None:
+        hits = [hit for hit in hits if str(hit.props.get("document_id") or "") in allowed]
+    ids = document_ids_from_hits(hits)[:limit]
     db_ms = (time.perf_counter() - db_started) * 1000
     return FindResult(
         document_ids=tuple(ids),
@@ -118,6 +131,7 @@ def find_category_then_hybrid(
     dense_query: Sequence[float],
     limit: int = 50,
     mode: ScopedMode = "scoped_per_document",
+    allowed_document_ids: Collection[str] | None = None,
 ) -> FindResult:
     """Strategy C: category set first, then retrieval constrained to that set.
 
@@ -129,7 +143,10 @@ def find_category_then_hybrid(
     started = time.perf_counter()
     category = find_by_category(catalog, document_type=document_type)
     allowed = set(category.document_ids)
+    if allowed_document_ids is not None:
+        allowed &= set(allowed_document_ids)
     if not allowed:
+        notes = ("empty_category",) if not category.document_ids else ("no_readable_documents",)
         return FindResult(
             document_ids=(),
             strategy="category_hybrid",
@@ -137,7 +154,7 @@ def find_category_then_hybrid(
             counters=category.counters,
             db_ms=category.db_ms,
             total_ms=(time.perf_counter() - started) * 1000,
-            notes=("empty_category",),
+            notes=notes,
         )
     ops = category.counters
     db_started = time.perf_counter()
@@ -220,10 +237,13 @@ def find_within_documents(
     document_ids: Sequence[str],
     dense_query: Sequence[float],
     limit: int = 50,
+    allowed_document_ids: Collection[str] | None = None,
 ) -> FindResult:
     """Hybrid retrieval scoped to an explicit document set (follow-up filter)."""
     started = time.perf_counter()
     allowed = {doc for doc in document_ids if doc}
+    if allowed_document_ids is not None:
+        allowed &= set(allowed_document_ids)
     if not allowed:
         return FindResult(
             document_ids=(),
