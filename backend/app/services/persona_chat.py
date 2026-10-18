@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.models import Persona, PersonaMessage, Run
 from app.llm.chat import (
+    _chat_prompt_key,
     build_run_interview_prompt,
     stream_reply_as_persona,
     suggest_follow_up_questions,
@@ -35,7 +36,7 @@ from app.services.dd.company_mcp import CompanyMcpError
 from app.services.dd.expert_keys import persona_catalog_key
 from app.services.district_context import area_block_for_name
 from app.services.expert_async_tools import begin_library_tools
-from app.services.expert_memory_context import expert_memory_context
+from app.services.expert_turn_prefetch import TurnPrompt, profile_with_memory
 from app.services.expert_memory_schedule import schedule_expert_memory_update
 from app.services import expert_reasoning_turn
 from app.services.expert_tools import resolve_chat_tools
@@ -50,9 +51,9 @@ from app.services.oasis_run import previous_attempts
 from app.services.persona_chat_turn_support import (
     ChatTurnError,
     LibraryTurnWriteGuard,
-    append_configured_system_prompt as _append_configured_system_prompt,
     commit_library_message as _commit_library_message,
     discard_user_message as _discard_user_message,
+    library_message as _library_message,
     history_rows as _history_triples,
     transform_assistant_reply as _transform_assistant_reply,
 )
@@ -200,14 +201,14 @@ def serialize_persona_message(row: PersonaMessage) -> PersonaMessageOut:
 async def _library_history(
     session: AsyncSession,
     persona_id: str,
-    mode: ChatMode,
+    mode: ChatMode, group_history=None,
 ) -> list[tuple[str, str, str | None]]:
     rows = await session.execute(
         select(PersonaMessage)
         .where(*library_chat_filter(persona_id, mode))
         .order_by(PersonaMessage.id.asc())
     )
-    return _history_triples(list(rows.scalars().all()))
+    return _history_triples(list(rows.scalars().all()), group_history)
 
 
 def library_chat_filter(persona_id: str, mode: ChatMode):
@@ -308,7 +309,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
     workspace_state: WorkspaceState | None = None,
     on_client_tools: Callable[[list[dict[str, Any]]], Awaitable[None]] | None = None,
     extra_system_prompt_key: str | None = None,
-    assistant_reply_transform: Callable[[str], str] | None = None,
+    assistant_reply_transform: Callable[[str], str] | None = None, group_history: list[tuple[str, str, str | None, str | None]] | None = None, group_note: str | None = None,
 ) -> AsyncIterator[str | PersonaChatResponse]:
     """Yield token strings, then PersonaChatResponse.
 
@@ -326,7 +327,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             .order_by(PersonaMessage.id.asc())
         )
         history_list = list(history_rows.scalars().all())
-        history = _history_triples(history_list)
+        history = _history_triples(history_list, group_history)
         area_block = await area_block_for_name(session, profile.ort or persona.district)
         prompts = await require_prompts_for_persona(session, persona)
         try:
@@ -343,16 +344,6 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             tool_names=resolved_tools,
         )
         await session.commit()
-        memory_context = await expert_memory_context(
-            persona, message, prompts, image_sha256=image_sha256
-        )
-        if workspace_extra:
-            memory_context = f"{memory_context}\n\n{workspace_extra}".strip() if memory_context else workspace_extra
-        memory_context = _append_configured_system_prompt(
-            memory_context,
-            prompts,
-            extra_system_prompt_key,
-        )
         chat_tools = chat_tools_for_turn(resolved_tools, workspace=bool(workspace_specs))
         with_tools = _library_chat_uses_tools(persona) or bool(workspace_specs)
         scope = begin_library_tools(
@@ -369,16 +360,12 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
         try:
             if with_tools:
                 await scope.enter()
-                history = await _library_history(session, persona_id, mode)
+                history = await _library_history(session, persona_id, mode, group_history)
                 scope.history = history
                 await session.commit()
-            user_row = PersonaMessage(
-                persona_id=persona_id,
-                mode=mode,
-                role="user",
-                content=message,
-                image_sha256=image_sha256,
-                created_at=utcnow(),
+            user_row = _library_message(
+                persona_id, mode, "user", message,
+                image_sha256=image_sha256, panel=group_history is not None,
             )
             await _commit_library_message(
                 session,
@@ -386,9 +373,16 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
                 sme_expert_turn_request_id=sme_expert_turn_request_id,
                 persist_guard=persist_guard,
             )
-            reasoning_profile = await expert_reasoning_turn.route_expert_turn(scope, prompts, persona.kind, (chat_tools, workspace_specs))
             parts: list[str] = []
             try:
+                reasoning_profile, memory_context = await profile_with_memory(
+                    persona, message, prompts, scope,
+                    tools=(chat_tools, workspace_specs),
+                    prompt=TurnPrompt(
+                        workspace_extra, extra_system_prompt_key, group_note,
+                        _chat_prompt_key(mode), image_sha256,
+                    ),
+                )
                 stream = stream_reply_as_persona(
                     profile,
                     mode,
@@ -398,7 +392,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
                     area_block=area_block,
                     profile_kind=persona.kind,
                     tools=chat_tools,
-                    extra_system=memory_context,
+                    extra_system=scope.extra_system(memory_context),
                     extra_tools=workspace_specs,
                     user_image_sha256=image_sha256,
                 )
@@ -428,12 +422,9 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
             if not reply:
                 await _discard_user_message(session, user_row)
                 raise ChatTurnError("Empty reply from model", status_code=502)
-            assistant_row = PersonaMessage(
-                persona_id=persona_id,
-                mode=mode,
-                role="assistant",
-                content=reply,
-                created_at=utcnow(),
+            assistant_row = _library_message(
+                persona_id, mode, "assistant", reply,
+                image_sha256=None, panel=group_history is not None,
             )
             await _commit_library_message(
                 session,
@@ -446,6 +437,7 @@ async def stream_library_chat_turn(  # noqa: PLR0913, PLR0915
                 message=message,
                 reply=reply,
                 image_sha256=image_sha256,
+                source="panel_chat" if group_history is not None else "persona_chat",
             )
             all_rows = await session.execute(
                 select(PersonaMessage)

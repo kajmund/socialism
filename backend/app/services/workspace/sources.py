@@ -5,10 +5,12 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, EvidenceSet, EvidenceSetItem, ExecutionAttempt, ExecutionRun, StoredObject
 from app.database.workspace_models import VoiceWorkspace, WorkspaceReference, WorkspaceResearch, WorkspaceSource
-from app.services.workspace.service import fingerprint, new_id, require_reference, require_source
+from app.services.workspace.mark_author import marked_author
+from app.services.workspace.service import fingerprint, new_id, require_artifact, require_reference, require_source
 from app.services.workspace.research_links import sync_research_links
 from app.services.overgraph.research import knowledge_catalog, load_text_units
 from app.services.research.workspace_grounding import passages_allowed
@@ -27,7 +29,11 @@ async def citation(session: AsyncSession, workspace: VoiceWorkspace, *, kind: st
         membership = await session.get(WorkspaceSource, (workspace.id, source_id))
         if membership is not None and membership.source_url:
             snapshot = {**snapshot, "source_url": membership.source_url}
+    author = marked_author(snapshot)
     identity_fields = {"kind": kind, "source_id": source_id, "version": version, "anchor": anchor}
+    if author is not None:
+        # The same passage marked by two people is two marks. Overlap is kept.
+        identity_fields["marked_by"] = author["id"]
     if snapshot.get("selection_verified") is True:
         # A proved position must not reuse an older quote-only citation's identity.
         identity_fields["selection_verified"] = True
@@ -39,6 +45,10 @@ async def citation(session: AsyncSession, workspace: VoiceWorkspace, *, kind: st
     existing = (await session.execute(select(WorkspaceReference).where(
         WorkspaceReference.workspace_id == workspace.id, WorkspaceReference.identity_key == identity))).scalar_one_or_none()
     if existing:
+        if author and marked_author(existing.snapshot) is None:
+            existing.snapshot = {**dict(existing.snapshot or {}), "marked_by": author}
+            flag_modified(existing, "snapshot")
+            await session.flush()
         return existing
     number = (await session.execute(update(VoiceWorkspace).where(VoiceWorkspace.id == workspace.id).values(
         next_reference_number=VoiceWorkspace.next_reference_number + 1).returning(VoiceWorkspace.next_reference_number))).scalar_one() - 1
@@ -53,6 +63,7 @@ def reference_out(ref: WorkspaceReference, *, stale: bool = False) -> dict:
     return {"reference_id": ref.id, "number": ref.number, "source_id": ref.source_id, "source_kind": ref.kind,
             "title": ref.snapshot.get("title"), "excerpt": ref.snapshot.get("excerpt"), "anchor": ref.anchor,
             "source_version": ref.source_version, "stale": stale, "snapshot": ref.snapshot,
+            "marked_by": marked_author(ref.snapshot),
             "file_url": f"/voice-workspaces/{ref.workspace_id}/sources/{ref.source_id}/file" if ref.kind == "underlag" and not stale else None}
 
 
@@ -83,6 +94,11 @@ async def read_reference(session: AsyncSession, workspace: VoiceWorkspace, refer
         stale = item.content_hash != ref.source_version
     elif ref.kind == "graph":
         stale = await _graph_reference_stale(session, workspace, ref)
+    elif ref.kind in ("document", "relations"):
+        artifact = await require_artifact(session, workspace, ref.source_id)
+        if artifact.kind != ref.kind:
+            raise HTTPException(status_code=404, detail="workspace_reference_not_found")
+        stale = str(artifact.revision) != ref.source_version
     else:
         raise HTTPException(status_code=404, detail="workspace_reference_not_found")
     return reference_out(ref, stale=stale)

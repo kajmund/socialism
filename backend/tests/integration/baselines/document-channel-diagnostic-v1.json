@@ -1,0 +1,67 @@
+{
+  "experiment": "document-channel-nine-turn-diagnostic-v1",
+  "classification": "diagnostic-only",
+  "source_artifact": "backend/data/document-channel-diagnostic-v1.json",
+  "targeted_probe_artifact": "backend/data/document-channel-diagnostic-group-probe-v1.json",
+  "retry_policy": "nine scored cases ran once; one later Group Voice probe diagnosed the captured failure and is not a scored retry",
+  "scenarios": [
+    "Visa alla hyresavtal.",
+    "Visa bara dem med automatisk förlängning.",
+    "Lägg till anställningsavtalen."
+  ],
+  "channels": {
+    "text": {
+      "initial_find_exposed": 3,
+      "initial_find_selected": 3,
+      "find_handler_completed": 3,
+      "post_result_show_exposed": 3,
+      "raw_continuation_show_calls": 4,
+      "delivered_show_calls": 0,
+      "correct_modes": 3
+    },
+    "voice": {
+      "initial_find_exposed": 3,
+      "initial_find_selected": 3,
+      "find_handler_completed": 3,
+      "post_result_show_exposed": 3,
+      "raw_continuation_show_calls": 6,
+      "delivered_show_calls": 0,
+      "correct_modes": 2
+    },
+    "group_voice": {
+      "initial_find_exposed": 3,
+      "initial_find_selected": 2,
+      "find_handler_completed": 0,
+      "post_result_show_exposed": 0,
+      "raw_continuation_show_calls": 0,
+      "delivered_show_calls": 0,
+      "correct_modes": 1,
+      "no_reply_errors": 2
+    }
+  },
+  "root_causes": {
+    "presentation": {
+      "stage": "continuation_call_enqueue",
+      "finding": "The continuation model called show_document_set, but _planned_calls inserted each new call ID into the shared seen_call_ids set before LibraryToolScope.defer checked that same set. defer therefore discarded the new client call before finish_workspace_turn could deliver it."
+    },
+    "group_voice": {
+      "stage": "pre_handler_database_transaction",
+      "finding": "Panel turns create no private PersonaMessage row. commit_library_message still invokes persist_guard, which updates the expert-turn lease, then returns for row=None without committing. The open write transaction spans model/tool work and the separate workspace operation fails with SQLite database is locked before find_documents reaches its handler.",
+      "targeted_probe_error": "OperationalError: database is locked while inserting workspace_operations"
+    },
+    "mode": {
+      "finding": "Structured active document-set state was present, but mode remained model-authored. Text selected replace/filter/extend correctly; Voice changed the filter follow-up to replace, broadening the result to all 20 documents."
+    }
+  },
+  "prior_150_error_split": {
+    "provider_structured_output_errors": 17,
+    "group_voice_no_reply_errors": 28,
+    "provider_timeouts_in_result_rows": 0,
+    "adapter_delivery_errors_in_diagnostic": 0
+  },
+  "decision": {
+    "production_approved": false,
+    "production_behavior_changed": false,
+    "latency_optimization_allowed": false
+  }
+}

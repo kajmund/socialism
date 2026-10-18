@@ -1,0 +1,9 @@
+﻿Datum;Integration;Status;Kommentar;Rapporterad av
+2025-11-18;Lönesystem → Ekonomisystem;FEL;Felaktig avstämningsfil, manuell rättning (0,5 dag);Anders Bergström
+2026-01-22;Lönesystem → Ekonomisystem;FEL;Saknade rader i överföringen, manuell komplettering (1 dag);Anders Bergström
+2026-02-28;CRM → Ekonomisystem;OK;–;Anders Bergström
+2026-03-05;CRM → Ekonomisystem;FEL;Dubblerade fakturaunderlag, rättning samma dag;Anders Bergström
+2026-04-20;Lönesystem → Ekonomisystem;HAVERI;Tredje felet på 6 månader, manuell överföring tog 2 dagar (se DOC-IT-001);Anders Bergström
+2026-05-28;Lönesystem → Ekonomisystem;OK;Efter leverantörspatch;Anders Bergström
+2026-06-30;Tidrapporter → Ekonomisystem;OK;–;Anders Bergström
+2026-09-14;Lönesystem → Ekonomisystem;FEL;Felmatchade kostnadsställen, manuell rättning (0,5 dag);Anders Bergström

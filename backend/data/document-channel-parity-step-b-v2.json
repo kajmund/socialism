@@ -1,0 +1,4399 @@
+{
+  "experiment": "document-presentation-channel-parity-step-b-v1",
+  "created_at": "2026-10-15T00:30:50.762859+00:00",
+  "classification": "observational",
+  "observation_reason": "Step B ran despite the failed deterministic Step A gate.",
+  "step_a": {
+    "approved_for_step_b": false
+  },
+  "case_count": 50,
+  "channels": [
+    "text",
+    "voice",
+    "group_voice"
+  ],
+  "actual_execute_expert_turn_calls": 150,
+  "summary": {
+    "text": {
+      "turns": 50,
+      "latency_ms": {
+        "median": 197.779,
+        "p95": 282.43
+      },
+      "wrong_document_selections": 50,
+      "wrong_mode_transitions": 50,
+      "erroneous_auto_displays": 0,
+      "missed_explicit_shows": 25,
+      "duplicate_presentations": 0,
+      "external_or_model_errors": 50
+    },
+    "voice": {
+      "turns": 50,
+      "latency_ms": {
+        "median": 200.047,
+        "p95": 289.029
+      },
+      "wrong_document_selections": 50,
+      "wrong_mode_transitions": 50,
+      "erroneous_auto_displays": 0,
+      "missed_explicit_shows": 25,
+      "duplicate_presentations": 0,
+      "external_or_model_errors": 50
+    },
+    "group_voice": {
+      "turns": 50,
+      "latency_ms": {
+        "median": 200.361,
+        "p95": 256.681
+      },
+      "wrong_document_selections": 50,
+      "wrong_mode_transitions": 50,
+      "erroneous_auto_displays": 0,
+      "missed_explicit_shows": 25,
+      "duplicate_presentations": 0,
+      "external_or_model_errors": 50
+    }
+  },
+  "cases": [
+    {
+      "case_id": "01-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 2513.345,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-01-show-text",
+        "request_id": "step-b-01-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "01-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 985.396,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-01-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "01-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 193.119,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-01-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "01-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 198.507,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-01-count-text",
+        "request_id": "step-b-01-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "01-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 279.518,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-01-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "01-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 213.685,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-01-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "02-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 196.72,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-02-show-text",
+        "request_id": "step-b-02-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "02-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 294.348,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-02-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "02-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 230.844,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-02-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "02-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 282.196,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-02-analyze-text",
+        "request_id": "step-b-02-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "02-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 202.953,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-02-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "02-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 197.665,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-02-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "03-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 167.065,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-03-show-text",
+        "request_id": "step-b-03-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "03-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 210.784,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-03-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "03-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 299.453,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-03-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "03-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 236.999,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-03-ambiguous-text",
+        "request_id": "step-b-03-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "03-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 235.372,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-03-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "03-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 202.29,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-03-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "04-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 223.603,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-04-show-text",
+        "request_id": "step-b-04-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "04-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 161.671,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-04-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "04-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 173.1,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-04-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "04-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 198.321,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-04-count-text",
+        "request_id": "step-b-04-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "04-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 193.753,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-04-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "04-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 180.944,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-04-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "05-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 258.722,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-05-show-text",
+        "request_id": "step-b-05-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "05-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 176.872,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-05-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "05-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 211.249,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-05-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "05-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 178.198,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-05-analyze-text",
+        "request_id": "step-b-05-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "05-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 192.908,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-05-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "05-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 261.418,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-05-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "06-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 204.064,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-06-show-text",
+        "request_id": "step-b-06-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "06-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 179.582,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-06-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "06-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 186.84,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-06-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "06-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 166.533,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-06-ambiguous-text",
+        "request_id": "step-b-06-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "06-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 192.057,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-06-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "06-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 179.687,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-06-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "07-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 325.588,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-07-show-text",
+        "request_id": "step-b-07-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "07-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 176.193,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-07-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "07-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 196.404,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-07-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "07-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 197.236,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-07-count-text",
+        "request_id": "step-b-07-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "07-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 176.284,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-07-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "07-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 177.163,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-07-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "08-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 282.622,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-08-show-text",
+        "request_id": "step-b-08-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "08-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 211.884,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-08-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "08-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 213.073,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-08-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "08-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 185.262,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-08-analyze-text",
+        "request_id": "step-b-08-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "08-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 282.527,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-08-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "08-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 228.873,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-08-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "09-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 198.823,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-09-show-text",
+        "request_id": "step-b-09-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "09-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 220.96,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-09-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "09-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 212.213,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-09-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "09-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 205.225,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-09-ambiguous-text",
+        "request_id": "step-b-09-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "09-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 178.279,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-09-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "09-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 172.528,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-09-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "10-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 192.206,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-10-show-text",
+        "request_id": "step-b-10-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "10-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 177.457,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-10-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "10-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 204.328,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-10-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "10-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 259.019,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-10-count-text",
+        "request_id": "step-b-10-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "10-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 217.157,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-10-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "10-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 194.864,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-10-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "11-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 192.978,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-11-show-text",
+        "request_id": "step-b-11-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "11-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 188.094,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-11-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "11-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 238.536,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-11-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "11-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 185.067,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-11-analyze-text",
+        "request_id": "step-b-11-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "11-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 225.374,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-11-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "11-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 233.659,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-11-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "12-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 263.631,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-12-show-text",
+        "request_id": "step-b-12-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "12-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 197.515,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-12-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "12-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 203.468,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-12-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "12-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 176.836,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-12-ambiguous-text",
+        "request_id": "step-b-12-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "12-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 192.108,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-12-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "12-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 154.972,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-12-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "13-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 238.664,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-13-show-text",
+        "request_id": "step-b-13-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "13-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 189.701,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-13-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "13-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 237.157,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-13-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "13-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 191.232,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-13-count-text",
+        "request_id": "step-b-13-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "13-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 172.826,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-13-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "13-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 206.787,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-13-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "14-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 190.677,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-14-show-text",
+        "request_id": "step-b-14-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "14-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 268.776,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-14-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "14-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 195.581,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-14-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "14-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 190.806,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-14-analyze-text",
+        "request_id": "step-b-14-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "14-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 169.627,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-14-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "14-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 190.917,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-14-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "15-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 193.653,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-15-show-text",
+        "request_id": "step-b-15-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "15-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 261.965,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-15-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "15-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 202.545,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-15-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "15-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 203.472,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-15-ambiguous-text",
+        "request_id": "step-b-15-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "15-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 170.798,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-15-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "15-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 176.393,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-15-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "16-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 173.769,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-16-show-text",
+        "request_id": "step-b-16-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "16-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 207.208,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-16-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "16-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 192.161,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-16-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "16-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 233.245,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-16-count-text",
+        "request_id": "step-b-16-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "16-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 175.059,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-16-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "16-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 206.953,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-16-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "17-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 175.469,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-17-show-text",
+        "request_id": "step-b-17-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "17-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 182.253,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-17-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "17-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 170.061,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-17-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "17-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 196.783,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-17-analyze-text",
+        "request_id": "step-b-17-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "17-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 194.502,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-17-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "17-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 181.077,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-17-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "18-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 160.667,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-18-show-text",
+        "request_id": "step-b-18-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "18-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 205.655,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-18-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "18-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 250.891,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-18-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "18-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 159.698,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-18-ambiguous-text",
+        "request_id": "step-b-18-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "18-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 222.176,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-18-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "18-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 217.83,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-18-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "19-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 199.398,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-19-show-text",
+        "request_id": "step-b-19-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "19-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 242.926,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-19-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "19-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 181.796,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-19-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "19-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 207.575,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-19-count-text",
+        "request_id": "step-b-19-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "19-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 192.971,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-19-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "19-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 198.432,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-19-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "20-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 160.744,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-20-show-text",
+        "request_id": "step-b-20-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "20-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 174.462,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-20-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "20-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 182.784,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-20-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "20-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 212.605,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-20-analyze-text",
+        "request_id": "step-b-20-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "20-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 205.385,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-20-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "20-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 247.715,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-20-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "21-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 204.19,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-21-show-text",
+        "request_id": "step-b-21-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "21-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 312.752,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-21-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "21-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 210.182,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-21-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "21-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 215.4,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-21-ambiguous-text",
+        "request_id": "step-b-21-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "21-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 263.323,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-21-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "21-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 177.102,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-21-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "22-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 199.758,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-22-show-text",
+        "request_id": "step-b-22-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "22-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 193.531,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-22-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "22-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 206.234,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-22-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "22-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 244.191,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-22-count-text",
+        "request_id": "step-b-22-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "22-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 202.579,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-22-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "22-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 195.165,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-22-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "23-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 192.77,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-23-show-text",
+        "request_id": "step-b-23-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "23-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 205.341,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-23-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "23-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 274.839,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-23-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "23-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 195.125,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-23-analyze-text",
+        "request_id": "step-b-23-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "23-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 205.2,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-23-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "23-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 183.68,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-23-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "24-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 184.684,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-24-show-text",
+        "request_id": "step-b-24-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "24-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 263.08,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-24-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "24-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 212.269,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-24-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "24-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 205.678,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-24-ambiguous-text",
+        "request_id": "step-b-24-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "24-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 175.472,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-24-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "24-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 166.772,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-24-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "25-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 187.963,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-25-show-text",
+        "request_id": "step-b-25-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "25-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 176.618,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-25-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "25-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 168.762,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-25-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "25-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 190.909,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-25-count-text",
+        "request_id": "step-b-25-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "25-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 236.679,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-25-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    },
+    {
+      "case_id": "25-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 235.387,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-25-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "RuntimeError",
+        "message": "OverGraph memory catalog is not open"
+      }
+    }
+  ]
+}

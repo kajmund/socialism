@@ -409,6 +409,34 @@ async def test_route_failure_keeps_the_turn(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_route_skips_jev_when_prompt_key_is_outside_expert_profiles(monkeypatch):
+    async def boom(**kwargs):
+        raise AssertionError("Jev must not run before the prompt key is accepted")
+
+    monkeypatch.setattr(
+        "app.services.expert_reasoning_turn.assess_expert_reasoning", boom
+    )
+    monkeypatch.setattr("app.config.settings.document_tool_retrieval_enabled", False)
+    scope = begin_library_tools(
+        persona_id="p1",
+        mode="character",
+        actor_user_id="u1",
+        history=[],
+        user_message="hej",
+        enabled=True,
+        workspace=("ws-1", _STATE),
+    )
+    profile = await route_expert_turn(
+        scope,
+        default_prompts("sv"),
+        "expert",
+        ([], []),
+        prompt_key="chat.follow_up.questions.in_character",
+    )
+    assert profile is None
+
+
+@pytest.mark.asyncio
 async def test_too_many_tasks_is_a_failed_call(monkeypatch):
     monkeypatch.setattr(
         "app.config.settings.expert_reasoning_spawn_max_tasks", 1

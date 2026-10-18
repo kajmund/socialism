@@ -124,13 +124,53 @@ async def test_document_scores_use_the_current_request_not_available_files(monke
         prompts=default_prompts("sv"),
         specs=specs,
         message="Bra, tack",
-        workspace_state={"documents": [{"source_id": "contract", "filename": "Avtal.pdf"}]},
+        workspace_state={
+            "documents": [{
+                "source_id": "contract",
+                "filename": "Avtal.pdf",
+                "text": "HEMLIG AVTALSTEXT",
+            }],
+            "available_documents": [{"filename": "Arkivlista.pdf"}],
+        },
         jev=jev,
     )
     assert record.require_tool is True
     assert jev.state is not None
     assert "workspace_state" not in jev.state
-    assert "Avtal.pdf" not in str(jev.state), (jev.state, jev.questions)
+    assert jev.state["documents"][0]["title"] == "Avtal.pdf"
+    assert "HEMLIG AVTALSTEXT" not in str(jev.state)
+    assert "Arkivlista.pdf" not in str(jev.state)
+
+
+@pytest.mark.asyncio
+async def test_a_greeting_does_not_pin_document_reads(monkeypatch):
+    monkeypatch.setattr(settings, "document_tool_relevance_floor", 0.2)
+    monkeypatch.setattr(settings, "document_tool_relevance_top_k", 8)
+    monkeypatch.setattr(settings, "document_tool_relevance_gap", 0.55)
+    monkeypatch.setattr(settings, "document_tool_require_score", 0.40)
+    names = (
+        "search_knowledge", "find_documents", "get_workspace_context",
+        "read_source", "show_document", "focus_anchor",
+    )
+    specs = [_spec(name) for name in names]
+    jev = _Jev({name: 0.05 for name in names})
+    documents = [
+        {"source_id": f"doc-{i}", "filename": f"Avtal {i}.pdf"} for i in range(3)
+    ]
+    exposed, record = await expose_workspace_tools(
+        prompts=default_prompts("sv"),
+        specs=specs,
+        message="goddag",
+        workspace_state={"documents": documents},
+        jev=jev,
+    )
+    shown = [spec["function"]["name"] for spec in exposed]
+    assert "read_source" not in shown
+    assert "show_document" not in shown
+    assert "focus_anchor" not in shown
+    assert "search_knowledge" in shown
+    assert record.require_tool is False
+    assert "HEMLIG" not in str(jev.state)
 
 
 @pytest.mark.asyncio

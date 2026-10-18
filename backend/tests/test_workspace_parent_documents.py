@@ -97,7 +97,8 @@ async def test_native_context_lists_company_and_active_client_without_canvas_sou
               "turn_event_key": "u1", "arguments_json": "{}"})
     assert tool.status_code == 200, tool.text
     _assert_initial_inventory(tool.json()["workspace"], company, active)
-    assert tool.json()["workspace"]["sources"] == []
+    assert "sources" not in tool.json()["workspace"]
+    assert "references" not in tool.json()["workspace"]
     async with factory() as session:
         assert await session.scalar(select(func.count()).select_from(WorkspaceSource)) == 0
 

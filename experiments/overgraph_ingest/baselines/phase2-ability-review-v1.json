@@ -1,0 +1,82 @@
+{
+  "id": "phase2-ability-review-v1",
+  "label": "Frozen: independent review of the live proof stack before the next ability. Hypothesis A is three constructions. Hypothesis B is one label-recognition gap. Neither is started. 19/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "no_new_jev": true,
+  "does_not_start_next_ability": true,
+  "headline": {
+    "quality_reference": {
+      "true_support": 19,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 34,
+      "source": "phase2-anaphor-list-v1"
+    },
+    "tracks": {
+      "proof_evaluation_examined_undecided": 20,
+      "discovery_never_examined": 14,
+      "perfect_proof_still_misses_unexamined": true
+    },
+    "live_path": [
+      "chain_contract.assess_chain",
+      "clause_resolve.assess_with_clauses",
+      "anaphor_resolve.assess_with_anaphors"
+    ],
+    "hypothesis_a": {
+      "name": "exception_paraphrase",
+      "table_count": 7,
+      "is_one_construction": false,
+      "constructions": {
+        "omfattar_inte": [
+          "avtal_134.docx",
+          "avtal_163.docx",
+          "avtal_172.docx",
+          "avtal_184.docx",
+          "avtal_190.docx"
+        ],
+        "higher_cap": [
+          "avtal_157.docx"
+        ],
+        "double_negation": [
+          "avtal_193.docx"
+        ]
+      },
+      "do_not_expand": [
+        "EXCEPTION_RE",
+        "LINK_RE"
+      ],
+      "predication_model_ready": false,
+      "predication_model_why": "proof_logic.classify_predication is stacked on rejected LINK_RE and proof_gate polarity. split_predications is only sentence splitting."
+    },
+    "hypothesis_b": {
+      "name": "citation_label",
+      "count": 5,
+      "documents": [
+        "avtal_118.docx",
+        "avtal_125.docx",
+        "avtal_141.docx",
+        "avtal_153.docx",
+        "avtal_179.docx"
+      ],
+      "is_one_construction": true,
+      "source_relation_already_holds": true,
+      "blocker": "chain_contract.CITATION_RE and clause_resolve.parse_citations see only avsnitt|punkt|§ plus arabic digits. artikel, klausul, and roman numbers never become unresolved_citation, so the clause layer never runs.",
+      "constraints": [
+        "one_parser_not_a_third_regex",
+        "chain_must_recognize_label_or_clause_layer_never_runs",
+        "keep_citation_kind_in_lookup",
+        "finding_clause_is_not_admission",
+        "roman_is_not_arabic_alias",
+        "artikel_is_not_section_alias"
+      ]
+    },
+    "discovery_regressions_if_found": [
+      "avtal_135.docx",
+      "avtal_159.docx",
+      "avtal_168.docx"
+    ]
+  }
+}

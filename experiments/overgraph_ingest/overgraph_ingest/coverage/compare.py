@@ -58,6 +58,10 @@ def compare_v3_golds(
         "baseline": _first_complete(left),
         "treatment": _first_complete(right),
     }
+    first_complete_evidence = {
+        "baseline": _first_complete_evidence(left),
+        "treatment": _first_complete_evidence(right),
+    }
     return {
         "gold_id": gold_id,
         "baseline_query": left.get("query"),
@@ -65,6 +69,7 @@ def compare_v3_golds(
         "baseline_recall_at_50": left.get("recall_at_50"),
         "treatment_recall_at_50": right.get("recall_at_50"),
         "first_complete": first_complete,
+        "first_complete_evidence": first_complete_evidence,
         "budgets": rows,
     }
 
@@ -79,6 +84,9 @@ def _cell(row: dict[str, object]) -> dict[str, object]:
         "budget_exhausted_documents": row.get("budget_exhausted_documents"),
         "unresolved_relevant_documents": row.get("unresolved_relevant_documents"),
         "false_negative_documents": row.get("false_negative_documents"),
+        "first_complete_classified": row.get("first_complete_classified"),
+        "hop_fetches": row.get("hop_fetches"),
+        "evidence_found_nonrelevant": row.get("evidence_found_nonrelevant"),
         "wall_seconds": row.get("wall_seconds"),
         "status_counts": row.get("status_counts"),
     }
@@ -103,6 +111,23 @@ def _first_complete(gold: dict[str, object]) -> dict[str, object] | None:
                 "jev_calls": row.get("jev_calls"),
                 "cumulative_jev_calls": _cumulative(gold, int(row["budget"])),
                 "document_recall": row.get("document_recall"),
+            }
+    return None
+
+
+def _first_complete_evidence(gold: dict[str, object]) -> dict[str, object] | None:
+    for row in gold.get("budgets") or []:
+        if float(row.get("document_recall") or 0) + 1e-9 >= 1.0:
+            classified = row.get("first_complete_classified") or row.get("classified")
+            return {
+                "budget": row.get("budget"),
+                "classified": row.get("classified"),
+                "first_complete_classified": row.get("first_complete_classified"),
+                "jev_calls": row.get("jev_calls"),
+                "cumulative_jev_calls": _cumulative(gold, int(row["budget"])),
+                "work_after_complete": _sub(row.get("classified"), classified),
+                "hop_fetches": row.get("hop_fetches"),
+                "evidence_found_nonrelevant": row.get("evidence_found_nonrelevant") or [],
             }
     return None
 

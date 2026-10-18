@@ -191,7 +191,8 @@ async def test_resolve_default_and_fixed():
 
 
 @pytest.mark.asyncio
-async def test_expert_profile_selects_role_without_jev_speed_classification():
+@pytest.mark.parametrize("prompt_key", ["chat.mode.interview", "chat.mode.in_character"])
+async def test_expert_profile_selects_role_without_jev_speed_classification(prompt_key):
     _install_catalog()
     classifier = _FakeNeedClassifier(
         JevNeedDecision(
@@ -206,12 +207,13 @@ async def test_expert_profile_selects_role_without_jev_speed_classification():
     set_need_classifier(classifier)
     with bound_expert_profile("fast"):
         resolution = await resolve_llm_runtime(
-            prompt_key="chat.mode.interview",
+            prompt_key=prompt_key,
             messages=[{"role": "user", "content": "Öppna avtalet"}],
             call_kind="tools",
         )
     assert resolution.reason_code == "expert_reasoning_selected"
     assert resolution.selected_configuration_id == 2
+    assert resolution.speed_class == "fast"
     assert classifier.calls == 0
 
 

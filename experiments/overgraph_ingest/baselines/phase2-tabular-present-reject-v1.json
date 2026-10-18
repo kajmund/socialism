@@ -1,0 +1,31 @@
+{
+  "id": "phase2-tabular-present-reject-v1",
+  "label": "Negative experiment: stored headings in Jev context are not part of the simple Tabular answer path. Text-only answer_cell stays. Default stays D. Dense k=5 remains the strongest measured candidate.",
+  "do_not_overwrite": true,
+  "verdict": "rejected",
+  "rejected": "present",
+  "kept": "text",
+  "does_not_run_c": true,
+  "does_not_run_reserved_holdout": true,
+  "do_not_add_more_metadata_fields": true,
+  "do_not_start_hypothesis_2_because_cheaper_failed": true,
+  "pause_micro_optimization": true,
+  "next_quality_needs_new_capability": true,
+  "do_not_compare_development_to_holdout": true,
+  "default_remains_d": true,
+  "e_is_strongest_measured_candidate": true,
+  "headline": {
+    "text_full_success": 0.895,
+    "present_full_success": 0.88,
+    "text_positive_correct": 85,
+    "present_positive_correct": 84,
+    "silent_false": 12,
+    "changed": 8,
+    "lost_positive": 1,
+    "new_false_positive": 0,
+    "heading_cited": 0,
+    "enrich_hit@5": 81,
+    "holdout_e_full_success": 0.89
+  },
+  "reason": "PRESENT did not reduce silent false answers and lost one previously correct positive. Headings in embeddings did not raise hit@5. Do not send more structure to Jev on this answer path. Do not start ingest labeling because the cheaper representations failed. Pause micro-optimization of the same five TextUnits."
+}

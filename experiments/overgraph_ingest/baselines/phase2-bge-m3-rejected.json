@@ -1,0 +1,51 @@
+{
+  "id": "phase2-bge-m3-rejected",
+  "label": "Negative experiment: BGE-M3 does not beat OpenAI 3072 + TF-IDF consistently. Keep the official hybrid. No GPU server.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "verdict": "rejected",
+  "default_retriever": "openai-tfidf",
+  "do_not_deploy": true,
+  "load_seconds": 177.38,
+  "peak_rss_mb": 4869.453125,
+  "warm_query_seconds": {
+    "openai-tfidf": 0.2598121311249478,
+    "bge-m3-tfidf": 0.14321338711306453,
+    "bge-m3": 0.10651183886719602,
+    "openai-bge-sparse": 0.3298210178368858
+  },
+  "hybrid_recall_at_50": {
+    "auto-renewal": {
+      "openai-tfidf": 0.95,
+      "bge-m3-tfidf": 0.9,
+      "bge-m3": 0.95,
+      "openai-bge-sparse": 0.95
+    },
+    "notice-period": {
+      "openai-tfidf": 0.7692307692307693,
+      "bge-m3-tfidf": 0.8461538461538461,
+      "bge-m3": 0.8461538461538461,
+      "openai-bge-sparse": 0.7692307692307693
+    },
+    "liability-cap": {
+      "openai-tfidf": 0.8529411764705882,
+      "bge-m3-tfidf": 0.8529411764705882,
+      "bge-m3": 0.6176470588235294,
+      "openai-bge-sparse": 0.6176470588235294
+    },
+    "confidentiality": {
+      "openai-tfidf": 0.5384615384615384,
+      "bge-m3-tfidf": 0.5384615384615384,
+      "bge-m3": 0.6153846153846154,
+      "openai-bge-sparse": 0.6153846153846154
+    },
+    "liability-secrecy-carveout": {
+      "openai-tfidf": 1.0,
+      "bge-m3-tfidf": 1.0,
+      "bge-m3": 1.0,
+      "openai-bge-sparse": 1.0
+    }
+  },
+  "hard_negative_note": "BGE-M3 + TF-IDF ranks Avtal 15 first on auto-renewal.",
+  "do_not_compare_percentages_to_query_expansion_v1": true
+}

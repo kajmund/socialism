@@ -1,0 +1,61 @@
+{
+  "id": "phase2-proof-jev-morph-v1",
+  "label": "Frozen: Jev proof evaluation on the same 40 morph cases. Not C@8 and not an independent blind test.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "classify_unchanged": true,
+  "not_an_independent_blind_test": true,
+  "zero_false_complete": false,
+  "headline": {
+    "passed": 43,
+    "judgment_count": 45,
+    "false_complete_count": 2,
+    "hard_false_complete": [
+      "negation_gäller_inte_utom_sekretess"
+    ],
+    "synonym_recall": 1.0,
+    "even_versus_inte": {
+      "even": "CONTRADICTED",
+      "inte": "SUPPORTED",
+      "distinguishes": true
+    },
+    "versus_deterministic": {
+      "deterministic_passed": 30,
+      "deterministic_synonym_recall": 0.3,
+      "deterministic_false_complete_count": 2,
+      "jev_passed": 43,
+      "jev_synonym_recall": 1.0,
+      "jev_false_complete_count": 2
+    },
+    "latency_ms_mean": 351.5416657862564,
+    "total_tokens": 31066,
+    "wall_seconds": 2.0681642503477633
+  },
+  "groups": {
+    "synonym": {
+      "count": 10,
+      "passed": 10,
+      "false_complete": []
+    },
+    "negation": {
+      "count": 10,
+      "passed": 9,
+      "false_complete": [
+        "negation_gäller_inte_utom_sekretess"
+      ]
+    },
+    "reference": {
+      "count": 14,
+      "passed": 13,
+      "false_complete": [
+        "reference_punkt_8_wrong"
+      ]
+    },
+    "cooccurrence": {
+      "count": 11,
+      "passed": 11,
+      "false_complete": []
+    }
+  }
+}

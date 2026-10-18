@@ -53,9 +53,9 @@ export function SmeExpertInterviewButton({ expertId, expertName, workspaceKind, 
   if (workspaceKind !== "company") return null
 
   return <>
-    <AdminButton variant="secondary" size="sm" disabled={loading || busy || companyId == null || !expertId} aria-label={t("sme.companyInterviewAria", { name: expertName })} title={t("sme.companyInterview")} onClick={() => { void open() }}>
+    <AdminButton variant="secondary" size="sm" className="w-full justify-start gap-1.5" disabled={loading || busy || companyId == null || !expertId} aria-label={t("sme.companyInterviewAria", { name: expertName })} title={t("sme.companyInterview")} onClick={() => { void open() }}>
       <MessageCircle size={16} aria-hidden="true" />
-      <span className="hidden sm:inline">{t("personas.composer.interviewTab")}</span>
+      <span>{t("personas.composer.interviewTab")}</span>
     </AdminButton>
     {error ? <span role="alert" className="text-xs text-destructive">{t("sme.companyInterviewError")}</span> : null}
     <Dialog open={openedFor === identity} onOpenChange={(next) => { if (!next) setOpenedFor(null) }}>

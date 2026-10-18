@@ -2,3 +2,5 @@ packages:
   - '.'
 allowBuilds:
   esbuild: true
+  # Transitive via onnxruntime-web. Its postinstall is optional; Silero runs on the packaged WASM without it.
+  protobufjs: false

@@ -28,6 +28,8 @@ async def research_canvas(documents):
         for source_id in ("source-0", "source-1", "source-2"):
             source = await session.get(StoredObject, source_id)
             source.knowledge_status = "ready"
+            source.extraction_status = "ok"
+            source.extracted_text = "contract text"
         await add_source(session, canvas, "source-1")
         identities = canvas.id, canvas.workspace_id, canvas.chat_id
         await session.commit()

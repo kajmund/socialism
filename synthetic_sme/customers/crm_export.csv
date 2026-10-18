@@ -1,0 +1,104 @@
+﻿opportunity_id;kund;segment;tjanst;stadium;belopp_sek;sannolikhet_pct;agare;skapad;senast_aktivitet;stangningsdatum;utfall;avtal_id;kommentar
+OPP-L-CTR-2024-010;Skogsbygdens Energi AB;ENTERPRISE;SE-Förvaltning (320 kkr/mån);Won;3840000;100;Sara Holm;2025-03-10;2025-03-10;2025-03-10;Won;CTR-2024-010;Kontrakt signerat
+OPP-L-CTR-2025-014;Fyrstadens kommun;OFFENTLIG;FS-Förvaltning (85 kkr/mån);Won;1020000;100;Sara Holm;2025-09-12;2025-09-12;2025-09-12;Won;CTR-2025-014;Kontrakt signerat
+OPP-L-CTR-2025-020;Norrhamns Hamn AB;ENTERPRISE;NH-Förvaltning (95 kkr/mån);Won;1140000;100;Sara Holm;2025-12-08;2025-12-08;2025-12-08;Won;CTR-2025-020;Kontrakt signerat
+OPP-L-CTR-2025-011;Timmervikens Såg AB;ENTERPRISE;TS-Produktionsportal;Won;1800000;100;Sara Holm;2025-09-08;2025-09-08;2025-09-08;Won;CTR-2025-011;Kontrakt signerat
+OPP-L-CTR-2025-006;Solvind Kraft AB;SMB;SV-Molnmigrering;Won;2400000;100;Sara Holm;2025-05-19;2025-05-19;2025-05-19;Won;CTR-2025-006;Kontrakt signerat
+OPP-L-CTR-2025-002;Åsen Bostäder AB;SMB;ÅB-Bostadsportal;Won;980000;100;Sara Holm;2025-02-10;2025-02-10;2025-02-10;Won;CTR-2025-002;Kontrakt signerat
+OPP-L-CTR-2025-009;Ljusåns Livsmedel AB;SMB;LL-Spårbarhet;Won;1100000;100;Sara Holm;2025-07-15;2025-07-15;2025-07-15;Won;CTR-2025-009;Kontrakt signerat
+OPP-L-CTR-2025-016;Läromedelshuset AB;SMB;LM-Lärplattform;Won;1600000;100;Sara Holm;2025-10-13;2025-10-13;2025-10-13;Won;CTR-2025-016;Kontrakt signerat
+OPP-L-CTR-2025-019;Trädkronans Skog AB;SMB;TR-Skogsportal;Won;850000;100;Sara Holm;2025-12-09;2025-12-09;2025-12-09;Won;CTR-2025-019;Kontrakt signerat
+OPP-L-CTR-2026-001;Sundbygdens Varv AB;SMB;SU-Produktionssystem;Won;1950000;100;Sara Holm;2026-02-24;2026-02-24;2026-02-24;Won;CTR-2026-001;Kontrakt signerat
+OPP-L-CTR-2026-004;Skogsbygdens Energi AB;ENTERPRISE;SE-Billing – tilläggsavtal;Won;800000;100;Sara Holm;2026-02-06;2026-02-06;2026-02-06;Won;CTR-2026-004;Kontrakt signerat
+OPP-L-CTR-2026-002;Skogsbygdens Energi AB;ENTERPRISE;Ramavtal SEAB – förlängning (1 180 kr/h);Won;10245350;100;Sara Holm;2026-01-15;2026-01-15;2026-01-15;Won;CTR-2026-002;Kontrakt signerat
+OPP-L-CTR-2024-030;Mossbackens Mekaniska AB;SMB;MM-Underhållssystem (1 030 kr/h);Won;887654;100;Sara Holm;2024-12-10;2024-12-10;2024-12-10;Won;CTR-2024-030;Kontrakt signerat
+OPP-L-CTR-2024-014;Kustlandets region;OFFENTLIG;KL-Vårdportal (1 090 kr/h);Won;915491;100;Sara Holm;2024-10-20;2024-10-20;2024-10-20;Won;CTR-2024-014;Kontrakt signerat
+OPP-S-CTR-SM-051;Fjäderholmens Rekond AB;SMB;Löpande konsultstöd CUS-026;Won;331254;100;Lisa Sundberg;2023-04-01;2023-04-01;2023-04-01;Won;CTR-SM-051;Mindre uppdrag
+OPP-S-CTR-SM-053;Bivägens Honung AB;SMB;Löpande konsultstöd CUS-029;Won;236360;100;Lisa Sundberg;2022-06-01;2022-06-01;2022-06-01;Won;CTR-SM-053;Mindre uppdrag
+OPP-S-CTR-SM-054;Stjärnklart Media AB;SMB;Löpande konsultstöd CUS-030;Won;343638;100;Lisa Sundberg;2023-02-01;2023-02-01;2023-02-01;Won;CTR-SM-054;Mindre uppdrag
+OPP-S-CTR-SM-055;Guldstaden Revision AB;SMB;Löpande konsultstöd CUS-031;Won;269800;100;Lisa Sundberg;2022-11-01;2022-11-01;2022-11-01;Won;CTR-SM-055;Mindre uppdrag
+OPP-S-CTR-SM-056;Havsbrisens Hotell AB;SMB;Löpande konsultstöd CUS-032;Won;219168;100;Lisa Sundberg;2025-01-01;2025-01-01;2025-01-01;Won;CTR-SM-056;Mindre uppdrag
+OPP-S-CTR-SM-058;Kopparbergets Museum AB;SMB;Löpande konsultstöd CUS-034;Won;185725;100;Lisa Sundberg;2025-03-01;2025-03-01;2025-03-01;Won;CTR-SM-058;Mindre uppdrag
+OPP-S-CTR-SM-059;Nordanvinden Advokat AB;SMB;Löpande konsultstöd CUS-035;Won;328016;100;Lisa Sundberg;2023-10-01;2023-10-01;2023-10-01;Won;CTR-SM-059;Mindre uppdrag
+OPP-S-CTR-SM-060;Östergårdens Lantbruk AB;SMB;Löpande konsultstöd CUS-036;Won;57760;100;Lisa Sundberg;2022-09-01;2022-09-01;2022-09-01;Won;CTR-SM-060;Mindre uppdrag
+OPP-S-CTR-SM-062;Sommarängens Trädgård AB;SMB;Löpande konsultstöd CUS-038;Won;164688;100;Lisa Sundberg;2025-04-01;2025-04-01;2025-04-01;Won;CTR-SM-062;Mindre uppdrag
+OPP-S-CTR-SM-063;Höstlövets Förlag AB;SMB;Löpande konsultstöd CUS-039;Won;269577;100;Lisa Sundberg;2023-03-01;2023-03-01;2023-03-01;Won;CTR-SM-063;Mindre uppdrag
+OPP-S-CTR-SM-064;Vårflodens Energi AB;SMB;Löpande konsultstöd CUS-040;Won;345565;100;Lisa Sundberg;2025-06-01;2025-06-01;2025-06-01;Won;CTR-SM-064;Mindre uppdrag
+OPP-S-CTR-SM-068;Morgonrodnadens Bageri AB;SMB;Löpande konsultstöd CUS-044;Won;133570;100;Lisa Sundberg;2023-06-01;2023-06-01;2023-06-01;Won;CTR-SM-068;Mindre uppdrag
+OPP-S-CTR-SM-071;Gryningsljusets Reklam AB;SMB;Löpande konsultstöd CUS-047;Won;233376;100;Lisa Sundberg;2023-09-01;2023-09-01;2023-09-01;Won;CTR-SM-071;Mindre uppdrag
+OPP-S-CTR-SM-074;Kristallkronans Smycken AB;SMB;Löpande konsultstöd CUS-050;Won;166630;100;Lisa Sundberg;2023-11-01;2023-11-01;2023-11-01;Won;CTR-SM-074;Mindre uppdrag
+OPP-L-L01;Kustlandets region;OFFENTLIG;Vårdportal fas 2;Lost;4200000;0;Sara Holm;2025-09-15;2025-11-14;2025-11-14;Lost;;Valde annan leverantör (lägre pris)
+OPP-L-L02;Norrhamns Hamn AB;ENTERPRISE;Ny logistikplattform;Lost;2800000;0;Sara Holm;2026-01-28;2026-04-09;2026-04-09;Lost;;Budgetstopp hos kunden
+OPP-L-L03;Fyrstadens kommun;OFFENTLIG;Intranätutveckling;Lost;2100000;0;Sara Holm;2025-11-23;2026-02-13;2026-02-13;Lost;;Upphandling – lägre pris
+OPP-L-L04;Gråvikens kommun;OFFENTLIG;Integrationsprojekt;Lost;1800000;0;Sara Holm;2025-03-26;2025-06-27;2025-06-27;Lost;;Kunden sköt upp projektet
+OPP-L-L05;Skogsbygdens Energi AB;ENTERPRISE;AI-plattform;Lost;3600000;0;Sara Holm;2026-01-24;2026-05-08;2026-05-08;Lost;;SEAB bygger internt
+OPP-L-L06;Polstjärnan Försäkring AB;ENTERPRISE;Försäkringsportal fas 2;Lost;2400000;0;Sara Holm;2026-02-24;2026-06-19;2026-06-19;Lost;;Kunden valde större leverantör
+OPP-L-L07;Timmervikens Såg AB;ENTERPRISE;Underhållsavtal TS;Lost;1200000;0;Sara Holm;2026-03-06;2026-07-10;2026-07-10;Lost;;Efter tvisten ville kunden inte förlänga
+OPP-L-L08;Kustbandets Färjor AB;ENTERPRISE;Biljettapp;Lost;1500000;0;Sara Holm;2025-04-14;2025-08-29;2025-08-29;Lost;;Pris
+OPP-L-L09;Gruvbergets Mineral AB;ENTERPRISE;Mobilapp fältarbete;Lost;1900000;0;Sara Holm;2025-10-23;2026-03-20;2026-03-20;Lost;;Pausad av kunden
+OPP-L-L10;Örby Handel & Logistik AB;SMB;E-handelsförvaltning;Lost;1450000;0;Sara Holm;2025-01-21;2025-03-31;2025-03-31;Lost;;Tvist – samarbetet avslutades
+OPP-L-L11;Mossbackens Mekaniska AB;SMB;Förnyelse MM-avtalet;Lost;1240000;0;Sara Holm;2026-04-11;2026-06-30;2026-06-30;Lost;;Konkurrent 20 % billigare
+OPP-L-L12;Sjöstadens Bryggeri AB;SMB;E-handel fas 2;Lost;950000;0;Sara Holm;2025-09-08;2025-12-08;2025-12-08;Lost;;Kunden i konkurs
+OPP-L-L13;Åsen Bostäder AB;SMB;Förvaltningsavtal ÅB;Lost;900000;0;Sara Holm;2026-01-12;2026-04-24;2026-04-24;Lost;;Kunden avvaktar
+OPP-L-L14;Norrhamns Hamn AB;ENTERPRISE;Integrationsplattform;Lost;1650000;0;Sara Holm;2025-06-26;2025-10-17;2025-10-17;Lost;;Pris
+OPP-L-L15;Skogsbygdens Energi AB;ENTERPRISE;Dataplattform;Lost;2900000;0;Sara Holm;2026-04-19;2026-08-21;2026-08-21;Lost;;SEAB valde intern lösning
+OPP-L-L16;Kustlandets region;OFFENTLIG;Larmportal;Lost;1300000;0;Sara Holm;2026-03-18;2026-07-31;2026-07-31;Lost;;Politisk omprioritering
+OPP-L-L17;Ljusåns Livsmedel AB;SMB;Spårbarhet fas 2;Lost;880000;0;Sara Holm;2025-12-20;2026-05-15;2026-05-15;Lost;;Kunden sköt upp
+OPP-L-L18;Solvind Kraft AB;SMB;Driftövervakning;Lost;1100000;0;Sara Holm;2026-04-20;2026-06-26;2026-06-26;Lost;;Pris
+OPP-L-L19;Polstjärnan Försäkring AB;ENTERPRISE;Dokumenthantering;Lost;1400000;0;Sara Holm;2025-10-02;2025-12-19;2025-12-19;Lost;;Kunden valde befintlig leverantör
+OPP-L-L20;Gråvikens kommun;OFFENTLIG;E-arkiv;Lost;2300000;0;Sara Holm;2025-12-07;2026-03-06;2026-03-06;Lost;;Upphandling pågår hos kunden
+OPP-L-L21;Fyrstadens kommun;OFFENTLIG;Ärendehantering;Lost;1700000;0;Sara Holm;2025-08-20;2025-11-28;2025-11-28;Lost;;Pris
+OPP-L-L22;Timmervikens Såg AB;ENTERPRISE;MES-integration;Lost;1350000;0;Sara Holm;2026-05-23;2026-09-11;2026-09-11;Lost;;Kunden avvaktar
+OPP-L-L23;Gruvbergets Mineral AB;ENTERPRISE;Datalager;Lost;2500000;0;Sara Holm;2025-09-30;2026-01-30;2026-01-30;Lost;;Valde Dataverket Nord
+OPP-L-L24;Kustbandets Färjor AB;ENTERPRISE;Passagerarsystem;Lost;2000000;0;Sara Holm;2026-01-16;2026-05-29;2026-05-29;Lost;;Budget
+OPP-L-L25;Skogsbygdens Energi AB;ENTERPRISE;Säkerhetsöversyn;Lost;1600000;0;Sara Holm;2025-10-06;2026-02-27;2026-02-27;Lost;;SEAB valde intern resurs
+OPP-L-L26;Norrhamns Hamn AB;ENTERPRISE;API-plattform;Lost;1250000;0;Sara Holm;2026-04-08;2026-06-12;2026-06-12;Lost;;Pris
+OPP-L-L27;Läromedelshuset AB;SMB;Förvaltning lärplattform;Lost;960000;0;Sara Holm;2026-07-11;2026-09-25;2026-09-25;Lost;;Kunden avvaktar
+OPP-L-L28;Polstjärnan Försäkring AB;ENTERPRISE;AI-understöd skadereglering;Lost;2200000;0;Sara Holm;2026-04-28;2026-07-24;2026-07-24;Lost;;Krav på datacenter i Sverige
+OPP-L-L29;Gråvikens kommun;OFFENTLIG;Intranätmigrering;Lost;1900000;0;Sara Holm;2026-01-09;2026-04-17;2026-04-17;Lost;;Upphandling – förlorad
+OPP-L-L30;Fyrstadens kommun;OFFENTLIG;E-tjänster;Lost;2600000;0;Sara Holm;2026-04-27;2026-08-14;2026-08-14;Lost;;Upphandling – förlorad
+OPP-L-L31;Skogsbygdens Energi AB;ENTERPRISE;Fakturaportal mobil;Lost;1450000;0;Sara Holm;2026-05-07;2026-09-04;2026-09-04;Lost;;SEAB valde annan leverantör
+OPP-L-L32;Kustlandets region;OFFENTLIG;Journalsystem;Lost;3800000;0;Sara Holm;2025-10-12;2026-02-20;2026-02-20;Lost;;Regionen valde större leverantör
+OPP-L-L33;Gruvbergets Mineral AB;ENTERPRISE;IoT-plattform;Lost;2100000;0;Sara Holm;2025-06-04;2025-10-24;2025-10-24;Lost;;Pris
+OPP-L-L34;Timmervikens Såg AB;ENTERPRISE;Underhållssystem;Lost;1700000;0;Sara Holm;2025-10-03;2025-12-05;2025-12-05;Lost;;Kunden valde billigare
+OPP-L-L35;Norrhamns Hamn AB;ENTERPRISE;Kundportal;Lost;1550000;0;Sara Holm;2026-06-15;2026-08-28;2026-08-28;Lost;;Avvaktar budget
+OPP-L-L36;Polstjärnan Försäkring AB;ENTERPRISE;Mobilapp;Lost;1800000;0;Sara Holm;2026-01-01;2026-03-27;2026-03-27;Lost;;Kunden sköt upp
+OPP-L-L37;Gråvikens kommun;OFFENTLIG;AI-assistent för handläggare;Lost;1500000;0;Sara Holm;2026-04-05;2026-07-10;2026-07-10;Lost;;Upphandling avbruten
+OPP-L-L38;Kustbandets Färjor AB;ENTERPRISE;Driftövervakning;Lost;1250000;0;Sara Holm;2026-06-03;2026-09-18;2026-09-18;Lost;;Pris
+OPP-L-L39;Polstjärnan Försäkring AB;ENTERPRISE;Testautomatisering;Lost;1100000;0;Sara Holm;2026-01-02;2026-04-30;2026-04-30;Lost;;Kunden valde befintlig leverantör
+OPP-L-L40;Skogsbygdens Energi AB;ENTERPRISE;BI-lösning;Lost;2100000;0;Sara Holm;2025-07-01;2025-11-07;2025-11-07;Lost;;SEAB valde intern lösning
+OPP-L-L41;Norrhamns Hamn AB;ENTERPRISE;Mobilapp hamnarbetare;Lost;1350000;0;Sara Holm;2026-03-18;2026-08-05;2026-08-05;Lost;;Budget
+OPP-L-L42;Timmervikens Såg AB;ENTERPRISE;IoT-sensorplattform;Lost;1600000;0;Sara Holm;2025-12-26;2026-02-25;2026-02-25;Lost;;Kunden sköt upp
+OPP-S-L01;Fjäderholmens Rekond AB;SMB;Bokningssystem;Lost;180000;0;Lisa Sundberg;2026-03-04;2026-04-18;2026-04-18;Lost;;Pris
+OPP-S-L02;Mjölkvägens Transport AB;SMB;Leveransapp;Lost;220000;0;Lisa Sundberg;2025-07-27;2025-09-19;2025-09-19;Lost;;Valde billigare
+OPP-S-L03;Bivägens Honung AB;SMB;E-handel;Lost;160000;0;Lisa Sundberg;2025-12-26;2026-02-27;2026-02-27;Lost;;Avvaktar
+OPP-S-L04;Stjärnklart Media AB;SMB;Webbplats;Lost;240000;0;Lisa Sundberg;2026-03-11;2026-05-22;2026-05-22;Lost;;Pris
+OPP-S-L05;Havsbrisens Hotell AB;SMB;Bokningssystem;Lost;210000;0;Lisa Sundberg;2026-04-27;2026-07-17;2026-07-17;Lost;;Valde annan byrå
+OPP-S-L06;Silverlinjen Buss AB;SMB;Tidtabellsapp;Lost;260000;0;Lisa Sundberg;2025-08-23;2025-11-21;2025-11-21;Lost;;Budget
+OPP-S-L07;Kopparbergets Museum AB;SMB;Biljettsystem;Lost;190000;0;Lisa Sundberg;2025-12-04;2026-03-13;2026-03-13;Lost;;Pris
+OPP-S-L08;Nordanvinden Advokat AB;SMB;Ärendehantering;Lost;150000;0;Lisa Sundberg;2025-08-26;2025-12-12;2025-12-12;Lost;;Valde annan leverantör
+OPP-S-L09;Vintergatans IT AB;SMB;Hemsida;Lost;175000;0;Lisa Sundberg;2026-04-19;2026-06-05;2026-06-05;Lost;;Pris
+OPP-S-L10;Sommarängens Trädgård AB;SMB;Butikssystem;Lost;140000;0;Lisa Sundberg;2025-06-20;2025-08-15;2025-08-15;Lost;;Avvaktar
+OPP-S-L11;Höstlövets Förlag AB;SMB;Prenumerationssystem;Lost;230000;0;Lisa Sundberg;2025-11-19;2026-01-23;2026-01-23;Lost;;Budget
+OPP-S-L12;Morgonrodnadens Bageri AB;SMB;Beställningsapp;Lost;165000;0;Lisa Sundberg;2026-01-26;2026-04-10;2026-04-10;Lost;;Pris
+OPP-S-L13;Skymningsvakten AB;SMB;Larmportal;Lost;280000;0;Lisa Sundberg;2026-05-16;2026-08-07;2026-08-07;Lost;;Krav på certifiering
+OPP-S-L14;Nattugglans Kundservice AB;SMB;Chattsystem;Lost;250000;0;Lisa Sundberg;2026-06-18;2026-09-18;2026-09-18;Lost;;Valde annan leverantör
+OPP-S-L15;Gryningsljusets Reklam AB;SMB;Offerthantering;Lost;185000;0;Lisa Sundberg;2025-07-22;2025-10-31;2025-10-31;Lost;;Pris
+OPP-S-L16;Tidvattnets Fiskeri AB;SMB;Loggbok fiskeflotta;Lost;155000;0;Lisa Sundberg;2025-10-19;2026-02-06;2026-02-06;Lost;;Avvaktar
+OPP-S-L17;Kristallkronans Smycken AB;SMB;E-handel;Lost;320000;0;Lisa Sundberg;2026-04-25;2026-06-13;2026-06-13;Lost;;Valde billigare
+OPP-O-01;Skogsbygdens Energi AB;ENTERPRISE;AI-stöd fakturering;Negotiation;1900000;70;Maja Lindqvist;2026-06-12;2026-10-02;;Open;;
+OPP-O-02;Kustlandets region;OFFENTLIG;Nytt ramavtal digitalisering;Negotiation;2400000;50;Sara Holm;2026-04-02;2026-07-22;;Open;;
+OPP-O-03;Gråvikens kommun;OFFENTLIG;E-tjänstplattform;Negotiation;1700000;60;Sara Holm;2026-03-10;2026-10-08;;Open;;
+OPP-O-04;Gruvbergets Mineral AB;ENTERPRISE;Dataplattform;Negotiation;1900000;55;Sara Holm;2026-05-19;2026-09-30;;Open;;
+OPP-O-05;Silverlinjen Buss AB;SMB;Underhållsavtal tidtabellsapp;Negotiation;440000;60;Lisa Sundberg;2026-08-04;2026-09-26;;Open;;
+OPP-O-06;Vårflodens Energi AB;SMB;Kundportal;Proposal;600000;30;Lisa Sundberg;2026-06-09;2026-08-02;;Open;;
+OPP-O-07;Fjällporten Hotell AB;SMB;CRM- och lojalitetssystem;Negotiation;600000;50;Sara Holm;2026-08-11;2026-10-10;;Open;;
+OPP-O-08;Skymningsvakten AB;SMB;Ärendehanteringssystem;Negotiation;480000;50;Lisa Sundberg;2026-09-01;2026-10-09;;Open;;
+OPP-O-09;Åskmolns Data AB;SMB;Molnmigrering;Negotiation;520000;55;Lisa Sundberg;2026-08-25;2026-10-08;;Open;;
+OPP-O-10;Stormvindens Logistik AB;SMB;Logistikportal;Negotiation;470000;50;Lisa Sundberg;2026-09-08;2026-09-28;;Open;;
+OPP-O-11;Sjöbrisens Marina AB;SMB;Utökning bokningssystem;Negotiation;400000;55;Lisa Sundberg;2026-09-15;2026-10-06;;Open;;
+OPP-O-12;Polstjärnan Försäkring AB;ENTERPRISE;AI-understöd;Proposal;900000;20;Sara Holm;2026-07-07;2026-10-14;;Open;;
+OPP-O-13;Nattugglans Kundservice AB;SMB;Chatbotsystem;Discovery;550000;25;Lisa Sundberg;2026-09-22;2026-10-15;;Open;;
+OPP-O-14;Kristallkronans Smycken AB;SMB;E-handel;Proposal;330000;30;Lisa Sundberg;2026-07-14;2026-08-30;;Open;;
+OPP-O-15;Höstlövets Förlag AB;SMB;Lärplattform;Discovery;420000;20;Lisa Sundberg;2026-09-02;2026-09-22;;Open;;
+OPP-O-16;Guldstaden Revision AB;SMB;Dokumenthantering;Proposal;300000;35;Lisa Sundberg;2026-08-18;2026-09-15;;Open;;

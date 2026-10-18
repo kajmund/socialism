@@ -1,0 +1,68 @@
+{
+  "experiment": "document-presentation-channel-parity-step-b-v3",
+  "classification": "post-intent-decision",
+  "source_artifact": "backend/data/document-channel-parity-step-b-v5.json",
+  "compared_to": "document-channel-parity-step-b-v2",
+  "actual_execute_expert_turn_calls": 150,
+  "acceptance": {
+    "strictly_correct_channel_cases": 149,
+    "previous_strictly_correct": 87,
+    "missed_explicit_shows": 0,
+    "previous_missed_explicit_shows": 0,
+    "erroneous_auto_displays": 0,
+    "previous_erroneous_auto_displays": 30,
+    "duplicate_presentations": 0,
+    "external_or_model_errors": 1,
+    "previous_external_or_model_errors": 2,
+    "wrong_mode_transitions": 0,
+    "previous_wrong_mode_transitions": 43,
+    "approved": false
+  },
+  "channels_summary": {
+    "text": {
+      "latency_ms": {"median": 2451.707, "p95": 3991.266},
+      "strictly_correct_cases": 49,
+      "correct_document_selections": 50,
+      "missed_explicit_shows": 0,
+      "erroneous_auto_displays": 0,
+      "wrong_mode_transitions": 0,
+      "external_or_model_errors": 1
+    },
+    "voice": {
+      "latency_ms": {"median": 2399.961, "p95": 3691.538},
+      "strictly_correct_cases": 50,
+      "correct_document_selections": 50,
+      "missed_explicit_shows": 0,
+      "erroneous_auto_displays": 0,
+      "wrong_mode_transitions": 0,
+      "external_or_model_errors": 0
+    },
+    "group_voice": {
+      "latency_ms": {"median": 2560.419, "p95": 4008.994},
+      "strictly_correct_cases": 50,
+      "correct_document_selections": 50,
+      "missed_explicit_shows": 0,
+      "erroneous_auto_displays": 0,
+      "wrong_mode_transitions": 0,
+      "external_or_model_errors": 0
+    }
+  },
+  "remaining_issues": {
+    "erroneous_auto_displays_by_intent": {
+      "ambiguous": 0,
+      "analyze": 0,
+      "count": 0
+    },
+    "wrong_mode_transitions": 0,
+    "provider_structured_output_errors": 0,
+    "no_reply_errors": 1,
+    "notes": [
+      "IntentDecision locks presentation before tools; continuation cannot force gallery on none/uncertain.",
+      "find_documents mode is forced from IntentDecision.operation (filter/within/extend/replace).",
+      "Isolated IntentDecision gold: 50/50. Live matrix: 149/150 strict.",
+      "Single remaining failure: 21-ambiguous text → ChatTurnError 'Expert tool episode produced no reply'.",
+      "v2 provider BadRequestError pair (response_format / structured output) did not recur.",
+      "Deterministic presentation fast path remains unapproved for production."
+    ]
+  }
+}
