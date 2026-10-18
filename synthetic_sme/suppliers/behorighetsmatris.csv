@@ -1,0 +1,18 @@
+﻿Användare;Roll;Behörigheter;Anmärkning
+Maja Lindqvist;VD;M365: användare, Ekonomi: läs, CRM: läs;OK
+Jonas Sandberg;CTO;M365: global admin, Azure: admin, VPN: admin;OK
+Anders Bergström;CFO;Ekonomi: admin, Lönesystem: admin, Bank: behörig;OK
+Petra Wahlgren;HR/kontor;HR: admin, CRM: admin, M365: användare, Ekonomi: behörighetsattest;ÖVERDRIVEN – har attestroll i ekonomisystemet utan att ingå i ekonomi
+Sara Holm;Försäljning;CRM: användare (läs/skriv), M365: användare;OK
+Lisa Sundberg;Marknad;CRM: användare, Designsuiten: admin;OK
+Erik Norén;Leverans;CRM: läs, Ärendehantering: admin;OK
+David Ekström;Projektledare;M365: GLOBAL ADMIN, Ekonomi: läs, Ärendehantering: admin;ÖVERDRIVEN – global admin utan IT-roll
+Karin Olsson;Projektledare;Ärendehantering: användare, M365: användare;OK
+Tomas Berg;Arkitekt;Azure: admin, M365: användare;OK
+Daniel Nyström;Data/AI;Analysmolntjänst: admin, Datainsikt: admin, Modellfabriken: admin;OK
+Patrik Öberg;DevOps;CI/CD: admin, Monitoring: admin, M365: användare;OK
+Simon Dahl;DevOps;CI/CD: admin, Monitoring: användare;OK
+Maria Gustavsson;Testledare;Testverktyg: admin, Ärendehantering: användare;OK
+Johanna Sjöberg;UX;Designsuiten: användare, M365: användare;OK
+Björn Falk (avgången 2026-08-31);Utvecklare;M365: användare, Ärendehantering: användare – KONTO AKTIVT;AVVIKELSE – konto inte avslutat
+Klara Månsson (avgången 2026-09-30);Support;Ärendehantering: admin, M365: användare;AVSLUTAS 2026-10-15

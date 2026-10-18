@@ -1,0 +1,3596 @@
+[
+  {
+    "author_id": "P-007",
+    "created": "2022-09-30",
+    "doc_id": "DOC-CTR-001",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2022-007",
+      "CUS-002"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2022-007_Ramavtal-IT-tjänster-Gråvikens-kommun.docx",
+    "title": "Ramavtal IT-tjänster Gråvikens kommun",
+    "valid_from": "2022-10-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2022-11-03",
+    "doc_id": "DOC-CTR-002",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2022-028",
+      "CUS-016"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2022-028_Ramavtal-KP-Fastighetssystem.docx",
+    "title": "Ramavtal KP-Fastighetssystem",
+    "valid_from": "2023-01-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-11-20",
+    "doc_id": "DOC-CTR-003",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2023-002",
+      "CUS-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2023-002_SE-Billing-ny-faktureringsplattform.docx",
+    "title": "SE-Billing – ny faktureringsplattform",
+    "valid_from": "2024-10-01",
+    "valid_to": "2026-07-15",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-06-15",
+    "doc_id": "DOC-CTR-004",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2023-015",
+      "CUS-005"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2023-015_KF-Biljettsystem.docx",
+    "title": "KF-Biljettsystem",
+    "valid_from": "2023-07-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-08-25",
+    "doc_id": "DOC-CTR-005",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2023-018",
+      "CUS-007"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2023-018_BV-Journalsystem.docx",
+    "title": "BV-Journalsystem",
+    "valid_from": "2023-09-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-09-18",
+    "doc_id": "DOC-CTR-006",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2023-021",
+      "CUS-011"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2023-021_NH-Logistikportal.docx",
+    "title": "NH-Logistikportal",
+    "valid_from": "2024-10-01",
+    "valid_to": "2025-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-12-05",
+    "doc_id": "DOC-CTR-007",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2023-022",
+      "CUS-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2023-022_Ramavtal-konsulttjänster-SEAB-ursprungligt.docx",
+    "title": "Ramavtal konsulttjänster SEAB (ursprungligt)",
+    "valid_from": "2024-01-01",
+    "valid_to": "2026-01-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-05-12",
+    "doc_id": "DOC-CTR-008",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2023-026",
+      "CUS-013"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2023-026_Ramavtal-GM-Bergdatasystem.docx",
+    "title": "Ramavtal GM-Bergdatasystem",
+    "valid_from": "2023-06-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-03-10",
+    "doc_id": "DOC-CTR-009",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2024-010",
+      "CUS-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2024-010_SE-Förvaltning.docx",
+    "title": "SE-Förvaltning",
+    "valid_from": "2025-04-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2024-10-20",
+    "doc_id": "DOC-CTR-010",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2024-014",
+      "CUS-004"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2024-014_KL-Vårdportal.docx",
+    "title": "KL-Vårdportal",
+    "valid_from": "2024-11-04",
+    "valid_to": "2026-03-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2024-09-05",
+    "doc_id": "DOC-CTR-011",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2024-016",
+      "CUS-009"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2024-016_ÖH-Webbplattform.docx",
+    "title": "ÖH-Webbplattform",
+    "valid_from": "2024-10-01",
+    "valid_to": "2025-02-28",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-01-20",
+    "doc_id": "DOC-CTR-012",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2024-021",
+      "CUS-003"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2024-021_FS-Intranät.docx",
+    "title": "FS-Intranät",
+    "valid_from": "2025-02-02",
+    "valid_to": "2025-09-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2024-12-10",
+    "doc_id": "DOC-CTR-013",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2024-030",
+      "CUS-008"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2024-030_MM-Underhållssystem.docx",
+    "title": "MM-Underhållssystem",
+    "valid_from": "2025-01-06",
+    "valid_to": "2026-06-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-02-17",
+    "doc_id": "DOC-CTR-014",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2024-031",
+      "CUS-010"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2024-031_SB-E-handel.docx",
+    "title": "SB-E-handel",
+    "valid_from": "2025-03-03",
+    "valid_to": "2025-11-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-01-19",
+    "doc_id": "DOC-CTR-015",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2024-032",
+      "CUS-021"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2024-032_AR-Beställningsapp.docx",
+    "title": "AR-Beställningsapp",
+    "valid_from": "2025-02-03",
+    "valid_to": "2025-10-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-02-10",
+    "doc_id": "DOC-CTR-016",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-002",
+      "CUS-012"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-002_ÅB-Bostadsportal.docx",
+    "title": "ÅB-Bostadsportal",
+    "valid_from": "2025-03-03",
+    "valid_to": "2025-11-28",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-02-17",
+    "doc_id": "DOC-CTR-017",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-004",
+      "CUS-023"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-004_FK-Miljödata.docx",
+    "title": "FK-Miljödata",
+    "valid_from": "2025-03-03",
+    "valid_to": "2026-02-27",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-05-19",
+    "doc_id": "DOC-CTR-018",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-006",
+      "CUS-014"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-006_SV-Molnmigrering.docx",
+    "title": "SV-Molnmigrering",
+    "valid_from": "2025-06-02",
+    "valid_to": "2026-03-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-03-10",
+    "doc_id": "DOC-CTR-019",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-007",
+      "CUS-015"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-007_Ramavtal-PF-Kundportal.docx",
+    "title": "Ramavtal PF-Kundportal",
+    "valid_from": "2025-04-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-04-22",
+    "doc_id": "DOC-CTR-020",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-008",
+      "CUS-018"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-008_SM-Bokningssystem.docx",
+    "title": "SM-Bokningssystem",
+    "valid_from": "2025-05-05",
+    "valid_to": "2026-04-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-07-15",
+    "doc_id": "DOC-CTR-021",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-009",
+      "CUS-017"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-009_LL-Spårbarhet.docx",
+    "title": "LL-Spårbarhet",
+    "valid_from": "2025-08-04",
+    "valid_to": "2026-01-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-09-08",
+    "doc_id": "DOC-CTR-022",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-011",
+      "CUS-006"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-011_TS-Produktionsportal.docx",
+    "title": "TS-Produktionsportal",
+    "valid_from": "2025-10-01",
+    "valid_to": "2026-05-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-08-18",
+    "doc_id": "DOC-CTR-023",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-013",
+      "CUS-019"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-013_NE-Projektportal.docx",
+    "title": "NE-Projektportal",
+    "valid_from": "2025-09-01",
+    "valid_to": "2027-01-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-09-12",
+    "doc_id": "DOC-CTR-024",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-014",
+      "CUS-003"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-014_FS-Förvaltning.docx",
+    "title": "FS-Förvaltning",
+    "valid_from": "2025-10-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-07-14",
+    "doc_id": "DOC-CTR-025",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-015",
+      "CUS-028"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-015_KS-Skolplattform.docx",
+    "title": "KS-Skolplattform",
+    "valid_from": "2025-08-04",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-10-13",
+    "doc_id": "DOC-CTR-027",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-016",
+      "CUS-022"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-016_LM-Lärplattform.docx",
+    "title": "LM-Lärplattform",
+    "valid_from": "2025-11-03",
+    "valid_to": "2026-08-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-12-09",
+    "doc_id": "DOC-CTR-028",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-019",
+      "CUS-020"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-019_TR-Skogsportal.docx",
+    "title": "TR-Skogsportal",
+    "valid_from": "2026-01-05",
+    "valid_to": "2026-09-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-12-08",
+    "doc_id": "DOC-CTR-029",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-020",
+      "CUS-011"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-020_NH-Förvaltning.docx",
+    "title": "NH-Förvaltning",
+    "valid_from": "2026-01-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2026-01-20",
+    "doc_id": "DOC-CTR-033",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2025-022",
+      "CUS-024"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2025-022_FP-Bokningsplattform.docx",
+    "title": "FP-Bokningsplattform",
+    "valid_from": "2026-02-02",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2026-02-24",
+    "doc_id": "DOC-CTR-031",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2026-001",
+      "CUS-025"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2026-001_SU-Produktionssystem.docx",
+    "title": "SU-Produktionssystem",
+    "valid_from": "2026-03-02",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2026-01-15",
+    "doc_id": "DOC-CTR-026",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2026-002",
+      "CUS-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2026-002_Ramavtal-konsulttjänster-SEAB-förlängning.docx",
+    "title": "Ramavtal konsulttjänster SEAB (förlängning)",
+    "valid_from": "2026-02-01",
+    "valid_to": "2028-01-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2026-02-06",
+    "doc_id": "DOC-CTR-030",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-2026-004",
+      "CUS-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-2026-004_Tilläggsavtal-SE-Billing-slutleverans.docx",
+    "title": "Tilläggsavtal SE-Billing (slutleverans)",
+    "valid_from": "2026-02-06",
+    "valid_to": "2026-07-15",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2021-05-20",
+    "doc_id": "DOC-CTR-034",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-AKT-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/corporate/CTR-AKT-001_Aktieägaravtal.docx",
+    "title": "Aktieägaravtal",
+    "valid_from": "2021-05-20",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-06-12",
+    "doc_id": "DOC-CTR-035",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-AKT-002"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/corporate/CTR-AKT-002_Optionsprogram-för-nyckelpersoner.docx",
+    "title": "Optionsprogram för nyckelpersoner",
+    "valid_from": "2025-06-12",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-04-01",
+    "doc_id": "DOC-CTR-036",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-BANK-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/corporate/CTR-BANK-001_Checkräkningskredit.docx",
+    "title": "Checkräkningskredit",
+    "valid_from": "2023-04-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-04-01",
+    "doc_id": "DOC-CTR-037",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-BANK-002"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/corporate/CTR-BANK-002_Banklån.docx",
+    "title": "Banklån",
+    "valid_from": "2023-04-01",
+    "valid_to": "2028-03-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-04-12",
+    "doc_id": "DOC-CTR-038",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-001",
+      "CUS-002"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-001_Personuppgiftsbiträdesavtal-Gråvikens-kommun.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2023-04-12",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-07-23",
+    "doc_id": "DOC-CTR-039",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-002",
+      "CUS-003"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-002_Personuppgiftsbiträdesavtal-Fyrstadens-kommun.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2024-07-23",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-10-06",
+    "doc_id": "DOC-CTR-040",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-003",
+      "CUS-004"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-003_Personuppgiftsbiträdesavtal-Kustlandets-region.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2025-10-06",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2022-01-17",
+    "doc_id": "DOC-CTR-041",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-004",
+      "CUS-007"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-004_Personuppgiftsbiträdesavtal-Blåklintens-Vård-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2022-01-17",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-04-28",
+    "doc_id": "DOC-CTR-042",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-005",
+      "CUS-011"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-005_Personuppgiftsbiträdesavtal-Norrhamns-Hamn-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2023-04-28",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-07-11",
+    "doc_id": "DOC-CTR-043",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-006",
+      "CUS-015"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-006_Personuppgiftsbiträdesavtal-Polstjärnan-Försäkring-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2024-07-11",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-10-22",
+    "doc_id": "DOC-CTR-044",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-007",
+      "CUS-016"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-007_Personuppgiftsbiträdesavtal-Kapellbacken-Fastigheter-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2025-10-22",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2022-01-05",
+    "doc_id": "DOC-CTR-045",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-008",
+      "CUS-019"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-008_Personuppgiftsbiträdesavtal-Nybygget-Entreprenad-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2022-01-05",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-04-16",
+    "doc_id": "DOC-CTR-046",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-009",
+      "CUS-022"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-009_Personuppgiftsbiträdesavtal-Läromedelshuset-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2023-04-16",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-07-27",
+    "doc_id": "DOC-CTR-047",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-010",
+      "CUS-028"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-010_Personuppgiftsbiträdesavtal-Klockbergets-Skola-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2024-07-27",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-10-10",
+    "doc_id": "DOC-CTR-048",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-011",
+      "CUS-045"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-011_Personuppgiftsbiträdesavtal-Skymningsvakten-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2025-10-10",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2022-01-21",
+    "doc_id": "DOC-CTR-049",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-012",
+      "CUS-046"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-DPA-012_Personuppgiftsbiträdesavtal-Nattugglans-Kundservice-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2022-01-21",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-04-04",
+    "doc_id": "DOC-CTR-050",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-013",
+      "SUP-003"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-DPA-013_Personuppgiftsbiträdesavtal-Cloudserve-Ireland-Ltd.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2023-04-04",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-07-15",
+    "doc_id": "DOC-CTR-051",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-014",
+      "SUP-009"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-DPA-014_Personuppgiftsbiträdesavtal-Pipeline-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2024-07-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-10-26",
+    "doc_id": "DOC-CTR-052",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-015",
+      "SUP-010"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-DPA-015_Personuppgiftsbiträdesavtal-Löneportalen-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2025-10-26",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2022-01-09",
+    "doc_id": "DOC-CTR-053",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-016",
+      "SUP-011"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-DPA-016_Personuppgiftsbiträdesavtal-Företagssystem-Nord-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2022-01-09",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-04-20",
+    "doc_id": "DOC-CTR-054",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-017",
+      "SUP-013"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-DPA-017_Personuppgiftsbiträdesavtal-Analytics-Cloud-Inc.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2023-04-20",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-07-03",
+    "doc_id": "DOC-CTR-055",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-018",
+      "SUP-014"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-DPA-018_Personuppgiftsbiträdesavtal-Datainsikt-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2024-07-03",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-10-14",
+    "doc_id": "DOC-CTR-056",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-019",
+      "SUP-017"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-DPA-019_Personuppgiftsbiträdesavtal-Vakthuset-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2025-10-14",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2022-01-25",
+    "doc_id": "DOC-CTR-057",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-020",
+      "SUP-020"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-DPA-020_Personuppgiftsbiträdesavtal-Arkivet-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2022-01-25",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-04-08",
+    "doc_id": "DOC-CTR-058",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-DPA-021",
+      "SUP-022"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-DPA-021_Personuppgiftsbiträdesavtal-Personalen-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2023-04-08",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2018-03-12",
+    "doc_id": "DOC-CTR-059",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-01",
+      "P-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-01_Anställningsavtal-Verkställande-direktör.docx",
+    "title": "Anställningsavtal Verkställande direktör",
+    "valid_from": "2018-03-12",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2018-03-12",
+    "doc_id": "DOC-CTR-060",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-02",
+      "P-002"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-02_Anställningsavtal-CTO.docx",
+    "title": "Anställningsavtal CTO",
+    "valid_from": "2018-03-12",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2021-01-11",
+    "doc_id": "DOC-CTR-061",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-03",
+      "P-003"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-03_Anställningsavtal-CFO.docx",
+    "title": "Anställningsavtal CFO",
+    "valid_from": "2021-01-11",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2020-08-17",
+    "doc_id": "DOC-CTR-062",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-04",
+      "P-004"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-04_Anställningsavtal-HR-och-kontorschef.docx",
+    "title": "Anställningsavtal HR- och kontorschef",
+    "valid_from": "2020-08-17",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2021-04-06",
+    "doc_id": "DOC-CTR-063",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-05",
+      "P-005"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-05_Anställningsavtal-Försäljningschef.docx",
+    "title": "Anställningsavtal Försäljningschef",
+    "valid_from": "2021-04-06",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-02-01",
+    "doc_id": "DOC-CTR-064",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-06",
+      "P-006"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-06_Anställningsavtal-Marknadsansvarig.docx",
+    "title": "Anställningsavtal Marknadsansvarig",
+    "valid_from": "2023-02-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2019-05-06",
+    "doc_id": "DOC-CTR-065",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-07",
+      "P-007"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-07_Anställningsavtal-Leveranschef.docx",
+    "title": "Anställningsavtal Leveranschef",
+    "valid_from": "2019-05-06",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2019-09-02",
+    "doc_id": "DOC-CTR-066",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-08",
+      "P-008"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-08_Anställningsavtal-Projektledare.docx",
+    "title": "Anställningsavtal Projektledare",
+    "valid_from": "2019-09-02",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2021-03-15",
+    "doc_id": "DOC-CTR-067",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-09",
+      "P-009"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-09_Anställningsavtal-Projektledare.docx",
+    "title": "Anställningsavtal Projektledare",
+    "valid_from": "2021-03-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2022-11-01",
+    "doc_id": "DOC-CTR-068",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-10",
+      "P-010"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-10_Anställningsavtal-Projektledare.docx",
+    "title": "Anställningsavtal Projektledare",
+    "valid_from": "2022-11-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2019-01-07",
+    "doc_id": "DOC-CTR-069",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-11",
+      "P-011"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-11_Anställningsavtal-Lösningsarkitekt.docx",
+    "title": "Anställningsavtal Lösningsarkitekt",
+    "valid_from": "2019-01-07",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2026-05-04",
+    "doc_id": "DOC-CTR-070",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-12",
+      "P-012"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-12_Anställningsavtal-Lösningsarkitekt.docx",
+    "title": "Anställningsavtal Lösningsarkitekt",
+    "valid_from": "2026-05-04",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2019-04-01",
+    "doc_id": "DOC-CTR-071",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-13",
+      "P-013"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-13_Anställningsavtal-Senior-utvecklare.docx",
+    "title": "Anställningsavtal Senior utvecklare",
+    "valid_from": "2019-04-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2020-03-09",
+    "doc_id": "DOC-CTR-072",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-14",
+      "P-014"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-14_Anställningsavtal-Senior-utvecklare.docx",
+    "title": "Anställningsavtal Senior utvecklare",
+    "valid_from": "2020-03-09",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2020-09-14",
+    "doc_id": "DOC-CTR-073",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-15",
+      "P-015"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-15_Anställningsavtal-Senior-utvecklare.docx",
+    "title": "Anställningsavtal Senior utvecklare",
+    "valid_from": "2020-09-14",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2021-08-23",
+    "doc_id": "DOC-CTR-074",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-16",
+      "P-016"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-16_Anställningsavtal-Senior-utvecklare.docx",
+    "title": "Anställningsavtal Senior utvecklare",
+    "valid_from": "2021-08-23",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2022-04-04",
+    "doc_id": "DOC-CTR-075",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-17",
+      "P-017"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-17_Anställningsavtal-Senior-utvecklare.docx",
+    "title": "Anställningsavtal Senior utvecklare",
+    "valid_from": "2022-04-04",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2025-02-03",
+    "doc_id": "DOC-CTR-076",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-18",
+      "P-018"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-18_Anställningsavtal-Senior-utvecklare.docx",
+    "title": "Anställningsavtal Senior utvecklare",
+    "valid_from": "2025-02-03",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2025-01-12",
+    "doc_id": "DOC-CTR-077",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-19",
+      "P-019"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-19_Anställningsavtal-Utvecklare.docx",
+    "title": "Anställningsavtal Utvecklare",
+    "valid_from": "2025-01-12",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-08-14",
+    "doc_id": "DOC-CTR-078",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-20",
+      "P-020"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-20_Anställningsavtal-Utvecklare.docx",
+    "title": "Anställningsavtal Utvecklare",
+    "valid_from": "2023-08-14",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2025-09-01",
+    "doc_id": "DOC-CTR-079",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-21",
+      "P-021"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-21_Anställningsavtal-Utvecklare.docx",
+    "title": "Anställningsavtal Utvecklare",
+    "valid_from": "2025-09-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2025-04-01",
+    "doc_id": "DOC-CTR-080",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-22",
+      "P-022"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-22_Anställningsavtal-Junior-utvecklare.docx",
+    "title": "Anställningsavtal Junior utvecklare",
+    "valid_from": "2025-04-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2026-01-12",
+    "doc_id": "DOC-CTR-081",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-23",
+      "P-023"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-23_Anställningsavtal-Junior-utvecklare.docx",
+    "title": "Anställningsavtal Junior utvecklare",
+    "valid_from": "2026-01-12",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2020-11-02",
+    "doc_id": "DOC-CTR-082",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-24",
+      "P-024"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-24_Anställningsavtal-Testledare.docx",
+    "title": "Anställningsavtal Testledare",
+    "valid_from": "2020-11-02",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2022-02-07",
+    "doc_id": "DOC-CTR-083",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-25",
+      "P-025"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-25_Anställningsavtal-UX-designer.docx",
+    "title": "Anställningsavtal UX-designer",
+    "valid_from": "2022-02-07",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-05-08",
+    "doc_id": "DOC-CTR-084",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-26",
+      "P-026"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-26_Anställningsavtal-Data-AI-specialist.docx",
+    "title": "Anställningsavtal Data/AI-specialist",
+    "valid_from": "2023-05-08",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-11-01",
+    "doc_id": "DOC-CTR-085",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-27",
+      "P-027"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-27_Anställningsavtal-DevOps-ingenjör.docx",
+    "title": "Anställningsavtal DevOps-ingenjör",
+    "valid_from": "2024-11-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2025-08-18",
+    "doc_id": "DOC-CTR-086",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-28",
+      "P-028"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-28_Anställningsavtal-DevOps-ingenjör.docx",
+    "title": "Anställningsavtal DevOps-ingenjör",
+    "valid_from": "2025-08-18",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2021-02-15",
+    "doc_id": "DOC-CTR-087",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-29",
+      "P-029"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-29_Anställningsavtal-Utvecklare.docx",
+    "title": "Anställningsavtal Utvecklare",
+    "valid_from": "2021-02-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2022-09-05",
+    "doc_id": "DOC-CTR-088",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-30",
+      "P-030"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-30_Anställningsavtal-Supportansvarig.docx",
+    "title": "Anställningsavtal Supportansvarig",
+    "valid_from": "2022-09-05",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-06-10",
+    "doc_id": "DOC-CTR-089",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-31",
+      "P-031"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-31_Anställningsavtal-Dataanalytiker.docx",
+    "title": "Anställningsavtal Dataanalytiker",
+    "valid_from": "2024-06-10",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2019-11-04",
+    "doc_id": "DOC-CTR-090",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-32",
+      "P-032"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-32_Anställningsavtal-Senior-utvecklare.docx",
+    "title": "Anställningsavtal Senior utvecklare",
+    "valid_from": "2019-11-04",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2021-09-20",
+    "doc_id": "DOC-CTR-091",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-33",
+      "P-033"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-33_Anställningsavtal-Projektledare.docx",
+    "title": "Anställningsavtal Projektledare",
+    "valid_from": "2021-09-20",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-03-13",
+    "doc_id": "DOC-CTR-092",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-34",
+      "P-034"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-34_Anställningsavtal-Utvecklare.docx",
+    "title": "Anställningsavtal Utvecklare",
+    "valid_from": "2023-03-13",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2022-05-09",
+    "doc_id": "DOC-CTR-093",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-35",
+      "P-035"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-35_Anställningsavtal-Testare.docx",
+    "title": "Anställningsavtal Testare",
+    "valid_from": "2022-05-09",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2020-10-12",
+    "doc_id": "DOC-CTR-094",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-36",
+      "P-036"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-36_Anställningsavtal-Senior-utvecklare.docx",
+    "title": "Anställningsavtal Senior utvecklare",
+    "valid_from": "2020-10-12",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-06-19",
+    "doc_id": "DOC-CTR-095",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-EMP-37",
+      "P-037"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/employees/CTR-EMP-37_Anställningsavtal-Marknadskoordinator.docx",
+    "title": "Anställningsavtal Marknadskoordinator",
+    "valid_from": "2023-06-19",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2026-03-02",
+    "doc_id": "DOC-CTR-032",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-HYRA-002"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/corporate/CTR-HYRA-002_Tilläggsavtal-extra-våningsplan.docx",
+    "title": "Tilläggsavtal extra våningsplan",
+    "valid_from": "2026-07-01",
+    "valid_to": "2027-06-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-06-08",
+    "doc_id": "DOC-CTR-096",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-001",
+      "CUS-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-001_Sekretessavtal-ömsesidigt-Skogsbygdens-Energi-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-06-08",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-11-15",
+    "doc_id": "DOC-CTR-097",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-002",
+      "CUS-002"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-002_Sekretessavtal-ömsesidigt-Gråvikens-kommun.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-11-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-04-22",
+    "doc_id": "DOC-CTR-098",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-003",
+      "CUS-003"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-003_Sekretessavtal-ömsesidigt-Fyrstadens-kommun.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2023-04-22",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-09-01",
+    "doc_id": "DOC-CTR-099",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-004",
+      "CUS-005"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-004_Sekretessavtal-ömsesidigt-Kustbandets-Färjor-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-09-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-02-08",
+    "doc_id": "DOC-CTR-100",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-005",
+      "CUS-006"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-005_Sekretessavtal-ömsesidigt-Timmervikens-Såg-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-02-08",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-07-15",
+    "doc_id": "DOC-CTR-101",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-006",
+      "CUS-007"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-006_Sekretessavtal-ömsesidigt-Blåklintens-Vård-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2023-07-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-12-22",
+    "doc_id": "DOC-CTR-102",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-007",
+      "CUS-011"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-007_Sekretessavtal-ömsesidigt-Norrhamns-Hamn-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-12-22",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-05-01",
+    "doc_id": "DOC-CTR-103",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-008",
+      "CUS-013"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-008_Sekretessavtal-ömsesidigt-Gruvbergets-Mineral-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-05-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-10-08",
+    "doc_id": "DOC-CTR-104",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-009",
+      "CUS-014"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-009_Sekretessavtal-ömsesidigt-Solvind-Kraft-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2023-10-08",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-03-15",
+    "doc_id": "DOC-CTR-105",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-010",
+      "CUS-015"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-010_Sekretessavtal-ömsesidigt-Polstjärnan-Försäkring-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-03-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-08-22",
+    "doc_id": "DOC-CTR-106",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-011",
+      "CUS-016"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-011_Sekretessavtal-ömsesidigt-Kapellbacken-Fastigheter-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-08-22",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-01-01",
+    "doc_id": "DOC-CTR-107",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-012",
+      "CUS-018"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-012_Sekretessavtal-ömsesidigt-Sjöbrisens-Marina-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2023-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-06-08",
+    "doc_id": "DOC-CTR-108",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-013",
+      "CUS-019"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-013_Sekretessavtal-ömsesidigt-Nybygget-Entreprenad-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-06-08",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-11-15",
+    "doc_id": "DOC-CTR-109",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-014",
+      "CUS-022"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-014_Sekretessavtal-ömsesidigt-Läromedelshuset-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-11-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-04-22",
+    "doc_id": "DOC-CTR-110",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-015",
+      "CUS-024"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-015_Sekretessavtal-ömsesidigt-Fjällporten-Hotell-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2023-04-22",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-09-01",
+    "doc_id": "DOC-CTR-111",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-016",
+      "CUS-025"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-016_Sekretessavtal-ömsesidigt-Sundbygdens-Varv-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-09-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-02-08",
+    "doc_id": "DOC-CTR-112",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-017",
+      "CUS-045"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-NDA-017_Sekretessavtal-ömsesidigt-Skymningsvakten-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-02-08",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-07-15",
+    "doc_id": "DOC-CTR-113",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-018",
+      "SUP-003"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-NDA-018_Sekretessavtal-ömsesidigt-Cloudserve-Ireland-Ltd.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2023-07-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-12-22",
+    "doc_id": "DOC-CTR-114",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-019",
+      "SUP-012"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-NDA-019_Sekretessavtal-ömsesidigt-Modellfabriken-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-12-22",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-05-01",
+    "doc_id": "DOC-CTR-115",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-020",
+      "SUP-013"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-NDA-020_Sekretessavtal-ömsesidigt-Analytics-Cloud-Inc.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-05-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-10-08",
+    "doc_id": "DOC-CTR-116",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-021",
+      "SUP-034"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-NDA-021_Sekretessavtal-ömsesidigt-Kraftkod-Konsult-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2023-10-08",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-03-15",
+    "doc_id": "DOC-CTR-117",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-022"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/corporate/CTR-NDA-022_Sekretessavtal-ömsesidigt-Motparten.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-03-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-08-22",
+    "doc_id": "DOC-CTR-118",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-NDA-023"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/corporate/CTR-NDA-023_Sekretessavtal-ömsesidigt-Motparten.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-08-22",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-04-01",
+    "doc_id": "DOC-CTR-119",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-051",
+      "CUS-026"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-051_Löpande-konsultstöd-CUS-026.docx",
+    "title": "Löpande konsultstöd CUS-026",
+    "valid_from": "2023-04-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-08-01",
+    "doc_id": "DOC-CTR-120",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-052",
+      "CUS-027"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-052_Löpande-konsultstöd-CUS-027.docx",
+    "title": "Löpande konsultstöd CUS-027",
+    "valid_from": "2023-08-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2022-06-01",
+    "doc_id": "DOC-CTR-121",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-053",
+      "CUS-029"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-053_Löpande-konsultstöd-CUS-029.docx",
+    "title": "Löpande konsultstöd CUS-029",
+    "valid_from": "2022-06-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-02-01",
+    "doc_id": "DOC-CTR-122",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-054",
+      "CUS-030"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-054_Löpande-konsultstöd-CUS-030.docx",
+    "title": "Löpande konsultstöd CUS-030",
+    "valid_from": "2023-02-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2022-11-01",
+    "doc_id": "DOC-CTR-123",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-055",
+      "CUS-031"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-055_Löpande-konsultstöd-CUS-031.docx",
+    "title": "Löpande konsultstöd CUS-031",
+    "valid_from": "2022-11-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-01-01",
+    "doc_id": "DOC-CTR-124",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-056",
+      "CUS-032"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-056_Löpande-konsultstöd-CUS-032.docx",
+    "title": "Löpande konsultstöd CUS-032",
+    "valid_from": "2025-01-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-05-01",
+    "doc_id": "DOC-CTR-125",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-057",
+      "CUS-033"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-057_Löpande-konsultstöd-CUS-033.docx",
+    "title": "Löpande konsultstöd CUS-033",
+    "valid_from": "2023-05-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-03-01",
+    "doc_id": "DOC-CTR-126",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-058",
+      "CUS-034"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-058_Löpande-konsultstöd-CUS-034.docx",
+    "title": "Löpande konsultstöd CUS-034",
+    "valid_from": "2025-03-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-10-01",
+    "doc_id": "DOC-CTR-127",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-059",
+      "CUS-035"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-059_Löpande-konsultstöd-CUS-035.docx",
+    "title": "Löpande konsultstöd CUS-035",
+    "valid_from": "2023-10-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2022-09-01",
+    "doc_id": "DOC-CTR-128",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-060",
+      "CUS-036"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-060_Löpande-konsultstöd-CUS-036.docx",
+    "title": "Löpande konsultstöd CUS-036",
+    "valid_from": "2022-09-01",
+    "valid_to": "2025-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-02-01",
+    "doc_id": "DOC-CTR-129",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-061",
+      "CUS-037"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-061_Löpande-konsultstöd-CUS-037.docx",
+    "title": "Löpande konsultstöd CUS-037",
+    "valid_from": "2025-02-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-04-01",
+    "doc_id": "DOC-CTR-130",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-062",
+      "CUS-038"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-062_Löpande-konsultstöd-CUS-038.docx",
+    "title": "Löpande konsultstöd CUS-038",
+    "valid_from": "2025-04-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-03-01",
+    "doc_id": "DOC-CTR-131",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-063",
+      "CUS-039"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-063_Löpande-konsultstöd-CUS-039.docx",
+    "title": "Löpande konsultstöd CUS-039",
+    "valid_from": "2023-03-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-06-01",
+    "doc_id": "DOC-CTR-132",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-064",
+      "CUS-040"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-064_Löpande-konsultstöd-CUS-040.docx",
+    "title": "Löpande konsultstöd CUS-040",
+    "valid_from": "2025-06-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-01-01",
+    "doc_id": "DOC-CTR-133",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-065",
+      "CUS-041"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-065_Löpande-konsultstöd-CUS-041.docx",
+    "title": "Löpande konsultstöd CUS-041",
+    "valid_from": "2023-01-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2022-12-01",
+    "doc_id": "DOC-CTR-134",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-066",
+      "CUS-042"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-066_Löpande-konsultstöd-CUS-042.docx",
+    "title": "Löpande konsultstöd CUS-042",
+    "valid_from": "2022-12-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-05-01",
+    "doc_id": "DOC-CTR-135",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-067",
+      "CUS-043"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-067_Löpande-konsultstöd-CUS-043.docx",
+    "title": "Löpande konsultstöd CUS-043",
+    "valid_from": "2025-05-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-06-01",
+    "doc_id": "DOC-CTR-136",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-068",
+      "CUS-044"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-068_Löpande-konsultstöd-CUS-044.docx",
+    "title": "Löpande konsultstöd CUS-044",
+    "valid_from": "2023-06-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-01-01",
+    "doc_id": "DOC-CTR-137",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-069",
+      "CUS-045"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-069_Löpande-konsultstöd-CUS-045.docx",
+    "title": "Löpande konsultstöd CUS-045",
+    "valid_from": "2025-01-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2025-07-01",
+    "doc_id": "DOC-CTR-138",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-070",
+      "CUS-046"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-070_Löpande-konsultstöd-CUS-046.docx",
+    "title": "Löpande konsultstöd CUS-046",
+    "valid_from": "2025-07-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-09-01",
+    "doc_id": "DOC-CTR-139",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-071",
+      "CUS-047"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-071_Löpande-konsultstöd-CUS-047.docx",
+    "title": "Löpande konsultstöd CUS-047",
+    "valid_from": "2023-09-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2026-01-01",
+    "doc_id": "DOC-CTR-140",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-072",
+      "CUS-048"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-072_Löpande-konsultstöd-CUS-048.docx",
+    "title": "Löpande konsultstöd CUS-048",
+    "valid_from": "2026-01-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-07-01",
+    "doc_id": "DOC-CTR-141",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-073",
+      "CUS-049"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-073_Löpande-konsultstöd-CUS-049.docx",
+    "title": "Löpande konsultstöd CUS-049",
+    "valid_from": "2023-07-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2023-11-01",
+    "doc_id": "DOC-CTR-142",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SM-074",
+      "CUS-050"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SM-074_Löpande-konsultstöd-CUS-050.docx",
+    "title": "Löpande konsultstöd CUS-050",
+    "valid_from": "2023-11-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-09-01",
+    "doc_id": "DOC-CTR-143",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-001",
+      "SUP-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-001_Hyresavtal-lokaler.docx",
+    "title": "Hyresavtal lokaler",
+    "valid_from": "2023-10-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-01-01",
+    "doc_id": "DOC-CTR-144",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-002",
+      "SUP-002"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-002_IT-hårdvara-Datorlagret.docx",
+    "title": "IT-hårdvara (Datorlagret)",
+    "valid_from": "2023-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-01-01",
+    "doc_id": "DOC-CTR-145",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-003",
+      "SUP-003"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-003_M365-och-Azure-Cloudserve-Ireland.docx",
+    "title": "M365 och Azure (Cloudserve Ireland)",
+    "valid_from": "2024-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-06-01",
+    "doc_id": "DOC-CTR-146",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-004",
+      "SUP-004"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-004_Hosting-Nordhost.docx",
+    "title": "Hosting (Nordhost)",
+    "valid_from": "2023-06-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-02-01",
+    "doc_id": "DOC-CTR-147",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-005",
+      "SUP-005"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-005_Ärendehantering-och-wiki.docx",
+    "title": "Ärendehantering och wiki",
+    "valid_from": "2023-02-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2022-09-01",
+    "doc_id": "DOC-CTR-148",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-006",
+      "SUP-006"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-006_Chattverktyg-Kanalen.docx",
+    "title": "Chattverktyg (Kanalen)",
+    "valid_from": "2022-09-01",
+    "valid_to": "2026-11-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2022-05-01",
+    "doc_id": "DOC-CTR-149",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-007",
+      "SUP-007"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-007_Designverktyg-Designsuiten.docx",
+    "title": "Designverktyg (Designsuiten)",
+    "valid_from": "2022-05-01",
+    "valid_to": "2027-01-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-11-01",
+    "doc_id": "DOC-CTR-150",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-008",
+      "SUP-008"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-008_VPN-och-nätverkssäkerhet.docx",
+    "title": "VPN och nätverkssäkerhet",
+    "valid_from": "2023-11-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-01-01",
+    "doc_id": "DOC-CTR-151",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-009",
+      "SUP-009"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-009_CRM-Pipeline.docx",
+    "title": "CRM (Pipeline)",
+    "valid_from": "2023-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-01-01",
+    "doc_id": "DOC-CTR-152",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-010",
+      "SUP-010"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-010_Lönesystem.docx",
+    "title": "Lönesystem",
+    "valid_from": "2023-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2022-10-01",
+    "doc_id": "DOC-CTR-153",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-011",
+      "SUP-011"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-011_Ekonomisystem.docx",
+    "title": "Ekonomisystem",
+    "valid_from": "2022-10-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2025-03-01",
+    "doc_id": "DOC-CTR-154",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-012",
+      "SUP-012"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-012_AI-modell-API-er-Modellfabriken.docx",
+    "title": "AI-modell-API:er (Modellfabriken)",
+    "valid_from": "2025-03-01",
+    "valid_to": "2026-10-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2025-05-01",
+    "doc_id": "DOC-CTR-155",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-013",
+      "SUP-013"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-013_Analysmolntjänst-Analytics-Cloud-Inc-USA.docx",
+    "title": "Analysmolntjänst (Analytics Cloud Inc, USA)",
+    "valid_from": "2025-05-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-09-01",
+    "doc_id": "DOC-CTR-156",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-014",
+      "SUP-014"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-014_Analysverktyg-Datainsikt.docx",
+    "title": "Analysverktyg (Datainsikt)",
+    "valid_from": "2023-09-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-03-01",
+    "doc_id": "DOC-CTR-157",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-015",
+      "SUP-015"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-015_Digital-samarbetsyta-Whiteboard.docx",
+    "title": "Digital samarbetsyta (Whiteboard)",
+    "valid_from": "2023-03-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-05-01",
+    "doc_id": "DOC-CTR-158",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-016",
+      "SUP-016"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-016_CI-CD-Bygglådan.docx",
+    "title": "CI/CD (Bygglådan)",
+    "valid_from": "2023-05-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-08-01",
+    "doc_id": "DOC-CTR-159",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-017",
+      "SUP-017"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-017_Monitoring-Vakthuset.docx",
+    "title": "Monitoring (Vakthuset)",
+    "valid_from": "2023-08-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-02-01",
+    "doc_id": "DOC-CTR-160",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-018",
+      "SUP-018"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-018_E-signatur-Signera.docx",
+    "title": "E-signatur (Signera)",
+    "valid_from": "2023-02-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-07-01",
+    "doc_id": "DOC-CTR-161",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-019",
+      "SUP-019"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-019_Telefoni.docx",
+    "title": "Telefoni",
+    "valid_from": "2023-07-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-04-01",
+    "doc_id": "DOC-CTR-162",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-020",
+      "SUP-020"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-020_Dokumenthantering-Arkivet.docx",
+    "title": "Dokumenthantering (Arkivet)",
+    "valid_from": "2023-04-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-10-01",
+    "doc_id": "DOC-CTR-163",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-021",
+      "SUP-021"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-021_Backup-Säkerhetskopian.docx",
+    "title": "Backup (Säkerhetskopian)",
+    "valid_from": "2023-10-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-06-01",
+    "doc_id": "DOC-CTR-164",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-022",
+      "SUP-022"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-022_HR-system-Personalen.docx",
+    "title": "HR-system (Personalen)",
+    "valid_from": "2023-06-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-01-01",
+    "doc_id": "DOC-CTR-165",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-023",
+      "SUP-023"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-023_Elavtal.docx",
+    "title": "Elavtal",
+    "valid_from": "2024-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-04-01",
+    "doc_id": "DOC-CTR-166",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-024",
+      "SUP-024"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-024_Städavtal.docx",
+    "title": "Städavtal",
+    "valid_from": "2023-04-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2022-01-01",
+    "doc_id": "DOC-CTR-167",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-025",
+      "SUP-025"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-025_Pensionsplan-ITP-liknande.docx",
+    "title": "Pensionsplan (ITP-liknande)",
+    "valid_from": "2022-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-01-01",
+    "doc_id": "DOC-CTR-168",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-026",
+      "SUP-026"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-026_Marknadsföring.docx",
+    "title": "Marknadsföring",
+    "valid_from": "2024-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-01-01",
+    "doc_id": "DOC-CTR-169",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-027",
+      "SUP-027"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-027_Kontorsmaterial.docx",
+    "title": "Kontorsmaterial",
+    "valid_from": "2023-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-02-01",
+    "doc_id": "DOC-CTR-170",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-028",
+      "SUP-028"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-028_Resebokning.docx",
+    "title": "Resebokning",
+    "valid_from": "2023-02-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-06-01",
+    "doc_id": "DOC-CTR-171",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-029",
+      "SUP-029"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-029_Billeasing-2-tjänstebilar.docx",
+    "title": "Billeasing (2 tjänstebilar)",
+    "valid_from": "2023-06-01",
+    "valid_to": "2026-11-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-01-01",
+    "doc_id": "DOC-CTR-172",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-030",
+      "SUP-030"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-030_IT-utrustningsleasing-60-laptops.docx",
+    "title": "IT-utrustningsleasing (60 laptops)",
+    "valid_from": "2024-01-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-05-01",
+    "doc_id": "DOC-CTR-173",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-031",
+      "SUP-031"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-031_Rekrytering.docx",
+    "title": "Rekrytering",
+    "valid_from": "2023-05-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-09-01",
+    "doc_id": "DOC-CTR-174",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-032",
+      "SUP-032"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-032_Utbildning.docx",
+    "title": "Utbildning",
+    "valid_from": "2023-09-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-02-01",
+    "doc_id": "DOC-CTR-175",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-033",
+      "SUP-033"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-033_Juridiska-tjänster.docx",
+    "title": "Juridiska tjänster",
+    "valid_from": "2024-02-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-12-10",
+    "doc_id": "DOC-CTR-176",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-034",
+      "SUP-034"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-034_Underkonsulter-Kraftkod-2-utvecklare.docx",
+    "title": "Underkonsulter Kraftkod (2 utvecklare)",
+    "valid_from": "2025-01-01",
+    "valid_to": "2026-07-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2025-02-10",
+    "doc_id": "DOC-CTR-177",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-035",
+      "SUP-035"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-035_Underkonsult-Dataverket-Nord.docx",
+    "title": "Underkonsult Dataverket Nord",
+    "valid_from": "2025-03-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2025-05-15",
+    "doc_id": "DOC-CTR-178",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-036",
+      "SUP-036"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-036_Underkonsult-Testhuset.docx",
+    "title": "Underkonsult Testhuset",
+    "valid_from": "2025-06-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-09-15",
+    "doc_id": "DOC-CTR-179",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-037",
+      "SUP-037"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-037_Underkonsult-Pixel-Form-UX.docx",
+    "title": "Underkonsult Pixel & Form (UX)",
+    "valid_from": "2024-10-01",
+    "valid_to": "2026-03-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-12-01",
+    "doc_id": "DOC-CTR-180",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-038",
+      "SUP-038"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-038_Företagsförsäkring.docx",
+    "title": "Företagsförsäkring",
+    "valid_from": "2024-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-01-01",
+    "doc_id": "DOC-CTR-181",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-039",
+      "SUP-039"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-039_Revision.docx",
+    "title": "Revision",
+    "valid_from": "2024-01-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2022-04-01",
+    "doc_id": "DOC-CTR-182",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUP-040",
+      "SUP-040"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUP-040_Löpande-redovisning.docx",
+    "title": "Löpande redovisning",
+    "valid_from": "2022-04-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-11-20",
+    "doc_id": "DOC-CTR-183",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-001",
+      "CUS-020"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-001_Sekretessavtal-ömsesidigt-Trädkronans-Skog-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-11-20",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-01-15",
+    "doc_id": "DOC-CTR-184",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-002",
+      "CUS-035"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-002_Sekretessavtal-ömsesidigt-Nordanvinden-Advokat-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-01-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-11-01",
+    "doc_id": "DOC-CTR-185",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-003",
+      "CUS-023"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-003_Sekretessavtal-ömsesidigt-Forsen-Kraft-Miljö-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-11-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-09-10",
+    "doc_id": "DOC-CTR-186",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-004",
+      "CUS-044"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-004_Sekretessavtal-ömsesidigt-Morgonrodnadens-Bageri-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-09-10",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-08-10",
+    "doc_id": "DOC-CTR-187",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-005",
+      "CUS-028"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-005_Sekretessavtal-ömsesidigt-Klockbergets-Skola-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2023-08-10",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-10-02",
+    "doc_id": "DOC-CTR-188",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-006",
+      "CUS-049"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-006_Sekretessavtal-ömsesidigt-Stormvindens-Logistik-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2025-10-02",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2026-03-05",
+    "doc_id": "DOC-CTR-189",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-007",
+      "CUS-048"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-007_Sekretessavtal-ömsesidigt-Åskmolns-Data-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2026-03-05",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-05-15",
+    "doc_id": "DOC-CTR-190",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-008",
+      "SUP-021"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-008_Sekretessavtal-ömsesidigt-Säkerhetskopian-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2023-05-15",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-02-05",
+    "doc_id": "DOC-CTR-191",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-009",
+      "SUP-033"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-009_Sekretessavtal-ömsesidigt-Advokatfirman-Krav-Klar-KB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2024-02-05",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2021-11-03",
+    "doc_id": "DOC-CTR-192",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-010",
+      "SUP-040"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-010_Sekretessavtal-ömsesidigt-Lön-Redo-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2021-11-03",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2022-06-10",
+    "doc_id": "DOC-CTR-193",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-011",
+      "SUP-038"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-011_Sekretessavtal-ömsesidigt-Tryggast-Försäkring-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2022-06-10",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2026-01-20",
+    "doc_id": "DOC-CTR-194",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-012"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/corporate/CTR-SUPPL-012_Sekretessavtal-ömsesidigt-Stenbacken-Software-AB.docx",
+    "title": "Sekretessavtal (ömsesidigt)",
+    "valid_from": "2026-01-20",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2022-03-14",
+    "doc_id": "DOC-CTR-195",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-013",
+      "CUS-050"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-013_Personuppgiftsbiträdesavtal-Kristallkronans-Smycken-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2022-03-14",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-05-05",
+    "doc_id": "DOC-CTR-196",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-014",
+      "CUS-041"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-014_Personuppgiftsbiträdesavtal-Regnbågens-Design-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2023-05-05",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2021-09-22",
+    "doc_id": "DOC-CTR-197",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-015",
+      "CUS-030"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-015_Personuppgiftsbiträdesavtal-Stjärnklart-Media-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2021-09-22",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2026-03-05",
+    "doc_id": "DOC-CTR-198",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-016",
+      "CUS-048"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-016_Personuppgiftsbiträdesavtal-Åskmolns-Data-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2026-03-05",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-03-01",
+    "doc_id": "DOC-CTR-199",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-017",
+      "SUP-012"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-017_Personuppgiftsbiträdesavtal-Modellfabriken-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2025-03-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-10-01",
+    "doc_id": "DOC-CTR-200",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-018",
+      "SUP-021"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-018_Personuppgiftsbiträdesavtal-Säkerhetskopian-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2023-10-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2023-12-11",
+    "doc_id": "DOC-CTR-201",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-019",
+      "SUP-014"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-019_Personuppgiftsbiträdesavtal-Datainsikt-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2023-12-11",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-06-30",
+    "doc_id": "DOC-CTR-202",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-020",
+      "SUP-028"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-020_Personuppgiftsbiträdesavtal-Resebolaget-Nord-AB.docx",
+    "title": "Personuppgiftsbiträdesavtal",
+    "valid_from": "2025-06-30",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2026-09-15",
+    "doc_id": "DOC-CTR-203",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-021",
+      "SUP-029"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-021_Billeasing-verksamhetsbil.docx",
+    "title": "Billeasing – verksamhetsbil",
+    "valid_from": "2026-12-01",
+    "valid_to": "2029-11-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2021-09-15",
+    "doc_id": "DOC-CTR-204",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-022",
+      "SUP-030"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-022_IT-utrustningsleasing-skrivare-och-kopiatorer.docx",
+    "title": "IT-utrustningsleasing (skrivare och kopiatorer)",
+    "valid_from": "2021-10-01",
+    "valid_to": "2024-09-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2025-02-01",
+    "doc_id": "DOC-CTR-205",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-023",
+      "SUP-032"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-023_Utbildningsportal-Kompetensbron.docx",
+    "title": "Utbildningsportal (Kompetensbron)",
+    "valid_from": "2025-02-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-11-01",
+    "doc_id": "DOC-CTR-206",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-024",
+      "SUP-027"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-024_Digital-avtalsportal-Kontorspartner.docx",
+    "title": "Digital avtalsportal (Kontorspartner)",
+    "valid_from": "2024-11-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2024-05-15",
+    "doc_id": "DOC-CTR-207",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-025",
+      "SUP-001"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-025_Hyresavtal-parkeringsplatser.docx",
+    "title": "Hyresavtal parkeringsplatser",
+    "valid_from": "2024-06-01",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2026-01-10",
+    "doc_id": "DOC-CTR-208",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-026",
+      "SUP-034"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-026_Underkonsult-Kraftkod-QA-förstärkning.docx",
+    "title": "Underkonsult Kraftkod (QA-förstärkning)",
+    "valid_from": "2026-02-01",
+    "valid_to": "2026-12-31",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2024-11-12",
+    "doc_id": "DOC-CTR-209",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-027"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/corporate/CTR-SUPPL-027_Ägardirektiv.docx",
+    "title": "Ägardirektiv",
+    "valid_from": "2024-11-12",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-041",
+    "created": "2025-03-20",
+    "doc_id": "DOC-CTR-210",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-028"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/corporate/CTR-SUPPL-028_Konvertibelavtal.docx",
+    "title": "Konvertibelavtal",
+    "valid_from": "2025-03-20",
+    "valid_to": null,
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-007",
+    "created": "2021-05-01",
+    "doc_id": "DOC-CTR-211",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-029",
+      "CUS-027"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/customers/CTR-SUPPL-029_LE-Ärendeportal.docx",
+    "title": "LE-Ärendeportal",
+    "valid_from": "2021-06-01",
+    "valid_to": "2022-04-30",
+    "version": "1.0"
+  },
+  {
+    "author_id": "P-004",
+    "created": "2023-06-01",
+    "doc_id": "DOC-CTR-212",
+    "dtype": "AVTAL",
+    "entities": [
+      "CTR-SUPPL-030",
+      "SUP-002"
+    ],
+    "event_ids": [],
+    "note": "",
+    "path": "contracts/suppliers/CTR-SUPPL-030_Serviceavtal-hårdvara.docx",
+    "title": "Serviceavtal hårdvara",
+    "valid_from": "2023-06-01",
+    "valid_to": null,
+    "version": "1.0"
+  }
+]

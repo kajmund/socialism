@@ -1,0 +1,47 @@
+﻿Konto;Kontonamn;Belopp
+1220;Inventarier;250000.00
+1229;Ackumulerade avskrivningar inventarier;-98333.34
+1250;Datorer och kringutrustning;830000.00
+1259;Ackumulerade avskrivningar datorer;-440277.80
+1510;Kundfordringar;5142917.50
+1790;Övriga interimsfordringar;240000.00
+1930;Företagskonto;-4923742.21
+2350;Banklån;797862.49
+2380;Checkräkningskredit;-780000.00
+2440;Leverantörsskulder;-467181.23
+2510;Skatteskulder;750000.00
+2611;Utgående moms 25 %;-742305.75
+2614;Utgående moms omvänd skattskyldighet;-25300.00
+2641;Ingående moms;252396.25
+2645;Ingående moms omvänd skattskyldighet;25300.00
+2710;Personalens källskatt;-256140.00
+2730;Lagstadgade sociala avgifter;-229233.80
+2920;Upplupna semesterlöner;-266520.00
+2940;Upplupna sociala avgifter (semesterlön);-83740.57
+2990;Övriga upplupna kostnader;-63000.00
+3011;Försäljning tjänster, 25 % moms;-42878187.00
+4520;Underkonsulter;2331600.00
+5010;Lokalhyra;1980000.00
+5020;El;178403.00
+5060;Städning;111606.00
+5420;Programvaror och licenser;3115100.00
+5615;Leasingavgifter bilar;153600.00
+5616;Leasing IT-utrustning;288000.00
+5800;Resekostnader;346366.00
+5910;Marknadsföring;480000.00
+6072;Representation, ej avdragsgill;10000.00
+6110;Kontorsmaterial;100017.00
+6210;Telekommunikation;144121.00
+6310;Företagsförsäkringar;252000.00
+6540;Redovisningstjänster;216000.00
+6570;Bankkostnader;15000.00
+6991;Övriga externa kostnader, avdragsgilla;114000.00
+7210;Löner tjänstemän;20588000.00
+7290;Förändring av semesterlöneskuld;2453640.00
+7410;Pensionsförsäkringspremier;1790335.54
+7510;Lagstadgade sociala avgifter;7239683.27
+7610;Utbildning personal;191540.00
+7699;Övriga personalkostnader;273500.00
+7831;Avskrivningar inventarier;98333.34
+7832;Avskrivningar datorer;440277.80
+8410;Räntekostnader;54362.51
