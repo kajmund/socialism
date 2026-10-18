@@ -1,0 +1,2002 @@
+[
+  {
+    "id": "GQ-001",
+    "area": "Ekonomi",
+    "subarea": "Likviditet och kassaflöde",
+    "question": "Hur mycket pengar har vi tillgängligt på våra bankkonton just nu?",
+    "capability": "Beräkning + data",
+    "difficulty": "Enkel",
+    "expected_underlag": "Intern finansiell data",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-002",
+    "area": "Ekonomi",
+    "subarea": "Likviditet och kassaflöde",
+    "question": "Hur länge klarar vi verksamheten om intäkterna sjunker med 20 procent?",
+    "capability": "Beräkning + data",
+    "difficulty": "Enkel",
+    "expected_underlag": "Intern finansiell data",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-003",
+    "area": "Ekonomi",
+    "subarea": "Likviditet och kassaflöde",
+    "question": "Vilka fakturor behöver betalas de närmaste 30 dagarna?",
+    "capability": "Beräkning + data",
+    "difficulty": "Enkel",
+    "expected_underlag": "Intern finansiell data",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-004",
+    "area": "Ekonomi",
+    "subarea": "Likviditet och kassaflöde",
+    "question": "Vilka kunder har förfallna fakturor och hur stora är beloppen?",
+    "capability": "Beräkning + data",
+    "difficulty": "Medel",
+    "expected_underlag": "Intern finansiell data",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-005",
+    "area": "Ekonomi",
+    "subarea": "Likviditet och kassaflöde",
+    "question": "När under nästa kvartal är vår likviditet som mest ansträngd?",
+    "capability": "Beräkning + data",
+    "difficulty": "Medel",
+    "expected_underlag": "Intern finansiell data",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-006",
+    "area": "Ekonomi",
+    "subarea": "Likviditet och kassaflöde",
+    "question": "Hur påverkas kassaflödet om vår största kund betalar 30 dagar sent?",
+    "capability": "Beräkning + data",
+    "difficulty": "Medel",
+    "expected_underlag": "Intern finansiell data",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-007",
+    "area": "Ekonomi",
+    "subarea": "Likviditet och kassaflöde",
+    "question": "Vilka planerade utgifter kan vi skjuta upp utan att äventyra leveranser?",
+    "capability": "Beräkning + data",
+    "difficulty": "Medel",
+    "expected_underlag": "Intern finansiell data",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-008",
+    "area": "Ekonomi",
+    "subarea": "Likviditet och kassaflöde",
+    "question": "Hur stort rörelsekapital binder vi i kundfordringar och lager?",
+    "capability": "Beräkning + data",
+    "difficulty": "Medel",
+    "expected_underlag": "Intern finansiell data",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-009",
+    "area": "Ekonomi",
+    "subarea": "Likviditet och kassaflöde",
+    "question": "Kan vi finansiera två nyanställningar utan att ta in kapital?",
+    "capability": "Beräkning + data",
+    "difficulty": "Medel",
+    "expected_underlag": "Intern finansiell data",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-010",
+    "area": "Ekonomi",
+    "subarea": "Likviditet och kassaflöde",
+    "question": "Hur mycket likviditetsbuffert bör vi ha utifrån våra verkliga utbetalningar?",
+    "capability": "Beräkning + data",
+    "difficulty": "Medel",
+    "expected_underlag": "Intern finansiell data",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-011",
+    "area": "Ekonomi",
+    "subarea": "Lönsamhet och resultat",
+    "question": "Vilka delar av företaget bidrar mest till vårt täckningsbidrag?",
+    "capability": "Analys + beräkning",
+    "difficulty": "Medel",
+    "expected_underlag": "Resultatrapport + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-012",
+    "area": "Ekonomi",
+    "subarea": "Lönsamhet och resultat",
+    "question": "Hur har bruttomarginalen utvecklats de senaste tolv månaderna?",
+    "capability": "Analys + beräkning",
+    "difficulty": "Medel",
+    "expected_underlag": "Resultatrapport + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-013",
+    "area": "Ekonomi",
+    "subarea": "Lönsamhet och resultat",
+    "question": "Varför avviker resultatet från budget den här månaden?",
+    "capability": "Analys + beräkning",
+    "difficulty": "Medel",
+    "expected_underlag": "Resultatrapport + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-014",
+    "area": "Ekonomi",
+    "subarea": "Lönsamhet och resultat",
+    "question": "Vilka kostnader har ökat snabbare än omsättningen?",
+    "capability": "Analys + beräkning",
+    "difficulty": "Medel",
+    "expected_underlag": "Resultatrapport + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-015",
+    "area": "Ekonomi",
+    "subarea": "Lönsamhet och resultat",
+    "question": "Vilka uppdrag är lönsamma efter att all faktisk arbetstid räknats in?",
+    "capability": "Analys + beräkning",
+    "difficulty": "Medel",
+    "expected_underlag": "Resultatrapport + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-016",
+    "area": "Ekonomi",
+    "subarea": "Lönsamhet och resultat",
+    "question": "Hur stor del av vårt resultat kommer från engångsintäkter?",
+    "capability": "Analys + beräkning",
+    "difficulty": "Medel",
+    "expected_underlag": "Resultatrapport + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-017",
+    "area": "Ekonomi",
+    "subarea": "Lönsamhet och resultat",
+    "question": "Vilken omsättning behöver vi för att nå ett rörelseresultat på tio procent?",
+    "capability": "Analys + beräkning",
+    "difficulty": "Medel",
+    "expected_underlag": "Resultatrapport + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-018",
+    "area": "Ekonomi",
+    "subarea": "Lönsamhet och resultat",
+    "question": "Vilka abonnemang och återkommande kostnader använder vi knappt?",
+    "capability": "Analys + beräkning",
+    "difficulty": "Medel",
+    "expected_underlag": "Resultatrapport + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-019",
+    "area": "Ekonomi",
+    "subarea": "Lönsamhet och resultat",
+    "question": "Hur har vår lönsamhet förändrats per kundsegment?",
+    "capability": "Analys + beräkning",
+    "difficulty": "Medel",
+    "expected_underlag": "Resultatrapport + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-020",
+    "area": "Ekonomi",
+    "subarea": "Lönsamhet och resultat",
+    "question": "Vilka tre åtgärder skulle ge störst resultateffekt nästa kvartal?",
+    "capability": "Analys + beräkning",
+    "difficulty": "Medel",
+    "expected_underlag": "Resultatrapport + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-021",
+    "area": "Ekonomi",
+    "subarea": "Budget, prognos och finansiering",
+    "question": "Kommer vi att nå årets omsättningsbudget?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "Budget + prognoser",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-022",
+    "area": "Ekonomi",
+    "subarea": "Budget, prognos och finansiering",
+    "question": "Vad blir helårsresultatet om nuvarande trend fortsätter?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "Budget + prognoser",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-023",
+    "area": "Ekonomi",
+    "subarea": "Budget, prognos och finansiering",
+    "question": "Hur ser bästa, mest sannolika och sämsta scenariot ut nästa år?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "Budget + prognoser",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-024",
+    "area": "Ekonomi",
+    "subarea": "Budget, prognos och finansiering",
+    "question": "Hur mycket kapital behöver vi för att öppna ett nytt kontor?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "Budget + prognoser",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-025",
+    "area": "Ekonomi",
+    "subarea": "Budget, prognos och finansiering",
+    "question": "Är det bättre att leasa eller köpa våra nästa tjänstebilar?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "Budget + prognoser",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-026",
+    "area": "Ekonomi",
+    "subarea": "Budget, prognos och finansiering",
+    "question": "Hur mycket kan vi investera i produktutveckling i år?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "Budget + prognoser",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-027",
+    "area": "Ekonomi",
+    "subarea": "Budget, prognos och finansiering",
+    "question": "Hur känslig är budgeten för högre räntor och löner?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "Budget + prognoser",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-028",
+    "area": "Ekonomi",
+    "subarea": "Budget, prognos och finansiering",
+    "question": "Vilka antaganden i vår prognos är mest osäkra?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "Budget + prognoser",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-029",
+    "area": "Ekonomi",
+    "subarea": "Budget, prognos och finansiering",
+    "question": "Vilka nyckeltal behöver banken för att bedöma vår kreditvärdighet?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "Budget + prognoser",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-030",
+    "area": "Ekonomi",
+    "subarea": "Budget, prognos och finansiering",
+    "question": "Hur stor utdelning kan vi överväga utan att försämra kassaflödet?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "Budget + prognoser",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-031",
+    "area": "Marknad",
+    "subarea": "Försäljning och pipeline",
+    "question": "Hur mycket affärer har vi i vår pipeline just nu?",
+    "capability": "Filtrering + analys",
+    "difficulty": "Enkel",
+    "expected_underlag": "CRM + offerter",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-032",
+    "area": "Marknad",
+    "subarea": "Försäljning och pipeline",
+    "question": "Vilka öppna affärer har störst sannolikhet att stängas denna månad?",
+    "capability": "Filtrering + analys",
+    "difficulty": "Enkel",
+    "expected_underlag": "CRM + offerter",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-033",
+    "area": "Marknad",
+    "subarea": "Försäljning och pipeline",
+    "question": "Hur lång är vår genomsnittliga säljcykel?",
+    "capability": "Filtrering + analys",
+    "difficulty": "Enkel",
+    "expected_underlag": "CRM + offerter",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-034",
+    "area": "Marknad",
+    "subarea": "Försäljning och pipeline",
+    "question": "Var i säljprocessen tappar vi flest potentiella kunder?",
+    "capability": "Filtrering + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + offerter",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-035",
+    "area": "Marknad",
+    "subarea": "Försäljning och pipeline",
+    "question": "Vilka säljare eller kanaler skapar mest lönsamma affärer?",
+    "capability": "Filtrering + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + offerter",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-036",
+    "area": "Marknad",
+    "subarea": "Försäljning och pipeline",
+    "question": "Vilka offerter behöver följas upp den här veckan?",
+    "capability": "Filtrering + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + offerter",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-037",
+    "area": "Marknad",
+    "subarea": "Försäljning och pipeline",
+    "question": "Hur mycket nyförsäljning krävs för att nå nästa kvartals budget?",
+    "capability": "Filtrering + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + offerter",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-038",
+    "area": "Marknad",
+    "subarea": "Försäljning och pipeline",
+    "question": "Vilka affärer har fastnat utan aktivitet den senaste månaden?",
+    "capability": "Filtrering + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + offerter",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-039",
+    "area": "Marknad",
+    "subarea": "Försäljning och pipeline",
+    "question": "Vilka kundbehov återkommer oftast i våra säljsamtal?",
+    "capability": "Filtrering + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + offerter",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-040",
+    "area": "Marknad",
+    "subarea": "Försäljning och pipeline",
+    "question": "Hur skiljer sig vår win rate mellan små och stora affärer?",
+    "capability": "Filtrering + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + offerter",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-041",
+    "area": "Marknad",
+    "subarea": "Kunder och retention",
+    "question": "Vilka är våra tio viktigaste kunder mätt i täckningsbidrag?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + avtal + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-042",
+    "area": "Marknad",
+    "subarea": "Kunder och retention",
+    "question": "Hur beroende är vi av vår största kund?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + avtal + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-043",
+    "area": "Marknad",
+    "subarea": "Kunder och retention",
+    "question": "Vilka kunder har minskat sina köp jämfört med förra året?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + avtal + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-044",
+    "area": "Marknad",
+    "subarea": "Kunder och retention",
+    "question": "Vilka kunder visar tecken på att vilja lämna oss?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + avtal + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-045",
+    "area": "Marknad",
+    "subarea": "Kunder och retention",
+    "question": "När löper våra viktigaste kundavtal ut?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + avtal + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-046",
+    "area": "Marknad",
+    "subarea": "Kunder och retention",
+    "question": "Vilka kunder har klagat flera gånger på samma problem?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + avtal + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-047",
+    "area": "Marknad",
+    "subarea": "Kunder och retention",
+    "question": "Vilka kunder borde vi kontakta proaktivt den här månaden?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + avtal + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-048",
+    "area": "Marknad",
+    "subarea": "Kunder och retention",
+    "question": "Hur mycket återkommande intäkt riskerar vi att förlora kommande halvår?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + avtal + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-049",
+    "area": "Marknad",
+    "subarea": "Kunder och retention",
+    "question": "Vilka kunder är olönsamma när support och leveranskostnader räknas in?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + avtal + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-050",
+    "area": "Marknad",
+    "subarea": "Kunder och retention",
+    "question": "Vad säger våra kundmöten om varför kunder väljer oss?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + avtal + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-051",
+    "area": "Marknad",
+    "subarea": "Prissättning och erbjudande",
+    "question": "Vilka tjänster säljer vi med för låg marginal?",
+    "capability": "Jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + försäljningsdata + omvärld",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-052",
+    "area": "Marknad",
+    "subarea": "Prissättning och erbjudande",
+    "question": "När höjde vi priserna senast för respektive kund?",
+    "capability": "Jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + försäljningsdata + omvärld",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-053",
+    "area": "Marknad",
+    "subarea": "Prissättning och erbjudande",
+    "question": "Vilka avtal tillåter oss att indexjustera priserna?",
+    "capability": "Jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + försäljningsdata + omvärld",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-054",
+    "area": "Marknad",
+    "subarea": "Prissättning och erbjudande",
+    "question": "Hur påverkas vinsten om vi höjer priset med fem procent?",
+    "capability": "Jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + försäljningsdata + omvärld",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-055",
+    "area": "Marknad",
+    "subarea": "Prissättning och erbjudande",
+    "question": "Varför väljer kunder konkurrenter framför oss?",
+    "capability": "Jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + försäljningsdata + omvärld",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-056",
+    "area": "Marknad",
+    "subarea": "Prissättning och erbjudande",
+    "question": "Vilka erbjudanden efterfrågas men saknas i vårt sortiment?",
+    "capability": "Jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + försäljningsdata + omvärld",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-057",
+    "area": "Marknad",
+    "subarea": "Prissättning och erbjudande",
+    "question": "Vilka kunder har specialrabatter och varför?",
+    "capability": "Jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + försäljningsdata + omvärld",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-058",
+    "area": "Marknad",
+    "subarea": "Prissättning och erbjudande",
+    "question": "Är våra timpriser konkurrenskraftiga i vår marknad?",
+    "capability": "Jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + försäljningsdata + omvärld",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-059",
+    "area": "Marknad",
+    "subarea": "Prissättning och erbjudande",
+    "question": "Vad skulle hända med lönsamheten om vi slutade sälja vår svagaste tjänst?",
+    "capability": "Jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + försäljningsdata + omvärld",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-060",
+    "area": "Marknad",
+    "subarea": "Prissättning och erbjudande",
+    "question": "Vilket paket av tjänster ger störst kundvärde och bäst marginal?",
+    "capability": "Jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + försäljningsdata + omvärld",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-061",
+    "area": "Personal",
+    "subarea": "Rekrytering och bemanning",
+    "question": "Vilka kompetenser saknar vi för nästa års affärsplan?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + projekt + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-062",
+    "area": "Personal",
+    "subarea": "Rekrytering och bemanning",
+    "question": "Hur många personer behöver vi rekrytera om försäljningen växer med 25 procent?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + projekt + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-063",
+    "area": "Personal",
+    "subarea": "Rekrytering och bemanning",
+    "question": "Vilka roller har störst risk att bli en flaskhals?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + projekt + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-064",
+    "area": "Personal",
+    "subarea": "Rekrytering och bemanning",
+    "question": "Hur lång tid tar det från annonsering till att en nyanställd blir produktiv?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + projekt + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-065",
+    "area": "Personal",
+    "subarea": "Rekrytering och bemanning",
+    "question": "Vad kostar en nyanställning inklusive arbetsgivaravgifter och onboarding?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + projekt + budget",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-066",
+    "area": "Personal",
+    "subarea": "Rekrytering och bemanning",
+    "question": "Vilka uppdrag riskerar att sakna bemanning nästa månad?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + projekt + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-067",
+    "area": "Personal",
+    "subarea": "Rekrytering och bemanning",
+    "question": "Kan vi omfördela personal i stället för att rekrytera?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + projekt + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-068",
+    "area": "Personal",
+    "subarea": "Rekrytering och bemanning",
+    "question": "Vilka kandidater motsvarar bäst kraven i våra öppna roller?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + projekt + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-069",
+    "area": "Personal",
+    "subarea": "Rekrytering och bemanning",
+    "question": "Vilken effekt får en ny senior specialist på beläggning och lönsamhet?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + projekt + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-070",
+    "area": "Personal",
+    "subarea": "Rekrytering och bemanning",
+    "question": "Vilka kritiska kompetenser finns bara hos en enda person?",
+    "capability": "Scenario",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + projekt + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-071",
+    "area": "Personal",
+    "subarea": "Arbetsmiljö och medarbetare",
+    "question": "Hur har personalomsättningen utvecklats senaste året?",
+    "capability": "Integritetskänslig analys",
+    "difficulty": "Enkel",
+    "expected_underlag": "HR + policy + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-072",
+    "area": "Personal",
+    "subarea": "Arbetsmiljö och medarbetare",
+    "question": "Vilka signaler tyder på ökad arbetsbelastning i något team?",
+    "capability": "Integritetskänslig analys",
+    "difficulty": "Enkel",
+    "expected_underlag": "HR + policy + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-073",
+    "area": "Personal",
+    "subarea": "Arbetsmiljö och medarbetare",
+    "question": "Vilka medarbetare har inte haft utvecklingssamtal på länge?",
+    "capability": "Integritetskänslig analys",
+    "difficulty": "Enkel",
+    "expected_underlag": "HR + policy + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-074",
+    "area": "Personal",
+    "subarea": "Arbetsmiljö och medarbetare",
+    "question": "Vilka åtgärder från senaste medarbetarundersökningen är fortfarande öppna?",
+    "capability": "Integritetskänslig analys",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + policy + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-075",
+    "area": "Personal",
+    "subarea": "Arbetsmiljö och medarbetare",
+    "question": "Vad är orsakerna till att medarbetare slutar hos oss?",
+    "capability": "Integritetskänslig analys",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + policy + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-076",
+    "area": "Personal",
+    "subarea": "Arbetsmiljö och medarbetare",
+    "question": "Vilka utbildningar behöver vi prioritera?",
+    "capability": "Integritetskänslig analys",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + policy + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-077",
+    "area": "Personal",
+    "subarea": "Arbetsmiljö och medarbetare",
+    "question": "Har vi dokumenterat riskbedömningar för arbetsmiljön?",
+    "capability": "Integritetskänslig analys",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + policy + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-078",
+    "area": "Personal",
+    "subarea": "Arbetsmiljö och medarbetare",
+    "question": "Hur har sjukfrånvaron förändrats och finns det mönster att följa upp?",
+    "capability": "Integritetskänslig analys",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + policy + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-079",
+    "area": "Personal",
+    "subarea": "Arbetsmiljö och medarbetare",
+    "question": "Vilka ledarskapsfrågor återkommer i medarbetarnas feedback?",
+    "capability": "Integritetskänslig analys",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + policy + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-080",
+    "area": "Personal",
+    "subarea": "Arbetsmiljö och medarbetare",
+    "question": "Vad behöver vi ändra för att förbättra trivsel och retention?",
+    "capability": "Integritetskänslig analys",
+    "difficulty": "Medel",
+    "expected_underlag": "HR + policy + möten",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-081",
+    "area": "Personal",
+    "subarea": "Ledning och organisation",
+    "question": "Vilka beslut från senaste ledningsmötet är ännu inte genomförda?",
+    "capability": "Sammanställning",
+    "difficulty": "Enkel",
+    "expected_underlag": "Mötesanteckningar + måldokument",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-082",
+    "area": "Personal",
+    "subarea": "Ledning och organisation",
+    "question": "Vem ansvarar för våra fem viktigaste initiativ?",
+    "capability": "Sammanställning",
+    "difficulty": "Enkel",
+    "expected_underlag": "Mötesanteckningar + måldokument",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-083",
+    "area": "Personal",
+    "subarea": "Ledning och organisation",
+    "question": "Vilka mål saknar en tydlig ansvarig?",
+    "capability": "Sammanställning",
+    "difficulty": "Enkel",
+    "expected_underlag": "Mötesanteckningar + måldokument",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-084",
+    "area": "Personal",
+    "subarea": "Ledning och organisation",
+    "question": "Var uppstår flest överlämningsproblem mellan avdelningar?",
+    "capability": "Sammanställning",
+    "difficulty": "Medel",
+    "expected_underlag": "Mötesanteckningar + måldokument",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-085",
+    "area": "Personal",
+    "subarea": "Ledning och organisation",
+    "question": "Vilka återkommande rapporter tar mycket tid men används sällan?",
+    "capability": "Sammanställning",
+    "difficulty": "Medel",
+    "expected_underlag": "Mötesanteckningar + måldokument",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-086",
+    "area": "Personal",
+    "subarea": "Ledning och organisation",
+    "question": "Vad har förändrats sedan förra styrelsemötet?",
+    "capability": "Sammanställning",
+    "difficulty": "Medel",
+    "expected_underlag": "Mötesanteckningar + måldokument",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-087",
+    "area": "Personal",
+    "subarea": "Ledning och organisation",
+    "question": "Vilka frågor borde finnas på nästa ledningsmötes agenda?",
+    "capability": "Sammanställning",
+    "difficulty": "Medel",
+    "expected_underlag": "Mötesanteckningar + måldokument",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-088",
+    "area": "Personal",
+    "subarea": "Ledning och organisation",
+    "question": "Vilka strategiska beslut har vi skjutit upp för länge?",
+    "capability": "Sammanställning",
+    "difficulty": "Medel",
+    "expected_underlag": "Mötesanteckningar + måldokument",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-089",
+    "area": "Personal",
+    "subarea": "Ledning och organisation",
+    "question": "Vilka processer är beroende av muntlig kunskap i stället för dokumentation?",
+    "capability": "Sammanställning",
+    "difficulty": "Medel",
+    "expected_underlag": "Mötesanteckningar + måldokument",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-090",
+    "area": "Personal",
+    "subarea": "Ledning och organisation",
+    "question": "Vad behöver jag som VD agera på innan veckans slut?",
+    "capability": "Sammanställning",
+    "difficulty": "Medel",
+    "expected_underlag": "Mötesanteckningar + måldokument",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-091",
+    "area": "Juridik",
+    "subarea": "Kundavtal och leverantörsavtal",
+    "question": "Vilka kundavtal förnyas automatiskt inom 90 dagar?",
+    "capability": "Klausulretrieval + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + avtalsmallar",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-092",
+    "area": "Juridik",
+    "subarea": "Kundavtal och leverantörsavtal",
+    "question": "Vilka avtal innehåller ovanligt långtgående ansvarsbegränsningar eller garantier?",
+    "capability": "Klausulretrieval + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + avtalsmallar",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-093",
+    "area": "Juridik",
+    "subarea": "Kundavtal och leverantörsavtal",
+    "question": "Vilka kundavtal saknar tydliga regler om prisjustering?",
+    "capability": "Klausulretrieval + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + avtalsmallar",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-094",
+    "area": "Juridik",
+    "subarea": "Kundavtal och leverantörsavtal",
+    "question": "Vilka leverantörsavtal kan sägas upp de kommande tre månaderna?",
+    "capability": "Klausulretrieval + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + avtalsmallar",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-095",
+    "area": "Juridik",
+    "subarea": "Kundavtal och leverantörsavtal",
+    "question": "Vilka avtalsvillkor avviker från vår vanliga avtalsmall?",
+    "capability": "Klausulretrieval + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + avtalsmallar",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-096",
+    "area": "Juridik",
+    "subarea": "Kundavtal och leverantörsavtal",
+    "question": "Finns det avtal som förbjuder oss att arbeta med vissa kunder?",
+    "capability": "Klausulretrieval + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + avtalsmallar",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-097",
+    "area": "Juridik",
+    "subarea": "Kundavtal och leverantörsavtal",
+    "question": "Vilka avtal innehåller förändrings- eller kontrollägarklausuler?",
+    "capability": "Klausulretrieval + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + avtalsmallar",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-098",
+    "area": "Juridik",
+    "subarea": "Kundavtal och leverantörsavtal",
+    "question": "Vad händer om vår viktigaste leverantör bryter avtalet?",
+    "capability": "Klausulretrieval + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + avtalsmallar",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-099",
+    "area": "Juridik",
+    "subarea": "Kundavtal och leverantörsavtal",
+    "question": "Vilka uppsägningstider gäller för våra tio största avtal?",
+    "capability": "Klausulretrieval + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + avtalsmallar",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-100",
+    "area": "Juridik",
+    "subarea": "Kundavtal och leverantörsavtal",
+    "question": "Vilka risker finns i det nya avtalet jämfört med våra tidigare avtal?",
+    "capability": "Klausulretrieval + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + avtalsmallar",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-101",
+    "area": "Juridik",
+    "subarea": "Arbetsrätt och bolagsjuridik",
+    "question": "Vilka skyldigheter har vi innan vi genomför en omorganisation?",
+    "capability": "Extern rättskälla + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + svensk lag",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-102",
+    "area": "Juridik",
+    "subarea": "Arbetsrätt och bolagsjuridik",
+    "question": "Vilka anställningsavtal saknar uppdaterade sekretessbestämmelser?",
+    "capability": "Extern rättskälla + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + svensk lag",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-103",
+    "area": "Juridik",
+    "subarea": "Arbetsrätt och bolagsjuridik",
+    "question": "Hur ska vi hantera en medarbetare som inte når sina prestationsmål?",
+    "capability": "Extern rättskälla + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + svensk lag",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-104",
+    "area": "Juridik",
+    "subarea": "Arbetsrätt och bolagsjuridik",
+    "question": "Vilka beslut måste tas av styrelsen och vilka kan VD fatta?",
+    "capability": "Extern rättskälla + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + svensk lag",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-105",
+    "area": "Juridik",
+    "subarea": "Arbetsrätt och bolagsjuridik",
+    "question": "Vilka formella steg krävs om vi vill göra en riktad nyemission?",
+    "capability": "Extern rättskälla + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + svensk lag",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-106",
+    "area": "Juridik",
+    "subarea": "Arbetsrätt och bolagsjuridik",
+    "question": "När behöver vi kalla till kontrollstämma vid kapitalbrist?",
+    "capability": "Extern rättskälla + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + svensk lag",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-107",
+    "area": "Juridik",
+    "subarea": "Arbetsrätt och bolagsjuridik",
+    "question": "Har vi rätt att använda konsulter på det sätt vi gör idag?",
+    "capability": "Extern rättskälla + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + svensk lag",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-108",
+    "area": "Juridik",
+    "subarea": "Arbetsrätt och bolagsjuridik",
+    "question": "Vilka konkurrensklausuler i våra anställningsavtal är osäkra?",
+    "capability": "Extern rättskälla + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + svensk lag",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-109",
+    "area": "Juridik",
+    "subarea": "Arbetsrätt och bolagsjuridik",
+    "question": "Vilka dokument måste finnas inför nästa årsstämma?",
+    "capability": "Extern rättskälla + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + svensk lag",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-110",
+    "area": "Juridik",
+    "subarea": "Arbetsrätt och bolagsjuridik",
+    "question": "Vad behöver vi tänka på juridiskt om vi köper ett mindre bolag?",
+    "capability": "Extern rättskälla + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "Avtal + svensk lag",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-111",
+    "area": "Juridik",
+    "subarea": "Regelefterlevnad och informationsskydd",
+    "question": "Vilka personuppgifter behandlar vi och varför?",
+    "capability": "Regelefterlevnad + källstöd",
+    "difficulty": "Medel",
+    "expected_underlag": "Policy + avtal + gällande regler",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-112",
+    "area": "Juridik",
+    "subarea": "Regelefterlevnad och informationsskydd",
+    "question": "Vilka personuppgiftsbiträdesavtal saknas eller är för gamla?",
+    "capability": "Regelefterlevnad + källstöd",
+    "difficulty": "Medel",
+    "expected_underlag": "Policy + avtal + gällande regler",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-113",
+    "area": "Juridik",
+    "subarea": "Regelefterlevnad och informationsskydd",
+    "question": "Hur skulle vi agera vid ett personuppgiftsincident i morgon?",
+    "capability": "Regelefterlevnad + källstöd",
+    "difficulty": "Medel",
+    "expected_underlag": "Policy + avtal + gällande regler",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-114",
+    "area": "Juridik",
+    "subarea": "Regelefterlevnad och informationsskydd",
+    "question": "Vilka nya regler kan påverka vårt bolag kommande tolv månader?",
+    "capability": "Regelefterlevnad + källstöd",
+    "difficulty": "Medel",
+    "expected_underlag": "Policy + avtal + gällande regler",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-115",
+    "area": "Juridik",
+    "subarea": "Regelefterlevnad och informationsskydd",
+    "question": "Vilka av våra system hanterar känsliga uppgifter utan tydlig åtkomstkontroll?",
+    "capability": "Regelefterlevnad + källstöd",
+    "difficulty": "Medel",
+    "expected_underlag": "Policy + avtal + gällande regler",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-116",
+    "area": "Juridik",
+    "subarea": "Regelefterlevnad och informationsskydd",
+    "question": "Har vi dokumenterat laglig grund för vår kundkommunikation?",
+    "capability": "Regelefterlevnad + källstöd",
+    "difficulty": "Medel",
+    "expected_underlag": "Policy + avtal + gällande regler",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-117",
+    "area": "Juridik",
+    "subarea": "Regelefterlevnad och informationsskydd",
+    "question": "Vilka leverantörer överför personuppgifter utanför EU/EES?",
+    "capability": "Regelefterlevnad + källstöd",
+    "difficulty": "Medel",
+    "expected_underlag": "Policy + avtal + gällande regler",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-118",
+    "area": "Juridik",
+    "subarea": "Regelefterlevnad och informationsskydd",
+    "question": "Vilka interna policyer behöver uppdateras efter senaste regeländring?",
+    "capability": "Regelefterlevnad + källstöd",
+    "difficulty": "Medel",
+    "expected_underlag": "Policy + avtal + gällande regler",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-119",
+    "area": "Juridik",
+    "subarea": "Regelefterlevnad och informationsskydd",
+    "question": "Vilka avtals- och lagkrav gäller för hur länge vi sparar kunddokument?",
+    "capability": "Regelefterlevnad + källstöd",
+    "difficulty": "Medel",
+    "expected_underlag": "Policy + avtal + gällande regler",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-120",
+    "area": "Juridik",
+    "subarea": "Regelefterlevnad och informationsskydd",
+    "question": "Kan vi visa en revisor vilka kontroller vi faktiskt har genomfört?",
+    "capability": "Regelefterlevnad + källstöd",
+    "difficulty": "Medel",
+    "expected_underlag": "Policy + avtal + gällande regler",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-121",
+    "area": "Strategi",
+    "subarea": "Strategi och måluppföljning",
+    "question": "Ligger vi i fas med våra tre viktigaste strategiska mål?",
+    "capability": "Syntes",
+    "difficulty": "Medel",
+    "expected_underlag": "Strategidokument + KPI",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-122",
+    "area": "Strategi",
+    "subarea": "Strategi och måluppföljning",
+    "question": "Vilka strategiska initiativ ger ännu ingen mätbar effekt?",
+    "capability": "Syntes",
+    "difficulty": "Medel",
+    "expected_underlag": "Strategidokument + KPI",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-123",
+    "area": "Strategi",
+    "subarea": "Strategi och måluppföljning",
+    "question": "Vilka affärsområden borde vi satsa mer på nästa år?",
+    "capability": "Syntes",
+    "difficulty": "Medel",
+    "expected_underlag": "Strategidokument + KPI",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-124",
+    "area": "Strategi",
+    "subarea": "Strategi och måluppföljning",
+    "question": "Vilka av våra antaganden om marknaden har visat sig felaktiga?",
+    "capability": "Syntes",
+    "difficulty": "Medel",
+    "expected_underlag": "Strategidokument + KPI",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-125",
+    "area": "Strategi",
+    "subarea": "Strategi och måluppföljning",
+    "question": "Vilka nya möjligheter syns i våra kunders återkommande förfrågningar?",
+    "capability": "Syntes",
+    "difficulty": "Medel",
+    "expected_underlag": "Strategidokument + KPI",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-126",
+    "area": "Strategi",
+    "subarea": "Strategi och måluppföljning",
+    "question": "Vad måste vi sluta göra för att frigöra resurser?",
+    "capability": "Syntes",
+    "difficulty": "Medel",
+    "expected_underlag": "Strategidokument + KPI",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-127",
+    "area": "Strategi",
+    "subarea": "Strategi och måluppföljning",
+    "question": "Hur skulle vår strategi påverkas om största kunden försvann?",
+    "capability": "Syntes",
+    "difficulty": "Medel",
+    "expected_underlag": "Strategidokument + KPI",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-128",
+    "area": "Strategi",
+    "subarea": "Strategi och måluppföljning",
+    "question": "Vilka konkurrentförändringar kräver ett beslut från oss?",
+    "capability": "Syntes",
+    "difficulty": "Medel",
+    "expected_underlag": "Strategidokument + KPI",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-129",
+    "area": "Strategi",
+    "subarea": "Strategi och måluppföljning",
+    "question": "Hur hänger våra investeringar ihop med de mål styrelsen har beslutat?",
+    "capability": "Syntes",
+    "difficulty": "Medel",
+    "expected_underlag": "Strategidokument + KPI",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-130",
+    "area": "Strategi",
+    "subarea": "Strategi och måluppföljning",
+    "question": "Vilka indikatorer skulle visa tidigt att strategin inte fungerar?",
+    "capability": "Syntes",
+    "difficulty": "Medel",
+    "expected_underlag": "Strategidokument + KPI",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-131",
+    "area": "Strategi",
+    "subarea": "Tillväxt och expansion",
+    "question": "Vilka kundsegment har bäst potential för lönsam tillväxt?",
+    "capability": "Scenario + omvärld",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + marknadsdata + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-132",
+    "area": "Strategi",
+    "subarea": "Tillväxt och expansion",
+    "question": "Vad skulle det kosta att etablera oss i en ny svensk region?",
+    "capability": "Scenario + omvärld",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + marknadsdata + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-133",
+    "area": "Strategi",
+    "subarea": "Tillväxt och expansion",
+    "question": "Kan vi växa med 30 procent utan att försämra leveranskvaliteten?",
+    "capability": "Scenario + omvärld",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + marknadsdata + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-134",
+    "area": "Strategi",
+    "subarea": "Tillväxt och expansion",
+    "question": "Vilka partnerskap kan ge oss snabbare marknadstillträde?",
+    "capability": "Scenario + omvärld",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + marknadsdata + budget",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-135",
+    "area": "Strategi",
+    "subarea": "Tillväxt och expansion",
+    "question": "När skulle ett förvärv vara mer lönsamt än organisk tillväxt?",
+    "capability": "Scenario + omvärld",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + marknadsdata + budget",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-136",
+    "area": "Strategi",
+    "subarea": "Tillväxt och expansion",
+    "question": "Vilka tjänster kan vi skala utan motsvarande personalökning?",
+    "capability": "Scenario + omvärld",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + marknadsdata + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-137",
+    "area": "Strategi",
+    "subarea": "Tillväxt och expansion",
+    "question": "Vilka hinder gör att vi inte kan ta fler uppdrag idag?",
+    "capability": "Scenario + omvärld",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + marknadsdata + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-138",
+    "area": "Strategi",
+    "subarea": "Tillväxt och expansion",
+    "question": "Hur lång tid tar det innan en ny marknad blir lönsam?",
+    "capability": "Scenario + omvärld",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + marknadsdata + budget",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-139",
+    "area": "Strategi",
+    "subarea": "Tillväxt och expansion",
+    "question": "Vilka befintliga kunder kan köpa fler av våra tjänster?",
+    "capability": "Scenario + omvärld",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + marknadsdata + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-140",
+    "area": "Strategi",
+    "subarea": "Tillväxt och expansion",
+    "question": "Vilken tillväxttakt klarar vår nuvarande organisation?",
+    "capability": "Scenario + omvärld",
+    "difficulty": "Medel",
+    "expected_underlag": "CRM + marknadsdata + budget",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-141",
+    "area": "Strategi",
+    "subarea": "Ägare, styrelse och investeringar",
+    "question": "Vilka frågor kommer styrelsen sannolikt att ställa om senaste kvartalet?",
+    "capability": "Syntes + dokument",
+    "difficulty": "Medel",
+    "expected_underlag": "Styrelseprotokoll + finansdata",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-142",
+    "area": "Strategi",
+    "subarea": "Ägare, styrelse och investeringar",
+    "question": "Hur ser vårt företagsvärde ut under olika rimliga antaganden?",
+    "capability": "Syntes + dokument",
+    "difficulty": "Medel",
+    "expected_underlag": "Styrelseprotokoll + finansdata",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-143",
+    "area": "Strategi",
+    "subarea": "Ägare, styrelse och investeringar",
+    "question": "Vilka nyckeltal har försämrats sedan föregående styrelsemöte?",
+    "capability": "Syntes + dokument",
+    "difficulty": "Medel",
+    "expected_underlag": "Styrelseprotokoll + finansdata",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-144",
+    "area": "Strategi",
+    "subarea": "Ägare, styrelse och investeringar",
+    "question": "Vilka investeringar har högst förväntad avkastning?",
+    "capability": "Syntes + dokument",
+    "difficulty": "Medel",
+    "expected_underlag": "Styrelseprotokoll + finansdata",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-145",
+    "area": "Strategi",
+    "subarea": "Ägare, styrelse och investeringar",
+    "question": "Vilka risker bör styrelsen informeras om omedelbart?",
+    "capability": "Syntes + dokument",
+    "difficulty": "Medel",
+    "expected_underlag": "Styrelseprotokoll + finansdata",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-146",
+    "area": "Strategi",
+    "subarea": "Ägare, styrelse och investeringar",
+    "question": "Vad behöver ett investeringsunderlag för ett nytt affärsområde innehålla?",
+    "capability": "Syntes + dokument",
+    "difficulty": "Medel",
+    "expected_underlag": "Styrelseprotokoll + finansdata",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-147",
+    "area": "Strategi",
+    "subarea": "Ägare, styrelse och investeringar",
+    "question": "Hur påverkar ett nytt delägarskap befintliga ägare?",
+    "capability": "Syntes + dokument",
+    "difficulty": "Medel",
+    "expected_underlag": "Styrelseprotokoll + finansdata",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-148",
+    "area": "Strategi",
+    "subarea": "Ägare, styrelse och investeringar",
+    "question": "Vilka tidigare styrelsebeslut är fortfarande inte verkställda?",
+    "capability": "Syntes + dokument",
+    "difficulty": "Medel",
+    "expected_underlag": "Styrelseprotokoll + finansdata",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-149",
+    "area": "Strategi",
+    "subarea": "Ägare, styrelse och investeringar",
+    "question": "Hur har avkastningen på våra större investeringar utvecklats?",
+    "capability": "Syntes + dokument",
+    "difficulty": "Medel",
+    "expected_underlag": "Styrelseprotokoll + finansdata",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-150",
+    "area": "Strategi",
+    "subarea": "Ägare, styrelse och investeringar",
+    "question": "Vad är de viktigaste argumenten för och emot en utdelning i år?",
+    "capability": "Syntes + dokument",
+    "difficulty": "Medel",
+    "expected_underlag": "Styrelseprotokoll + finansdata",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-151",
+    "area": "Verksamhet",
+    "subarea": "Leverans och projekt",
+    "question": "Vilka pågående projekt riskerar att bli försenade?",
+    "capability": "Flera källor",
+    "difficulty": "Enkel",
+    "expected_underlag": "Projektverktyg + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-152",
+    "area": "Verksamhet",
+    "subarea": "Leverans och projekt",
+    "question": "Vilka uppdrag överskrider budgeterad tid just nu?",
+    "capability": "Flera källor",
+    "difficulty": "Enkel",
+    "expected_underlag": "Projektverktyg + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-153",
+    "area": "Verksamhet",
+    "subarea": "Leverans och projekt",
+    "question": "Vilka leveranser är beroende av samma nyckelperson?",
+    "capability": "Flera källor",
+    "difficulty": "Enkel",
+    "expected_underlag": "Projektverktyg + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-154",
+    "area": "Verksamhet",
+    "subarea": "Leverans och projekt",
+    "question": "Vilka kundlöften riskerar vi att missa denna månad?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "Projektverktyg + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-155",
+    "area": "Verksamhet",
+    "subarea": "Leverans och projekt",
+    "question": "Varför blev förra månadens största projekt olönsamt?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "Projektverktyg + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-156",
+    "area": "Verksamhet",
+    "subarea": "Leverans och projekt",
+    "question": "Vilka projekt har högst andel omarbete?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "Projektverktyg + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-157",
+    "area": "Verksamhet",
+    "subarea": "Leverans och projekt",
+    "question": "Vad är den verkliga beläggningsgraden per team?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "Projektverktyg + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-158",
+    "area": "Verksamhet",
+    "subarea": "Leverans och projekt",
+    "question": "Vilka återkommande hinder rapporteras i projektmöten?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "Projektverktyg + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-159",
+    "area": "Verksamhet",
+    "subarea": "Leverans och projekt",
+    "question": "Vilka åtgärder kan frigöra mest leveranskapacitet?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "Projektverktyg + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-160",
+    "area": "Verksamhet",
+    "subarea": "Leverans och projekt",
+    "question": "Vilka projekt bör eskaleras till ledningen idag?",
+    "capability": "Flera källor",
+    "difficulty": "Medel",
+    "expected_underlag": "Projektverktyg + tidrapport",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-161",
+    "area": "Verksamhet",
+    "subarea": "Inköp och leverantörer",
+    "question": "Vilka fem leverantörer står för störst del av våra inköp?",
+    "capability": "Sammanställning + jämförelse",
+    "difficulty": "Enkel",
+    "expected_underlag": "Inköpsdata + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-162",
+    "area": "Verksamhet",
+    "subarea": "Inköp och leverantörer",
+    "question": "Vilka inköpsavtal löper snart ut och behöver omförhandlas?",
+    "capability": "Sammanställning + jämförelse",
+    "difficulty": "Enkel",
+    "expected_underlag": "Inköpsdata + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-163",
+    "area": "Verksamhet",
+    "subarea": "Inköp och leverantörer",
+    "question": "Har vi onödigt många verktyg som löser samma problem?",
+    "capability": "Sammanställning + jämförelse",
+    "difficulty": "Enkel",
+    "expected_underlag": "Inköpsdata + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-164",
+    "area": "Verksamhet",
+    "subarea": "Inköp och leverantörer",
+    "question": "Hur beroende är vi av enskilda underleverantörer?",
+    "capability": "Sammanställning + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Inköpsdata + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-165",
+    "area": "Verksamhet",
+    "subarea": "Inköp och leverantörer",
+    "question": "Vilka leverantörer har ofta sena eller felaktiga leveranser?",
+    "capability": "Sammanställning + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Inköpsdata + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-166",
+    "area": "Verksamhet",
+    "subarea": "Inköp och leverantörer",
+    "question": "Hur mycket skulle vi spara genom samordnade inköp?",
+    "capability": "Sammanställning + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Inköpsdata + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-167",
+    "area": "Verksamhet",
+    "subarea": "Inköp och leverantörer",
+    "question": "Vilka kostnader saknar ett tydligt inköpsgodkännande?",
+    "capability": "Sammanställning + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Inköpsdata + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-168",
+    "area": "Verksamhet",
+    "subarea": "Inköp och leverantörer",
+    "question": "Har vi leverantörer som inte uppfyller våra säkerhetskrav?",
+    "capability": "Sammanställning + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Inköpsdata + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-169",
+    "area": "Verksamhet",
+    "subarea": "Inköp och leverantörer",
+    "question": "Vilka inköp behöver godkännas under nästa månad?",
+    "capability": "Sammanställning + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Inköpsdata + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-170",
+    "area": "Verksamhet",
+    "subarea": "Inköp och leverantörer",
+    "question": "Vilken alternativ leverantör kan vi använda om en kritisk tjänst försvinner?",
+    "capability": "Sammanställning + jämförelse",
+    "difficulty": "Medel",
+    "expected_underlag": "Inköpsdata + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-171",
+    "area": "Verksamhet",
+    "subarea": "IT, data och AI",
+    "question": "Vilka verksamhetskritiska system saknar fungerande reservrutin?",
+    "capability": "Tekniska verktyg + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "IT-loggar + kostnadsdata + policy",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-172",
+    "area": "Verksamhet",
+    "subarea": "IT, data och AI",
+    "question": "Vilka integrationer går ofta sönder och påverkar verksamheten?",
+    "capability": "Tekniska verktyg + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "IT-loggar + kostnadsdata + policy",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-173",
+    "area": "Verksamhet",
+    "subarea": "IT, data och AI",
+    "question": "Vilka användare har mer systembehörighet än de behöver?",
+    "capability": "Tekniska verktyg + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "IT-loggar + kostnadsdata + policy",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-174",
+    "area": "Verksamhet",
+    "subarea": "IT, data och AI",
+    "question": "Vilka av våra datakällor är mest opålitliga?",
+    "capability": "Tekniska verktyg + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "IT-loggar + kostnadsdata + policy",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-175",
+    "area": "Verksamhet",
+    "subarea": "IT, data och AI",
+    "question": "Var lägger personalen mest tid på manuell överföring av data?",
+    "capability": "Tekniska verktyg + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "IT-loggar + kostnadsdata + policy",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-176",
+    "area": "Verksamhet",
+    "subarea": "IT, data och AI",
+    "question": "Vilka AI-användningsfall kan ge mätbar nytta inom tre månader?",
+    "capability": "Tekniska verktyg + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "IT-loggar + kostnadsdata + policy",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-177",
+    "area": "Verksamhet",
+    "subarea": "IT, data och AI",
+    "question": "Hur mycket spenderar vi på molntjänster och AI-modeller per månad?",
+    "capability": "Tekniska verktyg + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "IT-loggar + kostnadsdata + policy",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-178",
+    "area": "Verksamhet",
+    "subarea": "IT, data och AI",
+    "question": "Vilka säkerhetsincidenter behöver ledningen känna till?",
+    "capability": "Tekniska verktyg + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "IT-loggar + kostnadsdata + policy",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-179",
+    "area": "Verksamhet",
+    "subarea": "IT, data och AI",
+    "question": "Hur lång tid skulle det ta att återställa vår verksamhet efter ett driftstopp?",
+    "capability": "Tekniska verktyg + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "IT-loggar + kostnadsdata + policy",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-180",
+    "area": "Verksamhet",
+    "subarea": "IT, data och AI",
+    "question": "Vilka AI-svar i våra interna system saknar kontrollerbart källstöd?",
+    "capability": "Tekniska verktyg + analys",
+    "difficulty": "Medel",
+    "expected_underlag": "IT-loggar + kostnadsdata + policy",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-181",
+    "area": "Risk",
+    "subarea": "Risk och kontinuitet",
+    "question": "Vilka är bolagets fem största risker just nu?",
+    "capability": "Flerstegssyntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Riskregister + ekonomi + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-182",
+    "area": "Risk",
+    "subarea": "Risk och kontinuitet",
+    "question": "Vad händer med resultat och likviditet om vår största kund lämnar oss?",
+    "capability": "Flerstegssyntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Riskregister + ekonomi + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-183",
+    "area": "Risk",
+    "subarea": "Risk och kontinuitet",
+    "question": "Vilka risker saknar ansvarig eller beslutad åtgärd?",
+    "capability": "Flerstegssyntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Riskregister + ekonomi + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-184",
+    "area": "Risk",
+    "subarea": "Risk och kontinuitet",
+    "question": "Hur påverkas vi om en nyckelperson är borta i tre månader?",
+    "capability": "Flerstegssyntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Riskregister + ekonomi + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-185",
+    "area": "Risk",
+    "subarea": "Risk och kontinuitet",
+    "question": "Vilka försäkringar täcker inte våra viktigaste verksamhetsrisker?",
+    "capability": "Flerstegssyntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Riskregister + ekonomi + avtal",
+    "databehov": "Intern + extern"
+  },
+  {
+    "id": "GQ-186",
+    "area": "Risk",
+    "subarea": "Risk och kontinuitet",
+    "question": "Vilka tecken skulle indikera ett kommande likviditetsproblem?",
+    "capability": "Flerstegssyntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Riskregister + ekonomi + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-187",
+    "area": "Risk",
+    "subarea": "Risk och kontinuitet",
+    "question": "Hur hanterar vi ett längre avbrott hos vår viktigaste IT-leverantör?",
+    "capability": "Flerstegssyntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Riskregister + ekonomi + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-188",
+    "area": "Risk",
+    "subarea": "Risk och kontinuitet",
+    "question": "Vilka påståenden i vår riskrapport saknar aktuellt underlag?",
+    "capability": "Flerstegssyntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Riskregister + ekonomi + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-189",
+    "area": "Risk",
+    "subarea": "Risk och kontinuitet",
+    "question": "Vilka leverantörs- och kundrisker är korrelerade med varandra?",
+    "capability": "Flerstegssyntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Riskregister + ekonomi + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-190",
+    "area": "Risk",
+    "subarea": "Risk och kontinuitet",
+    "question": "Vilka riskreducerande åtgärder har bäst effekt per investerad krona?",
+    "capability": "Flerstegssyntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Riskregister + ekonomi + avtal",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-191",
+    "area": "VD-beslut",
+    "subarea": "Tvärfunktionella VD-beslut",
+    "question": "Kan vi anställa fem personer om två stora kundavtal inte förlängs?",
+    "capability": "Agentorkestrering + syntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Ekonomi + avtal + CRM + HR",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-192",
+    "area": "VD-beslut",
+    "subarea": "Tvärfunktionella VD-beslut",
+    "question": "Vilka avtal, kundrelationer och projekt påverkas av en föreslagen prisökning?",
+    "capability": "Agentorkestrering + syntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Ekonomi + avtal + CRM + HR",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-193",
+    "area": "VD-beslut",
+    "subarea": "Tvärfunktionella VD-beslut",
+    "question": "Vad händer med kassaflöde, beläggning och marginal om vi tappar största uppdraget?",
+    "capability": "Agentorkestrering + syntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Ekonomi + avtal + CRM + HR",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-194",
+    "area": "VD-beslut",
+    "subarea": "Tvärfunktionella VD-beslut",
+    "question": "Bör vi öppna ett nytt kontor utifrån pipeline, kompetenstillgång och kostnader?",
+    "capability": "Agentorkestrering + syntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Ekonomi + avtal + CRM + HR",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-195",
+    "area": "VD-beslut",
+    "subarea": "Tvärfunktionella VD-beslut",
+    "question": "Vilka beslut behöver jag fatta den här veckan och vilket underlag saknas?",
+    "capability": "Agentorkestrering + syntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Ekonomi + avtal + CRM + HR",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-196",
+    "area": "VD-beslut",
+    "subarea": "Tvärfunktionella VD-beslut",
+    "question": "Kan vi minska kostnaderna med tio procent utan att bryta avtal eller försämra leveransen?",
+    "capability": "Agentorkestrering + syntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Ekonomi + avtal + CRM + HR",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-197",
+    "area": "VD-beslut",
+    "subarea": "Tvärfunktionella VD-beslut",
+    "question": "Är det bättre att rekrytera, använda underkonsulter eller tacka nej till nya affärer?",
+    "capability": "Agentorkestrering + syntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Ekonomi + avtal + CRM + HR",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-198",
+    "area": "VD-beslut",
+    "subarea": "Tvärfunktionella VD-beslut",
+    "question": "Vilka motsägelser finns mellan vår budget, ledningsrapport och säljpipeline?",
+    "capability": "Agentorkestrering + syntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Ekonomi + avtal + CRM + HR",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-199",
+    "area": "VD-beslut",
+    "subarea": "Tvärfunktionella VD-beslut",
+    "question": "Vad behöver styrelsen veta om våra största affärsrisker och vilka källor stödjer slutsatsen?",
+    "capability": "Agentorkestrering + syntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Ekonomi + avtal + CRM + HR",
+    "databehov": "Intern"
+  },
+  {
+    "id": "GQ-200",
+    "area": "VD-beslut",
+    "subarea": "Tvärfunktionella VD-beslut",
+    "question": "Om du bara fick rekommendera tre beslut inför nästa kvartal, vilka är de och varför?",
+    "capability": "Agentorkestrering + syntes",
+    "difficulty": "Komplex",
+    "expected_underlag": "Ekonomi + avtal + CRM + HR",
+    "databehov": "Intern"
+  }
+]

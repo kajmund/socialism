@@ -1,0 +1,7 @@
+# Generated/rendered artifacts – not committed.
+# Recreate with: python -m generator.generate && python -m generator.facts \
+#   && python -m generator.validate && python -m generator.package \
+#   && python -m generator.pdfconvert all
+*.zip
+*.pdf
+.DS_Store
