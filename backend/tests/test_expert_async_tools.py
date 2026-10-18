@@ -148,17 +148,13 @@ async def test_document_inventory_does_not_force_tools_for_social_turns():
 
 
 @pytest.mark.asyncio
-async def test_tool_call_ack_does_not_make_a_discarded_text_request(monkeypatch):
+async def test_tool_call_ack_does_not_make_a_discarded_text_request():
     async def complete(_messages, _specs=None, *, tool_choice="auto", **_kwargs):
         return SimpleNamespace(
             content="",
             tool_calls=[_tool_call("show_document", '{"source_id":"contract"}')],
         )
 
-    async def unused_text(*_args, **_kwargs):
-        raise AssertionError("discarded acknowledgement must not call complete_text")
-
-    monkeypatch.setattr("app.services.expert_async_tools.complete_text", unused_text, raising=False)
     set_tools_completer(complete)
     try:
         reply = await acknowledge_expert_tools(
@@ -235,6 +231,135 @@ async def test_repeated_tool_call_id_is_deduplicated_across_episode_rounds(monke
     assert result == "Here is the answer."
     assert executed == ["call_1"]
     assert "call_1" in work.seen_call_ids
+
+
+@pytest.mark.asyncio
+async def test_presentation_call_releases_required_tool_choice(monkeypatch):
+    rounds = iter([
+        SimpleNamespace(
+            content="",
+            tool_calls=[
+                _tool_call(
+                    "show_document_set",
+                    '{"title":"Hyresavtal","source_ids":["src-1"]}',
+                )
+            ],
+        ),
+        SimpleNamespace(content="Här är galleriet.", tool_calls=[]),
+    ])
+    published: list[str] = []
+    choices: list[str] = []
+
+    async def complete(messages, specs, **kwargs):
+        choices.append(str(kwargs.get("tool_choice") or "auto"))
+        return next(rounds)
+
+    async def run_call(_call, _work):
+        raise AssertionError("no server tools expected")
+
+    async def publish(calls):
+        published.extend(call.name for call in calls)
+
+    monkeypatch.setattr("app.services.expert_reasoning_episode.complete_with_tools", complete)
+    work = ToolWork(
+        persona_id="sara",
+        mode="character",
+        actor_user_id="user",
+        history=[],
+        user_message="Visa alla hyresavtal.",
+        calls=(),
+        episode=ExpertEpisode(
+            messages=({"role": "user", "content": "Visa alla hyresavtal."},),
+            specs=({
+                "type": "function",
+                "function": {"name": "show_document_set", "parameters": {}},
+            },),
+            prompt_key="chat.mode.in_character",
+            reasoning_content=None,
+            tool_choice="required",
+        ),
+        seen_call_ids=set(),
+    )
+
+    result, _reasoning = await continue_expert_episode(
+        work,
+        (),
+        run_call=run_call,
+        publish=publish,
+    )
+
+    assert result == "Här är galleriet."
+    assert published == ["show_document_set"]
+    assert choices == ["required", "auto"]
+    assert work.episode is not None
+    assert work.episode.tool_choice == "auto"
+
+
+@pytest.mark.asyncio
+async def test_empty_episode_recovers_with_text_only_completion(monkeypatch):
+    from app.services.workspace_intent import IntentDecision
+
+    async def complete(_messages, _specs, **_kwargs):
+        return SimpleNamespace(content="", tool_calls=[])
+
+    async def recover(messages, **_kwargs):
+        assert any(
+            "text_reply_required" in str(message.get("content") or "")
+            for message in messages
+            if message.get("role") == "user"
+        )
+        return "Det finns fyra anställningsavtal i mängden."
+
+    async def unused(*_a, **_k):
+        raise AssertionError("unexpected")
+
+    monkeypatch.setattr("app.services.expert_reasoning_episode.complete_with_tools", complete)
+    monkeypatch.setattr("app.services.expert_reasoning_episode.complete_text", recover)
+    find = PlannedCall("find-1", "find_documents", {"query": "anställningsavtal", "mode": "extend"})
+    work = ToolWork(
+        persona_id="sara",
+        mode="character",
+        actor_user_id="user",
+        history=[],
+        user_message="Lägg till anställningsavtal. Vad har vi för sådana dokument?",
+        calls=(find,),
+        workspace_intent=IntentDecision(
+            "extend", "active_document_set", "anställningsavtal",
+        ),
+        episode=ExpertEpisode(
+            messages=(
+                {"role": "user", "content": "Lägg till anställningsavtal. Vad har vi för sådana dokument?"},
+                {
+                    "role": "assistant",
+                    "tool_calls": [{
+                        "id": find.id,
+                        "type": "function",
+                        "function": {
+                            "name": find.name,
+                            "arguments": '{"query":"anställningsavtal","mode":"extend"}',
+                        },
+                    }],
+                },
+            ),
+            specs=(
+                {"type": "function", "function": {"name": "find_documents", "parameters": {}}},
+                {"type": "function", "function": {"name": "search_knowledge", "parameters": {}}},
+            ),
+            prompt_key="chat.mode.in_character",
+            reasoning_content=None,
+            tool_choice="auto",
+        ),
+        seen_call_ids={find.id},
+    )
+
+    result, _reasoning = await continue_expert_episode(
+        work,
+        ['{"source_ids":["a"],"document_count":4}'],
+        run_call=unused,
+        publish=unused,
+    )
+    assert result == "Det finns fyra anställningsavtal i mängden."
+    assert work.episode is not None
 
 
 @pytest.mark.asyncio

@@ -2,6 +2,7 @@
 
 import json
 import time
+from collections.abc import AsyncIterator
 
 from app.config import settings
 from app.database.models import Persona
@@ -14,7 +15,11 @@ from app.services.expert_async_tools import (
     _prompts,
     tool_result_extra,
 )
-from app.services.expert_reasoning_episode import trace_model_reply
+from app.services.expert_episode_stream import stream_expert_episode
+from app.services.expert_reasoning_episode import (
+    continue_expert_episode,
+    trace_model_reply,
+)
 from app.services.jobs import job_session_factory
 from app.services.expert_reasoning import (
     RoutingDecision,
@@ -156,6 +161,91 @@ async def compose_tool_episode(
         text = await _main_model_reply(work, prompts, text)
         reasoning = None
     return text, reasoning
+
+
+async def stream_compose_tool_episode(
+    work: ToolWork,
+    blob: str,
+    tool_results: tuple[str, ...] = (),
+    *,
+    run_call,
+    publish,
+    reasoning_out: list[str | None],
+) -> AsyncIterator[str]:
+    """Streaming variant of ``compose_tool_episode`` for live voice.
+
+    Streams the final visible reply. The rare deeper-profile escalation still
+    reports back through the main model as one non-streamed chunk.
+    """
+    factory = job_session_factory()
+    async with factory() as session:
+        persona = await session.get(Persona, work.persona_id)
+        if persona is None:
+            reasoning_out.append(None)
+            return
+        prompts = await _prompts(session, persona)
+        session.expunge(persona)
+        await session.commit()
+    reasoning_profile, routing_decision, escalation_reason = await _maybe_escalate(
+        work, prompts, blob,
+    )
+
+    if _deeper_than_main(work.reasoning_profile, reasoning_profile):
+        with bound_expert_profile(reasoning_profile):
+            draft, _reasoning = await continue_expert_episode(
+                work, tool_results, run_call=run_call, publish=publish,
+            )
+        _emit_episode_routing(
+            work, routing_decision, reasoning_profile, escalation_reason,
+        )
+        reasoning_out.append(None)
+        if draft.strip():
+            yield await _main_model_reply(work, prompts, draft)
+        return
+
+    with bound_expert_profile(reasoning_profile):
+        async for delta in stream_expert_episode(
+            work,
+            tool_results,
+            run_call=run_call,
+            publish=publish,
+            reasoning_out=reasoning_out,
+        ):
+            yield delta
+    _emit_episode_routing(
+        work, routing_decision, reasoning_profile, escalation_reason,
+    )
+
+
+def _emit_episode_routing(
+    work: ToolWork,
+    routing_decision: RoutingDecision | None,
+    reasoning_profile: SelectionRole | None,
+    escalation_reason: str | None,
+) -> None:
+    if (
+        routing_decision is None
+        or work.reasoning_profile is None
+        or reasoning_profile is None
+    ):
+        return
+    emit_routing_event(
+        routing_decision,
+        RoutingEventState(
+            initial_profile=work.reasoning_profile,
+            final_profile=reasoning_profile,
+            escalated=reasoning_profile != work.reasoning_profile,
+            escalation_reason=escalation_reason,
+            tool_count=len(work.calls),
+            turn_latency_ms=(
+                0.0
+                if work.turn_started_at is None
+                else (time.perf_counter() - work.turn_started_at) * 1000
+            ),
+            phase="final",
+            spawn_exposed=work.spawn_exposed,
+        ),
+    )
 
 
 def _deeper_than_main(

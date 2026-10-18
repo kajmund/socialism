@@ -16,6 +16,7 @@ from pydantic import (
 )
 
 from app.auth.tokens import user_from_bearer_token
+from app.config import settings
 from app.database.models import Kund, Persona, UserAccount
 from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.schemas.domain import EXPERT_CHAT_MODE
@@ -31,6 +32,9 @@ from app.services.sme_expert_turns import (
     mark_expert_turn_running,
     serialize_expert_turn,
 )
+from app.services.sme_quick_draft import complete_quick_draft, complete_quick_progress
+from app.services.expert_async_tools import bind_ack_text, reset_ack_text
+from app.services.workspace_tool_delivery import WorkspaceToolDelivery
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
@@ -70,8 +74,120 @@ async def _authenticate(websocket: WebSocket) -> UserAccount:
 
 
 async def _send_workspace_tools(emit, envelope: dict, calls: list[dict]) -> None:
-    for call in calls:
-        await emit({"type": "workspace_tool", **call, **envelope})
+    delivery = WorkspaceToolDelivery(
+        emit,
+        event_type="workspace_tool",
+        turn_id=str(envelope.get("request_id") or "") or None,
+        envelope=envelope,
+    )
+    await delivery.deliver(calls)
+
+
+async def _execute_accepted_turn(
+    factory,
+    *,
+    send: SmeExpertSend,
+    envelope: dict,
+    fence: int,
+    token: str,
+    emit,
+) -> None:
+    """Acknowledge first, forward it into the main turn, then show it to the user.
+
+    The fast model writes a short acknowledgment ("ok, jag kollar…") before the
+    main prompt is sent. The main model sees it as an assistant line the expert
+    has already said, so the full reply continues naturally. The acknowledgment
+    is sent to the user right after the prompt has been forwarded. If the full
+    reply is late, the fast model sends a task-aware progress line.
+    """
+    ack_text: str | None = None
+    quick_on = settings.sme_quick_draft_enabled and send.image_sha256 is None
+    if quick_on:
+        ack_text = await complete_quick_draft(
+            factory,
+            persona_id=send.thread_id,
+            message=send.message,
+        )
+
+    first_token = asyncio.Event()
+    progress_task: asyncio.Task[None] | None = None
+
+    async def on_token(text: str) -> None:
+        first_token.set()
+        if progress_task is not None:
+            progress_task.cancel()
+        await emit({"type": "token", "text": text, **envelope})
+
+    async def maybe_progress() -> None:
+        try:
+            await asyncio.sleep(settings.sme_quick_progress_delay_seconds)
+        except asyncio.CancelledError:
+            raise
+        if first_token.is_set():
+            return
+        text = await complete_quick_progress(
+            factory,
+            persona_id=send.thread_id,
+            message=send.message,
+            said=ack_text,
+        )
+        if text and not first_token.is_set():
+            await emit({"type": "draft_token", "text": f" {text}", **envelope})
+
+    ack_token = bind_ack_text(ack_text)
+    try:
+        turn_task = asyncio.create_task(
+            execute_expert_turn(
+                factory,
+                request_id=send.request_id,
+                persona_id=send.thread_id,
+                message=send.message,
+                image_sha256=send.image_sha256,
+                fence=fence,
+                token=token,
+                on_token=on_token,
+                workspace_id=send.workspace_id,
+                workspace_state=send.workspace_state,
+                on_client_tools=lambda calls: _send_workspace_tools(emit, envelope, calls),
+            )
+        )
+    finally:
+        reset_ack_text(ack_token)
+    if ack_text:
+        await emit({"type": "draft_token", "text": ack_text, **envelope})
+    if quick_on:
+        progress_task = asyncio.create_task(maybe_progress())
+
+    try:
+        done = await turn_task
+    finally:
+        if progress_task is not None:
+            progress_task.cancel()
+            await asyncio.gather(progress_task, return_exceptions=True)
+    async with factory() as session:
+        questions = await library_follow_up_questions(
+            session,
+            persona_id=send.thread_id,
+            mode=EXPERT_CHAT_MODE,
+        )
+    await emit(
+        {
+            "type": "done",
+            "reply": done.reply,
+            "messages": [
+                message.model_dump(mode="json")
+                for message in done.messages
+            ],
+            **envelope,
+        }
+    )
+    await emit(
+        {
+            "type": "suggestions",
+            "questions": questions,
+            **envelope,
+        }
+    )
 
 
 @router.websocket("/ws/sme")
@@ -182,7 +298,7 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
             }
         )
 
-    async def run_expert_turn(send: SmeExpertSend) -> None:  # noqa: C901
+    async def run_expert_turn(send: SmeExpertSend) -> None:
         envelope = {
             "thread_type": send.thread_type,
             "thread_id": send.thread_id,
@@ -230,46 +346,13 @@ async def sme_chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR09
                 return
             if token is None:
                 raise ChatTurnError("stale_expert_turn", status_code=409)
-
-            async def on_token(text: str) -> None:
-                await emit({"type": "token", "text": text, **envelope})
-
-            done = await execute_expert_turn(
+            await _execute_accepted_turn(
                 factory,
-                request_id=send.request_id,
-                persona_id=send.thread_id,
-                message=send.message,
-                image_sha256=send.image_sha256,
+                send=send,
+                envelope=envelope,
                 fence=fence,
                 token=token,
-                on_token=on_token,
-                workspace_id=send.workspace_id,
-                workspace_state=send.workspace_state,
-                on_client_tools=lambda calls: _send_workspace_tools(emit, envelope, calls),
-            )
-            async with factory() as session:
-                questions = await library_follow_up_questions(
-                    session,
-                    persona_id=send.thread_id,
-                    mode=EXPERT_CHAT_MODE,
-                )
-            await emit(
-                {
-                    "type": "done",
-                    "reply": done.reply,
-                    "messages": [
-                        message.model_dump(mode="json")
-                        for message in done.messages
-                    ],
-                    **envelope,
-                }
-            )
-            await emit(
-                {
-                    "type": "suggestions",
-                    "questions": questions,
-                    **envelope,
-                }
+                emit=emit,
             )
         except HTTPException as exc:
             await _fail_expert_turn(send.request_id, fence, str(exc.detail))
