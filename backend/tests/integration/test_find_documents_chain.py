@@ -140,7 +140,12 @@ async def test_find_documents_category_chain_latency(factory, catalogs, monkeypa
     (BASELINE_DIR / "document-find-expert-chain-v1.json").write_text(
         json.dumps(payload, indent=2) + "\n", encoding="utf-8",
     )
-    assert wall_ms < 200.0
+    # The category chain now also materializes the readable workspace scope.
+    # Keep a wall budget that stays meaningful (an accidental embedding call
+    # takes orders of magnitude longer) but tolerates shared-CI noise, where
+    # this same chain has been observed at ~350 ms while the local wall time
+    # is single-digit milliseconds.
+    assert wall_ms < 1000.0
 
 
 @pytest.mark.asyncio
