@@ -21,6 +21,8 @@ type MessengerChatProps = {
   optimisticImageUrl?: string | null
   typing?: boolean
   streamText?: string | null
+  /** Preliminary fast-model answer shown until the full reply starts streaming. */
+  draftText?: string | null
   draft: string
   onDraftChange: (value: string) => void
   onSend: () => void
@@ -62,6 +64,7 @@ export function MessengerChat({
   optimisticImageUrl = null,
   typing = false,
   streamText = null,
+  draftText = null,
   draft,
   onDraftChange,
   onSend,
@@ -97,7 +100,8 @@ export function MessengerChat({
     !optimisticUser &&
     !optimisticImageUrl &&
     !typing &&
-    streamText == null
+    streamText == null &&
+    draftText == null
 
   const canSend =
     Boolean(draft.trim() || pendingImageUrl) && !busy && !disabled && ready
@@ -105,7 +109,7 @@ export function MessengerChat({
   useEffect(() => {
     const el = msgsRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [messages, optimisticUser, optimisticImageUrl, typing, streamText, suggestions])
+  }, [messages, optimisticUser, optimisticImageUrl, typing, streamText, draftText, suggestions])
 
   useEffect(() => {
     if (wasBusyRef.current && !busy && !disabled) {
@@ -170,7 +174,14 @@ export function MessengerChat({
             </div>
           </div>
         ) : null}
-        {typing ? <TypingIndicator /> : null}
+        {typing && draftText == null ? <TypingIndicator /> : null}
+        {draftText != null ? (
+          <div className="chat-msg-row them">
+            <div className="bub them chat-stream-cursor">
+              <ChatMarkdown text={draftText} />
+            </div>
+          </div>
+        ) : null}
         {streamText != null ? (
           <div className="chat-msg-row them">
             <div className="bub them chat-stream-cursor">

@@ -12,7 +12,7 @@ export function requireVoiceWorkspace(value: unknown): Workspace {
   const snapshot = state as Record<string, unknown>
   if (!["sv", "en", "nb"].includes(String(snapshot.language))
     || !["workspace", "general", "research"].includes(String(snapshot.knowledge_scope))
-    || !["evidence", "comparison", "documents", "relations"].includes(String(snapshot.view))
+    || !["evidence", "comparison", "documents", "relations", "document_set"].includes(String(snapshot.view))
     || ![snapshot.documents, snapshot.split_source_ids, snapshot.research_attempt_ids].every(Array.isArray)) throw new Error("voice_workspace_response_invalid")
   return value as Workspace
 }

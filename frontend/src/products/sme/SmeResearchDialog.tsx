@@ -8,7 +8,7 @@ import { workspaceFileState } from "@/components/workspaces/workspaceChatState"
 import { useLocale } from "@/i18n"
 import { workspaceErrorMessage } from "./workspaceChatLogic"
 
-export function SmeResearchDialog({ workspace, parent, onChanged }: { workspace: Workspace; parent: ParentWorkspace; onChanged: () => Promise<unknown> }) {
+export function SmeResearchDialog({ workspace, parent, onChanged, className }: { workspace: Workspace; parent: ParentWorkspace; onChanged: () => Promise<unknown>; className?: string }) {
   const { t } = useLocale()
   const [open, setOpen] = useState(false)
   const [files, setFiles] = useState<WorkspaceFile[]>([])
@@ -48,5 +48,5 @@ export function SmeResearchDialog({ workspace, parent, onChanged }: { workspace:
     } catch (caught) { if (mounted.current) setError(workspaceErrorMessage(caught, t)); return false }
     finally { if (mounted.current) setBusy(false) }
   }
-  return <><AdminButton variant="secondary" size="sm" disabled={busy || loading} onClick={() => { void show() }}><Microscope size={16} aria-hidden="true" />{t("workspaceChat.startResearch")}</AdminButton>{error && !open ? <span role="alert" className="text-xs text-destructive">{error}</span> : null}<WorkspaceResearchDialog open={open} onOpenChange={setOpen} workspace={parent} files={files} busy={busy} error={error} onStart={start} /></>
+  return <><AdminButton variant="secondary" size="sm" className={className} disabled={busy || loading} onClick={() => { void show() }}><Microscope size={16} aria-hidden="true" />{t("workspaceChat.startResearch")}</AdminButton>{error && !open ? <span role="alert" className="text-xs text-destructive">{error}</span> : null}<WorkspaceResearchDialog open={open} onOpenChange={setOpen} workspace={parent} files={files} busy={busy} error={error} onStart={start} /></>
 }
