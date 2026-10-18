@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from overgraph_ingest.graph.schema import DOCUMENT, TEXT_UNIT
@@ -24,6 +24,7 @@ class StoredUnit:
     char_start: int | None = None
     char_end: int | None = None
     content_hash: str = ""
+    props: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
@@ -57,6 +58,7 @@ def load_published_units(writer: GraphWriter) -> list[StoredUnit]:
                 char_start=_optional_int(props.get("char_start")),
                 char_end=_optional_int(props.get("char_end")),
                 content_hash=str(props.get("content_hash") or ""),
+                props=props,
             )
         )
     return units
@@ -73,9 +75,30 @@ def embed_published_units(
     if not write_dense and not write_sparse:
         raise ValueError("embed_published_units requires write_dense or write_sparse")
     units = load_published_units(writer)
+    stats, payloads = encode_unit_vectors(
+        units,
+        dense=dense,
+        sparse=sparse,
+        write_dense=write_dense,
+        write_sparse=write_sparse,
+    )
+    writer.write_vectors(payloads)
+    writer.db.flush()
+    return stats
+
+
+def encode_unit_vectors(
+    units: list[StoredUnit],
+    *,
+    dense: DenseEncoder,
+    sparse: SparseEncoder,
+    write_dense: bool = True,
+    write_sparse: bool = True,
+) -> tuple[IndexStats, list[dict[str, object]]]:
+    """Embed materialized units and return upsert payloads. No database access."""
     stats = IndexStats(units=len(units))
     if not units:
-        return stats
+        return stats, []
     texts = [unit.text for unit in units]
     if write_sparse:
         sparse.fit(texts)
@@ -90,10 +113,7 @@ def embed_published_units(
         dense_vectors = [unit.dense or [] for unit in units]
     payloads = []
     for unit, dense_vector, sparse_vector in zip(units, dense_vectors, sparse_vectors, strict=True):
-        view = writer.get_node(TEXT_UNIT, unit.key)
-        if view is None:
-            raise KeyError(f"missing TextUnit {unit.key}")
-        props = dict(view.props)
+        props = dict(unit.props)
         if write_dense:
             props["dense_model"] = dense.model
         if write_sparse:
@@ -107,10 +127,8 @@ def embed_published_units(
                 "sparse_vector": list(sparse_vector),
             }
         )
-    writer.write_vectors(payloads)
-    writer.db.flush()
     stats.embedded = len(payloads)
-    return stats
+    return stats, payloads
 
 
 def _document_paths(writer: GraphWriter) -> dict[str, str]:

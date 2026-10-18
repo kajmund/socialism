@@ -27,7 +27,7 @@ from overgraph_ingest.retrieval.encode import (
 )
 from overgraph_ingest.retrieval.evaluate import evaluate_strategy, judge_units, metrics_payload
 from overgraph_ingest.retrieval.gold import RetrievalGold
-from overgraph_ingest.retrieval.index import embed_published_units, load_published_units
+from overgraph_ingest.retrieval.index import encode_unit_vectors, load_published_units
 from overgraph_ingest.retrieval.search import encode_query, search_units
 from overgraph_ingest.retrieval.stages import PIPELINE_STAGES
 
@@ -179,36 +179,49 @@ def _run_variant(
     )
     sparse = build_sparse_encoder(variant.sparse_encoder)
     dimension = resolve_dimension(db_path, variant.dimension)
+    # The database stays open only around local database work. Encoder calls
+    # (OpenAI, BGE-M3, sparse.fit) always run with the handle closed.
     db = open_database(db_path, dimension)
     try:
         writer = GraphWriter(db, batch_size=config.write_batch_size)
         units = load_published_units(writer)
-        embed_stats = None
-        embed_seconds = None
         write_dense, write_sparse = _write_flags(variant, writer, units, prepared)
-        if write_dense or write_sparse:
-            embed_started = time.perf_counter()
-            embed_stats = embed_published_units(
-                writer,
-                dense=dense,
-                sparse=sparse,
-                write_dense=write_dense,
-                write_sparse=write_sparse,
-            )
-            embed_seconds = time.perf_counter() - embed_started
+    finally:
+        db.close()
+    embed_stats = None
+    embed_seconds = None
+    if write_dense or write_sparse:
+        embed_started = time.perf_counter()
+        embed_stats, payloads = encode_unit_vectors(
+            units,
+            dense=dense,
+            sparse=sparse,
+            write_dense=write_dense,
+            write_sparse=write_sparse,
+        )
+        embed_seconds = time.perf_counter() - embed_started
+        db = open_database(db_path, dimension)
+        try:
+            writer = GraphWriter(db, batch_size=config.write_batch_size)
+            writer.write_vectors(payloads)
+            writer.db.flush()
             units = load_published_units(writer)
-        if any(unit.dense is None or unit.sparse is None for unit in units):
-            raise RuntimeError(f"{variant.id}: TextUnits are missing vectors")
-        sparse.fit([unit.text for unit in units])
-        gold_rows = []
-        query_samples: list[float] = []
-        search_samples: list[float] = []
-        for index, gold in enumerate(golds):
-            encode_started = time.perf_counter()
-            dense_query, sparse_query = encode_query(gold.query, dense=dense, sparse=sparse)
-            encode_seconds = time.perf_counter() - encode_started
-            if index > 0:
-                query_samples.append(encode_seconds)
+        finally:
+            db.close()
+    if any(unit.dense is None or unit.sparse is None for unit in units):
+        raise RuntimeError(f"{variant.id}: TextUnits are missing vectors")
+    sparse.fit([unit.text for unit in units])
+    gold_rows = []
+    query_samples: list[float] = []
+    search_samples: list[float] = []
+    for index, gold in enumerate(golds):
+        encode_started = time.perf_counter()
+        dense_query, sparse_query = encode_query(gold.query, dense=dense, sparse=sparse)
+        encode_seconds = time.perf_counter() - encode_started
+        if index > 0:
+            query_samples.append(encode_seconds)
+        db = open_database(db_path, dimension)
+        try:
             search_started = time.perf_counter()
             hits = {
                 mode: search_units(
@@ -223,53 +236,53 @@ def _run_variant(
                 for mode in MODES
             }
             search_seconds = time.perf_counter() - search_started
-            search_samples.append(search_seconds)
-            relevant, negatives, absent = judge_units(units, gold)
-            gold_rows.append(
-                {
-                    "gold_id": gold.id,
-                    "relevant_units": len(relevant),
-                    "relevant_documents": gold.relevant_documents,
-                    "encode_seconds": encode_seconds,
-                    "engine_search_seconds": search_seconds,
-                    "absent_from_graph": [item.__dict__ for item in absent],
-                    "modes": {
-                        mode: _mode_metrics(
-                            hits[mode],
-                            gold=gold,
-                            relevant=relevant,
-                            negatives=negatives,
-                            absent=absent,
-                        )
-                        for mode in MODES
-                    },
-                }
-            )
-            if index == 0 and query_repeats > 0:
-                for _ in range(query_repeats):
-                    repeat_started = time.perf_counter()
-                    encode_query(gold.query, dense=dense, sparse=sparse)
-                    query_samples.append(time.perf_counter() - repeat_started)
-        first_encode = gold_rows[0]["encode_seconds"] if gold_rows else None
-        return {
-            "id": variant.id,
-            "db": str(db_path),
-            "dense_model": variant.dense_model,
-            "sparse_encoder": variant.sparse_encoder,
-            "dense_dimension": variant.dimension,
-            "wrote_reference": False,
-            "embedded": None if embed_stats is None else embed_stats.embedded,
-            "embed_seconds": embed_seconds,
-            "bge_m3_load_seconds": bge_m3_load_seconds(),
-            "units": len(units),
-            "cold_query_seconds": first_encode,
-            "warm_query_seconds": _mean(query_samples),
-            "engine_search_seconds": _mean(search_samples),
-            "peak_rss_mb": _peak_rss_bytes() / (1024 * 1024),
-            "golds": gold_rows,
-        }
-    finally:
-        db.close()
+        finally:
+            db.close()
+        search_samples.append(search_seconds)
+        relevant, negatives, absent = judge_units(units, gold)
+        gold_rows.append(
+            {
+                "gold_id": gold.id,
+                "relevant_units": len(relevant),
+                "relevant_documents": gold.relevant_documents,
+                "encode_seconds": encode_seconds,
+                "engine_search_seconds": search_seconds,
+                "absent_from_graph": [item.__dict__ for item in absent],
+                "modes": {
+                    mode: _mode_metrics(
+                        hits[mode],
+                        gold=gold,
+                        relevant=relevant,
+                        negatives=negatives,
+                        absent=absent,
+                    )
+                    for mode in MODES
+                },
+            }
+        )
+        if index == 0 and query_repeats > 0:
+            for _ in range(query_repeats):
+                repeat_started = time.perf_counter()
+                encode_query(gold.query, dense=dense, sparse=sparse)
+                query_samples.append(time.perf_counter() - repeat_started)
+    first_encode = gold_rows[0]["encode_seconds"] if gold_rows else None
+    return {
+        "id": variant.id,
+        "db": str(db_path),
+        "dense_model": variant.dense_model,
+        "sparse_encoder": variant.sparse_encoder,
+        "dense_dimension": variant.dimension,
+        "wrote_reference": False,
+        "embedded": None if embed_stats is None else embed_stats.embedded,
+        "embed_seconds": embed_seconds,
+        "bge_m3_load_seconds": bge_m3_load_seconds(),
+        "units": len(units),
+        "cold_query_seconds": first_encode,
+        "warm_query_seconds": _mean(query_samples),
+        "engine_search_seconds": _mean(search_samples),
+        "peak_rss_mb": _peak_rss_bytes() / (1024 * 1024),
+        "golds": gold_rows,
+    }
 
 
 def _mode_metrics(hits, *, gold, relevant, negatives, absent) -> dict[str, object]:
