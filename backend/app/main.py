@@ -31,6 +31,7 @@ from app.api import (
     sme_group_voice_ws,
     sme_ws,
     spindoctor,
+    tts_cache,
     underlag,
     workspace_chats,
     users,
@@ -181,6 +182,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(workspace_exports.router)
     app.include_router(workspace_conversations.router)
     app.include_router(embeddings.router)
+    app.include_router(tts_cache.router)
     app.include_router(overgraph.router)
     app.include_router(expert_memory.router)
     app.include_router(llm_settings.router)
