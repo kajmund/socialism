@@ -1,5 +1,8 @@
 # Manual update log
 
+## 2026-10-12
+
+* **SME / workspace**: Ny guide för **Modellens arbete** — flikikonen i workspace visar verktygsanrop och mellansteg. Numrerade källknappar i chatten öppnar citerade källor i workspace.
 ## 2026-10-17
 
 * **SME**: När du skickar en fråga skriver experten först en kort rad i chatten (till exempel att hen kollar på det) och skickar den direkt till dig; därefter följer det fullständiga svaret som en fortsättning på den raden. Dröjer svaret skriver experten också en framstegsrad, till exempel att hen fortfarande arbetar med avtalet. Båda ligger kvar; bara det fullständiga svaret sparas.
