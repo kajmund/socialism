@@ -166,6 +166,7 @@ class IngestConfig:
     document_tags_run: bool = False
     document_tags_lifecycle: bool = False
     document_tags_close: bool = False
+    freeze_baseline: bool = False
 
     def resolved_cache_dir(self) -> Path:
         if self.cache_dir is not None:
