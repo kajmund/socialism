@@ -1,21 +1,12 @@
 import type {
   BranchState,
   Injection,
-  RunSummary,
   Tick,
   TickInterview,
 } from "@/data/runs-types"
 import type { MessageKey, TranslateParams } from "@/i18n"
 
 type Translate = (key: MessageKey, params?: TranslateParams) => string
-
-/** Fallback Swedish labels for surfaces not yet on useLocale (e.g. results panel). */
-export const RUN_STATUS_LABEL: Record<RunSummary["status"], string> = {
-  done: "Klar",
-  running: "Pågår",
-  draft: "Utkast",
-  failed: "Misslyckad",
-}
 
 export const MEASUREMENT_IDS = [
   "opinion_snapshot",
@@ -123,7 +114,7 @@ export function makeTickInterview(): TickInterview {
 }
 
 /** Ensure ticks from API (older payloads) have interviews[]. */
-export function normalizeTick(tick: Tick): Tick {
+function normalizeTick(tick: Tick): Tick {
   return {
     ...tick,
     interviews: tick.interviews ?? [],
@@ -147,19 +138,6 @@ export function makeInjection(): Injection {
     isVideo: false,
     message_id: null,
   }
-}
-
-export function extractDomain(url: string): string {
-  try {
-    const u = new URL(/^https?:\/\//.test(url) ? url : "https://" + url)
-    return u.hostname.replace(/^www\./, "")
-  } catch {
-    return url.split("/")[0] ?? url
-  }
-}
-
-export function looksLikeVideo(url: string): boolean {
-  return /youtube\.com|youtu\.be|vimeo\.com/i.test(url)
 }
 
 export function formatRunDate(d: string, locale = "sv-SE"): string {

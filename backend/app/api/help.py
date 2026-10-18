@@ -57,7 +57,6 @@ async def post_help_chat(
             view=body.view,
             customer_id=customer_id,
             module=body.module,
-            ground_population=body.ground_population,
         ):
             if isinstance(item, HelpChatResponse):
                 done = item

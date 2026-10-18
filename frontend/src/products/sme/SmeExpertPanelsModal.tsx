@@ -1,5 +1,5 @@
 import { UsersRound, X } from "lucide-react"
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useAuth } from "@/auth/AuthProvider"
 import { AdminButton } from "@/components/ui/admin-button"
 import { useLocale } from "@/i18n"
@@ -16,10 +16,12 @@ type PanelView = { kind: "list" } | { kind: "new" } | { kind: "panel"; id: numbe
 
 export function SmeExpertPanelsModal({
   open,
+  panelId = null,
   onClose,
   onStarted,
 }: {
   open: boolean
+  panelId?: number | null
   onClose: () => void
   onStarted?: (panelId: number) => void
 }) {
@@ -28,6 +30,7 @@ export function SmeExpertPanelsModal({
   const customerId = user?.kundId ?? undefined
   const [view, setView] = useState<PanelView>({ kind: "list" })
   const [expert, setExpert] = useState<{ id: string; name: string } | null>(null)
+  const pinnedPanel = useRef<number | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -40,10 +43,22 @@ export function SmeExpertPanelsModal({
   }, [expert, onClose, open])
 
   useEffect(() => {
-    if (open) return
-    setView({ kind: "list" })
-    setExpert(null)
-  }, [open])
+    if (!open) {
+      pinnedPanel.current = null
+      setView({ kind: "list" })
+      setExpert(null)
+      return
+    }
+    if (panelId == null) {
+      if (pinnedPanel.current == null) return
+      pinnedPanel.current = null
+      setView({ kind: "list" })
+      return
+    }
+    if (pinnedPanel.current === panelId) return
+    pinnedPanel.current = panelId
+    setView({ kind: "panel", id: panelId })
+  }, [open, panelId])
 
   if (!open) return null
 
@@ -111,6 +126,7 @@ export function SmeExpertPanelsModal({
                     populationId={view.id}
                     customerId={customerId}
                     onBack={() => setView({ kind: "list" })}
+                    onDeleted={onClose}
                     onDuplicated={(id) => setView({ kind: "panel", id })}
                     onOpenExpert={(id, name) => setExpert({ id, name })}
                   />

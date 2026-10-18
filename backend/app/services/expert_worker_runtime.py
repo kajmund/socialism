@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from app.config import settings
 from app.llm import complete_text, complete_with_tools
-from app.llm.tool_messages import tool_result_message
+from app.llm.tool_messages import assistant_message_dict, tool_result_message
 from app.services.expert_reasoning import bound_expert_profile
 from app.services.expert_worker_schema import instance_matches
 from app.services.expert_worker_scope import (
@@ -108,21 +108,7 @@ async def _tool_loop(
             last = text
         if not calls:
             return _parse_result(last, schema)
-        messages.append({
-            "role": "assistant",
-            "content": text,
-            "tool_calls": [
-                {
-                    "id": str(call.id),
-                    "type": "function",
-                    "function": {
-                        "name": str(call.function.name),
-                        "arguments": _raw_args(call.function.arguments),
-                    },
-                }
-                for call in calls
-            ],
-        })
+        messages.append(assistant_message_dict(reply))
         for call in calls:
             content = await _run_scoped_tool(call, task, identity)
             messages.append(
@@ -216,9 +202,3 @@ def _json_payload(text: str) -> str:
     if end < start:
         raise ValueError("invalid_json")
     return text[start : end + 1]
-
-
-def _raw_args(raw: object) -> str:
-    if isinstance(raw, str):
-        return raw
-    return json.dumps(raw, ensure_ascii=False)

@@ -33,6 +33,7 @@ describe("SME conversation navigation", () => {
     expect(html).toContain("Avtalet har granskats")
     expect(html).toContain('aria-label="2 olästa"')
     expect(html).toContain("Erik · Läst")
+    expect(html.indexOf("Expertpanel")).toBeLessThan(html.indexOf("Anna"))
     expect(html.match(/aria-pressed="true"/g)).toHaveLength(1)
   })
 

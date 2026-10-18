@@ -155,8 +155,8 @@ def default_selection_metadata(profile_id: str) -> dict[str, Any]:
     profile = get_profile(profile_id)
     if profile.id == "deepseek-v4-pro":
         role: SelectionRole = "deep"
-    elif profile.id in {"deepseek-flash", "qwen-3.8-27b"}:
-        role = "fast"
+    elif profile.id in {"gpt-oss-120b", "deepseek-flash", "qwen-3.8-27b"}:
+        role = "fast"  # gpt-oss-120b is the simple model and wins fast-role priority.
     else:
         role = "balanced"
     return {
@@ -166,7 +166,7 @@ def default_selection_metadata(profile_id: str) -> dict[str, Any]:
         "capability_structured_output": True,
         "capability_long_context": profile.provider == "deepseek",
         "enabled_for_auto": True,
-        "priority": DEFAULT_AUTO_PRIORITY,
+        "priority": 10 if profile.id == "gpt-oss-120b" else DEFAULT_AUTO_PRIORITY,
     }
 
 
@@ -516,12 +516,6 @@ async def save_runtime_settings(
     )
     await refresh_prompt_runtime_cache(session)
     return row
-
-
-async def get_or_none(session: AsyncSession) -> LlmRuntimeSettings | None:
-    return await session.scalar(
-        select(LlmRuntimeSettings).where(LlmRuntimeSettings.id == SINGLETON_ID)
-    )
 
 
 def runtime_view_from_normalized(normalized: dict[str, Any]) -> LlmRuntimeView:

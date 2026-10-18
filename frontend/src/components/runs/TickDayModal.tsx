@@ -337,7 +337,7 @@ type TickEditorBodyProps = {
   embedded?: boolean
 }
 
-export function TickEditorBody({
+function TickEditorBody({
   tick,
   onUpdate,
   populationId,

@@ -31,7 +31,6 @@ def chat_model_label(resolution: LlmResolution | None) -> str:
         parts.append(resolution.speed_class)
     return " · ".join(parts)
 
-
 def _configuration_name(config_id: int | None) -> str:
     if config_id is None:
         return ""
@@ -39,3 +38,4 @@ def _configuration_name(config_id: int | None) -> str:
     if config is None:
         return ""
     return config.name
+

@@ -1,0 +1,162 @@
+{
+  "id": "phase2-cerebras-qwen-v1",
+  "label": "Negative experiment: Cerebras Qwen 3.8 27B is rejected for naive rerank. Same quality as gpt-oss output v1, slower and three times the cost. Unset Qwen reasoning spent 40k tokens without JSON. Does not replace C@8 or output v1. 24/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "verdict": "rejected_for_naive_rerank",
+  "do_not_deploy": true,
+  "best_naive_rerank": "phase2-cerebras-output-v1",
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_replace_cerebras_rerank": true,
+  "does_not_replace_cerebras_output": true,
+  "applied_to_v3": false,
+  "same_frozen_top50": true,
+  "same_minimal_json": true,
+  "no_new_retrieval": true,
+  "task": "formulation_presence",
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "k": 50,
+    "model": "qwen-3.8-27b",
+    "reasoning_effort": "low",
+    "reference_model": "gpt-oss-120b",
+    "rate_card_date": "2026-10-09",
+    "summary": {
+      "golds": 5,
+      "mean_precision": 0.7326190476190476,
+      "mean_candidate_recall": 1.0,
+      "mean_corpus_recall": 0.8262443438914027,
+      "mean_corpus_document_recall": 0.8401098901098901,
+      "mean_ttft_seconds": 1.9284980830736458,
+      "mean_model_seconds": 1.9678486332297325,
+      "total_prompt_tokens": 18258,
+      "total_completion_tokens": 14239,
+      "cost_usd": 0.03929153,
+      "total_id_errors": 0,
+      "total_reasoning_tokens": 13694,
+      "reference_cost_usd": 0.0128883,
+      "mean_precision_delta": -0.002086834733893561,
+      "mean_candidate_recall_delta": 0.0,
+      "total_completion_token_delta": 4651,
+      "total_visible_json_chars": 882
+    },
+    "golds": [
+      {
+        "gold_id": "auto-renewal",
+        "precision": 0.9523809523809523,
+        "candidate_recall": 1.0,
+        "match": 21,
+        "uncertain": 0,
+        "id_errors": 0,
+        "visible_json_chars": 152,
+        "prompt_tokens": 4106,
+        "completion_tokens": 3164,
+        "reasoning_tokens": 3071,
+        "cost_usd": 0.008779299999999999,
+        "ttft_seconds": 1.7405159170739353,
+        "model_seconds": 1.7749604587443173,
+        "delta": {
+          "precision": -0.04761904761904767,
+          "candidate_recall": 0.0,
+          "completion_tokens": 1202,
+          "ttft_seconds": 0.48533529229462147,
+          "model_seconds": 0.4771236670203507
+        }
+      },
+      {
+        "gold_id": "notice-period",
+        "precision": 0.55,
+        "candidate_recall": 1.0,
+        "match": 20,
+        "uncertain": 15,
+        "id_errors": 0,
+        "visible_json_chars": 235,
+        "prompt_tokens": 3619,
+        "completion_tokens": 3892,
+        "reasoning_tokens": 3744,
+        "cost_usd": 0.009381889999999999,
+        "ttft_seconds": 2.472133249975741,
+        "model_seconds": 2.5235466668382287,
+        "delta": {
+          "precision": 0.0,
+          "candidate_recall": 0.0,
+          "completion_tokens": 2329,
+          "ttft_seconds": 1.4815154997631907,
+          "model_seconds": 1.496195917017758
+        }
+      },
+      {
+        "gold_id": "liability-cap",
+        "precision": 0.875,
+        "candidate_recall": 1.0,
+        "match": 32,
+        "uncertain": 2,
+        "id_errors": 0,
+        "visible_json_chars": 229,
+        "prompt_tokens": 3531,
+        "completion_tokens": 3601,
+        "reasoning_tokens": 3457,
+        "cost_usd": 0.00886118,
+        "ttft_seconds": 2.0507567496970296,
+        "model_seconds": 2.1070905406959355,
+        "delta": {
+          "precision": 0.05147058823529416,
+          "candidate_recall": 0.0,
+          "completion_tokens": 781,
+          "ttft_seconds": -0.011068291962146759,
+          "model_seconds": -0.1174013763666153
+        }
+      },
+      {
+        "gold_id": "confidentiality",
+        "precision": 0.2857142857142857,
+        "candidate_recall": 1.0,
+        "match": 21,
+        "uncertain": 6,
+        "id_errors": 0,
+        "visible_json_chars": 187,
+        "prompt_tokens": 4285,
+        "completion_tokens": 2446,
+        "reasoning_tokens": 2330,
+        "cost_usd": 0.00788669,
+        "ttft_seconds": 2.4414399578236043,
+        "model_seconds": 2.4837477919645607,
+        "delta": {
+          "precision": -0.01428571428571429,
+          "candidate_recall": 0.0,
+          "completion_tokens": 744,
+          "ttft_seconds": 1.4249415420927107,
+          "model_seconds": 1.4331716671586037
+        }
+      },
+      {
+        "gold_id": "liability-secrecy-carveout",
+        "precision": 1.0,
+        "candidate_recall": 1.0,
+        "match": 7,
+        "uncertain": 2,
+        "id_errors": 0,
+        "visible_json_chars": 79,
+        "prompt_tokens": 2717,
+        "completion_tokens": 1136,
+        "reasoning_tokens": 1092,
+        "cost_usd": 0.00438247,
+        "ttft_seconds": 0.937644540797919,
+        "model_seconds": 0.9498977079056203,
+        "delta": {
+          "precision": 0.0,
+          "candidate_recall": 0.0,
+          "completion_tokens": -405,
+          "ttft_seconds": -0.08726829290390015,
+          "model_seconds": -0.08835420897230506
+        }
+      }
+    ]
+  }
+}

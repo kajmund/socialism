@@ -275,7 +275,7 @@ async def test_subselection_is_quote_bound_and_document_tabs_bind_their_source(c
     fake_anchor = {**state, "selection": {"reference_id": ref["reference_id"], "anchor": {**anchor, "exact_text": "Fake number 200"}}}
     bad = await client.patch(f"/voice-workspaces/{ws['id']}", json={"expected_revision": 1, "idempotency_key": "fake-anchor", "state": fake_anchor})
     assert bad.status_code == 409
-    second = await upload(client, ws["id"], key="second-file")
+    second = await upload(client, ws["id"], key="second-file", text="Andra filens text.")
     wrong_tab = {**selected.json()["state"], "documents": [{"source_id": second["source_id"], "reference_id": ref["reference_id"]}]}
     bad_tab = await client.patch(f"/voice-workspaces/{ws['id']}", json={"expected_revision": 1, "idempotency_key": "wrong-tab", "state": wrong_tab})
     assert bad_tab.status_code == 409

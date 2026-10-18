@@ -1,0 +1,12 @@
+{
+  "documents": 50,
+  "text_units_per_document": 20,
+  "text_units_total": 1000,
+  "unit_seed_ms": 16.19754100102,
+  "db_ms": 0.2125000028172508,
+  "wall_ms": 0.2266670053359121,
+  "total_ms": 0.21820800611749291,
+  "text_unit_reads": 0,
+  "vector_searches": 0,
+  "embedding_calls": 0
+}

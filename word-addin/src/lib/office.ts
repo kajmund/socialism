@@ -56,7 +56,7 @@ export function getStoredDocId(): string {
   return typeof value === "string" ? value : ""
 }
 
-export function saveDocId(docId: string): Promise<void> {
+function saveDocId(docId: string): Promise<void> {
   const office = requireOffice()
   office.context.document.settings.set(DOC_ID_KEY, docId)
   return new Promise((resolve, reject) => {

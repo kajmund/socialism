@@ -34,7 +34,7 @@ export type AuthAdapter = {
   installLocalSession(accessToken: string, email: string): void
 }
 
-export class MagicLinkError extends Error {
+class MagicLinkError extends Error {
   constructor(message = "magic_link_failed") {
     super(message)
     this.name = "MagicLinkError"

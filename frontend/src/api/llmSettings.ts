@@ -68,14 +68,6 @@ export type LlmSettingsResponse = {
   assignments: Record<string, PromptLlmAssignment>
 }
 
-export type LlmPutBody = {
-  profile_id: string
-  temperature?: number | null
-  top_p?: number | null
-  max_tokens?: number | null
-  reasoning_effort?: string | null
-}
-
 export type LlmConfigurationWrite = {
   name: string
   profile_id: string
@@ -119,10 +111,6 @@ export type LlmProbeResult = {
 
 export function getLlmSettings(): Promise<LlmSettingsResponse> {
   return api.get<LlmSettingsResponse>("/llm")
-}
-
-export function putLlmSettings(body: LlmPutBody): Promise<LlmActive> {
-  return api.put<LlmActive>("/llm", body)
 }
 
 export function createLlmConfiguration(body: LlmConfigurationWrite): Promise<LlmConfiguration> {

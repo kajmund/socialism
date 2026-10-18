@@ -161,3 +161,8 @@ body {
     @apply font-sans;
   }
 }
+
+.docx-preview-host .docx-wrapper {
+  background: transparent !important;
+  padding: 1.5rem 0 !important;
+}

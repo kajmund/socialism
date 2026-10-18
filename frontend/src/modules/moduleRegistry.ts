@@ -15,12 +15,6 @@ export const MODULE_REGISTRY: Record<string, ModuleManifest> = {
   rattsunderlag: rattsunderlagManifest,
 }
 
-export const MODULE_IDS = Object.keys(MODULE_REGISTRY)
-
-export function getModule(id: string): ModuleManifest | undefined {
-  return MODULE_REGISTRY[id]
-}
-
 export function manifestsForIds(ids: readonly string[]): ModuleManifest[] {
   const out: ModuleManifest[] = []
   const seen = new Set<string>()
@@ -34,7 +28,7 @@ export function manifestsForIds(ids: readonly string[]): ModuleManifest[] {
   return out
 }
 
-export function modulesWith(
+function modulesWith(
   component: ModuleComponentId,
   ids?: readonly string[],
 ): ModuleManifest[] {

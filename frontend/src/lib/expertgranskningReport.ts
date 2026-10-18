@@ -1,7 +1,7 @@
 import type { Job } from "@/api/jobs"
 import type { Report } from "@/api/reports"
 
-export function sessionReports(reports: Report[], sessionId: string): Report[] {
+function sessionReports(reports: Report[], sessionId: string): Report[] {
   return reports.filter((row) =>
     row.sources.some(
       (src) => src.type === "expertgranskning_session" && src.session_id === sessionId,

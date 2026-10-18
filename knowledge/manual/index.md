@@ -61,6 +61,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Hantera konfigurationer](hantera-konfigurationer.md) — Prompts och grunddata per konfiguration
 * [Hantera kundmoduler](hantera-kundmoduler.md) — Slå på och av produktmoduler per kund
 * [Redigera kundens organisationsuppgifter](redigera-kundens-organisationsuppgifter.md) — Organisation, org.nr och adress per kund
+* [Rensa en kunds dokument](ta-bort-kundens-dokument.md) — Radera en kunds uppladdade dokument och kunskapen som byggts från dem
 * [Redigera panelkatalog](redigera-panelkatalog.md) — Sub-frågor, default-expertprofiler och förslag från underlag
 * [Konfigurera panelkatalog för Expertgranskning](konfigurera-panelkatalog-for-expertgranskning.md) — Sub-frågor för expertgranskningens panel
 * [Hantera SSR-ankare](hantera-ssr-ankare.md) — Skapa, testa och publicera ton- och stilankare för rapporter
@@ -93,7 +94,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # Expertgranskning
 
 * [Använda expertgranskning](anvanda-expertgranskning.md) — Ladda upp eller klistra in text, ange granskningsavsikt, välj panel och kör en granskning
-* [Förstå och annotera underlag](forsta-och-annotera-underlag.md) — Läs dokumentets översikt och lägg till egna fakta, frågor, bokmärken och anteckningar i PDF:en
+* [Förstå och annotera underlag](forsta-och-annotera-underlag.md) — Lägg till egna fakta, frågor, bokmärken och anteckningar i dokumentet
 * [Använda expertgranskning i bolagsytan](anvanda-expertgranskning-i-bolagsytan.md) — Samma funktion under Bolag-menyn för DD-only-konton
 * [Granska ett dokument i Word](granska-dokument-i-word.md) — Välj panel och omfattning, svara på avsiktsfrågor i Word-tillägget; tillämpa eller avfärda förslag medan granskningen körs
 

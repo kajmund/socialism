@@ -15,7 +15,7 @@ export type AgentToolRow = NonNullable<OasisVariantResult["agent_tools"]>[number
 export type { AgentReasoningRow }
 
 /** Actions already shown on post/comment cards — skip as timeline rows. */
-export const CARD_COVERED_ACTIONS = new Set([
+const CARD_COVERED_ACTIONS = new Set([
   "create_post",
   "create_comment",
   "like_post",
@@ -30,7 +30,7 @@ export const CARD_COVERED_ACTIONS = new Set([
   "quote_post",
 ])
 
-export const NOISE_ACTIONS = new Set(["refresh", "do_nothing"])
+const NOISE_ACTIONS = new Set(["refresh", "do_nothing"])
 
 /** Never shown in feed or day-event modals. */
 export const HIDDEN_ACTIONS = new Set(["sign_up"])
@@ -79,7 +79,7 @@ export type TimelineItem =
 
 export type TickMarker = NonNullable<OasisVariantResult["tick_markers"]>[number]
 
-export function tickIndexForTime(t: number, markers: TickMarker[]): number {
+function tickIndexForTime(t: number, markers: TickMarker[]): number {
   for (const m of markers) {
     if (m.time_start <= t && t <= m.time_end) return m.tick_index
   }
@@ -161,7 +161,7 @@ export type SimulatedTimeWindow = {
   endMinutes: number
 }
 
-export const DEFAULT_SIMULATED_TIME_WINDOW: SimulatedTimeWindow = {
+const DEFAULT_SIMULATED_TIME_WINDOW: SimulatedTimeWindow = {
   startMinutes: 8 * 60,
   endMinutes: 23 * 60 + 30,
 }
@@ -769,7 +769,7 @@ export function describeTimelineAction(
   }
 }
 
-export function isTimelineAction(
+function isTimelineAction(
   action: string,
   hideNoise: boolean,
 ): boolean {

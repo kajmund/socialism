@@ -137,7 +137,6 @@ class ChatSend(BaseModel):
     message: str = ""
     image_sha256: str | None = Field(default=None, min_length=64, max_length=64)
     view: HelpViewContext | None = None
-    ground_population: bool = False
 
     @model_validator(mode="after")
     def require_message_or_image(self) -> ChatSend:
@@ -590,7 +589,6 @@ async def chat_websocket(websocket: WebSocket) -> None:  # noqa: C901, PLR0911, 
                             view=turn_view,
                             customer_id=help_customer_id,
                             module=hello.module,
-                            ground_population=send.ground_population,
                         )
                         async for item in stream:
                             if isinstance(item, HelpChatResponse):

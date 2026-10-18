@@ -1,4 +1,4 @@
-export const VOICE_TOOL_WAKE_PREFIX = "[[underlag]]"
+const VOICE_TOOL_WAKE_PREFIX = "[[underlag]]"
 
 export function deferredToolResult(): string {
   return JSON.stringify({

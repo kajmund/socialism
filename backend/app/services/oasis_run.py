@@ -60,7 +60,6 @@ from app.services.oasis_tool_trace import (
 from app.services.simulation.agent_tool_policy import CamelCommentToolPolicy
 from app.services.simulation.artifact.reader import (
     OasisArtifactReader,
-    created_at_to_sort_key,
     read_oasis_results,
 )
 from app.services.simulation.llm_runtime import camel_llm_runtime
@@ -152,11 +151,6 @@ def _parse_simulation_start(raw: str | None) -> date:
     return DEFAULT_SIMULATION_START
 
 
-def _created_at_to_sort_key(value: Any) -> int | None:
-    """Backward-compatible alias — prefer simulation.artifact.created_at_to_sort_key."""
-    return created_at_to_sort_key(value)
-
-
 def _artifact_dir(run_id: int, variant_id: str = "main") -> Path:
     path = ARTIFACT_ROOT / f"run_{run_id}" / variant_id
     path.mkdir(parents=True, exist_ok=True)
@@ -185,11 +179,6 @@ def _injection_texts_labeled(ticks: list[Tick]) -> list[tuple[str, str]]:
 
 async def _prepare_injection_content(injection: Injection) -> str:
     return injection_body(injection)
-
-
-def _read_oasis_results(db_path: Path) -> dict[str, Any]:
-    """Backward-compatible alias — prefer OasisArtifactReader.export_variant_payload()."""
-    return read_oasis_results(db_path)
 
 
 async def run_oasis_simulation(  # noqa: C901, PLR0912, PLR0913, PLR0915
@@ -484,7 +473,7 @@ async def run_oasis_simulation(  # noqa: C901, PLR0912, PLR0913, PLR0915
         finally:
             await env.close()
 
-        feed = _read_oasis_results(db_path)
+        feed = read_oasis_results(db_path)
         agent_tools = drain_oasis_tool_trace()
         agent_reasoning = drain_oasis_reasoning_trace()
         return {

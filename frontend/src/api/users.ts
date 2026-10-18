@@ -25,10 +25,3 @@ export function listUsers(): Promise<UserAccountRow[]> {
 export function inviteUser(body: UserInviteBody): Promise<UserAccountRow> {
   return api.post<UserAccountRow>("/users/invite", body)
 }
-
-export function updateUser(
-  id: string,
-  body: { role?: Role; kund_id?: number | null },
-): Promise<UserAccountRow> {
-  return api.patch<UserAccountRow>(`/users/${id}`, body)
-}

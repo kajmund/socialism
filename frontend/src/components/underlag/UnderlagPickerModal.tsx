@@ -42,6 +42,7 @@ import { DocumentKnowledgePanel } from "@/components/underlag/DocumentKnowledgeP
 import { htmlToPlainText } from "@/components/underlag/htmlToPlainText"
 import { useLocale, type MessageKey } from "@/i18n"
 import { ApiError } from "@/lib/api"
+import { isDocxSource, isPdfSource } from "@/lib/sourceKind"
 import { moduleForReport } from "@/lib/report-modules"
 import { customerScopeFromPathname } from "@/lib/scoping"
 import { cn } from "@/lib/utils"
@@ -52,6 +53,11 @@ const ACCEPT = ".txt,.md,.markdown,.pdf,.docx"
 const PdfKnowledgeViewer = lazy(() =>
   import("@/components/underlag/PdfKnowledgeViewer").then((module) => ({
     default: module.PdfKnowledgeViewer,
+  })),
+)
+const DocxKnowledgeViewer = lazy(() =>
+  import("@/components/underlag/DocxKnowledgeViewer").then((module) => ({
+    default: module.DocxKnowledgeViewer,
   })),
 )
 
@@ -119,7 +125,7 @@ function statusVariant(
 }
 
 function isPdf(file: UnderlagFile): boolean {
-  return file.content_type === "application/pdf"
+  return isPdfSource(file)
 }
 
 function childrenOf(
@@ -179,6 +185,7 @@ export function UnderlagPickerModal({
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewTab, setPreviewTab] = useState<PreviewTab>("pdf")
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [docxBlob, setDocxBlob] = useState<Blob | null>(null)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
@@ -192,8 +199,9 @@ export function UnderlagPickerModal({
   const folderId = browse.kind === "underlag" ? browse.folderId : null
   const browsingUnderlag = browse.kind === "underlag"
   const browsingReports = browse.kind === "reports"
-  const previewPdfId =
-    preview?.kind === "underlag" && isPdf(preview.file) ? preview.file.id : null
+  const previewFileId =
+    preview?.kind === "underlag" && (isPdf(preview.file) || isDocxSource(preview.file)) ? preview.file.id : null
+  const previewIsDocx = preview?.kind === "underlag" && isDocxSource(preview.file)
 
   const moduleIds = useMemo(() => {
     const ids: string[] = []
@@ -340,8 +348,9 @@ export function UnderlagPickerModal({
   }, [namingFolder])
 
   useEffect(() => {
-    if (!previewPdfId) {
+    if (!previewFileId) {
       clearPdfUrl()
+      setDocxBlob(null)
       setPdfError(null)
       setPdfLoading(false)
       return
@@ -350,16 +359,21 @@ export function UnderlagPickerModal({
     setPdfLoading(true)
     setPdfError(null)
     clearPdfUrl()
-    getUnderlagFile(previewPdfId)
+    setDocxBlob(null)
+    getUnderlagFile(previewFileId)
       .then((blob) => {
         if (cancelled) return
+        if (previewIsDocx) {
+          setDocxBlob(blob)
+          return
+        }
         const url = URL.createObjectURL(blob)
         pdfObjectUrlRef.current = url
         setPdfUrl(url)
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setPdfError(err instanceof ApiError ? err.message : t("underlag.previewPdfError"))
+          setPdfError(err instanceof ApiError ? err.message : t(previewIsDocx ? "underlag.previewDocxError" : "underlag.previewPdfError"))
         }
       })
       .finally(() => {
@@ -368,7 +382,7 @@ export function UnderlagPickerModal({
     return () => {
       cancelled = true
     }
-  }, [previewPdfId, t])
+  }, [previewFileId, previewIsDocx, t])
 
   async function loadPreview(id: string) {
     const requestId = ++previewRequestRef.current
@@ -381,7 +395,7 @@ export function UnderlagPickerModal({
       setPreview({ kind: "underlag", file: row })
       setSelectedAnchor(null)
       setFocusAnchors([])
-      setPreviewTab(isPdf(row) ? "pdf" : "text")
+      setPreviewTab(isPdf(row) || isDocxSource(row) ? "pdf" : "text")
       setRows((current) => current.map((item) => (item.id === row.id ? { ...item, ...row } : item)))
     } catch (err: unknown) {
       if (requestId !== previewRequestRef.current) return
@@ -439,7 +453,7 @@ export function UnderlagPickerModal({
       const uploaded = await uploadUnderlag(file, module, folderId)
       setRows((current) => [uploaded, ...current.filter((row) => row.id !== uploaded.id)])
       setPreview({ kind: "underlag", file: uploaded })
-      setPreviewTab(isPdf(uploaded) ? "pdf" : "text")
+      setPreviewTab(isPdf(uploaded) || isDocxSource(uploaded) ? "pdf" : "text")
       setConfirmDeleteId(null)
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : t("underlag.uploadError"))
@@ -611,13 +625,15 @@ export function UnderlagPickerModal({
   const underlagPreview = preview?.kind === "underlag" ? preview.file : null
   const reportPreview = preview?.kind === "report" ? preview : null
   const showPdfPreview = underlagPreview != null && isPdf(underlagPreview)
+  const showDocxPreview = underlagPreview != null && isDocxSource(underlagPreview)
+  const showDocumentPreview = showPdfPreview || showDocxPreview
   const showReportTabs = reportPreview != null
   const canUse =
     (underlagPreview != null && canUseUnderlag(underlagPreview)) ||
     (reportPreview != null && !reportPreview.loading && Boolean(reportPreview.text?.trim()))
   const handlePdfError = useCallback(
-    (message: string) => setPdfError(message || t("underlag.previewPdfError")),
-    [t],
+    (message: string) => setPdfError(message || t(showDocxPreview ? "underlag.previewDocxError" : "underlag.previewPdfError")),
+    [showDocxPreview, t],
   )
   const handlePdfReady = useCallback(() => setPdfError(null), [])
   const handleClearDocumentSelection = useCallback(() => {
@@ -1014,7 +1030,7 @@ export function UnderlagPickerModal({
               <div
                 className={cn(
                   "min-h-0 w-full flex-1 overflow-hidden",
-                  showPdfPreview
+                  showDocumentPreview
                     ? "grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(300px,38%)]"
                     : "rounded-md border border-[color:var(--border-hairline)] bg-muted/20",
                 )}
@@ -1050,15 +1066,15 @@ export function UnderlagPickerModal({
                       {t("underlag.previewReportError")}
                     </p>
                   )
-                ) : showPdfPreview && underlagPreview ? (
+                ) : showDocumentPreview && underlagPreview ? (
                   <>
                     <div className="min-h-0 overflow-hidden rounded-md border border-[color:var(--border-hairline)] bg-muted/20">
                       {pdfError ? (
                         <p className="px-3 py-3 text-sm text-muted-foreground" role="alert">{pdfError}</p>
                       ) : null}
                       {pdfLoading ? (
-                        <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewPdfLoading")}</p>
-                      ) : pdfUrl ? (
+                        <p className="px-3 py-3 text-sm text-muted-foreground">{t(showDocxPreview ? "underlag.previewDocxLoading" : "underlag.previewPdfLoading")}</p>
+                      ) : pdfUrl && showPdfPreview ? (
                         <Suspense
                           fallback={
                             <p className="px-3 py-3 text-sm text-muted-foreground">
@@ -1079,8 +1095,28 @@ export function UnderlagPickerModal({
                             onReady={handlePdfReady}
                           />
                         </Suspense>
+                      ) : docxBlob && showDocxPreview ? (
+                        <Suspense
+                          fallback={
+                            <p className="px-3 py-3 text-sm text-muted-foreground">
+                              {t("underlag.previewDocxLoading")}
+                            </p>
+                          }
+                        >
+                          <DocxKnowledgeViewer
+                            blob={docxBlob}
+                            focusAnchors={focusAnchors}
+                            onSelection={(anchor) => {
+                              setSelectedAnchor(anchor)
+                              setFocusAnchors([anchor])
+                            }}
+                            onClearSelection={handleClearDocumentSelection}
+                            onError={handlePdfError}
+                            onReady={handlePdfReady}
+                          />
+                        </Suspense>
                       ) : !pdfError ? (
-                        <p className="px-3 py-3 text-sm text-muted-foreground">{t("underlag.previewPdfError")}</p>
+                        <p className="px-3 py-3 text-sm text-muted-foreground">{t(showDocxPreview ? "underlag.previewDocxError" : "underlag.previewPdfError")}</p>
                       ) : null}
                     </div>
                     <DocumentKnowledgePanel

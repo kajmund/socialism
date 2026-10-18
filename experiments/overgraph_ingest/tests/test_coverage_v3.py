@@ -1,9 +1,13 @@
 from overgraph_ingest.coverage.budget import budget_metrics, run_budget_controller
 from overgraph_ingest.coverage.cache import CachedAnswer
+from overgraph_ingest.coverage.proof_contract import PROOF_RELATION
+from overgraph_ingest.coverage.proof_link import PROOF_LINK
 from overgraph_ingest.coverage.state import (
     BUDGET_EXHAUSTED,
     EVIDENCE_FOUND,
+    NEEDS_ANALYSIS,
     NO_EVIDENCE_YET,
+    UNDECIDED,
     VERIFIED_ABSENT,
     DocumentState,
     UnitRecord,
@@ -255,3 +259,321 @@ def test_cache_counts_toward_budget_but_is_not_reasked() -> None:
     assert fake.asked == []
     assert result.cache_hits == 1
     assert result.documents["a.docx"].status == EVIDENCE_FOUND
+
+
+def test_relation_rule_completes_one_unit_without_a_hop() -> None:
+    unit = _unit(
+        "a1",
+        "a.docx",
+        "Ansvaret är begränsat till arvodet, dock inte vid brott mot sekretessåtagandet.",
+        1,
+    )
+    extra = _unit("a2", "a.docx", "annat", 2)
+    gold = RetrievalGold(
+        id="carveout",
+        query="q",
+        relevant_units=[GoldSpan("a.docx", "sekretess")],
+        hard_negatives=[],
+        document_gold=("a.docx",),
+        proof_kind="COMPOSITE",
+    )
+    current = resolve_status(
+        DocumentState(
+            "a.docx",
+            2,
+            [UnitRecord("a1", "YES", "c8", text=unit.text)],
+        ),
+        proof_kind="COMPOSITE",
+    )
+    relation = resolve_status(
+        DocumentState(
+            "a.docx",
+            2,
+            [UnitRecord("a1", "YES", "c8", text=unit.text)],
+        ),
+        proof_kind="COMPOSITE",
+        proof_rule=PROOF_RELATION,
+    )
+    assert current == NEEDS_ANALYSIS
+    assert relation == EVIDENCE_FOUND
+    fake = FakeJev({"a1": "YES"})
+    result = run_budget_controller(
+        ranked=[_hit(unit, 1), _hit(extra, 2)],
+        context=_context([unit, extra]),
+        gold=gold,
+        client=fake,
+        cache={},
+        question="q",
+        model="jev",
+        timeout_seconds=1,
+        concurrency=1,
+        global_k=1,
+        budget=3,
+        proof_rule=PROOF_RELATION,
+    )
+    assert fake.asked == ["a1"]
+    assert result.documents["a.docx"].status == EVIDENCE_FOUND
+    assert result.hop_fetches == 0
+
+
+def test_relation_rule_still_hops_for_avtal_46_and_rejects_punkt_4() -> None:
+    carve = _unit(
+        "carve",
+        "a.docx",
+        "Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess.",
+        2,
+        "scarve",
+    )
+    cap = _unit(
+        "cap",
+        "a.docx",
+        "DevBrains sammanlagda ansvar per avtalsår är begränsat till de avgifter som Kunden har betalat under de senaste tolv (12) månaderna.",
+        1,
+        "scap",
+    )
+    extra = _unit("x", "a.docx", "övrigt", 3, "s")
+    gold = RetrievalGold(
+        id="carveout",
+        query="q",
+        relevant_units=[GoldSpan("a.docx", "sekretess")],
+        hard_negatives=[],
+        document_gold=("a.docx",),
+        proof_kind="COMPOSITE",
+        coverage_groups=[
+            CoverageGroup(
+                "a.docx",
+                (
+                    "DevBrains sammanlagda ansvar per avtalsår är begränsat till de avgifter som Kunden har betalat under de senaste tolv (12) månaderna.",
+                    "Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot sekretess.",
+                ),
+            )
+        ],
+    )
+    fake = FakeJev({"carve": "YES", "cap": "NO"})
+    result = run_budget_controller(
+        ranked=[_hit(carve, 1), _hit(cap, 2)],
+        context=_context([carve, cap, extra]),
+        gold=gold,
+        client=fake,
+        cache={},
+        question="q",
+        model="jev",
+        timeout_seconds=1,
+        concurrency=1,
+        global_k=1,
+        budget=3,
+        proof_rule=PROOF_RELATION,
+    )
+    assert "cap" in fake.asked
+    assert result.documents["a.docx"].status == EVIDENCE_FOUND
+    ref = DocumentState(
+        "b.docx",
+        2,
+        [
+            UnitRecord(
+                "r1",
+                "UNCERTAIN",
+                "c8",
+                text="Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot punkt 4.",
+            ),
+            UnitRecord("r2", "NO", "hop", text="4. Informationssäkerhet och dataskydd"),
+        ],
+        hop_attempted=True,
+    )
+    # hop_attempted with unresolved secrecy must not become evidence
+    assert (
+        resolve_status(ref, proof_kind="COMPOSITE", proof_rule=PROOF_RELATION)
+        != EVIDENCE_FOUND
+    )
+
+
+def test_link_rule_completes_one_grounded_sentence() -> None:
+    unit = _unit(
+        "a1",
+        "a.docx",
+        "Ansvaret är begränsat till arvodet, dock inte vid brott mot sekretessåtagandet.",
+        1,
+    )
+    extra = _unit("a2", "a.docx", "8. Sekretess", 2)
+    gold = RetrievalGold(
+        id="carveout",
+        query="q",
+        relevant_units=[GoldSpan("a.docx", "sekretess")],
+        hard_negatives=[],
+        document_gold=("a.docx",),
+        proof_kind="COMPOSITE",
+    )
+    assert (
+        resolve_status(
+            DocumentState("a.docx", 2, [UnitRecord("a1", "YES", "c8", text=unit.text)]),
+            proof_kind="COMPOSITE",
+            proof_rule=PROOF_LINK,
+        )
+        == EVIDENCE_FOUND
+    )
+    fake = FakeJev({"a1": "YES"})
+    result = run_budget_controller(
+        ranked=[_hit(unit, 1), _hit(extra, 2)],
+        context=_context([unit, extra]),
+        gold=gold,
+        client=fake,
+        cache={},
+        question="q",
+        model="jev",
+        timeout_seconds=1,
+        concurrency=1,
+        global_k=1,
+        budget=3,
+        proof_rule=PROOF_LINK,
+    )
+    assert fake.asked == ["a1"]
+    assert result.documents["a.docx"].status == EVIDENCE_FOUND
+    assert result.hop_fetches == 0
+
+
+def test_link_rule_rejects_cooccurrence_and_wrong_referent() -> None:
+    cap = DocumentState(
+        "a.docx",
+        2,
+        [
+            UnitRecord(
+                "a1",
+                "YES",
+                "c8",
+                text="Begränsningarna gäller inte vid uppsåt eller grov vårdslöshet.",
+            ),
+            UnitRecord("a2", "NO", "hop", text="8. Sekretess"),
+        ],
+        hop_attempted=True,
+    )
+    assert (
+        resolve_status(cap, proof_kind="COMPOSITE", proof_rule=PROOF_LINK)
+        != EVIDENCE_FOUND
+    )
+    wrong = DocumentState(
+        "b.docx",
+        2,
+        [
+            UnitRecord(
+                "b1",
+                "UNCERTAIN",
+                "c8",
+                text="utom vid uppsåt, grov vårdslöshet eller ansvar enligt punkt 8.",
+            ),
+            UnitRecord("b2", "NO", "hop", text="11. Sekretess och personuppgifter"),
+        ],
+        hop_attempted=True,
+    )
+    assert (
+        resolve_status(wrong, proof_kind="COMPOSITE", proof_rule=PROOF_LINK)
+        != EVIDENCE_FOUND
+    )
+    infosec = DocumentState(
+        "c.docx",
+        2,
+        [
+            UnitRecord(
+                "c1",
+                "UNCERTAIN",
+                "c8",
+                text="Begränsningarna gäller inte vid uppsåt, grov vårdslöshet eller brott mot punkt 4.",
+            ),
+            UnitRecord("c2", "NO", "hop", text="4. Informationssäkerhet och dataskydd"),
+        ],
+        hop_attempted=True,
+    )
+    assert (
+        resolve_status(infosec, proof_kind="COMPOSITE", proof_rule=PROOF_LINK)
+        != EVIDENCE_FOUND
+    )
+
+
+def test_default_v3_still_completes_wrong_referent_without_gate() -> None:
+    wrong = DocumentState(
+        "b.docx",
+        2,
+        [
+            UnitRecord(
+                "b1",
+                "YES",
+                "c8",
+                text="utom vid uppsåt, grov vårdslöshet eller ansvar enligt punkt 8.",
+            ),
+            UnitRecord(
+                "b2",
+                "NO",
+                "global",
+                hop="hop:CLAUSE_8",
+                text="11. Sekretess och personuppgifter",
+            ),
+        ],
+        hop_attempted=True,
+    )
+    assert resolve_status(wrong, proof_kind="COMPOSITE") == EVIDENCE_FOUND
+    assert (
+        resolve_status(wrong, proof_kind="COMPOSITE", proof_gate=True) == UNDECIDED
+    )
+    assert wrong.gate_block is not None
+    assert wrong.gate_block["reason"] == "unresolved_reference"
+    assert (
+        resolve_status(wrong, proof_kind="COMPOSITE", proof_gate=True)
+        != VERIFIED_ABSENT
+    )
+
+
+def test_gate_admits_dock_inte_and_matching_referent() -> None:
+    dock = DocumentState(
+        "a.docx",
+        2,
+        [
+            UnitRecord(
+                "a1",
+                "YES",
+                "c8",
+                text="Ansvaret är begränsat till arvodet, dock inte vid brott mot sekretess.",
+            ),
+            UnitRecord("a2", "NO", "global", hop="hop:PREVIOUS", text="12.3 Ansvar"),
+        ],
+        hop_attempted=True,
+    )
+    assert resolve_status(dock, proof_kind="COMPOSITE", proof_gate=True) == EVIDENCE_FOUND
+    match = DocumentState(
+        "c.docx",
+        2,
+        [
+            UnitRecord(
+                "c1",
+                "YES",
+                "c8",
+                text="Begränsningen gäller inte vid överträdelser av punkt 8.",
+            ),
+            UnitRecord(
+                "c2",
+                "NO",
+                "global",
+                hop="hop:CLAUSE_8",
+                text="8. Sekretess och tystnadsplikt",
+            ),
+        ],
+        hop_attempted=True,
+    )
+    assert resolve_status(match, proof_kind="COMPOSITE", proof_gate=True) == EVIDENCE_FOUND
+
+
+def test_gate_leaves_stacked_polarity_undecided() -> None:
+    stacked = DocumentState(
+        "d.docx",
+        1,
+        [
+            UnitRecord(
+                "d1",
+                "YES",
+                "c8",
+                text="Begränsningen gäller inte, utom vid sekretessbrott.",
+            )
+        ],
+        hop_attempted=True,
+    )
+    assert resolve_status(stacked, proof_kind="COMPOSITE") == EVIDENCE_FOUND
+    assert resolve_status(stacked, proof_kind="COMPOSITE", proof_gate=True) == UNDECIDED
+    assert stacked.gate_block["reason"] == "unresolved_polarity"

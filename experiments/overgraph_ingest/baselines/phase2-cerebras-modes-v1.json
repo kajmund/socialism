@@ -1,0 +1,50 @@
+{
+  "id": "phase2-cerebras-modes-v1",
+  "label": "Frozen decision: 1x50 GPT-OSS medium plus minimal JSON remains the fast naive baseline. 2x50 is a successful scale mode with more gold clauses and lower precision. Do not add automatic routing between them. Do not start k=200. Next isolated measurement is a Jev versus GPT-OSS second-opinion replay.",
+  "do_not_overwrite": true,
+  "verdict": "keep_1x50_fast_baseline",
+  "fast_mode": "phase2-cerebras-output-v1",
+  "scale_mode": "phase2-cerebras-split50-v1",
+  "no_automatic_k_routing": true,
+  "k200_not_started": true,
+  "next_isolated_experiment": "second_opinion",
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_replace_cerebras_output": true,
+  "does_not_replace_cerebras_split50": true,
+  "applied_to_v3": false,
+  "task": "formulation_presence",
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "model": "gpt-oss-120b",
+    "rate_card_date": "2026-10-09",
+    "fast": {
+      "k": 50,
+      "calls_per_question": 1,
+      "true_matches": 72,
+      "mean_precision": 0.7347058823529411,
+      "mean_candidate_recall": 1.0,
+      "mean_model_seconds": 1.3277015000581742,
+      "cost_usd": 0.0128883,
+      "cost_per_true_match_usd": 0.00017900416666666666
+    },
+    "scale": {
+      "k": 100,
+      "calls_per_question": 2,
+      "true_matches": 79,
+      "mean_precision": 0.6668233450842147,
+      "mean_candidate_recall": 1.0,
+      "mean_model_seconds": 2.9095506417565047,
+      "cost_usd": 0.02457235,
+      "cost_per_true_match_usd": 0.00031104240506329116,
+      "lost_from_k50_true_matches": 0,
+      "model_caught_gain": 7
+    }
+  }
+}

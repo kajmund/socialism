@@ -45,8 +45,20 @@ def parse_choice(answers: dict[str, Any], key: str) -> tuple[Label, float | None
     choice = str(row.get("choice") or "").strip().upper()
     if choice not in LABELS:
         raise JevError(f"invalid Jev choice {choice!r} for {key}", category="schema_validation")
+    return choice, parse_confidence(row, key=key)
+
+
+def parse_confidence(row: object, *, key: str) -> float | None:
+    if not isinstance(row, dict):
+        raise JevError(f"Jev response missing choice for {key}", category="schema_validation")
     confidence = row.get("confidence")
     parsed = None if confidence is None else float(confidence)
     if parsed is not None and not 0.0 <= parsed <= 1.0:
         raise JevError(f"Jev confidence for {key} is out of range", category="schema_validation")
-    return choice, parsed
+    return parsed
+
+
+def choice_row_fields(row: object) -> tuple[str, ...]:
+    if not isinstance(row, dict):
+        return ()
+    return tuple(sorted(str(name) for name in row))

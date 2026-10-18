@@ -122,9 +122,3 @@ export function resultFromJob(job: RattsunderlagJob): RattsunderlagResult | null
   if (typeof payload.fraga !== "string") return null
   return payload
 }
-
-export function rattsunderlagHref(job: { id: string; request?: Record<string, unknown> }): string {
-  const sessionId =
-    typeof job.request?.session_id === "string" ? job.request.session_id : null
-  return `/rattsunderlag/${sessionId ?? job.id}?tab=results`
-}

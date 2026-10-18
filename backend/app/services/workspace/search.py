@@ -11,9 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, StoredObject, UserAccount
 from app.database.workspace_models import VoiceWorkspace, WorkspaceSource
-from app.services.document_knowledge import (
-    _normalized, _page_number, _quote_rects,
-)
+from app.services.document_ingest_status import document_text_ready
+from app.services.document_knowledge import _normalized, _page_number
+from app.services.pdf_quote_anchors import quote_rects as _quote_rects
 from app.services.knowledge.embeddings import OpenAIEmbeddingProvider, require_embedding_vectors
 from app.services.knowledge.models import EmbeddedKnowledgeQuery, KnowledgeHit, KnowledgeQuery, KnowledgeScope
 from app.services.knowledge.document_grounding import grounded_hits
@@ -107,13 +107,8 @@ async def _hit_reference(session: AsyncSession, workspace: VoiceWorkspace, found
 
 def _citation_passage(passages: list[KnowledgeHit]) -> tuple[KnowledgeHit, str]:
     for passage in passages:
-        qa = passage.metadata.get("qa_snapshot")
-        if qa is None:
+        if passage.excerpt:
             return passage, passage.excerpt
-        for anchor in qa["anchors"]:
-            quote = anchor["exact_text"]
-            if anchor["locator"] in (None, passage.locator) and _normalized(quote) in _normalized(passage.excerpt):
-                return passage, quote
     raise HTTPException(status_code=409, detail="source_excerpt_stale")
 
 
@@ -134,9 +129,9 @@ async def search_workspace(
         raise HTTPException(status_code=404, detail="workspace_source_not_found")
     members = [member for member in members if source_id is None or member.source_id == source_id]
     sources = [await require_source(session, workspace, member.source_id) for member in members]
-    readable = [await _materialize(session, source) for source in sources if source.knowledge_status in {"ready", "partial"} and source.extracted_text]
+    readable = [await _materialize(session, source) for source in sources if document_text_ready(source)]
     gaps = [{"source_id": source.id, "status": source.knowledge_status, "detail": source.knowledge_error}
-            for source in sources if source.knowledge_status != "ready"]
+            for source in sources if not document_text_ready(source)]
     if not readable:
         return {"items": [], "gaps": gaps}
     parent_ids = await resolve_readable_workspace_ids(session, customer_id=workspace.customer_id,
