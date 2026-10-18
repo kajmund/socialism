@@ -43,6 +43,7 @@ pnpm-debug.log*
 /backend/data/embedding_cache/
 /backend/data/image_cache/
 /backend/data/bolagsapi_cache/
+/backend/data/tts_cache/
 /backend/data/mem0/
 /backend/data/overgraph/
 /backend/data/overgraph-pytest/
