@@ -1,9 +1,12 @@
 """Workspace tools and the current selection for expert text chat."""
 
 import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from app.schemas.workspace import WorkspaceState
 from app.services.prompt_catalog import render_prompt
+from app.services.workspace_turn_state import turn_payload
 from app.services.workspace_agent_deployment import (
     CLIENT_TOOLS,
     SERVER_TOOLS,
@@ -13,22 +16,22 @@ from app.services.workspace_agent_deployment import (
 TURN_PROMPT_KEY = "workspace.chat.turn"
 CLIENT_TOOL_NAMES = frozenset(CLIENT_TOOLS)
 SERVER_TOOL_NAMES = frozenset(SERVER_TOOLS)
+WORKSPACE_TIME_ZONE = ZoneInfo("Europe/Stockholm")
 
 
-def workspace_turn_text(prompts: dict[str, str], state: WorkspaceState) -> str:
-    selection = None if state.selection is None else state.selection.model_dump()
-    payload = {
-        "knowledge_scope": state.knowledge_scope,
-        "view": state.view,
-        "active_artifact_id": state.active_artifact_id,
-        "documents": [row.model_dump() for row in state.documents],
-        "selection": selection,
-        "document_mentions": [row.model_dump() for row in state.document_mentions],
-    }
+def workspace_turn_text(
+    prompts: dict[str, str],
+    state: WorkspaceState,
+    *,
+    documents: dict | None = None,
+) -> str:
+    payload = turn_payload(state, documents, text_mode="short")
+    now = datetime.now(WORKSPACE_TIME_ZONE).strftime("%Y-%m-%d %H:%M (%Z)")
     return render_prompt(
         prompts,
         TURN_PROMPT_KEY,
         workspace_json=json.dumps(payload, ensure_ascii=False),
+        now=now,
     )
 
 

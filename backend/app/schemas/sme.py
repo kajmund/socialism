@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.live_voice import LiveVoiceProviderName
+from app.schemas.workspace import DocumentMention
 
 SmeThreadType = Literal["expert", "panel"]
 
@@ -38,6 +39,8 @@ class SmeMessageOut(BaseModel):
 
 class SmePanelMessageCreate(BaseModel):
     message: str = Field(min_length=1, max_length=10_000)
+    workspace_id: str | None = Field(default=None, max_length=64)
+    document_mentions: list[DocumentMention] = Field(default_factory=list, max_length=8)
 
 
 class SmeReadOut(BaseModel):

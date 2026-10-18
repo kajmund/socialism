@@ -331,6 +331,85 @@ async def test_waiting_phrase_is_suppressed_when_main_delta_arrives(
     assert spoken == []
 
 
+async def test_waiting_phrase_follows_expert_silence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spoken: list[str] = []
+
+    async def phrase(_prompt: str, context: ProgressContext) -> str | None:
+        spoken.append(context.kind)
+        return "Jag kollar."
+
+    monkeypatch.setattr(
+        "app.services.live_speech_cues.generate_progress_phrase",
+        phrase,
+    )
+    monkeypatch.setattr(
+        "app.config.settings.live_speech_waiting_suppress_ms",
+        30,
+    )
+    runtime = _runtime()
+    runtime._cues.start_waiting("turn")
+    await asyncio.sleep(0.01)
+    assert spoken == []
+    await asyncio.sleep(0.05)
+    assert spoken == ["waiting"]
+
+
+async def test_waiting_phrase_skips_a_repeat(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    contexts: list[ProgressContext] = []
+    played: list[str] = []
+
+    async def phrase(_prompt: str, context: ProgressContext) -> str | None:
+        contexts.append(context)
+        return "Mmm."
+
+    async def play(text: str, _turn_id: str) -> None:
+        played.append(text)
+
+    monkeypatch.setattr(
+        "app.services.live_speech_cues.generate_progress_phrase",
+        phrase,
+    )
+    monkeypatch.setattr(
+        "app.config.settings.live_speech_waiting_suppress_ms",
+        10,
+    )
+    runtime = _runtime()
+    runtime._cues._recent_phrases.append("Mmm.")
+    runtime._coordinator.play_aside = play  # type: ignore[method-assign]
+    runtime._cues.start_waiting("turn")
+    await asyncio.sleep(0.04)
+    assert contexts and "Mmm." in contexts[0].spoken
+    assert played == []
+
+
+async def test_waiting_phrase_is_skipped_when_an_aside_was_spoken(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spoken: list[str] = []
+
+    async def phrase(_prompt: str, context: ProgressContext) -> str | None:
+        spoken.append(context.kind)
+        return "Jag kollar."
+
+    monkeypatch.setattr(
+        "app.services.live_speech_cues.generate_progress_phrase",
+        phrase,
+    )
+    monkeypatch.setattr(
+        "app.config.settings.live_speech_waiting_suppress_ms",
+        20,
+    )
+    runtime = _runtime()
+    runtime._cues.start_waiting("turn")
+    runtime._coordinator.spoken_asides.append("Jag läser avtalet.")
+    await asyncio.sleep(0.05)
+    assert spoken == []
+
+
 async def test_text_cancel_leaves_the_session_open() -> None:
     runtime = _runtime()
     runtime._turn_task = asyncio.create_task(asyncio.sleep(30))
@@ -419,7 +498,6 @@ async def test_progress_talk_covers_running_tool_and_mid_series_partial(
         "app.services.live_speech_cues.generate_progress_phrase",
         phrase,
     )
-    monkeypatch.setattr("app.config.settings.live_speech_tool_progress_ms", 10)
     events: list[dict] = []
     runtime = _runtime(events)
     runtime._turn_id = "turn"

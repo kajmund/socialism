@@ -70,6 +70,7 @@ async def _seed_sources(factory, workspaces):
                 owner_user_id=USER_ID if customer_id == 1 else "foreign-user",
                 module="dd", kind="underlag", bucket="test", object_key=identity,
                 content_type="application/pdf", size_bytes=100, knowledge_status=status,
+                extraction_status="ok" if status == "ready" else "pending",
                 extracted_text="Private source body must not appear in the file inventory.",
             )
             session.add(source)

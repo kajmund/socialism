@@ -1,0 +1,4399 @@
+{
+  "experiment": "document-presentation-channel-parity-step-b-v1",
+  "created_at": "2026-10-15T00:29:36.453335+00:00",
+  "classification": "observational",
+  "observation_reason": "Step B ran despite the failed deterministic Step A gate.",
+  "step_a": {
+    "approved_for_step_b": false
+  },
+  "case_count": 50,
+  "channels": [
+    "text",
+    "voice",
+    "group_voice"
+  ],
+  "actual_execute_expert_turn_calls": 150,
+  "summary": {
+    "text": {
+      "turns": 50,
+      "latency_ms": {
+        "median": 4.998,
+        "p95": 7.559
+      },
+      "wrong_document_selections": 50,
+      "wrong_mode_transitions": 50,
+      "erroneous_auto_displays": 0,
+      "missed_explicit_shows": 25,
+      "duplicate_presentations": 0,
+      "external_or_model_errors": 50
+    },
+    "voice": {
+      "turns": 50,
+      "latency_ms": {
+        "median": 5.274,
+        "p95": 7.212
+      },
+      "wrong_document_selections": 50,
+      "wrong_mode_transitions": 50,
+      "erroneous_auto_displays": 0,
+      "missed_explicit_shows": 25,
+      "duplicate_presentations": 0,
+      "external_or_model_errors": 50
+    },
+    "group_voice": {
+      "turns": 50,
+      "latency_ms": {
+        "median": 4.92,
+        "p95": 6.967
+      },
+      "wrong_document_selections": 50,
+      "wrong_mode_transitions": 50,
+      "erroneous_auto_displays": 0,
+      "missed_explicit_shows": 25,
+      "duplicate_presentations": 0,
+      "external_or_model_errors": 50
+    }
+  },
+  "cases": [
+    {
+      "case_id": "01-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 9.585,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-01-show-text",
+        "request_id": "step-b-01-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "01-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.891,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-01-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "01-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.916,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-01-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "01-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.586,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-01-count-text",
+        "request_id": "step-b-01-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "01-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 8.088,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-01-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "01-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.052,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-01-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "02-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.85,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-02-show-text",
+        "request_id": "step-b-02-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "02-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.277,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-02-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "02-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.68,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-02-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "02-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.2,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-02-analyze-text",
+        "request_id": "step-b-02-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "02-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.615,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-02-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "02-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.427,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-02-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "03-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.979,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-03-show-text",
+        "request_id": "step-b-03-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "03-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.969,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-03-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "03-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.37,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-03-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "03-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.631,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-03-ambiguous-text",
+        "request_id": "step-b-03-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "03-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.498,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-03-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "03-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.594,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-03-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "04-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.753,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-04-show-text",
+        "request_id": "step-b-04-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "04-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.227,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-04-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "04-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.631,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-04-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "04-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.893,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-04-count-text",
+        "request_id": "step-b-04-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "04-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.041,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-04-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "04-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.948,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-04-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "05-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.848,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-05-show-text",
+        "request_id": "step-b-05-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "05-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.655,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-05-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "05-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.641,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-05-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "05-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.193,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-05-analyze-text",
+        "request_id": "step-b-05-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "05-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.651,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-05-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "05-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.174,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-05-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "06-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.537,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-06-show-text",
+        "request_id": "step-b-06-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "06-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.066,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-06-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "06-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.412,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-06-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "06-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.233,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-06-ambiguous-text",
+        "request_id": "step-b-06-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "06-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.263,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-06-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "06-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.737,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-06-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "07-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.422,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-07-show-text",
+        "request_id": "step-b-07-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "07-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.166,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-07-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "07-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.423,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-07-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "07-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.055,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-07-count-text",
+        "request_id": "step-b-07-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "07-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.146,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-07-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "07-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-employment_agreement-1",
+        "src-employment_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.008,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-07-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "08-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.613,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-08-show-text",
+        "request_id": "step-b-08-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "08-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.081,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-08-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "08-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.72,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-08-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "08-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.233,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-08-analyze-text",
+        "request_id": "step-b-08-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "08-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.071,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-08-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "08-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2",
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.282,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-08-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "09-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.497,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-09-show-text",
+        "request_id": "step-b-09-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "09-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.229,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-09-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "09-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.344,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-09-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "09-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 6.066,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-09-ambiguous-text",
+        "request_id": "step-b-09-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "09-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.171,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-09-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "09-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.837,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-09-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "10-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.146,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-10-show-text",
+        "request_id": "step-b-10-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "10-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.116,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-10-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "10-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 7.167,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-10-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "10-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.335,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-10-count-text",
+        "request_id": "step-b-10-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "10-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.78,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-10-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "10-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.568,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-10-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "11-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.416,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-11-show-text",
+        "request_id": "step-b-11-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "11-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.567,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-11-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "11-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.253,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-11-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "11-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.263,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-11-analyze-text",
+        "request_id": "step-b-11-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "11-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.245,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-11-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "11-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.414,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-11-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "12-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.915,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-12-show-text",
+        "request_id": "step-b-12-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "12-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.404,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-12-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "12-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.873,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-12-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "12-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.648,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-12-ambiguous-text",
+        "request_id": "step-b-12-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "12-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.021,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-12-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "12-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3",
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.891,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-12-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "13-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.091,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-13-show-text",
+        "request_id": "step-b-13-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "13-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.603,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-13-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "13-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.916,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-13-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "13-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.94,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-13-count-text",
+        "request_id": "step-b-13-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "13-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.393,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-13-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "13-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.222,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-13-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "14-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.246,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-14-show-text",
+        "request_id": "step-b-14-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "14-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.567,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-14-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "14-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.446,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-14-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "14-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.526,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-14-analyze-text",
+        "request_id": "step-b-14-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "14-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.33,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-14-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "14-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1",
+        "src-nda-2",
+        "src-nda-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.739,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-14-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "15-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.093,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-15-show-text",
+        "request_id": "step-b-15-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "15-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.917,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-15-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "15-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.861,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-15-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "15-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.496,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-15-ambiguous-text",
+        "request_id": "step-b-15-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "15-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.091,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-15-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "15-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.333,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-15-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "16-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.083,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-16-show-text",
+        "request_id": "step-b-16-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "16-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.267,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-16-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "16-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.466,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-16-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "16-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 8.2,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-16-count-text",
+        "request_id": "step-b-16-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "16-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.426,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-16-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "16-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.868,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-16-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "17-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.892,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-17-show-text",
+        "request_id": "step-b-17-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "17-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.355,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-17-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "17-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.53,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-17-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "17-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.344,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-17-analyze-text",
+        "request_id": "step-b-17-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "17-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.838,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-17-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "17-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.511,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-17-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "18-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.601,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-18-show-text",
+        "request_id": "step-b-18-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "18-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.891,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-18-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "18-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.081,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-18-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "18-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.136,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-18-ambiguous-text",
+        "request_id": "step-b-18-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "18-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.155,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-18-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "18-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-consulting_agreement-0",
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2",
+        "src-consulting_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.293,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-18-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "19-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.301,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-19-show-text",
+        "request_id": "step-b-19-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "19-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.141,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-19-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "19-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.651,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-19-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "19-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.599,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-19-count-text",
+        "request_id": "step-b-19-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "19-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.992,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-19-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "19-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-nda-0",
+        "src-nda-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.272,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-19-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "20-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.569,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-20-show-text",
+        "request_id": "step-b-20-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "20-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.437,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-20-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "20-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.201,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-20-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "20-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.66,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-20-analyze-text",
+        "request_id": "step-b-20-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "20-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.184,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-20-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "20-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-supply_agreement-0",
+        "src-supply_agreement-1"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.772,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-20-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "21-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.942,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-21-show-text",
+        "request_id": "step-b-21-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "21-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.547,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-21-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "21-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.888,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-21-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "21-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.571,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-21-ambiguous-text",
+        "request_id": "step-b-21-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "21-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 7.01,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-21-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "21-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-lease_agreement-0",
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-lease_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.961,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-21-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "22-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.568,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-22-show-text",
+        "request_id": "step-b-22-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "22-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.93,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-22-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "22-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.32,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-22-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "22-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.383,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-22-count-text",
+        "request_id": "step-b-22-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "22-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.488,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-22-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "22-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "replace",
+      "expected_source_ids": [
+        "src-employment_agreement-0",
+        "src-employment_agreement-1",
+        "src-employment_agreement-2",
+        "src-employment_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.491,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-22-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "23-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.605,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-23-show-text",
+        "request_id": "step-b-23-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "23-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 6.097,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-23-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "23-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.388,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-23-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "23-analyze",
+      "channel": "text",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.662,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-23-analyze-text",
+        "request_id": "step-b-23-analyze-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "23-analyze",
+      "channel": "voice",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.608,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-23-analyze-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "23-analyze",
+      "channel": "group_voice",
+      "intent": "analyze",
+      "expected_mode": "filter",
+      "expected_source_ids": [
+        "src-consulting_agreement-1",
+        "src-consulting_agreement-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.569,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-23-analyze-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "24-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.331,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-24-show-text",
+        "request_id": "step-b-24-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "24-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.281,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-24-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "24-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.986,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-24-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "24-ambiguous",
+      "channel": "text",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.28,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-24-ambiguous-text",
+        "request_id": "step-b-24-ambiguous-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "24-ambiguous",
+      "channel": "voice",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 5.52,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-24-ambiguous-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "24-ambiguous",
+      "channel": "group_voice",
+      "intent": "ambiguous",
+      "expected_mode": "within",
+      "expected_source_ids": [
+        "src-nda-1",
+        "src-nda-2"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 6.279,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-24-ambiguous-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "25-show",
+      "channel": "text",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.857,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-25-show-text",
+        "request_id": "step-b-25-show-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "25-show",
+      "channel": "voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 5.014,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-25-show-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "25-show",
+      "channel": "group_voice",
+      "intent": "show",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": true,
+      "latency_ms": 4.552,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-25-show-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "25-count",
+      "channel": "text",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.784,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "_send_workspace_tools",
+        "thread_type": "expert",
+        "thread_id": "step-b-25-count-text",
+        "request_id": "step-b-25-count-text"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "25-count",
+      "channel": "voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.205,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "LiveSpeechRuntime._client_tools",
+        "turn_id": "fixed-transcript-step-b-25-count-voice",
+        "transcript": "fixed"
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    },
+    {
+      "case_id": "25-count",
+      "channel": "group_voice",
+      "intent": "count",
+      "expected_mode": "extend",
+      "expected_source_ids": [
+        "src-lease_agreement-1",
+        "src-lease_agreement-2",
+        "src-supply_agreement-0",
+        "src-supply_agreement-1",
+        "src-supply_agreement-2",
+        "src-supply_agreement-3"
+      ],
+      "expected_presentation": false,
+      "latency_ms": 4.548,
+      "find_calls": [],
+      "find_results": [],
+      "source_ids": [],
+      "presentation_calls": [],
+      "duplicate_presentations": 0,
+      "envelope": {
+        "adapter": "GroupVoiceAudioRuntime.emit_workspace_tool",
+        "floor_owner": "step-b-25-count-group-voice",
+        "floor_owned_by_expert": true
+      },
+      "lifecycle_status": "failed",
+      "error": {
+        "type": "ValidationError",
+        "message": "1 validation error for EditablePersona\nage\n  Input should be a valid string [type=string_type, input_value=45, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+      }
+    }
+  ]
+}

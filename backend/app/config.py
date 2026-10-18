@@ -75,6 +75,10 @@ class Settings(LiveSpeechSettings, BaseSettings):
     expert_reasoning_spawn_max_tasks: int = Field(default=8, ge=1, le=32)
     expert_reasoning_spawn_concurrency: int = Field(default=4, ge=1, le=16)
     expert_reasoning_spawn_timeout_seconds: float = Field(default=60.0, gt=0, le=300)
+    sme_quick_draft_enabled: bool = True
+    sme_quick_draft_timeout_seconds: float = Field(default=6.0, gt=0, le=30)
+    sme_quick_draft_max_chars: int = Field(default=400, ge=64, le=2000)
+    sme_quick_progress_delay_seconds: float = Field(default=1.25, ge=0.5, le=5.0)
     document_tool_retrieval_enabled: bool = True
     document_tool_retrieval_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
     document_tool_retrieval_state_chars: int = Field(default=4000, ge=256, le=16_000)
@@ -86,9 +90,6 @@ class Settings(LiveSpeechSettings, BaseSettings):
     # Frozen EvidenceSet revalidation. False clear is worse than extra review.
     revalidation_impact_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
     revalidation_clear_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
-    # Document-understanding batches stay bounded and do not inherit the global completion budget.
-    document_knowledge_llm_max_tokens: int = Field(default=8192, ge=512, le=32768)
-    document_knowledge_llm_timeout_seconds: float = Field(default=180.0, gt=0, le=900)
     cerebras_api_key: str = ""
     cerebras_base_url: str = CEREBRAS_DEFAULT_BASE_URL
     deepseek_api_key: str = ""
@@ -222,12 +223,11 @@ class Settings(LiveSpeechSettings, BaseSettings):
     research_knowledge_freshness_max_age_seconds: int | None = Field(
         default=None, ge=1
     )
-    # Background research lease. Expired claims are reclaimable by another worker.
     research_claim_lease_seconds: int = Field(default=60, ge=5, le=3600)
-    # How often the reclaim loop looks for expired/unclaimed research work.
     research_worker_poll_seconds: float = Field(default=0.5, ge=0.05, le=60)
-    # Normal app startup starts a reclaim loop in lifespan. Tests turn this off.
+    # Tests turn reclaim and the graph outbox loop off independently.
     research_worker_loop_enabled: bool = True
+    graph_ingest_loop_enabled: bool = True
     # Max concurrent Word-review LLM calls within one expertgranskning job.
     word_review_max_concurrency: int = Field(default=8, ge=1, le=32)
     # Optional Word router override. Empty inherits the global LLM model.

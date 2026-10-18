@@ -7,12 +7,23 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import UserAccount
+from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.schemas.workspace import WorkspaceState
-from app.services.expert_async_tools import LibraryToolScope
+from app.services.expert_async_tools import LibraryToolScope, PlannedCall
 from app.services.expert_tool_followup import queue_document_open
 from app.services.workspace.service import require_workspace
+from app.services.sme_open_document import format_workspace_documents
 from app.services.workspace_chat_tools import workspace_openai_tools, workspace_turn_text
-from app.services.workspace_document_context import source_for_open_request
+from app.services.workspace_turn_state import bind_open_titles, log_dynamic_context
+from app.services.workspace_document_context import (
+    artifact_for_open_request,
+    present_document_call,
+    ready_document_ids,
+    source_for_open_request,
+    voice_document_context,
+)
+from app.services.workspace_parent_documents import voice_document_inventory
+from app.services.workspace_intent import presentation_tools_allowed
 
 
 async def prepare_workspace_chat(
@@ -35,12 +46,18 @@ async def prepare_workspace_chat(
     if actor is None:
         raise ChatTurnError("actor_not_found", status_code=404)
     try:
-        await require_workspace(session, workspace_id, actor)
+        workspace = await require_workspace(session, workspace_id, actor)
     except HTTPException as exc:
         raise ChatTurnError(str(exc.detail), status_code=exc.status_code) from exc
+    documents = await voice_document_context(session, workspace, actor, state=workspace_state)
+    bind_open_titles(documents)
+    note = format_workspace_documents(documents)
+    turn = workspace_turn_text(prompts, workspace_state, documents=documents)
     kept = [name for name in tool_names if name != "start_research"]
+    context = f"{turn}\n\n{note}" if note else turn
+    log_dynamic_context(context)
     return (
-        workspace_turn_text(prompts, workspace_state),
+        context,
         workspace_openai_tools(prompts, skip=frozenset(kept)),
         workspace_state.model_dump(),
     )
@@ -63,25 +80,106 @@ async def finish_workspace_turn(
         message=message,
         history=history,
     )
-    await _release_read(session)
-    if opened:
-        queue_document_open(scope, opened)
-    if on_client_tools is None or not scope.client_calls:
-        return
-    await on_client_tools(
-        [{"name": call.name, "arguments": call.arguments} for call in scope.client_calls]
+    draft_id = None if opened else await artifact_for_open_request(
+        session,
+        workspace_id=workspace_id,
+        actor_user_id=actor_user_id,
+        message=message,
+        history=history,
     )
+    artifact_ids = await ready_document_ids(session, workspace_id) if workspace_id else set()
+    inventory: list[dict] = []
+    if workspace_id and actor_user_id and any(call.name == "show_document_set" for call in scope.client_calls):
+        actor = await session.get(UserAccount, actor_user_id)
+        if actor is not None:
+            try:
+                workspace = await require_workspace(session, workspace_id, actor)
+            except HTTPException:
+                workspace = None
+            if workspace is not None:
+                inventory = await voice_document_inventory(session, workspace, actor)
+    await _release_read(session)
+    # Locked IntentDecision presentation wins: none/uncertain never opens.
+    allow_presentation = presentation_tools_allowed(scope.workspace_intent)
+    # A multi-document gallery wins over the single-file open heuristic.
+    if (
+        allow_presentation
+        and opened
+        and not any(call.name == "show_document_set" for call in scope.client_calls)
+    ):
+        queue_document_open(scope, opened)
+    elif (
+        allow_presentation
+        and draft_id
+        and not any(call.name == "show_document_set" for call in scope.client_calls)
+    ):
+        _queue_draft_open(scope, draft_id)
+    presented: list[PlannedCall] = []
+    for call in scope.client_calls:
+        if (
+            call.name in {"show_document", "show_document_set"}
+            and not presentation_tools_allowed(scope.workspace_intent)
+        ):
+            continue
+        name, arguments = present_document_call(
+            call.name, dict(call.arguments), artifact_ids, inventory=inventory,
+        )
+        presented.append(PlannedCall(call.id, name, arguments))
+    scope.client_calls = presented
+    payload = [_client_tool_event(scope.persona_id, call.name, call.arguments) for call in scope.client_calls]
+    if not payload:
+        return
+    if on_client_tools is not None:
+        await on_client_tools(payload)
+        return
+    await _broadcast_expert_tools(scope, payload)
+
+
+def _client_tool_event(persona_id: str, name: str, arguments: dict) -> dict:
+    delivered = dict(arguments)
+    if name == "focus_anchor" and persona_id:
+        delivered["expert_id"] = persona_id
+    return {"name": name, "arguments": delivered}
+
+
+async def _broadcast_expert_tools(scope: LibraryToolScope, calls: list[dict[str, Any]]) -> None:
+    """Turns without a tool callback still open the document on the expert channel."""
+    if scope.customer_id is None:
+        return
+    for call in calls:
+        await library_chat_broadcast.publish(scope.customer_id, scope.persona_id, {
+            "type": "workspace_tool",
+            "thread_type": "expert",
+            "thread_id": scope.persona_id,
+            "mode": scope.mode,
+            "name": call["name"],
+            "arguments": call["arguments"],
+            "owner_turn_id": scope.turn_id,
+        })
 
 
 async def _release_read(session: AsyncSession) -> None:
+    """Return a read-only transaction to the pool without expiring loaded objects.
+
+    Rollback always expires the identity map, and AsyncSession has no
+    expire_on_rollback. The chat session is created with expire_on_commit=False,
+    so committing the read releases the connection and leaves those objects usable.
+    """
     if not session.in_transaction():
         return
-    previous = session.expire_on_rollback
-    session.expire_on_rollback = False
-    try:
-        await session.rollback()
-    finally:
-        session.expire_on_rollback = previous
+    if session.new or session.dirty or session.deleted:
+        raise RuntimeError("workspace_read_has_pending_writes")
+    await session.commit()
+
+
+def _queue_draft_open(scope: LibraryToolScope, artifact_id: str) -> None:
+    already = any(
+        call.name == "show_artifact" and call.arguments.get("artifact_id") == artifact_id
+        for call in scope.client_calls
+    )
+    if already:
+        return
+    scope.client_calls.append(PlannedCall(f"open-{artifact_id}", "show_artifact", {"artifact_id": artifact_id}))
 
 
 def chat_tools_for_turn(names: list[str], *, workspace: bool) -> list[str]:

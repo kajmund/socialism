@@ -19,11 +19,13 @@ from app.database.workspace_models import (
     WorkspaceOperation, WorkspaceReference, WorkspaceResearch, WorkspaceSource,
 )
 from app.modules.registry import MODULE_REGISTRY
+from app.schemas.domain import format_date
 from app.schemas.workspace import WorkspaceState
 from app.services.stored_objects import serialize_underlag
 from app.services.workspace_chats import list_chat_files, require_chat_file
 from app.services.workspace.containers import WorkspaceContainer, creation_chat, require_container
 from app.services.workspaces import require_workspace_customer
+from app.services.workspace.passage_comments import list_passage_comments
 from app.services.workspace.research_links import sync_research_links as sync_research_links
 
 
@@ -128,6 +130,8 @@ async def validate_state(session: AsyncSession, workspace: VoiceWorkspace, state
             raise HTTPException(status_code=404, detail="workspace_research_not_found")
     if state.active_artifact_id:
         await require_artifact(session, workspace, state.active_artifact_id)
+    for artifact_id in state.open_artifact_ids:
+        await require_artifact(session, workspace, artifact_id)
     await _validate_selection(session, workspace, state)
 
 
@@ -255,7 +259,8 @@ async def publish_artifact_revision(session: AsyncSession, artifact: WorkspaceAr
 def artifact_out(artifact: WorkspaceArtifact) -> dict:
     return {"id": artifact.id, "workspace_id": artifact.workspace_id, "kind": artifact.kind, "title": artifact.title,
             "status": artifact.status, "revision": artifact.revision, "content": artifact.content,
-            "job_id": artifact.job_id, "error": artifact.error}
+            "job_id": artifact.job_id, "error": artifact.error,
+            "created_at": format_date(artifact.created_at) if artifact.created_at else ""}
 
 
 async def _member_sources(session: AsyncSession, workspace: VoiceWorkspace) -> list[StoredObject]:
@@ -313,7 +318,7 @@ async def workspace_out(session: AsyncSession, workspace: VoiceWorkspace) -> dic
             "research": queued_research + [{"job_id": None, "attempt_id": row.id, "run_id": row.run_id, "status": row.status,
                           "progress_url": f"/execution/attempts/{row.id}/progress-events"} for row in attempts
                           if row.id not in {item["attempt_id"] for item in queued_research}],
-            "references": references}
+            "references": references, "comments": await list_passage_comments(session, workspace)}
 
 
 async def _reference_summary(session: AsyncSession, workspace: VoiceWorkspace, ref: WorkspaceReference) -> dict:

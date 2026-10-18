@@ -58,6 +58,11 @@ class ClientPing(_ControlEvent):
     sequence: int = Field(ge=0)
 
 
+class SttFocus(_ControlEvent):
+    type: Literal["stt.focus"]
+    source_ids: list[str] = Field(default_factory=list, max_length=4)
+
+
 ClientControl = Annotated[
     SessionStart
     | AudioStart
@@ -66,7 +71,8 @@ ClientControl = Annotated[
     | TurnCancel
     | SessionMute
     | SessionStop
-    | ClientPing,
+    | ClientPing
+    | SttFocus,
     Field(discriminator="type"),
 ]
 
