@@ -1,29 +1,26 @@
 ---
 type: guide
 title: Förstå och annotera underlag
-description: Läs dokumentets automatiska översikt och lägg till egna fakta, frågor, bokmärken och anteckningar direkt i PDF:en.
+description: Lägg till egna fakta, frågor, bokmärken och anteckningar direkt i dokumentet.
 tags: [grunddata]
 ---
 
 # Förstå och annotera underlag
 
-När du laddar upp ett underlag läses dokumentet i bakgrunden. Word-filer konverteras först till PDF. Systemet skapar en neutral dokumentöversikt med fakta och frågor och svar som hjälper dig att förstå innehållet. Korten lyfter ett fåtal praktiska nyckeluppgifter, till exempel parter, pris, löptid och uppsägning. De återger inte varje klausul. Hela dokumenttexten är fortfarande sökbar. Översikten beskriver vad som står i dokumentet; den letar inte efter problem, risker eller råd.
+När du laddar upp ett underlag läses originaltexten i bakgrunden. Word visas som Word och PDF som PDF. När texten är indexerad kan du öppna filen, söka i den och låta experterna använda den. Systemet skapar inte en automatisk översikt med fakta- eller frågekort.
 
-## Läs dokumentkunskapen
+## Läs och markera
 
 1. Öppna **Välj underlag** från till exempel Expertgranskning eller **Föreslå experter**.
-2. Välj filen. PDF:en visas tillsammans med **Dokumentkunskap**.
-3. Medan filen bearbetas står det att dokumentkunskapen byggs i bakgrunden. Du kan lämna vyn och komma tillbaka senare.
-4. Klicka på ett fakta- eller frågekort. PDF:en rullar till källavsnittet och visar alla kopplade textmarkeringar med gul bakgrund. Källavsnittet ska täcka hela uppgiften, inklusive relevanta villkor.
-5. **AI-genererad** eller **Manuell** visar hur posten skapades. Du kan redigera och ta bort båda typerna.
+2. Välj filen. Dokumentet visas tillsammans med **Dokumentkunskap**.
+3. Medan filen läses och indexeras kan du lämna vyn och komma tillbaka senare.
+4. När texten är klar kan du klicka på dina egna poster. Dokumentet rullar till källavsnittet och visar textmarkeringarna.
 
-En PDF utan läsbart textlager markeras med **Textlager saknas**. OCR ingår inte i det här steget, så sådana dokument får ingen automatisk dokumentkunskap ännu.
-
-Om bara en del av den automatiska fråge- och svarsgenereringen misslyckas visas en gul informationstext. Dokumenttexten och den dokumentkunskap som hann skapas finns fortfarande kvar och kan användas.
+En PDF utan läsbart textlager markeras med **Textlager saknas**. OCR ingår inte i det här steget.
 
 ## Lägg till egen kunskap
 
-1. Markera text på en sida i PDF:en.
+1. Markera text i dokumentet.
 2. Välj typ:
    - **Fakta** för en kort uppgift som är naturlig att läsa som rubrik och innehåll.
    - **Fråga och svar** när en återanvändbar fråga är det tydligaste sättet att hitta uppgiften.
@@ -31,9 +28,9 @@ Om bara en del av den automatiska fråge- och svarsgenereringen misslyckas visas
    - **Anteckning** för din egen kommentar till den markerade texten.
 3. Skriv rubrik och det innehåll som typen kräver och välj **Spara**.
 
-Fakta och frågor och svar görs sökbara för research inom just det dokumentets sammanhang. Bokmärken och anteckningar ligger kvar för mänsklig läsning och används inte som research-evidens.
+Dina markeringar, kommentarer, bokmärken och anteckningar ligger kvar för dig. Experterna söker i originaltexten, inte i korten. Om du ställer en fråga om dokumentet kan svaret sparas som dokument-Q&A när du faktiskt frågar — inte vid uppladdningen.
 
-Om dokumentet läses in på nytt markeras manuella poster för kontroll i stället för att skrivas över. Tidigare versioner sparas i historiken.
+Om dokumentet läses in på nytt skrivs inte dina manuella poster över. Tidigare versioner sparas i historiken.
 
 ## Relaterade guider
 
