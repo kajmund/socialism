@@ -10,7 +10,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, EvidenceSet, EvidenceSetItem, ExecutionAttempt, ExecutionRun, StoredObject
 from app.database.workspace_models import VoiceWorkspace, WorkspaceReference, WorkspaceResearch, WorkspaceSource
 from app.services.workspace.mark_author import marked_author
-from app.services.workspace.service import fingerprint, new_id, require_reference, require_source
+from app.services.workspace.service import fingerprint, new_id, require_artifact, require_reference, require_source
 from app.services.workspace.research_links import sync_research_links
 from app.services.overgraph.research import knowledge_catalog, load_text_units
 from app.services.research.workspace_grounding import passages_allowed
@@ -94,6 +94,11 @@ async def read_reference(session: AsyncSession, workspace: VoiceWorkspace, refer
         stale = item.content_hash != ref.source_version
     elif ref.kind == "graph":
         stale = await _graph_reference_stale(session, workspace, ref)
+    elif ref.kind in ("document", "relations"):
+        artifact = await require_artifact(session, workspace, ref.source_id)
+        if artifact.kind != ref.kind:
+            raise HTTPException(status_code=404, detail="workspace_reference_not_found")
+        stale = str(artifact.revision) != ref.source_version
     else:
         raise HTTPException(status_code=404, detail="workspace_reference_not_found")
     return reference_out(ref, stale=stale)

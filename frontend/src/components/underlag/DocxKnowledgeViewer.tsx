@@ -86,7 +86,7 @@ export function DocxKnowledgeViewer({
     if (!host || !body || pageNumber == null) return
     const page = docxPages(body)[pageNumber - 1]
     if (page) host.scrollTo({ top: page.offsetTop, behavior: "auto" })
-  }, [blob, pageNumber])
+  }, [blob, pageNumber, rendered])
 
   return (
     <div
