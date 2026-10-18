@@ -28,6 +28,16 @@ describe("canUseUnderlag", () => {
     expect(canUseUnderlag(sampleFile({ extraction_status: "unsupported" }))).toBe(false)
   })
 
+  it("accepts pending Word files", () => {
+    expect(
+      canUseUnderlag(sampleFile({
+        filename: "avtal.docx",
+        content_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        extraction_status: "pending",
+      })),
+    ).toBe(true)
+  })
+
   it("accepts pending and ok PDFs without extracted text", () => {
     expect(canUseUnderlag(sampleFile({ extraction_status: "pending" }))).toBe(true)
     expect(

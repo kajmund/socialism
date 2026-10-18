@@ -1,0 +1,601 @@
+{
+  "id": "phase2-leftover-diagnosis-v1",
+  "label": "Frozen: diagnostic distribution of the 34 leftover genuine YES after anaphor-list. No new Jev. Does not start the next ability. 19/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "no_new_jev": true,
+  "does_not_start_next_ability": true,
+  "quality_reference_frozen": true,
+  "same_mapping": "gold-map-v2",
+  "headline": {
+    "quality_reference": {
+      "true_support": 19,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 34,
+      "source": "phase2-anaphor-list-v1"
+    },
+    "summary": {
+      "leftover": 34,
+      "examined": 20,
+      "unexamined": 14,
+      "documents_per_class": {
+        "paraphrase": 10,
+        "amendment": 2,
+        "document_ranking": 5,
+        "defined_term": 2,
+        "other_unresolved_link": 21
+      },
+      "class_documents": {
+        "paraphrase": [
+          "avtal_120.docx",
+          "avtal_134.docx",
+          "avtal_137.docx",
+          "avtal_157.docx",
+          "avtal_163.docx",
+          "avtal_172.docx",
+          "avtal_184.docx",
+          "avtal_190.docx",
+          "avtal_193.docx",
+          "avtal_194.docx"
+        ],
+        "amendment": [
+          "avtal_158.docx",
+          "avtal_181.docx"
+        ],
+        "document_ranking": [
+          "avtal_111.docx",
+          "avtal_158.docx",
+          "avtal_160.docx",
+          "avtal_180.docx",
+          "avtal_181.docx"
+        ],
+        "defined_term": [
+          "avtal_105.docx",
+          "avtal_129.docx"
+        ],
+        "other_unresolved_link": [
+          "avtal_105.docx",
+          "avtal_111.docx",
+          "avtal_114.docx",
+          "avtal_118.docx",
+          "avtal_120.docx",
+          "avtal_121.docx",
+          "avtal_125.docx",
+          "avtal_127.docx",
+          "avtal_130.docx",
+          "avtal_137.docx",
+          "avtal_141.docx",
+          "avtal_153.docx",
+          "avtal_155.docx",
+          "avtal_160.docx",
+          "avtal_161.docx",
+          "avtal_169.docx",
+          "avtal_179.docx",
+          "avtal_180.docx",
+          "avtal_192.docx",
+          "avtal_194.docx",
+          "avtal_196.docx"
+        ]
+      },
+      "blocking_ability_counts": {
+        "heading_reference": 1,
+        "coverage": 14,
+        "citation_label": 7,
+        "defined_terms": 1,
+        "exception_paraphrase": 7,
+        "clause_numbering": 3,
+        "document_ranking": 1
+      },
+      "decidable_by_one_examined": {
+        "heading_reference": 1,
+        "citation_label": 5,
+        "defined_terms": 1,
+        "exception_paraphrase": 7,
+        "clause_numbering": 2,
+        "document_ranking": 1
+      },
+      "decidable_by_one_examined_documents": [
+        "avtal_105.docx",
+        "avtal_118.docx",
+        "avtal_125.docx",
+        "avtal_129.docx",
+        "avtal_134.docx",
+        "avtal_141.docx",
+        "avtal_153.docx",
+        "avtal_157.docx",
+        "avtal_161.docx",
+        "avtal_163.docx",
+        "avtal_172.docx",
+        "avtal_179.docx",
+        "avtal_180.docx",
+        "avtal_184.docx",
+        "avtal_190.docx",
+        "avtal_192.docx",
+        "avtal_193.docx"
+      ],
+      "ranked_unlock_if_one_ability": [
+        {
+          "ability": "exception_paraphrase",
+          "count": 7,
+          "documents": [
+            "avtal_134.docx",
+            "avtal_157.docx",
+            "avtal_163.docx",
+            "avtal_172.docx",
+            "avtal_184.docx",
+            "avtal_190.docx",
+            "avtal_193.docx"
+          ]
+        },
+        {
+          "ability": "citation_label",
+          "count": 5,
+          "documents": [
+            "avtal_118.docx",
+            "avtal_125.docx",
+            "avtal_141.docx",
+            "avtal_153.docx",
+            "avtal_179.docx"
+          ]
+        },
+        {
+          "ability": "clause_numbering",
+          "count": 2,
+          "documents": [
+            "avtal_161.docx",
+            "avtal_192.docx"
+          ]
+        },
+        {
+          "ability": "heading_reference",
+          "count": 1,
+          "documents": [
+            "avtal_105.docx"
+          ]
+        },
+        {
+          "ability": "defined_terms",
+          "count": 1,
+          "documents": [
+            "avtal_129.docx"
+          ]
+        },
+        {
+          "ability": "document_ranking",
+          "count": 1,
+          "documents": [
+            "avtal_180.docx"
+          ]
+        }
+      ],
+      "unlocks_if_examined_with_current_abilities": [
+        "avtal_135.docx",
+        "avtal_159.docx",
+        "avtal_168.docx"
+      ],
+      "quality_reference": {
+        "true_support": 19,
+        "expected_yes": 53,
+        "false_approvals": 0,
+        "leftover_genuine": 34,
+        "source": "phase2-anaphor-list-v1"
+      },
+      "same_document_may_have_several_classes": true,
+      "does_not_choose_next_ability": true
+    },
+    "rows": {
+      "avtal_105.docx": {
+        "examined": true,
+        "classes": [
+          "defined_term",
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "heading_reference",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Hop already fetched Skydd för information; heading/defined term not linked",
+        "observed_why": "unresolved_citation"
+      },
+      "avtal_111.docx": {
+        "examined": false,
+        "classes": [
+          "other_unresolved_link",
+          "document_ranking"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "citation_label",
+          "document_ranking"
+        ],
+        "decidable_by_one": false,
+        "note": "Huvudavtal ranking plus citation; never examined",
+        "observed_why": null
+      },
+      "avtal_114.docx": {
+        "examined": false,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "citation_label"
+        ],
+        "decidable_by_one": false,
+        "note": "Avsnitt citation; never examined",
+        "observed_why": null
+      },
+      "avtal_118.docx": {
+        "examined": true,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "citation_label",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Artikel 4 is Tystnadsplikt; label not parsed",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_120.docx": {
+        "examined": true,
+        "classes": [
+          "paraphrase",
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "citation_label",
+        "also_needs": [
+          "exception_paraphrase"
+        ],
+        "decidable_by_one": false,
+        "note": "Higher cap for artikel 7; needs label and paraphrase",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_121.docx": {
+        "examined": false,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "citation_label"
+        ],
+        "decidable_by_one": false,
+        "note": "List plus klausul 7; never examined",
+        "observed_why": null
+      },
+      "avtal_125.docx": {
+        "examined": true,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "citation_label",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Roman VIII.2 / avsnitt VI",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_127.docx": {
+        "examined": false,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "citation_label"
+        ],
+        "decidable_by_one": false,
+        "note": "List plus punkt 5; never examined",
+        "observed_why": null
+      },
+      "avtal_129.docx": {
+        "examined": true,
+        "classes": [
+          "defined_term"
+        ],
+        "blocking_ability": "defined_terms",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Gäller inte Skyddad Information in-unit",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_130.docx": {
+        "examined": false,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "citation_label"
+        ],
+        "decidable_by_one": false,
+        "note": "Punkt citation; never examined",
+        "observed_why": null
+      },
+      "avtal_134.docx": {
+        "examined": true,
+        "classes": [
+          "paraphrase"
+        ],
+        "blocking_ability": "exception_paraphrase",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Omfattar inte sekretessåtagandet",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_135.docx": {
+        "examined": false,
+        "classes": [],
+        "blocking_ability": "coverage",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Detsamma plus tystnadsplikt; current anaphor would admit if found",
+        "observed_why": null
+      },
+      "avtal_137.docx": {
+        "examined": true,
+        "classes": [
+          "paraphrase",
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "clause_numbering",
+        "also_needs": [
+          "exception_paraphrase"
+        ],
+        "decidable_by_one": false,
+        "note": "§ 5 is in the title; also higher-cap paraphrase",
+        "observed_why": "unresolved_citation"
+      },
+      "avtal_141.docx": {
+        "examined": true,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "citation_label",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Klausul 6 is Sekretess",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_153.docx": {
+        "examined": true,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "citation_label",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Klausul 5 uniquely titles Hantering av konfidentiell information",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_155.docx": {
+        "examined": false,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "citation_label"
+        ],
+        "decidable_by_one": false,
+        "note": "Anaphor plus artikel 7; never examined",
+        "observed_why": null
+      },
+      "avtal_157.docx": {
+        "examined": true,
+        "classes": [
+          "paraphrase"
+        ],
+        "blocking_ability": "exception_paraphrase",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Avsnitt 9 resolved to Sekretess; source is higher cap",
+        "observed_why": "cited_clause_does_not_support_relation"
+      },
+      "avtal_158.docx": {
+        "examined": false,
+        "classes": [
+          "amendment",
+          "document_ranking"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "amendment",
+          "document_ranking"
+        ],
+        "decidable_by_one": false,
+        "note": "Med ändring av Bilaga 2; never examined",
+        "observed_why": null
+      },
+      "avtal_159.docx": {
+        "examined": false,
+        "classes": [],
+        "blocking_ability": "coverage",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Gäller inte konfidentiell information; existing_link if found",
+        "observed_why": null
+      },
+      "avtal_160.docx": {
+        "examined": false,
+        "classes": [
+          "other_unresolved_link",
+          "document_ranking"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "clause_numbering",
+          "document_ranking"
+        ],
+        "decidable_by_one": false,
+        "note": "Marked Alternativ A plus § citation; never examined",
+        "observed_why": null
+      },
+      "avtal_161.docx": {
+        "examined": true,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "clause_numbering",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Detsamma plus § 3 Sekretess; empty clause_number",
+        "observed_why": "unresolved_citation"
+      },
+      "avtal_163.docx": {
+        "examined": true,
+        "classes": [
+          "paraphrase"
+        ],
+        "blocking_ability": "exception_paraphrase",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Omfattar inte sekretessåtagandet",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_168.docx": {
+        "examined": false,
+        "classes": [],
+        "blocking_ability": "coverage",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Detsamma plus tystnadsplikt; current anaphor would admit if found",
+        "observed_why": null
+      },
+      "avtal_169.docx": {
+        "examined": false,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "citation_label"
+        ],
+        "decidable_by_one": false,
+        "note": "Artikel citation; never examined",
+        "observed_why": null
+      },
+      "avtal_172.docx": {
+        "examined": true,
+        "classes": [
+          "paraphrase"
+        ],
+        "blocking_ability": "exception_paraphrase",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Omfattar inte sekretessåtagandet",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_179.docx": {
+        "examined": true,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "citation_label",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Klausul 7 is Hantering av konfidentiell information",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_180.docx": {
+        "examined": true,
+        "classes": [
+          "document_ranking",
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "document_ranking",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Two punkt 1: Avtalsföremål versus Tystnadsplikt",
+        "observed_why": "ambiguous_citation"
+      },
+      "avtal_181.docx": {
+        "examined": false,
+        "classes": [
+          "amendment",
+          "document_ranking"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "amendment",
+          "document_ranking"
+        ],
+        "decidable_by_one": false,
+        "note": "Med ändring av Bilaga 2; never examined",
+        "observed_why": null
+      },
+      "avtal_184.docx": {
+        "examined": true,
+        "classes": [
+          "paraphrase"
+        ],
+        "blocking_ability": "exception_paraphrase",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Omfattar inte sekretessåtagandet",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_190.docx": {
+        "examined": true,
+        "classes": [
+          "paraphrase"
+        ],
+        "blocking_ability": "exception_paraphrase",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Omfattar inte sekretessåtagandet",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_192.docx": {
+        "examined": true,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "clause_numbering",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "§ 3 is in the title; empty clause_number",
+        "observed_why": "unresolved_citation"
+      },
+      "avtal_193.docx": {
+        "examined": true,
+        "classes": [
+          "paraphrase"
+        ],
+        "blocking_ability": "exception_paraphrase",
+        "also_needs": [],
+        "decidable_by_one": true,
+        "note": "Double-negation paraphrase plus tystnadsplikt in-unit",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_194.docx": {
+        "examined": true,
+        "classes": [
+          "paraphrase",
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "citation_label",
+        "also_needs": [
+          "exception_paraphrase"
+        ],
+        "decidable_by_one": false,
+        "note": "Higher cap plus artikel 5; needs label and paraphrase",
+        "observed_why": "hop_is_not_admission"
+      },
+      "avtal_196.docx": {
+        "examined": false,
+        "classes": [
+          "other_unresolved_link"
+        ],
+        "blocking_ability": "coverage",
+        "also_needs": [
+          "clause_numbering"
+        ],
+        "decidable_by_one": false,
+        "note": "§ citation; never examined",
+        "observed_why": null
+      }
+    }
+  }
+}

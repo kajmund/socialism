@@ -12,9 +12,11 @@ from overgraph_ingest.coverage.controller import (
     _record,
 )
 from overgraph_ingest.coverage.proof import COMPOSITE, V2_BEST_JEV_YES, required_parts
+from overgraph_ingest.coverage.proof_relation import PROOF_CURRENT
 from overgraph_ingest.coverage.state import (
     BUDGET_EXHAUSTED,
     EVIDENCE_FOUND,
+    UNDECIDED,
     VERIFIED_ABSENT,
     DocumentState,
     is_open,
@@ -47,6 +49,8 @@ def run_budget_controller(
     concurrency: int,
     global_k: int,
     budget: int | None,
+    proof_rule: str = PROOF_CURRENT,
+    proof_gate: bool = False,
 ) -> ControllerResult:
     units_by_path: dict[str, list[StoredUnit]] = {}
     for unit in context.units:
@@ -88,7 +92,7 @@ def run_budget_controller(
     cache_hits += cached_n
     jev_calls += live_n
     action_counts["global"] = len(first)
-    _refresh(documents, gold.proof_kind, budget)
+    _refresh(documents, gold.proof_kind, budget, proof_rule=proof_rule, proof_gate=proof_gate)
     _record(timeline, documents, gold, judgments, phase="global")
 
     rounds = budget if budget is not None else 32
@@ -128,7 +132,7 @@ def run_budget_controller(
         judgments.extend(batch)
         cache_hits += cached_n
         jev_calls += live_n
-        _refresh(documents, gold.proof_kind, budget)
+        _refresh(documents, gold.proof_kind, budget, proof_rule=proof_rule, proof_gate=proof_gate)
         _record(timeline, documents, gold, judgments, phase=f"pass_{pass_index}")
 
     return ControllerResult(
@@ -269,9 +273,22 @@ def _under_budget(doc: DocumentState, budget: int | None) -> bool:
     return budget is None or doc.classified_count() < budget
 
 
-def _refresh(documents: dict[str, DocumentState], proof_kind: str, budget: int | None) -> None:
+def _refresh(
+    documents: dict[str, DocumentState],
+    proof_kind: str,
+    budget: int | None,
+    *,
+    proof_rule: str = PROOF_CURRENT,
+    proof_gate: bool = False,
+) -> None:
     for doc in documents.values():
-        doc.status = resolve_status(doc, proof_kind=proof_kind, budget=budget)
+        doc.status = resolve_status(
+            doc,
+            proof_kind=proof_kind,
+            budget=budget,
+            proof_rule=proof_rule,
+            proof_gate=proof_gate,
+        )
 
 
 def budget_metrics(result: ControllerResult, gold: RetrievalGold, *, budget: int | None) -> dict[str, object]:
@@ -338,6 +355,46 @@ def budget_metrics(result: ControllerResult, gold: RetrievalGold, *, budget: int
         "timeline": result.timeline,
         "would_be_jev_calls_if_uncached": result.jev_calls + result.cache_hits,
         "action_counts": result.action_counts,
+        "evidence_found_nonrelevant": [
+            path
+            for path, doc in result.documents.items()
+            if path not in relevant and doc.status == EVIDENCE_FOUND
+        ],
+        "gate_undecided": [
+            path for path, doc in result.documents.items() if doc.status == UNDECIDED
+        ],
+        "gate_blocked": _gate_blocked(result.documents, relevant),
+    }
+
+
+def _gate_blocked(
+    documents: dict[str, DocumentState],
+    relevant: set[str],
+) -> dict[str, object]:
+    rows = []
+    for path, doc in documents.items():
+        if not doc.gate_block:
+            continue
+        rows.append(
+            {
+                "relative_path": path,
+                "relevant": path in relevant,
+                "reason": doc.gate_block.get("reason"),
+                "status": doc.status,
+                "would_have_completed": True,
+            }
+        )
+    return {
+        "documents": rows,
+        "blocked_false_complete": [
+            row["relative_path"] for row in rows if not row["relevant"]
+        ],
+        "blocked_true_positive": [
+            row["relative_path"]
+            for row in rows
+            if row["relevant"] and row["status"] != EVIDENCE_FOUND
+        ],
+        "undecided_count": sum(1 for row in rows if row["status"] == UNDECIDED),
     }
 
 

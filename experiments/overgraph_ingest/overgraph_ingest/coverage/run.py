@@ -168,9 +168,18 @@ def _ranked_hits(
     )
 
 
-def _golds(gold_path: Path | None, gold_dir: Path | None) -> list[RetrievalGold]:
+def _golds(
+    gold_path: Path | None,
+    gold_dir: Path | None,
+    *,
+    include_held_out: bool = False,
+) -> list[RetrievalGold]:
     if gold_dir is not None:
-        return load_gold_suite(gold_dir)
-    if gold_path is None:
+        golds = load_gold_suite(gold_dir)
+    elif gold_path is None:
         raise ValueError("--retrieve-gold or --gold-dir is required for coverage")
-    return [load_retrieval_gold(gold_path)]
+    else:
+        golds = [load_retrieval_gold(gold_path)]
+    if include_held_out:
+        return golds
+    return [gold for gold in golds if gold.split == "seen"]

@@ -461,7 +461,7 @@ async def execute_expert_turn(  # noqa: C901, PLR0912, PLR0913
     workspace_state: WorkspaceState | None = None,
     on_client_tools: Callable[[list[dict[str, Any]]], Awaitable[None]] | None = None,
     extra_system_prompt_key: str | None = None,
-    assistant_reply_transform: Callable[[str], str] | None = None,
+    assistant_reply_transform: Callable[[str], str] | None = None, group_history: list[tuple[str, str, str | None, str | None]] | None = None, group_note: str | None = None,
 ) -> PersonaChatResponse:
     heartbeat = ExpertTurnHeartbeat(session_factory, request_id, token=token, fence=fence).start()
     try:
@@ -490,7 +490,7 @@ async def execute_expert_turn(  # noqa: C901, PLR0912, PLR0913
                 persist_guard=persist_guard, workspace_id=workspace_id,
                 workspace_state=workspace_state, on_client_tools=on_client_tools,
                 extra_system_prompt_key=extra_system_prompt_key,
-                assistant_reply_transform=assistant_reply_transform,
+                assistant_reply_transform=assistant_reply_transform, group_history=group_history, group_note=group_note,
             )
             try:
                 async for item in stream:

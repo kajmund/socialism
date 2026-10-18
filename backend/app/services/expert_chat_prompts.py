@@ -168,6 +168,69 @@ def expert_chat_prompt_fields() -> list[dict]:
             ),
         ),
         _field(
+            key="chat.expert.quick_draft",
+            label_sv="Expertchatt — kort kvittering i chatten",
+            label_en="Expert chat — short chat acknowledgment",
+            hint_sv="Kort rad som visas medan det fullständiga svaret skrivs.",
+            hint_en="Short line shown while the full reply is being written.",
+            default_sv=(
+                "Det här är en kort kvittensrad, inte ett svar. Medan ditt "
+                "fullständiga svar arbetas fram i bakgrunden visas den här raden för "
+                "användaren. Din enda uppgift är att skriva en eller två korta, "
+                "naturliga meningar i första person som visar att du har förstått "
+                "frågan och är på väg — till exempel \"ok, jag kollar på det\", "
+                "\"jag läser dokumentet, ett ögonblick\" eller \"hyresavtalen alltså — "
+                "vänta, jag kollar\". Nämn gärna ämnet i frågan med egna ord. Det är "
+                "allt. Du får inte börja svara på frågan, inte ens delvis: ingen "
+                "analys, inga siffror, inga slutsatser och inga fakta utöver det du "
+                "redan sagt. Ingen hälsning som \"hej\", ingen fråga till användaren "
+                "som \"vad vill du ha hjälp med\" och ingen upprepning av frågan. Säg aldrig att du"
+                "inte kan hjälpa, svara eller visa ett dokument — det avgör inte den här raden."
+            ),
+            default_en=(
+                "This is a short acknowledgment line, not an answer. While your full "
+                "reply is being prepared in the background, this line is shown to the "
+                "user. Your only job is to write one or two short, natural first-person "
+                "sentences that show you understood the question and are on it — for "
+                "example \"ok, I'm looking into it\", \"let me read the document, one "
+                "moment\", or \"the lease terms then — hold on, I'm checking\". Feel free "
+                "to name the subject of the question in your own words. That is all. "
+                "You must not start answering the question, not even partially: no "
+                "analysis, no figures, no conclusions, and no facts beyond what you "
+                "have already said. No greeting like \"hi\", no question to the user "
+                "like \"what do you need help with\", and no restating the question. Never say you"
+                "cannot help, answer, or show a document — this line does not decide that."
+            ),
+        ),
+        _field(
+            key="chat.expert.quick_progress",
+            label_sv="Expertchatt — framstegsrad i chatten",
+            label_en="Expert chat — progress line in chat",
+            hint_sv="Kort rad när det fullständiga svaret dröjer.",
+            hint_en="Short line when the full reply is late.",
+            default_sv=(
+                "Det fullständiga svaret dröjer fortfarande. Skriv EN kort mening i "
+                "första person som visar att du fortfarande arbetar med uppgiften. "
+                "Nämn konkret vad du håller på med utifrån användarens fråga, till "
+                "exempel \"jag arbetar fortfarande med att kommentera avtalet, snart "
+                "klar\" eller \"jag jämför uppgifterna i dokumenten, ett ögonblick "
+                "till\". Börja gärna meningen med \"…\". Svara inte på frågan: inga "
+                "siffror, inga slutsatser, ingen hälsning och inga frågor till "
+                "användaren. Säg aldrig att du inte kan hjälpa, svara eller"
+                "visa ett dokument — det avgör inte den här raden."
+            ),
+            default_en=(
+                "The full reply is still late. Write ONE short first-person sentence "
+                "showing that you are still working on the task. Name concretely what "
+                "you are doing based on the user's question, for example \"I'm still "
+                "working on commenting the contract, almost done\" or \"I'm comparing "
+                "the figures in the documents, one more moment\". Feel free to start "
+                "the sentence with \"…\". Do not answer the question: no figures, no "
+                "conclusions, no greeting, and no questions to the user. Never say you cannot help,"
+                "answer, or show a document — this line does not decide that."
+            ),
+        ),
+        _field(
             key="chat.expert.evidence_tool",
             label_sv="Expertchatt — slå upp tidigare research",
             label_en="Expert chat — look up previous research",
@@ -215,8 +278,8 @@ def expert_chat_prompt_fields() -> list[dict]:
                 "inte confidence för resultatet. Om frågan kräver uppslag i dokument, "
                 "kunskap, bolag eller andra livekällor måste du anropa minst ett verktyg "
                 "i samma tur. Välj det högst rankade eller ett lägre rankat som faktiskt "
-                "hämtar det som saknas. Hoppa över verktyg bara vid hälsning, bekräftelse "
-                "eller något som redan står i den här turens synliga kontext."
+                "hämtar det som saknas. Hoppa över verktyg vid hälsning, småprat, tack, "
+                "bekräftelse eller avslut. Dokumenttext och sparade markeringar finns inte i turen."
             ),
             default_en=(
                 "jev_relevance says how strongly the tool's purpose semantically matches "
@@ -224,9 +287,9 @@ def expert_chat_prompt_fields() -> list[dict]:
                 "and not confidence in the result. If the question needs a lookup in "
                 "documents, knowledge, companies, or other live sources, you must call at "
                 "least one tool in the same turn. Choose the highest ranked tool or a "
-                "lower ranked one that actually fetches what is missing. Skip tools only "
-                "for a greeting, an acknowledgement, or something already in this turn's "
-                "visible context."
+                "lower ranked one that actually fetches what is missing. Skip tools for "
+                "a greeting, small talk, thanks, an acknowledgement or a closing. "
+                "Document text and saved marks are not in the turn."
             ),
         ),
         _field(
@@ -258,17 +321,20 @@ def expert_chat_prompt_fields() -> list[dict]:
             hint_en="First spoken line when the voice session starts.",
             default_sv=(
                 "Du öppnar röstsamtalet. Svara med JSON {\"phrase\":\"...\",\"silence\":false} "
-                "eller silence. En eller två korta talade meningar som tar upp tråden från "
-                "senaste chatten. Var konkret om det ni just pratade om. Hitta inte på nya "
-                "fakta. Ingen sammanfattning, ingen verktygsplan och inte hur kan jag hjälpa. "
-                "Om historiken saknas, hälsa kort som experten."
+                "eller silence. Finns det historik: en eller två korta talade meningar som tar "
+                "upp tråden från senaste chatten. Var konkret om det ni just pratade om. "
+                "Hitta inte på nya fakta. Ingen sammanfattning, ingen verktygsplan och ingen "
+                "fråga som vad kan jag hjälpa dig med. Om historiken saknas: svara med "
+                "silence. Hälsa inte och ställ ingen fråga — användaren inleder."
             ),
             default_en=(
                 "You are opening the voice session. Reply with JSON "
-                "{\"phrase\":\"...\",\"silence\":false} or silence. One or two short spoken "
-                "sentences that pick up the latest chat. Be concrete about what you just "
-                "discussed. Do not invent facts. No summary, no tool plan, and no how can I "
-                "help. If there is no history, greet briefly as the expert."
+                "{\"phrase\":\"...\",\"silence\":false} or silence. If there is history: one "
+                "or two short spoken sentences that pick up the latest chat. Be concrete "
+                "about what you just discussed. Do not invent facts. No summary, no tool "
+                "plan, and no question like what can I help you with. If there is no "
+                "history: reply with silence. Do not greet and do not ask a question — the "
+                "user begins."
             ),
         ),
         _field(
@@ -280,13 +346,13 @@ def expert_chat_prompt_fields() -> list[dict]:
             default_sv=(
                 "Du lyssnar på användaren. Svara med JSON {\"phrase\":\"...\",\"silence\":false} "
                 "eller {\"phrase\":\"\",\"silence\":true}. phrase är en till tre ord, en "
-                "lyssnarsignal som mm, okej eller intressant. Hitta på en naturlig variant. "
+                "lyssnarsignal. Byt formulering varje gång — undvik att fastna i mm eller mmm. "
                 "Svara inte på innehållet, ställ ingen fråga och upprepa inte en redan sagd fras."
             ),
             default_en=(
                 "You are listening to the user. Reply with JSON {\"phrase\":\"...\",\"silence\":false} "
                 "or {\"phrase\":\"\",\"silence\":true}. phrase is one to three words, a listener "
-                "cue such as mm, okay, or interesting. Invent a natural variant. Do not answer "
+                "cue. Vary the wording each time — do not default to mm or mmm. Do not answer "
                 "the content, ask a question, or repeat a phrase already spoken."
             ),
         ),
@@ -300,15 +366,17 @@ def expert_chat_prompt_fields() -> list[dict]:
                 "Huvudsvaret är inte klart. Svara med JSON {\"phrase\":\"...\",\"silence\":false} "
                 "eller silence. Formulera en eller två naturliga meningar om det läge du får: "
                 "att svaret dröjer, att ett namngivet verktyg fortfarande kör, eller att ett "
-                "delsvar kommit och mer återstår. Hitta inte på källor, siffror eller att "
-                "arbetet är klart. Upprepa inte redan sagd text. Inga frågor."
+                "delsvar kommit och mer återstår. Byt formulering varje gång. Använd inte "
+                "lyssnarsignaler som mm eller mmm. Hitta inte på källor, siffror eller att "
+                "arbetet är klart. Upprepa inte text under already spoken. Inga frågor."
             ),
             default_en=(
                 "The main reply is not ready. Reply with JSON {\"phrase\":\"...\",\"silence\":false} "
                 "or silence. Write one or two natural sentences about the state you are given: "
                 "the reply is late, a named tool is still running, or a partial result arrived "
-                "and more remains. Do not invent sources, figures, or that the work is done. "
-                "Do not repeat text already spoken. No questions."
+                "and more remains. Vary the wording each time. Do not use listener cues like mm "
+                "or mmm. Do not invent sources, figures, or that the work is done. Do not "
+                "repeat text under already spoken. No questions."
             ),
         ),
         _field(
@@ -328,6 +396,30 @@ def expert_chat_prompt_fields() -> list[dict]:
                 "{\"classification\":\"backchannel|interruption|new_question|uncertain\"}. "
                 "backchannel is a short listener cue. interruption is stop, no, wait, a "
                 "correction, or yes but. new_question is a new question. Do not guess content."
+            ),
+        ),
+        _field(
+            key="chat.expert.live_speech_transcription",
+            label_sv="Expertchatt — transkription i Live Speech",
+            label_en="Expert chat — Live Speech transcription",
+            hint_sv="Kort beskrivning av samtalet som skickas till taligenkänningen.",
+            hint_en="Short description of the conversation sent to speech recognition.",
+            default_sv="Ett svenskt samtal om juridik, avtal och dokumentanalys.",
+            default_en="A conversation about law, contracts, and document analysis.",
+        ),
+        _field(
+            key="chat.expert.live_speech_transcription_keywords",
+            label_sv="Expertchatt — nyckelord i Live Speech",
+            label_en="Expert chat — Live Speech keywords",
+            hint_sv="Ett begrepp per rad. Öppna dokument lägger till egna termer under samtalet.",
+            hint_en="One term per line. Open documents add their own terms during the call.",
+            default_sv=(
+                "avtalslagen\nuppsägningstid\nansvarsbegränsning\nservitut\n"
+                "samfällighet\nfastighetsbildning"
+            ),
+            default_en=(
+                "avtalslagen\nuppsägningstid\nansvarsbegränsning\nservitut\n"
+                "samfällighet\nfastighetsbildning"
             ),
         ),
     ]
@@ -360,7 +452,7 @@ def _tool_relevance(language: str) -> str:
 
 def _reasoning_assessment_questions(language: str) -> str:
     if language == "sv":
-        criteria = {
+        questions = {
             "simple_operation": (
                 "Är uppgiften en direkt hälsning, faktakoll, tydlig dokumentnavigation "
                 "eller uppenbar verktygsoperation som inte kräver egentlig analys?"
@@ -380,7 +472,7 @@ def _reasoning_assessment_questions(language: str) -> str:
             ),
         }
     else:
-        criteria = {
+        questions = {
             "simple_operation": (
                 "Is this a direct greeting, fact lookup, clear document navigation, or "
                 "obvious tool operation that requires no real analysis?"
@@ -401,15 +493,8 @@ def _reasoning_assessment_questions(language: str) -> str:
         }
     return json.dumps(
         {
-            key: {
-                "type": "noul",
-                "instructions": instruction,
-                "criteria": {
-                    "true": "Uppgiften matchar kriteriet." if language == "sv" else "The task matches the criterion.",
-                    "false": "Uppgiften matchar inte kriteriet." if language == "sv" else "The task does not match the criterion.",
-                },
-            }
-            for key, instruction in criteria.items()
+            key: {"type": "noul", "instructions": instruction}
+            for key, instruction in questions.items()
         },
         ensure_ascii=False,
     )

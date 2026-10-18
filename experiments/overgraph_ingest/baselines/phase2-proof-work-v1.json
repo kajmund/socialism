@@ -1,0 +1,24 @@
+{
+  "id": "phase2-proof-work-v1",
+  "label": "Frozen: Rule B work on C@8 plus measured hops. Not a Coverage v3 run. Does not claim 100 saved.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_controller": true,
+  "proof_contract_applied_to_v3": false,
+  "does_not_claim_saved_classifications": true,
+  "later_coverage_run_with_same_budget": "not_run",
+  "evidence_layers": ["retrieval", "proof_evaluation", "navigation"],
+  "headline": {
+    "complete_from_first_candidate": 6,
+    "positives_expected": 7,
+    "necessary_hop_count": 1,
+    "necessary_hop_relation": "PREVIOUS",
+    "dismissive_hop_relation": "CLAUSE_4",
+    "unresolved_references": 2,
+    "false_complete_count": 0,
+    "rule_b_replay_classifications": 14,
+    "observed_v3_complete_at": 150,
+    "observed_v3_b5_classified": 482
+  }
+}

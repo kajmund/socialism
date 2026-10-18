@@ -1,0 +1,89 @@
+{
+  "id": "phase2-proof-requirements-v1",
+  "label": "Frozen: three regression requirements from observed blind traces. Not a proof engine. Not applied to v3.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_proof_engine": true,
+  "applied_to_v3": false,
+  "headline": {
+    "answer_contract": "prevailing_terms",
+    "accounting": {
+      "gold_yes": 39,
+      "gold_no": 2,
+      "gold_uncertain": 3,
+      "total_evidence_found": 44,
+      "gold_yes_is_not_verified_proof": true,
+      "uncertain_is_not_false_complete": true,
+      "uncertain_is_not_verified_proof": true,
+      "all_jev_yes_after_hop": true
+    },
+    "requirements_current_completion_satisfies": {
+      "amendment_of_cited_provision": false,
+      "missing_link_resolved_by_cited_material": false,
+      "existing_link_usable_without_hop": false
+    },
+    "rejected_fixes": [
+      "no_always_wins_over_yes",
+      "first_model_answer_wins",
+      "last_model_answer_wins",
+      "any_successful_hop_resolves_reference",
+      "join_nearby_units",
+      "force_uncertain_to_no"
+    ],
+    "unmapped_gold_quote": {
+      "relative_path": "avtal_160.docx",
+      "span": "Alternativ A ☒ Begränsningen i § 6 första stycket gäller inte vid brott mot § 5.",
+      "reason": "exact_contains_miss_extra_space_after_ballot",
+      "is_ranking_miss": false,
+      "document_is_in_graph": true
+    }
+  },
+  "requirements": {
+    "amendment_of_cited_provision": {
+      "documents": [
+        "avtal_119.docx",
+        "avtal_200.docx"
+      ],
+      "current_completion_satisfies": false,
+      "local_yes_may_be_reasonable": true,
+      "document_decision_is_wrong": true
+    },
+    "missing_link_resolved_by_cited_material": {
+      "documents": [
+        "avtal_103.docx"
+      ],
+      "hop_resolves_cited_material": false,
+      "current_completion_satisfies": false
+    },
+    "existing_link_usable_without_hop": {
+      "documents": [
+        "avtal_106.docx",
+        "avtal_113.docx",
+        "avtal_140.docx"
+      ],
+      "existing_link_in_yes_unit": true,
+      "hop_was_required_by_controller": true,
+      "current_completion_satisfies": false
+    }
+  },
+  "anaphor_hop_is_right_material_but_unchecked": {
+    "document_id": "avtal_107.docx",
+    "hop_text": "5.3\tBegränsningarna i denna punkt ska inte tillämpas om skadan har orsakats uppsåtligen eller genom grov vårdslöshet.\n",
+    "controller_checks_the_link": false
+  },
+  "uncertain_stays_unresolved": {
+    "documents": [
+      "avtal_138.docx",
+      "avtal_142.docx",
+      "avtal_173.docx"
+    ],
+    "must_not_force_no": true,
+    "must_not_count_as_verified": true
+  },
+  "evidence_found_must_answer": [
+    "which_text_supports_the_conclusion",
+    "how_the_parts_are_linked",
+    "whether_examined_text_amends_the_cited_provision"
+  ]
+}

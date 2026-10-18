@@ -102,9 +102,9 @@ from app.services.object_storage import (
     put_object,
 )
 from app.services.panel.catalog_schemas import ExpertSuggestIn
+from app.services.expert_memory_context import expert_memory_context
 from app.services.persona_chat import (
     ChatTurnError,
-    expert_memory_context,
     library_follow_up_questions,
     safe_library_follow_ups,
     schedule_expert_memory_update,

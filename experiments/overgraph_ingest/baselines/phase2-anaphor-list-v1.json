@@ -1,0 +1,117 @@
+{
+  "id": "phase2-anaphor-list-v1",
+  "label": "Frozen: anaphor and list anchoring on the clause-resolve contract. Does not concatenate units. Known cases are regression tests.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "same_mapping_for_both_variants": "gold-map-v2",
+  "known_cases_are_regression_tests": true,
+  "headline": {
+    "mapping": "gold-map-v2",
+    "does_not_concatenate_units": true,
+    "finding_antecedent_is_not_admission": true,
+    "approved_chain_does_not_upgrade_investigation": true,
+    "reference_counts": {
+      "admitted": 15,
+      "true_support": 15,
+      "false_approvals": 0,
+      "repaired_uncertain": 0,
+      "leftover_genuine": 38
+    },
+    "treatment_counts": {
+      "admitted": 19,
+      "true_support": 19,
+      "false_approvals": 0,
+      "repaired_uncertain": 0,
+      "leftover_genuine": 34
+    },
+    "delta": {
+      "true_support": 4,
+      "new_true_support": [
+        "avtal_107.docx",
+        "avtal_171.docx",
+        "avtal_175.docx",
+        "avtal_176.docx"
+      ],
+      "lost_true_support": [],
+      "false_approvals": 0,
+      "leftover_genuine": -4,
+      "extra_units_fetched": 0
+    },
+    "ability_curve": [
+      {
+        "experiment": "hop-always",
+        "true_support": 39,
+        "false_approvals": 2,
+        "repaired_uncertain": 3,
+        "note": "gold_document_outcomes_not_verified_proofs"
+      },
+      {
+        "experiment": "grounded-chain",
+        "true_support": 12,
+        "false_approvals": 0,
+        "repaired_uncertain": 0
+      },
+      {
+        "experiment": "clause-resolve",
+        "true_support": 15,
+        "false_approvals": 0,
+        "repaired_uncertain": 0
+      },
+      {
+        "experiment": "anaphor-list",
+        "true_support": 19,
+        "false_approvals": 0,
+        "repaired_uncertain": 0
+      }
+    ],
+    "cases": {
+      "avtal_106.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_anaphor",
+        "how": "previous_sentence_in_unit"
+      },
+      "avtal_107.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_anaphor",
+        "how": "previous_unit_predication"
+      },
+      "avtal_140.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_list",
+        "how": "list_intro_to_item"
+      },
+      "avtal_171.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_anaphor",
+        "how": "previous_unit_predication"
+      },
+      "avtal_175.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_anaphor",
+        "how": "previous_unit_predication"
+      },
+      "avtal_176.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_anaphor",
+        "how": "previous_unit_predication"
+      },
+      "avtal_118.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "hop_is_not_admission",
+        "how": null
+      },
+      "avtal_138.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "cited_clause_does_not_support_relation",
+        "how": null
+      },
+      "avtal_103.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_citation_and_relation",
+        "how": null
+      }
+    }
+  }
+}

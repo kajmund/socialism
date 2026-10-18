@@ -1,0 +1,31 @@
+{
+  "id": "phase2-jaccard-expansion-routing-rejected",
+  "label": "Negative experiment: dense/sparse Jaccard < 0.25 is not a general expansion router. Same discipline as rejecting prompt batching.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "verdict": "rejected",
+  "do_not_tune_threshold_on_existing_golds": true,
+  "rule": "dense_sparse_disagree",
+  "top_n": 20,
+  "min_jaccard": 0.25,
+  "expanded_every_gold": true,
+  "golds_evaluated": 9,
+  "notice_period_regressed": true,
+  "reserved": {
+    "personal-data": {
+      "never_recall_at_50": 0.5333333333333333,
+      "always_recall_at_50": 0.6666666666666666,
+      "rule_same_as_always": true
+    },
+    "assignment": {
+      "never_recall_at_50": 0.875,
+      "always_recall_at_50": 0.875,
+      "rule_same_as_always": true
+    }
+  },
+  "diagnostic_notice_period": {
+    "never_recall_at_50": 0.8461538461538461,
+    "always_recall_at_50": 0.6923076923076923,
+    "rule_expanded": true
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "id": "phase2-citation-label-v1",
+  "label": "Frozen: citation labels on the anaphor-list contract. Does not change the relation test. artikel is not §. Roman is not arabic. Not applied to v3.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "does_not_change_relation_test": true,
+  "same_mapping_for_both_variants": "gold-map-v2",
+  "known_cases_are_regression_tests": true,
+  "headline": {
+    "mapping": "gold-map-v2",
+    "finding_clause_is_not_admission": true,
+    "does_not_change_relation_test": true,
+    "artikel_is_not_section_alias": true,
+    "roman_is_not_arabic_alias": true,
+    "approved_chain_does_not_upgrade_investigation": true,
+    "reference_counts": {
+      "admitted": 19,
+      "true_support": 19,
+      "false_approvals": 0,
+      "repaired_uncertain": 0,
+      "leftover_genuine": 34
+    },
+    "treatment_counts": {
+      "admitted": 24,
+      "true_support": 24,
+      "false_approvals": 0,
+      "repaired_uncertain": 0,
+      "leftover_genuine": 29
+    },
+    "delta": {
+      "true_support": 5,
+      "new_true_support": [
+        "avtal_118.docx",
+        "avtal_125.docx",
+        "avtal_141.docx",
+        "avtal_153.docx",
+        "avtal_179.docx"
+      ],
+      "lost_true_support": [],
+      "false_approvals": 0,
+      "leftover_genuine": -5,
+      "extra_units_fetched": 29
+    },
+    "ability_curve": [
+      {
+        "experiment": "hop-always",
+        "true_support": 39,
+        "false_approvals": 2,
+        "repaired_uncertain": 3,
+        "note": "gold_document_outcomes_not_verified_proofs"
+      },
+      {
+        "experiment": "grounded-chain",
+        "true_support": 12,
+        "false_approvals": 0,
+        "repaired_uncertain": 0
+      },
+      {
+        "experiment": "clause-resolve",
+        "true_support": 15,
+        "false_approvals": 0,
+        "repaired_uncertain": 0
+      },
+      {
+        "experiment": "anaphor-list",
+        "true_support": 19,
+        "false_approvals": 0,
+        "repaired_uncertain": 0
+      },
+      {
+        "experiment": "citation-label",
+        "true_support": 24,
+        "false_approvals": 0,
+        "repaired_uncertain": 0
+      }
+    ],
+    "cases": {
+      "avtal_118.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_citation_and_relation",
+        "kinds": [
+          "artikel"
+        ]
+      },
+      "avtal_125.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_citation_and_relation",
+        "kinds": [
+          "avsnitt"
+        ]
+      },
+      "avtal_141.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_citation_and_relation",
+        "kinds": [
+          "klausul"
+        ]
+      },
+      "avtal_153.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_citation_and_relation",
+        "kinds": [
+          "klausul"
+        ]
+      },
+      "avtal_179.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_citation_and_relation",
+        "kinds": [
+          "klausul"
+        ]
+      },
+      "avtal_120.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "cited_clause_does_not_support_relation",
+        "kinds": [
+          "artikel"
+        ]
+      },
+      "avtal_138.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "cited_clause_does_not_support_relation",
+        "kinds": []
+      },
+      "avtal_180.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "ambiguous_citation",
+        "kinds": []
+      },
+      "avtal_103.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_citation_and_relation",
+        "kinds": []
+      },
+      "avtal_107.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_anaphor",
+        "kinds": []
+      }
+    }
+  }
+}

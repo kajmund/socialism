@@ -23,11 +23,7 @@ from app.database.models import (
     StoredObject,
     TextUnitRecord,
 )
-from app.services.document_knowledge import (
-    GeneratedDocumentKnowledge,
-    _accepted_generated_items,
-    supporting_text_unit_ids,
-)
+from app.services.document_knowledge import supporting_text_unit_ids
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.chunking import KnowledgeChunker, make_chunk_id, text_unit_to_chunk
 from app.services.knowledge.extractors import ExtractedBlock, ExtractedDocument
@@ -283,21 +279,6 @@ def test_qa_can_ground_to_multiple_text_units():
         exact_quote="The price is 100 SEK",
         units=units,
     ) == ["u1", "u2"]
-    accepted = _accepted_generated_items(
-        [
-            GeneratedDocumentKnowledge(
-                kind="qa",
-                title="Price",
-                question="What is the price?",
-                content="100 SEK.",
-                locator="page:1",
-                exact_quote="The price is 100 SEK per month.",
-            )
-        ],
-        units=units,
-        pdf_bytes=None,
-    )
-    assert [item.text_unit_ids for item in accepted] == [["u1"]]
 
 
 def test_context_expansion_stays_in_section():

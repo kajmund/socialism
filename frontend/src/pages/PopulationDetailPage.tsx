@@ -11,6 +11,7 @@ import {
 import { AdminShell } from "@/components/layout/AdminShell"
 import { PersonaLibrarySaveAction } from "@/components/personas/PersonaLibrarySaveAction"
 import { AddFromLibraryPanel } from "@/components/populations/AddFromLibraryPanel"
+import { ExpertPanelActions } from "@/components/experts/ExpertPanelActions"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { FP_COLORS, formatLibraryDate, libraryPersonaToMember } from "@/data/library"
@@ -95,6 +96,7 @@ type PopulationDetailPageProps = {
   onBack?: () => void
   onDuplicated?: (id: number) => void
   onOpenExpert?: (id: string, name: string) => void
+  onDeleted?: () => void
 }
 
 function OpenTarget({
@@ -133,6 +135,7 @@ export function PopulationDetailPage({
   onBack,
   onDuplicated,
   onOpenExpert,
+  onDeleted,
 }: PopulationDetailPageProps) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -350,11 +353,29 @@ export function PopulationDetailPage({
               </h1>
             )}
           </div>
-          <div className="head-actions">
+          <div className="head-actions" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
             {isExpertPanel && !editingName ? (
               <AdminButton variant="secondary" size="sm" onClick={startRename}>
                 {t("expertPanels.detail.rename")}
               </AdminButton>
+            ) : null}
+            {isExpertPanel && pop ? (
+              <ExpertPanelActions
+                panelId={pop.id}
+                customerId={customerId}
+                onChanged={() => {
+                  void getPopulation(pop.id).then((data) => {
+                    setPop(data)
+                    setMembers(data.members)
+                  })
+                }}
+                onDeleted={() => {
+                  if (onDeleted) onDeleted()
+                  else if (onBack) onBack()
+                  else navigate(basePath)
+                }}
+                onToast={showToast}
+              />
             ) : null}
             <AdminButton
               variant="secondary"

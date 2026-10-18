@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import AsyncIterator
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -279,3 +279,77 @@ async def test_library_chat_turn_discards_user_on_empty_reply(chat_sessions):
             assert rows.scalars().all() == []
     finally:
         set_text_streamer(None)
+
+
+@pytest.mark.asyncio
+async def test_memory_runs_during_routing_after_the_connection_is_released(
+    tmp_path, monkeypatch,
+):
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path}/expert-turn.db",
+        pool_size=1,
+        max_overflow=0,
+        pool_timeout=0.2,
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    async with factory() as seed:
+        await ensure_default_configurations(seed)
+        seed.add(
+            Persona(
+                id="expert-1",
+                customer_id=1,
+                kind="expert",
+                name="Expert",
+                age=40,
+                occ="Jurist",
+                district="Centrum",
+                tools=[],
+                profile={"name": "Expert", "ort": "Centrum", "yrke": "Jurist", "ålder": "40"},
+            )
+        )
+        await seed.commit()
+
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def memory(*_args, **_kwargs):
+        started.set()
+        await release.wait()
+        return "minns"
+
+    async def route(*_args, **_kwargs):
+        await started.wait()
+        async with factory() as other:
+            assert await asyncio.wait_for(other.scalar(text("SELECT 1")), timeout=1) == 1
+        release.set()
+        return "fast"
+
+    monkeypatch.setattr(
+        "app.services.expert_turn_prefetch.expert_memory_context", memory,
+    )
+    monkeypatch.setattr(
+        "app.services.expert_turn_prefetch.expert_reasoning_turn.route_expert_turn",
+        route,
+    )
+
+    async def _reply(_messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        yield "svar"
+
+    set_text_streamer(_reply)
+    try:
+        async with factory() as session:
+            reply = ""
+            async for item in stream_library_chat_turn(
+                session,
+                persona_id="expert-1",
+                mode="interview",
+                message="hej",
+            ):
+                if isinstance(item, str):
+                    reply = item
+        assert reply == "svar"
+    finally:
+        set_text_streamer(None)
+        await engine.dispose()

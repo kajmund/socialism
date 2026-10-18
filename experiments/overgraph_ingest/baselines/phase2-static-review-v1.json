@@ -1,0 +1,36 @@
+{
+  "id": "phase2-static-review-v1",
+  "label": "Frozen: accepted findings from the read-only review of experiments/overgraph_ingest. Does not change v3. Does not start the next ability. 19/53 is an experimental curve, not v3 verification.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "applied_to_v3": false,
+  "does_not_start_next_ability": true,
+  "headline": {
+    "quality_reference": {
+      "true_support": 19,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 34,
+      "source": "phase2-anaphor-list-v1"
+    },
+    "accepted": {
+      "v3_composite_yes_plus_hop_is_not_verified_relation": true,
+      "admit_evidence_found_not_called_by_resolve_status": true,
+      "required_parts_are_text_presence_not_relation": true,
+      "evidence_run_can_substitute_gold_snippet": true,
+      "lexical_rules_are_formulation_bound": true,
+      "clause_and_anaphor_are_known_formulations": true,
+      "zero_false_approvals_is_frozen_set_not_population": true,
+      "nineteen_of_fifty_three_is_not_v3_verification": true,
+      "traces_only_for_evidence_found": true,
+      "joined_link_re_in_traces_is_diagnostic": true,
+      "exhaustive_hybrid_score_is_not_rrf": true,
+      "c8_cache_can_fall_back_to_first_run": true,
+      "budget_and_controller_are_separate_policies": true,
+      "do_not_overwrite_is_writer_guard_not_immutability": true
+    },
+    "does_not_change_v3": true,
+    "does_not_start_next_ability": true
+  }
+}

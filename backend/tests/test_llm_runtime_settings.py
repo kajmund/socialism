@@ -39,6 +39,14 @@ def _restore_llm_settings():
     reset_client()
 
 
+def test_simple_role_prefers_gpt_oss_120b():
+    gpt = runtime.default_selection_metadata("gpt-oss-120b")
+    flash = runtime.default_selection_metadata("deepseek-flash")
+    assert gpt["selection_role"] == "fast"
+    assert flash["selection_role"] == "fast"
+    assert gpt["priority"] < flash["priority"]
+
+
 def test_catalog_has_four_profiles_with_per_model_effort():
     rows = {row["id"]: row for row in runtime.catalog_as_dicts()}
     assert set(rows) == {

@@ -1,0 +1,16 @@
+{
+  "id": "phase2-decision-trace-v1",
+  "label": "Frozen: blind coverage traces are missing. Observability added. Do not attribute unobserved documents.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_jev": true,
+  "no_link_re_change": true,
+  "headline": {
+    "observability_gap": true,
+    "blind_run_not_in_workspace": true,
+    "named_paths_without_units": [],
+    "do_not_guess_documents": true
+  },
+  "next": "rerun coverage v3 with --decision-trace; do not guess document ids"
+}

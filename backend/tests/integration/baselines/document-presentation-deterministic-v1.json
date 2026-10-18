@@ -1,0 +1,61 @@
+{
+  "name": "document-presentation-deterministic-v1",
+  "created_at": "2026-10-14T22:13:35.678179+00:00",
+  "do_not_overwrite": true,
+  "design": "paired counterfactual with one shared initial Jev/LLM decision and one shared production find_documents result per case",
+  "cases": 50,
+  "acceptance": {
+    "approved_for_production": false,
+    "required_presentation_decisions": 50,
+    "correct_presentation_decisions": 39,
+    "required_document_selections": 50,
+    "correct_document_selections": 46,
+    "required_intent_pairs_with_equal_selection": 25,
+    "intent_pairs_with_equal_selection": 21,
+    "paired_arm_selections_equal": 50
+  },
+  "baseline": {
+    "latency_ms": {
+      "median": 1711.466,
+      "p95": 9509.856
+    },
+    "calls": {
+      "llm": 100,
+      "jev": 100,
+      "embedding": 3
+    },
+    "presentation_decisions_correct": 41,
+    "document_selections_correct": 46
+  },
+  "treatment": {
+    "latency_ms": {
+      "median": 1424.808,
+      "p95": 9017.799
+    },
+    "calls": {
+      "llm": 78,
+      "jev": 78,
+      "embedding": 3
+    },
+    "presentation_decisions_correct": 39,
+    "document_selections_correct": 46,
+    "deterministic_continuations": 22
+  },
+  "difference": {
+    "median_latency_reduction_ms": 286.658,
+    "p95_latency_reduction_ms": 492.057,
+    "llm_calls_saved": 22,
+    "jev_calls_saved": 22
+  },
+  "failure_summary": {
+    "incorrect_automatic_presentations": 10,
+    "missed_explicit_presentations": 1,
+    "incorrect_document_selections": 4,
+    "model_continuation_errors": 1,
+    "ambiguous_intent_false_positive_gallery_requests": [
+      "09-ambiguous",
+      "15-ambiguous"
+    ]
+  },
+  "raw_local_artifact": "backend/data/benchmark_document_presentation-v2.json"
+}

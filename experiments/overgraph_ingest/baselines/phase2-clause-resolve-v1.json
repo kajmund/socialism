@@ -1,0 +1,197 @@
+{
+  "id": "phase2-clause-resolve-v1",
+  "label": "Frozen: explicit clause resolution on the grounded-chain contract. Known cases are regression tests. Not applied to v3.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_rewrite_history": true,
+  "applied_to_v3": false,
+  "same_mapping_for_both_variants": "gold-map-v2",
+  "known_cases_are_regression_tests": true,
+  "headline": {
+    "mapping": "gold-map-v2",
+    "finding_clause_is_not_admission": true,
+    "undecided_remains_searchable": true,
+    "approved_chain_does_not_upgrade_investigation": true,
+    "zero_false_must_be_read_with_abstention": true,
+    "reference_counts": {
+      "admitted": 12,
+      "true_support": 12,
+      "false_approvals": 0,
+      "repaired_uncertain": 0,
+      "leftover_genuine": 41
+    },
+    "treatment_counts": {
+      "admitted": 15,
+      "true_support": 15,
+      "false_approvals": 0,
+      "repaired_uncertain": 0,
+      "leftover_genuine": 38
+    },
+    "delta": {
+      "true_support": 3,
+      "new_true_support": [
+        "avtal_103.docx",
+        "avtal_167.docx",
+        "avtal_199.docx"
+      ],
+      "lost_true_support": [],
+      "false_approvals": 0,
+      "repaired_uncertain": 0,
+      "leftover_genuine": -3,
+      "extra_units_fetched": 24,
+      "citations_looked_up": 12
+    },
+    "cases": {
+      "avtal_103.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "resolved_citation_and_relation",
+        "lookups": [
+          {
+            "citation": "brott mot avsnitt 4",
+            "number": "4",
+            "status": "unique",
+            "unit_keys": [
+              "d18501f9c03a6422594583b807ce4a1fde9777aad3d666fafa4435e43a0cc9b7",
+              "9c4f1d067b15e3eabcc4b1e428b295de1d15bf611da1f0e06db80283a069d7c0",
+              "1d7f133355831eb9d85c753e6612307a586aaba5b071efa5ac6d08ae096f5b69",
+              "13c5a89ee0ee7e072acf907e3c7616f230077161492e99214d8e765f081f32ec",
+              "c4a56afe81d19f762eb2f0a28e64b1076aff1c92d7eeeae9e5e4e57b0882b8da"
+            ],
+            "clause_numbers": [
+              "4",
+              "4.1",
+              "4.2",
+              "4.3",
+              "4.4"
+            ],
+            "titles": [
+              "4. Konfidentialitet",
+              "4.1\tFörtrolig Information är varje uppgift om den andra partens verksamhet, kunder, priser, tekniska lösningar eller planer som en part får del av med anledning av avtalet.",
+              "4.2\tIngen av parterna får för utomstående avslöja Förtrolig Information, och informationen får användas enbart inom ramen för samarbetet.",
+              "4.3\tTystnadsplikten omfattar inte information",
+              "4.4\tSekretessen består även efter det att avtalet i övrigt har upphört att gälla."
+            ]
+          }
+        ],
+        "investigation": "PARTIAL",
+        "undecided_remains_searchable": true
+      },
+      "avtal_138.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "cited_clause_does_not_support_relation",
+        "lookups": [
+          {
+            "citation": "brott mot sekretessåtagandet i punkt 12",
+            "number": "12",
+            "status": "unique",
+            "unit_keys": [
+              "d5c44d1b6c60ed05ecddee811ec71e2df32111bb56a68d300fd2cf46c6dac1e5",
+              "3ad4b2caa5e16073eca73f43b6295ca3a7d6d43d50a5fdbf0252a71e11693b24"
+            ],
+            "clause_numbers": [
+              "12",
+              "12.1"
+            ],
+            "titles": [
+              "12. Anställning av personal",
+              "12.1\tIngen av parterna får under avtalstiden och sex månader därefter aktivt rekrytera personal som varit verksam hos den andra parten i samband med avtalets fullgörande."
+            ]
+          }
+        ],
+        "investigation": "PARTIAL",
+        "undecided_remains_searchable": true
+      },
+      "avtal_173.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "cited_clause_does_not_support_relation",
+        "lookups": [
+          {
+            "citation": "brott mot sekretessåtagandet i punkt 8",
+            "number": "8",
+            "status": "unique",
+            "unit_keys": [
+              "f859aeb7d96ca3174e23a35271ba58e318228ef38f1a0bc6b789e66520a76fb4",
+              "89369b70a566e8ac33a5bc63ce1983020c05750a625d79910db9d30086b7ab22",
+              "6a73dbbe97267dbbcc39259ae5ee8423cf227fbc4f731903d579f7e6e3fa95a8",
+              "33c70d6fab473c500f478a5e91e3a0596c9470547498af93ee988aa35a787ef1"
+            ],
+            "clause_numbers": [
+              "8",
+              "8.1",
+              "8.2",
+              "8.3"
+            ],
+            "titles": [
+              "8. Upphovsrätt och andra rättigheter",
+              "8.1\tSamtliga immateriella rättigheter till resultatet av Licensgivarens arbete enligt detta avtal övergår till Licenstagaren i och med att full betalning erlagts.",
+              "8.2\tLicensgivaren behåller rätten till metoder, verktyg och know-how som denne innehade före avtalets ingående.",
+              "8.3\tLicensgivaren garanterar att leveranser enligt detta avtal inte gör intrång i tredje mans rättigheter."
+            ]
+          }
+        ],
+        "investigation": "PARTIAL",
+        "undecided_remains_searchable": true
+      },
+      "avtal_106.docx": {
+        "examined_support": "SUPPORTED",
+        "why": "existing_link_in_unit",
+        "lookups": [],
+        "investigation": "PARTIAL",
+        "undecided_remains_searchable": true
+      },
+      "avtal_119.docx": {
+        "examined_support": "UNDECIDED",
+        "why": "unhandled_examined_amendment",
+        "lookups": [
+          {
+            "citation": "brott mot punkt 1",
+            "number": "1",
+            "status": "ambiguous",
+            "unit_keys": [
+              "33a7a7bcd04a935aafe9fa6385d076b89617a0eda3454130b535846b80c84483",
+              "6ca7c61b51cb4346fd38ec9b8e396e91867b82e46918e80553b9670c7c8b4f7b",
+              "ba638b1be56e1890d6db462ad9b45cdc557a6c4fbbb8a437bb27202250d70028",
+              "bd2203481eb839caf9d6ef6510c4d56cf27ca94c59a9cadd7bbe7cfc9fe597c7",
+              "6cc37f17ad6455dd2b5e2f57c3263347f53e666afc41d24e68a9352243009425",
+              "597a9d922e6e02c8ec8fc3f91c07335e1a5deffca9b6311f053b134877321765",
+              "ffe6831a6ec81f54b61bb99e2119f1d770cc87f84345ff99e3792d948d68494d",
+              "6622e51ea69aae8440ef2a3b0a3b7ad7b081ff6c23e206c4ffe664a413ebddf3",
+              "829961f441d50d1a527028707cb247812acebf3781ca12117db06695febc1960",
+              "d5c19319cdfb5f50b1f1df90a0eda37a93f67b06dd8e67ad690f57bcd2732ab4",
+              "769e7a24fc1cc066e2fb9f184a0ff65fe2043504f643b0cbf28a86616a6ce786"
+            ],
+            "clause_numbers": [
+              "1",
+              "1.1",
+              "1.2",
+              "1.3",
+              "1",
+              "1.1",
+              "1",
+              "1.1",
+              "1.2",
+              "1.3",
+              "1.4"
+            ],
+            "titles": [
+              "1. Uppdraget",
+              "1.1\tDetta ramavtal reglerar villkoren för avrop av IT-konsulttjänster inom systemförvaltning.",
+              "1.2\tAvrop sker genom skriftlig beställning som hänvisar till detta ramavtal.",
+              "1.3\tAvtalet har föregåtts av en upphandling enligt lagen (2016:1145) om offentlig upphandling.",
+              "1. Avvikelser från Allmänna villkor",
+              "1.1\tMed ändring av punkt 2.4 i Bilaga 2 gäller ansvarsbegränsningen även vid brott mot sekretess. Undantaget för uppsåt och grov vårdslöshet gäller dock oförändrat.",
+              "1. Konfidentialitet",
+              "1.1\tKonfidentiell Information är varje uppgift om den andra partens verksamhet, kunder, priser, tekniska lösningar eller planer som en part får del av med anledning av avtalet.",
+              "1.2\tMottagande part ska hålla Konfidentiell Information hemlig och får inte använda den för något annat ändamål än avtalets fullgörande.",
+              "1.3\tTystnadsplikten omfattar inte information",
+              "1.4\tFörpliktelserna enligt denna punkt gäller i tre år efter avtalets upphörande."
+            ]
+          }
+        ],
+        "investigation": "PARTIAL",
+        "undecided_remains_searchable": true
+      }
+    }
+  }
+}

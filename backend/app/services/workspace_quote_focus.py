@@ -7,9 +7,10 @@ import pdfplumber
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import UserAccount
+from app.database.models import Persona, UserAccount
 from app.services.object_storage import get_object
 from app.services.pdf_quote_anchors import _normalized, first_quote_page
+from app.services.workspace.passage_comments import create_expert_passage_comment
 from app.services.workspace.service import add_source, require_source, require_workspace
 from app.services.workspace.sources import citation, reference_out, source_version
 from app.services.workspace.tool_arguments import FocusPassageArguments
@@ -69,6 +70,19 @@ async def _pdf_anchor(stored: dict, quote: str) -> dict:
             "exact_text": exact, "rects": rects}
 
 
+async def expert_mark_author(session: AsyncSession, workspace, expert_id: str | None = None) -> dict | None:
+    state = workspace.state if isinstance(workspace.state, dict) else {}
+    if not expert_id:
+        stored = state.get("expert_id")
+        expert_id = stored if isinstance(stored, str) else None
+    if not expert_id:
+        return None
+    expert = await session.get(Persona, expert_id)
+    if expert is None or expert.customer_id != workspace.customer_id or expert.kind != "expert" or not expert.name.strip():
+        return None
+    return {"kind": "expert", "id": expert.id, "name": " ".join(expert.name.split())}
+
+
 async def _workspace(session: AsyncSession, workspace_id: str, user_id: str):
     user = await session.get(UserAccount, user_id, populate_existing=True)
     if user is None:
@@ -100,6 +114,18 @@ async def focus_passage(context, arguments: dict) -> dict:
     source = await require_source(session, workspace, stored["id"])
     if source_version(source) != stored["version"]:
         raise HTTPException(status_code=409, detail="workspace_source_changed_during_read")
+    author = await expert_mark_author(session, workspace, args.expert_id)
+    snapshot = {"title": stored["filename"], "excerpt": quote}
+    if author:
+        snapshot["marked_by"] = author
     ref = await citation(session, workspace, kind="underlag", source_id=source.id, version=stored["version"],
-                         anchor=anchor, snapshot={"title": stored["filename"], "excerpt": quote})
-    return {"status": "completed", **reference_out(ref)}
+                         anchor=anchor, snapshot=snapshot)
+    comment = None
+    if args.comment:
+        if author is None:
+            raise HTTPException(status_code=422, detail="comment_requires_expert")
+        comment = await create_expert_passage_comment(
+            session, workspace, source_id=source.id, anchor=anchor,
+            expert_id=author["id"], author_name=author["name"], body=args.comment,
+        )
+    return {"status": "completed", **reference_out(ref), **({} if comment is None else {"comment": comment})}

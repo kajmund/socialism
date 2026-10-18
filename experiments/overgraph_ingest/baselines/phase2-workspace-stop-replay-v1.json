@@ -1,0 +1,54 @@
+{
+  "id": "phase2-workspace-stop-replay-v1",
+  "label": "Frozen replay of Coverage v3 B5 timelines at workspace stop budgets. Does not choose a stop rule and does not change v3.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_stop_rule": true,
+  "replay_of_observed_path": true,
+  "budget_exhausted_is_not_absent": true,
+  "investigation_results": ["COMPLETE", "PARTIAL", "FAILED"],
+  "headline": {
+    "every_measured_stop_is_partial": true,
+    "complete_never_reached": true,
+    "composite_jev_yes_is_not_complete_evidence": true
+  },
+  "golds": {
+    "auto-renewal": {
+      "proof_kind": "EXISTS",
+      "jev_yes": {"50": 19, "100": 19, "150": 19, "200": 19, "300": 19},
+      "complete_evidence": {"50": 19, "100": 19, "150": 19, "200": 19, "300": 19},
+      "unresolved": {"50": 80, "100": 80, "150": 77, "200": 77, "300": 76},
+      "saved": {"50": 363, "100": 363, "150": 283, "200": 283, "300": 130},
+      "leftover_relevant": ["Avtal_18_Hyresavtal_bostad.docx"]
+    },
+    "notice-period": {
+      "proof_kind": "EXISTS",
+      "jev_yes": {"50": 11, "100": 11, "150": 11, "200": 11, "300": 13},
+      "complete_evidence": {"50": 11, "100": 11, "150": 11, "200": 11, "300": 13},
+      "unresolved": {"50": 84, "100": 84, "150": 79, "200": 79, "300": 69},
+      "saved": {"50": 358, "100": 358, "150": 274, "200": 274, "300": 123}
+    },
+    "liability-cap": {
+      "proof_kind": "EXISTS",
+      "jev_yes": {"50": 25, "100": 25, "150": 28, "200": 28, "300": 28},
+      "complete_evidence": {"50": 25, "100": 25, "150": 28, "200": 28, "300": 28},
+      "unresolved": {"50": 72, "100": 72, "150": 66, "200": 63, "300": 62},
+      "saved": {"50": 317, "100": 317, "150": 245, "200": 179, "300": 116}
+    },
+    "confidentiality": {
+      "proof_kind": "EXISTS",
+      "jev_yes": {"50": 8, "100": 8, "150": 10, "200": 13, "300": 13},
+      "complete_evidence": {"50": 8, "100": 8, "150": 10, "200": 13, "300": 13},
+      "unresolved": {"50": 78, "100": 78, "150": 68, "200": 58, "300": 58},
+      "saved": {"50": 304, "100": 304, "150": 226, "200": 158, "300": 100}
+    },
+    "liability-secrecy-carveout": {
+      "proof_kind": "COMPOSITE",
+      "jev_yes": {"50": 7, "100": 7, "150": 7, "200": 7, "300": 7},
+      "complete_evidence": {"50": 0, "100": 0, "150": 7, "200": 7, "300": 7},
+      "unresolved": {"50": 100, "100": 100, "150": 93, "200": 93, "300": 93},
+      "saved": {"50": 432, "100": 432, "150": 332, "200": 332, "300": 239}
+    }
+  }
+}

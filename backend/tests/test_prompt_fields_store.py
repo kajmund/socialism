@@ -145,14 +145,6 @@ def test_modules_for_prompt_key_follows_prefix_convention():
     assert modules_for_prompt_key("expertgranskning.word.intent_interview") == [
         "expertgranskning"
     ]
-    assert modules_for_prompt_key("document_knowledge.ingest.system") == [
-        "dd",
-        "politik",
-        "expertgranskning",
-        "rattsunderlag",
-    ]
-
-
 def test_module_providers_cover_all_catalog_keys_without_overlap_gaps():  # noqa: PLR0915
     dd_keys = {field["key"] for field in dd_prompt_defaults()}
     politik_keys = {field["key"] for field in politik_prompt_defaults()}
