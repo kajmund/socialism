@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from sqlalchemy import func, select
 
-from app.config import settings
+from app.database.graph_v2 import GraphIngestWork
 from app.database.models import (
     CanonicalDocumentRecord,
     DocumentKnowledgeItem,
@@ -12,16 +14,11 @@ from app.database.models import (
     StoredObject,
     TextUnitRecord,
 )
-from app.llm import set_structured_completer
 from app.services import jobs as jobs_service
-from app.services.document_knowledge import (
-    GeneratedDocumentKnowledge,
-    GeneratedDocumentKnowledgeBatch,
-    _text_unit_batches,
-    generate_document_knowledge,
-)
+from app.services.document_ingest_status import document_text_ready
+from app.serializers import utcnow
+from app.services.document_qa.kinds import DOCUMENT_CATALOG_WRITE
 from app.services.knowledge.models import KnowledgeQuery, KnowledgeScope
-from app.services.knowledge.units import TextUnit, hash_text
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.research.composition import set_knowledge_vector_store_factory
@@ -43,7 +40,15 @@ async def _upload_without_worker(user_client, filename: str, data: bytes, conten
     return response.json(), scheduled[0]
 
 
-async def test_manual_document_knowledge_is_versioned_and_semantically_indexed(
+def test_document_text_ready_uses_extracted_text_not_card_status():
+    assert document_text_ready(SimpleNamespace(extraction_status="ok", extracted_text="Avtal"))
+    assert document_text_ready(SimpleNamespace(extraction_status="ok", extracted_text="Avtal"))
+    assert not document_text_ready(SimpleNamespace(extraction_status="ok", extracted_text="  "))
+    assert not document_text_ready(SimpleNamespace(extraction_status="pending", extracted_text="Avtal"))
+    assert not document_text_ready(SimpleNamespace(extraction_status="ok", extracted_text=None))
+
+
+async def test_manual_document_knowledge_is_versioned_without_vector_index(
     user_client,
     client_db,
     monkeypatch,
@@ -63,11 +68,10 @@ async def test_manual_document_knowledge_is_versioned_and_semantically_indexed(
         await session.commit()
 
     store = MemoryKnowledgeVectorStore()
-    embeddings = FakeEmbeddingProvider()
     set_knowledge_vector_store_factory(lambda: store)
     monkeypatch.setattr(
         "app.services.document_knowledge.OpenAIEmbeddingProvider.from_settings",
-        lambda: embeddings,
+        FakeEmbeddingProvider,
     )
     try:
         created = await user_client.post(
@@ -94,8 +98,7 @@ async def test_manual_document_knowledge_is_versioned_and_semantically_indexed(
         assert item["origin"] == "manual"
         assert item["revision"] == 1
         assert item["anchors"][0]["page_number"] == 1
-        assert len(store.chunks) == 1
-        assert store.chunks[0].chunk.case_id == uploaded["id"]
+        assert store.chunks == []
 
         listed = await user_client.get(f"/underlag/{uploaded['id']}/knowledge")
         assert listed.status_code == 200
@@ -114,7 +117,7 @@ async def test_manual_document_knowledge_is_versioned_and_semantically_indexed(
         assert changed.status_code == 200, changed.text
         assert changed.json()["revision"] == 2
         assert changed.json()["kind"] == "qa"
-        assert len(store.chunks) == 1
+        assert store.chunks == []
 
         deleted = await user_client.delete(
             f"/underlag/{uploaded['id']}/knowledge/{item['id']}"
@@ -138,7 +141,7 @@ async def test_manual_document_knowledge_is_versioned_and_semantically_indexed(
         jobs_service.set_schedule_hook(None)
 
 
-async def test_document_ingest_generates_anchored_items_and_case_knowledge(  # noqa: PLR0915
+async def test_document_ingest_indexes_text_units_without_generated_cards(  # noqa: PLR0915
     user_client,
     client_db,
     monkeypatch,
@@ -158,24 +161,6 @@ async def test_document_ingest_generates_anchored_items_and_case_knowledge(  # n
         "app.services.document_knowledge.OpenAIEmbeddingProvider.from_settings",
         lambda: embeddings,
     )
-
-    async def structured(_messages, response_model):
-        assert response_model is GeneratedDocumentKnowledgeBatch
-        return GeneratedDocumentKnowledgeBatch(
-            items=[
-                GeneratedDocumentKnowledge(
-                    kind="qa",
-                    title="Avtalets startdatum",
-                    question="När börjar avtalet att gälla?",
-                    content="Avtalet börjar gälla den 1 januari 2027.",
-                    locator="page:1",
-                    exact_quote="Avtalet galler fran 1 januari 2027.",
-                    retrieval_queries=["Vilket datum börjar avtalet gälla?"],
-                )
-            ]
-        )
-
-    set_structured_completer(structured)
     jobs_service.set_schedule_hook(None)
     try:
         await jobs_service._run_job(job_id)
@@ -186,22 +171,22 @@ async def test_document_ingest_generates_anchored_items_and_case_knowledge(  # n
             assert source is not None
             assert source.extraction_status == "ok"
             assert source.knowledge_status == "ready"
+            assert document_text_ready(source)
             assert "Avtalet galler" in (source.extracted_text or "")
             assert job is not None and job.status == "succeeded"
+            assert (job.result or {}).get("items_created") == 0
             rows = list(
                 (
                     await session.execute(
                         select(DocumentKnowledgeItem).where(
                             DocumentKnowledgeItem.source_object_id == source.id,
-                            DocumentKnowledgeItem.status == "active",
                         )
                     )
                 )
                 .scalars()
                 .all()
             )
-            assert len(rows) == 1
-            assert rows[0].origin == "generated"
+            assert rows == []
             units = list(
                 (
                     await session.execute(
@@ -231,7 +216,21 @@ async def test_document_ingest_generates_anchored_items_and_case_knowledge(  # n
             assert len(versions) == 1
             assert versions[0].superseded_at is None
             assert all(unit.document_version_id == versions[0].id for unit in units)
+            catalog_jobs = list(
+                (await session.execute(
+                    select(GraphIngestWork).where(
+                        GraphIngestWork.customer_id == source.customer_id,
+                    )
+                )).scalars().all()
+            )
+            assert len(catalog_jobs) == 1
+            assert catalog_jobs[0].payload["kind"] == DOCUMENT_CATALOG_WRITE
+            assert catalog_jobs[0].payload["document_id"] == source.id
+            assert catalog_jobs[0].payload["document_version_id"] == versions[0].id
 
+            assert store.chunks
+            assert all(item.chunk.metadata.get("knowledge_kind") == "document_chunk" for item in store.chunks)
+            assert all("document_knowledge_item_id" not in item.chunk.metadata for item in store.chunks)
             provider = SupabaseKnowledgeProvider(
                 session,
                 vector_store=store,
@@ -239,32 +238,64 @@ async def test_document_ingest_generates_anchored_items_and_case_knowledge(  # n
             )
             hits = await provider.search(
                 KnowledgeQuery(
-                    query="När börjar avtalet?",
+                    query="Avtalet galler fran 1 januari 2027.",
                     scope=KnowledgeScope(
                         customer_id=source.customer_id,
                         case_id=source.id,
                         module=source.module,
+                        workspace_id=source.workspace_id,
+                        readable_workspace_ids=(source.workspace_id,) if source.workspace_id else None,
                     ),
                 )
             )
-            assert any(hit.metadata.get("discovery_kind") == "document_item" for hit in hits)
+            assert hits
+            assert all(hit.metadata.get("knowledge_kind") == "document_chunk" for hit in hits)
+            assert all(hit.metadata.get("discovery_kind") != "document_item" for hit in hits)
             assert all(hit.document_id == uploaded["id"] for hit in hits)
             assert all(hit.metadata.get("document_version_id") for hit in hits)
             assert all("Avtalet galler fran 1 januari 2027." in hit.excerpt for hit in hits)
 
         listed = await user_client.get(f"/underlag/{uploaded['id']}/knowledge")
         assert listed.status_code == 200
-        item = listed.json()[0]
-        assert item["kind"] == "qa"
-        assert item["anchors"][0]["locator"] == "page:1"
-        assert item["anchors"][0]["exact_text"] == "Avtalet galler fran 1 januari 2027."
-        assert item["anchors"][0]["rects"]
-        assert item["supporting_text_unit_ids"]
-        assert len(item["supporting_text_unit_ids"]) >= 1
+        assert listed.json() == []
     finally:
-        set_structured_completer(None)
         set_knowledge_vector_store_factory(None)
         jobs_service.set_schedule_hook(None)
+
+
+async def test_generated_cards_are_hidden_from_document_knowledge_api(
+    user_client,
+    client_db,
+):
+    (_client, factory) = client_db
+    uploaded, _job_id = await _upload_without_worker(
+        user_client,
+        "agreement.pdf",
+        b"%PDF-1.4 fake",
+        "application/pdf",
+    )
+    async with factory() as session:
+        session.add(
+            DocumentKnowledgeItem(
+                id="leftover-generated",
+                source_object_id=uploaded["id"],
+                customer_id=1,
+                kind="qa",
+                origin="generated",
+                status="active",
+                title="Genererat kort",
+                question="När börjar avtalet?",
+                content="1 januari 2027",
+                revision=1,
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+        )
+        await session.commit()
+    listed = await user_client.get(f"/underlag/{uploaded['id']}/knowledge")
+    assert listed.status_code == 200
+    assert listed.json() == []
+    jobs_service.set_schedule_hook(None)
 
 
 async def test_document_ingest_marks_scanned_pdf_as_needs_ocr(
@@ -296,205 +327,9 @@ async def test_document_ingest_marks_scanned_pdf_as_needs_ocr(
             assert source is not None
             assert source.extraction_status == "needs_ocr"
             assert source.knowledge_status == "needs_ocr"
+            assert not document_text_ready(source)
             assert job is not None and job.status == "succeeded"
             assert store.chunks == []
     finally:
-        set_knowledge_vector_store_factory(None)
-        jobs_service.set_schedule_hook(None)
-
-
-async def test_document_knowledge_generation_keeps_successful_batches(
-    monkeypatch,
-):
-    captured_options: list[tuple[int | None, float | None]] = []
-
-    async def structured(messages, response_model, **kwargs):
-        assert response_model is GeneratedDocumentKnowledgeBatch
-        captured_options.append((kwargs.get("max_tokens"), kwargs.get("timeout")))
-        excerpt = messages[1]["content"]
-        if "FAIL_BATCH" in excerpt:
-            raise TimeoutError
-        return GeneratedDocumentKnowledgeBatch(
-            items=[
-                GeneratedDocumentKnowledge(
-                    kind="fact",
-                    title="Lyckad batch",
-                    content="SUCCESS_BATCH",
-                    locator="page:2",
-                    exact_quote="SUCCESS_BATCH",
-                )
-            ]
-        )
-
-    monkeypatch.setattr(
-        "app.services.document_knowledge.complete_structured_retry",
-        structured,
-    )
-    result = await generate_document_knowledge(
-        units=[
-            TextUnit(
-                id="unit-fail",
-                document_version_id="ver-a",
-                document_id="doc-a",
-                section_id="sec-1",
-                ordinal=0,
-                text="FAIL_BATCH " + "x" * 9_000,
-                content_hash=hash_text("FAIL_BATCH"),
-                locator="page:1",
-            ),
-            TextUnit(
-                id="unit-ok",
-                document_version_id="ver-a",
-                document_id="doc-a",
-                section_id="sec-2",
-                ordinal=0,
-                text="SUCCESS_BATCH " + "y" * 9_000,
-                content_hash=hash_text("SUCCESS_BATCH"),
-                locator="page:2",
-            ),
-        ],
-        prompts={
-            "document_knowledge.ingest.system": "system",
-            "document_knowledge.ingest.user": "{document_excerpt}",
-            "document_knowledge.structured_retry": "retry",
-        },
-    )
-
-    assert result.failed_batches == 1
-    assert result.successful_batches == 1
-    assert [item.title for item in result.items] == ["Lyckad batch"]
-    expected_options = (
-        settings.document_knowledge_llm_max_tokens,
-        settings.document_knowledge_llm_timeout_seconds,
-    )
-    assert captured_options == [expected_options, expected_options]
-
-
-def test_qa_batches_keep_neighbouring_units_inside_one_section():
-    parties = [
-        TextUnit(
-            id="p1",
-            document_version_id="ver-a",
-            document_id="doc-a",
-            section_id="sec-parties",
-            ordinal=0,
-            text="Acme AB is the seller.",
-            content_hash=hash_text("Acme AB is the seller."),
-            locator="page:1",
-        ),
-        TextUnit(
-            id="p2",
-            document_version_id="ver-a",
-            document_id="doc-a",
-            section_id="sec-parties",
-            ordinal=1,
-            text="Beta AB is the buyer.",
-            content_hash=hash_text("Beta AB is the buyer."),
-            locator="page:1",
-        ),
-    ]
-    price = TextUnit(
-        id="price",
-        document_version_id="ver-a",
-        document_id="doc-a",
-        section_id="sec-price",
-        ordinal=0,
-        text="The price is 100 SEK.",
-        content_hash=hash_text("The price is 100 SEK."),
-        locator="page:2",
-    )
-    batches = _text_unit_batches([*parties, price])
-    assert len(batches) == 2
-    assert "Acme AB" in batches[0] and "Beta AB" in batches[0]
-    assert "100 SEK" not in batches[0]
-    assert "100 SEK" in batches[1]
-    assert "Acme AB" not in batches[1]
-
-
-def test_qa_batches_split_oversized_section_without_mixing_others():
-    long_first = TextUnit(
-        id="long-1",
-        document_version_id="ver-a",
-        document_id="doc-a",
-        section_id="sec-scope",
-        ordinal=0,
-        text="SCOPE_A " + "x" * 12_000,
-        content_hash=hash_text("SCOPE_A"),
-        locator="page:1",
-    )
-    long_second = TextUnit(
-        id="long-2",
-        document_version_id="ver-a",
-        document_id="doc-a",
-        section_id="sec-scope",
-        ordinal=1,
-        text="SCOPE_B " + "y" * 12_000,
-        content_hash=hash_text("SCOPE_B"),
-        locator="page:2",
-    )
-    other = TextUnit(
-        id="other",
-        document_version_id="ver-a",
-        document_id="doc-a",
-        section_id="sec-other",
-        ordinal=0,
-        text="OTHER_CLAUSE",
-        content_hash=hash_text("OTHER_CLAUSE"),
-        locator="page:3",
-    )
-    batches = _text_unit_batches([long_first, long_second, other])
-    assert len(batches) == 3
-    assert "SCOPE_A" in batches[0] and "SCOPE_B" not in batches[0]
-    assert "SCOPE_B" in batches[1] and "SCOPE_A" not in batches[1]
-    assert "OTHER_CLAUSE" in batches[2]
-    assert "SCOPE_A" not in batches[2] and "SCOPE_B" not in batches[2]
-
-
-async def test_document_ingest_timeout_is_partial_not_failed(
-    user_client,
-    client_db,
-    monkeypatch,
-):
-    (_client, factory) = client_db
-    pdf = build_text_pdf("Avtalet galler fran 1 januari 2027.")
-    uploaded, job_id = await _upload_without_worker(
-        user_client,
-        "agreement.pdf",
-        pdf,
-        "application/pdf",
-    )
-    store = MemoryKnowledgeVectorStore()
-    set_knowledge_vector_store_factory(lambda: store)
-    monkeypatch.setattr(
-        "app.services.document_knowledge.OpenAIEmbeddingProvider.from_settings",
-        FakeEmbeddingProvider,
-    )
-
-    async def structured(_messages, _response_model):
-        raise TimeoutError
-
-    set_structured_completer(structured)
-    jobs_service.set_schedule_hook(None)
-    try:
-        await jobs_service._run_job(job_id)
-
-        async with factory() as session:
-            source = await session.get(StoredObject, uploaded["id"])
-            job = await session.get(Job, job_id)
-            assert source is not None
-            assert source.extraction_status == "ok"
-            assert source.knowledge_status == "partial"
-            assert source.knowledge_error == "1 of 1 document-knowledge batches failed"
-            assert "Avtalet galler" in (source.extracted_text or "")
-            assert job is not None and job.status == "succeeded"
-            assert job.result is not None
-            assert job.result["failed_batches"] == 1
-            assert store.chunks
-
-        detail = await user_client.get(f"/underlag/{uploaded['id']}")
-        assert detail.status_code == 200
-        assert detail.json()["knowledge_status"] == "partial"
-    finally:
-        set_structured_completer(None)
         set_knowledge_vector_store_factory(None)
         jobs_service.set_schedule_hook(None)

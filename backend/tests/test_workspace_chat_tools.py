@@ -1,6 +1,7 @@
 """Expert text chat receives the workspace selection and workspace tools."""
 
 import json
+import re
 
 from app.schemas.workspace import WorkspaceState
 from app.services.expert_async_tools import (
@@ -28,16 +29,54 @@ def test_turn_text_includes_the_selected_quote():
     assert "source-1" in text
 
 
+def test_turn_text_carries_now_and_block_labels():
+    prompts = {
+        "workspace.chat.turn": (
+            "[NUTID]\nNuvarande datum och tid: {now}\n\n"
+            "[ARBETSYTA]\nLäge:\n{workspace_json}"
+        ),
+    }
+    state = WorkspaceState(view="documents")
+    text = workspace_turn_text(prompts, state)
+    assert "[NUTID]" in text
+    assert "[ARBETSYTA]" in text
+    assert "Nuvarande datum och tid:" in text
+    assert re.search(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2} \([A-Z]{3,4}\)", text)
+
+
+def test_a_long_selection_stays_out_of_the_turn():
+    prompts = {"workspace.chat.turn": "Läge:\n{workspace_json}"}
+    quote = "Uppsägning " * 80
+    state = WorkspaceState(
+        view="documents",
+        active_source_id="source-1",
+        documents=[{"source_id": "source-1", "page": 2}],
+        selection={
+            "source_id": "source-1",
+            "reference_id": "selection-1",
+            "anchor": {"exact_text": quote, "page_number": 2},
+        },
+    )
+    text = workspace_turn_text(prompts, state)
+    assert quote not in text
+    assert '"has_text": true' in text
+    assert '"selection_id": "selection-1"' in text
+    assert "Uppsägning" not in text
+
+
 def test_workspace_tools_include_selection_and_display():
     prompts = {f"workspace.voice.tool.{name}": name for name in (
-        "get_workspace_context", "show_document", "focus_anchor", "search_knowledge",
-        "read_source", "ingest_source", "get_job_status", "compare_sources", "get_relations",
-        "render_chart", "create_document", "revise_document", "export_document", "start_research",
-        "open_ingest_picker", "show_evidence", "show_comparison", "show_relations", "show_knowledge",
-        "show_artifact",
+        "get_workspace_context", "show_document", "show_document_set", "focus_anchor", "search_knowledge",
+        "find_documents", "read_source", "ingest_source", "get_job_status", "compare_sources",
+        "get_relations", "render_chart", "create_document", "revise_document", "export_document",
+        "start_research", "open_ingest_picker", "show_evidence", "show_comparison", "show_relations",
+        "show_knowledge", "show_artifact",
     )}
     names = {spec["function"]["name"] for spec in workspace_openai_tools(prompts)}
-    assert {"get_workspace_context", "show_document", "focus_anchor", "search_knowledge"} <= names
+    assert {
+        "get_workspace_context", "show_document", "show_document_set", "focus_anchor",
+        "search_knowledge", "find_documents",
+    } <= names
     skipped = {spec["function"]["name"] for spec in workspace_openai_tools(prompts, skip=frozenset({"start_research"}))}
     assert "start_research" not in skipped
 

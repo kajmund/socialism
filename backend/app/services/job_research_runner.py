@@ -14,3 +14,7 @@ async def run_research_job(job_id: str, kind: str) -> None:
     result = await runner(factory, job_id=job_id)
     async with factory() as session:
         await _succeed(session, job_id, result)
+    if kind == "document_ingest":
+        from app.services.document_ingest_job import embed_after_ingest
+
+        await embed_after_ingest(factory, result if isinstance(result, dict) else {})

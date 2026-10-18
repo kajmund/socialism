@@ -23,14 +23,15 @@ from app.jev.system import (
 from app.observability.events import log_event
 from app.schemas.workspace import WorkspaceState
 from app.services.expert_reasoning import EVENT_DATASET_EXPERT_CHAT, build_turn_state
+from app.services.workspace_turn_state import routing_workspace
 
 RELEVANCE_KEY = "chat.expert.tool_relevance"
 RANK_KEY = "chat.expert.tool_relevance_rank"
 REQUIRES_DOCUMENT = frozenset({"read_source", "focus_anchor"})
-PINNED_LOOKUP_TOOLS = frozenset({"search_knowledge", "get_workspace_context"})
-DOCUMENT_LOOKUP_TOOLS = frozenset({"read_source", "show_document"})
+PINNED_LOOKUP_TOOLS = frozenset({"search_knowledge", "find_documents", "get_workspace_context"})
 MAY_LEAD_TO = {
-    "search_knowledge": ("read_source", "show_document", "focus_anchor"),
+    "search_knowledge": ("read_source", "show_document", "show_document_set", "focus_anchor"),
+    "find_documents": ("show_document", "show_document_set"),
     "read_source": ("show_document", "focus_anchor"),
     "show_document": ("focus_anchor", "read_source"),
     "focus_anchor": ("read_source",),
@@ -109,16 +110,61 @@ def pinned_lookup_tools(
     state: WorkspaceState | dict[str, Any] | None,
     available: frozenset[str],
 ) -> frozenset[str]:
-    names = PINNED_LOOKUP_TOOLS & available
-    if has_document_target(state):
-        names |= DOCUMENT_LOOKUP_TOOLS & available
-    return names
+    """Lookup tools stay available. Open tabs do not force document reads."""
+    if state is not None and not available:
+        return frozenset()
+    return PINNED_LOOKUP_TOOLS & available
 
 
 def requires_tool_call(ranking: tuple[str, ...], scores: dict[str, float]) -> bool:
     if not ranking:
         return False
     return max(scores.get(name, 0.0) for name in ranking) >= settings.document_tool_require_score
+
+
+def exposure_for_scores(
+    prompts: dict[str, str],
+    specs: list[dict],
+    workspace_state: WorkspaceState | dict[str, Any] | None,
+    scores: dict[str, float],
+    *,
+    latency_ms: float,
+    failure: BaseException | None = None,
+    reroute: bool = False,
+) -> tuple[list[dict], ToolRetrievalRecord]:
+    """Apply one Jev answer set. A failed ask keeps the state-filtered catalog."""
+    filtered = state_filtered_specs(specs, workspace_state)
+    names = tuple(_name(spec) for spec in filtered)
+    if not filtered:
+        record = _record(
+            filtered=names, scores={}, ranking=(), fallback=False,
+            error_category=None, latency_ms=latency_ms, reroute=reroute,
+        )
+        _log(record)
+        return [], record
+    if failure is not None:
+        record = _record(
+            filtered=names,
+            scores={},
+            ranking=names,
+            fallback=True,
+            error_category=classify_jev_error(failure),
+            latency_ms=latency_ms,
+            reroute=reroute,
+        )
+        _log(record)
+        return list(filtered), record
+    pinned = pinned_lookup_tools(workspace_state, frozenset(names))
+    ranking = tuple(select_exposed(scores, pinned=pinned))
+    by_name = {_name(spec): spec for spec in filtered}
+    instruction = prompts[RANK_KEY]
+    exposed = [_annotate(by_name[name], scores[name], instruction) for name in ranking]
+    record = _record(
+        filtered=names, scores=scores, ranking=ranking, fallback=False,
+        error_category=None, latency_ms=latency_ms, reroute=reroute,
+    )
+    _log(record)
+    return exposed, record
 
 
 async def expose_workspace_tools(
@@ -132,46 +178,36 @@ async def expose_workspace_tools(
     reroute: bool = False,
 ) -> tuple[list[dict], ToolRetrievalRecord]:
     started = time.perf_counter()
-    filtered = state_filtered_specs(specs, workspace_state)
-    names = tuple(_name(spec) for spec in filtered)
-    pinned = pinned_lookup_tools(workspace_state, frozenset(names))
-    if not filtered:
-        record = _record(
-            filtered=names, scores={}, ranking=(), fallback=False,
-            error_category=None, started=started, reroute=reroute,
+    if not state_filtered_specs(specs, workspace_state):
+        return exposure_for_scores(
+            prompts, specs, workspace_state, {},
+            latency_ms=(time.perf_counter() - started) * 1000,
+            reroute=reroute,
         )
-        _log(record)
-        return [], record
     try:
         scores = await _score(
             prompts,
-            filtered,
+            state_filtered_specs(specs, workspace_state),
             message=message,
+            workspace_state=workspace_state,
             tool_result=tool_result,
             jev=jev,
         )
-        ranking = tuple(select_exposed(scores, pinned=pinned))
-        by_name = {_name(spec): spec for spec in filtered}
-        instruction = prompts[RANK_KEY]
-        exposed = [_annotate(by_name[name], scores[name], instruction) for name in ranking]
-        record = _record(
-            filtered=names, scores=scores, ranking=ranking, fallback=False,
-            error_category=None, started=started, reroute=reroute,
-        )
-        _log(record)
-        return exposed, record
-    except (JevClientError, KeyError, TypeError, ValueError) as exc:
-        record = _record(
-            filtered=names,
-            scores={},
-            ranking=tuple(_name(spec) for spec in filtered),
-            fallback=True,
-            error_category=classify_jev_error(exc),
-            started=started,
+        return exposure_for_scores(
+            prompts,
+            specs,
+            workspace_state,
+            scores,
+            latency_ms=(time.perf_counter() - started) * 1000,
             reroute=reroute,
         )
-        _log(record)
-        return list(filtered), record
+    except (JevClientError, KeyError, TypeError, ValueError) as exc:
+        return exposure_for_scores(
+            prompts, specs, workspace_state, {},
+            latency_ms=(time.perf_counter() - started) * 1000,
+            failure=exc,
+            reroute=reroute,
+        )
 
 
 def log_tool_choice(record: ToolRetrievalRecord, chosen: list[str]) -> None:
@@ -194,7 +230,7 @@ def log_tool_choice(record: ToolRetrievalRecord, chosen: list[str]) -> None:
     )
 
 
-def _score_questions(prompts: dict[str, str], specs: list[dict]) -> dict[str, Any]:
+def tool_relevance_questions(prompts: dict[str, str], specs: list[dict]) -> dict[str, Any]:
     raw = prompts.get(RELEVANCE_KEY)
     if not raw or RANK_KEY not in prompts:
         raise JevClientError(
@@ -232,16 +268,20 @@ async def _score(
     specs: list[dict],
     *,
     message: str,
+    workspace_state: WorkspaceState | dict[str, Any] | None,
     tool_result: str | None,
     jev: JevSystemOne | None,
 ) -> dict[str, float]:
-    questions = _score_questions(prompts, specs)
+    questions = tool_relevance_questions(prompts, specs)
+    turns = workspace_state.get("recent_turns") if isinstance(workspace_state, dict) else None
     state = build_turn_state(
         message,
-        workspace_state=None,
+        workspace_state=routing_workspace(workspace_state),
         tool_names=list(questions),
         tool_result=tool_result,
     )
+    if isinstance(turns, list) and turns:
+        state["recent_turns"] = turns
     result = await (jev or HttpJevSystemOne()).ask(
         state=_clip(state),
         questions=questions,
@@ -283,7 +323,7 @@ def _record(
     ranking: tuple[str, ...],
     fallback: bool,
     error_category: str | None,
-    started: float,
+    latency_ms: float,
     reroute: bool,
 ) -> ToolRetrievalRecord:
     return ToolRetrievalRecord(
@@ -294,7 +334,7 @@ def _record(
         require_tool=requires_tool_call(ranking, scores),
         fallback=fallback,
         error_category=error_category,
-        latency_ms=(time.perf_counter() - started) * 1000,
+        latency_ms=latency_ms,
         reroute=reroute,
     )
 

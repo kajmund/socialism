@@ -338,15 +338,7 @@ def test_expertgranskning_report_omits_document_section():
     assert 'class="explainer md-body"' in html
 
 @pytest.mark.asyncio
-async def test_upload_docx_converts_to_pdf(user_client: AsyncClient, monkeypatch):
-    async def fake_convert(data: bytes, *, filename: str = "document.docx") -> bytes:
-        assert data.startswith(b"PK")
-        return b"%PDF-1.4\nfake-docx-pdf\n"
-
-    monkeypatch.setattr(
-        "app.services.document_upload.convert_docx_to_pdf_async",
-        fake_convert,
-    )
+async def test_upload_docx_keeps_word_bytes(user_client: AsyncClient):
     data = _minimal_docx("Hej från Word")
     resp = await user_client.post(
         "/underlag",
@@ -361,7 +353,7 @@ async def test_upload_docx_converts_to_pdf(user_client: AsyncClient, monkeypatch
     )
     assert resp.status_code == 201, resp.text
     body = resp.json()
-    assert body["filename"].endswith(".pdf")
-    assert body["content_type"] == "application/pdf"
+    assert body["filename"] == "brief.docx"
+    assert body["content_type"] == UNDERLAG_DOCX_TYPE
     assert body["extraction_status"] == "pending"
     assert body.get("extracted_text") in (None, "")

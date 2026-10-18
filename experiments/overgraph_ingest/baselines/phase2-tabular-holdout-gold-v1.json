@@ -1,0 +1,1184 @@
+{
+  "id": "phase2-tabular-holdout-gold-v1",
+  "label": "Independent 20-document holdout. Question gold written before any D/E/K run. Default stays hybrid k=5 / D. E is the next candidate, not the new default.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_run_jev": true,
+  "models_not_run": true,
+  "default_remains_d": true,
+  "e_is_next_candidate": true,
+  "do_not_add_special_rules": true,
+  "user_question_is_the_contract": true,
+  "cell_may_have_multiple_answers": true,
+  "gold_id": "tabular-holdout-v1",
+  "documents": [
+    "Avtal_15_Bonusavtal.docx",
+    "Avtal_24_Kopeavtal_fastighet.docx",
+    "Avtal_28_Aktieagaravtal.docx",
+    "Avtal_33_Agentavtal.docx",
+    "Avtal_40_Laneavtal_revers.docx",
+    "Avtal_43_Leasingavtal_utrustning.docx",
+    "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+    "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+    "Avtal_55_Overlatelse_domannamn.docx",
+    "Avtal_58_IT_policy_BYOD.docx",
+    "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+    "Avtal_64_Byraavtal_reklam.docx",
+    "Avtal_67_Evenemangsavtal.docx",
+    "Avtal_71_Konstnarsavtal.docx",
+    "Avtal_74_Forsakringsavtal.docx",
+    "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+    "Avtal_81_VD_anstallningsavtal.docx",
+    "Avtal_84_Villkorat_aktieagartillskott.docx",
+    "Avtal_87_Investeringsavtal.docx",
+    "Avtal_90_Anslutningsavtal.docx"
+  ],
+  "stride": 3,
+  "headline": {
+    "documents": 20,
+    "cells": 100,
+    "addressed": 43,
+    "silent": 57,
+    "polarities": {
+      "no": 11,
+      "silent": 57,
+      "yes": 30,
+      "until_notice": 2
+    },
+    "addressed_by_question": {
+      "auto-renewal": 7,
+      "notice-period": 10,
+      "liability-cap": 9,
+      "confidentiality": 9,
+      "liability-secrecy-carveout": 8
+    },
+    "models_not_run": true
+  },
+  "cells": [
+    {
+      "relative_path": "Avtal_15_Bonusavtal.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "Det förlängs inte automatiskt",
+          "applies_to": "bonusperioden"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_15_Bonusavtal.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_15_Bonusavtal.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_15_Bonusavtal.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_15_Bonusavtal.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_24_Kopeavtal_fastighet.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_24_Kopeavtal_fastighet.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_24_Kopeavtal_fastighet.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "avstår från alla anspråk mot Säljaren på grund av fel i Fastigheten",
+          "applies_to": "köparens avstående, även dolda fel"
+        }
+      ],
+      "notes": "Blankettens ena alternativ. Statutory 4:19 is the other."
+    },
+    {
+      "relative_path": "Avtal_24_Kopeavtal_fastighet.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_24_Kopeavtal_fastighet.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [],
+      "notes": "Waiver of defect claims. No secrecy exception."
+    },
+    {
+      "relative_path": "Avtal_28_Aktieagaravtal.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_28_Aktieagaravtal.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_28_Aktieagaravtal.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": "Vite plus damages. Not a limitation."
+    },
+    {
+      "relative_path": "Avtal_28_Aktieagaravtal.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "hålla innehållet i detta avtal samt information om Bolaget och dess kunder konfidentiellt",
+          "applies_to": "aktieägarna"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_28_Aktieagaravtal.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "until_notice",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "gäller från och med 2024-04-15 och tills vidare",
+          "applies_to": "agentur"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "Uppsägningstiden är en (1) månad under det första avtalsåret",
+          "applies_to": "år 1"
+        },
+        {
+          "contains": "sex (6) månader under det sjätte och följande år",
+          "applies_to": "år 6+"
+        },
+        {
+          "contains": "säga upp avtalet med omedelbar verkan",
+          "applies_to": "väsentligt avtalsbrott"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "iaktta sekretess om Huvudmannens affärs- och yrkeshemligheter även efter avtalets upphörande",
+          "applies_to": "agenten"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_40_Laneavtal_revers.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "förfaller i sin helhet till betalning senast den 2023-06-30",
+          "applies_to": "lånet"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_40_Laneavtal_revers.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "efter minst 30 dagars skriftligt meddelande",
+          "applies_to": "förtida återbetalning"
+        },
+        {
+          "contains": "säga upp Lånet till omedelbar betalning",
+          "applies_to": "dröjsmål, obestånd, verksamhetsändring"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_40_Laneavtal_revers.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_40_Laneavtal_revers.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_40_Laneavtal_revers.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_43_Leasingavtal_utrustning.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "När leasingperioden löper ut ska DevBrains återlämna Utrustningen",
+          "applies_to": "36 månader"
+        }
+      ],
+      "notes": "Optional right to extend is not automatic renewal."
+    },
+    {
+      "relative_path": "Avtal_43_Leasingavtal_utrustning.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "kan inte sägas upp i förtid av DevBrains",
+          "applies_to": "leasetagaren"
+        },
+        {
+          "contains": "säga upp avtalet med omedelbar verkan",
+          "applies_to": "leasegivaren vid avtalsbrott"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_43_Leasingavtal_utrustning.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_43_Leasingavtal_utrustning.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_43_Leasingavtal_utrustning.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "avbeställa återstående arbete med 30 dagars varsel",
+          "applies_to": "avbeställning"
+        },
+        {
+          "contains": "inte har rättats inom 30 dagar får den andra parten häva",
+          "applies_to": "väsentligt avtalsbrott"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "ansvar för skada är begränsat till [100] procent av takpriset",
+          "applies_to": "tak"
+        },
+        {
+          "contains": "Ingen part ansvarar för indirekt skada",
+          "applies_to": "indirekt"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "hålla den andra partens konfidentiella information hemlig",
+          "applies_to": "parterna"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "utom vid uppsåt, grov vårdslöshet, brott mot sekretess",
+          "applies_to": "13"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "minst 30 dagar innan de börjar gälla",
+          "applies_to": "väsentliga villkorsändringar"
+        },
+        {
+          "contains": "när som helst sluta använda Appen",
+          "applies_to": "användaren"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "ansvarar inte för indirekta skador eller förlust av data",
+          "applies_to": "indirekt, utom uppsåt/grov"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_51_Anvandarvillkor_webbplats_app.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [],
+      "notes": "Indirect-loss exclusion. No secrecy exception."
+    },
+    {
+      "relative_path": "Avtal_55_Overlatelse_domannamn.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_55_Overlatelse_domannamn.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_55_Overlatelse_domannamn.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_55_Overlatelse_domannamn.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_55_Overlatelse_domannamn.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_58_IT_policy_BYOD.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_58_IT_policy_BYOD.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "informerat Arbetstagaren minst 30 dagar i förväg",
+          "applies_to": "policyändring"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_58_IT_policy_BYOD.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "ersätter skada eller förlust endast om den har orsakats genom uppsåt eller grov vårdslöshet",
+          "applies_to": "arbetstagarens utrustning"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_58_IT_policy_BYOD.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "Konfidentiell information och kunddata får endast lagras i system som DevBrains har godkänt",
+          "applies_to": "lagring"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_58_IT_policy_BYOD.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [],
+      "notes": "Employee equipment limitation. No secrecy exception."
+    },
+    {
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "Ansvarsbegränsningar i Huvudavtalet gäller inte för sådan ersättning",
+          "applies_to": "GDPR art. 82"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "åtagit sig att iaktta konfidentialitet",
+          "applies_to": "biträdets personal"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_64_Byraavtal_reklam.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "förlängs därefter med tolv (12) månader i taget",
+          "applies_to": "kalenderår"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_64_Byraavtal_reklam.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "sägs upp senast tre (3) månader före avtalstidens utgång",
+          "applies_to": "förhindra förlängning"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_64_Byraavtal_reklam.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "begränsat till arvodet under de senaste tolv (12) månaderna",
+          "applies_to": "övrigt ansvar"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_64_Byraavtal_reklam.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "hålla information om DevBrains, produkter och lanseringsplaner konfidentiell",
+          "applies_to": "byrån"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_64_Byraavtal_reklam.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [],
+      "notes": "Cap excepts intent and gross negligence only."
+    },
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "ansvar är begränsat till priset för evenemanget",
+          "applies_to": "anläggningen"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_67_Evenemangsavtal.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [],
+      "notes": "Event-price cap. No secrecy exception."
+    },
+    {
+      "relative_path": "Avtal_71_Konstnarsavtal.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_71_Konstnarsavtal.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_71_Konstnarsavtal.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_71_Konstnarsavtal.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_71_Konstnarsavtal.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_74_Forsakringsavtal.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "förnyas därefter för ett (1) år i taget",
+          "applies_to": "försäkringsperiod"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_74_Forsakringsavtal.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "säga upp försäkringen att upphöra vid försäkringsperiodens slut",
+          "applies_to": "DevBrains"
+        },
+        {
+          "contains": "upphör då att gälla 14 dagar efter att uppsägningen skickades",
+          "applies_to": "obetald premie"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_74_Forsakringsavtal.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": "Insured amounts are coverage, not a damages cap between the parties."
+    },
+    {
+      "relative_path": "Avtal_74_Forsakringsavtal.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_74_Forsakringsavtal.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "Klienten får när som helst avsluta uppdraget",
+          "applies_to": "klienten"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "Ansvaret är begränsat till [Belopp] kronor per uppdrag",
+          "applies_to": "vårdslöshet"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "tystnadsplikt enligt rättegångsbalken och advokatsamfundets regler",
+          "applies_to": "byrån"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_78_Uppdragsavtal_juridiskt_ombud.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [],
+      "notes": "Cap excepts intent and gross negligence only."
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "until_notice",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "Avtalet gäller tills vidare",
+          "applies_to": "VD-anställning"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "Ömsesidig uppsägningstid är sex (6) månader",
+          "applies_to": "ordinarie"
+        },
+        {
+          "contains": "avsluta anställningen med omedelbar verkan",
+          "applies_to": "väsentligt avtalsbrott"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "tystnadsplikt om Bolagets affärs- och yrkeshemligheter under och efter anställningen",
+          "applies_to": "VD"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_84_Villkorat_aktieagartillskott.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_84_Villkorat_aktieagartillskott.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_84_Villkorat_aktieagartillskott.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_84_Villkorat_aktieagartillskott.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_84_Villkorat_aktieagartillskott.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_87_Investeringsavtal.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_87_Investeringsavtal.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_87_Investeringsavtal.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "Huvudägarna svarar i andra hand, högst med [Belopp] kronor var",
+          "applies_to": "garantiansvar"
+        },
+        {
+          "contains": "kan inte kräva ersättning för krav som understiger [Belopp] kronor",
+          "applies_to": "de minimis"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_87_Investeringsavtal.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "yes",
+      "addresses": true,
+      "answers": [
+        {
+          "contains": "Avtalets innehåll är konfidentiellt",
+          "applies_to": "investeringen"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_87_Investeringsavtal.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "no",
+      "addresses": true,
+      "answers": [],
+      "notes": "Warranty baskets. No secrecy exception."
+    },
+    {
+      "relative_path": "Avtal_90_Anslutningsavtal.docx",
+      "question_id": "auto-renewal",
+      "user_question": "Förlängs avtalet automatiskt?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_90_Anslutningsavtal.docx",
+      "question_id": "notice-period",
+      "user_question": "Vilken uppsägningstid gäller enligt avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_90_Anslutningsavtal.docx",
+      "question_id": "liability-cap",
+      "user_question": "Finns det en begränsning av parternas skadeståndsansvar?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_90_Anslutningsavtal.docx",
+      "question_id": "confidentiality",
+      "user_question": "Finns det en sekretessplikt i avtalet?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    },
+    {
+      "relative_path": "Avtal_90_Anslutningsavtal.docx",
+      "question_id": "liability-secrecy-carveout",
+      "user_question": "Undantas brott mot sekretess från ansvarsbegränsningen?",
+      "polarity": "silent",
+      "addresses": false,
+      "answers": [],
+      "notes": ""
+    }
+  ],
+  "compare_when_models_run": [
+    "D",
+    "E",
+    "K"
+  ]
+}

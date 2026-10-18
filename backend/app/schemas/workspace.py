@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.services.underlag_schemas import DocumentKnowledgeAnchorWrite
 
@@ -19,6 +19,13 @@ class WorkspaceDocumentTab(BaseModel):
     reference_id: str | None = None
     page: int = Field(default=1, ge=1)
     zoom: float = Field(default=1, ge=0.25, le=4)
+
+
+class WorkspaceDocumentSet(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(min_length=1, max_length=64)
+    title: str = Field(min_length=1, max_length=255)
+    source_ids: list[str] = Field(min_length=1, max_length=40)
 
 
 class WorkspaceSelection(BaseModel):
@@ -40,12 +47,16 @@ class WorkspaceState(BaseModel):
     language: Literal["sv", "en", "nb"] = "sv"
     expert_id: str | None = None
     knowledge_scope: Literal["workspace", "general", "research"] = "workspace"
-    view: Literal["evidence", "comparison", "documents", "relations"] = "evidence"
+    view: Literal["evidence", "comparison", "documents", "relations", "document_set"] = "evidence"
     documents: list[WorkspaceDocumentTab] = Field(default_factory=list, max_length=20)
+    active_source_id: str | None = None
+    document_sets: list[WorkspaceDocumentSet] = Field(default_factory=list, max_length=10)
+    active_document_set_id: str | None = None
     split_source_ids: list[str] = Field(default_factory=list, max_length=2)
     selection: WorkspaceSelection | None = None
     research_attempt_ids: list[str] = Field(default_factory=list, max_length=50)
     active_artifact_id: str | None = None
+    open_artifact_ids: list[str] = Field(default_factory=list, max_length=20)
     document_mentions: list[DocumentMention] = Field(default_factory=list, max_length=8)
 
 
@@ -77,6 +88,34 @@ class WorkspaceToolRequest(BaseModel):
     idempotency_key: str = Field(min_length=1, max_length=160)
     expected_revision: int | None = Field(default=None, ge=0)
     arguments: dict = Field(default_factory=dict)
+
+
+class PassageCommentWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source_id: str = Field(min_length=1, max_length=64)
+    anchor: DocumentKnowledgeAnchorWrite
+    body: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("body")
+    @classmethod
+    def clean_body(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("comment_body_required")
+        return cleaned
+
+
+class PassageCommentPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    body: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("body")
+    @classmethod
+    def clean_body(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("comment_body_required")
+        return cleaned
 
 
 class WorkspaceArtifactPatch(BaseModel):

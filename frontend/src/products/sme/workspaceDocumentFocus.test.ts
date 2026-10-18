@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
 import type { UnderlagFile } from "@/api/underlag"
 import type { SourceReference, WorkspaceState } from "@/api/voiceWorkspaces"
-import { clearWorkspaceDocumentSelection, visibleDocumentHighlights, workspaceFocusReference } from "./workspaceDocumentFocus"
+import { passageCommentKey } from "./passageCommentKey"
+import { clearWorkspaceDocumentSelection, foreignPassage, textMarkSegments, textOccurrenceIndex, visibleDocumentMarks, workspaceFocusReference } from "./workspaceDocumentFocus"
 
 const source: UnderlagFile = { id: "pdf", kind: "underlag", filename: "example.pdf", content_type: "application/pdf", size_bytes: 100, module: "sme", owner_user_id: null, folder_id: null, extraction_status: "ok", created_at: "2026-10-04T00:00:00Z" }
 const reference: SourceReference = { reference_id: "passage", number: 1, source_id: source.id, source_kind: "underlag", title: source.filename, excerpt: "Period June 1–30", source_version: "v1", stale: false, anchor: { anchor_type: "text", locator: "page:1", page_number: 1, exact_text: "Period June 1–30", rects: [], prefix_text: null, suffix_text: null, asset_id: null } }
@@ -15,15 +16,64 @@ function documentState(): WorkspaceState {
   }
 }
 
-describe("visible document highlights", () => {
-  const marked = { ...reference, reference_id: "marked", anchor: { ...reference.anchor!, rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }] } }
+const reader = { id: "user", name: "Erik Fremred" }
+const rect = { x: 0.1, y: 0.2, width: 0.3, height: 0.04 }
+
+describe("visible document marks", () => {
+  const marked = { ...reference, reference_id: "marked", anchor: { ...reference.anchor!, rects: [rect] } }
   const otherPage = { ...marked, reference_id: "other-page", anchor: { ...marked.anchor!, page_number: 2, rects: [{ x: 0.2, y: 0.3, width: 0.2, height: 0.05 }] } }
-  const otherSource = { ...marked, reference_id: "other-source", source_id: "other" }
-  it("shows every positioned passage on the open page", () => {
-    expect(visibleDocumentHighlights([reference, marked, otherPage, otherSource], source.id, 1, undefined).map((anchor) => anchor.rects)).toEqual([marked.anchor!.rects])
+  const expert = { ...marked, reference_id: "expert", marked_by: { kind: "expert" as const, id: "karin", name: "Karin" }, anchor: { ...marked.anchor!, rects: [{ x: 0.4, y: 0.5, width: 0.2, height: 0.04 }] } }
+  it("keeps every passage the reader marked", () => {
+    const second = { ...rect, y: 0.6 }
+    const marks = visibleDocumentMarks([expert], source.id, null, null, {
+      cleared: false, manual: true, user: reader,
+      drafts: [marked.anchor!, { ...marked.anchor!, rects: [second], exact_text: "Andra stycket" }],
+    })
+    expect(marks.map((mark) => mark.authorName)).toEqual(["Erik Fremred", "Erik Fremred", "Karin"])
+    expect(marks[0].anchor.rects).toEqual([rect])
+    expect(marks[1].anchor.exact_text).toBe("Andra stycket")
   })
-  it("hides stored passages after an explicit clear", () => {
-    expect(visibleDocumentHighlights([marked], source.id, 1, null)).toEqual([])
+  it("shows the reader's own selection and named expert marks, not every citation", () => {
+    const marks = visibleDocumentMarks([marked, expert], source.id, null, marked.anchor, { cleared: false, manual: true, user: reader })
+    expect(marks.map((mark) => mark.authorName)).toEqual(["Erik Fremred", "Karin"])
+    expect(marks[0]).toMatchObject({ authorKind: "user", anchor: marked.anchor })
+    expect(marks[1]).toMatchObject({ authorKind: "expert", authorId: "karin" })
+  })
+  it("treats someone else's passage as a comment target", () => {
+    const marks = visibleDocumentMarks([expert], source.id, null, null, { cleared: false, manual: false, user: reader })
+    expect(foreignPassage(marks, expert.anchor!, source.id, reader.id)?.authorName).toBe("Karin")
+    expect(foreignPassage(marks, { ...expert.anchor!, exact_text: "Annat stycke", rects: [{ x: 0.1, y: 0.1, width: 0.1, height: 0.02 }] }, source.id, reader.id)).toBeNull()
+    const own = visibleDocumentMarks([], source.id, null, null, { cleared: false, manual: true, user: reader, drafts: [expert.anchor!] })
+    expect(foreignPassage(own, expert.anchor!, source.id, reader.id)).toBeNull()
+  })
+  it("keeps an opened citation visible without calling it the reader's mark", () => {
+    const marks = visibleDocumentMarks([marked, otherPage], source.id, null, marked.anchor, { cleared: false, manual: false, user: reader })
+    expect(marks).toEqual([{ anchor: marked.anchor, authorKind: "passage", authorId: null, authorName: null, passageKey: passageCommentKey(source.id, marked.anchor!) }])
+  })
+  it("keeps overlapping marks from every expert", () => {
+    const alfons = { ...expert, reference_id: "alfons", marked_by: { kind: "expert" as const, id: "alfons", name: "Alfons" } }
+    const marks = visibleDocumentMarks([expert, alfons], source.id, null, null, { cleared: false, manual: false, user: reader })
+    expect(marks.map((mark) => mark.authorName)).toEqual(["Karin", "Alfons"])
+  })
+  it("keeps expert marks after the reader clears their own selection", () => {
+    const marks = visibleDocumentMarks([expert], source.id, 1, null, { cleared: true, manual: false, user: reader })
+    expect(marks.map((mark) => mark.authorName)).toEqual(["Karin"])
+  })
+  it("shows a text selection that has no page rectangles", () => {
+    const textAnchor = { ...reference.anchor!, page_number: null, locator: "document", rects: [], exact_text: "Priset är 50" }
+    const marks = visibleDocumentMarks([], source.id, null, textAnchor, { cleared: false, manual: true, user: reader })
+    expect(marks).toEqual([{ anchor: textAnchor, authorKind: "user", authorId: "user", authorName: "Erik Fremred", passageKey: passageCommentKey(source.id, textAnchor) }])
+  })
+  it("highlights each marked passage in a text document", () => {
+    const first = { anchor: { ...reference.anchor!, exact_text: "Priset är 50", prefix_text: "Villkor." }, authorKind: "user" as const, authorId: "user", authorName: "Erik Fremred", passageKey: "first" }
+    const second = { anchor: { ...reference.anchor!, exact_text: "Priset är 80", prefix_text: "Övrigt." }, authorKind: "user" as const, authorId: "user", authorName: "Erik Fremred", passageKey: "second" }
+    const segments = textMarkSegments("Villkor. Priset är 50. Övrigt. Priset är 80.", [first, second])
+    expect(segments.filter((segment) => segment.mark).map((segment) => segment.text)).toEqual(["Priset är 50", "Priset är 80"])
+  })
+  it("finds a repeated phrase after the text that precedes the selection", () => {
+    const text = "Villkor. Priset är 50. Övrigt. Priset är 80."
+    expect(textOccurrenceIndex(text, "Priset är", null)).toBe(text.indexOf("Priset är"))
+    expect(textOccurrenceIndex(text, "Priset är", "Övrigt.")).toBe(text.lastIndexOf("Priset är"))
   })
 })
 

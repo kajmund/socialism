@@ -51,6 +51,8 @@ OverGraph körs embedded i den backendprocess som utför grafoperationerna. `mak
 
 Dense-dimension sätts vid `open()` och kan inte ändras. Därför får kunskap och minne inte dela katalog. Den separata answer-review-processen öppnar inte grafen. Synkrona OverGraph-anrop körs av asyncio-loopen via en worker-tråd. GroupCommit för ingest. `sync()` när en publicerad nod måste vara durable före reuse.
 
+Per-tenant-filer (`OVERGRAPH_DIR/tenants/{customer_id}/knowledge`) är en godkänd, ännu inte inkopplad modell för dokumentkatalog, taggar och Q&A. En tenant har en fil, ett livscykellås (`tenant.lock`) och en aktiv Catalog. `TenantCatalogs` är enda öppningsvägen. Workers skriver via den aktiva ägaren, inte via ett andra `open()`. Se [document-qa-overgraph.md](document-qa-overgraph.md). Produktionens delade knowledge/memory-kataloger ovan är oförändrade tills ett separat integrationsbeslut.
+
 ## 4. Grafmodell
 
 OverGraph lagrar vektorer på noder. Kanter har `valid_from` / `valid_to` och `weight`, men ingen stabil `key` och ingen embedding. `edge_uniqueness` gäller `(from, to, label)`.

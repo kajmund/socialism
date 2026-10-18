@@ -3,16 +3,16 @@ import { Link } from "react-router-dom"
 import {
   createPersona,
   deletePersona,
-  editableToWrite,
   listExpertPersonas,
   type ExpertCandidate,
 } from "@/api/personas"
 import { useAuth } from "@/auth/AuthProvider"
+import { expertWriteFromCandidate } from "@/components/experts/expertCandidate"
 import { SuggestExpertsModal } from "@/components/experts/SuggestExpertsModal"
 import { AdminButton } from "@/components/ui/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ViewToggle, type ListViewMode } from "@/components/ui/view-toggle"
-import { blankEditableExpert, formatLibraryDate, personaInitials } from "@/data/library"
+import { formatLibraryDate, personaInitials } from "@/data/library"
 import type { LibraryPersona } from "@/data/library-types"
 import { useLocale, type MessageKey, type TranslateParams } from "@/i18n"
 import { ApiError } from "@/lib/api"
@@ -22,22 +22,6 @@ type Translate = (key: MessageKey, params?: TranslateParams) => string
 
 const CTA_CLASS =
   "admin-cta inline-flex h-9 items-center rounded-[var(--radius-md)] bg-db-black px-[18px] text-[0.85rem] text-db-ink-0 no-underline hover:bg-db-ink-800"
-
-function expertWriteFromCandidate(candidate: ExpertCandidate, customerId: number) {
-  const profile = blankEditableExpert()
-  profile.name = candidate.name
-  profile.initials = personaInitials(candidate.name)
-  profile.beskrivning = candidate.description || "—"
-  profile.kompetensomrade = candidate.kompetensomrade || "—"
-  profile.radgivningsstil = candidate.radgivningsstil || "—"
-  profile.yrkesbakgrund = candidate.yrkesbakgrund || "—"
-  profile.professionell_anekdot = candidate.professionell_anekdot || "—"
-  profile.yrke = candidate.yrkesbakgrund || "—"
-  return editableToWrite(profile, "beskrivning", candidate.description, {
-    kind: "expert",
-    customerId,
-  })
-}
 
 type ExpertItemProps = {
   expert: LibraryPersona

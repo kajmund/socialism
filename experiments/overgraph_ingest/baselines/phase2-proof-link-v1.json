@@ -1,0 +1,45 @@
+{
+  "id": "phase2-proof-link-v1",
+  "label": "Frozen: a legal relation needs a source-grounded link, not keyword co-occurrence. Not applied to Coverage v3.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "no_new_controller": true,
+  "proof_link_applied_to_v3": false,
+  "rule_b_rejected": true,
+  "cooccurrence_is_not_a_relation": true,
+  "relation_requires_source_span": true,
+  "ready_for_coverage_run": true,
+  "headline": {
+    "linked_positives": [
+      "Avtal_05_Konsultavtal.docx",
+      "Avtal_30_Ramavtal_tjanster.docx",
+      "Avtal_36_Underleverantorsavtal.docx",
+      "Avtal_46_SaaS_avtal.docx",
+      "Avtal_48_Mjukvaruutvecklingsavtal.docx",
+      "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "Avtal_60_Pilotavtal_PoC.docx"
+    ],
+    "positives_expected": 7,
+    "false_linked_count": 0,
+    "false_linked": [],
+    "cooccurrence_regression": {
+      "texts": [
+        "Begränsningarna gäller inte vid uppsåt eller grov vårdslöshet.",
+        "8. Sekretess"
+      ],
+      "status": "not_grounded",
+      "cooccurrence_only": true
+    },
+    "avtal_46_split": {
+      "status": "linked_relation",
+      "grounding_is_carveout_sentence": true,
+      "coverage_group_is_not_the_relation": true
+    },
+    "avtal_49_resolved": {
+      "status": "not_grounded",
+      "referent_matches": true,
+      "resolved": true
+    }
+  }
+}

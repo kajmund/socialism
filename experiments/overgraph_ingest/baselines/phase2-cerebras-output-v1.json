@@ -1,0 +1,137 @@
+{
+  "id": "phase2-cerebras-output-v1",
+  "label": "Frozen: Cerebras output ablation on the same hybrid top-50. Minimal MATCH/UNCERTAIN ids versus reasoned judgments. Does not replace C@8 or the reasoned rerank freeze. 24/53 remains the quality reference.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "does_not_replace_cerebras_rerank": true,
+  "applied_to_v3": false,
+  "same_frozen_top50": true,
+  "no_new_retrieval": true,
+  "task": "formulation_presence",
+  "headline": {
+    "quality_reference": {
+      "true_support": 24,
+      "expected_yes": 53,
+      "false_approvals": 0,
+      "leftover_genuine": 29,
+      "source": "phase2-citation-label-v1"
+    },
+    "k": 50,
+    "model": "gpt-oss-120b",
+    "summary": {
+      "golds": 5,
+      "mean_precision": 0.7347058823529411,
+      "mean_candidate_recall": 1.0,
+      "mean_corpus_recall": 0.8262443438914027,
+      "mean_corpus_document_recall": 0.8401098901098901,
+      "mean_ttft_seconds": 1.2698069332167505,
+      "mean_model_seconds": 1.3277015000581742,
+      "total_prompt_tokens": 16278,
+      "total_completion_tokens": 9588,
+      "cost_usd": null,
+      "total_id_errors": 0,
+      "mean_precision_delta": -0.01308213608023855,
+      "mean_candidate_recall_delta": 0.0,
+      "total_completion_token_delta": -4283,
+      "total_visible_json_chars": 752
+    },
+    "golds": [
+      {
+        "gold_id": "auto-renewal",
+        "precision": 1.0,
+        "candidate_recall": 1.0,
+        "match": 20,
+        "uncertain": 1,
+        "id_errors": 0,
+        "visible_json_chars": 151,
+        "completion_tokens": 1962,
+        "ttft_seconds": 1.2551806247793138,
+        "model_seconds": 1.2978367917239666,
+        "delta": {
+          "precision": 0.0,
+          "candidate_recall": 0.0,
+          "completion_tokens": -496,
+          "ttft_seconds": 0.06992345815524459,
+          "model_seconds": -0.24766475008800626
+        }
+      },
+      {
+        "gold_id": "notice-period",
+        "precision": 0.55,
+        "candidate_recall": 1.0,
+        "match": 20,
+        "uncertain": 0,
+        "id_errors": 0,
+        "visible_json_chars": 146,
+        "completion_tokens": 1563,
+        "ttft_seconds": 0.9906177502125502,
+        "model_seconds": 1.0273507498204708,
+        "delta": {
+          "precision": 0.0,
+          "candidate_recall": 0.0,
+          "completion_tokens": -956,
+          "ttft_seconds": -0.30617912486195564,
+          "model_seconds": -0.6753987083211541
+        }
+      },
+      {
+        "gold_id": "liability-cap",
+        "precision": 0.8235294117647058,
+        "candidate_recall": 1.0,
+        "match": 34,
+        "uncertain": 2,
+        "id_errors": 0,
+        "visible_json_chars": 241,
+        "completion_tokens": 2820,
+        "ttft_seconds": 2.0618250416591763,
+        "model_seconds": 2.224491917062551,
+        "delta": {
+          "precision": -0.07969639468690703,
+          "candidate_recall": 0.0,
+          "completion_tokens": -254,
+          "ttft_seconds": -0.5521291675977409,
+          "model_seconds": -0.9101031669415534
+        }
+      },
+      {
+        "gold_id": "confidentiality",
+        "precision": 0.3,
+        "candidate_recall": 1.0,
+        "match": 20,
+        "uncertain": 0,
+        "id_errors": 0,
+        "visible_json_chars": 146,
+        "completion_tokens": 1702,
+        "ttft_seconds": 1.0164984157308936,
+        "model_seconds": 1.050576124805957,
+        "delta": {
+          "precision": 0.01428571428571429,
+          "candidate_recall": 0.0,
+          "completion_tokens": -1186,
+          "ttft_seconds": -0.16772087523713708,
+          "model_seconds": -0.8680177913047373
+        }
+      },
+      {
+        "gold_id": "liability-secrecy-carveout",
+        "precision": 1.0,
+        "candidate_recall": 1.0,
+        "match": 7,
+        "uncertain": 0,
+        "id_errors": 0,
+        "visible_json_chars": 68,
+        "completion_tokens": 1541,
+        "ttft_seconds": 1.0249128337018192,
+        "model_seconds": 1.0382519168779254,
+        "delta": {
+          "precision": 0.0,
+          "candidate_recall": 0.0,
+          "completion_tokens": -1391,
+          "ttft_seconds": 0.10727141657844186,
+          "model_seconds": -0.641229291446507
+        }
+      }
+    ]
+  }
+}

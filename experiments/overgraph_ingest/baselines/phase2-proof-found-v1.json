@@ -1,0 +1,274 @@
+{
+  "id": "phase2-proof-found-v1",
+  "label": "Frozen: hop-always EVIDENCE_FOUND has no evidence span. Replay of Avtal 12 and Avtal 60. Not a new controller.",
+  "do_not_overwrite": true,
+  "does_not_replace_c8": true,
+  "does_not_replace_coverage_v3": true,
+  "classify_unchanged": true,
+  "no_new_jev": true,
+  "headline": {
+    "hop_always_requires_evidence_span": false,
+    "avtal_12_first_yes_in_c8": false,
+    "avtal_12_hypothesized_yes": true,
+    "avtal_12_hop_always": "EVIDENCE_FOUND",
+    "avtal_60_first_yes_in_c8": true,
+    "avtal_60_link_status": "linked_relation",
+    "avtal_60_polarity": "unresolved",
+    "avtal_60_gate": "UNDECIDED"
+  },
+  "cases": [
+    {
+      "relative_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "gold_relevant": false,
+      "unit_count": 18,
+      "c8_judgments": [],
+      "first_yes": {
+        "key": "6c635f61d317cc7819d76bc144674bc908ecdc67bf9d5afda3d2e85eed10c32a",
+        "rank": null,
+        "source": "only_candidate_unit",
+        "hypothesized": true,
+        "text": "B9. Slutreglering\nMed fullgörandet av denna överenskommelse har parterna inga ytterligare anspråk på varandra med anledning av anställningen eller dess upphörande. Undantag gäller för pensionsförmåner, ansvar enligt lagen om företagshemligheter och fel i slutlöneberäkningen.\n"
+      },
+      "explicit_relations_in_yes": {
+        "link_status": "not_grounded",
+        "linked_span": null,
+        "reference": null,
+        "polarity": "resolved"
+      },
+      "hop_targets_from_yes": [
+        {
+          "relation": "PREVIOUS",
+          "key": "1aa8387023be30dd2849bacee093de2d0e5f044ef57a8e8d53b5048272e68166",
+          "text": "B8. Frivillighet och betänketid\nArbetstagaren bekräftar att överenskommelsen har ingåtts frivilligt och att Arbetstagaren har haft möjlighet att rådgöra med facklig företrädare eller jurist. Arbetstagaren har fått minst [en vecka] betänketid.\n"
+        }
+      ],
+      "final_rule": {
+        "hop_always": "EVIDENCE_FOUND",
+        "with_gate": "EVIDENCE_FOUND",
+        "gate_reason": null,
+        "requires_evidence_span": false,
+        "completes_because": "yes_and_hop_attempted"
+      },
+      "evidence_span": {
+        "showable": false,
+        "yes_text": "B9. Slutreglering\nMed fullgörandet av denna överenskommelse har parterna inga ytterligare anspråk på varandra med anledning av anställningen eller dess upphörande. Undantag gäller för pensionsförmåner, ansvar enligt lagen om företagshemligheter och fel i slutlöneberäkningen.\n",
+        "used_for_complete": "yes_count and hop_attempted",
+        "used_for_gate": {
+          "admitted": true,
+          "blocked": false,
+          "reason": null
+        }
+      },
+      "observed_v3": {
+        "first_complete_budget": 3,
+        "first_complete_classified": 298,
+        "budgets": [
+          {
+            "budget": 1,
+            "complete": false,
+            "undecided": false,
+            "classified": 100
+          },
+          {
+            "budget": 2,
+            "complete": false,
+            "undecided": false,
+            "classified": 200
+          },
+          {
+            "budget": 3,
+            "complete": true,
+            "undecided": false,
+            "classified": 298
+          },
+          {
+            "budget": 5,
+            "complete": true,
+            "undecided": false,
+            "classified": 482
+          }
+        ]
+      },
+      "observed_gate": {
+        "first_complete_budget": 3,
+        "first_complete_classified": 298,
+        "budgets": [
+          {
+            "budget": 1,
+            "complete": false,
+            "undecided": false,
+            "classified": 100
+          },
+          {
+            "budget": 2,
+            "complete": false,
+            "undecided": false,
+            "classified": 200
+          },
+          {
+            "budget": 3,
+            "complete": true,
+            "undecided": false,
+            "classified": 298
+          },
+          {
+            "budget": 5,
+            "complete": true,
+            "undecided": false,
+            "classified": 482
+          }
+        ]
+      },
+      "candidate_units": [
+        {
+          "key": "6c635f61d317cc7819d76bc144674bc908ecdc67bf9d5afda3d2e85eed10c32a",
+          "sequence": 16,
+          "text": "B9. Slutreglering\nMed fullgörandet av denna överenskommelse har parterna inga ytterligare anspråk på varandra med anledning av anställningen eller dess upphörande. Undantag gäller för pensionsförmåner, ansvar enligt lagen om företagshemligheter och fel i slutlöneberäkningen.\n",
+          "in_c8": false
+        }
+      ]
+    },
+    {
+      "relative_path": "Avtal_60_Pilotavtal_PoC.docx",
+      "gold_relevant": true,
+      "unit_count": 25,
+      "c8_judgments": [
+        {
+          "key": "0b49e0dba5cfe93ebfb8d33d64d5151338d834866164dea2106b3c81b4aa0c6a",
+          "rank": 10,
+          "predicted": "YES",
+          "text": "11. Ansvar\nTjänsten tillhandahålls i befintligt skick under piloten. DevBrains ansvarar inte för indirekt skada. DevBrains sammanlagda ansvar är begränsat till [Belopp] kronor, utom vid uppsåt, grov vårdslöshet eller brott mot sekretess ell"
+        },
+        {
+          "key": "14e7d646034f38ed9bee7bf9fdcc6daa48ff8e89f11cbe84694bf6a66448f84c",
+          "rank": 49,
+          "predicted": "NO",
+          "text": "12. Sekretess\nParterna ska hålla information om den andra parten, Tjänsten och pilotresultaten konfidentiell i tre (3) år.\n"
+        }
+      ],
+      "first_yes": {
+        "key": "0b49e0dba5cfe93ebfb8d33d64d5151338d834866164dea2106b3c81b4aa0c6a",
+        "rank": 10,
+        "source": "c8",
+        "hypothesized": false,
+        "text": "11. Ansvar\nTjänsten tillhandahålls i befintligt skick under piloten. DevBrains ansvarar inte för indirekt skada. DevBrains sammanlagda ansvar är begränsat till [Belopp] kronor, utom vid uppsåt, grov vårdslöshet eller brott mot sekretess ell"
+      },
+      "explicit_relations_in_yes": {
+        "link_status": "linked_relation",
+        "linked_span": "utom vid uppsåt, grov vårdslöshet eller brott mot sekretess",
+        "reference": null,
+        "polarity": "unresolved"
+      },
+      "hop_targets_from_yes": [
+        {
+          "relation": "PREVIOUS",
+          "key": "2da188da731e74ed06f1910de59d54bad6b57a89eba63d386bea6c3cefbad7dc",
+          "text": "10.2 DevBrains är personuppgiftsbiträde för de personuppgifter som behandlas i Tjänsten. Ett personuppgiftsbiträdesavtal (Bilaga 1) gäller.\n"
+        }
+      ],
+      "final_rule": {
+        "hop_always": "EVIDENCE_FOUND",
+        "with_gate": "UNDECIDED",
+        "gate_reason": "unresolved_polarity",
+        "requires_evidence_span": false,
+        "completes_because": "yes_and_hop_attempted"
+      },
+      "evidence_span": {
+        "showable": true,
+        "yes_text": "11. Ansvar\nTjänsten tillhandahålls i befintligt skick under piloten. DevBrains ansvarar inte för indirekt skada. DevBrains sammanlagda ansvar är begränsat till [Belopp] kronor, utom vid uppsåt, grov vårdslöshet eller brott mot sekretess ell",
+        "used_for_complete": "yes_count and hop_attempted",
+        "used_for_gate": {
+          "admitted": false,
+          "blocked": true,
+          "reason": "unresolved_polarity"
+        }
+      },
+      "observed_v3": {
+        "first_complete_budget": 2,
+        "first_complete_classified": 200,
+        "budgets": [
+          {
+            "budget": 1,
+            "complete": false,
+            "undecided": false,
+            "classified": 100
+          },
+          {
+            "budget": 2,
+            "complete": true,
+            "undecided": false,
+            "classified": 200
+          },
+          {
+            "budget": 3,
+            "complete": true,
+            "undecided": false,
+            "classified": 298
+          },
+          {
+            "budget": 5,
+            "complete": true,
+            "undecided": false,
+            "classified": 482
+          }
+        ]
+      },
+      "observed_gate": {
+        "first_complete_budget": null,
+        "first_complete_classified": null,
+        "budgets": [
+          {
+            "budget": 1,
+            "complete": false,
+            "undecided": false,
+            "classified": 100
+          },
+          {
+            "budget": 2,
+            "complete": false,
+            "undecided": true,
+            "classified": 200
+          },
+          {
+            "budget": 3,
+            "complete": false,
+            "undecided": true,
+            "classified": 298
+          },
+          {
+            "budget": 5,
+            "complete": false,
+            "undecided": true,
+            "classified": 482
+          }
+        ]
+      },
+      "candidate_units": [
+        {
+          "key": "05046d9294d4b3fd5f3bd773aa10e1a15d2b24094a71b9f759712932c8440cef",
+          "sequence": 0,
+          "text": "Avtal 60 – Pilotavtal / Proof of Concept\nNär används det: När ett företag låter en tilltänkt kund testa en produkt eller tjänst under en begränsad tid, för att visa att lösningen fungerar innan kunden bestämmer sig för att köpa.\nAvtalsdatum (tidslinje): 2023-10-16 – Granlunds Möbelhandel AB testar DevBrains Flow i två butiker innan tjänsten lanseras.\n",
+          "in_c8": false
+        },
+        {
+          "key": "66ade71317079a6eebe4661b1197cd798ceb71ed42406b1eb14c3743cc51b25e",
+          "sequence": 9,
+          "text": "6. Pilotkundens medverkan\nPilotkunden ska utse en projektansvarig, Sofia Granlund, låta användarna använda Tjänsten i den dagliga verksamheten, lämna återkoppling varje vecka och delta i ett utvärderingsmöte vid pilotens slut.\n",
+          "in_c8": false
+        },
+        {
+          "key": "0b49e0dba5cfe93ebfb8d33d64d5151338d834866164dea2106b3c81b4aa0c6a",
+          "sequence": 20,
+          "text": "11. Ansvar\nTjänsten tillhandahålls i befintligt skick under piloten. DevBrains ansvarar inte för indirekt skada. DevBrains sammanlagda ansvar är begränsat till [Belopp] kronor, utom vid uppsåt, grov vårdslöshet eller brott mot sekretess eller personuppgiftsbiträdesavtalet. Pilotkunden ska ha kvar sina befintliga rutiner som reserv under piloten.\n",
+          "in_c8": true
+        },
+        {
+          "key": "14e7d646034f38ed9bee7bf9fdcc6daa48ff8e89f11cbe84694bf6a66448f84c",
+          "sequence": 21,
+          "text": "12. Sekretess\nParterna ska hålla information om den andra parten, Tjänsten och pilotresultaten konfidentiell i tre (3) år.\n",
+          "in_c8": true
+        }
+      ]
+    }
+  ]
+}

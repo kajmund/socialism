@@ -115,6 +115,28 @@ def test_normalize_messages_for_openai_omits_reasoning_content():
     assert out[0]["content"] == ""
 
 
+def test_normalize_messages_for_deepseek_fills_missing_reasoning_content():
+    """DeepSeek rejects tools requests that replay an assistant turn without
+    ``reasoning_content``; the serializer must send the field even when empty."""
+    messages = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "q"},
+        {"role": "assistant", "content": "svar"},
+        {
+            "role": "assistant",
+            "content": "med tanke",
+            "reasoning_content": "plan",
+        },
+        {"role": "tool", "tool_call_id": "call_1", "content": "ok"},
+    ]
+    out = normalize_messages_for_deepseek(messages)
+    assert out[0] == {"role": "system", "content": "sys"}
+    assert "reasoning_content" not in out[1]
+    assert out[2]["reasoning_content"] == ""
+    assert out[3]["reasoning_content"] == "plan"
+    assert "reasoning_content" not in out[4]
+
+
 def test_normalize_messages_for_provider_dispatches():
     messages = [
         {

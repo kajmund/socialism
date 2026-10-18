@@ -80,8 +80,6 @@ class SupabaseKnowledgeProvider:
                 if unit_id not in seen:
                     seen[unit_id] = len(allowed)
                     allowed.append(passage)
-                elif passage.metadata.get("discovery_kind") == "document_item":
-                    allowed[seen[unit_id]] = passage
             if len(raw_hits) < fetch_limit or fetch_limit >= max_fetch:
                 break
             fetch_limit = min(fetch_limit * 2, max_fetch)

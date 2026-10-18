@@ -1,8 +1,11 @@
+from typing import Literal
+
 from pydantic import Field
 
 
 class LiveSpeechSettings:
     live_speech_stt_model: str = "gpt-live-transcribe"
+    live_speech_noise_reduction: Literal["near_field", "far_field"] = "near_field"
     live_speech_stt_timeout_seconds: float = Field(default=12.0, gt=1, le=120)
     live_speech_tts_model: str = "eleven_v4_turbo"
     live_speech_tts_output_format: str = "pcm_24000"
@@ -17,6 +20,23 @@ class LiveSpeechSettings:
     live_speech_backchannel_confirm_ms: int = Field(default=300, ge=100, le=800)
     live_speech_listener_after_ms: int = Field(default=4000, ge=500, le=20000)
     live_speech_listener_cooldown_ms: int = Field(default=8000, ge=1000, le=30000)
-    live_speech_waiting_suppress_ms: int = Field(default=350, ge=50, le=2000)
-    live_speech_tool_progress_ms: int = Field(default=800, ge=100, le=5000)
+    live_speech_waiting_suppress_ms: int = Field(default=50, ge=50, le=120_000)
     live_speech_phrase_timeout_seconds: float = Field(default=1.5, gt=0.2, le=8)
+
+
+def tts_sample_rate(output_format: str) -> int:
+    rate = output_format.rsplit("_", 1)[-1]
+    if not rate.isdigit():
+        raise RuntimeError("LIVE_SPEECH_TTS_OUTPUT_FORMAT must include a sample rate")
+    return int(rate)
+
+
+def vad_client_config(source: LiveSpeechSettings) -> dict[str, float | int]:
+    """The same client VAD settings for a single expert and a group."""
+    return {
+        "threshold": source.live_speech_vad_threshold,
+        "preroll_ms": source.live_speech_vad_preroll_ms,
+        "hangover_ms": source.live_speech_vad_hangover_ms,
+        "min_speech_ms": source.live_speech_vad_min_speech_ms,
+        "urgent_ms": source.live_speech_vad_urgent_ms,
+    }
