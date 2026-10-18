@@ -1,0 +1,3679 @@
+[
+  {
+    "id": "GQ-001",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/banking/bankkontoutdrag.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "beräkning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Summa tillgängliga saldon per bankkonto vid analysdatum 2026-10-18."
+  },
+  {
+    "id": "GQ-002",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/banking/bankkontoutdrag.csv",
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "accounting/accounts_receivable/kundreskontra_oppna.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "beräkning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Runway = likvida medel + väntade inbetalningar minus kritiska utbetalningar vid −20 % intäkt."
+  },
+  {
+    "id": "GQ-003",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/accounts_payable/leverantorsreskontra.csv",
+      "invoices/incoming/2026/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "beräkning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Förfallna och kommande leverantörsfakturor inom 30 dagar."
+  },
+  {
+    "id": "GQ-004",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/accounts_receivable/kundreskontra_oppna.csv",
+      "invoices/outgoing/2026/"
+    ],
+    "required_entities": [
+      "CUS-003",
+      "CUS-007",
+      "CUS-009",
+      "CUS-049"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "beräkning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Förfallna kundfakturor per kund med belopp ur den öppna kundreskontran."
+  },
+  {
+    "id": "GQ-005",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/banking/bankkontoutdrag.csv",
+      "management/likviditetsprognos_2026_Q4.docx",
+      "accounting/accounts_payable/leverantorsreskontra.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "beräkning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Lägsta likviditetspunkt nästa kvartal utifrån planerade in- och utbetalningar."
+  },
+  {
+    "id": "GQ-006",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/accounts_receivable/kundreskontra_oppna.csv"
+    ],
+    "required_entities": [
+      "CUS-001"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "beräkning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Största kundens utestående belopp (SEAB) förskjutet 30 dagar i kassaflödet."
+  },
+  {
+    "id": "GQ-007",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "management/budget_FY2026.docx",
+      "accounting/accounts_payable/leverantorsreskontra.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "beräkning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: icke-avtalsbundna utgifter går att identifiera, men leveransberoendet kräver projektplaner som bara delvis finns."
+  },
+  {
+    "id": "GQ-008",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/accounts_receivable/kundreskontra_oppna.csv",
+      "accounting/financial_reports/balans_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "beräkning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kundfordringar + lager (0 – tjänsteföretag utan varulager)."
+  },
+  {
+    "id": "GQ-009",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/banking/bankkontoutdrag.csv",
+      "accounting/payroll/lonelista_aktuell.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "beräkning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kassa mot lönekostnad för två nyanställningar inklusive arbetsgivaravgifter."
+  },
+  {
+    "id": "GQ-010",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "accounting/banking/banktransaktioner.csv",
+      "accounting/accounts_payable/leverantorsreskontra.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "beräkning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: buffertbehov kan beräknas från faktiska utbetalningar, men tröskelnivån är en bedömning."
+  },
+  {
+    "id": "GQ-011",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "projects/tidrapporter.csv",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "analys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Täckningsbidrag per projekt/tjänstekategori."
+  },
+  {
+    "id": "GQ-012",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "analys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Bruttomarginal månad för månad de senaste tolv månaderna."
+  },
+  {
+    "id": "GQ-013",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "management/budget_FY2026.docx",
+      "accounting/general_ledger/huvudbok.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "analys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Budgetavvikelser per kostnads-/intäktsslag mot huvudboken."
+  },
+  {
+    "id": "GQ-014",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "analys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kostnadsslag som vuxit snabbare än omsättningen."
+  },
+  {
+    "id": "GQ-015",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "projects/tidrapporter.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "analys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Lönsamhet per uppdrag efter faktiska timmar."
+  },
+  {
+    "id": "GQ-016",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultatrakning_FY2026.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "analys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Engångsintäkter (t.ex. förlikningar, eftersläpningsfakturor) som andel av resultatet."
+  },
+  {
+    "id": "GQ-017",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "management/budget_FY2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "analys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Break-even-omsättning för 10 % rörelsemarginal utifrån kostnadsnivån."
+  },
+  {
+    "id": "GQ-018",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/licensutnyttjande.csv",
+      "accounting/accounts_payable/leverantorsreskontra.csv"
+    ],
+    "required_entities": [
+      "SUP-007",
+      "SUP-014"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "analys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Abonnemang med låg utnyttjandegrad (Designsuiten 9/18 licenser, Datainsikt 2/10)."
+  },
+  {
+    "id": "GQ-019",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "projects/tidrapporter.csv",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "analys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Lönsamhet per kundsegment (OFFENTLIG/ENTERPRISE/SMB)."
+  },
+  {
+    "id": "GQ-020",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "accounting/financial_reports/resultatrakning_FY2026.csv",
+      "management/riskregister.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "analys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Tre åtgärder med störst resultateffekt nästa kvartal (bedömning av hävstänger)."
+  },
+  {
+    "id": "GQ-021",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/budget_FY2026.docx",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Budget mot faktiskt utfall och helårsprojektion."
+  },
+  {
+    "id": "GQ-022",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/prognos_FY2026_reviderad.docx",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Trendframskrivning mot den reviderade helårsprognosen."
+  },
+  {
+    "id": "GQ-023",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "management/prognos_FY2026_reviderad.docx",
+      "management/budget_FY2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: best/worst/base finns för FY26; scenarier för nästa år (FY27) saknas."
+  },
+  {
+    "id": "GQ-024",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "management/investeringskalkyl_goteborg.docx",
+      "management/likviditetsprognos_2026_Q4.docx",
+      "accounting/banking/bankkontoutdrag.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: kontorskalkyl finns men flera kostnadsposter är uppskattningar utan offerter."
+  },
+  {
+    "id": "GQ-025",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/bilkalkyl_lease_vs_kop.docx"
+    ],
+    "required_entities": [
+      "SUP-029",
+      "SUP-030"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Leasing vs köp utifrån offerter och nuvarande leasingavtal."
+  },
+  {
+    "id": "GQ-026",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/budget_FY2026.docx",
+      "management/styrelseprotokoll_2025-09-25.docx",
+      "management/produktutveckling_case.docx"
+    ],
+    "required_entities": [
+      "PRJ-090"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Investeringsram för produktutveckling (2,4 MSEK enligt styrelsebeslut) mot utnyttjat."
+  },
+  {
+    "id": "GQ-027",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/budget_FY2026.docx",
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "management/bankmote_2025-09-15.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Känslighetsanalys på ränte- och löneantaganden i budgeten."
+  },
+  {
+    "id": "GQ-028",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/prognos_FY2026_reviderad.docx",
+      "management/budget_FY2026.docx",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Prognosantaganden som avviker mest från faktiskt utfall."
+  },
+  {
+    "id": "GQ-029",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/bankmote_2025-09-15.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Bankens covenantkrav: soliditet ≥25 %, EBITDA >0, månatlig likviditetsprognos."
+  },
+  {
+    "id": "GQ-030",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/balans_per_manad.csv",
+      "accounting/banking/bankkontoutdrag.csv",
+      "management/styrelseprotokoll_2025-11-24.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Utdelningsutrymme givet fria medel, likviditet och bordlagd utdelningsfråga."
+  },
+  {
+    "id": "GQ-031",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "filtrering",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Öppen pipeline: antal affärer och totalt värde."
+  },
+  {
+    "id": "GQ-032",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "filtrering",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Öppna affärer rankade på sannolikhet × belopp och nära close-datum."
+  },
+  {
+    "id": "GQ-033",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "filtrering",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Medelvärde skapad→stängd för vunna affärer."
+  },
+  {
+    "id": "GQ-034",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "customers/forlorade_affarer.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "filtrering",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: i vilka stages affärer faller bort går att räkna; orsakerna är bara delvis dokumenterade."
+  },
+  {
+    "id": "GQ-035",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "accounting/financial_reports/projektintakter.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "filtrering",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Vunna affärer per säljare/kanal ställda mot lönsamhet."
+  },
+  {
+    "id": "GQ-036",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/offerter/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "filtrering",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Offerter med utgående giltighet eller väntande svar den här veckan."
+  },
+  {
+    "id": "GQ-037",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "management/budget_FY2026.docx",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "filtrering",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Nysäljningsbehov för att täcka gapet till nästa kvartals budget."
+  },
+  {
+    "id": "GQ-038",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "filtrering",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Affärer utan aktivitetsdatum de senaste 30 dagarna."
+  },
+  {
+    "id": "GQ-039",
+    "answerability": "INSUFFICIENT_EVIDENCE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "customers/kundmotesanteckningar/"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "filtrering",
+      "analys"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "OTILLRÄCKLIGT UNDERLAG: saknas transkript/anteckningar från säljsamtal; CRM har bara stages och belopp, inga kundbehov uttalade i samtalen."
+  },
+  {
+    "id": "GQ-040",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "filtrering",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Win rate för små vs stora affärer (beloppströskel)."
+  },
+  {
+    "id": "GQ-041",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "projects/tidrapporter.csv",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Tio viktigaste kunderna mätt i täckningsbidrag."
+  },
+  {
+    "id": "GQ-042",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "accounting/financial_reports/resultatrakning_FY2026.csv"
+    ],
+    "required_entities": [
+      "CUS-001"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "SEAB:s andel av intäkterna (≈34 % FY26)."
+  },
+  {
+    "id": "GQ-043",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [
+      "CUS-008",
+      "CUS-009",
+      "CUS-010"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kunder med minskade köp jämfört med föregående år."
+  },
+  {
+    "id": "GQ-044",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "customers/klagomalsregister.csv",
+      "correspondence/mail_mossbacken_uppsagning.eml"
+    ],
+    "required_entities": [
+      "CUS-007",
+      "CUS-008"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Churnsignaler: återkommande klagomål, utebliven aktivitet, uppsägningar."
+  },
+  {
+    "id": "GQ-045",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Utgångs- och förlängningsdatum i kundavtalen."
+  },
+  {
+    "id": "GQ-046",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/klagomalsregister.csv",
+      "correspondence/mail_klagomal_BV_svarstider.eml"
+    ],
+    "required_entities": [
+      "CUS-007",
+      "CUS-011"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Återkommande klagomål per tema och kund (BV svarstider ×3, NH prestanda ×3)."
+  },
+  {
+    "id": "GQ-047",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "customers/klagomalsregister.csv",
+      "contracts/customers/"
+    ],
+    "required_entities": [
+      "CUS-007",
+      "CUS-011",
+      "CUS-016"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Proaktiva kontakter utifrån avtalsutgång, klagomål och låg aktivitet."
+  },
+  {
+    "id": "GQ-048",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/",
+      "accounting/accounts_receivable/kundreskontra_oppna.csv"
+    ],
+    "required_entities": [
+      "CUS-002",
+      "CUS-005",
+      "CUS-007",
+      "CUS-008",
+      "CUS-016"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Återkommande intäkter i riskzonen nästa halvår (utgående eller uppsagda avtal)."
+  },
+  {
+    "id": "GQ-049",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "projects/tidrapporter.csv",
+      "customers/klagomalsregister.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kundlönsamhet inklusive support- och leveranskostnader."
+  },
+  {
+    "id": "GQ-050",
+    "answerability": "INSUFFICIENT_EVIDENCE",
+    "requires_data": [
+      "customers/kundmotesanteckningar/",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "OTILLRÄCKLIGT UNDERLAG: mötesanteckningarna innehåller bara enstaka citat om varför kunder väljer oss; systematisk dokumentation av valorsaker saknas."
+  },
+  {
+    "id": "GQ-051",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "projects/tidrapporter.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "jämförelse",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Tjänster med lägst marginal."
+  },
+  {
+    "id": "GQ-052",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/",
+      "invoices/outgoing/2026/"
+    ],
+    "required_entities": [
+      "CUS-002",
+      "CUS-005",
+      "CUS-007"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "jämförelse",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Senaste prishöjning per kund; KF-felhöjningen debiterades först fr.o.m. 2026-02."
+  },
+  {
+    "id": "GQ-053",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/"
+    ],
+    "required_entities": [
+      "CUS-002",
+      "CUS-005",
+      "CUS-007"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "jämförelse",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Index-/prisjusteringsklausuler i kundavtalen (KPI-uppräkning)."
+  },
+  {
+    "id": "GQ-054",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "contracts/customers/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "jämförelse",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "+5 % pris på befintliga volymer ställt mot marginalen."
+  },
+  {
+    "id": "GQ-055",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "customers/forlorade_affarer.csv",
+      "correspondence/konkurrentbevakning.docx"
+    ],
+    "required_entities": [
+      "CUS-008"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "jämförelse",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "marknadsdata konkurrenter: priser och erbjudanden",
+      "branschstatistik IT-konsulttjänster"
+    ],
+    "notes": "Interna källor visar att affärer förlorats (t.ex. Mossbackens), men varför kunden valde konkurrenten kräver extern marknadsdata."
+  },
+  {
+    "id": "GQ-056",
+    "answerability": "INSUFFICIENT_EVIDENCE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "correspondence/mail_offertuppfoljning.eml"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "jämförelse",
+      "analys"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "OTILLRÄCKLIGT UNDERLAG: saknas register över efterfrågade men ej erbjudna tjänster; CRM spårar bara befintliga offerter."
+  },
+  {
+    "id": "GQ-057",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "jämförelse",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Specialrabatter i avtal och CRM med motivering."
+  },
+  {
+    "id": "GQ-058",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "contracts/customers/",
+      "invoices/outgoing/2026/"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "jämförelse",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "marknadsprisdata konsulttjänster 2026 (t.ex. Cinode / Sveriges Konsultföretag)"
+    ],
+    "notes": "Interna timpriser jämförs mot marknadsprisdata; marknadsdelen kräver extern källa."
+  },
+  {
+    "id": "GQ-059",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "jämförelse",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Bortfall av den svagaste tjänsten ställt mot täckningsbidraget."
+  },
+  {
+    "id": "GQ-060",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "projects/tidrapporter.csv",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "jämförelse",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: marginal per paket kan beräknas; kundvärdet kräver kundintervjuer som saknas."
+  },
+  {
+    "id": "GQ-061",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/affarsplan_2026_2028.docx",
+      "employees/kompetensmatris.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Kompetensgap mot affärsplanens mål för nästa år."
+  },
+  {
+    "id": "GQ-062",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "projects/tidrapporter.csv",
+      "management/budget_FY2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Rekryteringsbehov vid +25 % försäljning: timmar per omsättningskrona."
+  },
+  {
+    "id": "GQ-063",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "employees/kompetensmatris.csv"
+    ],
+    "required_entities": [
+      "EMP-026",
+      "EMP-011",
+      "EMP-024"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Roller där en person bär kritisk belastning (flaskhalsar)."
+  },
+  {
+    "id": "GQ-064",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "employees/rekryteringsarende_2026-01.docx",
+      "employees/rekryteringsarende_2026-03.docx",
+      "accounting/payroll/lonelista_aktuell.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "PARTIELLT: tid till produktivitet mätbar för genomförda rekryteringar; onboardingdata är ofullständig."
+  },
+  {
+    "id": "GQ-065",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/payroll/lonelista_aktuell.csv",
+      "accounting/payroll/loneunderlag.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Lön + arbetsgivaravgifter + rekryterings-/onboardingkostnad."
+  },
+  {
+    "id": "GQ-066",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "projects/statusrapport_SU-Produktionssystem_2026-09.docx",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [
+      "EMP-030"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Bemanningsgap (t.ex. supporten utan ansvarig efter Klara Månsson) mot kommande uppdrag."
+  },
+  {
+    "id": "GQ-067",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "employees/kompetensmatris.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Omfördelning i stället för rekrytering utifrån ledig kapacitet."
+  },
+  {
+    "id": "GQ-068",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "employees/rekryteringsarende_2026-01.docx",
+      "employees/rekryteringsarende_2026-03.docx",
+      "employees/kompetensmatris.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: kandidatpoäng finns för tre roller, inte mot alla öppna roller."
+  },
+  {
+    "id": "GQ-069",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "accounting/payroll/lonelista_aktuell.csv",
+      "accounting/financial_reports/projektintakter.csv"
+    ],
+    "required_entities": [
+      "EMP-012"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Effekt av ny senior specialist (Nadia Haddad) på beläggning och lönsamhet."
+  },
+  {
+    "id": "GQ-070",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "employees/kompetensmatris.csv",
+      "projects/tidrapporter.csv"
+    ],
+    "required_entities": [
+      "EMP-026",
+      "EMP-011",
+      "EMP-024"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "beräkning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Ensamkompetenser: Daniel Nyström (data/AI), Tomas Berg (arkitektur), Maria Gustavsson (testledning)."
+  },
+  {
+    "id": "GQ-071",
+    "answerability": "CONFLICTING_EVIDENCE",
+    "requires_data": [
+      "employees/medarbetarundersokning_2026.docx",
+      "accounting/payroll/lonelista_aktuell.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "integritetskänslig_analys",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "MOTSTRIDIGT UNDERLAG: medarbetarundersökningen och anställningsregistret (lönelistan) anger olika antal avgångar under de senaste 12 månaderna."
+  },
+  {
+    "id": "GQ-072",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "employees/medarbetarundersokning_2026.docx",
+      "employees/avslutssamtal_2026-02-27.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "integritetskänslig_analys",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Belastningssignaler: övertid/omarbete, beläggning och avgångsorsaker."
+  },
+  {
+    "id": "GQ-073",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "employees/utvecklingssamtal.csv",
+      "accounting/payroll/lonelista_aktuell.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "integritetskänslig_analys",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Medarbetare utan utvecklingssamtal på mer än 12 månader."
+  },
+  {
+    "id": "GQ-074",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "employees/medarbetarundersokning_2025.docx",
+      "employees/medarbetarundersokning_2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "integritetskänslig_analys",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Öppna åtgärder från 2025-undersökningen som saknar genomförandebevis 2026."
+  },
+  {
+    "id": "GQ-075",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "employees/avslutssamtal_2026-02-27.docx",
+      "employees/avslutssamtal_2026-04-29.docx",
+      "employees/avslutssamtal_2026-02-28.docx"
+    ],
+    "required_entities": [
+      "EMP-010",
+      "EMP-016",
+      "EMP-037"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "integritetskänslig_analys",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Orsaker i avslutssamtalen (utmattning, arbetsbelastning, rekryterad av kund)."
+  },
+  {
+    "id": "GQ-076",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "employees/utbildningsplan_2026.docx",
+      "employees/kompetensmatris.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "integritetskänslig_analys",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Prioriterade utbildningar mot kompetensgap."
+  },
+  {
+    "id": "GQ-077",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "employees/sam_riskbedomning.docx",
+      "policies/arbetsmiljopolicy.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "integritetskänslig_analys",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Dokumenterade SAM-riskbedömningar för arbetsmiljön."
+  },
+  {
+    "id": "GQ-078",
+    "answerability": "CONFLICTING_EVIDENCE",
+    "requires_data": [
+      "employees/sjukfranvaro_2025.docx",
+      "employees/sjukfranvaro_2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "integritetskänslig_analys",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "MOTSTRIDIGT UNDERLAG: Q1-2026-siffran skiljer mellan de två rapportversionerna."
+  },
+  {
+    "id": "GQ-079",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "employees/medarbetarundersokning_2026.docx",
+      "employees/avslutssamtal_2026-02-27.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "integritetskänslig_analys",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Återkommande ledarskapsteman i medarbetarfeedback."
+  },
+  {
+    "id": "GQ-080",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "employees/medarbetarundersokning_2026.docx",
+      "employees/avslutssamtal_2026-02-27.docx",
+      "employees/sjukfranvaro_2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "integritetskänslig_analys",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Trivsel- och retentionsåtgärder utifrån undersökning och avgångsorsaker."
+  },
+  {
+    "id": "GQ-081",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/styrelseprotokoll_2026-09-28.docx",
+      "management/ledningsgruppsprotokoll_2026-09-15.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "sammanställning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Beslut i protokoll som saknar genomförandebevis."
+  },
+  {
+    "id": "GQ-082",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/affarsplan_2026_2028.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Ansvariga för de fem viktigaste initiativen i affärsplanen."
+  },
+  {
+    "id": "GQ-083",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/affarsplan_2026_2028.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Strategiska mål utan angiven ägare."
+  },
+  {
+    "id": "GQ-084",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/ledningsgruppsprotokoll_2026-09-15.docx",
+      "projects/projektmotesprotokoll/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Överlämningsproblem mellan avdelningar nämnda i protokollen."
+  },
+  {
+    "id": "GQ-085",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/ledningsgruppsprotokoll_2026-08-20.docx",
+      "management/kpi_rapport_2026-09.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Rapporter med låg användning (bedömning från mötesdiskussioner och KPI-användning)."
+  },
+  {
+    "id": "GQ-086",
+    "answerability": "CONFLICTING_EVIDENCE",
+    "requires_data": [
+      "management/styrelseprotokoll_2026-03-12.docx",
+      "projects/statusrapport_SE-Billing_2026-03.docx",
+      "contracts/customers/"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "sammanställning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "MOTSTRIDIGT UNDERLAG: protokollet beskriver SE-Billing som i fas, medan statusrapporten och tilläggsavtalet CTR-2026-004 visar ~15 veckors försening och +800 tkr."
+  },
+  {
+    "id": "GQ-087",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/ledningsgruppsprotokoll_2026-09-15.docx",
+      "management/styrelseprotokoll_2026-09-28.docx",
+      "management/kpi_rapport_2026-09.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Förslag på agenda utifrån öppna frågor och KPI-avvikelser."
+  },
+  {
+    "id": "GQ-088",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/styrelseprotokoll_2026-09-28.docx",
+      "management/styrelseprotokoll_2025-11-24.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Uppskjutna strategiska beslut (utdelning bordlagd, BV-uppsägning beslutad men ej verkställd)."
+  },
+  {
+    "id": "GQ-089",
+    "answerability": "INSUFFICIENT_EVIDENCE",
+    "requires_data": [
+      "management/ledningsgruppsprotokoll_2026-09-15.docx",
+      "policies/"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "sammanställning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "OTILLRÄCKLIGT UNDERLAG: ingen processkarta eller dokumentation visar vilka processer som saknar skriftlig rutin; muntliga överlämningar nämns bara sporadiskt i protokollen."
+  },
+  {
+    "id": "GQ-090",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/styrelseprotokoll_2026-09-28.docx",
+      "management/ledningsgruppsprotokoll_2026-09-15.docx",
+      "management/likviditetsprognos_2026_Q4.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "VD-aktiviteter med deadlines den här veckan utifrån protokoll och likviditetsprognos."
+  },
+  {
+    "id": "GQ-091",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "klausulretrieval",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Automatisk förlängning inom 90 dagar (avtal som löper ut 2026-12-31 med 12 mån förlängning)."
+  },
+  {
+    "id": "GQ-092",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "klausulretrieval",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Ovanliga ansvarsbegränsningar; CTR-2024-016 (ÖH-Webbplattform) har obegränsat ansvar."
+  },
+  {
+    "id": "GQ-093",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "klausulretrieval",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kundavtal som saknar prisjusteringsklausul."
+  },
+  {
+    "id": "GQ-094",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/suppliers/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "klausulretrieval",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Leverantörsavtal med uppsägningstid som möjliggör uppsägning inom tre månader."
+  },
+  {
+    "id": "GQ-095",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/",
+      "contracts/suppliers/",
+      "contracts/employees/"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "klausulretrieval",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Klausuler som avviker från vår standardavtalsmall."
+  },
+  {
+    "id": "GQ-096",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/"
+    ],
+    "required_entities": [
+      "CUS-001",
+      "CUS-015"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "klausulretrieval",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Exklusivitets-/konkurrensklausuler (CTR-2023-002, CTR-2025-007)."
+  },
+  {
+    "id": "GQ-097",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/",
+      "contracts/corporate/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "klausulretrieval",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Förändringsklausuler: CTR-2023-002, CTR-2026-002, CTR-2023-022, CTR-2024-010, CTR-2025-007, CTR-AKT-001."
+  },
+  {
+    "id": "GQ-098",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/suppliers/",
+      "suppliers/systemforteckning.csv"
+    ],
+    "required_entities": [
+      "SUP-003",
+      "SUP-004",
+      "SUP-013"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "klausulretrieval",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Konsekvenser om kritisk leverantör bryter avtalet (avtalsvillkor + systemkritikalitet)."
+  },
+  {
+    "id": "GQ-099",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [
+      "CUS-001",
+      "CUS-002",
+      "CUS-003",
+      "CUS-005",
+      "CUS-006",
+      "CUS-007",
+      "CUS-011",
+      "CUS-013",
+      "CUS-015",
+      "CUS-016"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "klausulretrieval",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Uppsägningstider för de tio största avtalen."
+  },
+  {
+    "id": "GQ-100",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "klausulretrieval",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "CTR-2026-001 (SU-Produktionssystem) mot tidigare avtal: högt ansvarstak, vite 1 %/vecka, källkodsdepåkrav."
+  },
+  {
+    "id": "GQ-101",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "policies/arbetsmiljopolicy.docx",
+      "contracts/employees/"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "extern_rättskälla",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "MBL 11–14 §§ (förhandlingsskyldighet)",
+      "LAS (turordning vid omorganisation)",
+      "gällande kollektivavtal"
+    ],
+    "notes": "Interna dokument ger bara delar; förhandlingsskyldigheten kräver extern rätt."
+  },
+  {
+    "id": "GQ-102",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/employees/",
+      "policies/sekretesspolicy.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "extern_rättskälla",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Anställningsavtal med sekretessbilaga äldre än 2023-02-15-mallen (t.ex. CTR-EMP-01, P-001)."
+  },
+  {
+    "id": "GQ-103",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "contracts/employees/",
+      "employees/avslutssamtal_2025-03-14.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "extern_rättskälla",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "LAS (saklig grund för uppsägning)",
+      "AD-praxis om underprestation",
+      "kollektivavtal"
+    ],
+    "notes": "Precedensfallet Tobias Lindqvist (EMP-034) + extern arbetsrätt."
+  },
+  {
+    "id": "GQ-104",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "company/bolagsordning.docx",
+      "company/VD-instruktion.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "extern_rättskälla",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "ABL 8 kap (styrelsens och VD:s befogenheter)"
+    ],
+    "notes": "Interna befogenhetsgränser kompletterade med ABL."
+  },
+  {
+    "id": "GQ-105",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "company/aktiebok.docx",
+      "company/bolagsordning.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "extern_rättskälla",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "ABL 13 kap (nyemission)",
+      "ABL 16 kap (riktad emission och emissionsbemyndigande)"
+    ],
+    "notes": "Formella steg för riktad nyemission."
+  },
+  {
+    "id": "GQ-106",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "accounting/financial_reports/balans_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "extern_rättskälla",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "ABL 25 kap 13–18 §§ (kontrollbalansräkning och tvångslikvidationsskyldighet)"
+    ],
+    "notes": "Eget kapital mot aktiekapitalet; kontrollstämmofrågan avgörs av ABL 25 kap."
+  },
+  {
+    "id": "GQ-107",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "contracts/suppliers/",
+      "contracts/customers/"
+    ],
+    "required_entities": [
+      "SUP-034",
+      "SUP-035",
+      "SUP-036",
+      "SUP-037"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "extern_rättskälla",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "LAS 6 § (inhyrning)",
+      "lagen om uthyrning av arbetstagare (2012:854)",
+      "AD-praxis"
+    ],
+    "notes": "Inhyrningsformerna mot extern arbetsrätt."
+  },
+  {
+    "id": "GQ-108",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/employees/"
+    ],
+    "required_entities": [
+      "EMP-032",
+      "EMP-036",
+      "CTR-EMP-32",
+      "CTR-EMP-36"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "extern_rättskälla",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Konkurrensklausulernas giltighet (12 mån; fallen Gustav Pettersson och Rasmus Holm)."
+  },
+  {
+    "id": "GQ-109",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "company/aktiebok.docx",
+      "company/bolagsordning.docx",
+      "accounting/financial_reports/resultatrakning_FY2026.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "extern_rättskälla",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Dokument inför årsstämman: årsredovisning, revisionsberättelse, ägarförteckning."
+  },
+  {
+    "id": "GQ-110",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "company/bolagsordning.docx",
+      "contracts/"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "extern_rättskälla",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "ABL 23 kap (fusion/förvärv)",
+      "konkurrenslag (2008:579)",
+      "standard due diligence-checklista"
+    ],
+    "notes": "Juridisk checklista vid förvärv av mindre bolag."
+  },
+  {
+    "id": "GQ-111",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "policies/gdpr_policy.docx",
+      "suppliers/systemforteckning.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "regelefterlevnad",
+      "källstöd"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kategorier av personuppgifter och rättslig grund per system."
+  },
+  {
+    "id": "GQ-112",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/",
+      "contracts/suppliers/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "regelefterlevnad",
+      "källstöd"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "DPA som saknas eller baseras på gammal mall (t.ex. CTR-DPA-001 med SCC 2021)."
+  },
+  {
+    "id": "GQ-113",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "policies/gdpr_policy.docx",
+      "policies/incidentrapport_phishing_2024-10-15.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "regelefterlevnad",
+      "källstöd"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Rutin för personuppgiftsincident: anmälan, dokumentation, roller."
+  },
+  {
+    "id": "GQ-114",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "policies/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "regelefterlevnad",
+      "källstöd"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [
+      "EU-regelverk 2026: NIS2",
+      "AI-förordningen",
+      "DORA",
+      "CSRD"
+    ],
+    "notes": "Vilka nya regler som träffar bolaget kräver extern rättsutveckling."
+  },
+  {
+    "id": "GQ-115",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/behorighetsmatris.csv",
+      "suppliers/systemforteckning.csv",
+      "policies/behorighetspolicy.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "regelefterlevnad",
+      "källstöd"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "System med känsliga uppgifter och svag åtkomstkontroll."
+  },
+  {
+    "id": "GQ-116",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "policies/gdpr_policy.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "regelefterlevnad",
+      "källstöd"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Dokumenterad laglig grund för kundkommunikation."
+  },
+  {
+    "id": "GQ-117",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "suppliers/leverantorsbedomningar/",
+      "contracts/suppliers/"
+    ],
+    "required_entities": [
+      "SUP-013"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "regelefterlevnad",
+      "källstöd"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [
+      "EU-kommissionens SCC 2021",
+      "Schrems II / adekvansbeslut för tredjelandsöverföring"
+    ],
+    "notes": "SUP-013 (Analytics Cloud Inc) överför personuppgifter till USA; aktuell överföringsgrund kräver externa SCC-/adekansbeslut."
+  },
+  {
+    "id": "GQ-118",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "policies/ai_policy.docx",
+      "policies/gdpr_policy.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "regelefterlevnad",
+      "källstöd"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Policyer som behöver uppdateras efter regeländringar (t.ex. AI-policyn mot AI-förordningen)."
+  },
+  {
+    "id": "GQ-119",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "policies/gdpr_policy.docx",
+      "contracts/customers/"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "regelefterlevnad",
+      "källstöd"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "BFL 7 kap 2 § (7 års arkivering)",
+      "GDPR art 5 (lagringsminimering)",
+      "preskriptionslag (1981:130)"
+    ],
+    "notes": "Gallringsfrister: interna riktlinjer kompletterade med lagkrav."
+  },
+  {
+    "id": "GQ-120",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "company/attestordning.docx",
+      "accounting/general_ledger/verifikationsregister.csv",
+      "policies/incidentrapport_phishing_2024-10-15.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "regelefterlevnad",
+      "källstöd"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Bevis på genomförda kontroller inför revisor."
+  },
+  {
+    "id": "GQ-121",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/affarsplan_2026_2028.docx",
+      "management/kpi_rapport_2026-09.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "syntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Tre strategiska mål ställda mot KPI-utfall."
+  },
+  {
+    "id": "GQ-122",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/affarsplan_2026_2028.docx",
+      "management/kpi_rapport_2026-09.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Strategiska initiativ utan mätbar effekt i KPI-rapporten."
+  },
+  {
+    "id": "GQ-123",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Affärsområden att satsa på utifrån lönsamhet och tillväxt."
+  },
+  {
+    "id": "GQ-124",
+    "answerability": "CONFLICTING_EVIDENCE",
+    "requires_data": [
+      "management/affarsplan_2026_2028.docx",
+      "customers/CRM-export.csv",
+      "customers/forlorade_affarer.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "syntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "MOTSTRIDIGT UNDERLAG: affärsplanens marknadsantaganden (pristålighet, offentlig tillväxt) motsägs av CRM-utfallet (förlorad affär p.g.a. pris, missade indexuppräkningar)."
+  },
+  {
+    "id": "GQ-125",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "customers/kundmotesanteckningar/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Återkommande förfrågningar som indikerar nya tjänsteerbjudanden."
+  },
+  {
+    "id": "GQ-126",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "suppliers/licensutnyttjande.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Aktiviteter att avsluta för att frigöra resurser."
+  },
+  {
+    "id": "GQ-127",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "accounting/financial_reports/projektintakter.csv",
+      "management/riskregister.docx"
+    ],
+    "required_entities": [
+      "CUS-001",
+      "PRJ-001",
+      "PRJ-002",
+      "PRJ-003"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "syntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Scenario: största kunden (SEAB ≈34 %) försvinner."
+  },
+  {
+    "id": "GQ-128",
+    "answerability": "INSUFFICIENT_EVIDENCE",
+    "requires_data": [
+      "correspondence/konkurrentbevakning.docx",
+      "customers/forlorade_affarer.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "syntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "OTILLRÄCKLIGT UNDERLAG: endast enstaka konkurrentanteckningar; strukturerad konkurrentbevakning (priser, marknadsandelar, nya aktörer) saknas för att avgöra vilka förändringar som kräver beslut."
+  },
+  {
+    "id": "GQ-129",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/affarsplan_2026_2028.docx",
+      "management/budget_FY2026.docx",
+      "management/styrelseprotokoll_2025-09-25.docx"
+    ],
+    "required_entities": [
+      "PRJ-090",
+      "PRJ-091"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "syntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Investeringar kopplade till styrelsemålen (2,4 MSEK produktutveckling, 1,2 MSEK AI-initiativ)."
+  },
+  {
+    "id": "GQ-130",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/affarsplan_2026_2028.docx",
+      "management/kpi_rapport_2026-09.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Tidiga varningsindikatorer mot strategin."
+  },
+  {
+    "id": "GQ-131",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "accounting/financial_reports/projektintakter.csv",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "omvärldsanalys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: intern segmentlönsamhet kan beräknas; marknadspotentialen kräver extern marknadsdata."
+  },
+  {
+    "id": "GQ-132",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/investeringskalkyl_goteborg.docx",
+      "management/budget_FY2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "omvärldsanalys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kostnad för ny region (kalkyl Göteborg: 1,6 MSEK capex/år)."
+  },
+  {
+    "id": "GQ-133",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "customers/CRM-export.csv",
+      "employees/medarbetarundersokning_2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "omvärldsanalys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: kapacitet och beläggning finns; leveranskvalitetsmått (SLA-utfall) är bara delvis dokumenterade."
+  },
+  {
+    "id": "GQ-134",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "correspondence/konkurrentbevakning.docx",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "omvärldsanalys"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [
+      "partner- och ekosystemdata svensk IT-marknad"
+    ],
+    "notes": "Interna data visar egna kunder; potentiella partners kräver extern ekosystemdata."
+  },
+  {
+    "id": "GQ-135",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "management/varderingsmemo.docx",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "omvärldsanalys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "M&A-transaktionsmultiplar IT-konsultbranschen"
+    ],
+    "notes": "Intern värdering finns; jämförelse mot marknadsmultiplar kräver extern data."
+  },
+  {
+    "id": "GQ-136",
+    "answerability": "INSUFFICIENT_EVIDENCE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "accounting/financial_reports/projektintakter.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "omvärldsanalys"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "OTILLRÄCKLIGT UNDERLAG: saknas enhetskostnads-/skalbarhetsdata per tjänst (marginalkostnad per levererad enhet); tidrapporterna visar timmar men inte skalbarhet."
+  },
+  {
+    "id": "GQ-137",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "customers/CRM-export.csv",
+      "management/ledningsgruppsprotokoll_2025-04-28.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "omvärldsanalys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kapacitetshinder: beläggning >95 %, kompetensbrist, bemanningsgap."
+  },
+  {
+    "id": "GQ-138",
+    "answerability": "EXTERNAL_DEPENDENCY",
+    "requires_data": [
+      "management/investeringskalkyl_goteborg.docx",
+      "management/budget_FY2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "omvärldsanalys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [
+      "branschbenchmark marknadspenetration (jämförbara konsultbolags tillväxttakt)"
+    ],
+    "notes": "Break-even för ny marknad finns i kalkylen; penetrationstakten kräver extern benchmark."
+  },
+  {
+    "id": "GQ-139",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "accounting/financial_reports/projektintakter.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "omvärldsanalys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Befintliga kunder som kan köpa fler tjänster (merförsäljningspotential)."
+  },
+  {
+    "id": "GQ-140",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "employees/kompetensmatris.csv",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "scenarioanalys",
+      "omvärldsanalys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: tillväxttakten organisationen klarar utifrån beläggning och kompetens; marginaleffekter är uppskattningar."
+  },
+  {
+    "id": "GQ-141",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/styrelseprotokoll_2026-09-28.docx",
+      "management/styrelseprotokoll_2026-05-25.docx",
+      "management/kpi_rapport_2026-09.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "dokumentretrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Sannolika styrelsefrågor utifrån öppna punkter och KPI-avvikelser."
+  },
+  {
+    "id": "GQ-142",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "management/varderingsmemo.docx",
+      "accounting/financial_reports/balans_per_manad.csv",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "dokumentretrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "PARTIELLT: värderingsmemot finns med antaganden; egna alternativa scenarier kräver antaganden utanför underlaget."
+  },
+  {
+    "id": "GQ-143",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/styrelseprotokoll_2026-05-25.docx",
+      "management/kpi_rapport_2026-09.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "dokumentretrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "KPI-försämringar sedan föregående styrelsemöte."
+  },
+  {
+    "id": "GQ-144",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/produktutveckling_case.docx",
+      "management/budget_FY2026.docx",
+      "management/investeringskalkyl_goteborg.docx"
+    ],
+    "required_entities": [
+      "PRJ-090",
+      "PRJ-091"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "dokumentretrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Förväntad avkastning per investering."
+  },
+  {
+    "id": "GQ-145",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/riskregister.docx",
+      "accounting/accounts_receivable/kundreskontra_oppna.csv",
+      "management/styrelseprotokoll_2026-09-28.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "syntes",
+      "dokumentretrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Risker som kräver omedelbar styrelseinformation (krav på riskrapport med källhänvisningar)."
+  },
+  {
+    "id": "GQ-146",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "management/investeringskalkyl_goteborg.docx",
+      "management/varderingsmemo.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "dokumentretrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: befintliga kalkyler visar struktur men ingen fast mall för investeringsunderlag finns."
+  },
+  {
+    "id": "GQ-147",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "contracts/corporate/",
+      "company/aktiebok.docx"
+    ],
+    "required_entities": [
+      "CTR-AKT-001",
+      "CTR-AKT-002"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "dokumentretrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: optionsprogram (3 %) och aktieägaravtal finns; full utspädningseffekt kräver värderingsantaganden."
+  },
+  {
+    "id": "GQ-148",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/styrelseprotokoll_2026-09-28.docx",
+      "management/styrelseprotokoll_2026-05-25.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "dokumentretrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Tidigare styrelsebeslut som inte verkställts."
+  },
+  {
+    "id": "GQ-149",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/produktutveckling_case.docx",
+      "management/budget_FY2026.docx",
+      "accounting/financial_reports/resultat_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "dokumentretrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Avkastning på större investeringar."
+  },
+  {
+    "id": "GQ-150",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/styrelseprotokoll_2026-09-28.docx",
+      "management/styrelseprotokoll_2025-11-24.docx",
+      "accounting/financial_reports/balans_per_manad.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "syntes",
+      "dokumentretrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Argument för/emot utdelning (bordlagd till årsstämman)."
+  },
+  {
+    "id": "GQ-151",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/statusrapport_SU-Produktionssystem_2026-09.docx",
+      "projects/statusrapport_SE-Billing_2026-03.docx",
+      "projects/tidrapporter.csv"
+    ],
+    "required_entities": [
+      "PRJ-024",
+      "PRJ-029",
+      "PRJ-008",
+      "PRJ-004"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Förseningsrisker per pågående projekt."
+  },
+  {
+    "id": "GQ-152",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "accounting/financial_reports/projektintakter.csv"
+    ],
+    "required_entities": [
+      "PRJ-001",
+      "PRJ-009",
+      "PRJ-024",
+      "PRJ-029"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Uppdrag som överskrider budgeterad tid."
+  },
+  {
+    "id": "GQ-153",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "employees/kompetensmatris.csv"
+    ],
+    "required_entities": [
+      "EMP-026",
+      "EMP-011",
+      "EMP-030"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Leveranser beroende av samma nyckelperson."
+  },
+  {
+    "id": "GQ-154",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/statusrapport_SU-Produktionssystem_2026-09.docx",
+      "contracts/customers/",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [
+      "PRJ-029",
+      "PRJ-024",
+      "CUS-025"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kundlöften i riskzonen (t.ex. SU fast pris 1,95 MSEK med vite)."
+  },
+  {
+    "id": "GQ-155",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "projects/tidrapporter.csv",
+      "projects/statusrapport_SE-Billing_2026-03.docx"
+    ],
+    "required_entities": [
+      "PRJ-001",
+      "PRJ-009",
+      "CUS-001",
+      "CUS-006"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Varför största projektet blev olönsamt (SE-Billing: 15 veckors försening, tilläggsavtal)."
+  },
+  {
+    "id": "GQ-156",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "projects/statusrapport_SE-Billing_2026-03.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Andel omarbete per projekt."
+  },
+  {
+    "id": "GQ-157",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "accounting/payroll/lonelista_aktuell.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Beläggningsgrad per team utifrån faktiska timmar."
+  },
+  {
+    "id": "GQ-158",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/projektmotesprotokoll/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Återkommande hinder i projektmöten (väntar på kundgodkännande, kompetensbrist, integrationer)."
+  },
+  {
+    "id": "GQ-159",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "employees/kompetensmatris.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Åtgärder som frigör mest leveranskapacitet."
+  },
+  {
+    "id": "GQ-160",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/statusrapport_SU-Produktionssystem_2026-09.docx",
+      "management/riskregister.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "retrieval",
+      "flerkällssammanställning"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Projekt att eskalera till ledningen idag."
+  },
+  {
+    "id": "GQ-161",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/inkopsregister.csv",
+      "invoices/incoming/2026/",
+      "accounting/accounts_payable/leverantorsreskontra.csv"
+    ],
+    "required_entities": [
+      "SUP-003",
+      "SUP-012",
+      "SUP-034",
+      "SUP-035",
+      "SUP-036",
+      "SUP-037"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "sammanställning",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Topp-5 leverantörer efter inköpsvolym."
+  },
+  {
+    "id": "GQ-162",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/suppliers/",
+      "suppliers/inkopsregister.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "sammanställning",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Inköpsavtal som löper ut och behöver omförhandlas."
+  },
+  {
+    "id": "GQ-163",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/licensutnyttjande.csv",
+      "suppliers/inkopsregister.csv"
+    ],
+    "required_entities": [
+      "SUP-007",
+      "SUP-014"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Överlappande verktyg (Designsuiten 9/18 licenser, Datainsikt 2/10)."
+  },
+  {
+    "id": "GQ-164",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/inkopsregister.csv",
+      "contracts/suppliers/"
+    ],
+    "required_entities": [
+      "SUP-034",
+      "SUP-035"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Beroende av enskilda underleverantörer."
+  },
+  {
+    "id": "GQ-165",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "invoices/incoming/",
+      "correspondence/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Leverantörer med sena eller felaktiga leveranser (reklamationer)."
+  },
+  {
+    "id": "GQ-166",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/inkopsregister.csv",
+      "invoices/incoming/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Besparingspotential vid samordnade inköp."
+  },
+  {
+    "id": "GQ-167",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "company/attestordning.docx",
+      "accounting/general_ledger/verifikationsregister.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Kostnader utan attest enligt attestordningen."
+  },
+  {
+    "id": "GQ-168",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/leverantorsbedomningar/",
+      "suppliers/inkopsregister.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Leverantörer utan säkerhetsbedömning."
+  },
+  {
+    "id": "GQ-169",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/accounts_payable/leverantorsreskontra.csv",
+      "invoices/incoming/2026/"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Inköp som behöver godkännas nästa månad."
+  },
+  {
+    "id": "GQ-170",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/systemforteckning.csv",
+      "suppliers/leverantorsbedomningar/"
+    ],
+    "required_entities": [
+      "SUP-003",
+      "SUP-004",
+      "SUP-013"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "sammanställning",
+      "jämförelse"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Alternativa leverantörer för kritiska tjänster."
+  },
+  {
+    "id": "GQ-171",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/systemforteckning.csv",
+      "suppliers/reservrutinsforteckning.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "tekniska_verktyg",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Verksamhetskritiska system utan fungerande reservrutin."
+  },
+  {
+    "id": "GQ-172",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/integrationslogg.csv",
+      "policies/incidentrapport_integrationshaveri_2026-04-20.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "tekniska_verktyg",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Integrationer som ofta går sönder (lönesystemet 3 gånger på 6 månader)."
+  },
+  {
+    "id": "GQ-173",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/behorighetsmatris.csv",
+      "policies/behorighetspolicy.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "tekniska_verktyg",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Användare med mer behörighet än de behöver."
+  },
+  {
+    "id": "GQ-174",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/integrationslogg.csv",
+      "management/kpi_rapport_2026-09.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "tekniska_verktyg",
+      "analys"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Opålitliga datakällor utifrån fel och avvikelser."
+  },
+  {
+    "id": "GQ-175",
+    "answerability": "INSUFFICIENT_EVIDENCE",
+    "requires_data": [
+      "suppliers/integrationslogg.csv",
+      "policies/incidentrapport_integrationshaveri_2026-04-20.docx",
+      "projects/tidrapporter.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "tekniska_verktyg",
+      "analys"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "OTILLRÄCKLIGT UNDERLAG: loggen visar integrationsfel men ingen mätning av tid för manuell överföring per medarbetare/aktivitet."
+  },
+  {
+    "id": "GQ-176",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "management/ledningsgruppsprotokoll_2026-01-30.docx",
+      "policies/ai_policy.docx",
+      "suppliers/molnkostnader.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "tekniska_verktyg",
+      "analys"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: AI-initiativ och policy finns; nyttokalkyl per användningsfall är bara delvis dokumenterad."
+  },
+  {
+    "id": "GQ-177",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/molnkostnader.csv",
+      "invoices/incoming/2026/"
+    ],
+    "required_entities": [
+      "SUP-003",
+      "SUP-004",
+      "SUP-012",
+      "SUP-013"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "tekniska_verktyg",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Månadskostnad för molntjänster och AI-modeller."
+  },
+  {
+    "id": "GQ-178",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/sakerhetsincidentlogg.csv",
+      "policies/incidentrapport_phishing_2024-10-15.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "tekniska_verktyg",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Säkerhetsincidenter som ledningen måste känna till."
+  },
+  {
+    "id": "GQ-179",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/dr_bcp_plan.docx",
+      "suppliers/systemforteckning.csv"
+    ],
+    "required_entities": [
+      "SUP-004"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "tekniska_verktyg",
+      "analys"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Återställningstid efter driftstopp (RTO 48 h, RPO 24 h)."
+  },
+  {
+    "id": "GQ-180",
+    "answerability": "INSUFFICIENT_EVIDENCE",
+    "requires_data": [
+      "policies/ai_policy.docx",
+      "policies/incidentrapport_AI_kallstod_2026-09-02.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "tekniska_verktyg",
+      "analys"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "OTILLRÄCKLIGT UNDERLAG: incidentrapporten konstaterar AI-svar utan källstöd, men logg/proveniens per AI-svar saknas (EVT-066)."
+  },
+  {
+    "id": "GQ-181",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/riskregister.docx",
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "accounting/accounts_receivable/kundreskontra_oppna.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "flerstegssyntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Fem största riskerna (kundkoncentration, nyckelpersoner, avtalsrisker, likviditet, IT-beroende)."
+  },
+  {
+    "id": "GQ-182",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "accounting/financial_reports/projektintakter.csv",
+      "contracts/customers/"
+    ],
+    "required_entities": [
+      "CUS-001",
+      "PRJ-001",
+      "PRJ-002",
+      "PRJ-003"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "flerstegssyntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Resultat- och likviditetseffekt om SEAB (≈34 %) lämnar."
+  },
+  {
+    "id": "GQ-183",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/riskregister.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "flerstegssyntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Risker utan ansvarig eller beslutad åtgärd (≥3 i registret)."
+  },
+  {
+    "id": "GQ-184",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "employees/kompetensmatris.csv",
+      "management/riskregister.docx"
+    ],
+    "required_entities": [
+      "EMP-026"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "flerstegssyntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Effekt av tre månaders bortfall av nyckelperson (t.ex. Daniel Nyström)."
+  },
+  {
+    "id": "GQ-185",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/forsakringsbrev.docx",
+      "management/riskregister.docx"
+    ],
+    "required_entities": [
+      "SUP-038"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "flerstegssyntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Försäkringstäckning mot risker (ingen cyber-/avbrottsförsäkring)."
+  },
+  {
+    "id": "GQ-186",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/banking/bankkontoutdrag.csv",
+      "management/likviditetsprognos_2026_Q4.docx",
+      "accounting/accounts_receivable/kundreskontra_oppna.csv"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "flerstegssyntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Tidiga tecken på likviditetsproblem (förfallna fordringar, checkkreditutnyttjande)."
+  },
+  {
+    "id": "GQ-187",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "suppliers/dr_bcp_plan.docx",
+      "contracts/suppliers/",
+      "policies/incidentrapport_driftstorning_2026-08-04.docx"
+    ],
+    "required_entities": [
+      "SUP-003",
+      "SUP-004"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "flerstegssyntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Hantering av längre avbrott hos kritisk IT-leverantör."
+  },
+  {
+    "id": "GQ-188",
+    "answerability": "CONFLICTING_EVIDENCE",
+    "requires_data": [
+      "management/riskregister.docx",
+      "accounting/accounts_receivable/kundreskontra_oppna.csv",
+      "employees/medarbetarundersokning_2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "flerstegssyntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "MOTSTRIDIGT UNDERLAG: riskregistret anger risker som 'åtgärdade' och 'ingen förfallen kundfordran', medan kundreskontran visar förfallna fordringar och nyare HR-dokument visar kvarstående bemanningsgap."
+  },
+  {
+    "id": "GQ-189",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/riskregister.docx",
+      "suppliers/inkopsregister.csv",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [
+      "CUS-016",
+      "SUP-001"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "flerstegssyntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "reasoned",
+    "external_facts": [],
+    "notes": "Korrelerade leverantörs-/kundrisker (Kapellbacken är både kund och hyresvärd)."
+  },
+  {
+    "id": "GQ-190",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "management/riskregister.docx",
+      "management/budget_FY2026.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "flerstegssyntes",
+      "retrieval"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: åtgärdskostnader är bara delvis kvantifierade; effekt per investerad krona kan endast uppskattas."
+  },
+  {
+    "id": "GQ-191",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/",
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "customers/CRM-export.csv",
+      "accounting/payroll/lonelista_aktuell.csv"
+    ],
+    "required_entities": [
+      "CUS-001",
+      "CUS-002",
+      "CUS-005"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "agentorkestrering",
+      "syntes"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Känslighetsanalys: fem nyanställningar om två stora kundavtal inte förlängs."
+  },
+  {
+    "id": "GQ-192",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "contracts/customers/",
+      "customers/CRM-export.csv",
+      "projects/statusrapport_SU-Produktionssystem_2026-09.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "agentorkestrering",
+      "syntes"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Påverkade avtal, kundrelationer och projekt vid en föreslagen prisökning."
+  },
+  {
+    "id": "GQ-193",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/projektintakter.csv",
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "projects/tidrapporter.csv",
+      "accounting/banking/bankkontoutdrag.csv"
+    ],
+    "required_entities": [
+      "CUS-001",
+      "PRJ-001",
+      "PRJ-002",
+      "PRJ-003"
+    ],
+    "multi_source": true,
+    "capabilities_tested": [
+      "agentorkestrering",
+      "syntes"
+    ],
+    "computed_or_reasoned": "computed",
+    "external_facts": [],
+    "notes": "Effekt på kassaflöde, beläggning och marginal om största uppdraget försvinner."
+  },
+  {
+    "id": "GQ-194",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "customers/CRM-export.csv",
+      "employees/kompetensmatris.csv",
+      "management/investeringskalkyl_goteborg.docx",
+      "management/likviditetsprognos_2026_Q4.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "agentorkestrering",
+      "syntes"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: pipeline, kompetens och kostnader finns; beslutet kräver antaganden (hyresmarknad m.m.) utanför underlaget."
+  },
+  {
+    "id": "GQ-195",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/styrelseprotokoll_2026-09-28.docx",
+      "management/ledningsgruppsprotokoll_2026-09-15.docx",
+      "management/kpi_rapport_2026-09.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "agentorkestrering",
+      "syntes"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Beslut med deadlines den här veckan och vilket underlag som saknas."
+  },
+  {
+    "id": "GQ-196",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "suppliers/licensutnyttjande.csv",
+      "contracts/suppliers/",
+      "management/riskregister.docx"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "agentorkestrering",
+      "syntes"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "−10 % kostnader utan avtalsbrott eller försämrad leverans."
+  },
+  {
+    "id": "GQ-197",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "projects/tidrapporter.csv",
+      "customers/CRM-export.csv",
+      "accounting/payroll/lonelista_aktuell.csv",
+      "contracts/suppliers/"
+    ],
+    "required_entities": [
+      "SUP-034",
+      "SUP-035",
+      "SUP-036",
+      "SUP-037"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "agentorkestrering",
+      "syntes"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Rekrytera vs underkonsulter vs tacka nej till nya affärer."
+  },
+  {
+    "id": "GQ-198",
+    "answerability": "CONFLICTING_EVIDENCE",
+    "requires_data": [
+      "management/budget_FY2026.docx",
+      "management/prognos_FY2026_reviderad.docx",
+      "customers/CRM-export.csv"
+    ],
+    "required_entities": [],
+    "multi_source": true,
+    "capabilities_tested": [
+      "agentorkestrering",
+      "syntes"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "MOTSTRIDIGT UNDERLAG: budgeten (≈49 MSEK), den reviderade prognosen (≈52,5 MSEK) och CRM-pipelinens öppna affärer ger motstridiga intäktsbilder."
+  },
+  {
+    "id": "GQ-199",
+    "answerability": "ANSWERABLE",
+    "requires_data": [
+      "management/riskregister.docx",
+      "management/styrelseprotokoll_2026-09-28.docx",
+      "accounting/accounts_receivable/kundreskontra_oppna.csv"
+    ],
+    "required_entities": [
+      "CUS-001",
+      "CUS-002"
+    ],
+    "multi_source": false,
+    "capabilities_tested": [
+      "agentorkestrering",
+      "syntes"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "Styrelserapport om största affärsrisker med källhänvisningar."
+  },
+  {
+    "id": "GQ-200",
+    "answerability": "PARTIALLY_ANSWERABLE",
+    "requires_data": [
+      "management/riskregister.docx",
+      "management/kpi_rapport_2026-09.docx",
+      "accounting/financial_reports/resultat_per_manad.csv",
+      "management/likviditetsprognos_2026_Q4.docx"
+    ],
+    "required_entities": [],
+    "multi_source": false,
+    "capabilities_tested": [
+      "agentorkestrering",
+      "syntes"
+    ],
+    "computed_or_reasoned": "hybrid",
+    "external_facts": [],
+    "notes": "PARTIELLT: tre rekommendationer med stöd i flera källor; prioriteringen är en bedömning."
+  }
+]
