@@ -69,6 +69,7 @@ settings.logstash_url = ""
 settings.logstash_username = ""
 settings.logstash_password = SecretStr("")
 settings.research_worker_loop_enabled = False
+settings.graph_ingest_loop_enabled = False
 
 # Seeded by ensure_default_kunder() as Devbrains (primary OS tenant).
 TEST_CUSTOMER_ID = 1
@@ -362,6 +363,24 @@ async def bolag_client(client):
     token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
     client.headers["Authorization"] = f"Bearer {token}"
     yield client
+
+
+@pytest.fixture(autouse=True)
+def _sme_panel_api_tests_skip_jev(request, monkeypatch):
+    """Panel API tests expect every member to reply and must not call Jev."""
+    if request.module.__name__ != "tests.test_sme":
+        return
+
+    async def everyone(self, _utterance, jev=None, raise_hand_prompt=None):
+        for persona_id in self.member_ids:
+            self.raise_hand(persona_id)
+        ordered = sorted(self.member_ids)
+        return ordered[0] if ordered else None
+
+    monkeypatch.setattr(
+        "app.services.sme_group_voice.GroupVoiceSession.decide_raise_hands",
+        everyone,
+    )
 
 
 def pytest_addoption(parser):

@@ -3,18 +3,19 @@
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.models import Job, UserAccount
+from app.services.document_qa.workspace_reuse import try_reuse_workspace_answer
 from app.services.execution.service import create_attempt, create_run, get_attempt, get_run
+from app.services.knowledge.document_grounding import validate_manifest
 from app.services.research.composition import (
     build_standard_question_graph,
     build_standard_research_router,
 )
 from app.services.research.execution import execute_attempt_research
 from app.services.research.planner import ResearchObjective
+from app.services.research.workspace_context import research_context_from_run
 from app.services.research_worker import bind_research_components
 from app.services.workspace_chats import require_chat
 from app.services.workspace_research_answer import compose_research_answer
-from app.services.knowledge.document_grounding import validate_manifest
-from app.services.research.workspace_context import research_context_from_run
 
 
 async def _prepare(session: AsyncSession, job_id: str) -> tuple[str, str, dict]:
@@ -81,6 +82,9 @@ async def run_workspace_research_job(
     factory: async_sessionmaker[AsyncSession], *, job_id: str
 ) -> dict:
     async with factory() as session:
+        reused = await try_reuse_workspace_answer(session, job_id)
+        if reused is not None:
+            return reused
         attempt_id, question, components = await _prepare(session, job_id)
         attempt = await get_attempt(session, attempt_id)
         status = attempt.status

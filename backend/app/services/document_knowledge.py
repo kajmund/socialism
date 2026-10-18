@@ -1,24 +1,17 @@
-"""Mutable document understanding built during underlag ingest."""
+"""Manual document marks on uploaded underlag. Ingest does not generate cards."""
 
 from __future__ import annotations
 
-import asyncio
-import logging
 import secrets
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
-from io import BytesIO
-from typing import Literal, Protocol
+from typing import Protocol
 
-import pdfplumber
-from openai import APITimeoutError
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_committed_value
 
-from app.config import settings
 from app.database.transaction_state import has_pending_writes
 from app.database.models import (
     DocumentKnowledgeAnchor,
@@ -28,17 +21,12 @@ from app.database.models import (
     KnowledgeDocumentRecord,
     StoredObject,
 )
-from app.llm import complete_structured_retry
-from app.llm.structured_retry import StructuredOutputError
 from app.serializers import format_date, utcnow
 from app.services.knowledge import (
     SUPABASE_PROVIDER_ID,
     OpenAIEmbeddingProvider as OpenAIEmbeddingProvider,
 )
 from app.services.knowledge.supabase_provider import supabase_external_id
-from app.services.knowledge.units import TextUnit
-from app.services.pdf_quote_anchors import quote_rects as _quote_rects
-from app.services.prompt_store import render_prompt
 from app.services.research.composition import require_knowledge_vector_store
 from app.services.underlag_schemas import (
     DocumentKnowledgeAnchorWrite,
@@ -48,67 +36,11 @@ from app.services.underlag_schemas import (
 
 DOCUMENT_INGEST_JOB_KIND = "document_ingest"
 DOCUMENT_ITEM_VECTOR_PREFIX = "document-knowledge:"
-_BATCH_CHARS = 16_000
-_MAX_GENERATED_ITEMS = 80
-
-logger = logging.getLogger(__name__)
 
 
 class DocumentIngestJobRequest(BaseModel):
     object_id: str = Field(min_length=1, max_length=64)
     owner_user_id: str = Field(min_length=1, max_length=64)
-
-
-class GeneratedDocumentKnowledge(BaseModel):
-    kind: Literal["fact", "qa"]
-    title: str = Field(min_length=1, max_length=500)
-    question: str | None = Field(default=None, max_length=4000)
-    content: str = Field(min_length=1, max_length=12000)
-    locator: str = Field(min_length=1, max_length=128)
-    exact_quote: str = Field(min_length=1, max_length=4000)
-    retrieval_queries: list[str] = Field(default_factory=list, max_length=5)
-
-    @field_validator("title", "question", "content", "locator", "exact_quote", mode="before")
-    @classmethod
-    def clean_text(cls, value: object) -> str | None:
-        if value is None:
-            return None
-        return " ".join(str(value).split())
-
-    @field_validator("retrieval_queries", mode="before")
-    @classmethod
-    def clean_queries(cls, value: object) -> list[str]:
-        if not isinstance(value, list):
-            return []
-        out: list[str] = []
-        for raw in value:
-            query = " ".join(str(raw or "").split())
-            if query and query not in out:
-                out.append(query[:1000])
-        return out[:5]
-
-    @model_validator(mode="after")
-    def validate_question(self):
-        if self.kind == "qa" and not self.question:
-            raise ValueError("qa requires question")
-        if self.kind == "fact":
-            self.question = None
-        return self
-
-
-class GeneratedDocumentKnowledgeBatch(BaseModel):
-    items: list[GeneratedDocumentKnowledge] = Field(default_factory=list, max_length=20)
-
-
-@dataclass(frozen=True)
-class DocumentKnowledgeGenerationResult:
-    items: list[GeneratedDocumentKnowledge]
-    successful_batches: int
-    failed_batches: int
-
-    @property
-    def total_batches(self) -> int:
-        return self.successful_batches + self.failed_batches
 
 
 def item_vector_document_id(item_id: str) -> str:
@@ -165,7 +97,10 @@ async def list_document_knowledge(
             selectinload(DocumentKnowledgeItem.anchors),
             selectinload(DocumentKnowledgeItem.text_unit_links),
         )
-        .where(DocumentKnowledgeItem.source_object_id == source_object_id)
+        .where(
+            DocumentKnowledgeItem.source_object_id == source_object_id,
+            DocumentKnowledgeItem.origin != "generated",
+        )
     )
     if not include_archived:
         stmt = stmt.where(DocumentKnowledgeItem.status != "archived")
@@ -188,6 +123,7 @@ async def get_document_knowledge_item(
         .where(
             DocumentKnowledgeItem.id == item_id,
             DocumentKnowledgeItem.source_object_id == source_object_id,
+            DocumentKnowledgeItem.origin != "generated",
         )
     )
     return (await session.execute(stmt)).scalar_one_or_none()
@@ -222,7 +158,6 @@ async def create_manual_document_knowledge(
     await _replace_text_unit_links(session, item, list(body.supporting_text_unit_ids))
     await session.flush()
     session.add(_revision_row(item, changed_by_user_id=user_id))
-    await _sync_item_vector(session, source=source, item=item)
     await session.flush()
     return item
 
@@ -250,7 +185,6 @@ async def update_document_knowledge(
     await _replace_text_unit_links(session, item, list(body.supporting_text_unit_ids))
     await session.flush()
     session.add(_revision_row(item, changed_by_user_id=user_id))
-    await _sync_item_vector(session, source=source, item=item)
     await session.flush()
     return item
 
@@ -307,136 +241,6 @@ async def run_document_ingest_job(
     return await run_job(factory, job_id=job_id)
 
 
-async def generate_document_knowledge(
-    *,
-    units: Sequence[TextUnit],
-    prompts: dict[str, str],
-) -> DocumentKnowledgeGenerationResult:
-    batches = _text_unit_batches(units)
-    semaphore = asyncio.Semaphore(3)
-
-    async def generate(
-        batch_number: int,
-        excerpt: str,
-    ) -> tuple[list[GeneratedDocumentKnowledge], bool]:
-        async with semaphore:
-            try:
-                response = await complete_structured_retry(
-                    [
-                        {
-                            "role": "system",
-                            "content": render_prompt(
-                                prompts,
-                                "document_knowledge.ingest.system",
-                            ),
-                        },
-                        {
-                            "role": "user",
-                            "content": render_prompt(
-                                prompts,
-                                "document_knowledge.ingest.user",
-                                document_excerpt=excerpt,
-                            ),
-                        },
-                    ],
-                    GeneratedDocumentKnowledgeBatch,
-                    retry_instruction=render_prompt(
-                        prompts,
-                        "document_knowledge.structured_retry",
-                    ),
-                    max_tokens=settings.document_knowledge_llm_max_tokens,
-                    timeout=settings.document_knowledge_llm_timeout_seconds,
-                    prompt_key="document_knowledge.ingest.system",
-                )
-            except (
-                TimeoutError,
-                APITimeoutError,
-                StructuredOutputError,
-                ValidationError,
-            ) as exc:
-                logger.warning(
-                    "Document-knowledge generation batch %s/%s failed: %s",
-                    batch_number,
-                    len(batches),
-                    exc.__class__.__name__,
-                )
-                return [], False
-            return response.items, True
-
-    outcomes = await asyncio.gather(
-        *(generate(index, batch) for index, batch in enumerate(batches, start=1))
-    )
-    items = [item for group, _succeeded in outcomes for item in group]
-    successful_batches = sum(1 for _group, succeeded in outcomes if succeeded)
-    return DocumentKnowledgeGenerationResult(
-        items=items[:_MAX_GENERATED_ITEMS],
-        successful_batches=successful_batches,
-        failed_batches=len(outcomes) - successful_batches,
-    )
-
-
-def _text_unit_batches(units: Sequence[TextUnit]) -> list[str]:
-    batches: list[str] = []
-    for group in _neighbouring_section_groups(units):
-        batches.extend(_pack_rendered_units(group))
-    return batches
-
-
-def _neighbouring_section_groups(units: Sequence[TextUnit]) -> list[list[TextUnit]]:
-    grouped: dict[str, list[TextUnit]] = {}
-    order: list[str] = []
-    for unit in units:
-        if not unit.text.strip():
-            continue
-        key = unit.section_id or unit.id
-        if key not in grouped:
-            grouped[key] = []
-            order.append(key)
-        grouped[key].append(unit)
-    return [
-        sorted(grouped[key], key=lambda item: (item.ordinal, item.id))
-        for key in order
-    ]
-
-
-def _pack_rendered_units(units: Sequence[TextUnit]) -> list[str]:
-    batches: list[str] = []
-    current: list[str] = []
-    size = 0
-    for unit in units:
-        rendered = _render_text_unit(unit)
-        if current and size + len(rendered) > _BATCH_CHARS:
-            batches.append("\n\n".join(current))
-            current = []
-            size = 0
-        if len(rendered) <= _BATCH_CHARS:
-            current.append(rendered)
-            size += len(rendered)
-            continue
-        if current:
-            batches.append("\n\n".join(current))
-            current = []
-            size = 0
-        batches.append(rendered)
-    if current:
-        batches.append("\n\n".join(current))
-    return batches
-
-
-def _render_text_unit(unit: TextUnit) -> str:
-    return (
-        f'<text_unit id="{unit.id}" locator="{(unit.locator or "unknown").strip()}">\n'
-        f"{unit.text.strip()}\n</text_unit>"
-    )
-
-
-@dataclass(frozen=True)
-class AcceptedGeneratedItem:
-    item: GeneratedDocumentKnowledge
-    rects: list[dict[str, float]]
-    text_unit_ids: list[str]
-
-
 class _Passage(Protocol):
     id: str
     locator: str | None
@@ -458,41 +262,6 @@ def supporting_text_unit_ids(
         else:
             matches = []
     return [unit.id for unit in matches]
-
-
-def _accepted_generated_items(
-    generated: Sequence[GeneratedDocumentKnowledge],
-    *,
-    units: Sequence[TextUnit],
-    pdf_bytes: bytes | None,
-) -> list[AcceptedGeneratedItem]:
-    seen: set[tuple[str, str]] = set()
-    out: list[AcceptedGeneratedItem] = []
-    pdf = pdfplumber.open(BytesIO(pdf_bytes)) if pdf_bytes is not None else None
-    try:
-        for item in generated:
-            unit_ids = supporting_text_unit_ids(
-                locator=item.locator,
-                exact_quote=item.exact_quote,
-                units=units,
-            )
-            if not unit_ids:
-                continue
-            key = (_normalized(item.title), _normalized(item.content))
-            if key in seen:
-                continue
-            seen.add(key)
-            page_number = _page_number(item.locator)
-            rects = (
-                _quote_rects(pdf, page_number, item.exact_quote)
-                if pdf is not None and page_number is not None
-                else []
-            )
-            out.append(AcceptedGeneratedItem(item=item, rects=rects, text_unit_ids=unit_ids))
-    finally:
-        if pdf is not None:
-            pdf.close()
-    return out
 
 
 def _normalized(text: str) -> str:
@@ -545,127 +314,10 @@ async def _upsert_raw_document_record(
     return record
 
 
-async def _archive_generated_items(
-    session: AsyncSession,
-    source: StoredObject,
-    *,
-    mark_manual_stale: bool,
-) -> None:
-    rows = await list_document_knowledge(
-        session,
-        source_object_id=source.id,
-        include_archived=False,
-    )
-    for item in rows:
-        if item.origin != "generated":
-            if mark_manual_stale and item.status == "active":
-                item.status = "needs_review"
-                item.revision += 1
-                item.updated_at = utcnow()
-                session.add(_revision_row(item, changed_by_user_id=None))
-            continue
-        item.status = "archived"
-        item.revision += 1
-        item.updated_at = utcnow()
-        session.add(_revision_row(item, changed_by_user_id=None))
-        record = await session.get(KnowledgeDocumentRecord, item_vector_document_id(item.id))
-        if record is not None:
-            await session.delete(record)
-
-
-async def _persist_generated_items(
-    session: AsyncSession,
-    *,
-    source: StoredObject,
-    items: Sequence[AcceptedGeneratedItem],
-) -> list[DocumentKnowledgeItem]:
-    rows: list[DocumentKnowledgeItem] = []
-    for accepted in items:
-        generated = accepted.item
-        rects = accepted.rects
-        item = DocumentKnowledgeItem(
-            id=secrets.token_hex(16),
-            source_object_id=source.id,
-            customer_id=source.customer_id,
-            kind=generated.kind,
-            origin="generated",
-            status="active",
-            title=generated.title,
-            question=generated.question,
-            content=generated.content,
-            retrieval_queries=generated.retrieval_queries,
-            created_by_user_id=None,
-            updated_by_user_id=None,
-            revision=1,
-            created_at=utcnow(),
-            updated_at=utcnow(),
-        )
-        session.add(item)
-        page = _page_number(generated.locator)
-        item.anchors.append(
-            DocumentKnowledgeAnchor(
-                id=secrets.token_hex(16),
-                ordinal=0,
-                anchor_type="text",
-                page_number=page,
-                locator=generated.locator,
-                exact_text=generated.exact_quote,
-                prefix_text=None,
-                suffix_text=None,
-                rects=rects,
-                asset_id=None,
-                created_at=utcnow(),
-            )
-        )
-        await session.flush()
-        await _replace_text_unit_links(session, item, accepted.text_unit_ids)
-        await session.flush()
-        session.add(_revision_row(item, changed_by_user_id=None))
-        rows.append(item)
-    await session.flush()
-    return rows
-
-
-async def _index_generated_items(
-    session: AsyncSession,
-    *,
-    source: StoredObject,
-    items: Sequence[DocumentKnowledgeItem],
-) -> None:
-    from app.services.document_item_index import index_items
-
-    await index_items(session, source=source, items=items)
-
-
-async def _sync_item_vector(
-    session: AsyncSession,
-    *,
-    source: StoredObject,
-    item: DocumentKnowledgeItem,
-) -> None:
-    from app.services.document_item_index import sync_item
-
-    await sync_item(session, source=source, item=item)
-
-
 async def _remove_item_vector(session: AsyncSession, item_id: str) -> None:
     from app.services.document_item_index import remove_item
 
     await remove_item(session, item_id)
-
-
-def _display_text(item: DocumentKnowledgeItem) -> str:
-    parts = [item.title]
-    if item.question:
-        parts.append(item.question)
-    if item.content:
-        parts.append(item.content)
-    return "\n\n".join(part for part in parts if part.strip())
-
-
-def _embedding_text(item: DocumentKnowledgeItem) -> str:
-    parts = [_display_text(item), *list(item.retrieval_queries or [])]
-    return "\n".join(part for part in parts if part.strip())
 
 
 async def _replace_text_unit_links(

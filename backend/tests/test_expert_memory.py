@@ -20,7 +20,7 @@ from app.services.expertgranskning.memory import (
     set_expert_memory_factory,
 )
 from app.services.expertgranskning.memory_view import serialize_memory_hit
-from app.services.persona_chat import expert_memory_context
+from app.services.expert_memory_context import expert_memory_context
 from app.services.prompt_catalog import default_prompts
 
 

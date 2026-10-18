@@ -1,0 +1,40 @@
+{
+  "id": "document-qa-lock-close-v1",
+  "label": "Closed tenant OverGraph multiprocess and lifecycle-lock experiment. Approved architecture: one tenant, one file, one flock, one active Catalog.",
+  "do_not_overwrite": true,
+  "experiment_closed": true,
+  "no_production_integration": true,
+  "does_not_change_answer_cell": true,
+  "does_not_change_embeddings": true,
+  "does_not_change_default_retrieval": true,
+  "do_not_import_overgraph_ingest": true,
+  "do_not_build_more_lock_machinery": true,
+  "architecture": {
+    "one_tenant_one_overgraph_file": true,
+    "exclusive_lifecycle_flock": true,
+    "one_active_catalog": true,
+    "lock_covers_open_to_close": true,
+    "write_only_lock_is_not_enough": true,
+    "tenant_catalogs_is_the_only_opener": true,
+    "backend_is_the_long_lived_owner": true,
+    "workers_submit_writes_to_the_owner": true,
+    "handoff_is_controlled_and_rare": true,
+    "flock_is_advisory": true,
+    "not_verified_on_network_filesystems": true
+  },
+  "measured": {
+    "environment": "local darwin APFS, OverGraph 0.17, dimension 8",
+    "flock_uncontended_ms": 0.005,
+    "warm_open_ms": 1.2,
+    "close_ms_range": [81, 86],
+    "exact_qa_lookup_ms": 0.05,
+    "crash_releases_lock": true,
+    "synced_write_survives_exit_without_close": true,
+    "overlapping_open_without_lock_loses_writes": true
+  },
+  "next": {
+    "not": "more lock experiments",
+    "is": "graph_ingest_work stays the durable queue; the backend loop is already the consumer; tenant kinds go through TenantCatalogs",
+    "spec": "docs/specs/document-qa-graph-owner-writeback.md"
+  }
+}
