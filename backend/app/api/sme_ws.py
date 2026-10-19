@@ -34,6 +34,7 @@ from app.services.sme_expert_turns import (
 )
 from app.services.sme_quick_draft import complete_quick_draft, complete_quick_progress
 from app.services.expert_async_tools import bind_ack_text, reset_ack_text
+from app.services.workspace_tool_delivery import WorkspaceToolDelivery
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
@@ -73,8 +74,13 @@ async def _authenticate(websocket: WebSocket) -> UserAccount:
 
 
 async def _send_workspace_tools(emit, envelope: dict, calls: list[dict]) -> None:
-    for call in calls:
-        await emit({"type": "workspace_tool", **call, **envelope})
+    delivery = WorkspaceToolDelivery(
+        emit,
+        event_type="workspace_tool",
+        turn_id=str(envelope.get("request_id") or "") or None,
+        envelope=envelope,
+    )
+    await delivery.deliver(calls)
 
 
 async def _execute_accepted_turn(

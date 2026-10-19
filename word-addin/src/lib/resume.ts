@@ -5,13 +5,13 @@ export function isActiveWordJobStatus(status: string): boolean {
   return status === "pending" || status === "running"
 }
 
-export type ReviewStartPlan =
+type ReviewStartPlan =
   | { action: "resume"; jobId: string }
   | { action: "startNew"; resolveCommentIds: string[] }
   | { action: "blockUndecided" }
   | { action: "blockApplying" }
 
-export type FinishedJobView = {
+type FinishedJobView = {
   jobId: string
   phase: "done" | "failed"
   error: string

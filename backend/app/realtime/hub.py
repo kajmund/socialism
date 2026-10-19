@@ -121,8 +121,5 @@ class EventHub:
                     self._users.pop(ws, None)
 
 
-# Back-compat alias used by jobs.
-JobHub = EventHub
-
 job_hub = EventHub(name="jobs")
 report_hub = EventHub(name="reports")

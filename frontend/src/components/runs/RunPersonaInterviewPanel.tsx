@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { RunInterviewChat } from "@/components/runs/RunInterviewChat"
 import { AdminButton } from "@/components/ui/admin-button"
@@ -123,32 +123,3 @@ function InterviewIcon({ className }: { className?: string }) {
 }
 
 export { InterviewIcon }
-
-/** @deprecated Prefer RunPersonaInterviewModal opened from a day row. */
-export function RunPersonaInterviewPanel(props: {
-  runId: number
-  attemptId: string
-  variant: OasisVariantResult
-  initialTickIndex?: number
-}) {
-  const { t } = useLocale()
-  const [tickIndex, setTickIndex] = useState(props.initialTickIndex ?? 0)
-  return (
-    <section className="mt-6 rounded-md border border-[color:var(--border-hairline)] p-4">
-      <h3 className="mb-1 text-sm font-medium text-foreground">
-        {t("runs.interview.panelTitle")}
-      </h3>
-      <p className="mb-3 text-xs text-muted-foreground">
-        {t("runs.interview.panelDescription")}
-      </p>
-      <RunInterviewChat
-        runId={props.runId}
-        attemptId={props.attemptId}
-        variant={props.variant}
-        tickIndex={tickIndex}
-        onTickIndexChange={setTickIndex}
-        showTickSelect
-      />
-    </section>
-  )
-}

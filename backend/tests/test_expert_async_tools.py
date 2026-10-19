@@ -148,17 +148,13 @@ async def test_document_inventory_does_not_force_tools_for_social_turns():
 
 
 @pytest.mark.asyncio
-async def test_tool_call_ack_does_not_make_a_discarded_text_request(monkeypatch):
+async def test_tool_call_ack_does_not_make_a_discarded_text_request():
     async def complete(_messages, _specs=None, *, tool_choice="auto", **_kwargs):
         return SimpleNamespace(
             content="",
             tool_calls=[_tool_call("show_document", '{"source_id":"contract"}')],
         )
 
-    async def unused_text(*_args, **_kwargs):
-        raise AssertionError("discarded acknowledgement must not call complete_text")
-
-    monkeypatch.setattr("app.services.expert_async_tools.complete_text", unused_text, raising=False)
     set_tools_completer(complete)
     try:
         reply = await acknowledge_expert_tools(
@@ -300,102 +296,10 @@ async def test_presentation_call_releases_required_tool_choice(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_blocked_presentation_still_yields_text_reply(monkeypatch):
-    """21-ambiguous class: IntentDecision strips show_*; empty tool-only reply must recover."""
-    rounds = iter([
-        SimpleNamespace(
-            content="",
-            tool_calls=[
-                _tool_call(
-                    "show_document_set",
-                    '{"title":"Hyresavtal","source_ids":["src-1"]}',
-                )
-            ],
-        ),
-        SimpleNamespace(
-            content="Jag hittade fyra hyresavtal. Vill du att jag visar dem?",
-            tool_calls=[],
-        ),
-    ])
-    published: list[str] = []
-    notices: list[str] = []
-
-    async def complete(messages, specs, **_kwargs):
-        for message in messages:
-            if message.get("role") == "user" and "text_reply_required" in str(
-                message.get("content") or ""
-            ):
-                notices.append(str(message["content"]))
-        assert "show_document_set" not in {
-            str(spec.get("function", {}).get("name") or "") for spec in specs
-        }
-        return next(rounds)
-
-    async def run_call(_call, _work):
-        raise AssertionError("no server tools expected")
-
-    async def publish(calls):
-        published.extend(call.name for call in calls)
-
-    monkeypatch.setattr("app.services.expert_reasoning_episode.complete_with_tools", complete)
-    find = PlannedCall("find-1", "find_documents", {"query": "hyresavtal", "mode": "replace"})
-    work = ToolWork(
-        persona_id="sara",
-        mode="character",
-        actor_user_id="user",
-        history=[],
-        user_message="Hämta fram hyresavtal. Vad har vi för sådana dokument?",
-        calls=(find,),
-        episode=ExpertEpisode(
-            messages=(
-                {
-                    "role": "user",
-                    "content": "Hämta fram hyresavtal. Vad har vi för sådana dokument?",
-                },
-                {
-                    "role": "assistant",
-                    "tool_calls": [{
-                        "id": find.id,
-                        "type": "function",
-                        "function": {
-                            "name": find.name,
-                            "arguments": '{"query":"hyresavtal","mode":"replace"}',
-                        },
-                    }],
-                },
-            ),
-            specs=({
-                "type": "function",
-                "function": {"name": "find_documents", "parameters": {}},
-            },),
-            prompt_key="chat.mode.in_character",
-            reasoning_content=None,
-            tool_choice="auto",
-        ),
-        seen_call_ids={find.id},
-    )
-
-    result, _reasoning = await continue_expert_episode(
-        work,
-        ['{"source_ids":["src-1"],"document_count":4}'],
-        run_call=run_call,
-        publish=publish,
-    )
-
-    assert result == "Jag hittade fyra hyresavtal. Vill du att jag visar dem?"
-    assert published == []
-    assert notices
-    assert "text_reply_required" in notices[0]
-
-
-@pytest.mark.asyncio
 async def test_empty_episode_recovers_with_text_only_completion(monkeypatch):
     from app.services.workspace_intent import IntentDecision
 
-    async def complete(messages, specs, **_kwargs):
-        assert "find_documents" not in {
-            str(spec.get("function", {}).get("name") or "") for spec in specs
-        }
+    async def complete(_messages, _specs, **_kwargs):
         return SimpleNamespace(content="", tool_calls=[])
 
     async def recover(messages, **_kwargs):
@@ -420,7 +324,7 @@ async def test_empty_episode_recovers_with_text_only_completion(monkeypatch):
         user_message="Lägg till anställningsavtal. Vad har vi för sådana dokument?",
         calls=(find,),
         workspace_intent=IntentDecision(
-            "extend", "uncertain", "active_document_set", "anställningsavtal",
+            "extend", "active_document_set", "anställningsavtal",
         ),
         episode=ExpertEpisode(
             messages=(
@@ -456,9 +360,6 @@ async def test_empty_episode_recovers_with_text_only_completion(monkeypatch):
     )
     assert result == "Det finns fyra anställningsavtal i mängden."
     assert work.episode is not None
-    assert "find_documents" not in {
-        str(spec.get("function", {}).get("name") or "") for spec in work.episode.specs
-    }
 
 
 @pytest.mark.asyncio

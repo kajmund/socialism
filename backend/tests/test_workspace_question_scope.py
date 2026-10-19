@@ -16,7 +16,7 @@ from app.services.research.knowledge_question import (
     tenant_question_scope,
 )
 from app.services.research.models import ResearchContext, ResearchNeed, research_evidence
-from app.services.research.question_graph_memory import InMemoryQuestionEvidenceGraph
+from tests.question_graph_memory import InMemoryQuestionEvidenceGraph
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_iteration import question_from_row
 from app.services.research.question_prepare import prepare_graph_questions, prepare_public_writeback

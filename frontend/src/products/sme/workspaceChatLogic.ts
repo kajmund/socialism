@@ -111,10 +111,6 @@ const workspaceToolNames = new Set<string>([...workspaceClientToolNames, ...work
 // The SDK rejects a client tool call unless that exact name is registered here.
 export const expertProxyToolNames = EXPERT_TOOL_IDS.filter((name) => !workspaceToolNames.has(name))
 
-export function isWorkspaceServerTool(name: string): boolean {
-  return (workspaceServerToolNames as readonly string[]).includes(name)
-}
-
 export function workspaceSessionTool(name: string, args: Record<string, unknown>): { endpoint: string; arguments: Record<string, unknown> } {
   if ((expertProxyToolNames as readonly string[]).includes(name)) {
     return { endpoint: "expert_tool", arguments: { name, arguments: args } }

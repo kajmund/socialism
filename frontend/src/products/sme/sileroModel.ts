@@ -1,45 +1,98 @@
-import wasm from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url"
-import script from "onnxruntime-web/ort-wasm-simd-threaded.mjs?url"
-
-const CONTEXT = 64
 const WINDOW = 512
-const STATE = 2 * 128
 
 export type SileroModel = {
   probability(window: Float32Array): Promise<number>
   reset(): void
 }
 
-/** Silero VAD v5. The ONNX runtime is the speech model; we do not reimplement it. */
-export async function loadSileroModel(): Promise<SileroModel> {
-  const ort = await import("onnxruntime-web")
-  ort.env.wasm.wasmPaths = { wasm, mjs: script }
-  ort.env.wasm.numThreads = 1
-  const session = await ort.InferenceSession.create(
-    `${import.meta.env.BASE_URL}vad/silero_vad.onnx`,
-    { executionProviders: ["wasm"] },
-  )
-  let state = new Float32Array(STATE)
-  let context = new Float32Array(CONTEXT)
+/**
+ * Silero VAD v5 runs in sileroModel.worker.ts so the ONNX inference never
+ * blocks the main thread. One shared worker session serves the whole page.
+ */
+let sharedModel: Promise<SileroModel> | null = null
+
+export function loadSileroModel(): Promise<SileroModel> {
+  sharedModel ??= createSileroModel().catch((error: unknown) => {
+    sharedModel = null
+    throw error
+  })
+  return sharedModel
+}
+
+type WorkerResponse =
+  | { type: "loaded" }
+  | { type: "result"; id: number; value: number }
+  | { type: "error"; id: number; message: string }
+
+type Pending = {
+  resolve: (value: number) => void
+  reject: (reason: Error) => void
+}
+
+async function createSileroModel(): Promise<SileroModel> {
+  const worker = new Worker(new URL("./sileroModel.worker.ts", import.meta.url), {
+    type: "module",
+  })
+  const pending = new Map<number, Pending>()
+  let nextId = 0
+  let failed = false
+  let resolveLoaded: (() => void) | null = null
+  let rejectLoaded: ((reason: Error) => void) | null = null
+  const loaded = new Promise<void>((resolve, reject) => {
+    resolveLoaded = resolve
+    rejectLoaded = reject
+  })
+
+  const failAll = (reason: Error): void => {
+    for (const entry of pending.values()) entry.reject(reason)
+    pending.clear()
+  }
+
+  worker.onerror = () => {
+    failed = true
+    failAll(new Error("silero_worker_failed"))
+    rejectLoaded?.(new Error("silero_worker_failed"))
+    rejectLoaded = null
+    resolveLoaded = null
+  }
+  worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+    const data = event.data
+    if (data.type === "loaded") {
+      resolveLoaded?.()
+      resolveLoaded = null
+      rejectLoaded = null
+      return
+    }
+    if (data.type === "error" && data.id === -1) {
+      rejectLoaded?.(new Error(data.message))
+      resolveLoaded = null
+      rejectLoaded = null
+      return
+    }
+    const entry = pending.get(data.id)
+    if (!entry) return
+    pending.delete(data.id)
+    if (data.type === "error") entry.reject(new Error(data.message))
+    else entry.resolve(data.value)
+  }
+
+  worker.postMessage({ type: "load" })
+  await loaded
+
   return {
     reset() {
-      state = new Float32Array(STATE)
-      context = new Float32Array(CONTEXT)
+      if (failed) return
+      worker.postMessage({ type: "reset" })
     },
-    async probability(window) {
-      if (window.length !== WINDOW) throw new Error("silero_window")
-      const input = new Float32Array(CONTEXT + WINDOW)
-      input.set(context, 0)
-      input.set(window, CONTEXT)
-      const result = await session.run({
-        input: new ort.Tensor("float32", input, [1, input.length]),
-        state: new ort.Tensor("float32", state, [2, 1, 128]),
-        sr: new ort.Tensor("int64", BigInt64Array.from([16_000n]), []),
+    probability(window) {
+      if (failed) return Promise.reject(new Error("silero_worker_failed"))
+      if (window.length !== WINDOW) return Promise.reject(new Error("silero_window"))
+      return new Promise<number>((resolve, reject) => {
+        const id = nextId
+        nextId += 1
+        pending.set(id, { resolve, reject })
+        worker.postMessage({ type: "probability", id, window })
       })
-      const next = result.stateN
-      state = new Float32Array(next.data as Float32Array)
-      context = input.slice(input.length - CONTEXT)
-      return Number((result.output.data as Float32Array)[0])
     },
   }
 }

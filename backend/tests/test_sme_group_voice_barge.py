@@ -37,8 +37,9 @@ def _runtime(session: GroupVoiceSession, events: list[dict], audio: list[bytes] 
 def test_the_group_uses_the_same_barge_rule_as_one_expert():
     assert utterance_barge("mm", final=False)[0] == "ignore"
     assert utterance_barge("vänta", final=False)[0] == "barge"
-    assert utterance_barge("jag menar avtalet", final=False)[0] == "wait"
-    assert utterance_barge("jag menar avtalet", final=True)[0] == "barge"
+    assert utterance_barge("vi diskuterade avtalet", final=False)[0] == "wait"
+    assert utterance_barge("vi diskuterade avtalet", final=True)[0] == "barge"
+    assert utterance_barge("jag menar avtalet", final=False) == ("barge", "amend")
 
 
 def test_ordinary_speech_stops_the_reply_after_the_same_confirm(monkeypatch):
@@ -58,13 +59,13 @@ def test_ordinary_speech_stops_the_reply_after_the_same_confirm(monkeypatch):
         await runtime._on_transcript(TranscriptEvent(kind="partial", text="mm"))
         assert session.floor == "a"
         assert runtime._barge.task is None
-        await runtime._on_transcript(TranscriptEvent(kind="partial", text="jag menar avtalet"))
+        await runtime._on_transcript(TranscriptEvent(kind="partial", text="vi diskuterade avtalet"))
         assert session.floor == "a"
         assert runtime._barge.task is not None
         await runtime._barge.task
 
     asyncio.run(run())
-    assert seen == ["jag menar avtalet"]
+    assert seen == ["vi diskuterade avtalet"]
     assert session.floor is None
     assert any(event.get("type") == "assistant.cancelled" for event in events)
 

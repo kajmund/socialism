@@ -39,11 +39,11 @@ export const EXPERT_TOOLS: readonly ExpertToolDef[] = [
 
 export const DEFAULT_EXPERT_TOOLS: ExpertToolId[] = [...EXPERT_TOOL_IDS]
 
-export function isExpertToolId(value: string): value is ExpertToolId {
+function isExpertToolId(value: string): value is ExpertToolId {
   return (EXPERT_TOOL_IDS as readonly string[]).includes(value)
 }
 
-export function catalogExpertToolIds(): ExpertToolId[] {
+function catalogExpertToolIds(): ExpertToolId[] {
   return EXPERT_TOOLS.map((tool) => tool.id)
 }
 

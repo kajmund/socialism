@@ -23,8 +23,6 @@ from app.services.workspace_document_context import (
     voice_document_context,
 )
 from app.services.workspace_parent_documents import voice_document_inventory
-from app.services.workspace_intent import presentation_tools_allowed
-
 
 async def prepare_workspace_chat(
     session: AsyncSession,
@@ -99,28 +97,13 @@ async def finish_workspace_turn(
             if workspace is not None:
                 inventory = await voice_document_inventory(session, workspace, actor)
     await _release_read(session)
-    # Locked IntentDecision presentation wins: none/uncertain never opens.
-    allow_presentation = presentation_tools_allowed(scope.workspace_intent)
     # A multi-document gallery wins over the single-file open heuristic.
-    if (
-        allow_presentation
-        and opened
-        and not any(call.name == "show_document_set" for call in scope.client_calls)
-    ):
+    if opened and not any(call.name == "show_document_set" for call in scope.client_calls):
         queue_document_open(scope, opened)
-    elif (
-        allow_presentation
-        and draft_id
-        and not any(call.name == "show_document_set" for call in scope.client_calls)
-    ):
+    elif draft_id and not any(call.name == "show_document_set" for call in scope.client_calls):
         _queue_draft_open(scope, draft_id)
     presented: list[PlannedCall] = []
     for call in scope.client_calls:
-        if (
-            call.name in {"show_document", "show_document_set"}
-            and not presentation_tools_allowed(scope.workspace_intent)
-        ):
-            continue
         name, arguments = present_document_call(
             call.name, dict(call.arguments), artifact_ids, inventory=inventory,
         )

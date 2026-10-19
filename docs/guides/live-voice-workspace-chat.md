@@ -12,6 +12,9 @@ LIVE_SPEECH_STT_MODEL=gpt-live-transcribe
 LIVE_SPEECH_NOISE_REDUCTION=near_field
 LIVE_SPEECH_TTS_MODEL=eleven_v4_turbo
 LIVE_SPEECH_TTS_OUTPUT_FORMAT=pcm_24000
+# Optional Silero VAD band (defaults 0.5 / 0.35, exit must stay below start):
+LIVE_SPEECH_VAD_SILERO_THRESHOLD=0.5
+LIVE_SPEECH_VAD_SILERO_EXIT_THRESHOLD=0.35
 ```
 
 Apply Alembic through revision `162_live_speech_interrupted`. Install
@@ -22,19 +25,35 @@ dependencies with `uv sync` and `pnpm install`.
 The browser connects to `/ws/live-speech` with the existing access token.
 `useLiveSpeechConversation` captures 30 ms microphone frames. Silero VAD
 decides speech, with a minimum speech duration and an urgent gate, and the
-browser sends only active PCM16 audio. Browser noise suppression is off;
+browser sends only active PCM16 audio. The Silero probability is smoothed and
+gated with hysteresis (`LIVE_SPEECH_VAD_SILERO_THRESHOLD` opens speech at 0.5,
+`LIVE_SPEECH_VAD_SILERO_EXIT_THRESHOLD` closes it at 0.35); both are sent per
+session in `session.ready`. The Silero ONNX session loads once per page in a dedicated Web Worker (inference
+never blocks the UI thread) and
+preloads when the voice session starts; microphone frames are buffered up to
+250 ms while it loads. The microphone is captured at 24 kHz: the browser's
+filtered resampler does the 48k→24k step, Silero resamples 2:3 to 16 kHz, and
+the sent PCM is already 24 kHz. A retryable empty transcript (VAD opened on
+noise)
+returns to listening without an error toast. Browser noise suppression is off;
 OpenAI near-field noise reduction is the filter on that audio. Opening a
 document sends `stt.focus` with that document's source id. The server loads
 its text units and updates the transcription keywords with `session.update`.
 Speech while the assistant talks is classified as
-backchannel or barge-in. The session opens with a Fast line from the latest
+backchannel or barge-in. An urgent partial (`stopp`, `nej`, `vänta`, `stop`,
+`wait`, `no`) stops playback locally and sends `turn.cancel` immediately,
+without waiting for the server classifier. The opening line can be silenced the
+same way. The session opens with a Fast line from the latest
 interview messages so the expert speaks first. A long user turn can get a
 Fast listener cue. If the expert has not spoken within 50 milliseconds of the
 user's answer, a Fast waiting line is spoken. Tool progress is spoken as soon
 as a tool runs. Neither line is persisted. The backend
 transcribes with OpenAI Realtime and calls the same `execute_expert_turn`
 used by `/ws/sme`. A typed message during speech cancels the turn and keeps
-the voice session.
+the voice session. A config-gated speculative reader prefetches read-only
+`find_documents`/`search_knowledge` results on stable partials and reuses them
+when the final question matches (`LIVE_SPEECH_SPECULATION_ENABLED`, default
+off).
 Model traces from that turn are forwarded on `/ws/live-speech` so
 **Modellens arbete** updates during Socialism Voice without depending on
 `/ws/sme`.
@@ -47,7 +66,10 @@ through their existing standalone provider sessions.
 Do not add model routing to voice code. `expert_reasoning_turn` and
 `llm/selection.py` own Jev and the Snabb/Balanserad/Djup profiles.
 
-The token callback only emits/queues text. ElevenLabs TTS runs in its own task
+The token callback only emits/queues text. A voice turn streams the reply as
+the tool episode generates it (acknowledgment first, then the episode tokens),
+so first content audio does not wait for the whole tool episode. ElevenLabs TTS
+runs in its own task
 using the official `AsyncElevenLabs` stream. Never open or retain a database
 transaction around OpenAI, LLM, ElevenLabs, playback waits or retries.
 
@@ -61,9 +83,23 @@ citations such as `[R1]` remain unchanged.
 
 - JSON controls and binary audio share one socket.
 - Input and output are PCM16 mono at 24 kHz.
+- `audio.output.start` and `audio.output.end` carry `response_id` and
+  `generation_id`. A new generation starts for each reply or aside; stale
+  generations are never played.
+- Binary output belongs to the most recent `audio.output.start`. The client
+  drops chunks after `audio.output.end` and after a locally cancelled
+  generation until a newer generation starts.
 - OpenAI transcription has `turn_detection: null` and `noise_reduction: near_field`; browser VAD sends commit.
 - `stt.focus` carries source ids. The server turns the open document's text units into keywords.
 - Binary output belongs to the most recent `audio.output.start`.
+- `session.state` carries `conversation_state` (IDLE/USER_SPEAKING/USER_PAUSED/
+  AI_THINKING/AI_SPEAKING/OVERLAPPING/AI_INTERRUPTED), owned by the
+  Conversation Controller (`app/services/conversation_controller.py`).
+- The client sends `client.latency` (`phase`, `milliseconds`) for phases it
+  owns: `vad_reaction` and `stop_playback`.
+- On close the server emits `session.metrics` with p50/p95/p99 per phase
+  (`first_partial`, `final_transcript`, `first_llm_delta`, `first_tts_audio`,
+  `turn_cancelled`, plus any client-reported phases).
 - Invalid sequences fail visibly. V1 does not reconnect in the middle of a turn.
 - Starting a second session for the same user/workspace revokes the first.
 
@@ -85,3 +121,18 @@ browser check for microphone permission, Swedish partial/final transcript,
 first playable audio, mute, explicit cancel, barge-in, typed text during
 speech, socketdrop and history reload. Record p50/p95 latency with network
 conditions and sample count.
+
+## Latency measurement
+
+`session.metrics` on socket close reports p50/p95/p99 for each named phase, so
+a representative run can be summarized without code changes. The server-side
+phases are `first_partial` (VAD→first partial), `final_transcript`
+(commit→final), `first_llm_delta` (final→first token), `first_tts_audio`
+(final→first audio), `turn_cancelled`, and `barge_in`/backchannel decisions
+logged elsewhere. The client adds `vad_reaction` (first frame→VAD opened) and
+`stop_playback` (urgent partial→local queue cleared) via `client.latency`.
+
+To record p50/p95/p99: run several representative Swedish sessions, collect
+the `session.metrics` payloads (and backend `live_speech.latency` log lines),
+then aggregate each phase with the same percentiles the server uses
+(`app/services/latency_stats.py`).

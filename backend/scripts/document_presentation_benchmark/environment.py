@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.config import settings
 from app.database.base import Base
-from app.database.models import CanonicalDocumentRecord, Kund, StoredObject, UserAccount
+from app.database.models import CanonicalDocumentRecord, Kund, UserAccount
 from app.database.sqlite import async_engine_kwargs
 from app.database.workspace_models import VoiceWorkspace
 from app.database.workspaces import Workspace, WorkspaceChat, WorkspaceMembership
@@ -167,20 +167,6 @@ async def _seed_documents(
                     )
                 ],
                 customer_id=CUSTOMER_ID,
-            )
-            session.add(
-                StoredObject(
-                    id=object_id,
-                    customer_id=CUSTOMER_ID,
-                    workspace_id=CONTAINER_ID,
-                    module="dd",
-                    kind="document",
-                    bucket="benchmark",
-                    object_key=object_id,
-                    filename=f"{document_id}.pdf",
-                    content_type="application/pdf",
-                    size_bytes=1,
-                )
             )
             session.add(
                 CanonicalDocumentRecord(

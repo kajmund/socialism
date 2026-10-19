@@ -95,19 +95,6 @@ async def list_district_contexts(session: AsyncSession) -> list[DistrictContext]
     ]
 
 
-async def get_district_context(
-    session: AsyncSession,
-    name: str,
-) -> DistrictContext | None:
-    needle = name.strip()
-    if not needle or needle == "—":
-        return None
-    for ctx in await list_district_contexts(session):
-        if ctx.label.casefold() == needle.casefold():
-            return ctx
-    return None
-
-
 def format_area_block(
     ctx: DistrictContext,
     *,

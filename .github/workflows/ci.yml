@@ -188,6 +188,10 @@ jobs:
         env:
           TEST_SHARED_CHUNK_POSTGRES_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/socialism_test
         run: uv run pytest tests/test_shared_chunk_postgres.py -m integration
+      - name: Verify answer review migration and concurrent candidate workers
+        env:
+          TEST_ANSWER_REVIEW_POSTGRES_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/socialism_test
+        run: uv run pytest tests/test_answer_review_postgres.py -m integration
       - name: Verify LLM configuration table is protected
         run: |
           uv run python - <<'PYCODE'

@@ -18,16 +18,7 @@ from app.services.workspace_intent import (
     IntentDecision,
     apply_intent_to_find_arguments,
     decide_workspace_intent,
-    filter_specs_for_intent,
-    presentation_tools_allowed,
 )
-
-_PRESENTATION = {
-    "show": "gallery",
-    "count": "none",
-    "analyze": "none",
-    "ambiguous": "uncertain",
-}
 
 
 def test_intent_decision_matches_all_fifty_gold_cases() -> None:
@@ -36,15 +27,9 @@ def test_intent_decision_matches_all_fifty_gold_cases() -> None:
     mismatches: list[str] = []
     for case in cases:
         decision = decide_workspace_intent(case.message, state_for_case(case))
-        expected_presentation = _PRESENTATION[case.intent]
         if decision.operation != case.mode:
             mismatches.append(
                 f"{case.case_id}: operation {decision.operation!r} != {case.mode!r}"
-            )
-        if decision.presentation != expected_presentation:
-            mismatches.append(
-                f"{case.case_id}: presentation {decision.presentation!r} "
-                f"!= {expected_presentation!r}"
             )
         if case.mode in {"filter", "within", "extend"} and case.current_source_ids:
             if decision.scope != "active_document_set":
@@ -56,24 +41,8 @@ def test_intent_decision_matches_all_fifty_gold_cases() -> None:
     assert mismatches == []
 
 
-def test_uncertain_and_none_block_gallery_tools() -> None:
-    none = IntentDecision("replace", "none", "catalog", "hyresavtal")
-    uncertain = IntentDecision("replace", "uncertain", "catalog", "hyresavtal")
-    gallery = IntentDecision("replace", "gallery", "catalog", "hyresavtal")
-    assert presentation_tools_allowed(none) is False
-    assert presentation_tools_allowed(uncertain) is False
-    assert presentation_tools_allowed(gallery) is True
-    specs = [
-        {"function": {"name": "find_documents"}},
-        {"function": {"name": "show_document_set"}},
-        {"function": {"name": "show_document"}},
-    ]
-    kept = filter_specs_for_intent(specs, uncertain)
-    assert [s["function"]["name"] for s in kept] == ["find_documents"]
-
-
 def test_apply_intent_locks_find_mode_and_query() -> None:
-    intent = IntentDecision("within", "gallery", "active_document_set", "hyresavtal")
+    intent = IntentDecision("within", "active_document_set", "hyresavtal")
     assert apply_intent_to_find_arguments(
         {"query": "employment agreement", "mode": "replace"},
         intent,
@@ -81,7 +50,7 @@ def test_apply_intent_locks_find_mode_and_query() -> None:
 
 
 def test_apply_intent_keeps_model_query_without_type_label() -> None:
-    intent = IntentDecision("filter", "gallery", "active_document_set", "ner")
+    intent = IntentDecision("filter", "active_document_set", "ner")
     model_query = "hyresavtal lokal bostad andrahandsuthyrning arrendeavtal lägenhetsarrende"
     assert apply_intent_to_find_arguments(
         {"query": model_query, "mode": "filter"},
@@ -124,7 +93,7 @@ def test_apply_intent_overrides_query_when_message_names_type() -> None:
     ) == {"query": "hyresavtal", "mode": "filter"}
 
 
-def test_natural_swedish_follow_up_is_filter_gallery() -> None:
+def test_natural_swedish_follow_up_is_filter() -> None:
     state = {
         "active_document_set_id": "current",
         "document_sets": [
@@ -136,7 +105,6 @@ def test_natural_swedish_follow_up_is_filter_gallery() -> None:
         state,
     )
     assert decision.operation == "filter"
-    assert decision.presentation == "gallery"
     assert decision.scope == "active_document_set"
 
 
@@ -163,7 +131,7 @@ def test_filter_and_within_are_distinct_operations() -> None:
 
 
 @pytest.mark.asyncio
-async def test_route_locks_intent_and_strips_gallery_tools(monkeypatch) -> None:
+async def test_route_keeps_core_tools(monkeypatch) -> None:
     monkeypatch.setattr("app.config.settings.document_tool_retrieval_enabled", False)
     monkeypatch.setattr("app.config.settings.expert_reasoning_route_enabled", False)
     scope = begin_library_tools(
@@ -182,26 +150,25 @@ async def test_route_locks_intent_and_strips_gallery_tools(monkeypatch) -> None:
     ]
     await route_expert_turn(scope, default_prompts("sv"), "expert", ([], specs))
     assert scope.workspace_intent is not None
-    assert scope.workspace_intent.presentation == "none"
-    assert [s["function"]["name"] for s in specs] == ["find_documents"]
+    assert [s["function"]["name"] for s in specs] == [
+        "find_documents",
+        "show_document_set",
+        "show_document",
+    ]
 
 
 @pytest.mark.asyncio
-async def test_continuation_cannot_defer_gallery_when_presentation_is_none(
-    monkeypatch,
-) -> None:
+async def test_continuation_defers_gallery(monkeypatch) -> None:
     scope = begin_library_tools(
         persona_id="p1",
         mode="interview",
         actor_user_id="u1",
         history=[],
-        user_message="Hur många hyresavtal har vi?",
+        user_message="Visa hyresavtalen på den stora ytan.",
         enabled=True,
         workspace=("ws-1", {}),
     )
-    scope.workspace_intent = IntentDecision(
-        "replace", "none", "catalog", "hyresavtal",
-    )
+    scope.workspace_intent = IntentDecision("replace", "catalog", "hyresavtal")
 
     async def run_one(_call, _work):
         return '{"source_ids":["a","b"],"document_count":2}'
@@ -239,14 +206,11 @@ async def test_continuation_cannot_defer_gallery_when_presentation_is_none(
     finally:
         await scope.finish()
     assert text == "Ni har två hyresavtal."
-    assert not any(
-        call.name in {"show_document", "show_document_set"}
-        for call in scope.client_calls
-    )
+    assert any(call.name == "show_document_set" for call in scope.client_calls)
 
 
 @pytest.mark.asyncio
-async def test_finish_workspace_turn_drops_gallery_for_uncertain(monkeypatch) -> None:
+async def test_finish_workspace_turn_delivers_gallery(monkeypatch) -> None:
     scope = LibraryToolScope(
         enabled=True,
         persona_id="expert",
@@ -255,9 +219,7 @@ async def test_finish_workspace_turn_drops_gallery_for_uncertain(monkeypatch) ->
         history=[],
         user_message="Vilka hyresavtal har vi?",
     )
-    scope.workspace_intent = IntentDecision(
-        "replace", "uncertain", "catalog", "hyresavtal",
-    )
+    scope.workspace_intent = IntentDecision("replace", "catalog", "hyresavtal")
     scope.client_calls.append(
         PlannedCall(
             "gallery",
@@ -307,5 +269,5 @@ async def test_finish_workspace_turn_drops_gallery_for_uncertain(monkeypatch) ->
         message="Vilka hyresavtal har vi?",
         history=[],
     )
-    assert emitted == []
-    assert scope.client_calls == []
+    assert len(emitted) == 1
+    assert any(call.name == "show_document_set" for call in scope.client_calls)

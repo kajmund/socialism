@@ -314,12 +314,3 @@ export function liveFeedFromVariant(variant: OasisVariantResult): {
   }))
   return { rounds, agents, ticks }
 }
-
-export function attemptHasLiveFeed(
-  variants: OasisVariantResult[] | undefined,
-): boolean {
-  return (variants ?? []).some((variant) => {
-    const feed = liveFeedFromVariant(variant)
-    return feed.rounds.some((round) => round.items.length > 0)
-  })
-}

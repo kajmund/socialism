@@ -27,7 +27,8 @@ from app.services.openai_live_transcription import (
 )
 from app.services.sme_group_voice import GroupVoiceSession
 from app.services.sme_group_voice_names import correct_names, name_bias_prompt
-from app.services.sme_open_document import workspace_tool_delivery_key
+from app.services.tts_cache import CachedTts, cached_tts
+from app.services.workspace_tool_delivery import WorkspaceToolDelivery
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ class GroupVoiceAudioRuntime:
             keywords=list(session.member_names.values()),
             on_event=self._on_transcript,
         )
-        self._tts_cache: dict[str, ElevenLabsTts] = {}
+        self._tts_cache: dict[str, CachedTts] = {}
         self._closed = False
         self._speaking_task: asyncio.Task[None] | None = None
         self._hand_task: asyncio.Task[None] | None = None
@@ -81,23 +82,20 @@ class GroupVoiceAudioRuntime:
         self._coordinator: SpeechResponseCoordinator | None = None
         self._sequence = 0
 
-    async def emit_workspace_tool(self, calls: list[dict], *, expert_id: str | None = None) -> None:
+    async def emit_workspace_tool(
+        self,
+        calls: list[dict],
+        *,
+        expert_id: str | None = None,
+        turn_id: str | None = None,
+    ) -> None:
         """One speaker's document open, and every passage that speaker marks."""
-        sent: set[tuple[str, ...]] = set()
-        for call in calls:
-            arguments = dict(call.get("arguments") or {})
-            name = str(call.get("name") or "")
-            key = workspace_tool_delivery_key(name, arguments, expert_id)
-            if not name or key in sent:
-                continue
-            sent.add(key)
-            if name == "focus_anchor" and expert_id:
-                arguments["expert_id"] = expert_id
-            await self._emit_json({
-                "type": "workspace.tool",
-                "name": name,
-                "arguments": arguments,
-            })
+        await WorkspaceToolDelivery(
+            self._emit_json,
+            turn_id=turn_id,
+            expert_id=expert_id,
+            current=lambda: expert_id is None or self.session.floor == expert_id,
+        ).deliver(calls)
 
     async def start(self) -> None:
         await self._stt.start()
@@ -144,7 +142,7 @@ class GroupVoiceAudioRuntime:
             return
         await self._apply_final(text, event.item_id)
 
-    async def _barge_in(self, _reason: str) -> None:
+    async def _barge_in(self, _reason: str, _text: str) -> None:
         if self._closed or self.session.floor is None:
             return
         hand = self._hand_task
@@ -291,15 +289,18 @@ class GroupVoiceAudioRuntime:
         self._sequence += 1
         return self._sequence
 
-    def _tts_for(self, voice_id: str) -> ElevenLabsTts:
+    def _tts_for(self, voice_id: str) -> CachedTts:
         cached = self._tts_cache.get(voice_id)
         if cached is not None:
             return cached
-        tts = ElevenLabsTts(
+        tts = cached_tts(
+            ElevenLabsTts,
             api_key=settings.elevenlabs_api_key,
             voice_id=voice_id,
             model_id=settings.live_speech_tts_model,
             output_format=settings.live_speech_tts_output_format,
+            cache_dir=settings.tts_cache_dir,
+            max_bytes=settings.tts_cache_max_bytes,
         )
         self._tts_cache[voice_id] = tts
         return tts

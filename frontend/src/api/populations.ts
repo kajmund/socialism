@@ -1,9 +1,5 @@
 import { api } from "@/lib/api"
-import type {
-  EditablePersona,
-  PopulationMember,
-  PopulationSummary,
-} from "@/data/library-types"
+import type { PopulationMember, PopulationSummary } from "@/data/library-types"
 
 export type PopulationDistQaRow = {
   k: string
@@ -35,44 +31,6 @@ export type PopulationRecipe = {
   dist: Record<string, DistGroup>
   locale?: string
   seed?: number | null
-}
-
-export type GeneratedPersona = {
-  name: string
-  initials: string
-  age: number
-  occ: string
-  district: string
-  occ_key: string
-  district_key: string
-  lean: string
-  lean_label: string
-  trait: string
-  quote: string
-  profile: EditablePersona
-}
-
-export type GenerationCandidate = {
-  key: string
-  source: "generated" | "library"
-  persona_id: string | null
-  persona: GeneratedPersona
-}
-
-export type PopulationGenerateRequest = {
-  recipe: PopulationRecipe
-  include_persona_ids?: string[]
-  generation_id?: string | null
-  existing?: GenerationCandidate[]
-  replace_keys?: string[]
-  mode?: "replace" | "append"
-}
-
-export type PopulationGenerateResponse = {
-  generation_id: string
-  fingerprint: number[][]
-  candidates: GenerationCandidate[]
-  warnings?: string[]
 }
 
 export type PopulationMemberWrite = {
@@ -115,12 +73,6 @@ export function listPopulations(params: {
 
 export function getPopulation(id: number): Promise<PopulationDetail> {
   return api.get<PopulationDetail>(`/populations/${id}`)
-}
-
-export function generatePopulation(
-  body: PopulationGenerateRequest,
-): Promise<PopulationGenerateResponse> {
-  return api.post<PopulationGenerateResponse>("/populations/generate", body)
 }
 
 export function createPopulation(body: PopulationWrite): Promise<PopulationDetail> {

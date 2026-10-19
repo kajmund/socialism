@@ -21,6 +21,7 @@ from app.schemas.live_speech import (
     AudioCommit,
     AudioStart,
     ClientControl,
+    ClientLatency,
     ClientPing,
     SessionMute,
     SessionStart,
@@ -214,6 +215,8 @@ class LiveSpeechSocket:
             return True
         elif isinstance(event, SttFocus):
             await runtime.focus_sources(event.source_ids)
+        elif isinstance(event, ClientLatency):
+            runtime.record_client_latency(event.phase, event.milliseconds)
         elif isinstance(event, ClientPing):
             await self.emit_json(
                 {

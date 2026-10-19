@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from app.config import settings
 from app.services.live_speech_backchannel import SpeechBarge
+from app.services.live_speech_amend import amend_turn
 from app.services.live_speech_phrases import (
     BACKCHANNEL_PROMPT_KEY,
     LISTENER_PROMPT_KEY,
@@ -124,8 +125,8 @@ class LiveSpeechCues:
         runtime = self._rt
         if not runtime._first_partial_logged and runtime._speech_started_at is not None:
             runtime._first_partial_logged = True
-            logger.info(
-                "live_speech.first_partial latency_ms=%.1f",
+            runtime._metrics.add(
+                "first_partial",
                 (monotonic() - runtime._speech_started_at) * 1000,
             )
         text = runtime._partials.get(item_id, "") + delta
@@ -169,11 +170,14 @@ class LiveSpeechCues:
         )
         return bool(last) and text.casefold().strip() == last.casefold()
 
-    async def barge_in(self, reason: str) -> None:
+    async def barge_in(self, reason: str, text: str) -> None:
         started = monotonic()
         self._rt._coordinator.drop_aside()
         if self.assistant_active():
-            await self._rt.cancel_turn(self._rt._turn_id, reason)
+            if reason == "amend":
+                await amend_turn(self._rt, self._rt._turn_id, text)
+            else:
+                await self._rt.cancel_turn(self._rt._turn_id, reason)
             logger.info(
                 "live_speech.barge_in reason=%s latency_ms=%.1f",
                 reason,

@@ -52,10 +52,6 @@ def document_identity_uri(uri: str) -> str:
     return identity
 
 
-def join_text_units(units: list[TextUnitRecord]) -> str:
-    return "\n\n".join(unit.text for unit in units)
-
-
 async def current_lagen_nu_units(
     session: AsyncSession,
     *,

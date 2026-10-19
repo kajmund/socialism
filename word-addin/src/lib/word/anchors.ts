@@ -16,8 +16,6 @@ export type WordDocumentParagraphState = {
   unique_local_id?: string | null
 }
 
-export type WordAnchorStatus = "resolved" | "stale" | "ambiguous" | "missing"
-
 export type WordAnchorResolution =
   | { status: "resolved"; paragraph_index: number }
   | { status: "stale" | "ambiguous" | "missing"; paragraph_index?: null }
@@ -36,7 +34,7 @@ function optionalId(value: string | null | undefined): string | null {
   return text || null
 }
 
-export function sameWordSession(
+function sameWordSession(
   captured: string | null | undefined,
   current: string | null | undefined,
 ): boolean {

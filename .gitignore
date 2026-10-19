@@ -30,6 +30,9 @@ pnpm-debug.log*
 !/data/downloads/.gitkeep
 *.parquet
 
+# Generated synthetic SME corpus (large; regenerate with synthetic_sme/generator)
+/synthetic_sme/
+
 # OverGraph ingest experiment
 /experiments/overgraph_ingest/.venv/
 /experiments/overgraph_ingest/data/
@@ -44,6 +47,7 @@ pnpm-debug.log*
 /backend/data/embedding_cache/
 /backend/data/image_cache/
 /backend/data/bolagsapi_cache/
+/backend/data/tts_cache/
 /backend/data/mem0/
 /backend/data/overgraph/
 /backend/data/overgraph-pytest/

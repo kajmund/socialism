@@ -44,20 +44,12 @@ from app.services.research.assessment import (
     ResearchNeedAssessment,
 )
 from app.services.research.execution import research_context_from_run
-from app.services.research.graphiti_adapter import (
-    GraphitiQuestionEvidenceGraph,
-    InMemoryGraphitiClient,
-    UnavailableGraphitiClient,
-    link_from_graphiti_edge,
-    link_to_graphiti_edge,
-)
 from app.services.research.knowledge_question import (
     evidence_visibility,
     identity_from_text,
     knowledge_question_identity_key,
     public_question_scope,
     research_question_key,
-    stable_evidence_ref,
     tenant_question_scope,
 )
 from app.services.research.question_graph import (
@@ -65,7 +57,7 @@ from app.services.research.question_graph import (
     QuestionEvidenceGraphError,
     QuestionEvidenceLink,
 )
-from app.services.research.question_graph_memory import InMemoryQuestionEvidenceGraph
+from tests.question_graph_memory import InMemoryQuestionEvidenceGraph
 from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
 from app.services.research.question_reuse import (
     classify_freshness,
@@ -396,75 +388,24 @@ async def test_graph_outage_fails_before_provider_retrieval(db):
     session, _factory = db
     _customer_row, _run, attempt = await _created_attempt(session, slug="outage-co")
     source = RecordingSource("case_knowledge")
-    with pytest.raises(QuestionEvidenceGraphError, match="Graphiti unavailable"):
+    class UnavailableGraph:
+        async def match_question(self, *_args, **_kwargs):
+            raise QuestionEvidenceGraphError("question graph unavailable")
+
+        async def upsert_question(self, *_args, **_kwargs):
+            raise QuestionEvidenceGraphError("question graph unavailable")
+
+        async def lookup_answers(self, *_args, **_kwargs):
+            raise QuestionEvidenceGraphError("question graph unavailable")
+
+    with pytest.raises(QuestionEvidenceGraphError, match="question graph unavailable"):
         await execute_attempt_research(
             session, attempt_id=attempt.id,
             research_plan=ResearchPlan(needs=[_need("research_1", "case_knowledge")]),
             router=_router(source)[0],
-            question_graph=GraphitiQuestionEvidenceGraph(UnavailableGraphitiClient()),
+            question_graph=UnavailableGraph(),
         )
     assert source.calls == 0
-
-
-@pytest.mark.asyncio
-async def test_graphiti_round_trip_keeps_locator_and_provenance():
-    client = InMemoryGraphitiClient()
-    graph = GraphitiQuestionEvidenceGraph(client)
-    identity = identity_from_text("Vad gäller skattesatsen?")
-    question = await graph.upsert_question(
-        None,  # type: ignore[arg-type]
-        identity,
-        tenant_question_scope(9),
-    )
-    ref = stable_evidence_ref(
-        provider="fake",
-        source_id="doc-brief",
-        locator="§ 4",
-        excerpt="excerpt",
-    )
-    stored = await graph.upsert_answer(
-        None,  # type: ignore[arg-type]
-        QuestionEvidenceLink(
-            question_id=question.id,
-            evidence_ref=ref,
-            excerpt="excerpt",
-            locator="§ 4",
-            source_id="doc-brief",
-            source_url="https://example.test/brief.pdf",
-            source_type="case_knowledge",
-            provider="fake",
-            provenance={"document_id": "doc-brief", "version": "3"},
-            retrieved_at=datetime(2026, 4, 1, 12, 0, tzinfo=UTC),
-            observed_at=datetime(2026, 4, 1, 12, 1, tzinfo=UTC),
-            freshness="fresh",
-            version="3",
-            visibility="tenant",
-        ),
-    )
-    again = await graph.upsert_answer(
-        None,  # type: ignore[arg-type]
-        QuestionEvidenceLink(
-            question_id=question.id,
-            evidence_ref=ref,
-            excerpt="excerpt",
-            locator="§ 4",
-            source_id="doc-brief",
-            provider="fake",
-            provenance={"document_id": "doc-brief", "version": "3"},
-            freshness="fresh",
-            visibility="tenant",
-        ),
-    )
-    links = await graph.lookup_answers(None, question=question, limit=5)  # type: ignore[arg-type]
-    edge = link_to_graphiti_edge(stored)
-    restored = link_from_graphiti_edge(edge)
-    assert stored.evidence_ref == again.evidence_ref == ref
-    assert len(links) == 1
-    assert links[0].locator == "§ 4"
-    assert links[0].provenance["version"] == "3"
-    assert links[0].relation == ANSWERED_BY
-    assert restored.locator == "§ 4"
-    assert restored.provenance["document_id"] == "doc-brief"
 
 
 @pytest.mark.asyncio
@@ -527,13 +468,6 @@ async def test_existing_runtime_contracts_keep_reuse_lineage_only(db):
     assert items[0].provenance["reuse"]["origin"] == "fresh_retrieval"
     assert items[0].provenance["reuse"]["relation"] == ANSWERED_BY
     assert items[0].locator == "p1"
-
-
-@pytest.mark.asyncio
-async def test_unavailable_graphiti_client_raises_graph_error():
-    client = UnavailableGraphitiClient()
-    with pytest.raises(QuestionEvidenceGraphError):
-        await client.find_nodes(labels=("KnowledgeQuestion",), attributes={}, limit=1)
 
 
 @pytest.mark.asyncio

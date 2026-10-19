@@ -6,7 +6,6 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from typing import Any, Literal
 
 from openai import APITimeoutError
@@ -61,11 +60,6 @@ from app.services.prompt_store import require_prompts_for_persona
 from app.services.run_tick_context import build_persona_feed_context
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class ChatSuggestions:
-    questions: list[str]
 
 
 _chat_locks: dict[str, asyncio.Lock] = {}

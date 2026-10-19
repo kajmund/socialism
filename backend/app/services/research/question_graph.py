@@ -1,4 +1,4 @@
-"""Question → Evidence graph contract. Graphiti stays behind an adapter."""
+"""Question → Evidence graph contract. Implementations stay behind this protocol."""
 
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ class DisabledQuestionEvidenceGraph:
 
 
 class QuestionEvidenceGraph(Protocol):
-    """Persistent question/evidence graph. One hop. No Graphiti types here."""
+    """Persistent question/evidence graph. One hop. No storage-specific types here."""
 
     async def match_question(
         self,

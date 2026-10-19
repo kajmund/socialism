@@ -64,6 +64,8 @@ _IMAGE_CACHE_ROOT = tempfile.mkdtemp(prefix="image-cache-")
 settings.image_cache_dir = _IMAGE_CACHE_ROOT
 _BOLAGSAPI_CACHE_ROOT = tempfile.mkdtemp(prefix="bolagsapi-cache-")
 settings.bolagsapi_cache_dir = _BOLAGSAPI_CACHE_ROOT
+_TTS_CACHE_ROOT = tempfile.mkdtemp(prefix="tts-cache-")
+settings.tts_cache_dir = _TTS_CACHE_ROOT
 settings.log_dir = ""
 settings.logstash_url = ""
 settings.logstash_username = ""
@@ -357,12 +359,22 @@ async def user_client(client):
     yield client
 
 
-@pytest.fixture
-async def bolag_client(client):
-    """Same app/DB as client, but Authorization is the bolag-demo role."""
-    token = mint_access_token(sub=BOLAG_USER_ID, email="bolag@test.local")
-    client.headers["Authorization"] = f"Bearer {token}"
-    yield client
+@pytest.fixture(autouse=True)
+def _sme_panel_api_tests_skip_jev(request, monkeypatch):
+    """Panel API tests expect every member to reply and must not call Jev."""
+    if request.module.__name__ != "tests.test_sme":
+        return
+
+    async def everyone(self, _utterance, jev=None, raise_hand_prompt=None):
+        for persona_id in self.member_ids:
+            self.raise_hand(persona_id)
+        ordered = sorted(self.member_ids)
+        return ordered[0] if ordered else None
+
+    monkeypatch.setattr(
+        "app.services.sme_group_voice.GroupVoiceSession.decide_raise_hands",
+        everyone,
+    )
 
 
 @pytest.fixture(autouse=True)

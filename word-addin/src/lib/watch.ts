@@ -1,6 +1,6 @@
 import type { WatchEvent, WordAction } from "@/lib/types"
 
-export type WatchAction =
+type WatchAction =
   | { kind: "upsert"; actions: WordAction[] }
   | {
       kind: "progress"

@@ -226,16 +226,6 @@ export function listRunPersonaInterviewMessages(
   )
 }
 
-export function runPersonaInterview(
-  runId: number,
-  attemptId: string,
-  variantId: string,
-  personaId: string,
-  body: { through_tick_index: number; message: string },
-): Promise<{ reply: string; messages: RunInterviewMessage[] }> {
-  return api.post(interviewPath(runId, attemptId, variantId, personaId), body)
-}
-
 export function clearRunPersonaInterview(
   runId: number,
   attemptId: string,

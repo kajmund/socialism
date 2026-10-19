@@ -20,11 +20,10 @@ from app.services.expert_session_tools import (
 from app.services.expert_async_tools import (
     acknowledge_expert_tools,
     active_library_tools,
-    complete_tool_episode,
     current_ack_text,
 )
 from app.services.expert_reasoning_episode import history_message
-from app.services.passage_mark_claim import mark_followup_needed
+from app.services.expert_tool_stream import stream_expert_tool_reply
 from app.services.expert_tools import expert_tool_prompt_extra, resolve_chat_tools
 from app.observability.events import log_event
 from app.services.expert_reasoning import EVENT_DATASET_EXPERT_CHAT
@@ -324,14 +323,8 @@ async def stream_reply_as_persona(  # noqa: PLR0913
         )
         episode = getattr(scope, "episode", None)
         specs = () if episode is None else episode.specs
-        if ack.calls or mark_followup_needed(ack.text, [call.name for call in ack.calls], specs):
-            reply = await complete_tool_episode(scope, ack.calls)
-        else:
-            reply = ack.text
-        if reply:
-            yield reply
-        else:
-            raise ValueError("Expert tool episode produced no reply")
+        async for chunk in stream_expert_tool_reply(ack, scope, specs):
+            yield chunk
         return
     if allowed:
         reply = await complete_text_with_company_tools(

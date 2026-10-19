@@ -344,7 +344,7 @@ async def test_case_interpretation_scopes_to_model_selected_deciding_court(
     monkeypatch, outside_holding
 ):
     from app.services.prompt_catalog import default_prompts
-    from tests.test_research_36_integration import PARTY_QUOTE, document, nja_result
+    from tests.integration.test_research_36_live import PARTY_QUOTE, document, nja_result
 
     class Session:
         async def __aenter__(self):

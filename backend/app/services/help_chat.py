@@ -112,9 +112,7 @@ async def _build_system_prompt(
     view: HelpViewContext | None,
     customer_id: int,
     module: str,
-    ground_population: bool = False,
 ) -> str:
-    del ground_population  # legacy WS/REST flag; SCB dist is always available
     try:
         prompts = await require_active_prompts(
             session,
@@ -193,7 +191,7 @@ def _emit_text_chunks(text: str, *, chunk_size: int = 24) -> list[str]:
     return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
 
 
-async def stream_help_chat_turn(  # noqa: PLR0913
+async def stream_help_chat_turn(
     session: AsyncSession,
     *,
     session_id: str,
@@ -202,7 +200,6 @@ async def stream_help_chat_turn(  # noqa: PLR0913
     customer_id: int,
     module: str,
     view: HelpViewContext | None = None,
-    ground_population: bool = False,
 ) -> AsyncIterator[str | HelpChatResponse]:
     lock = await _help_turn_lock(session_id)
     async with lock:
@@ -225,7 +222,6 @@ async def stream_help_chat_turn(  # noqa: PLR0913
             view=view,
             customer_id=customer_id,
             module=module,
-            ground_population=ground_population,
         )
         messages = [
             {"role": "system", "content": system_prompt},

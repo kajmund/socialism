@@ -1,4 +1,9 @@
-"""Frozen 50-case gold set and conversational workspace state."""
+"""Frozen 50-case gold set and conversational workspace state.
+
+``expected_gallery`` records what each case instructs the model to do; it is not
+a system-level suppression. The deterministic presentation gate was removed, so
+the model and the tool descriptions decide whether a gallery is shown.
+"""
 
 from __future__ import annotations
 

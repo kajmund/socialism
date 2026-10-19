@@ -334,7 +334,6 @@ class HelpChatRequest(BaseModel):
     locale: HelpLocale = "sv"
     message: str = Field(min_length=1)
     view: HelpViewContext | None = None
-    ground_population: bool = False
     customer_id: int = Field(ge=1)
     module: str = Field(min_length=1, max_length=32)
 

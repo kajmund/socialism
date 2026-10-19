@@ -44,7 +44,6 @@ from app.services.expert_tool_run import tool_failure_text
 from app.services.expert_worker_spawn import withhold_incomplete_spawn
 from app.services.passage_mark_claim import latest_assistant_text, missing_passage_mark_notice
 from app.services.workspace_chat_tools import CLIENT_TOOL_NAMES
-from app.services.workspace_intent import presentation_tools_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -173,10 +172,8 @@ async def _handle_call_free_round(
         _remember_transcript(work, messages)
         return _RoundOutcome.CONTINUE, ""
     text_notice = _empty_reply_notice(
-        reply,
         text=text,
         last_text=last_text,
-        offered=frozenset(str(spec["function"]["name"]) for spec in episode.specs),
         messages=messages,
     )
     if text_notice is not None:
@@ -204,7 +201,6 @@ async def continue_expert_episode(
         return "", None
     messages = [dict(message) for message in episode.messages]
     _trace_rows(work, _append_results(messages, _result_by_id(work.calls, results)))
-    _drop_find_after_lookup(work, work.calls)
     _remember_transcript(work, messages)
     opening_notice = missing_passage_mark_notice(
         latest_assistant_text(messages), messages, episode.specs,
@@ -264,7 +260,6 @@ async def continue_expert_episode(
             last_text = text
         last_reasoning = _reasoning_text(assistant.get("reasoning_content")) or last_reasoning
         await _finish_round(messages, calls, work, run_call=run_call, publish=publish)
-        _drop_find_after_lookup(work, calls)
         _remember_transcript(work, messages)
     recovered = await _recover_empty_text_reply(work, messages, last_text)
     if recovered is not None:
@@ -306,29 +301,6 @@ def _append_results(messages: list[dict[str, Any]], by_id: dict[str, str]) -> li
         rows.append((call_id, name, content))
         messages.append(tool_result_message(tool_call_id=call_id, content=content, name=name))
     return rows
-
-
-def _drop_find_after_lookup(work: ToolWork, calls: Sequence[PlannedCall]) -> None:
-    """After find_documents, stop re-searching when presentation is locked off.
-
-    Otherwise the model can burn every continuation round on identical finds
-    and never produce the required plain-text answer.
-    """
-    if not any(call.name == "find_documents" for call in calls):
-        return
-    if presentation_tools_allowed(work.workspace_intent):
-        return
-    episode = work.episode
-    if episode is None:
-        return
-    kept = tuple(
-        spec
-        for spec in episode.specs
-        if str(spec.get("function", {}).get("name") or "") != "find_documents"
-    )
-    if len(kept) == len(episode.specs):
-        return
-    work.episode = replace(episode, specs=kept)
 
 
 async def _recover_empty_text_reply(

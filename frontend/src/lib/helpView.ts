@@ -158,7 +158,3 @@ export function useHelpView(): HelpViewContext {
     }
   }, [params, pathname, searchParams, t])
 }
-
-export function helpViewKey(view: HelpViewContext): string {
-  return [view.path, view.view_key, JSON.stringify(view.params), JSON.stringify(view.search)].join("|")
-}

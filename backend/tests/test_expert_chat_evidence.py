@@ -269,7 +269,8 @@ async def test_memory_update_is_scheduled_without_waiting(monkeypatch):
     schedule_expert_memory_update(persona, message="hej", reply="hej själv", image_sha256=None)
 
     await asyncio.wait_for(started.wait(), timeout=1)
-    release.set()
     pending = [task for task in memory_tasks if not task.done()]
-    if pending:
-        await asyncio.gather(*pending)
+    assert pending, "memory update task must be pending while the write is blocked"
+    release.set()
+    await asyncio.gather(*pending)
+    assert all(task.done() for task in pending)

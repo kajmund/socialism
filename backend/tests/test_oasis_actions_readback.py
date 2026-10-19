@@ -7,14 +7,10 @@ from app.database.models import PopulationMember
 from app.services.oasis_profiles import build_user_char, population_action_rules
 from app.services.prompt_catalog import default_prompts
 
+from app.services.oasis_run import parse_oasis_options
+from app.services.simulation.artifact import read_oasis_results
+
 _PROMPTS = default_prompts("sv")
-from app.services.oasis_run import (  # noqa: E402
-    _created_at_to_sort_key,
-    _max_event_time,
-    _read_oasis_results,
-    parse_oasis_options,
-    population_action_names,
-)
 
 
 def _member() -> PopulationMember:
@@ -30,40 +26,6 @@ def _member() -> PopulationMember:
         trait="pragmatisk",
         persona=None,
     )
-
-
-def test_population_action_names_default_excludes_create_post():
-    names = population_action_names()
-    assert "CREATE_POST" not in names
-    assert "LIKE_POST" in names
-    assert "FOLLOW" in names
-    assert "UNFOLLOW" in names
-    assert "MUTE" in names
-    assert "SEARCH_POSTS" in names
-    assert "REPORT_POST" in names
-    assert "TREND" in names
-    assert "REPOST" in names
-    assert "QUOTE_POST" in names
-
-
-def test_population_action_names_reddit_omits_repost_quote():
-    names = population_action_names(platform="reddit")
-    assert "REPOST" not in names
-    assert "QUOTE_POST" not in names
-    assert "LIKE_POST" in names
-    assert "CREATE_COMMENT" in names
-    assert "TREND" in names
-
-
-def test_population_action_names_with_create_post():
-    names = population_action_names(allow_population_create_post=True)
-    assert names[0] == "CREATE_POST"
-    assert "CREATE_COMMENT" in names
-    reddit = population_action_names(
-        allow_population_create_post=True, platform="reddit"
-    )
-    assert reddit[0] == "CREATE_POST"
-    assert "REPOST" not in reddit
 
 
 def test_parse_oasis_options_defaults():
@@ -104,43 +66,6 @@ def test_population_action_rules_helpers():
     assert "create_post" in population_action_rules(prompts=_PROMPTS, allow_create_post=True).casefold()
     reddit = population_action_rules(prompts=_PROMPTS, platform="reddit", allow_create_post=False)
     assert "dela" not in reddit
-
-
-def test_created_at_sort_key_handles_timestep_and_iso():
-    assert _created_at_to_sort_key(12) == 12
-    assert _created_at_to_sort_key("12") == 12
-    iso = _created_at_to_sort_key("2026-08-01 00:00:00.001")
-    assert iso is not None
-    assert iso > 1_000_000_000_000
-
-
-def test_max_event_time_iso_datetime(tmp_path: Path):
-    db_path = tmp_path / "simulation.db"
-    conn = sqlite3.connect(db_path)
-    try:
-        conn.executescript(
-            """
-            CREATE TABLE post (
-                post_id INTEGER PRIMARY KEY,
-                created_at TEXT
-            );
-            CREATE TABLE trace (
-                user_id INTEGER,
-                created_at TEXT,
-                action TEXT,
-                info TEXT
-            );
-            INSERT INTO post (post_id, created_at)
-            VALUES (1, '2026-08-01 00:00:00.001');
-            INSERT INTO trace (user_id, created_at, action, info)
-            VALUES (1, '2026-08-01 00:00:00.005', 'like_post', '{}');
-            """
-        )
-        conn.commit()
-    finally:
-        conn.close()
-    end = _max_event_time(db_path)
-    assert end == _created_at_to_sort_key("2026-08-01 00:00:00.005")
 
 
 def test_read_oasis_results_follow_mute_report_trace(tmp_path: Path):
@@ -222,7 +147,7 @@ def test_read_oasis_results_follow_mute_report_trace(tmp_path: Path):
     finally:
         conn.close()
 
-    feed = _read_oasis_results(db_path)
+    feed = read_oasis_results(db_path)
     assert len(feed["posts"]) == 1
     assert feed["follows"] == [
         {
@@ -241,7 +166,7 @@ def test_read_oasis_results_follow_mute_report_trace(tmp_path: Path):
 
 
 def test_read_oasis_results_missing_db(tmp_path: Path):
-    feed = _read_oasis_results(tmp_path / "missing.db")
+    feed = read_oasis_results(tmp_path / "missing.db")
     assert feed["posts"] == []
     assert feed["follows"] == []
     assert feed["action_histogram"] == []

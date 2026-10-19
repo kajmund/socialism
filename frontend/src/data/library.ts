@@ -34,12 +34,6 @@ export const FP_COLORS = [
   "var(--db-ink-400)",
 ] as const
 
-export const FP_DETAIL_LABELS = [
-  ["Ung", "Medel", "Äldre"],
-  ["Vänster", "Mitt", "Höger"],
-  ["Centrum", "Distrikt A", "Övriga"],
-] as const
-
 export function personaInitials(name: string): string {
   return name
     .split(" ")

@@ -8,8 +8,6 @@ Usage (from backend/):
 
 from __future__ import annotations
 
-import sys
-
 import pytest
 
 

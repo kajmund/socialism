@@ -44,3 +44,33 @@ floor-gated. Both 1:1 Voice and Group Voice adapters also emit one late gallery
 when an already-issued callback is invoked after cancellation or floor loss.
 Because the delivery-safety requirements fail, `approved_for_step_b` is
 `false`; Step B must not run.
+
+## Post-fix v2: shared delivery component
+
+The three delivery adapters now share
+`app.services.workspace_tool_delivery.WorkspaceToolDelivery`. Each channel
+supplies its turn correlation id and a `current` predicate: 1:1 Voice checks
+that the turn still owns the socket and was not cancelled; Group Voice checks
+that the speaking expert still holds the floor. Text chat passes `request_id`
+as the turn id. Every delivery carries `turn_id`, and a stale callback emits
+nothing. The group expert reply generates one `request_id` for admission,
+delivery and speech, so all three correlate the same turn.
+
+Observed after the change (`tests/integration/baselines/channel-parity-step-a-v2.json`):
+
+- 150/150 semantic matches; zero incorrect automatic displays, wrong
+  selections/modes and duplicates.
+- 0 missing turn IDs.
+- 0 non-floor presentations.
+- 0 late deliveries after cancellation or floor loss.
+- `approved_for_step_b` is `true`.
+
+Run:
+
+```text
+uv run python scripts/benchmark_channel_parity.py \
+  --output tests/integration/baselines/channel-parity-step-a-v2.json
+uv run pytest tests/test_channel_parity_experiment.py
+```
+
+The v1 baseline remains the frozen historical result.

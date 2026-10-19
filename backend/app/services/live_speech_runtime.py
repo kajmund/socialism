@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
-from dataclasses import dataclass, field
 from time import monotonic
 from uuid import uuid4
 
@@ -15,49 +14,40 @@ from openai import OpenAIError
 from app.config import settings
 from app.live_speech_settings import tts_sample_rate
 from app.realtime.library_chat_broadcast import library_chat_broadcast
-from app.schemas.workspace import WorkspaceState
 from app.services import jobs as jobs_service
+from app.services.conversation_controller import ConversationController
 from app.services.elevenlabs_tts import ElevenLabsTts
+from app.services.expert_turn_cancel import bind_turn_cancel
+from app.services.latency_stats import LatencyStats
 from app.services.live_speech_admit import admit_voice_turn, current_workspace_state
 from app.services.live_speech_coordinator import SpeechResponseCoordinator
 from app.services.live_speech_cues import LiveSpeechCues
-from app.services.expert_turn_cancel import bind_turn_cancel
-from app.services.live_speech_focus import focus_sources as _focus_sources
 from app.services.live_speech_history import persist_interrupted_voice_turn
 from app.services.live_speech_progress import bind_tool_progress
+from app.services.live_speech_scope import LiveSpeechScope
+from app.services.live_speech_speculation import SpeculativeReader
+from app.services.live_speech_focus import focus_sources as _focus_sources
 from app.services.openai_live_transcription import (
     OpenAITranscriptionStream,
     TranscriptEvent,
 )
 from app.services.persona_chat import ChatTurnError
 from app.services.sme_expert_turns import execute_expert_turn
+from app.services.speculative_results import speculative_results
 from app.services.speech_segmenter import (
     SpeechSegmenter,
     VisibleSpeechText,
     strip_voice_tags,
 )
+from app.services.tts_cache import cached_tts
+from app.services.turn_amendment import bound_amendment_channel
+from app.services.workspace_tool_delivery import voice_tool_callback
 
 EmitJson = Callable[[dict], Awaitable[None]]
 EmitAudio = Callable[[bytes], Awaitable[None]]
 logger = logging.getLogger(__name__)
 _V4_TURBO_MODEL = "eleven_v4_turbo"
 _V4_DELIVERY_PROMPT_KEY = "chat.expert.live_speech_delivery"
-
-
-@dataclass(frozen=True, slots=True)
-class LiveSpeechScope:
-    user_id: str
-    customer_id: int
-    workspace_id: str
-    expert_id: str
-    language: str
-    voice_id: str
-    workspace_state: WorkspaceState
-    prompts: dict[str, str] = field(default_factory=dict)
-    recent_turns: tuple[tuple[str, str], ...] = ()
-    stt_prompt: str = ""
-    stt_keywords: tuple[str, ...] = ()
-    stt_base_keywords: tuple[str, ...] = ()
 
 
 class LiveSpeechRuntime:
@@ -80,12 +70,12 @@ class LiveSpeechRuntime:
             keywords=list(scope.stt_keywords),
             on_event=self._on_transcript,
         )
-        self._tts = ElevenLabsTts(
-            api_key=settings.elevenlabs_api_key,
-            voice_id=scope.voice_id,
+        self._tts = cached_tts(
+            ElevenLabsTts,
+            api_key=settings.elevenlabs_api_key, voice_id=scope.voice_id,
             model_id=settings.live_speech_tts_model,
             output_format=settings.live_speech_tts_output_format,
-        )
+            cache_dir=settings.tts_cache_dir, max_bytes=settings.tts_cache_max_bytes)
         self._partials: dict[str, str] = {}
         self._revisions: dict[str, int] = {}
         self._turn_task: asyncio.Task[None] | None = None
@@ -109,6 +99,15 @@ class LiveSpeechRuntime:
         self._first_delta_logged = False
         self._first_audio_logged = False
         self._user_text_partial = ""
+        self._conversation = ConversationController()
+        self._metrics = LatencyStats(logger)
+        self._speculation = SpeculativeReader(
+            workspace_id=scope.workspace_id,
+            user_id=scope.user_id,
+            workspace_state=scope.workspace_state,
+            min_chars=settings.live_speech_speculation_min_chars,
+            enabled=settings.live_speech_speculation_enabled,
+        )
         self._cues = LiveSpeechCues(self)
         self._coordinator = SpeechResponseCoordinator(
             stream=self._tts_chunks,
@@ -146,11 +145,13 @@ class LiveSpeechRuntime:
         self._commit_at = None
         self._first_partial_logged = False
         self._user_text_partial = ""
+        self._conversation.user_speaking()
         self._cues.restart_listener()
 
     async def commit_audio(self, sequence: int) -> None:
         self._advance_audio_sequence(sequence)
         self._commit_at = monotonic()
+        self._conversation.user_committed()
         self._cues.stop_listener()
         self._coordinator.drop_aside()
         await self._stt.commit()
@@ -172,6 +173,7 @@ class LiveSpeechRuntime:
         if task is None or task.done() or turn_id != self._turn_id:
             return
         cancelled_at = monotonic()
+        self._conversation.ai_interrupted()
         self._turn_cancel.set()
         self._coordinator.interrupt_playback()
         self._cues.cancel_waiting()
@@ -202,11 +204,7 @@ class LiveSpeechRuntime:
             ),
             return_exceptions=True,
         )
-        logger.info(
-            "live_speech.turn_cancelled turn_id=%s latency_ms=%.1f",
-            turn_id,
-            (monotonic() - cancelled_at) * 1000,
-        )
+        self._metrics.add("turn_cancelled", (monotonic() - cancelled_at) * 1000)
         await asyncio.gather(self._state("listening"), return_exceptions=True)
 
     async def close(self, reason: str) -> None:
@@ -233,6 +231,8 @@ class LiveSpeechRuntime:
         )
         await library_chat_broadcast.unsubscribe(self._on_library_event)
         await self._stt.close()
+        await self._speculation.aclose()
+        await self._emit_json({"type": "session.metrics", "latency": self._metrics.summary()})
         await self._emit_json({"type": "session.state", "state": "closed", "reason": reason})
 
     async def _on_transcript(self, event: TranscriptEvent) -> None:
@@ -248,6 +248,7 @@ class LiveSpeechRuntime:
         item_id = event.item_id or "pending"
         if event.kind == "partial":
             await self._cues.on_partial(item_id, event.text)
+            self._speculation.on_partial(event.text)
             return
         if self._commit_timeout is not None:
             self._commit_timeout.cancel()
@@ -262,11 +263,7 @@ class LiveSpeechRuntime:
         self._first_delta_logged = False
         self._first_audio_logged = False
         if self._commit_at is not None:
-            logger.info(
-                "live_speech.final_transcript item_id=%s latency_ms=%.1f",
-                item_id,
-                (self._final_at - self._commit_at) * 1000,
-            )
+            self._metrics.add("final_transcript", (self._final_at - self._commit_at) * 1000)
         if self._cues.assistant_active() and await self._cues.classify_user_speech(
             text, final=True
         ):
@@ -291,11 +288,10 @@ class LiveSpeechRuntime:
         self._turn_task = asyncio.create_task(self._run_turn(turn_id, text))
 
     async def _run_turn(self, turn_id: str, text: str) -> None:
+        self._conversation.ai_thinking()
         await self._state("thinking")
-        request_id = f"voice-{uuid4().hex}"
-        self._request_id = request_id
-        self._user_text = text
-        self._assistant_text = ""
+        self._request_id = request_id = f"voice-{uuid4().hex}"
+        self._user_text, self._assistant_text = text, ""
         factory = jobs_service.job_session_factory()
         workspace_state = await current_workspace_state(factory, self.scope)
         turn = await admit_voice_turn(factory, self.scope, request_id, text)
@@ -306,7 +302,12 @@ class LiveSpeechRuntime:
         self._cues.start_waiting(turn_id)
         on_token = self._main_token_handler(turn_id, queue)
         try:
-            with bind_tool_progress(self._cues.on_tool_progress), bind_turn_cancel(self._turn_cancel):
+            with (
+                bind_tool_progress(self._cues.on_tool_progress),
+                bind_turn_cancel(self._turn_cancel),
+                speculative_results(self._speculation.matches(text)),
+                bound_amendment_channel(self),
+            ):
                 done = await execute_expert_turn(
                     factory,
                     request_id=request_id,
@@ -350,11 +351,7 @@ class LiveSpeechRuntime:
             if not self._first_delta_logged and self._final_at is not None:
                 self._first_delta_logged = True
                 self._coordinator.note_main_text()
-                logger.info(
-                    "live_speech.first_llm_delta turn_id=%s latency_ms=%.1f",
-                    turn_id,
-                    (monotonic() - self._final_at) * 1000,
-                )
+                self._metrics.add("first_llm_delta", (monotonic() - self._final_at) * 1000)
             display_delta = visible_text.push(delta)
             self._assistant_text += display_delta
             if display_delta:
@@ -386,6 +383,7 @@ class LiveSpeechRuntime:
             return
         await self._emit_final_text(turn_id, reply)
         self._cues.cancel_waiting()
+        self._conversation.idle()
         await self._state("listening")
 
     async def _emit_final_text(self, turn_id: str, reply: str) -> None:
@@ -410,11 +408,7 @@ class LiveSpeechRuntime:
                 return
 
     def _client_tools(self, turn_id: str) -> Callable[[list[dict]], Awaitable[None]]:
-        async def emit(calls: list[dict]) -> None:
-            for call in calls:
-                await self._emit_json({"type": "workspace.tool", "turn_id": turn_id, **call})
-
-        return emit
+        return voice_tool_callback(self, turn_id)
 
     async def _on_library_event(self, payload: dict) -> None:
         await self._forward_model_trace(payload)
@@ -454,11 +448,10 @@ class LiveSpeechRuntime:
     def _mark_first_audio(self) -> None:
         if not self._first_audio_logged and self._final_at is not None:
             self._first_audio_logged = True
-            logger.info(
-                "live_speech.first_tts_audio turn_id=%s latency_ms=%.1f",
-                self._turn_id,
-                (monotonic() - self._final_at) * 1000,
-            )
+            self._metrics.add("first_tts_audio", (monotonic() - self._final_at) * 1000)
+
+    def record_client_latency(self, phase: str, milliseconds: float) -> None:
+        self._metrics.add(phase, milliseconds)
 
     async def _await_final(self) -> None:
         try:
@@ -468,7 +461,15 @@ class LiveSpeechRuntime:
             pass
 
     async def _state(self, state: str) -> None:
-        await self._emit_json({"type": "session.state", "state": state})
+        if state == "speaking":
+            self._conversation.ai_speaking()
+        await self._emit_json(
+            {
+                "type": "session.state",
+                "state": state,
+                "conversation_state": self._conversation.state,
+            }
+        )
 
     async def _error(self, code: str, message: str, retryable: bool) -> None:
         await self._emit_json(

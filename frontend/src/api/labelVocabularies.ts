@@ -33,13 +33,6 @@ export type LabelVocabularyPatch = {
   remove?: LabelVocabularyRemoveOp[]
 }
 
-export function listLabelVocabularies(params?: {
-  kind?: AnchorKind
-  locale?: AnchorLocale
-}): Promise<LabelVocabulary[]> {
-  return api.get<LabelVocabulary[]>("/label-vocabularies", params)
-}
-
 export function getLabelVocabulary(
   kind: AnchorKind,
   locale: AnchorLocale,

@@ -51,7 +51,6 @@ C_GREEN = "#3f8f5f"
 C_ROSE = "#c1493f"
 C_AMBER = "#f3ce73"
 C_MUTED = "#565c6b"
-C_INK = "#1b1e26"
 
 _TOPIC_PALETTE = (C_PRIMARY, C_ORANGE, C_PRIMARY_2, C_GREEN, C_AMBER, C_MUTED, C_ROSE)
 _LIGHT_FILLS = frozenset(c.lower() for c in (C_SOFT, C_AMBER, C_PRIMARY_2))

@@ -155,3 +155,32 @@ The query-side type matcher now shares the ingest classifier's synonym lexicon
 map to their document type deterministically, and a pure synonym query skips
 the embedding and hits the category index directly (`_content_remainder` in
 `app/services/document_find/tool.py`).
+
+## Presentation gate removal (new contract)
+
+The deterministic `IntentDecision.presentation` gate is removed. The
+`presentation` field and every consumer of it — `presentation_tools_allowed`,
+`filter_specs_for_intent`, `allows_gallery`, and `_drop_find_after_lookup` —
+are gone. The contract is now:
+
+- `find_documents`, `get_workspace_context`, `show_document` and
+  `show_document_set` always stay in the model's tool catalog. Intent no
+  longer removes presentation tools.
+- Presentation calls are always delivered. `publish` and
+  `deliver_client_tools` no longer drop `show_document`/`show_document_set`.
+- The single-file automatic open is no longer gated; the multi-document
+  gallery still wins over the single-file heuristic.
+- `IntentDecision` now carries only `operation`, `scope` and `query`, which
+  still lock `find_documents` mode/selection and query.
+
+The model + tool descriptions decide *whether* to present. "Visa inget
+galleri" / "svara bara hur många" remain instructions in the user message,
+not a system suppression. **Consequently "zero false automatic galleries" is
+a model-behaviour property, not a system guarantee.**
+
+The v1–v4 frozen baselines above predate this change and are historical:
+they measured the gate, not the new contract. `GoldCase.expected_gallery`
+therefore means "the case instructs the model not to show", not "the system
+must suppress the gallery". The remaining single-language coupling is
+`operation`/`query` (Swedish regex + taxonomy labels), which must become
+model-driven before a multi-language rollout.

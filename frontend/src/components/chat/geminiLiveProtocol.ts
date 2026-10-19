@@ -6,7 +6,6 @@ import {
 } from "@/components/chat/liveVoiceAudio"
 
 const INPUT_SAMPLE_RATE = 16_000
-const OUTPUT_SAMPLE_RATE = 24_000
 
 export type GeminiLiveServerEvent = {
   setupComplete: boolean
@@ -179,8 +178,5 @@ export function liveToolResponseMessage(
     },
   })
 }
-
-export const GEMINI_OUTPUT_SAMPLE_RATE = OUTPUT_SAMPLE_RATE
-export const GEMINI_INPUT_SAMPLE_RATE = INPUT_SAMPLE_RATE
 
 export { createRingbackSamples, decodePcm16Base64, encodePcm16Base64 }

@@ -175,7 +175,6 @@ _TEXT_REPLY_NOTICE = json.dumps(
     {
         "text_reply_required": True,
         "say": (
-            "Presentationsverktyg är inte tillgängliga i den här turen. "
             "Svara användaren i vanlig text utifrån verktygsresultaten. "
             "Vid tvetydig begäran: sammanfatta vad som hittades och ställ "
             "en kort följdfråga."
@@ -186,27 +185,17 @@ _TEXT_REPLY_NOTICE = json.dumps(
 
 
 def _empty_reply_notice(
-    reply: object,
     *,
     text: str,
     last_text: str,
-    offered: frozenset[str],
     messages: Sequence[dict[str, Any]],
 ) -> dict[str, Any] | None:
-    """Recover when a blocked presentation call would otherwise erase the reply.
-
-    IntentDecision may remove show_* from offered tools. If the model then
-    answers with only those calls and no visible text, the episode must not
-    terminate empty — ask once for a plain-text answer.
-    """
+    """Ask once for a plain-text answer when tools ran but produced no text."""
     if (text or last_text).strip():
         return None
     if _text_reply_notice_seen(messages):
         return None
-    raw_names = _raw_tool_names(reply)
-    blocked_presentation = bool((raw_names & _PRESENTATION_TOOLS) - offered)
-    has_tool_results = any(message.get("role") == "tool" for message in messages)
-    if not blocked_presentation and not has_tool_results:
+    if not any(message.get("role") == "tool" for message in messages):
         return None
     return {"role": "user", "content": _TEXT_REPLY_NOTICE}
 
@@ -217,18 +206,3 @@ def _text_reply_notice_seen(messages: Sequence[dict[str, Any]]) -> bool:
         message.get("role") == "user" and needle in str(message.get("content") or "")
         for message in messages
     )
-
-
-def _raw_tool_names(reply: object) -> set[str]:
-    raw = list(getattr(reply, "tool_calls", None) or [])
-    names: set[str] = set()
-    for call in raw:
-        name = getattr(getattr(call, "function", None), "name", None)
-        if name:
-            names.add(str(name))
-            continue
-        if isinstance(call, dict):
-            function = call.get("function")
-            if isinstance(function, dict) and function.get("name"):
-                names.add(str(function["name"]))
-    return names

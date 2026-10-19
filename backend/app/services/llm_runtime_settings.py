@@ -518,12 +518,6 @@ async def save_runtime_settings(
     return row
 
 
-async def get_or_none(session: AsyncSession) -> LlmRuntimeSettings | None:
-    return await session.scalar(
-        select(LlmRuntimeSettings).where(LlmRuntimeSettings.id == SINGLETON_ID)
-    )
-
-
 def runtime_view_from_normalized(normalized: dict[str, Any]) -> LlmRuntimeView:
     profile = get_profile(normalized["profile_id"])
     if profile.provider == "cerebras":

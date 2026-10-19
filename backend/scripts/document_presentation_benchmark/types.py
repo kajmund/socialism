@@ -15,6 +15,9 @@ from app.services.document_qa.tenants import TenantCatalogs
 
 Arm = Literal["baseline", "treatment"]
 Mode = Literal["replace", "filter", "within", "extend"]
+# The case's instruction to the model. The deterministic presentation gate that
+# used to enforce ``expected_gallery`` no longer exists; the model and the tool
+# descriptions decide whether to present.
 Intent = Literal["show", "count", "analyze", "ambiguous"]
 FindRunner = Callable[[dict[str, Any], WorkspaceState], Awaitable[dict[str, Any]]]
 ExposeTools = Callable[..., Awaitable[tuple[list[dict[str, Any]], Any]]]
@@ -29,6 +32,7 @@ class GoldCase:
     mode: Mode
     current_source_ids: tuple[str, ...]
     expected_source_ids: tuple[str, ...]
+    # The model instruction ("show" vs "do not show"), not a system suppression.
     expected_gallery: bool
     intent: Intent
 

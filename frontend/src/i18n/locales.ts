@@ -4,7 +4,7 @@ export type Locale = (typeof LOCALES)[number]
 
 export const DEFAULT_LOCALE: Locale = "sv"
 
-export const LOCALE_STORAGE_KEY = "opinionssimulator.locale"
+const LOCALE_STORAGE_KEY = "opinionssimulator.locale"
 
 export const LOCALE_LABELS: Record<Locale, string> = {
   sv: "Svenska",
@@ -25,7 +25,7 @@ export function intlLocale(locale: Locale): string {
   }
 }
 
-export function isLocale(value: string): value is Locale {
+function isLocale(value: string): value is Locale {
   return (LOCALES as readonly string[]).includes(value)
 }
 
