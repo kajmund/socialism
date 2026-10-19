@@ -76,17 +76,19 @@ def test_head_drops_unused_graph_revalidation_queues(tmp_path: Path, monkeypatch
         "graph_fact_question_dependencies",
         "graph_ingest_work",
         "knowledge_answer_reviews",
+        "evidence_set_revalidations",
     } <= before
 
     command.upgrade(config, "head")
     after = _table_names(db)
     assert "graph_fact_revalidations" not in after
     assert "graph_question_revalidation_work" not in after
+    assert "evidence_set_revalidations" not in after
     assert {
         "graph_fact_question_dependencies",
         "graph_ingest_work",
         "knowledge_answer_reviews",
     } <= after
     assert ScriptDirectory.from_config(config).get_current_head() == (
-        "189_quick_lines_never_refuse"
+        "190_drop_evidence_set_revalidations"
     )

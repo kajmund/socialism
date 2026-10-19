@@ -26,7 +26,7 @@ from app.services.live_speech_history import persist_interrupted_voice_turn
 from app.services.live_speech_progress import bind_tool_progress
 from app.services.live_speech_scope import LiveSpeechScope
 from app.services.live_speech_speculation import SpeculativeReader
-from app.services.live_speech_stt_terms import keywords_from_text_units, text_unit_texts
+from app.services.live_speech_focus import focus_sources as _focus_sources
 from app.services.openai_live_transcription import (
     OpenAITranscriptionStream,
     TranscriptEvent,
@@ -120,17 +120,8 @@ class LiveSpeechRuntime:
         )
 
     async def focus_sources(self, source_ids: list[str]) -> None:
-        factory = jobs_service.job_session_factory()
-        async with factory() as session:
-            texts = await text_unit_texts(
-                session,
-                customer_id=self.scope.customer_id,
-                source_ids=source_ids,
-            )
-            await session.rollback()
-        await self._stt.update(
-            keywords=keywords_from_text_units(texts, base=self._base_keywords),
-        )
+        """Reauthorize each source against the readable scope before STT keywords."""
+        await _focus_sources(self, source_ids)
 
     async def start(self) -> None:
         await library_chat_broadcast.subscribe_persona(
