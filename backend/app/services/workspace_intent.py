@@ -1,8 +1,8 @@
 """Structured workspace intent locked before expert tool execution.
 
-IntentDecision is a logical contract shared by find_documents, continuation
-routing, and client presentation. It is derived from the user message and the
-active workspace state without an extra model call.
+IntentDecision is a logical contract shared by find_documents and continuation
+routing. It is derived from the user message and the active workspace state
+without an extra model call.
 """
 
 from __future__ import annotations
@@ -15,31 +15,8 @@ from app.schemas.workspace import WorkspaceState
 from app.services.document_find.taxonomy import type_from_user_phrase
 
 Operation = Literal["replace", "filter", "within", "extend"]
-Presentation = Literal["gallery", "none", "uncertain"]
 Scope = Literal["catalog", "active_document_set"]
 
-_COUNT = re.compile(
-    r"(hur många|antalet|räkna|svara bara hur många|visa inget galleri)",
-    re.IGNORECASE,
-)
-_ANALYZE = re.compile(
-    r"(analysera|analys|underlag för en senare analys|visa dem inte nu)",
-    re.IGNORECASE,
-)
-_GALLERY = re.compile(
-    r"(visa dem som ett galleri|dokumentgalleri|presentera träffarna|"
-    r"visa de hittade dokumenten|jag vill se dokumentmängden|"
-    r"öppna resultatet|visa .*galleri|som ett galleri)",
-    re.IGNORECASE,
-)
-_SHOW = re.compile(
-    r"\b(visa|öppna|presentera)\b",
-    re.IGNORECASE,
-)
-_AMBIGUOUS = re.compile(
-    r"(vad har vi|vilka .+ har vi|har vi egentligen|för sådana dokument)",
-    re.IGNORECASE,
-)
 _FILTER = re.compile(
     r"(filtrera|visa bara|bara dem|inom den aktuella dokumentmängden till)",
     re.IGNORECASE,
@@ -68,16 +45,11 @@ _FILLER = re.compile(
 @dataclass(frozen=True)
 class IntentDecision:
     operation: Operation
-    presentation: Presentation
     scope: Scope
     query: str
 
     def as_dict(self) -> dict[str, str]:
         return asdict(self)
-
-    @property
-    def allows_gallery(self) -> bool:
-        return self.presentation == "gallery"
 
 
 def decide_workspace_intent(
@@ -87,7 +59,6 @@ def decide_workspace_intent(
     text = (message or "").strip()
     has_set = _has_active_document_set(workspace_state)
     operation = _operation(text, has_set=has_set)
-    presentation = _presentation(text)
     scope: Scope = (
         "active_document_set"
         if operation in {"filter", "within", "extend"} and has_set
@@ -95,7 +66,6 @@ def decide_workspace_intent(
     )
     return IntentDecision(
         operation=operation,
-        presentation=presentation,
         scope=scope,
         query=_query(text),
     )
@@ -123,38 +93,6 @@ def apply_intent_to_find_arguments(
     if intent.query and type_from_user_phrase(intent.query) is not None:
         payload["query"] = intent.query
     return payload
-
-
-def presentation_tools_allowed(intent: IntentDecision | None) -> bool:
-    return intent is None or intent.allows_gallery
-
-
-def filter_specs_for_intent(
-    specs: list[dict[str, Any]],
-    intent: IntentDecision | None,
-) -> list[dict[str, Any]]:
-    if presentation_tools_allowed(intent):
-        return list(specs)
-    blocked = {"show_document", "show_document_set"}
-    return [
-        spec
-        for spec in specs
-        if str(spec.get("function", {}).get("name") or "") not in blocked
-    ]
-
-
-def _presentation(text: str) -> Presentation:
-    if _COUNT.search(text):
-        return "none"
-    if _ANALYZE.search(text) and not _GALLERY.search(text):
-        return "none"
-    if _GALLERY.search(text):
-        return "gallery"
-    if _AMBIGUOUS.search(text) and not _SHOW.search(text):
-        return "uncertain"
-    if _SHOW.search(text):
-        return "gallery"
-    return "uncertain"
 
 
 def _operation(text: str, *, has_set: bool) -> Operation:

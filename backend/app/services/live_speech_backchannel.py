@@ -14,7 +14,9 @@ from app.services.live_speech_phrases import classify_backchannel_llm
 
 logger = logging.getLogger(__name__)
 
-BackchannelKind = Literal["backchannel", "interruption", "new_question", "uncertain"]
+BackchannelKind = Literal[
+    "backchannel", "interruption", "new_question", "amend", "uncertain",
+]
 BargeAction = Literal["ignore", "barge", "wait"]
 
 _PUNCT = re.compile(r"[^\w\s?åäöÅÄÖ-]+", re.UNICODE)
@@ -40,6 +42,11 @@ BACKCHANNELS = frozenset(
 )
 _QUESTION_STARTS = ("vad", "hur", "varför", "varfor", "vilken", "vilket", "kan du", "skulle")
 _INTERRUPT_STARTS = ("ja men", "ja men ", "nej men", "okej men", "ok men")
+# Soft corrections that amend the in-flight reply instead of replacing it.
+_AMEND_STARTS = (
+    "men ", "fast ", "alltså ", "alltsa ", "förresten ", "forresten ",
+    "eller ", "jag menar ", "det vill säga ", "dvs ",
+)
 
 
 def normalize_utterance(text: str) -> str:
@@ -58,7 +65,11 @@ def classify_utterance(
         kind: BackchannelKind = "uncertain"
     elif echoed and normalize_utterance(echoed) == normalized:
         kind = "backchannel"
-    elif _urgent(normalized) or _interrupts(normalized):
+    elif _urgent(normalized):
+        kind = "interruption"
+    elif _amends(normalized):
+        kind = "amend"
+    elif _interrupts(normalized):
         kind = "interruption"
     elif "?" in text or normalized.startswith(_QUESTION_STARTS):
         kind = "new_question"
@@ -86,7 +97,7 @@ def utterance_barge(
     kind = classify_utterance(text, duration_ms=duration_ms, echoed=echoed)
     if kind == "backchannel":
         action: BargeAction = "ignore"
-    elif final or kind in {"interruption", "new_question"}:
+    elif final or kind in {"interruption", "new_question", "amend"}:
         action = "barge"
     else:
         action = "wait"
@@ -116,7 +127,7 @@ class SpeechBarge:
 
     def __init__(
         self,
-        stop: Callable[[str], Awaitable[None]],
+        stop: Callable[[str, str], Awaitable[None]],
         *,
         on_backchannel: Callable[[str], Awaitable[None]] | None = None,
         prompt: Callable[[], str] | None = None,
@@ -148,7 +159,7 @@ class SpeechBarge:
         if action == "ignore":
             await self._note_backchannel(text)
             return True
-        await self._stop(kind)
+        await self._stop(kind, text)
         return False
 
     def cancel(self) -> None:
@@ -180,7 +191,7 @@ class SpeechBarge:
         if not stop:
             await self._note_backchannel(text)
             return
-        await self._stop("uncertain")
+        await self._stop("uncertain", text)
 
     async def _note_backchannel(self, text: str) -> None:
         if self._on_backchannel is not None:
@@ -191,6 +202,10 @@ def _interrupts(normalized: str) -> bool:
     return any(normalized.startswith(prefix) for prefix in _INTERRUPT_STARTS) or (
         " men " in f" {normalized} " and not _backchannel_only(normalized)
     )
+
+
+def _amends(normalized: str) -> bool:
+    return normalized == "fast" or normalized.startswith(_AMEND_STARTS)
 
 
 def _urgent(normalized: str) -> bool:

@@ -34,9 +34,10 @@ async def run_experiment() -> dict:
     interrupted_group = await capture_interrupted("group")
     summary = _summary(rows, floor_events, interrupted_voice, interrupted_group)
     return {
-        "experiment": "channel-parity-step-a-v1",
+        "experiment": "channel-parity-step-a-v2",
         "case_source": "scripts.document_presentation_benchmark.cases.build_gold_cases",
         "adapter_seams": [
+            "app.services.workspace_tool_delivery.WorkspaceToolDelivery",
             "app.api.sme_ws._send_workspace_tools",
             "app.services.live_speech_runtime.LiveSpeechRuntime._client_tools",
             "app.services.sme_group_voice_runtime.GroupVoiceAudioRuntime.emit_workspace_tool",
@@ -64,8 +65,20 @@ async def run_experiment() -> dict:
                 "count": summary["late_after_cancel"]["group"],
             },
         ],
-        "approved_for_step_b": False,
+        "approved_for_step_b": _approved(summary),
     }
+
+
+def _approved(summary: dict) -> bool:
+    return (
+        summary["semantic_parity"] == summary["semantic_parity_target"] == 150
+        and summary["incorrect_auto_displays"] == 0
+        and summary["wrong_selections_or_modes"] == 0
+        and summary["duplicates"] == 0
+        and summary["missing_turn_ids"] == 0
+        and summary["non_floor_presentations"] == 0
+        and not any(summary["late_after_cancel"].values())
+    )
 
 
 def _assess(capture, expected_call: dict | None) -> dict:

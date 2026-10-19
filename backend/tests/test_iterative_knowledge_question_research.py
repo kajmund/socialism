@@ -35,7 +35,7 @@ from app.services.research.knowledge_question import (
     tenant_question_scope,
 )
 from app.services.research.models import ResearchPlan
-from app.services.research.question_graph_memory import InMemoryQuestionEvidenceGraph
+from tests.question_graph_memory import InMemoryQuestionEvidenceGraph
 from app.services.research.question_iteration import (
     CanonicalOnlyQuestionResolver,
     collect_grounded_refs,

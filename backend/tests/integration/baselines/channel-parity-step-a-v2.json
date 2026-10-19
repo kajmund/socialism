@@ -1,0 +1,48 @@
+{
+  "experiment": "channel-parity-step-a-v2",
+  "case_source": "scripts.document_presentation_benchmark.cases.build_gold_cases",
+  "adapter_seams": [
+    "app.services.workspace_tool_delivery.WorkspaceToolDelivery",
+    "app.api.sme_ws._send_workspace_tools",
+    "app.services.live_speech_runtime.LiveSpeechRuntime._client_tools",
+    "app.services.sme_group_voice_runtime.GroupVoiceAudioRuntime.emit_workspace_tool"
+  ],
+  "summary": {
+    "gold_cases": 50,
+    "channel_executions": 150,
+    "semantic_parity": 150,
+    "semantic_parity_target": 150,
+    "incorrect_auto_displays": 0,
+    "wrong_selections_or_modes": 0,
+    "duplicates": 0,
+    "missing_turn_ids": 0,
+    "non_floor_presentations": 0,
+    "late_after_cancel": {
+      "voice": 0,
+      "group": 0
+    }
+  },
+  "findings": [
+    {
+      "id": "group_missing_turn_id",
+      "observed": false,
+      "count": 0
+    },
+    {
+      "id": "group_not_floor_gated",
+      "observed": false,
+      "count": 0
+    },
+    {
+      "id": "voice_late_after_cancel",
+      "observed": false,
+      "count": 0
+    },
+    {
+      "id": "group_late_after_cancel",
+      "observed": false,
+      "count": 0
+    }
+  ],
+  "approved_for_step_b": true
+}

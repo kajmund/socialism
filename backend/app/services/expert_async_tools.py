@@ -44,8 +44,7 @@ from app.services.expert_worker_spawn import SPAWN_TOOL_NAME, run_spawn_workers
 from app.services.oasis_agent_tools import SEARCH_TOOL_NAMES, run_search_tool, search_tool_specs
 from app.services.prompt_catalog import render_prompt
 from app.services.workspace_chat_tools import CLIENT_TOOL_NAMES, SERVER_TOOL_NAMES
-from app.services.workspace_intent import IntentDecision, filter_specs_for_intent
-from app.services.workspace_intent import presentation_tools_allowed
+from app.services.workspace_intent import IntentDecision
 
 History = list[tuple[str, str, str | None]]
 _active: ContextVar[LibraryToolScope | None] = ContextVar("library_tool_scope", default=None)
@@ -346,9 +345,8 @@ async def complete_tool_episode(
 
         rerouted, require_tool = await reroute_workspace_episode(scope, blob)
         if rerouted and work.episode is not None:
-            rerouted = filter_specs_for_intent(rerouted, scope.workspace_intent)
             require_presentation = (
-                require_tool and presentation_tools_allowed(scope.workspace_intent)
+                require_tool
                 and any(call.name == "find_documents" for call in calls)
             )
             workspace_names = {
@@ -369,11 +367,6 @@ async def complete_tool_episode(
     async def publish(client_calls: list[PlannedCall]) -> None:
         # Broadcast delivery dropped panel marks on a conversation that
         # ignores the expert channel; the turn defers every document tool once.
-        if not presentation_tools_allowed(scope.workspace_intent):
-            client_calls = [
-                call for call in client_calls
-                if call.name not in {"show_document", "show_document_set"}
-            ]
         if client_calls:
             scope.defer(client_calls)
 

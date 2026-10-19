@@ -220,23 +220,6 @@ async def build_bundles_for_attempt(
     return bundles
 
 
-async def build_bundle(
-    session: AsyncSession,
-    *,
-    run_id: int,
-    attempt_id: str,
-    label: str | None = None,
-) -> RunBundle:
-    """Back-compat: first bundle for the attempt (prefer build_bundles_for_attempt)."""
-    bundles = await build_bundles_for_attempt(
-        session,
-        run_id=run_id,
-        attempt_id=attempt_id,
-        label_base=label,
-    )
-    return bundles[0]
-
-
 async def build_bundles(
     session: AsyncSession,
     sources: list[dict[str, Any]],

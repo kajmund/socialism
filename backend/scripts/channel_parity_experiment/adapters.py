@@ -43,6 +43,17 @@ def deterministic_find_result(case: GoldCase) -> dict:
     }
 
 
+def _group_session(floor: str | None = None) -> GroupVoiceSession:
+    session = GroupVoiceSession(
+        panel_id="panel",
+        member_ids={EXPERT_ID, "expert-b"},
+        member_names={EXPERT_ID: "A", "expert-b": "B"},
+    )
+    if floor is not None:
+        session.grant_floor(floor)
+    return session
+
+
 async def capture_case(case: GoldCase, channel: Channel) -> Capture:
     events: list[dict] = []
     call = presentation_call(case)
@@ -60,11 +71,16 @@ async def capture_case(case: GoldCase, channel: Channel) -> Capture:
     elif channel == "voice":
         runtime = object.__new__(LiveSpeechRuntime)
         runtime._emit_json = emit
+        runtime._turn_id = TURN_ID
+        runtime._turn_cancel = asyncio.Event()
         await runtime._client_tools(TURN_ID)(calls)
     else:
         runtime = object.__new__(GroupVoiceAudioRuntime)
         runtime._emit_json = emit
-        await runtime.emit_workspace_tool(calls, expert_id=EXPERT_ID)
+        runtime.session = _group_session(EXPERT_ID)
+        await runtime.emit_workspace_tool(
+            calls, expert_id=EXPERT_ID, turn_id=TURN_ID,
+        )
     state = _state_snapshot(case)
     return Capture(
         channel=channel,
@@ -87,12 +103,7 @@ async def capture_group_without_floor() -> tuple[dict, ...]:
 
     runtime = object.__new__(GroupVoiceAudioRuntime)
     runtime._emit_json = emit
-    runtime.session = GroupVoiceSession(
-        panel_id="panel",
-        member_ids={EXPERT_ID, "expert-b"},
-        member_names={EXPERT_ID: "A", "expert-b": "B"},
-    )
-    runtime.session.grant_floor("expert-b")
+    runtime.session = _group_session("expert-b")
     await runtime.emit_workspace_tool(
         [
             {
@@ -101,6 +112,7 @@ async def capture_group_without_floor() -> tuple[dict, ...]:
             }
         ],
         expert_id=EXPERT_ID,
+        turn_id=TURN_ID,
     )
     return tuple(events)
 
@@ -119,6 +131,7 @@ async def capture_interrupted(channel: Literal["voice", "group"]) -> tuple[dict,
     if channel == "voice":
         runtime = object.__new__(LiveSpeechRuntime)
         runtime._emit_json = emit
+        runtime._turn_id = TURN_ID
         runtime._turn_cancel = asyncio.Event()
         callback = runtime._client_tools(TURN_ID)
         runtime._turn_cancel.set()
@@ -126,16 +139,14 @@ async def capture_interrupted(channel: Literal["voice", "group"]) -> tuple[dict,
     else:
         runtime = object.__new__(GroupVoiceAudioRuntime)
         runtime._emit_json = emit
-        runtime.session = GroupVoiceSession(
-            panel_id="panel",
-            member_ids={EXPERT_ID, "expert-b"},
-            member_names={EXPERT_ID: "A", "expert-b": "B"},
+        runtime.session = _group_session(EXPERT_ID)
+        callback = partial(
+            runtime.emit_workspace_tool, expert_id=EXPERT_ID, turn_id=TURN_ID,
         )
-        runtime.session.grant_floor(EXPERT_ID)
-        callback = partial(runtime.emit_workspace_tool, expert_id=EXPERT_ID)
         runtime.session.grant_floor("expert-b")
         await callback(call)
     return tuple(events)
+
 
 def _state_snapshot(case: GoldCase) -> dict:
     return {

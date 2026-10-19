@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from app.database.models import UserAccount
 from app.schemas.workspace import WorkspaceState
 from app.services.jobs import enqueue_job, job_session_factory
+from app.services.speculative_results import speculative_result_for
 from app.services.workspace_intent import (
     IntentDecision,
     apply_intent_to_find_arguments,
@@ -16,6 +17,10 @@ from app.services.workspace_intent import (
 
 
 async def run_workspace_tool_call(call: object, work: object) -> str:
+    cached = speculative_result_for(call.name, dict(call.arguments))
+    if cached is not None:
+        return cached
+
     from app.services.workspace.tools import _turn_state, execute_workspace_tool
 
     if not work.workspace_id or not work.actor_user_id or work.workspace_state is None:

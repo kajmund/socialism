@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -63,6 +64,8 @@ def _voice_adapter(capture: DeliveryCapture, *, request_id: str) -> ClientTools:
         "transcript": "fixed",
     }
     runtime = object.__new__(LiveSpeechRuntime)
+    runtime._turn_id = turn_id
+    runtime._turn_cancel = asyncio.Event()
 
     async def emit(payload: dict[str, Any]) -> None:
         capture.events.append(payload)

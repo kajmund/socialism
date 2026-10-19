@@ -111,8 +111,10 @@ async def run_floor_turn(
         )
         state = None if opened is None else opened[0]
 
-        async def emit_tools(calls: list[dict]) -> None:
-            await runtime.emit_workspace_tool(calls, expert_id=persona_id)
+        async def emit_tools(calls: list[dict], *, turn_id: str) -> None:
+            await runtime.emit_workspace_tool(
+                calls, expert_id=persona_id, turn_id=turn_id,
+            )
 
         reply = await expert_group_reply(
             factory,
@@ -170,6 +172,10 @@ async def expert_group_reply(
     """One expert reply, the same turn live voice uses."""
     workspace_id, state, history, note = context
     request_id = f"group-voice-{uuid4().hex}"
+
+    async def deliver_tools(calls: list[dict]) -> None:
+        await on_client_tools(calls, turn_id=request_id)
+
     accepted = await _accept(
         factory,
         request_id=request_id,
@@ -192,7 +198,7 @@ async def expert_group_reply(
         on_token=None,
         workspace_id=None if state is None else workspace_id,
         workspace_state=state,
-        on_client_tools=on_client_tools,
+        on_client_tools=deliver_tools,
         group_history=history,
         group_note=note,
     )

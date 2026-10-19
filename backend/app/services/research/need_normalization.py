@@ -22,20 +22,3 @@ class ResearchNeedNormalizer(Protocol):
     ) -> list[FollowUpNeedDraft]: ...
 
     async def normalize_plan(self, plan: ResearchPlan) -> ResearchPlan: ...
-
-
-class NoOpNeedNormalizer:
-    """Identity normalizer. Used when no domain adapter is injected."""
-
-    async def normalize_drafts(
-        self, drafts: Sequence[ResearchNeedDraft]
-    ) -> list[ResearchNeedDraft]:
-        return list(drafts)
-
-    async def normalize_follow_up_drafts(
-        self, drafts: Sequence[FollowUpNeedDraft]
-    ) -> list[FollowUpNeedDraft]:
-        return list(drafts)
-
-    async def normalize_plan(self, plan: ResearchPlan) -> ResearchPlan:
-        return plan

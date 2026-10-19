@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.oasis_run import _created_at_to_sort_key
+from app.services.simulation.artifact import created_at_to_sort_key
 
 
 def _agent_index_for_persona(variant: dict[str, Any], persona_id: str) -> int | None:
@@ -24,7 +24,7 @@ def _name_for_user(agents: list[dict[str, Any]], user_id: int) -> str:
 
 
 def _at_or_before(value: Any, cutoff: int) -> bool:
-    key = _created_at_to_sort_key(value)
+    key = created_at_to_sort_key(value)
     if key is None:
         return False
     return key <= cutoff
@@ -82,7 +82,7 @@ def build_persona_feed_context(  # noqa: C901, PLR0912
     else:
         for post in sorted(
             posts,
-            key=lambda p: (_created_at_to_sort_key(p.get("created_at")) or 0, p.get("post_id") or 0),
+            key=lambda p: (created_at_to_sort_key(p.get("created_at")) or 0, p.get("post_id") or 0),
         ):
             uid = int(post.get("user_id") or -1)
             author = _name_for_user(agents, uid)

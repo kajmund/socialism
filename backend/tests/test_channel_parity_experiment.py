@@ -13,7 +13,7 @@ from scripts.document_presentation_benchmark.cases import build_gold_cases
 
 BASELINE = (
     Path(__file__).parent
-    / "integration/baselines/channel-parity-step-a-v1.json"
+    / "integration/baselines/channel-parity-step-a-v2.json"
 )
 
 
@@ -55,18 +55,18 @@ async def test_normalization_happens_after_distinct_transport_capture():
     assert group.raw_events[0]["type"] == "workspace.tool"
     assert text.raw_events[0]["request_id"] == "deterministic-turn"
     assert voice.raw_events[0]["turn_id"] == "deterministic-turn"
-    assert "turn_id" not in group.raw_events[0]
+    assert group.raw_events[0]["turn_id"] == "deterministic-turn"
 
 
 @pytest.mark.asyncio
-async def test_current_safety_gaps_are_results_not_expected_failures():
+async def test_shared_delivery_has_no_channel_safety_gaps():
     result = await run_experiment()
     summary = result["summary"]
 
-    assert summary["missing_turn_ids"] == 25
-    assert summary["non_floor_presentations"] == 1
-    assert summary["late_after_cancel"] == {"voice": 1, "group": 1}
-    assert result["approved_for_step_b"] is False
+    assert summary["missing_turn_ids"] == 0
+    assert summary["non_floor_presentations"] == 0
+    assert summary["late_after_cancel"] == {"voice": 0, "group": 0}
+    assert result["approved_for_step_b"] is True
 
 
 @pytest.mark.asyncio

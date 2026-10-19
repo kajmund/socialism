@@ -6,14 +6,14 @@ export type WordParagraph = {
   unique_local_id?: string | null
 }
 
-export type WordTaskType = "review"
+type WordTaskType = "review"
 export type WordTaskScopeType = "document" | "selection"
 
 export type WordTaskScope =
   | { type: "document" }
   | { type: "selection"; paragraph_indexes: number[] }
 
-export type WordExpertStrategy = {
+type WordExpertStrategy = {
   type: "panel"
   panel_id: number
 }
@@ -80,7 +80,7 @@ export type ExpertPanelSummary = {
   kind: string
 }
 
-export type WordActionSource = {
+type WordActionSource = {
   type: string
   id: string
   ordinal: number
@@ -116,33 +116,33 @@ export type LatestWordJob = {
   review_context?: WordReviewContext | null
 }
 
-export type WatchReplay = {
+type WatchReplay = {
   type: "expertgranskning.replay"
   job_id: string
   status: string
   actions: WordAction[]
 }
 
-export type WatchCreated = {
+type WatchCreated = {
   type: "expertgranskning.action.created"
   job_id: string
   action: WordAction
 }
 
-export type WatchUpdated = {
+type WatchUpdated = {
   type: "expertgranskning.action.updated"
   job_id: string
   action: WordAction
 }
 
-export type WatchFinished = {
+type WatchFinished = {
   type: "expertgranskning.finished"
   job_id: string
   status: string
   error?: string
 }
 
-export type WatchProgress = {
+type WatchProgress = {
   type: "expertgranskning.progress"
   job_id: string
   sections_completed: number

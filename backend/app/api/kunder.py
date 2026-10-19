@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -13,11 +13,27 @@ from app.database.models import Kund, Projekt, UserAccount
 from app.database.session import get_session
 from app.modules.registry import MODULE_REGISTRY
 from app.products.registry import PRODUCT_REGISTRY
-from app.schemas.kund import KundCreate, KundOut, KundUpdate, ProjektOut
+from app.schemas.kund import (
+    KundCreate,
+    KundDocumentCountsOut,
+    KundDocumentsDeletedOut,
+    KundDocumentsOut,
+    KundOut,
+    KundUpdate,
+    ProjektOut,
+)
 from app.serializers import utcnow
 from app.schemas.profiles import ORGANIZATION_FIELDS
 from app.services.profiles import apply_fields, patch_fields, organization_values
 from app.services.dd.default_experts import ensure_default_expert_personas
+from app.services.kund_dokument import (
+    KundDocumentCounts,
+    KundDocumentSlugMismatch,
+    KundDocumentsBlocked,
+    KundDocumentsStorageError,
+    load_kund_document_summary,
+    purge_kund_documents,
+)
 from app.services.kund_store import DEFAULT_PROJEKT_SLUG, ensure_default_kunder
 from app.services.object_storage import ObjectStorageError
 from app.services.panel.module_defaults import ensure_module_panel_defaults
@@ -226,3 +242,53 @@ async def list_projekt_for_kund(
         select(Projekt).where(Projekt.customer_id == kund_id).order_by(Projekt.id.asc())
     )
     return [_serialize_projekt(row) for row in result.scalars().all()]
+
+
+def _document_counts_out(counts: KundDocumentCounts) -> KundDocumentCountsOut:
+    return KundDocumentCountsOut(**counts.as_dict())
+
+
+@router.get("/{kund_id}/dokument", response_model=KundDocumentsOut)
+async def get_kund_documents(
+    kund_id: int,
+    session: AsyncSession = Depends(get_session),
+    _admin: UserAccount = Depends(require_admin),
+) -> KundDocumentsOut:
+    try:
+        summary = await load_kund_document_summary(session, kund_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Kund not found") from exc
+    return KundDocumentsOut(
+        kund_id=summary.kund_id,
+        kund_name=summary.kund_name,
+        kund_slug=summary.kund_slug,
+        counts=_document_counts_out(summary.counts),
+        blocked_reason=summary.blocked_reason,
+    )
+
+
+@router.delete("/{kund_id}/dokument", response_model=KundDocumentsDeletedOut)
+async def delete_kund_documents(
+    kund_id: int,
+    confirm: str = Query(..., min_length=1),
+    session: AsyncSession = Depends(get_session),
+    _admin: UserAccount = Depends(require_admin),
+) -> KundDocumentsDeletedOut:
+    try:
+        result = await purge_kund_documents(
+            session, customer_id=kund_id, confirm_slug=confirm
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Kund not found") from exc
+    except KundDocumentSlugMismatch as exc:
+        raise HTTPException(status_code=400, detail="confirm must repeat the kund slug") from exc
+    except KundDocumentsBlocked as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except KundDocumentsStorageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return KundDocumentsDeletedOut(
+        kund_id=result.kund_id,
+        deleted=_document_counts_out(result.deleted),
+        vector_documents=result.vector_documents,
+        stored_objects=result.stored_objects,
+    )

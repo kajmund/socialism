@@ -1,10 +1,10 @@
 import type { WordAction } from "@/lib/types"
 
-export const ACTION_PENDING = "pending"
-export const ACTION_APPLYING = "applying"
-export const ACTION_APPLIED = "applied"
-export const ACTION_UNRESOLVED = "unresolved"
-export const ACTION_DISMISSED = "dismissed"
+const ACTION_PENDING = "pending"
+const ACTION_APPLYING = "applying"
+const ACTION_APPLIED = "applied"
+const ACTION_UNRESOLVED = "unresolved"
+const ACTION_DISMISSED = "dismissed"
 
 export function upsertWordActions(
   current: ReadonlyMap<string, WordAction>,
@@ -52,7 +52,7 @@ export function canDismissAction(status: string): boolean {
   return status === ACTION_PENDING || status === ACTION_UNRESOLVED
 }
 
-export type NewReviewBlock = "undecided" | "applying"
+type NewReviewBlock = "undecided" | "applying"
 
 export function newReviewBlock(
   actions: readonly WordAction[],
@@ -70,9 +70,9 @@ export function newReviewBlock(
   return null
 }
 
-export type ActionCardKind = "comment" | "replace" | "unknown"
+type ActionCardKind = "comment" | "replace" | "unknown"
 
-export function actionCardKind(actionType: string): ActionCardKind {
+function actionCardKind(actionType: string): ActionCardKind {
   switch (actionType) {
     case "comment":
       return "comment"
@@ -102,7 +102,7 @@ export function unresolvedReasonKind(code: string | null | undefined): Unresolve
   }
 }
 
-export type ActionCardModel = {
+type ActionCardModel = {
   id: string
   kind: ActionCardKind
   content: string

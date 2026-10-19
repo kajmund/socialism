@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.live_speech_backchannel import classify_utterance
+from app.services.live_speech_backchannel import classify_utterance, utterance_barge
 from app.services.live_speech_coordinator import SpeechResponseCoordinator
 from app.services.live_speech_phrases import (
     ProgressContext,
@@ -33,6 +33,10 @@ from app.services.live_speech_runtime import LiveSpeechRuntime, LiveSpeechScope
         ("nej", "interruption"),
         ("vänta", "interruption"),
         ("ja, men kan du läsa om", "interruption"),
+        ("men kan du läsa om", "amend"),
+        ("fast, jag tänker på avtalet", "amend"),
+        ("förresten, vad hände med avtalet", "amend"),
+        ("eller vill du sammanfatta", "amend"),
         ("inte okej", "uncertain"),
         ("vad betyder det?", "new_question"),
     ],
@@ -43,6 +47,12 @@ def test_backchannel_rules(text: str, kind: str) -> None:
 
 def test_urgent_wins_over_short_duration() -> None:
     assert classify_utterance("stopp", duration_ms=80) == "interruption"
+
+
+def test_amendment_barges_with_amend_reason() -> None:
+    assert utterance_barge("men jag tänker på avtalet", final=True) == ("barge", "amend")
+    assert utterance_barge("fast avtalet är ju tre år", final=True) == ("barge", "amend")
+    assert utterance_barge("mm", final=True) == ("ignore", "backchannel")
 
 
 def test_listener_echo_is_not_a_new_turn() -> None:
@@ -637,3 +647,79 @@ async def test_recent_interview_turns_are_oldest_first() -> None:
 
     turns = await recent_interview_turns(Session(), "expert")
     assert turns == (("user", "först"), ("assistant", "senast"))
+
+
+async def test_coordinator_labels_responses_with_generation_ids() -> None:
+    events: list[dict] = []
+    sequence = iter(range(1, 100))
+
+    async def stream(_text: str):
+        yield b"\x00\x00"
+
+    async def emit_json(event: dict) -> None:
+        events.append(event)
+
+    async def emit_audio(_chunk: bytes) -> None:
+        return None
+
+    coordinator = SpeechResponseCoordinator(
+        stream=stream,
+        emit_json=emit_json,
+        emit_audio=emit_audio,
+        sample_rate=24_000,
+        next_sequence=lambda: next(sequence),
+    )
+    await coordinator.play_aside("Jag lyssnar.", "opening")
+    await coordinator.play_main("Första meningen.", "turn-1")
+    await coordinator.play_main("Andra meningen.", "turn-1")
+    coordinator.interrupt_playback()
+    await coordinator.play_main("Nytt svar.", "turn-2")
+
+    starts = [event for event in events if event["type"] == "audio.output.start"]
+    ends = [event for event in events if event["type"] == "audio.output.end"]
+    assert [event["response_id"] for event in starts] == [
+        "opening", "turn-1", "turn-1", "turn-2",
+    ]
+    assert starts[0]["generation_id"] < starts[1]["generation_id"]
+    assert starts[1]["generation_id"] == starts[2]["generation_id"]
+    assert starts[3]["generation_id"] > starts[2]["generation_id"]
+    assert len(ends) == len(starts)
+    assert all("response_id" in event and "generation_id" in event for event in ends)
+    assert all(
+        event["generation_id"] == starts[index]["generation_id"]
+        for index, event in enumerate(ends)
+    )
+
+
+async def test_voice_turn_speaks_ack_before_tool_episode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services import expert_tool_stream as ets
+    from app.services.expert_async_tools import AckTurn, PlannedCall
+
+    ack = AckTurn(
+        text="Jag kollar upp det.",
+        calls=(PlannedCall("call-1", "lookup_company", {}),),
+    )
+
+    async def fake_stream(_scope, _calls):
+        yield "Omsättningen är 12."
+
+    async def fake_episode(_scope, _calls) -> str:
+        return "Omsättningen är 12."
+
+    monkeypatch.setattr(ets, "stream_tool_episode", fake_stream)
+    monkeypatch.setattr(ets, "complete_tool_episode", fake_episode)
+
+    async def chunks() -> list[str]:
+        return [
+            chunk async for chunk in ets.stream_expert_tool_reply(ack, object(), ())
+        ]
+
+    async def progress(_event: ToolProgress) -> None:
+        return None
+
+    with bind_tool_progress(progress):
+        assert await chunks() == ["Jag kollar upp det. ", "Omsättningen är 12."]
+    assert await chunks() == ["Omsättningen är 12."]
+

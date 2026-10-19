@@ -1,0 +1,1013 @@
+{
+  "domain_core": {
+    "segments": {
+      "chars_repeated": 310,
+      "chars_total": 33402,
+      "repeated_instances": 5,
+      "repetition_rate_calls": 0.009242144177449169,
+      "repetition_rate_chars": 0.009280881384348242,
+      "top_repeated": [
+        {
+          "chars": 15,
+          "count": 2,
+          "text": "Källan och kod."
+        },
+        {
+          "chars": 34,
+          "count": 2,
+          "text": "Läs https://example.com/a.b först."
+        },
+        {
+          "chars": 32,
+          "count": 2,
+          "text": "Nyanställning junior utvecklare."
+        },
+        {
+          "chars": 25,
+          "count": 2,
+          "text": "Nyanställning utvecklare."
+        },
+        {
+          "chars": 49,
+          "count": 2,
+          "text": "…jag arbetar fortfarande med avtalet, snart klar."
+        }
+      ],
+      "total": 541,
+      "unique": 536
+    },
+    "segments_fully_assemblable": {
+      "count": 126,
+      "rate_calls": 0.23290203327171904,
+      "total": 541
+    },
+    "words": {
+      "alpha_only": {
+        "repetition_rate_calls": 0.6164866134335368,
+        "total": 4258,
+        "unique": 1633
+      },
+      "chars_repeated": 18190,
+      "chars_total": 27705,
+      "repeated_instances": 3022,
+      "repetition_rate_calls": 0.6319531576746131,
+      "repetition_rate_chars": 0.6565601876917524,
+      "top_words": [
+        {
+          "count": 112,
+          "word": "vilka"
+        },
+        {
+          "count": 76,
+          "word": "och"
+        },
+        {
+          "count": 69,
+          "word": "i"
+        },
+        {
+          "count": 63,
+          "word": "vi"
+        },
+        {
+          "count": 52,
+          "word": "har"
+        },
+        {
+          "count": 52,
+          "word": "är"
+        },
+        {
+          "count": 50,
+          "word": "med"
+        },
+        {
+          "count": 41,
+          "word": "att"
+        },
+        {
+          "count": 40,
+          "word": "hur"
+        },
+        {
+          "count": 39,
+          "word": "för"
+        },
+        {
+          "count": 39,
+          "word": "kr"
+        },
+        {
+          "count": 38,
+          "word": "av"
+        },
+        {
+          "count": 36,
+          "word": "2026"
+        },
+        {
+          "count": 35,
+          "word": "om"
+        },
+        {
+          "count": 32,
+          "word": "som"
+        },
+        {
+          "count": 29,
+          "word": "på"
+        },
+        {
+          "count": 28,
+          "word": "1"
+        },
+        {
+          "count": 27,
+          "word": "2025"
+        },
+        {
+          "count": 26,
+          "word": "våra"
+        },
+        {
+          "count": 25,
+          "word": "vad"
+        }
+      ],
+      "total": 4782,
+      "unique": 1760
+    }
+  },
+  "meta": {
+    "purpose": "How much a segment-level TTS cache saves vs the theoretical ceiling of a word-level cache, on the Swedish SME live-voice domain.",
+    "segmenter": {
+      "first_target": 110,
+      "max_chars": 220,
+      "module": "backend/app/services/speech_segmenter.py"
+    },
+    "sources": {
+      "backend-tests": {
+        "chars": 1753,
+        "texts": 64
+      },
+      "golden-questions": {
+        "chars": 11907,
+        "texts": 200
+      },
+      "operator-manuals": {
+        "chars": 223418,
+        "texts": 75
+      },
+      "sme-docs": {
+        "chars": 9719,
+        "texts": 2
+      },
+      "sme-story": {
+        "chars": 10727,
+        "texts": 83
+      }
+    }
+  },
+  "per_source": {
+    "backend-tests": {
+      "segments": {
+        "chars_repeated": 196,
+        "chars_total": 1722,
+        "repeated_instances": 3,
+        "repetition_rate_calls": 0.04477611940298507,
+        "repetition_rate_chars": 0.11382113821138211,
+        "top_repeated": [
+          {
+            "chars": 15,
+            "count": 2,
+            "text": "Källan och kod."
+          },
+          {
+            "chars": 34,
+            "count": 2,
+            "text": "Läs https://example.com/a.b först."
+          },
+          {
+            "chars": 49,
+            "count": 2,
+            "text": "…jag arbetar fortfarande med avtalet, snart klar."
+          }
+        ],
+        "total": 67,
+        "unique": 64
+      },
+      "text_chars": 1753,
+      "texts": 64,
+      "words": {
+        "alpha_only": {
+          "repetition_rate_calls": 0.4383561643835616,
+          "total": 292,
+          "unique": 164
+        },
+        "chars_repeated": 769,
+        "chars_total": 1414,
+        "repeated_instances": 128,
+        "repetition_rate_calls": 0.43389830508474575,
+        "repetition_rate_chars": 0.5438472418670438,
+        "top_words": [
+          {
+            "count": 12,
+            "word": "jag"
+          },
+          {
+            "count": 9,
+            "word": "är"
+          },
+          {
+            "count": 8,
+            "word": "avtalet"
+          },
+          {
+            "count": 7,
+            "word": "inte"
+          },
+          {
+            "count": 7,
+            "word": "med"
+          },
+          {
+            "count": 7,
+            "word": "vad"
+          },
+          {
+            "count": 6,
+            "word": "det"
+          },
+          {
+            "count": 6,
+            "word": "har"
+          },
+          {
+            "count": 5,
+            "word": "du"
+          },
+          {
+            "count": 5,
+            "word": "en"
+          },
+          {
+            "count": 5,
+            "word": "fråga"
+          },
+          {
+            "count": 4,
+            "word": "och"
+          },
+          {
+            "count": 4,
+            "word": "som"
+          },
+          {
+            "count": 3,
+            "word": "här"
+          },
+          {
+            "count": 3,
+            "word": "håller"
+          },
+          {
+            "count": 3,
+            "word": "i"
+          },
+          {
+            "count": 3,
+            "word": "just"
+          },
+          {
+            "count": 3,
+            "word": "månader"
+          },
+          {
+            "count": 3,
+            "word": "om"
+          },
+          {
+            "count": 3,
+            "word": "sex"
+          }
+        ],
+        "total": 295,
+        "unique": 167
+      }
+    },
+    "golden-questions": {
+      "segments": {
+        "chars_repeated": 0,
+        "chars_total": 11907,
+        "repeated_instances": 0,
+        "repetition_rate_calls": 0.0,
+        "repetition_rate_chars": 0.0,
+        "top_repeated": [],
+        "total": 200,
+        "unique": 200
+      },
+      "text_chars": 11907,
+      "texts": 200,
+      "words": {
+        "alpha_only": {
+          "repetition_rate_calls": 0.606473594548552,
+          "total": 1761,
+          "unique": 693
+        },
+        "chars_repeated": 5996,
+        "chars_total": 10130,
+        "repeated_instances": 1070,
+        "repetition_rate_calls": 0.6055461233729486,
+        "repetition_rate_chars": 0.5919052319842053,
+        "top_words": [
+          {
+            "count": 112,
+            "word": "vilka"
+          },
+          {
+            "count": 62,
+            "word": "vi"
+          },
+          {
+            "count": 40,
+            "word": "hur"
+          },
+          {
+            "count": 34,
+            "word": "att"
+          },
+          {
+            "count": 34,
+            "word": "har"
+          },
+          {
+            "count": 29,
+            "word": "och"
+          },
+          {
+            "count": 28,
+            "word": "är"
+          },
+          {
+            "count": 26,
+            "word": "i"
+          },
+          {
+            "count": 26,
+            "word": "våra"
+          },
+          {
+            "count": 23,
+            "word": "för"
+          },
+          {
+            "count": 22,
+            "word": "om"
+          },
+          {
+            "count": 21,
+            "word": "vår"
+          },
+          {
+            "count": 19,
+            "word": "behöver"
+          },
+          {
+            "count": 19,
+            "word": "kan"
+          },
+          {
+            "count": 18,
+            "word": "vad"
+          },
+          {
+            "count": 16,
+            "word": "en"
+          },
+          {
+            "count": 15,
+            "word": "av"
+          },
+          {
+            "count": 15,
+            "word": "med"
+          },
+          {
+            "count": 15,
+            "word": "på"
+          },
+          {
+            "count": 14,
+            "word": "ett"
+          }
+        ],
+        "total": 1767,
+        "unique": 697
+      }
+    },
+    "operator-manuals": {
+      "segments": {
+        "chars_repeated": 5898,
+        "chars_total": 201262,
+        "repeated_instances": 60,
+        "repetition_rate_calls": 0.024213075060532687,
+        "repetition_rate_chars": 0.02930508491419145,
+        "top_repeated": [
+          {
+            "chars": 34,
+            "count": 4,
+            "text": "3. Växla mellan Rutnät och Lista ."
+          },
+          {
+            "chars": 58,
+            "count": 3,
+            "text": "2. Medan rapporten genereras uppdateras sidan automatiskt."
+          },
+          {
+            "chars": 79,
+            "count": 3,
+            "text": "De svarar på det som just sades och upprepar inte en genomgång som redan getts."
+          },
+          {
+            "chars": 41,
+            "count": 3,
+            "text": "Din markering är gul och visar ditt namn."
+          },
+          {
+            "chars": 64,
+            "count": 3,
+            "text": "En expert kan skriva en kommentar tillsammans med sin markering."
+          },
+          {
+            "chars": 51,
+            "count": 3,
+            "text": "Experterna ser vem som har markerat vilken passage."
+          },
+          {
+            "chars": 35,
+            "count": 3,
+            "text": "Sidnumret följer den sida som syns."
+          },
+          {
+            "chars": 47,
+            "count": 2,
+            "text": "- Sök — webbsökning (DuckDuckGo) och Wikipedia."
+          },
+          {
+            "chars": 46,
+            "count": 2,
+            "text": "2. Expandera ett försök och bläddra i Flödet ."
+          },
+          {
+            "chars": 24,
+            "count": 2,
+            "text": "3. Bekräfta med Ta bort?"
+          },
+          {
+            "chars": 34,
+            "count": 2,
+            "text": "4. Växla mellan Rutnät och Lista ."
+          },
+          {
+            "chars": 29,
+            "count": 2,
+            "text": "Administratör ser den alltid."
+          },
+          {
+            "chars": 44,
+            "count": 2,
+            "text": "Alla verktyg markerar eller avmarkerar allt."
+          },
+          {
+            "chars": 77,
+            "count": 2,
+            "text": "Andra konton ser den när kunden har modulen påslagen under Verktyg → Kunder ."
+          },
+          {
+            "chars": 63,
+            "count": 2,
+            "text": "Ber du gruppen öppna ett avtal öppnas det en gång i arbetsytan."
+          }
+        ],
+        "total": 2478,
+        "unique": 2418
+      },
+      "text_chars": 223418,
+      "texts": 75,
+      "words": {
+        "alpha_only": {
+          "repetition_rate_calls": 0.8824351978171896,
+          "total": 29320,
+          "unique": 3447
+        },
+        "chars_repeated": 152169,
+        "chars_total": 165898,
+        "repeated_instances": 26542,
+        "repetition_rate_calls": 0.8836140888208269,
+        "repetition_rate_chars": 0.9172443308538982,
+        "top_words": [
+          {
+            "count": 1066,
+            "word": "och"
+          },
+          {
+            "count": 900,
+            "word": "i"
+          },
+          {
+            "count": 770,
+            "word": "en"
+          },
+          {
+            "count": 522,
+            "word": "du"
+          },
+          {
+            "count": 440,
+            "word": "som"
+          },
+          {
+            "count": 372,
+            "word": "eller"
+          },
+          {
+            "count": 337,
+            "word": "kan"
+          },
+          {
+            "count": 328,
+            "word": "på"
+          },
+          {
+            "count": 313,
+            "word": "till"
+          },
+          {
+            "count": 300,
+            "word": "inte"
+          },
+          {
+            "count": 296,
+            "word": "om"
+          },
+          {
+            "count": 282,
+            "word": "den"
+          },
+          {
+            "count": 276,
+            "word": "för"
+          },
+          {
+            "count": 273,
+            "word": "är"
+          },
+          {
+            "count": 252,
+            "word": "med"
+          },
+          {
+            "count": 249,
+            "word": "när"
+          },
+          {
+            "count": 238,
+            "word": "att"
+          },
+          {
+            "count": 232,
+            "word": "ett"
+          },
+          {
+            "count": 209,
+            "word": "det"
+          },
+          {
+            "count": 183,
+            "word": "öppna"
+          }
+        ],
+        "total": 30038,
+        "unique": 3496
+      }
+    },
+    "sme-docs": {
+      "segments": {
+        "chars_repeated": 0,
+        "chars_total": 9152,
+        "repeated_instances": 0,
+        "repetition_rate_calls": 0.0,
+        "repetition_rate_chars": 0.0,
+        "top_repeated": [],
+        "total": 82,
+        "unique": 82
+      },
+      "text_chars": 9719,
+      "texts": 2,
+      "words": {
+        "alpha_only": {
+          "repetition_rate_calls": 0.42445328031809143,
+          "total": 1006,
+          "unique": 579
+        },
+        "chars_repeated": 3640,
+        "chars_total": 7367,
+        "repeated_instances": 585,
+        "repetition_rate_calls": 0.47139403706688154,
+        "repetition_rate_chars": 0.4940952898058911,
+        "top_words": [
+          {
+            "count": 29,
+            "word": "och"
+          },
+          {
+            "count": 21,
+            "word": "i"
+          },
+          {
+            "count": 16,
+            "word": "med"
+          },
+          {
+            "count": 15,
+            "word": "är"
+          },
+          {
+            "count": 14,
+            "word": "1"
+          },
+          {
+            "count": 13,
+            "word": "10"
+          },
+          {
+            "count": 13,
+            "word": "pass"
+          },
+          {
+            "count": 10,
+            "word": "2025"
+          },
+          {
+            "count": 10,
+            "word": "generator"
+          },
+          {
+            "count": 10,
+            "word": "kr"
+          },
+          {
+            "count": 9,
+            "word": "0"
+          },
+          {
+            "count": 9,
+            "word": "12"
+          },
+          {
+            "count": 9,
+            "word": "2"
+          },
+          {
+            "count": 9,
+            "word": "json"
+          },
+          {
+            "count": 8,
+            "word": "2026"
+          },
+          {
+            "count": 8,
+            "word": "8"
+          },
+          {
+            "count": 8,
+            "word": "golden"
+          },
+          {
+            "count": 8,
+            "word": "msek"
+          },
+          {
+            "count": 8,
+            "word": "questions"
+          },
+          {
+            "count": 8,
+            "word": "som"
+          }
+        ],
+        "total": 1241,
+        "unique": 656
+      }
+    },
+    "sme-story": {
+      "segments": {
+        "chars_repeated": 114,
+        "chars_total": 10621,
+        "repeated_instances": 2,
+        "repetition_rate_calls": 0.010416666666666666,
+        "repetition_rate_chars": 0.01073345259391771,
+        "top_repeated": [
+          {
+            "chars": 32,
+            "count": 2,
+            "text": "Nyanställning junior utvecklare."
+          },
+          {
+            "chars": 25,
+            "count": 2,
+            "text": "Nyanställning utvecklare."
+          }
+        ],
+        "total": 192,
+        "unique": 190
+      },
+      "text_chars": 10727,
+      "texts": 83,
+      "words": {
+        "alpha_only": {
+          "repetition_rate_calls": 0.5379482902418682,
+          "total": 1199,
+          "unique": 554
+        },
+        "chars_repeated": 5652,
+        "chars_total": 8794,
+        "repeated_instances": 838,
+        "repetition_rate_calls": 0.5665990534144693,
+        "repetition_rate_chars": 0.6427109392767796,
+        "top_words": [
+          {
+            "count": 29,
+            "word": "kr"
+          },
+          {
+            "count": 28,
+            "word": "2026"
+          },
+          {
+            "count": 20,
+            "word": "emp"
+          },
+          {
+            "count": 19,
+            "word": "i"
+          },
+          {
+            "count": 17,
+            "word": "01"
+          },
+          {
+            "count": 17,
+            "word": "2025"
+          },
+          {
+            "count": 16,
+            "word": "000"
+          },
+          {
+            "count": 16,
+            "word": "av"
+          },
+          {
+            "count": 15,
+            "word": "till"
+          },
+          {
+            "count": 15,
+            "word": "upp"
+          },
+          {
+            "count": 14,
+            "word": "1"
+          },
+          {
+            "count": 14,
+            "word": "och"
+          },
+          {
+            "count": 14,
+            "word": "som"
+          },
+          {
+            "count": 12,
+            "word": "med"
+          },
+          {
+            "count": 10,
+            "word": "10"
+          },
+          {
+            "count": 10,
+            "word": "börjar"
+          },
+          {
+            "count": 10,
+            "word": "moms"
+          },
+          {
+            "count": 10,
+            "word": "säger"
+          },
+          {
+            "count": 10,
+            "word": "utvecklare"
+          },
+          {
+            "count": 9,
+            "word": "30"
+          }
+        ],
+        "total": 1479,
+        "unique": 641
+      }
+    }
+  },
+  "segments": {
+    "chars_repeated": 6208,
+    "chars_total": 234664,
+    "repeated_instances": 65,
+    "repetition_rate_calls": 0.021530308049022857,
+    "repetition_rate_chars": 0.02645484607779634,
+    "top_repeated": [
+      {
+        "chars": 34,
+        "count": 4,
+        "text": "3. Växla mellan Rutnät och Lista ."
+      },
+      {
+        "chars": 58,
+        "count": 3,
+        "text": "2. Medan rapporten genereras uppdateras sidan automatiskt."
+      },
+      {
+        "chars": 79,
+        "count": 3,
+        "text": "De svarar på det som just sades och upprepar inte en genomgång som redan getts."
+      },
+      {
+        "chars": 41,
+        "count": 3,
+        "text": "Din markering är gul och visar ditt namn."
+      },
+      {
+        "chars": 64,
+        "count": 3,
+        "text": "En expert kan skriva en kommentar tillsammans med sin markering."
+      },
+      {
+        "chars": 51,
+        "count": 3,
+        "text": "Experterna ser vem som har markerat vilken passage."
+      },
+      {
+        "chars": 35,
+        "count": 3,
+        "text": "Sidnumret följer den sida som syns."
+      },
+      {
+        "chars": 47,
+        "count": 2,
+        "text": "- Sök — webbsökning (DuckDuckGo) och Wikipedia."
+      },
+      {
+        "chars": 46,
+        "count": 2,
+        "text": "2. Expandera ett försök och bläddra i Flödet ."
+      },
+      {
+        "chars": 24,
+        "count": 2,
+        "text": "3. Bekräfta med Ta bort?"
+      },
+      {
+        "chars": 34,
+        "count": 2,
+        "text": "4. Växla mellan Rutnät och Lista ."
+      },
+      {
+        "chars": 29,
+        "count": 2,
+        "text": "Administratör ser den alltid."
+      },
+      {
+        "chars": 44,
+        "count": 2,
+        "text": "Alla verktyg markerar eller avmarkerar allt."
+      },
+      {
+        "chars": 77,
+        "count": 2,
+        "text": "Andra konton ser den när kunden har modulen påslagen under Verktyg → Kunder ."
+      },
+      {
+        "chars": 63,
+        "count": 2,
+        "text": "Ber du gruppen öppna ett avtal öppnas det en gång i arbetsytan."
+      }
+    ],
+    "total": 3019,
+    "unique": 2954
+  },
+  "words": {
+    "alpha_only": {
+      "repetition_rate_calls": 0.8630055393412354,
+      "total": 33578,
+      "unique": 4600
+    },
+    "chars_repeated": 172393,
+    "chars_total": 193603,
+    "repeated_instances": 30083,
+    "repetition_rate_calls": 0.863957495692131,
+    "repetition_rate_chars": 0.8904459125116863,
+    "segments_fully_assemblable": {
+      "count": 1795,
+      "rate_calls": 0.5945677376614773,
+      "total": 3019
+    },
+    "top_words": [
+      {
+        "count": 1142,
+        "word": "och"
+      },
+      {
+        "count": 969,
+        "word": "i"
+      },
+      {
+        "count": 794,
+        "word": "en"
+      },
+      {
+        "count": 528,
+        "word": "du"
+      },
+      {
+        "count": 472,
+        "word": "som"
+      },
+      {
+        "count": 383,
+        "word": "eller"
+      },
+      {
+        "count": 361,
+        "word": "kan"
+      },
+      {
+        "count": 357,
+        "word": "på"
+      },
+      {
+        "count": 336,
+        "word": "till"
+      },
+      {
+        "count": 331,
+        "word": "om"
+      },
+      {
+        "count": 325,
+        "word": "är"
+      },
+      {
+        "count": 324,
+        "word": "inte"
+      },
+      {
+        "count": 315,
+        "word": "för"
+      },
+      {
+        "count": 302,
+        "word": "med"
+      },
+      {
+        "count": 290,
+        "word": "den"
+      },
+      {
+        "count": 279,
+        "word": "att"
+      },
+      {
+        "count": 255,
+        "word": "när"
+      },
+      {
+        "count": 252,
+        "word": "ett"
+      },
+      {
+        "count": 225,
+        "word": "det"
+      },
+      {
+        "count": 196,
+        "word": "från"
+      }
+    ],
+    "total": 34820,
+    "unique": 4737
+  }
+}

@@ -20,7 +20,7 @@ export function customerScopeFromPathname(pathname: string): CustomerScope {
   return pathname.startsWith("/bolag") ? "bolag" : "admin"
 }
 
-export function customerIdForScope(scope: CustomerScope): number | null {
+function customerIdForScope(scope: CustomerScope): number | null {
   if (scope === "bolag") return BOLAG_DEMO_CUSTOMER_ID
   return null
 }

@@ -20,7 +20,7 @@ const PHASE_LABEL_KEYS: Record<PanelWatchTurnPhase, MessageKey> = {
   unanswered: "dd.panel.live.phase.unanswered",
 }
 
-export function revealedPanelRounds(turns: PanelWatchTurn[]): Set<number> {
+function revealedPanelRounds(turns: PanelWatchTurn[]): Set<number> {
   const revealed = new Set<number>()
   for (const turn of turns) {
     if (!turn.content.trim()) continue

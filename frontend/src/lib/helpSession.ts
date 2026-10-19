@@ -18,13 +18,3 @@ export function getHelpSessionId(): string {
     return randomId()
   }
 }
-
-export function resetHelpSessionId(): string {
-  const created = randomId()
-  try {
-    localStorage.setItem(STORAGE_KEY, created)
-  } catch {
-    // ignore storage failures
-  }
-  return created
-}

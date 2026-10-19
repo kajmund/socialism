@@ -6,7 +6,7 @@ const RESEARCH_KINDS = new Set([
   "expert_chat_research",
 ])
 
-export function isResearchJob(job: Job): boolean {
+function isResearchJob(job: Job): boolean {
   return RESEARCH_KINDS.has(job.kind)
 }
 

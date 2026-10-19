@@ -8,6 +8,12 @@ required correctness gates.
 
 Production search and presentation remain unchanged.
 
+> The "no automatic display for count, analysis or ambiguous intent" acceptance
+> criterion below is historical. The deterministic presentation gate was later
+> removed in favour of always exposing and delivering the presentation tools
+> (see [channel-parity-step-b.md](channel-parity-step-b.md) → "Presentation
+> gate removal").
+
 ## Boundary
 
 The experiment adds `presentation: "gallery"` only to a cloned

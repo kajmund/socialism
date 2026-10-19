@@ -46,9 +46,6 @@ Defaults:
 SUPABASE_VECTOR_BUCKET=research-knowledge
 SUPABASE_VECTOR_INDEX=documents-openai
 SUPABASE_VECTOR_DISTANCE_METRIC=cosine
-RESEARCH_QUESTION_SEMANTIC_MATCH_THRESHOLD=0.88
-RESEARCH_QUESTION_SEMANTIC_MATCH_LIMIT=8
-RESEARCH_QUESTION_EMBEDDING_VERSION=knowledge-question-v1
 ```
 
 At startup, the research worker creates a missing bucket/index and verifies `float32`,

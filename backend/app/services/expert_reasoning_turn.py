@@ -42,10 +42,7 @@ from app.services.expert_reasoning import (
     spawn_should_expose,
 )
 from app.services.expert_worker_spawn import spawn_workers_spec
-from app.services.workspace_intent import (
-    decide_workspace_intent,
-    filter_specs_for_intent,
-)
+from app.services.workspace_intent import decide_workspace_intent
 from app.services.workspace_task_context import workspace_task_context
 from app.services.workspace_turn_state import routing_workspace, with_recent_turns
 
@@ -114,9 +111,6 @@ def _lock_intent(
     scope.workspace_intent = decide_workspace_intent(
         scope.user_message,
         scope.workspace_state,
-    )
-    workspace_specs[:] = filter_specs_for_intent(
-        workspace_specs, scope.workspace_intent,
     )
 
 
@@ -343,7 +337,7 @@ def _apply_exposure(
     *,
     retrieval: Any,
 ) -> None:
-    kept = filter_specs_for_intent(exposed, scope.workspace_intent)
+    kept = exposed
     workspace_specs[:] = kept
     scope.tool_retrieval = retrieval
     context_names = (
@@ -407,11 +401,7 @@ async def reroute_workspace_episode(
         tool_result=tool_result,
         reroute=True,
     )
-    exposed = filter_specs_for_intent(exposed, scope.workspace_intent)
-    require_tool = record.require_tool and (
-        scope.workspace_intent is None or scope.workspace_intent.allows_gallery
-    )
-    return exposed, require_tool
+    return exposed, record.require_tool
 
 
 async def profiled_chunks(

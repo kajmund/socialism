@@ -3,7 +3,9 @@ import { encodePcm16 } from "@/components/chat/liveVoiceAudio"
 import { authAdapter } from "@/lib/auth"
 import { env } from "@/lib/env"
 import { liveSpeechMicrophone } from "./liveSpeechMicrophone"
-import { createSpeechVad, type SpeechVad } from "./speechVad"
+import { preloadSpeechVad } from "./speechVad"
+import { SpeechVadPipeline } from "./speechVadPipeline"
+import { startVoiceCapture, type VoiceCaptureHandle } from "./voiceCapture"
 import { PcmQueue } from "./pcmQueue"
 
 export type GroupVoiceMember = { id: string; name: string }
@@ -53,11 +55,11 @@ export function useSmeGroupVoice({
   const socket = useRef<WebSocket | null>(null)
   const media = useRef<MediaStream | null>(null)
   const captureCtx = useRef<AudioContext | null>(null)
+  const captureHandle = useRef<VoiceCaptureHandle | null>(null)
+  const pipeline = useRef<SpeechVadPipeline | null>(null)
   const playbackCtx = useRef<AudioContext | null>(null)
   const queue = useRef(new PcmQueue())
   const dropIncoming = useRef(false)
-  const vadConfig = useRef<unknown>(undefined)
-  const vad = useRef<SpeechVad | null>(null)
   const mutedRef = useRef(false)
   const callbacks = useRef({ onUserTranscript, onUserPartial, onExpertSpeech, onWorkspaceTool })
   callbacks.current = { onUserTranscript, onUserPartial, onExpertSpeech, onWorkspaceTool }
@@ -117,50 +119,39 @@ export function useSmeGroupVoice({
 
     let cancelled = false
     let ws: WebSocket | null = null
-    let worklet: AudioWorkletNode | null = null
     const queued = queue.current
     setStatus("connecting")
-    vad.current = null
-    vadConfig.current = undefined
-    let hearing = Promise.resolve()
 
-    function sendFrame(frame: Float32Array, sampleRate: number) {
-      const current = vad.current
-      if (!current || mutedRef.current || socket.current?.readyState !== WebSocket.OPEN) return
-      hearing = hearing.then(() => current.push(frame, sampleRate)).then((result) => {
-        for (const item of result.frames) {
+    const vad = new SpeechVadPipeline({
+      onFrames: (frames, sampleRate) => {
+        for (const item of frames) {
           if (socket.current?.readyState === WebSocket.OPEN) {
             socket.current.send(encodePcm16(item, sampleRate))
           }
         }
-        if (result.abandon) send({ type: "clear_audio" })
-        if (result.commit) send({ type: "commit_audio" })
-      }).catch(() => {
+      },
+      onAbandon: () => send({ type: "clear_audio" }),
+      onCommit: () => send({ type: "commit_audio" }),
+      onError: () => {
         if (!cancelled) setStatus("error")
+      },
+    })
+    pipeline.current = vad
+
+    async function startCapture(stream: MediaStream) {
+      // Same 24 kHz capture as a single expert: the browser resamples with a
+      // filter, and the code below reads the actual context.sampleRate.
+      const context = new AudioContext({ sampleRate: 24_000 })
+      captureCtx.current = context
+      captureHandle.current = await startVoiceCapture(context, stream, (frame, sampleRate) => {
+        if (mutedRef.current) return
+        vad.feed(frame, sampleRate)
       })
     }
 
-    async function startCapture(stream: MediaStream) {
-      const context = new AudioContext()
-      captureCtx.current = context
-      await context.audioWorklet.addModule(
-        new URL("../../components/chat/pcmCapture.worklet.ts", import.meta.url),
-      )
-      if (cancelled) return
-      const source = context.createMediaStreamSource(stream)
-      worklet = new AudioWorkletNode(context, "pcm-capture")
-      const silent = context.createGain()
-      silent.gain.value = 0
-      source.connect(worklet)
-      worklet.connect(silent)
-      silent.connect(context.destination)
-      worklet.port.onmessage = (event: MessageEvent<unknown>) => {
-        if (event.data instanceof Float32Array) sendFrame(event.data, context.sampleRate)
-      }
-      setStatus((current) => (current === "connecting" ? "listening" : current))
-    }
-
     void (async () => {
+      // Load the speech model in parallel with permission and the socket.
+      void preloadSpeechVad().catch(() => undefined)
       const token = await authAdapter.getAccessToken()
       if (cancelled || !token) {
         setError("authentication_required")
@@ -169,6 +160,17 @@ export function useSmeGroupVoice({
       }
       try {
         media.current = await navigator.mediaDevices.getUserMedia({ audio: liveSpeechMicrophone })
+      } catch {
+        if (!cancelled) {
+          setError("microphone_unavailable")
+          setStatus("error")
+        }
+        return
+      }
+      if (cancelled) return
+      try {
+        // Capture before the model is ready so early speech is buffered.
+        await startCapture(media.current)
       } catch {
         if (!cancelled) {
           setError("microphone_unavailable")
@@ -211,12 +213,8 @@ export function useSmeGroupVoice({
             arguments?: Record<string, unknown>
           } & Partial<GroupVoiceSnapshot>
           if (data.type === "ready") {
-            vadConfig.current = data.vad
-            void createSpeechVad(data.vad).then((created) => {
-              if (cancelled) return
-              vad.current = created
-              const stream = media.current
-              if (stream) void startCapture(stream).catch(() => { if (!cancelled) setStatus("error") })
+            void vad.attach(data.vad).then(() => {
+              if (!cancelled) setStatus("listening")
             }).catch(() => { if (!cancelled) setStatus("error") })
           } else if (data.type === "snapshot") {
             applySnapshot(data)
@@ -269,7 +267,9 @@ export function useSmeGroupVoice({
       ws?.close()
       socket.current = null
       setConnected(false)
-      worklet?.disconnect()
+      captureHandle.current?.stop()
+      captureHandle.current = null
+      pipeline.current = null
       media.current?.getTracks().forEach((track) => track.stop())
       media.current = null
       void captureCtx.current?.close()
@@ -285,7 +285,7 @@ export function useSmeGroupVoice({
     mutedRef.current = !mutedRef.current
     setMuted(mutedRef.current)
     if (mutedRef.current) {
-      vad.current?.reset()
+      pipeline.current?.reset()
       send({ type: "clear_audio" })
       setStatus("paused")
     } else {

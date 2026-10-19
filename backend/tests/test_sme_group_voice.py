@@ -360,7 +360,8 @@ def test_group_voice_uses_the_same_vad_settings_as_a_single_expert():
 
     config = vad_client_config(settings)
     assert config == {
-        "threshold": settings.live_speech_vad_threshold,
+        "silero_threshold": settings.live_speech_vad_silero_threshold,
+        "silero_exit_threshold": settings.live_speech_vad_silero_exit_threshold,
         "preroll_ms": settings.live_speech_vad_preroll_ms,
         "hangover_ms": settings.live_speech_vad_hangover_ms,
         "min_speech_ms": settings.live_speech_vad_min_speech_ms,
@@ -537,16 +538,20 @@ def test_one_speaker_opens_the_agreement_once(monkeypatch):
 
         emit_workspace_tool = GroupVoiceAudioRuntime.emit_workspace_tool
 
+    runtime = Runtime()
+    runtime.session = session
+
     asyncio.run(run_floor_turn(
         session=session,
-        runtime=Runtime(),  # type: ignore[arg-type]
+        runtime=runtime,  # type: ignore[arg-type]
         user_text="Öppna avtalet",
         user_id="user-one",
         customer_id=1,
         workspace_id="ws-1",
     ))
-    assert opened == [{
-        "type": "workspace.tool",
-        "name": "show_document",
-        "arguments": {"source_id": "avtal"},
-    }]
+    assert len(opened) == 1
+    event = opened[0]
+    assert event["type"] == "workspace.tool"
+    assert event["name"] == "show_document"
+    assert event["arguments"] == {"source_id": "avtal"}
+    assert event["turn_id"].startswith("group-voice-")

@@ -38,12 +38,15 @@ class SpeechResponseCoordinator:
         self._lock = asyncio.Lock()
         self._aside_token = 0
         self._playback_token = 0
+        self._generation = 0
+        self._main_generation: int | None = None
         self.main_text_seen = False
         self.spoken_text = ""
         self.spoken_asides: list[str] = []
 
     def reset_turn(self) -> None:
         self.drop_aside()
+        self._main_generation = None
         self.main_text_seen = False
         self.spoken_text = ""
 
@@ -57,6 +60,11 @@ class SpeechResponseCoordinator:
     def interrupt_playback(self) -> None:
         self._aside_token += 1
         self._playback_token += 1
+        self._main_generation = None
+
+    def _next_generation(self) -> int:
+        self._generation += 1
+        return self._generation
 
     def allow_progress(self) -> None:
         self.main_text_seen = False
@@ -66,10 +74,13 @@ class SpeechResponseCoordinator:
         if not cleaned or self.main_text_seen:
             return
         token = self._aside_token
+        generation = self._next_generation()
         async with self._lock:
             if self.main_text_seen or token != self._aside_token:
                 return
-            await self._play(cleaned, turn_id, announce=False, token=token)
+            await self._play(
+                cleaned, turn_id, announce=False, token=token, generation=generation,
+            )
             if token == self._aside_token and not self.main_text_seen:
                 self.spoken_asides.append(cleaned)
 
@@ -79,10 +90,15 @@ class SpeechResponseCoordinator:
         if not cleaned:
             return
         token = self._playback_token
+        if self._main_generation is None:
+            self._main_generation = self._next_generation()
+        generation = self._main_generation
         async with self._lock:
             if token != self._playback_token:
                 return
-            await self._play(cleaned, turn_id, announce=True, token=token)
+            await self._play(
+                cleaned, turn_id, announce=True, token=token, generation=generation,
+            )
             if token != self._playback_token:
                 return
             spoken = strip_voice_tags(cleaned)
@@ -95,6 +111,7 @@ class SpeechResponseCoordinator:
         *,
         announce: bool,
         token: int,
+        generation: int,
     ) -> None:
         if announce and self._on_state is not None:
             await self._on_state("speaking")
@@ -104,6 +121,8 @@ class SpeechResponseCoordinator:
             {
                 "type": "audio.output.start",
                 "turn_id": turn_id,
+                "response_id": turn_id,
+                "generation_id": generation,
                 "sequence": self._next_sequence(),
                 "codec": "pcm16",
                 "sample_rate": self._sample_rate,
@@ -117,6 +136,8 @@ class SpeechResponseCoordinator:
                     {
                         "type": "audio.output.end",
                         "turn_id": turn_id,
+                        "response_id": turn_id,
+                        "generation_id": generation,
                         "sequence": self._next_sequence(),
                     }
                 )
@@ -133,6 +154,8 @@ class SpeechResponseCoordinator:
             {
                 "type": "audio.output.end",
                 "turn_id": turn_id,
+                "response_id": turn_id,
+                "generation_id": generation,
                 "sequence": self._next_sequence(),
             }
         )

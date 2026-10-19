@@ -1,6 +1,6 @@
 import type { MessageKey } from "@/i18n"
 
-export const MODULE_COMPONENT_IDS = [
+const MODULE_COMPONENT_IDS = [
   "personas",
   "interview",
   "panel_engine",

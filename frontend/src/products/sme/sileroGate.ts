@@ -1,5 +1,7 @@
 const WINDOW = 512
 const TARGET_RATE = 16_000
+// Recency weight kept by the smoothed probability. Lower = faster response.
+const SMOOTHING = 0.4
 
 export type SpeechProbability = (window: Float32Array) => Promise<number>
 
@@ -7,15 +9,18 @@ export type SpeechProbability = (window: Float32Array) => Promise<number>
 export class SileroGate {
   private pending: Float32Array<ArrayBufferLike> = new Float32Array(0)
   private speaking = false
+  private smoothed: number | null = null
 
   constructor(
     private readonly probability: SpeechProbability,
     private readonly threshold = 0.5,
+    private readonly exitThreshold = 0.35,
   ) {}
 
   reset(): void {
     this.pending = new Float32Array(0)
     this.speaking = false
+    this.smoothed = null
   }
 
   async speech(frame: Float32Array, sampleRate: number): Promise<boolean> {
@@ -24,7 +29,17 @@ export class SileroGate {
     while (this.pending.length >= WINDOW) {
       const window = this.pending.slice(0, WINDOW)
       this.pending = this.pending.slice(WINDOW)
-      this.speaking = await this.probability(window) >= this.threshold
+      const probability = await this.probability(window)
+      // Smooth first so one noisy window cannot flip the turn, then apply
+      // hysteresis: speech closes only below the exit threshold.
+      this.smoothed = this.smoothed === null
+        ? probability
+        : this.smoothed * SMOOTHING + probability * (1 - SMOOTHING)
+      if (!this.speaking && this.smoothed >= this.threshold) {
+        this.speaking = true
+      } else if (this.speaking && this.smoothed <= this.exitThreshold) {
+        this.speaking = false
+      }
     }
     return this.speaking
   }

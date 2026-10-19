@@ -5,7 +5,10 @@ import { useLocale } from "@/i18n"
 import { authAdapter } from "@/lib/auth"
 import { env } from "@/lib/env"
 import { liveSpeechMicrophone } from "./liveSpeechMicrophone"
-import { createSpeechVad, type SpeechVad } from "./speechVad"
+import { isUrgentBargeIn } from "./liveSpeechBarge"
+import { preloadSpeechVad } from "./speechVad"
+import { SpeechVadPipeline } from "./speechVadPipeline"
+import { startVoiceCapture, type VoiceCaptureHandle } from "./voiceCapture"
 import { sourceIdsFromWorkspaceContext } from "./sttFocus"
 import { PcmQueue } from "./pcmQueue"
 import { modelTraceEntry, type ModelTraceEntry } from "./modelTrace"
@@ -38,7 +41,7 @@ type Callbacks = {
   message: (message: WorkspaceMessage) => void
   preview: (text: string | null) => void
   tool: Options["onTool"]
-  error: (code: string) => void
+  error: (code: string, retryable: boolean) => void
   trace: (entry: ModelTraceEntry) => void
 }
 
@@ -47,31 +50,72 @@ export class LiveSpeechClient {
   private capture: AudioContext | null = null
   private playback: AudioContext | null = null
   private microphone: MediaStream | null = null
-  private source: MediaStreamAudioSourceNode | null = null
-  private worklet: AudioWorkletNode | null = null
-  private silentGain: GainNode | null = null
+  private captureHandle: VoiceCaptureHandle | null = null
+  private pipeline: SpeechVadPipeline
   private queue = new PcmQueue()
   private sequence = 0
   private heartbeat: number | null = null
   private muted = false
   private currentTurn: string | null = null
   private assistantText = ""
-  private vad: SpeechVad | null = null
-  private hearing: Promise<void> = Promise.resolve()
-  private vadFailed = false
   private pendingFocus: string[] | null = null
   private stopped = false
   private dropIncomingAudio = false
+  private audioOpen = false
+  private speaking = false
+  private lastGeneration = 0
+  private blockedThroughGeneration = 0
+  private firstFrameAt = 0
 
   constructor(
     private readonly workspaceId: string,
     private readonly expertId: string,
     private readonly language: string,
     private readonly callbacks: Callbacks,
-  ) {}
+  ) {
+    this.pipeline = new SpeechVadPipeline({
+      onStarted: () => {
+        if (this.firstFrameAt > 0) {
+          this.sendLatency("vad_reaction", performance.now() - this.firstFrameAt)
+        }
+        this.send({
+          type: "audio.start",
+          sequence: ++this.sequence,
+          codec: "pcm16",
+          sample_rate: 24000,
+          channels: 1,
+        })
+      },
+      onFrames: (frames, sampleRate) => {
+        for (const item of frames) {
+          if (this.socket?.readyState === WebSocket.OPEN) {
+            this.socket.send(encodePcm16(item, sampleRate))
+          }
+        }
+      },
+      onAbandon: () => {
+        this.send({ type: "audio.cancel", turn_id: this.currentTurn })
+      },
+      onCommit: () => {
+        this.send({
+          type: "audio.commit",
+          input_item_id: crypto.randomUUID(),
+          sequence: ++this.sequence,
+        })
+      },
+      onError: () => {
+        this.callbacks.error("vad_failed", false)
+        void this.stop().then(() => this.callbacks.state("error"))
+      },
+    })
+  }
 
   async start(): Promise<void> {
     this.callbacks.state("connecting")
+    // The model loads in parallel with the permission prompt and the socket
+    // handshake; frames are buffered until it is ready. Best effort: the
+    // session path reports a model failure to the user.
+    void preloadSpeechVad().catch(() => undefined)
     const microphone = await navigator.mediaDevices.getUserMedia({
       audio: liveSpeechMicrophone,
     })
@@ -80,16 +124,21 @@ export class LiveSpeechClient {
       throw new DOMException("Live Speech start cancelled", "AbortError")
     }
     this.microphone = microphone
-    this.capture = new AudioContext()
+    // 24 kHz lets the browser's filtered resampler do the 48k→24k step once;
+    // Silero then resamples 2:3 to 16 kHz and the PCM goes out as-is. The code
+    // reads context.sampleRate, so browsers that ignore the request still work.
+    this.capture = new AudioContext({ sampleRate: 24_000 })
     this.playback = new AudioContext({ sampleRate: 24_000 })
     await Promise.all([this.capture.resume(), this.playback.resume()])
     if (this.stopped) throw new DOMException("Live Speech start cancelled", "AbortError")
+    await this.startCapture()
     await this.connect()
   }
 
   async stop(): Promise<void> {
     if (this.stopped) return
     this.stopped = true
+    this.pipeline.reset()
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.send({ type: "session.stop", reason: "user" })
     }
@@ -98,9 +147,8 @@ export class LiveSpeechClient {
     if (this.heartbeat !== null) window.clearInterval(this.heartbeat)
     this.heartbeat = null
     this.clearPlayback()
-    this.worklet?.disconnect()
-    this.source?.disconnect()
-    this.silentGain?.disconnect()
+    this.captureHandle?.stop()
+    this.captureHandle = null
     for (const track of this.microphone?.getTracks() ?? []) track.stop()
     await Promise.all([
       this.capture?.state !== "closed" ? this.capture?.close() : undefined,
@@ -113,7 +161,7 @@ export class LiveSpeechClient {
   toggleMute(): boolean {
     this.muted = !this.muted
     if (this.muted) {
-      this.vad?.reset()
+      this.pipeline.reset()
       this.send({ type: "audio.cancel", turn_id: this.currentTurn })
     }
     this.send({ type: "session.mute", muted: this.muted })
@@ -122,9 +170,20 @@ export class LiveSpeechClient {
   }
 
   cancel(reason = "user"): void {
-    if (!this.currentTurn) return
-    this.send({ type: "turn.cancel", turn_id: this.currentTurn, reason })
+    const stopStartedAt = performance.now()
+    // Stop locally first: stale segments must never play after a barge-in.
+    this.dropIncomingAudio = true
+    this.audioOpen = false
+    this.speaking = false
+    this.blockedThroughGeneration = Math.max(
+      this.blockedThroughGeneration,
+      this.lastGeneration,
+    )
     this.clearPlayback()
+    this.sendLatency("stop_playback", performance.now() - stopStartedAt)
+    if (this.currentTurn) {
+      this.send({ type: "turn.cancel", turn_id: this.currentTurn, reason })
+    }
   }
 
   private async connect(): Promise<void> {
@@ -183,30 +242,33 @@ export class LiveSpeechClient {
       if (!parsed || typeof parsed !== "object") throw new Error("invalid_event")
       event = parsed as Record<string, unknown>
     } catch {
-      this.callbacks.error("invalid_event")
+      this.callbacks.error("invalid_event", false)
       void this.stop().then(() => this.callbacks.state("error"))
       return
     }
     const type = typeof event.type === "string" ? event.type : ""
     if (type === "session.ready") {
       try {
-        this.vad = await createSpeechVad(event.vad)
+        await this.pipeline.attach(event.vad)
       } catch {
-        this.callbacks.error("vad_failed")
+        this.callbacks.error("vad_failed", false)
         void this.stop().then(() => this.callbacks.state("error"))
         return
       }
-      void this.startCapture()
       this.sendFocus()
     } else if (type === "session.state") {
       this.handleState(event.state)
     } else if (type === "transcript.partial") {
-      this.callbacks.preview(string(event.text))
+      const text = string(event.text)
+      this.callbacks.preview(text)
+      if (this.speaking && isUrgentBargeIn(text)) this.cancel("urgent")
     } else if (type === "transcript.backchannel") {
       return
     } else if (type === "assistant.waiting") {
       this.callbacks.preview(string(event.text))
     } else if (type === "assistant.opening") {
+      this.currentTurn = "opening"
+      this.speaking = true
       this.callbacks.preview(null)
       this.callbacks.message(localMessage("agent", string(event.text)))
     } else if (type === "transcript.final") {
@@ -223,9 +285,21 @@ export class LiveSpeechClient {
       this.callbacks.message(localMessage("agent", string(event.text)))
       this.assistantText = ""
     } else if (type === "audio.output.start") {
+      const generation = number(event.generation_id)
+      if (generation !== null && generation <= this.blockedThroughGeneration) return
+      if (generation !== null) this.lastGeneration = generation
+      this.audioOpen = true
       this.dropIncomingAudio = false
+      this.speaking = true
+    } else if (type === "audio.output.end") {
+      const generation = number(event.generation_id)
+      if (generation === null || generation >= this.lastGeneration) {
+        this.audioOpen = false
+      }
     } else if (type === "assistant.cancelled") {
       this.dropIncomingAudio = true
+      this.audioOpen = false
+      this.speaking = false
       this.clearPlayback()
       this.callbacks.preview(null)
     } else if (type === "workspace.tool") {
@@ -234,7 +308,7 @@ export class LiveSpeechClient {
       const entry = modelTraceEntry(event)
       if (entry) this.callbacks.trace(entry)
     } else if (type === "session.error") {
-      this.callbacks.error(string(event.code))
+      this.callbacks.error(string(event.code), event.retryable === true)
       if (event.retryable === true) this.callbacks.state("listening")
       else void this.stop().then(() => this.callbacks.state("error"))
     }
@@ -250,6 +324,10 @@ export class LiveSpeechClient {
       raw === "error"
     ) {
       this.callbacks.state(raw)
+      if (raw === "listening" || raw === "paused") {
+        this.speaking = false
+        if (raw === "listening") this.firstFrameAt = 0
+      }
     } else if (raw === "closed") {
       this.callbacks.state("disconnected")
     }
@@ -259,64 +337,19 @@ export class LiveSpeechClient {
     const context = this.capture
     const microphone = this.microphone
     if (!context || !microphone) throw new Error("microphone_unavailable")
-    await context.audioWorklet.addModule(
-      new URL("../../components/chat/pcmCapture.worklet.ts", import.meta.url),
-    )
-    this.source = context.createMediaStreamSource(microphone)
-    this.worklet = new AudioWorkletNode(context, "pcm-capture")
-    this.silentGain = context.createGain()
-    this.silentGain.gain.value = 0
-    this.source.connect(this.worklet)
-    this.worklet.connect(this.silentGain)
-    this.silentGain.connect(context.destination)
-    this.worklet.port.onmessage = (event: MessageEvent<unknown>) => {
-      if (!(event.data instanceof Float32Array) || this.muted || this.vad === null) return
-      this.hear(event.data, context.sampleRate)
-    }
-    this.callbacks.state("listening")
-  }
-
-  private hear(frame: Float32Array, sampleRate: number): void {
-    const vad = this.vad
-    if (vad === null) return
-    this.hearing = this.hearing.then(() => this.captureFrame(vad, frame, sampleRate)).catch(() => {
-      if (this.vadFailed) return
-      this.vadFailed = true
-      this.callbacks.error("vad_failed")
-      void this.stop().then(() => this.callbacks.state("error"))
+    this.captureHandle = await startVoiceCapture(context, microphone, (frame, sampleRate) => {
+      if (this.muted) return
+      if (this.firstFrameAt === 0) this.firstFrameAt = performance.now()
+      this.pipeline.feed(frame, sampleRate)
     })
   }
 
-  private async captureFrame(vad: SpeechVad, frame: Float32Array, sampleRate: number): Promise<void> {
-    const result = await vad.push(frame, sampleRate)
-    if (result.started) {
-      this.send({
-        type: "audio.start",
-        sequence: ++this.sequence,
-        codec: "pcm16",
-        sample_rate: 24000,
-        channels: 1,
-      })
-    }
-    for (const item of result.frames) {
-      if (this.socket?.readyState === WebSocket.OPEN) {
-        this.socket.send(encodePcm16(item, sampleRate))
-      }
-    }
-    if (result.abandon) {
-      this.send({ type: "audio.cancel", turn_id: this.currentTurn })
-    }
-    if (result.commit) {
-      this.send({
-        type: "audio.commit",
-        input_item_id: crypto.randomUUID(),
-        sequence: ++this.sequence,
-      })
-    }
+  private sendLatency(phase: string, milliseconds: number): void {
+    this.send({ type: "client.latency", phase, milliseconds })
   }
 
   private play(data: ArrayBuffer): void {
-    if (this.dropIncomingAudio) return
+    if (this.dropIncomingAudio || !this.audioOpen) return
     const context = this.playback
     if (!context) return
     this.queue.play(context, data)
@@ -334,7 +367,7 @@ export class LiveSpeechClient {
         : {}
     void this.callbacks
       .tool(name, args, () => this.socket?.readyState === WebSocket.OPEN)
-      .catch(() => this.callbacks.error("workspace_tool_failed"))
+      .catch(() => this.callbacks.error("workspace_tool_failed", false))
   }
 
   private send(payload: Record<string, unknown>): void {
@@ -394,8 +427,11 @@ export function useLiveSpeechConversation(options: Options) {
         trace: (entry) => {
           if (client.current === current) latest.current.onModelTrace(entry)
         },
-        error: (code) => {
+        error: (code, retryable) => {
           if (client.current !== current) return
+          // A retryable empty transcript means VAD opened on noise; the
+          // session stays listening, so do not toast it as a hard error.
+          if (code === "empty_transcript" && retryable) return
           latest.current.onError(
             code.startsWith("stt_") || code === "empty_transcript"
               ? t("voiceWorkspaceChat.transcriptionError")
@@ -459,4 +495,8 @@ function localMessage(role: "user" | "agent", content: string): WorkspaceMessage
 
 function string(value: unknown): string {
   return typeof value === "string" ? value : ""
+}
+
+function number(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
 }

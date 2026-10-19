@@ -212,13 +212,6 @@ class Settings(LiveSpeechSettings, BaseSettings):
     research_relevance_source: Literal["llm", "jev"] = "llm"
     # Bounded Question → Evidence graph read-through before provider retrieval.
     research_knowledge_lookup_limit: int = Field(default=10, ge=1, le=32)
-    research_question_semantic_match_threshold: float = Field(
-        default=0.88, ge=0.0, le=1.0
-    )
-    research_question_semantic_match_limit: int = Field(default=8, ge=1, le=32)
-    research_question_embedding_version: str = Field(
-        default="knowledge-question-v1", min_length=1
-    )
     # Age after which active Graph v2 source evidence expires. None = no age cutoff.
     research_knowledge_freshness_max_age_seconds: int | None = Field(
         default=None, ge=1
@@ -254,14 +247,6 @@ class Settings(LiveSpeechSettings, BaseSettings):
         if name not in _LOG_LEVELS:
             raise ValueError(f"LOG_LEVEL must be one of {sorted(_LOG_LEVELS)}")
         return name
-
-    @model_validator(mode="after")
-    def require_revalidation_band_order(self) -> Self:
-        if self.revalidation_clear_threshold >= self.revalidation_impact_threshold:
-            raise ValueError(
-                "REVALIDATION_CLEAR_THRESHOLD must be below REVALIDATION_IMPACT_THRESHOLD"
-            )
-        return self
 
     @model_validator(mode="after")
     def require_complete_logstash_config(self) -> Self:

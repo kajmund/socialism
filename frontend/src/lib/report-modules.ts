@@ -3,7 +3,7 @@ import type { AuthUser } from "@/lib/auth"
 import type { CustomerScope } from "@/lib/scoping"
 import { MODULE_REGISTRY } from "@/modules/moduleRegistry"
 
-export const REPORT_MODULES = ["politik", "dd", "expertgranskning", "rattsunderlag"] as const
+const REPORT_MODULES = ["politik", "dd", "expertgranskning", "rattsunderlag"] as const
 
 export type ReportModuleId = (typeof REPORT_MODULES)[number]
 

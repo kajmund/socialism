@@ -85,7 +85,7 @@ export function parseCompanyFigures(nyckeltal: string[]): CompanyFigures {
   return { omsattningSek, anstallda, resultatSek, resultatYear }
 }
 
-export function hasFigures(figures: CompanyFigures): boolean {
+function hasFigures(figures: CompanyFigures): boolean {
   return (
     figures.omsattningSek != null ||
     figures.anstallda != null ||

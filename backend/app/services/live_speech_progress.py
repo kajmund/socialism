@@ -35,6 +35,11 @@ def bind_tool_progress(handler: ProgressHandler) -> Iterator[None]:
         _handler.reset(token)
 
 
+def voice_turn_active() -> bool:
+    """True inside a live-voice turn; text chat never binds the progress handler."""
+    return _handler.get() is not None
+
+
 async def emit_tool_progress(
     kind: ProgressKind,
     tool_name: str,

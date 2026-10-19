@@ -63,6 +63,12 @@ class SttFocus(_ControlEvent):
     source_ids: list[str] = Field(default_factory=list, max_length=4)
 
 
+class ClientLatency(_ControlEvent):
+    type: Literal["client.latency"]
+    phase: str = Field(min_length=1, max_length=64)
+    milliseconds: float = Field(ge=0)
+
+
 ClientControl = Annotated[
     SessionStart
     | AudioStart
@@ -72,7 +78,8 @@ ClientControl = Annotated[
     | SessionMute
     | SessionStop
     | ClientPing
-    | SttFocus,
+    | SttFocus
+    | ClientLatency,
     Field(discriminator="type"),
 ]
 

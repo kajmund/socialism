@@ -9,14 +9,6 @@ from app.database.models import Job, UserAccount
 from app.services.kund_store import default_os_customer_id
 
 
-def owner_user_id_from_job(job: Job) -> str | None:
-    request = job.request if isinstance(job.request, dict) else {}
-    owner = request.get("owner_user_id")
-    if owner is None or owner == "":
-        return None
-    return str(owner)
-
-
 def job_visible_to_user(user: UserAccount, job: Job) -> bool:
     return job_payload_visible_to_user(user, kind=job.kind, request=job.request, customer_id=job.customer_id)
 

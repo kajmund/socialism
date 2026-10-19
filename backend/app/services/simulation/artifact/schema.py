@@ -19,6 +19,3 @@ EXPORT_TABLES: frozenset[str] = frozenset(
         "trace",
     }
 )
-
-# Tables queried during simulation (may appear after env.reset).
-RUNTIME_TABLES: frozenset[str] = frozenset({"post", "comment", "trace", "user"})

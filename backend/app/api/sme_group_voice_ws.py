@@ -160,8 +160,8 @@ class _Call:
     user_id: str
     customer_id: int
     language: str
-    workspace_id: str | None
     speaking_task: dict[str, Any]
+    workspace_id: str | None = None
 
 
 async def _replace_speech(speaking_task: dict[str, Any], speech) -> None:
@@ -358,6 +358,7 @@ async def _start_call(websocket: WebSocket, lock: asyncio.Lock, speaking_task: d
         user_id=user.id,
         customer_id=user.kund_id or 0,
         language=start.language,
+        workspace_id=start.workspace_id,
         speaking_task=speaking_task,
     )
 

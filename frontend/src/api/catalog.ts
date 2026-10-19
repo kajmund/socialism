@@ -48,13 +48,6 @@ export function getCatalogList(key: string): Promise<CatalogList> {
   return api.get<CatalogList>(`/catalog/${key}`)
 }
 
-export function updateCatalogList(
-  key: string,
-  items: CatalogItem[],
-): Promise<CatalogList> {
-  return api.put<CatalogList>(`/catalog/${key}`, { items })
-}
-
 /** Map catalog rows to field-key → option labels for persona composer selects. */
 export function catalogToFieldOptions(
   lists: CatalogList[],

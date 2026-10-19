@@ -3,7 +3,7 @@
 import sqlite3
 from pathlib import Path
 
-from app.services.oasis_run import _read_oasis_results
+from app.services.simulation.artifact import read_oasis_results
 
 
 def _make_db(path: Path) -> None:
@@ -97,7 +97,7 @@ def _make_db(path: Path) -> None:
 def test_read_oasis_results_includes_liked_by_and_shared_by(tmp_path: Path):
     db = tmp_path / "simulation.db"
     _make_db(db)
-    feed = _read_oasis_results(db)
+    feed = read_oasis_results(db)
     original = next(p for p in feed["posts"] if p["post_id"] == 1)
     assert original["liked_by"] == [2, 5]
     assert original["disliked_by"] == [6]

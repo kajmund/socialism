@@ -1,5 +1,13 @@
 # Manual update log
 
+## 2026-10-19
+
+* **Kunder**: Ny guide för att rensa en kunds dokument och härledd kunskap.
+
+## 2026-10-18
+
+* **SME**: I live voice fångas det du säger från första stund: tal som yttras medan röstsamtalet kopplar upp tappas inte längre. Kort brus (till exempel en hosta) visar inte längre ett fel i chatten — samtalet fortsätter lyssna.
+
 ## 2026-10-12
 
 * **SME / workspace**: Ny guide för **Modellens arbete** — flikikonen i workspace visar verktygsanrop och mellansteg. Numrerade källknappar i chatten öppnar citerade källor i workspace.

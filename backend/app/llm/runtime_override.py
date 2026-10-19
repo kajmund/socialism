@@ -190,12 +190,6 @@ def bound_llm_runtime(view: LlmRuntimeView | None) -> Iterator[None]:
 
 
 @contextmanager
-def bound_llm_prompt(prompt_key: str | None) -> Iterator[None]:
-    with bound_llm_runtime(view_for_prompt(prompt_key)):
-        yield
-
-
-@contextmanager
 def bound_llm_resolution(resolution: LlmResolution | None) -> Iterator[None]:
     if resolution is None:
         yield

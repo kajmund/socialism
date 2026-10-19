@@ -48,14 +48,6 @@ export type PanelSession = {
   updated_at: string
 }
 
-export function createPanelSession(body: {
-  config: Omit<PanelSessionConfig, "expert_slots"> & { expert_slots?: PanelExpertSlot[] }
-  panel_id?: number | null
-  project_id?: number | null
-}): Promise<PanelSession> {
-  return api.post<PanelSession>("/panel/sessions", body)
-}
-
 export function createDdPanelSession(
   campaignId: number,
   body: {
