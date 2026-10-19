@@ -86,7 +86,7 @@ testpaths = ["tests"]
 addopts = "-m 'not smoke'"
 markers = [
     "research_reuse: isolated four-step Graph v2 reuse contracts (all external boundaries mocked)",
-    "integration: may hit network or optional heavy deps; opt-in live variants skip themselves",
+    "integration: hits network or optional heavy deps (skipped in default CI)",
     "smoke: manual live OASIS simulation against camel-oasis + DeepSeek (opt-in)",
 ]
 

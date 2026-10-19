@@ -3174,6 +3174,16 @@ vite, settlement, headings, or nearby caps.
 Do not keep tuning on the diagnostic twenty.
 A cell may list several structured answers.
 
+### Baseline writes are opt-in
+
+Every command below writes its table and
+`--output` JSON on a normal run. The `baselines/`
+JSONs are only written when `--freeze-baseline`
+is passed, and an existing baseline is never
+overwritten. Run without the flag to replay or
+re-score a command against the committed
+baselines.
+
 ### Holdout gold before models
 
 Twenty leftover documents, every third unseen

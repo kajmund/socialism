@@ -1,0 +1,3298 @@
+[
+  {
+    "doc_id": "DOC-COMP-001",
+    "path": "company/bolagsordning.docx",
+    "dtype": "BOLAGSDOK",
+    "title": "Bolagsordning för Nordviken Digital AB",
+    "created": "2023-06-01",
+    "author_id": "P-038",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "4",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Antagen 2018-03-12; senast ändrad 2023-06-01."
+  },
+  {
+    "doc_id": "DOC-COMP-002",
+    "path": "company/registreringsbevis.docx",
+    "dtype": "BOLAGSDOK",
+    "title": "Registreringsbevis Nordviken Digital AB",
+    "created": "2026-09-28",
+    "author_id": "SYSTEM",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-038",
+      "P-039",
+      "P-001",
+      "P-040"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-COMP-003",
+    "path": "company/aktiebok.docx",
+    "dtype": "BOLAGSDOK",
+    "title": "Aktiebok",
+    "created": "2025-08-12",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-COMP-004",
+    "path": "company/agardirektiv.docx",
+    "dtype": "BOLAGSDOK",
+    "title": "Ägardirektiv",
+    "created": "2021-10-05",
+    "author_id": "P-038",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002"
+    ],
+    "version": "2",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Beslutat av ägarna 2021-10-05."
+  },
+  {
+    "doc_id": "DOC-COMP-005",
+    "path": "company/vd-instruktion.docx",
+    "dtype": "BOLAGSDOK",
+    "title": "VD-instruktion",
+    "created": "2025-09-25",
+    "author_id": "P-038",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001"
+    ],
+    "version": "3",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-031"
+    ],
+    "supersedes": null,
+    "note": "Reviderad i samband med styrelsemötet 2025-09-25. Beslutsgränser: avtal 2 MSEK, investeringar 500 kSEK."
+  },
+  {
+    "doc_id": "DOC-COMP-006",
+    "path": "company/attestordning.docx",
+    "dtype": "BOLAGSDOK",
+    "title": "Attestordning",
+    "created": "2025-06-01",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-004",
+      "P-007"
+    ],
+    "version": "3",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "SaaS-gräns 10 kkr/mån för systemägare; däröver CFO+VD."
+  },
+  {
+    "doc_id": "DOC-COMP-007",
+    "path": "company/organisationsschema.docx",
+    "dtype": "BOLAGSDOK",
+    "title": "Organisationsschema",
+    "created": "2026-09-01",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "EMP-001",
+      "EMP-002",
+      "EMP-003",
+      "EMP-004",
+      "EMP-005",
+      "EMP-006",
+      "EMP-007",
+      "EMP-008",
+      "EMP-009",
+      "EMP-010",
+      "EMP-011",
+      "EMP-012",
+      "EMP-013",
+      "EMP-014",
+      "EMP-015",
+      "EMP-016",
+      "EMP-017",
+      "EMP-018",
+      "EMP-019",
+      "EMP-020",
+      "EMP-021",
+      "EMP-022",
+      "EMP-023",
+      "EMP-024",
+      "EMP-025",
+      "EMP-026",
+      "EMP-027",
+      "EMP-028",
+      "EMP-029",
+      "EMP-030",
+      "EMP-031"
+    ],
+    "version": "2",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Supportansvarig vakant fr.o.m. 2026-10-01."
+  },
+  {
+    "doc_id": "DOC-POL-001",
+    "path": "policies/personuppgiftspolicy_gdpr.docx",
+    "dtype": "POLICY",
+    "title": "Personuppgiftspolicy (GDPR)",
+    "created": "2024-03-01",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "SUP-009",
+      "SUP-013",
+      "SUP-003",
+      "SUP-020",
+      "SUP-015",
+      "SUP-010",
+      "SUP-022"
+    ],
+    "version": "3.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Whiteboard AB saknar DPA (uppföljning pågår)."
+  },
+  {
+    "doc_id": "DOC-POL-002",
+    "path": "policies/it_sakerhetspolicy.docx",
+    "dtype": "POLICY",
+    "title": "IT-säkerhetspolicy",
+    "created": "2025-01-15",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "SUP-008",
+      "SUP-021"
+    ],
+    "version": "2.1",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-POL-003",
+    "path": "policies/sekretesspolicy.docx",
+    "dtype": "POLICY",
+    "title": "Sekretesspolicy",
+    "created": "2024-06-01",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "2.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Baserad på mall från 2023-02-15."
+  },
+  {
+    "doc_id": "DOC-POL-004",
+    "path": "policies/ai_policy.docx",
+    "dtype": "POLICY",
+    "title": "AI-policy",
+    "created": "2026-01-30",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-026",
+      "SUP-012",
+      "SUP-013",
+      "PRJ-091"
+    ],
+    "version": "1.0",
+    "valid_from": "2026-02-01",
+    "valid_to": null,
+    "event_ids": [
+      "EVT-044"
+    ],
+    "supersedes": null,
+    "note": "Beslutad av ledningsgruppen 2026-01-30 (DOC-MGMT-008)."
+  },
+  {
+    "doc_id": "DOC-POL-005",
+    "path": "policies/resepolicy.docx",
+    "dtype": "POLICY",
+    "title": "Resepolicy",
+    "created": "2022-04-01",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "SUP-028"
+    ],
+    "version": "1.1",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-POL-006",
+    "path": "policies/arbetsmiljopolicy.docx",
+    "dtype": "POLICY",
+    "title": "Arbetsmiljöpolicy",
+    "created": "2026-02-10",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "2.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Reviderad i samband med SAM-riskbedömningen 2026-02-10."
+  },
+  {
+    "doc_id": "DOC-POL-007",
+    "path": "policies/molntjanstpolicy.docx",
+    "dtype": "POLICY",
+    "title": "Molntjänstpolicy",
+    "created": "2025-12-01",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "SUP-013",
+      "SUP-003"
+    ],
+    "version": "1.2",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "SCC för SUP-013 tecknade 2025-05-01; känsliga uppgifter ej tillåtna i USA-tjänster."
+  },
+  {
+    "doc_id": "DOC-POL-008",
+    "path": "policies/behorighetspolicy.docx",
+    "dtype": "POLICY",
+    "title": "Behörighetspolicy",
+    "created": "2024-10-01",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.1",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-BOARD-001",
+    "path": "management/styrelseprotokoll_2024-11-21.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Styrelseprotokoll nr 1/2024",
+    "created": "2024-11-21",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-038",
+      "P-039",
+      "P-001",
+      "P-002",
+      "P-032"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-005"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-BOARD-002",
+    "path": "management/styrelseprotokoll_2025-02-10.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Styrelseprotokoll nr 2/2025",
+    "created": "2025-02-10",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-038",
+      "P-001"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-013"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-BOARD-003",
+    "path": "management/styrelseprotokoll_2025-05-19.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Styrelseprotokoll nr 3/2025",
+    "created": "2025-05-19",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-038",
+      "P-039",
+      "P-001"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-022",
+      "EVT-024"
+    ],
+    "supersedes": null,
+    "note": "Innehåller beslut om teckningsoptionsprogram (3 %)."
+  },
+  {
+    "doc_id": "DOC-BOARD-004",
+    "path": "management/styrelseprotokoll_2025-09-25.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Styrelseprotokoll nr 4/2025",
+    "created": "2025-09-25",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-038",
+      "P-039",
+      "P-001",
+      "P-002",
+      "PRJ-090"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-031"
+    ],
+    "supersedes": null,
+    "note": "Fastställer FY26-budget (47 MSEK, EBIT 7 %) och investeringsram 2,4 MSEK."
+  },
+  {
+    "doc_id": "DOC-BOARD-005",
+    "path": "management/styrelseprotokoll_2025-11-24.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Styrelseprotokoll nr 5/2025",
+    "created": "2025-11-24",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-038",
+      "P-039",
+      "P-001"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-038"
+    ],
+    "supersedes": null,
+    "note": "Godkänner bokslutskommuniké FY25; utdelning skjuts till årsstämman."
+  },
+  {
+    "doc_id": "DOC-BOARD-006",
+    "path": "management/styrelseprotokoll_2026-03-12.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Styrelseprotokoll nr 6/2026",
+    "created": "2026-03-12",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-038",
+      "P-039",
+      "P-001",
+      "CUS-001"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-051"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-BOARD-007U",
+    "path": "management/styrelseprotokoll_2026-05-25_utkast_v0.9.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Styrelseprotokoll nr 7/2026 (utkast v0.9)",
+    "created": "2026-05-25",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-038",
+      "P-039",
+      "P-001",
+      "PRJ-001"
+    ],
+    "version": "0.9",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-058"
+    ],
+    "supersedes": null,
+    "note": "Utkast till DOC-BOARD-007. I utkastet anges SE-Billing som 'Slutlevererad'; i den slutliga versionen (v1.0) ändrat till 'Pågående'."
+  },
+  {
+    "doc_id": "DOC-BOARD-007",
+    "path": "management/styrelseprotokoll_2026-05-25.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Styrelseprotokoll nr 7/2026",
+    "created": "2026-05-25",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-038",
+      "P-039",
+      "P-001",
+      "PRJ-001"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-058"
+    ],
+    "supersedes": "DOC-BOARD-007U",
+    "note": "Slutlig version; SE-Billing anges som 'Pågående' (slutleverans 2026-07-15)."
+  },
+  {
+    "doc_id": "DOC-BOARD-008",
+    "path": "management/styrelseprotokoll_2026-09-28.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Styrelseprotokoll nr 8/2026",
+    "created": "2026-09-28",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-038",
+      "P-039",
+      "P-001",
+      "P-002",
+      "CUS-001"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-069"
+    ],
+    "supersedes": null,
+    "note": "Utdelning bordlagd till årsstämman; riskrapport med källhänvisningar krävs till nästa möte."
+  },
+  {
+    "doc_id": "DOC-MGMT-001",
+    "path": "management/ledningsgruppsprotokoll_2024_10_07.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Ledningsgruppsprotokoll – Budgetförutsättningar FY25",
+    "created": "2024-10-07",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-003",
+      "P-004",
+      "P-005",
+      "P-007"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-001"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MGMT-002",
+    "path": "management/ledningsgruppsprotokoll_2024_12_20.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Ledningsgruppsprotokoll – Halvårsvis riskgenomgång",
+    "created": "2024-12-20",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-003",
+      "P-004",
+      "P-005",
+      "P-007"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-008"
+    ],
+    "supersedes": null,
+    "note": "Uppdaterar DOC-RISK-001."
+  },
+  {
+    "doc_id": "DOC-MGMT-003",
+    "path": "management/ledningsgruppsprotokoll_2025_01_07.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Ledningsgruppsprotokoll – Uppstart SE-Integration",
+    "created": "2025-01-07",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-003",
+      "P-004",
+      "P-005",
+      "P-007"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-009"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MGMT-004",
+    "path": "management/ledningsgruppsprotokoll_2025_04_28.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Ledningsgruppsprotokoll – Kapacitetsbrist i leverans",
+    "created": "2025-04-28",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-003",
+      "P-004",
+      "P-005",
+      "P-007"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-021"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MGMT-005",
+    "path": "management/ledningsgruppsprotokoll_2025_08_31.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Ledningsgruppsprotokoll – Likviditet inför bankmöte",
+    "created": "2025-08-31",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-003",
+      "P-004",
+      "P-005",
+      "P-007"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-028"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MGMT-006",
+    "path": "management/ledningsgruppsprotokoll_2025_10_31.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Ledningsgruppsprotokoll – Rasmus Holm slutar – rekryterad av kund",
+    "created": "2025-10-31",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-003",
+      "P-004",
+      "P-005",
+      "P-007"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-034"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MGMT-007",
+    "path": "management/ledningsgruppsprotokoll_2025_11_08.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Ledningsgruppsprotokoll – Kickoff produktutveckling",
+    "created": "2025-11-08",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-003",
+      "P-004",
+      "P-005",
+      "P-007"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-036"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MGMT-008",
+    "path": "management/ledningsgruppsprotokoll_2026_01_30.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Ledningsgruppsprotokoll – AI-strategi och AI-policy",
+    "created": "2026-01-30",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-003",
+      "P-004",
+      "P-005",
+      "P-007"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-044"
+    ],
+    "supersedes": null,
+    "note": "Beslutar AI-initiativ och fastställer DOC-POL-004."
+  },
+  {
+    "doc_id": "DOC-MGMT-009",
+    "path": "management/ledningsgruppsprotokoll_2026_08_20.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Ledningsgruppsprotokoll – Kostnadsprogram inför FY27",
+    "created": "2026-08-20",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-003",
+      "P-004",
+      "P-005",
+      "P-007"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-065"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MGMT-010",
+    "path": "management/ledningsgruppsprotokoll_2026_09_15.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Ledningsgruppsprotokoll – Uppsägning av BV-avtalet övervägs",
+    "created": "2026-09-15",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-001",
+      "P-002",
+      "P-003",
+      "P-004",
+      "P-005",
+      "P-007"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-068"
+    ],
+    "supersedes": null,
+    "note": "BV-uppsägning (deadline 2026-09-30) skjuts upp till nästa möte."
+  },
+  {
+    "doc_id": "DOC-BUDG-001",
+    "path": "management/budget_fy2026.docx",
+    "dtype": "BUDGET",
+    "title": "Budget FY2026",
+    "created": "2025-09-25",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "CUS-001",
+      "CUS-008",
+      "PRJ-002",
+      "PRJ-009"
+    ],
+    "version": "1.0",
+    "valid_from": "2025-10-01",
+    "valid_to": "2026-09-30",
+    "event_ids": [
+      "EVT-031"
+    ],
+    "supersedes": null,
+    "note": "Total 47,0 MSEK netto, EBIT-mål 7 % (3,29 MSEK). Q4 (jul–sep): 13,1 MSEK."
+  },
+  {
+    "doc_id": "DOC-BUDG-002",
+    "path": "management/prognos_fy2026.docx",
+    "dtype": "PROGNOS",
+    "title": "Reviderad helårsprognos FY2026",
+    "created": "2026-06-01",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "CUS-001",
+      "CUS-008",
+      "CUS-006",
+      "PRJ-029"
+    ],
+    "version": "2.0",
+    "valid_from": "2026-06-01",
+    "valid_to": null,
+    "event_ids": [
+      "EVT-059"
+    ],
+    "supersedes": null,
+    "note": "Bas 52,5 / worst 48,5 / best 55,0 MSEK; EBIT-marginal 9–12 %."
+  },
+  {
+    "doc_id": "DOC-BANK-001",
+    "path": "management/bankmote_2025-09-15.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Bankmötesprotokoll Norrvidden Bank (covenants)",
+    "created": "2025-09-15",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-042"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-030"
+    ],
+    "supersedes": null,
+    "note": "Covenants: soliditet ≥ 25 %, EBITDA > 0, månatlig likviditetsprognos."
+  },
+  {
+    "doc_id": "DOC-BANK-002",
+    "path": "management/bankmote_2026-03-20.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Bankmötesprotokoll – förnyad checkkredit",
+    "created": "2026-03-20",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "P-042"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-052"
+    ],
+    "supersedes": null,
+    "note": "Checkkredit 3 MSEK förnyad t.o.m. 2026-12-31."
+  },
+  {
+    "doc_id": "DOC-RISK-001",
+    "path": "management/riskregister.docx",
+    "dtype": "REGISTER",
+    "title": "Riskregister",
+    "created": "2026-05-11",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "CUS-001",
+      "CUS-009",
+      "CUS-025",
+      "CUS-016",
+      "SUP-003",
+      "SUP-013",
+      "P-026",
+      "P-011",
+      "P-024"
+    ],
+    "version": "3.2",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-008",
+      "EVT-069"
+    ],
+    "supersedes": null,
+    "note": "Upprättat 2024-12-20; v3.2 2026-05-11. Tre risker utan ägare/åtgärd (R-02, R-09, R-10)."
+  },
+  {
+    "doc_id": "DOC-FIN-001",
+    "path": "management/bokslutskommunike_fy2025.docx",
+    "dtype": "RAPPORT",
+    "title": "Bokslutskommuniké FY2025",
+    "created": "2025-11-24",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "CUS-001",
+      "CUS-009"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-032",
+      "EVT-038"
+    ],
+    "supersedes": null,
+    "note": "Omsättning 42 638 187 kr; resultat efter skatt −264 298 kr; SEAB-andel 27,8 %."
+  },
+  {
+    "doc_id": "DOC-FIN-002",
+    "path": "management/bokslutskommunike_fy2026.docx",
+    "dtype": "RAPPORT",
+    "title": "Bokslutskommuniké FY2026",
+    "created": "2026-10-05",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "CUS-001",
+      "CUS-010"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-070"
+    ],
+    "supersedes": null,
+    "note": "Omsättning 54 310 278 kr; resultat 6 252 297 kr; SEAB 34,4 %; kassa 9 436 781 kr."
+  },
+  {
+    "doc_id": "DOC-MGMT-011",
+    "path": "management/affarsplan_2026_2028.docx",
+    "dtype": "RAPPORT",
+    "title": "Affärsplan 2026–2028",
+    "created": "2026-03-12",
+    "author_id": "P-001",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "CUS-001",
+      "PRJ-090",
+      "PRJ-091"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-051"
+    ],
+    "supersedes": null,
+    "note": "Antagande: offentlig sektor växer 15 %/år. Faktisk offentlig omsättning minskade (KL-Vårdportal avslutad 2026-03)."
+  },
+  {
+    "doc_id": "DOC-MGMT-012",
+    "path": "management/kpi_rapport_sep2026.docx",
+    "dtype": "RAPPORT",
+    "title": "KPI-rapport september 2026",
+    "created": "2026-10-05",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "CUS-007",
+      "CUS-049"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Q4-prognos 12,4 MSEK (jämför budget 13,1 MSEK och pipeline-committed 10,8 MSEK)."
+  },
+  {
+    "doc_id": "DOC-MGMT-013",
+    "path": "management/likviditetsprognos_q4_2026.docx",
+    "dtype": "RAPPORT",
+    "title": "Likviditetsprognos Q4 2026",
+    "created": "2026-09-30",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "CUS-001",
+      "CUS-007",
+      "CUS-049"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MGMT-014",
+    "path": "management/investeringskalkyl_goteborg.docx",
+    "dtype": "KALKYL",
+    "title": "Investeringskalkyl kontor Göteborg",
+    "created": "2026-04-30",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Capex 1,6 MSEK/år; break-even månad 9."
+  },
+  {
+    "doc_id": "DOC-MGMT-015",
+    "path": "management/bilkalkyl_lease_vs_kop.docx",
+    "dtype": "KALKYL",
+    "title": "Bilkalkyl leasing vs köp",
+    "created": "2026-06-15",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "SUP-029"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MGMT-016",
+    "path": "management/produktutvecklingscase_nd_intern.docx",
+    "dtype": "RAPPORT",
+    "title": "Produktutvecklingscase ND-Intern plattform",
+    "created": "2026-09-15",
+    "author_id": "P-008",
+    "entities": [
+      "PRJ-090",
+      "P-026"
+    ],
+    "version": "1.1",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-036"
+    ],
+    "supersedes": null,
+    "note": "Budget 2,4 MSEK; förbrukat 1,85 MSEK t.o.m. 2026-08."
+  },
+  {
+    "doc_id": "DOC-MGMT-017",
+    "path": "management/varderingsmemo.docx",
+    "dtype": "MEMO",
+    "title": "Värderingsmemo",
+    "created": "2026-09-15",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "CUS-001"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "DCF + multipel; antaganden explicit angivna."
+  },
+  {
+    "doc_id": "DOC-MAIL-001",
+    "path": "correspondence/mail_2024-11-15_gustav_pettersson_uppsagning.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Gustav Petterssons uppsägning och konkurrensklausul",
+    "created": "2024-11-18",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-004"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-002",
+    "path": "correspondence/mail_2024-12-18_nh_prestandaklagomal.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: NH-Logistikportalen prestandaklagomål (tredje gången)",
+    "created": "2024-12-19",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-007"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-003",
+    "path": "correspondence/mail_2025-02-28_oh_slutfaktura_tvist.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: ÖH-Webbplattform tvistig slutfaktura",
+    "created": "2025-03-03",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-014"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-004",
+    "path": "correspondence/mail_2025-03-14_tobias_lindqvist_avsked.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Avsked av Tobias Lindqvist",
+    "created": "2025-03-15",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-016"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-005",
+    "path": "correspondence/mail_2025-03-31_oh_avslutar_samarbetet.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Örby Handel avslutar samarbetet",
+    "created": "2025-04-01",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-017"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-006",
+    "path": "correspondence/mail_2025-04-15_forlikning_tobias.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Förlikningsförhandling Tobias Lindqvist",
+    "created": "2025-04-15",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-020"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-007",
+    "path": "correspondence/mail_2025-10-01_gv_indexupprakning.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Gråvikens kommun indexuppräkning (ärendet rann ut i sanden)",
+    "created": "2025-10-03",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-033"
+    ],
+    "supersedes": null,
+    "note": "Indexuppräkningen per 2025-10-01 har inte tillämpats i faktureringen."
+  },
+  {
+    "doc_id": "DOC-MAIL-008",
+    "path": "correspondence/mail_2025-11-01_kf_debiteringsunderlag.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: KF-Biljettsystem debiteringsunderlag (indexhöjning ej debiterad)",
+    "created": "2025-11-02",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-035"
+    ],
+    "supersedes": null,
+    "note": "Höjningen till 1 150 kr/h debiterades först fr.o.m. 2026-02; eftersläpningsfaktura 2026-02-28."
+  },
+  {
+    "doc_id": "DOC-MAIL-009",
+    "path": "correspondence/mail_2025-12-08_sjostadens_konkurs.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Sjöstadens Bryggeri i konkurs",
+    "created": "2025-12-09",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-039"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-010",
+    "path": "correspondence/mail_2026-02-10_kf_underfakturering_upptackt.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: KF-underfakturering upptäckt",
+    "created": "2026-02-10",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-046"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-011",
+    "path": "correspondence/mail_2026-03-26_mossbacken_uppsagning.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Mossbackens Mekaniska säger upp MM-Underhållssystem",
+    "created": "2026-03-26",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-053"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-012",
+    "path": "correspondence/mail_2026-04-01_bv_indexupprakning.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Blåklintens Vård indexuppräkning (skjuten på framtiden)",
+    "created": "2026-04-02",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-054"
+    ],
+    "supersedes": null,
+    "note": "Indexuppräkningen per 2026-04-01 har inte tillämpats i faktureringen."
+  },
+  {
+    "doc_id": "DOC-MAIL-013",
+    "path": "correspondence/mail_2026-06-30_ts_forlikning.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: TS-Produktionsportal förlikning (kreditnota 90 000 kr)",
+    "created": "2026-06-30",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-061"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-014",
+    "path": "correspondence/mail_2026-09-10_bv_klagomal_svarstider.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: BV-Journalsystem klagomål om svarstider (tredje gången 2026)",
+    "created": "2026-09-12",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-067"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-015",
+    "path": "correspondence/mail_2025-10-03_bank_covenants.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Bank – covenant-rapportering",
+    "created": "2025-10-06",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-030"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-016",
+    "path": "correspondence/mail_2026-05-08_inkasso_blaklinten.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Inkassokrav Blåklintens Vård",
+    "created": "2026-05-08",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-017",
+    "path": "correspondence/mail_2026-02-12_kf_fakturafel_intern.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: KF-fakturafel – intern avstämning",
+    "created": "2026-02-13",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-046",
+      "EVT-049"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-018",
+    "path": "correspondence/mail_2026-01-15_seab_tillaggsforhandling.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: SE-Billing tilläggsförhandling",
+    "created": "2026-02-06",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-045"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-019",
+    "path": "correspondence/mail_2026-09-12_bv_klagomalssvar.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Klagomålssvar – åtgärdsplan support BV",
+    "created": "2026-09-12",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-067"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-020",
+    "path": "correspondence/mail_2026-10-10_offertuppfoljning.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Offertuppföljning (tre offerter löper ut)",
+    "created": "2026-10-10",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-021",
+    "path": "correspondence/mail_2026-08-25_licensinventering.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Licensinventering – Designsuiten och Datainsikt",
+    "created": "2026-08-25",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-065"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-022",
+    "path": "correspondence/mail_2026-01-15_pensionsavgift.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Pensionsvalet – ny avgiftsnivå",
+    "created": "2026-01-15",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-023",
+    "path": "correspondence/mail_2026-03-28_talangjakten_arkitekt.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Rekrytering lösningsarkitekt via Talangjakten",
+    "created": "2026-03-28",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-057"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-024",
+    "path": "correspondence/mail_2026-05-15_lukas_ek_dataverket.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Lukas Ek går till Dataverket Nord",
+    "created": "2026-05-16",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-074"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-025",
+    "path": "correspondence/mail_2026-08-10_forsakring_cyber.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Försäkringsförnyelse – cybertillägg avvaktas",
+    "created": "2026-08-12",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-MAIL-026",
+    "path": "correspondence/mail_2026-05-27_styrelseprotokoll_korrigering.eml",
+    "dtype": "MAIL",
+    "title": "E-posttråd: Korrigering av styrelseprotokoll 7/2026 (SE-Billing)",
+    "created": "2026-05-27",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-058"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-COM-001",
+    "path": "correspondence/klagomal_norrhamns_hamn_2024-12-18.docx",
+    "dtype": "RAPPORT",
+    "title": "Klagomålsärende Norrhamns Hamn (NH-Logistikportalen)",
+    "created": "2024-12-18",
+    "author_id": "P-005",
+    "entities": [
+      "CUS-011",
+      "P-051",
+      "P-007",
+      "P-015"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-007"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-COM-002",
+    "path": "correspondence/kunddialog_blaklinten_svarstider_2026-09-10.docx",
+    "dtype": "RAPPORT",
+    "title": "Kunddialog Blåklintens Vård – svarstider",
+    "created": "2026-09-10",
+    "author_id": "P-005",
+    "entities": [
+      "CUS-007",
+      "P-050",
+      "P-030"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-067"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-COM-003",
+    "path": "correspondence/forlorad_affar_mossbacken_2026-06-30.docx",
+    "dtype": "RAPPORT",
+    "title": "Förlorad affär – Mossbackens Mekaniska",
+    "created": "2026-06-30",
+    "author_id": "P-005",
+    "entities": [
+      "CUS-008",
+      "P-053"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-053",
+      "EVT-062"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-COM-004",
+    "path": "correspondence/konkurrentbevakning_2026-09-30.docx",
+    "dtype": "RAPPORT",
+    "title": "Konkurrentbevakning – notering",
+    "created": "2026-09-30",
+    "author_id": "P-006",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "SUP-035",
+      "CUS-008"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-PRJ-001",
+    "path": "projects/se_billing_status_2025-10-31.docx",
+    "dtype": "RAPPORT",
+    "title": "Projektstatusrapport – SE-Billing",
+    "created": "2025-10-31",
+    "author_id": "David Ekström, projektledare",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Försening ca 8 veckor vid 2025-10-31."
+  },
+  {
+    "doc_id": "DOC-PRJ-002",
+    "path": "projects/se_billing_status_2026-02-10.docx",
+    "dtype": "RAPPORT",
+    "title": "Projektstatusrapport – SE-Billing",
+    "created": "2026-02-10",
+    "author_id": "David Ekström, projektledare",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-045"
+    ],
+    "supersedes": null,
+    "note": "Tilläggsavtal CTR-2026-004 signerat 2026-02-06."
+  },
+  {
+    "doc_id": "DOC-PRJ-003",
+    "path": "projects/se_billing_status_2026-05-15.docx",
+    "dtype": "RAPPORT",
+    "title": "Projektstatusrapport – SE-Billing",
+    "created": "2026-05-15",
+    "author_id": "David Ekström, projektledare",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Försening ca 14 veckor."
+  },
+  {
+    "doc_id": "DOC-PRJ-004",
+    "path": "projects/se_billing_status_2026-07-10.docx",
+    "dtype": "RAPPORT",
+    "title": "Projektstatusrapport – SE-Billing (inför slutleverans)",
+    "created": "2026-07-10",
+    "author_id": "David Ekström, projektledare",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Inför slutleverans 2026-07-15."
+  },
+  {
+    "doc_id": "DOC-PRJ-030",
+    "path": "projects/se_billing_slutrapport_2026-07-15.docx",
+    "dtype": "RAPPORT",
+    "title": "Slutrapport SE-Billing",
+    "created": "2026-07-15",
+    "author_id": "P-008",
+    "entities": [
+      "PRJ-001",
+      "CUS-001",
+      "SUP-034"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-063"
+    ],
+    "supersedes": null,
+    "note": "Slutlevererad och godkänd 2026-07-15; slutmilestone 800 000 kr faktureras."
+  },
+  {
+    "doc_id": "DOC-PRJ-005",
+    "path": "projects/ts_produktionsportal_status_2026-02-28.docx",
+    "dtype": "RAPPORT",
+    "title": "Projektstatusrapport – TS-Produktionsportal",
+    "created": "2026-02-28",
+    "author_id": "Karin Olsson, projektledare",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Fast pris 1,8 MSEK; viteklausul 1 %/vecka, tak 10 %."
+  },
+  {
+    "doc_id": "DOC-PRJ-006",
+    "path": "projects/ts_produktionsportal_status_2026-05-15.docx",
+    "dtype": "RAPPORT",
+    "title": "Projektstatusrapport – TS-Produktionsportal",
+    "created": "2026-05-15",
+    "author_id": "Karin Olsson, projektledare",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "8 veckor försenad; viteförhandling pågår."
+  },
+  {
+    "doc_id": "DOC-PRJ-007",
+    "path": "projects/su_produktionssystem_status_2026-06-30.docx",
+    "dtype": "RAPPORT",
+    "title": "Projektstatusrapport – SU-Produktionssystem",
+    "created": "2026-06-30",
+    "author_id": "Karin Olsson, projektledare",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Fast pris 1,95 MSEK; fakturerat 1,3 MSEK per 2026-06."
+  },
+  {
+    "doc_id": "DOC-PRJ-008",
+    "path": "projects/su_produktionssystem_status_2026-09-30.docx",
+    "dtype": "RAPPORT",
+    "title": "Projektstatusrapport – SU-Produktionssystem",
+    "created": "2026-09-30",
+    "author_id": "Karin Olsson, projektledare",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Fakturerat 1,6 MSEK; 350 kkr återstår (plan 2026-11)."
+  },
+  {
+    "doc_id": "DOC-PRJ-009",
+    "path": "projects/gv_digitalisering_status_2026-03-31.docx",
+    "dtype": "RAPPORT",
+    "title": "Projektstatusrapport – GV-Digitalisering",
+    "created": "2026-03-31",
+    "author_id": "Karin Olsson, projektledare",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Ramavtal med indexklausul (bas 2023-10, uppräkning per 2025-10-01)."
+  },
+  {
+    "doc_id": "DOC-PRJ-010",
+    "path": "projects/projektmote_se_billing_2026-02-20.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Projektmötesprotokoll – SE-Billing",
+    "created": "2026-02-20",
+    "author_id": "P-008",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-PRJ-011",
+    "path": "projects/projektmote_ts_2026-04-10.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Projektmötesprotokoll – TS-Produktionsportal",
+    "created": "2026-04-10",
+    "author_id": "P-008",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-PRJ-012",
+    "path": "projects/projektmote_su_2026-06-05.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Projektmötesprotokoll – SU-Produktionssystem",
+    "created": "2026-06-05",
+    "author_id": "P-008",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-PRJ-013",
+    "path": "projects/projektmote_su_2026-08-14.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Projektmötesprotokoll – SU-Produktionssystem",
+    "created": "2026-08-14",
+    "author_id": "P-008",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-PRJ-014",
+    "path": "projects/projektmote_se_forvaltning_2026-09-04.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Projektmötesprotokoll – SE-Förvaltning",
+    "created": "2026-09-04",
+    "author_id": "P-008",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-001",
+    "path": "employees/hr_2024-11-15_gustav_pettersson_avslutssamtal.docx",
+    "dtype": "RAPPORT",
+    "title": "Avslutssamtal – Gustav Pettersson",
+    "created": "2024-11-15",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-004"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-002",
+    "path": "employees/hr_2025-01-31_martina_bergqvist_avslutssamtal.docx",
+    "dtype": "RAPPORT",
+    "title": "Avslutssamtal – Martina Bergqvist",
+    "created": "2025-01-31",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-011"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-003",
+    "path": "employees/hr_2025-03-14_tobias_lindqvist_avsked.docx",
+    "dtype": "RAPPORT",
+    "title": "Avsked – Tobias Lindqvist (underlag)",
+    "created": "2025-03-14",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-016"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-004",
+    "path": "employees/hr_2025-04-03_lonerevision_2025.docx",
+    "dtype": "RAPPORT",
+    "title": "Lönerevision 2025 – beslut",
+    "created": "2025-04-03",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-019"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-005",
+    "path": "employees/hr_2025-06-30_jenny_lindholm_avslutssamtal.docx",
+    "dtype": "RAPPORT",
+    "title": "Avslutssamtal – Jenny Lindholm",
+    "created": "2025-06-30",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-023"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-006",
+    "path": "employees/hr_2025-08-27_forlikning_tobias_lindqvist.docx",
+    "dtype": "RAPPORT",
+    "title": "Förlikningsavtal – Tobias Lindqvist",
+    "created": "2025-08-27",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-027"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-007",
+    "path": "employees/hr_2025-10-31_rasmus_holm_avslutssamtal.docx",
+    "dtype": "RAPPORT",
+    "title": "Avslutssamtal – Rasmus Holm",
+    "created": "2025-10-31",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-034"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-008",
+    "path": "employees/hr_2026-02-28_anna_westberg_avslutssamtal.docx",
+    "dtype": "RAPPORT",
+    "title": "Avslutssamtal – Anna Westberg",
+    "created": "2026-02-28",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-048"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-009",
+    "path": "employees/hr_2026-04-01_lonerevision_2026.docx",
+    "dtype": "RAPPORT",
+    "title": "Lönerevision 2026 – beslut",
+    "created": "2026-04-01",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-055"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-010",
+    "path": "employees/hr_2026-01-31_robin_akerlund_provanstallning.docx",
+    "dtype": "RAPPORT",
+    "title": "Beslut – provanställning avslutas utan övergång",
+    "created": "2026-01-31",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-071"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-011",
+    "path": "employees/hr_2026-02-27_magnus_ryd_avslutssamtal.docx",
+    "dtype": "RAPPORT",
+    "title": "Avslutssamtal – Magnus Ryd",
+    "created": "2026-02-27",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-072"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-012",
+    "path": "employees/hr_2026-04-29_sofia_lindgren_avslutssamtal.docx",
+    "dtype": "RAPPORT",
+    "title": "Avslutssamtal – Sofia Lindgren",
+    "created": "2026-04-29",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-073"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-013",
+    "path": "employees/hr_2026-05-31_lukas_ek_avslutssamtal.docx",
+    "dtype": "RAPPORT",
+    "title": "Avslutssamtal – Lukas Ek",
+    "created": "2026-05-31",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-074"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-014",
+    "path": "employees/hr_2026-07-01_bjorn_falk_avslutssamtal.docx",
+    "dtype": "RAPPORT",
+    "title": "Avslutssamtal – Björn Falk",
+    "created": "2026-07-01",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-075"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-HR-015",
+    "path": "employees/hr_2026-08-27_klara_mansson_avslutssamtal.docx",
+    "dtype": "RAPPORT",
+    "title": "Avslutssamtal – Klara Månsson",
+    "created": "2026-08-27",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-076"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-EMP-001",
+    "path": "employees/medarbetarundersokning_2025.docx",
+    "dtype": "RAPPORT",
+    "title": "Medarbetarundersökning 2025 – resultat och åtgärder",
+    "created": "2025-11-14",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Tre åtgärder fortfarande öppna i oktober 2026."
+  },
+  {
+    "doc_id": "DOC-EMP-002",
+    "path": "employees/medarbetarundersokning_2026.docx",
+    "dtype": "RAPPORT",
+    "title": "Medarbetarundersökning 2026 – preliminärt resultat",
+    "created": "2026-09-18",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Svarsfrekvens lägre än 2025 (68 %)."
+  },
+  {
+    "doc_id": "DOC-EMP-003",
+    "path": "employees/utvecklingssamtalsregister.csv",
+    "dtype": "REGISTER",
+    "title": "Utvecklingssamtalsregister",
+    "created": "2026-09-25",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Flera medarbetare har inte haft utvecklingssamtal på över 12 månader."
+  },
+  {
+    "doc_id": "DOC-EMP-004",
+    "path": "employees/sjukfranvaro_rapport_fy25.docx",
+    "dtype": "RAPPORT",
+    "title": "Sjukfrånvarorapport FY2025 (2024-10-01 – 2025-09-30)",
+    "created": "2025-11-03",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Källa: HR-systemets frånvarorapportering."
+  },
+  {
+    "doc_id": "DOC-EMP-005",
+    "path": "employees/sjukfranvaro_rapport_fy26_hr.docx",
+    "dtype": "RAPPORT",
+    "title": "Sjukfrånvarorapport FY2026 (2025-10-01 – 2026-09-30)",
+    "created": "2026-09-28",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Q1-2026 leveransteamet 3,8 % enligt HR-sammanställningen."
+  },
+  {
+    "doc_id": "DOC-EMP-006",
+    "path": "employees/sjukfranvaro_rapport_fy26_loneexport.docx",
+    "dtype": "RAPPORT",
+    "title": "Sjukfrånvarosammanställning Q1 FY26 – export från lönesystemet",
+    "created": "2026-02-10",
+    "author_id": "P-003",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Q1-2026 leveransteamet 5,1 % enligt löneexporten (avviker från HR-rapporten)."
+  },
+  {
+    "doc_id": "DOC-EMP-007",
+    "path": "employees/kompetensmatris.csv",
+    "dtype": "REGISTER",
+    "title": "Kompetensmatris",
+    "created": "2026-09-25",
+    "author_id": "P-007",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Ensamkompetenser: Daniel Nyström (data/AI), Tomas Berg (arkitektur), Maria Gustavsson (testledning)."
+  },
+  {
+    "doc_id": "DOC-EMP-008",
+    "path": "employees/rekrytering_arkitekt.docx",
+    "dtype": "RAPPORT",
+    "title": "Rekryteringsärende REC-2025-01 – Lösningsarkitekt (tillsatt)",
+    "created": "2026-03-31",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-057"
+    ],
+    "supersedes": null,
+    "note": "Roll tillsatt av Nadia Haddad 2026-05-04."
+  },
+  {
+    "doc_id": "DOC-EMP-009",
+    "path": "employees/rekrytering_devops.docx",
+    "dtype": "RAPPORT",
+    "title": "Rekryteringsärende REC-2026-02 – DevOps-ingenjör (öppen)",
+    "created": "2026-09-30",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Ärende öppet per 2026-10-18."
+  },
+  {
+    "doc_id": "DOC-EMP-010",
+    "path": "employees/rekrytering_supportansvarig.docx",
+    "dtype": "RAPPORT",
+    "title": "Rekryteringsärende REC-2026-03 – Supportansvarig (öppen, brådskande)",
+    "created": "2026-10-02",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Ärende öppet per 2026-10-18."
+  },
+  {
+    "doc_id": "DOC-EMP-011",
+    "path": "employees/utbildningsplan_2026.docx",
+    "dtype": "RAPPORT",
+    "title": "Utbildningsplan 2026",
+    "created": "2026-01-15",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Fördjupningen i data/AI nådde bara en deltagare (nyckelpersonsrisk)."
+  },
+  {
+    "doc_id": "DOC-EMP-012",
+    "path": "employees/sam_riskbedomning_arbetsmiljo.docx",
+    "dtype": "RAPPORT",
+    "title": "SAM – riskbedömning arbetsmiljö 2026",
+    "created": "2026-02-10",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Underkonsulternas arbetsmiljöansvar markerat som otydligt i avtalen."
+  },
+  {
+    "doc_id": "DOC-EMP-013",
+    "path": "employees/personalomsattning_fy26.docx",
+    "dtype": "RAPPORT",
+    "title": "Personalomsättningsrapport FY2026",
+    "created": "2026-09-30",
+    "author_id": "P-004",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "8 avgångar under räkenskapsåret FY26; per kalenderår 2026 blir antalet 7 (Rasmus Holm lämnade 2025-10-31)."
+  },
+  {
+    "doc_id": "DOC-CRM-001",
+    "path": "customers/crm_export.csv",
+    "dtype": "CRM",
+    "title": "CRM-export (pipeline, 2024–2026)",
+    "created": "2026-10-18",
+    "author_id": "SYSTEM",
+    "entities": [
+      "Bivägens Honung AB",
+      "Fjäderholmens Rekond AB",
+      "Fjällporten Hotell AB",
+      "Fyrstadens kommun",
+      "Gruvbergets Mineral AB",
+      "Gryningsljusets Reklam AB",
+      "Gråvikens kommun",
+      "Guldstaden Revision AB",
+      "Havsbrisens Hotell AB",
+      "Höstlövets Förlag AB",
+      "Kopparbergets Museum AB",
+      "Kristallkronans Smycken AB",
+      "Kustbandets Färjor AB",
+      "Kustlandets region",
+      "Ljusåns Livsmedel AB",
+      "Läromedelshuset AB",
+      "Mjölkvägens Transport AB",
+      "Morgonrodnadens Bageri AB",
+      "Mossbackens Mekaniska AB",
+      "Nattugglans Kundservice AB",
+      "Nordanvinden Advokat AB",
+      "Norrhamns Hamn AB",
+      "Polstjärnan Försäkring AB",
+      "Silverlinjen Buss AB",
+      "Sjöbrisens Marina AB",
+      "Sjöstadens Bryggeri AB",
+      "Skogsbygdens Energi AB",
+      "Skymningsvakten AB",
+      "Solvind Kraft AB",
+      "Sommarängens Trädgård AB",
+      "Stjärnklart Media AB",
+      "Stormvindens Logistik AB",
+      "Sundbygdens Varv AB",
+      "Tidvattnets Fiskeri AB",
+      "Timmervikens Såg AB",
+      "Trädkronans Skog AB",
+      "Vintergatans IT AB",
+      "Vårflodens Energi AB",
+      "Åsen Bostäder AB",
+      "Åskmolns Data AB"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Export 2026-10-18. Öppen pipeline ca 13,3 MSEK; committed (Negotiation, Q4) ca 10,8 MSEK."
+  },
+  {
+    "doc_id": "DOC-OFF-001",
+    "path": "customers/offert_2026-09_fjallporten.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-09 – Fjällporten Hotell AB",
+    "created": "2026-10-01",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-10-20",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-002",
+    "path": "customers/offert_2026-10_skymningsvakten.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-10 – Skymningsvakten AB",
+    "created": "2026-10-01",
+    "author_id": "P-006",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-10-23",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-003",
+    "path": "customers/offert_2026-11_askmolns_data.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-11 – Åskmolns Data AB",
+    "created": "2026-10-01",
+    "author_id": "P-006",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-10-24",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-004",
+    "path": "customers/offert_2026-12_stormvindens.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-12 – Stormvindens Logistik AB",
+    "created": "2026-10-01",
+    "author_id": "P-006",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-11-15",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-005",
+    "path": "customers/offert_2026-13_guldstaden.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-13 – Guldstaden Revision AB",
+    "created": "2026-10-01",
+    "author_id": "P-006",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-11-10",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-006",
+    "path": "customers/offert_2026-14_kristallkronan.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-14 – Kristallkronans Smycken AB",
+    "created": "2026-10-01",
+    "author_id": "P-006",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-12-05",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-007",
+    "path": "customers/offert_2026-15_hostlovet.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-15 – Höstlövets Förlag AB",
+    "created": "2026-10-01",
+    "author_id": "P-006",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-11-30",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-008",
+    "path": "customers/offert_2026-16_nattugglan.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-16 – Nattugglans Kundservice AB",
+    "created": "2026-10-01",
+    "author_id": "P-006",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-11-21",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-009",
+    "path": "customers/offert_2026-17_polstjarnan_ai.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-17 – Polstjärnan Försäkring AB",
+    "created": "2026-10-01",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-12-12",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-010",
+    "path": "customers/offert_2026-18_graviken.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-18 – Gråvikens kommun",
+    "created": "2026-10-01",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-12-18",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-011",
+    "path": "customers/offert_2026-19_gruvberget.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-19 – Gruvbergets Mineral AB",
+    "created": "2026-10-01",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-12-20",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-OFF-012",
+    "path": "customers/offert_2026-20_varfloden.docx",
+    "dtype": "OFFERT",
+    "title": "Offert OFF-2026-20 – Vårflodens Energi AB",
+    "created": "2026-10-01",
+    "author_id": "P-006",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": "2026-10-31",
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-CRM-002",
+    "path": "customers/forlorade_affarer.csv",
+    "dtype": "REGISTER",
+    "title": "Förlorade affärer",
+    "created": "2026-09-30",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "CUS-008",
+      "CUS-009",
+      "CUS-010"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-CRM-003",
+    "path": "customers/kundmote_2026-01-21_seab.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Kundmötesanteckningar – Skogsbygdens Energi AB",
+    "created": "2026-01-21",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-CRM-004",
+    "path": "customers/kundmote_2026-04-14_graviken.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Kundmötesanteckningar – Gråvikens kommun",
+    "created": "2026-04-14",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-CRM-005",
+    "path": "customers/kundmote_2026-06-03_polstjarnan.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Kundmötesanteckningar – Polstjärnan Försäkring AB",
+    "created": "2026-06-03",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-CRM-006",
+    "path": "customers/kundmote_2026-08-19_gruvberget.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Kundmötesanteckningar – Gruvbergets Mineral AB",
+    "created": "2026-08-19",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-CRM-007",
+    "path": "customers/kundmote_2026-09-12_blaklinten.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Kundmötesanteckningar – Blåklintens Vård AB",
+    "created": "2026-09-12",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-CRM-008",
+    "path": "customers/kundmote_2026-09-25_kustlandet.docx",
+    "dtype": "PROTOKOLL",
+    "title": "Kundmötesanteckningar – Kustlandets region",
+    "created": "2026-09-25",
+    "author_id": "P-005",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-CRM-009",
+    "path": "customers/klagomalsregister.csv",
+    "dtype": "REGISTER",
+    "title": "Klagomålsregister",
+    "created": "2026-10-01",
+    "author_id": "P-005",
+    "entities": [
+      "CUS-011",
+      "CUS-007",
+      "CUS-009",
+      "CUS-006",
+      "CUS-014"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Norrhamns Hamn ×3 (prestanda), Blåklintens Vård ×3 (svarstider, eskalerande)."
+  },
+  {
+    "doc_id": "DOC-CRM-010",
+    "path": "customers/kundsegmentering.docx",
+    "dtype": "RAPPORT",
+    "title": "Kundsegmentering och segmentanalys",
+    "created": "2026-09-15",
+    "author_id": "P-005",
+    "entities": [
+      "CUS-001",
+      "CUS-002",
+      "CUS-003",
+      "CUS-004"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Offentlig omsättning minskade 21,7 % (KL-Vårdportal avslutad)."
+  },
+  {
+    "doc_id": "DOC-SUP-001",
+    "path": "suppliers/leverantorsbedomning_cloudserve.docx",
+    "dtype": "RAPPORT",
+    "title": "Säkerhetsbedömning leverantör – Cloudserve Ireland Ltd",
+    "created": "2024-01-15",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-SUP-002",
+    "path": "suppliers/leverantorsbedomning_agila_verktyg.docx",
+    "dtype": "RAPPORT",
+    "title": "Säkerhetsbedömning leverantör – Agila Verktyg AB",
+    "created": "2023-03-10",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-SUP-003",
+    "path": "suppliers/leverantorsbedomning_designsuiten.docx",
+    "dtype": "RAPPORT",
+    "title": "Säkerhetsbedömning leverantör – Designsuiten AB",
+    "created": "2022-06-20",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-SUP-004",
+    "path": "suppliers/leverantorsbedomning_pipeline_crm.docx",
+    "dtype": "RAPPORT",
+    "title": "Säkerhetsbedömning leverantör – Pipeline AB",
+    "created": "2022-12-01",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-SUP-005",
+    "path": "suppliers/leverantorsbedomning_modellfabriken.docx",
+    "dtype": "RAPPORT",
+    "title": "Säkerhetsbedömning leverantör – Modellfabriken AB",
+    "created": "2025-02-10",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-SUP-006",
+    "path": "suppliers/leverantorsbedomning_analytics_cloud.docx",
+    "dtype": "RAPPORT",
+    "title": "Säkerhetsbedömning leverantör – Analytics Cloud Inc (USA)",
+    "created": "2025-04-28",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-SUP-007",
+    "path": "suppliers/leverantorsbedomning_datainsikt.docx",
+    "dtype": "RAPPORT",
+    "title": "Säkerhetsbedömning leverantör – Datainsikt AB",
+    "created": "2023-09-15",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-SUP-008",
+    "path": "suppliers/leverantorsbedomning_kraftkod.docx",
+    "dtype": "RAPPORT",
+    "title": "Säkerhetsbedömning leverantör – Kraftkod Konsult AB",
+    "created": "2025-01-20",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-SUP-009",
+    "path": "suppliers/inkopsregister.csv",
+    "dtype": "REGISTER",
+    "title": "Inköpsregister FY26 (leverantörsfakturor)",
+    "created": "2026-10-10",
+    "author_id": "P-003",
+    "entities": [
+      "SUP-001",
+      "SUP-003",
+      "SUP-004",
+      "SUP-005",
+      "SUP-006",
+      "SUP-007",
+      "SUP-008",
+      "SUP-009",
+      "SUP-010",
+      "SUP-011",
+      "SUP-012",
+      "SUP-013",
+      "SUP-014",
+      "SUP-015",
+      "SUP-016",
+      "SUP-017",
+      "SUP-018",
+      "SUP-019",
+      "SUP-020",
+      "SUP-021",
+      "SUP-022",
+      "SUP-023",
+      "SUP-024",
+      "SUP-025",
+      "SUP-026",
+      "SUP-027",
+      "SUP-028",
+      "SUP-029",
+      "SUP-030",
+      "SUP-031",
+      "SUP-032",
+      "SUP-033",
+      "SUP-034",
+      "SUP-035",
+      "SUP-036",
+      "SUP-037",
+      "SUP-038",
+      "SUP-039",
+      "SUP-040"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Belopp ur ekonomisystemets leverantörsfakturor FY26; top-5: Kapellbacken, Pensionsvalet, Kraftkod, Cloudserve, Dataverket."
+  },
+  {
+    "doc_id": "DOC-SUP-010",
+    "path": "suppliers/systemforteckning.docx",
+    "dtype": "REGISTER",
+    "title": "Systemförteckning",
+    "created": "2026-09-20",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "SUP-003",
+      "SUP-004",
+      "SUP-005",
+      "SUP-009",
+      "SUP-010",
+      "SUP-011",
+      "SUP-012",
+      "SUP-013",
+      "SUP-014"
+    ],
+    "version": "2.3",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Reservrutin saknas för Nordhost, Pipeline CRM och Modellfabriken. Bedömning saknas för Nordhost."
+  },
+  {
+    "doc_id": "DOC-SUP-011",
+    "path": "suppliers/licensutnyttjande_rapport.docx",
+    "dtype": "RAPPORT",
+    "title": "Licensutnyttjande-rapport",
+    "created": "2026-08-25",
+    "author_id": "P-003",
+    "entities": [
+      "SUP-007",
+      "SUP-014",
+      "SUP-003",
+      "SUP-015"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-065"
+    ],
+    "supersedes": null,
+    "note": "Designsuiten 9/18, Datainsikt 2/10 använda."
+  },
+  {
+    "doc_id": "DOC-SUP-012",
+    "path": "suppliers/molnkostnadsrapport.csv",
+    "dtype": "REGISTER",
+    "title": "Molnkostnadsrapport (konto 5420, per månad)",
+    "created": "2026-10-10",
+    "author_id": "P-003",
+    "entities": [
+      "SUP-003",
+      "SUP-004",
+      "SUP-005",
+      "SUP-006",
+      "SUP-007",
+      "SUP-008",
+      "SUP-009",
+      "SUP-010",
+      "SUP-011",
+      "SUP-012",
+      "SUP-013",
+      "SUP-014",
+      "SUP-015",
+      "SUP-016",
+      "SUP-017",
+      "SUP-018",
+      "SUP-020",
+      "SUP-021",
+      "SUP-022"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Månadssumman uppgår till 259 200 kr (2026-09). Källa: ekonomisystemets leverantörsströmmar."
+  },
+  {
+    "doc_id": "DOC-SUP-013",
+    "path": "suppliers/integrationslogg.csv",
+    "dtype": "REGISTER",
+    "title": "Integrationslogg",
+    "created": "2026-10-10",
+    "author_id": "P-002",
+    "entities": [
+      "SUP-010",
+      "SUP-011",
+      "SUP-009"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Lönesystem → Ekonomisystem har felat upprepade gånger (2025-11-18, 2026-01-22, 2026-04-20 haveri)."
+  },
+  {
+    "doc_id": "DOC-SUP-014",
+    "path": "suppliers/behorighetsmatris.csv",
+    "dtype": "REGISTER",
+    "title": "Behörighetsmatris",
+    "created": "2026-10-08",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Minst två användare med överdrivna behörigheter; ett avgånget konto fortfarande aktivt."
+  },
+  {
+    "doc_id": "DOC-SUP-015",
+    "path": "suppliers/sakerhetsincidentlogg.csv",
+    "dtype": "REGISTER",
+    "title": "Säkerhetsincidentlogg",
+    "created": "2026-10-08",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Senaste incidenten: credential stuffing 2026-09-28 (öppen)."
+  },
+  {
+    "doc_id": "DOC-SUP-016",
+    "path": "suppliers/dr_bcp_plan.docx",
+    "dtype": "PLAN",
+    "title": "DR/BCP-plan",
+    "created": "2025-05-20",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "SUP-004",
+      "SUP-021"
+    ],
+    "version": "1.1",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "RTO 48 h, RPO 24 h. Senast testad 2024-11-14."
+  },
+  {
+    "doc_id": "DOC-SUP-017",
+    "path": "suppliers/forsakringsbrev.docx",
+    "dtype": "BREV",
+    "title": "Försäkringsbrev företagsförsäkring",
+    "created": "2026-01-01",
+    "author_id": "SYSTEM",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "SUP-038"
+    ],
+    "version": "1.0",
+    "valid_from": "2026-01-01",
+    "valid_to": "2026-12-31",
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Ansvar 10 MSEK, egendom 5 MSEK. Cyber-/avbrottsförsäkring saknas."
+  },
+  {
+    "doc_id": "DOC-SUP-018",
+    "path": "suppliers/reservrutiner.docx",
+    "dtype": "REGISTER",
+    "title": "Reservrutinsförteckning",
+    "created": "2026-09-20",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN",
+      "SUP-004",
+      "SUP-009",
+      "SUP-012"
+    ],
+    "version": "1.2",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [],
+    "supersedes": null,
+    "note": "Reservrutin saknas för hosting, CRM och AI-API."
+  },
+  {
+    "doc_id": "DOC-SEC-001",
+    "path": "suppliers/incidentrapport_phishing_2024-10-15.docx",
+    "dtype": "INCIDENT",
+    "title": "Incidentrapport phishing 2024-10-15",
+    "created": "2024-10-15",
+    "author_id": "P-002",
+    "entities": [
+      "ORG-NORDVIKEN"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-002"
+    ],
+    "supersedes": null,
+    "note": ""
+  },
+  {
+    "doc_id": "DOC-IT-001",
+    "path": "suppliers/incidentrapport_integration_2026-04-20.docx",
+    "dtype": "INCIDENT",
+    "title": "Incidentrapport integrationshaveri lönesystem",
+    "created": "2026-04-20",
+    "author_id": "P-002",
+    "entities": [
+      "SUP-010",
+      "SUP-011"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-056"
+    ],
+    "supersedes": null,
+    "note": "Tredje felet på 6 månader; manuell överföring tog 2 dagar."
+  },
+  {
+    "doc_id": "DOC-IT-002",
+    "path": "suppliers/incidentrapport_nordhost_2026-08-04.docx",
+    "dtype": "INCIDENT",
+    "title": "Incidentrapport driftstörning Nordhost",
+    "created": "2026-08-04",
+    "author_id": "P-002",
+    "entities": [
+      "SUP-004",
+      "CUS-001",
+      "CUS-011",
+      "CUS-003"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-064"
+    ],
+    "supersedes": null,
+    "note": "6 timmars avbrott; SLA-ersättning diskuteras; reservrutin saknas."
+  },
+  {
+    "doc_id": "DOC-IT-003",
+    "path": "suppliers/incidentrapport_ai_kallstod_2026-09-02.docx",
+    "dtype": "INCIDENT",
+    "title": "Incidentrapport AI-svar utan källstöd",
+    "created": "2026-09-02",
+    "author_id": "P-026",
+    "entities": [
+      "PRJ-091",
+      "SUP-012",
+      "CUS-013"
+    ],
+    "version": "1.0",
+    "valid_from": null,
+    "valid_to": null,
+    "event_ids": [
+      "EVT-066"
+    ],
+    "supersedes": null,
+    "note": "Två kundrapporter korrigerade; loggning saknades."
+  }
+]

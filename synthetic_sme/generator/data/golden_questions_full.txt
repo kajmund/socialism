@@ -1,0 +1,1000 @@
+GQ-001 | Ekonomi | Likviditet och kassaflöde | Enkel | Beräkning + data
+  Q: Hur mycket pengar har vi tillgängligt på våra bankkonton just nu?
+  Underlag: Intern finansiell data
+  Databehov: Intern
+
+GQ-002 | Ekonomi | Likviditet och kassaflöde | Enkel | Beräkning + data
+  Q: Hur länge klarar vi verksamheten om intäkterna sjunker med 20 procent?
+  Underlag: Intern finansiell data
+  Databehov: Intern
+
+GQ-003 | Ekonomi | Likviditet och kassaflöde | Enkel | Beräkning + data
+  Q: Vilka fakturor behöver betalas de närmaste 30 dagarna?
+  Underlag: Intern finansiell data
+  Databehov: Intern
+
+GQ-004 | Ekonomi | Likviditet och kassaflöde | Medel | Beräkning + data
+  Q: Vilka kunder har förfallna fakturor och hur stora är beloppen?
+  Underlag: Intern finansiell data
+  Databehov: Intern
+
+GQ-005 | Ekonomi | Likviditet och kassaflöde | Medel | Beräkning + data
+  Q: När under nästa kvartal är vår likviditet som mest ansträngd?
+  Underlag: Intern finansiell data
+  Databehov: Intern
+
+GQ-006 | Ekonomi | Likviditet och kassaflöde | Medel | Beräkning + data
+  Q: Hur påverkas kassaflödet om vår största kund betalar 30 dagar sent?
+  Underlag: Intern finansiell data
+  Databehov: Intern
+
+GQ-007 | Ekonomi | Likviditet och kassaflöde | Medel | Beräkning + data
+  Q: Vilka planerade utgifter kan vi skjuta upp utan att äventyra leveranser?
+  Underlag: Intern finansiell data
+  Databehov: Intern
+
+GQ-008 | Ekonomi | Likviditet och kassaflöde | Medel | Beräkning + data
+  Q: Hur stort rörelsekapital binder vi i kundfordringar och lager?
+  Underlag: Intern finansiell data
+  Databehov: Intern
+
+GQ-009 | Ekonomi | Likviditet och kassaflöde | Medel | Beräkning + data
+  Q: Kan vi finansiera två nyanställningar utan att ta in kapital?
+  Underlag: Intern finansiell data
+  Databehov: Intern
+
+GQ-010 | Ekonomi | Likviditet och kassaflöde | Medel | Beräkning + data
+  Q: Hur mycket likviditetsbuffert bör vi ha utifrån våra verkliga utbetalningar?
+  Underlag: Intern finansiell data
+  Databehov: Intern
+
+GQ-011 | Ekonomi | Lönsamhet och resultat | Medel | Analys + beräkning
+  Q: Vilka delar av företaget bidrar mest till vårt täckningsbidrag?
+  Underlag: Resultatrapport + tidrapport
+  Databehov: Intern
+
+GQ-012 | Ekonomi | Lönsamhet och resultat | Medel | Analys + beräkning
+  Q: Hur har bruttomarginalen utvecklats de senaste tolv månaderna?
+  Underlag: Resultatrapport + tidrapport
+  Databehov: Intern
+
+GQ-013 | Ekonomi | Lönsamhet och resultat | Medel | Analys + beräkning
+  Q: Varför avviker resultatet från budget den här månaden?
+  Underlag: Resultatrapport + tidrapport
+  Databehov: Intern
+
+GQ-014 | Ekonomi | Lönsamhet och resultat | Medel | Analys + beräkning
+  Q: Vilka kostnader har ökat snabbare än omsättningen?
+  Underlag: Resultatrapport + tidrapport
+  Databehov: Intern
+
+GQ-015 | Ekonomi | Lönsamhet och resultat | Medel | Analys + beräkning
+  Q: Vilka uppdrag är lönsamma efter att all faktisk arbetstid räknats in?
+  Underlag: Resultatrapport + tidrapport
+  Databehov: Intern
+
+GQ-016 | Ekonomi | Lönsamhet och resultat | Medel | Analys + beräkning
+  Q: Hur stor del av vårt resultat kommer från engångsintäkter?
+  Underlag: Resultatrapport + tidrapport
+  Databehov: Intern
+
+GQ-017 | Ekonomi | Lönsamhet och resultat | Medel | Analys + beräkning
+  Q: Vilken omsättning behöver vi för att nå ett rörelseresultat på tio procent?
+  Underlag: Resultatrapport + tidrapport
+  Databehov: Intern
+
+GQ-018 | Ekonomi | Lönsamhet och resultat | Medel | Analys + beräkning
+  Q: Vilka abonnemang och återkommande kostnader använder vi knappt?
+  Underlag: Resultatrapport + tidrapport
+  Databehov: Intern
+
+GQ-019 | Ekonomi | Lönsamhet och resultat | Medel | Analys + beräkning
+  Q: Hur har vår lönsamhet förändrats per kundsegment?
+  Underlag: Resultatrapport + tidrapport
+  Databehov: Intern
+
+GQ-020 | Ekonomi | Lönsamhet och resultat | Medel | Analys + beräkning
+  Q: Vilka tre åtgärder skulle ge störst resultateffekt nästa kvartal?
+  Underlag: Resultatrapport + tidrapport
+  Databehov: Intern
+
+GQ-021 | Ekonomi | Budget, prognos och finansiering | Medel | Scenario
+  Q: Kommer vi att nå årets omsättningsbudget?
+  Underlag: Budget + prognoser
+  Databehov: Intern
+
+GQ-022 | Ekonomi | Budget, prognos och finansiering | Medel | Scenario
+  Q: Vad blir helårsresultatet om nuvarande trend fortsätter?
+  Underlag: Budget + prognoser
+  Databehov: Intern
+
+GQ-023 | Ekonomi | Budget, prognos och finansiering | Medel | Scenario
+  Q: Hur ser bästa, mest sannolika och sämsta scenariot ut nästa år?
+  Underlag: Budget + prognoser
+  Databehov: Intern
+
+GQ-024 | Ekonomi | Budget, prognos och finansiering | Medel | Scenario
+  Q: Hur mycket kapital behöver vi för att öppna ett nytt kontor?
+  Underlag: Budget + prognoser
+  Databehov: Intern
+
+GQ-025 | Ekonomi | Budget, prognos och finansiering | Medel | Scenario
+  Q: Är det bättre att leasa eller köpa våra nästa tjänstebilar?
+  Underlag: Budget + prognoser
+  Databehov: Intern
+
+GQ-026 | Ekonomi | Budget, prognos och finansiering | Medel | Scenario
+  Q: Hur mycket kan vi investera i produktutveckling i år?
+  Underlag: Budget + prognoser
+  Databehov: Intern
+
+GQ-027 | Ekonomi | Budget, prognos och finansiering | Medel | Scenario
+  Q: Hur känslig är budgeten för högre räntor och löner?
+  Underlag: Budget + prognoser
+  Databehov: Intern
+
+GQ-028 | Ekonomi | Budget, prognos och finansiering | Medel | Scenario
+  Q: Vilka antaganden i vår prognos är mest osäkra?
+  Underlag: Budget + prognoser
+  Databehov: Intern
+
+GQ-029 | Ekonomi | Budget, prognos och finansiering | Medel | Scenario
+  Q: Vilka nyckeltal behöver banken för att bedöma vår kreditvärdighet?
+  Underlag: Budget + prognoser
+  Databehov: Intern
+
+GQ-030 | Ekonomi | Budget, prognos och finansiering | Medel | Scenario
+  Q: Hur stor utdelning kan vi överväga utan att försämra kassaflödet?
+  Underlag: Budget + prognoser
+  Databehov: Intern
+
+GQ-031 | Marknad | Försäljning och pipeline | Enkel | Filtrering + analys
+  Q: Hur mycket affärer har vi i vår pipeline just nu?
+  Underlag: CRM + offerter
+  Databehov: Intern
+
+GQ-032 | Marknad | Försäljning och pipeline | Enkel | Filtrering + analys
+  Q: Vilka öppna affärer har störst sannolikhet att stängas denna månad?
+  Underlag: CRM + offerter
+  Databehov: Intern
+
+GQ-033 | Marknad | Försäljning och pipeline | Enkel | Filtrering + analys
+  Q: Hur lång är vår genomsnittliga säljcykel?
+  Underlag: CRM + offerter
+  Databehov: Intern
+
+GQ-034 | Marknad | Försäljning och pipeline | Medel | Filtrering + analys
+  Q: Var i säljprocessen tappar vi flest potentiella kunder?
+  Underlag: CRM + offerter
+  Databehov: Intern
+
+GQ-035 | Marknad | Försäljning och pipeline | Medel | Filtrering + analys
+  Q: Vilka säljare eller kanaler skapar mest lönsamma affärer?
+  Underlag: CRM + offerter
+  Databehov: Intern
+
+GQ-036 | Marknad | Försäljning och pipeline | Medel | Filtrering + analys
+  Q: Vilka offerter behöver följas upp den här veckan?
+  Underlag: CRM + offerter
+  Databehov: Intern
+
+GQ-037 | Marknad | Försäljning och pipeline | Medel | Filtrering + analys
+  Q: Hur mycket nyförsäljning krävs för att nå nästa kvartals budget?
+  Underlag: CRM + offerter
+  Databehov: Intern
+
+GQ-038 | Marknad | Försäljning och pipeline | Medel | Filtrering + analys
+  Q: Vilka affärer har fastnat utan aktivitet den senaste månaden?
+  Underlag: CRM + offerter
+  Databehov: Intern
+
+GQ-039 | Marknad | Försäljning och pipeline | Medel | Filtrering + analys
+  Q: Vilka kundbehov återkommer oftast i våra säljsamtal?
+  Underlag: CRM + offerter
+  Databehov: Intern
+
+GQ-040 | Marknad | Försäljning och pipeline | Medel | Filtrering + analys
+  Q: Hur skiljer sig vår win rate mellan små och stora affärer?
+  Underlag: CRM + offerter
+  Databehov: Intern
+
+GQ-041 | Marknad | Kunder och retention | Medel | Flera källor
+  Q: Vilka är våra tio viktigaste kunder mätt i täckningsbidrag?
+  Underlag: CRM + avtal + möten
+  Databehov: Intern
+
+GQ-042 | Marknad | Kunder och retention | Medel | Flera källor
+  Q: Hur beroende är vi av vår största kund?
+  Underlag: CRM + avtal + möten
+  Databehov: Intern
+
+GQ-043 | Marknad | Kunder och retention | Medel | Flera källor
+  Q: Vilka kunder har minskat sina köp jämfört med förra året?
+  Underlag: CRM + avtal + möten
+  Databehov: Intern
+
+GQ-044 | Marknad | Kunder och retention | Medel | Flera källor
+  Q: Vilka kunder visar tecken på att vilja lämna oss?
+  Underlag: CRM + avtal + möten
+  Databehov: Intern
+
+GQ-045 | Marknad | Kunder och retention | Medel | Flera källor
+  Q: När löper våra viktigaste kundavtal ut?
+  Underlag: CRM + avtal + möten
+  Databehov: Intern
+
+GQ-046 | Marknad | Kunder och retention | Medel | Flera källor
+  Q: Vilka kunder har klagat flera gånger på samma problem?
+  Underlag: CRM + avtal + möten
+  Databehov: Intern
+
+GQ-047 | Marknad | Kunder och retention | Medel | Flera källor
+  Q: Vilka kunder borde vi kontakta proaktivt den här månaden?
+  Underlag: CRM + avtal + möten
+  Databehov: Intern
+
+GQ-048 | Marknad | Kunder och retention | Medel | Flera källor
+  Q: Hur mycket återkommande intäkt riskerar vi att förlora kommande halvår?
+  Underlag: CRM + avtal + möten
+  Databehov: Intern
+
+GQ-049 | Marknad | Kunder och retention | Medel | Flera källor
+  Q: Vilka kunder är olönsamma när support och leveranskostnader räknas in?
+  Underlag: CRM + avtal + möten
+  Databehov: Intern
+
+GQ-050 | Marknad | Kunder och retention | Medel | Flera källor
+  Q: Vad säger våra kundmöten om varför kunder väljer oss?
+  Underlag: CRM + avtal + möten
+  Databehov: Intern
+
+GQ-051 | Marknad | Prissättning och erbjudande | Medel | Jämförelse
+  Q: Vilka tjänster säljer vi med för låg marginal?
+  Underlag: Avtal + försäljningsdata + omvärld
+  Databehov: Intern
+
+GQ-052 | Marknad | Prissättning och erbjudande | Medel | Jämförelse
+  Q: När höjde vi priserna senast för respektive kund?
+  Underlag: Avtal + försäljningsdata + omvärld
+  Databehov: Intern
+
+GQ-053 | Marknad | Prissättning och erbjudande | Medel | Jämförelse
+  Q: Vilka avtal tillåter oss att indexjustera priserna?
+  Underlag: Avtal + försäljningsdata + omvärld
+  Databehov: Intern
+
+GQ-054 | Marknad | Prissättning och erbjudande | Medel | Jämförelse
+  Q: Hur påverkas vinsten om vi höjer priset med fem procent?
+  Underlag: Avtal + försäljningsdata + omvärld
+  Databehov: Intern
+
+GQ-055 | Marknad | Prissättning och erbjudande | Medel | Jämförelse
+  Q: Varför väljer kunder konkurrenter framför oss?
+  Underlag: Avtal + försäljningsdata + omvärld
+  Databehov: Intern + extern
+
+GQ-056 | Marknad | Prissättning och erbjudande | Medel | Jämförelse
+  Q: Vilka erbjudanden efterfrågas men saknas i vårt sortiment?
+  Underlag: Avtal + försäljningsdata + omvärld
+  Databehov: Intern
+
+GQ-057 | Marknad | Prissättning och erbjudande | Medel | Jämförelse
+  Q: Vilka kunder har specialrabatter och varför?
+  Underlag: Avtal + försäljningsdata + omvärld
+  Databehov: Intern
+
+GQ-058 | Marknad | Prissättning och erbjudande | Medel | Jämförelse
+  Q: Är våra timpriser konkurrenskraftiga i vår marknad?
+  Underlag: Avtal + försäljningsdata + omvärld
+  Databehov: Intern + extern
+
+GQ-059 | Marknad | Prissättning och erbjudande | Medel | Jämförelse
+  Q: Vad skulle hända med lönsamheten om vi slutade sälja vår svagaste tjänst?
+  Underlag: Avtal + försäljningsdata + omvärld
+  Databehov: Intern
+
+GQ-060 | Marknad | Prissättning och erbjudande | Medel | Jämförelse
+  Q: Vilket paket av tjänster ger störst kundvärde och bäst marginal?
+  Underlag: Avtal + försäljningsdata + omvärld
+  Databehov: Intern
+
+GQ-061 | Personal | Rekrytering och bemanning | Medel | Scenario
+  Q: Vilka kompetenser saknar vi för nästa års affärsplan?
+  Underlag: HR + projekt + budget
+  Databehov: Intern
+
+GQ-062 | Personal | Rekrytering och bemanning | Medel | Scenario
+  Q: Hur många personer behöver vi rekrytera om försäljningen växer med 25 procent?
+  Underlag: HR + projekt + budget
+  Databehov: Intern
+
+GQ-063 | Personal | Rekrytering och bemanning | Medel | Scenario
+  Q: Vilka roller har störst risk att bli en flaskhals?
+  Underlag: HR + projekt + budget
+  Databehov: Intern
+
+GQ-064 | Personal | Rekrytering och bemanning | Medel | Scenario
+  Q: Hur lång tid tar det från annonsering till att en nyanställd blir produktiv?
+  Underlag: HR + projekt + budget
+  Databehov: Intern
+
+GQ-065 | Personal | Rekrytering och bemanning | Medel | Scenario
+  Q: Vad kostar en nyanställning inklusive arbetsgivaravgifter och onboarding?
+  Underlag: HR + projekt + budget
+  Databehov: Intern + extern
+
+GQ-066 | Personal | Rekrytering och bemanning | Medel | Scenario
+  Q: Vilka uppdrag riskerar att sakna bemanning nästa månad?
+  Underlag: HR + projekt + budget
+  Databehov: Intern
+
+GQ-067 | Personal | Rekrytering och bemanning | Medel | Scenario
+  Q: Kan vi omfördela personal i stället för att rekrytera?
+  Underlag: HR + projekt + budget
+  Databehov: Intern
+
+GQ-068 | Personal | Rekrytering och bemanning | Medel | Scenario
+  Q: Vilka kandidater motsvarar bäst kraven i våra öppna roller?
+  Underlag: HR + projekt + budget
+  Databehov: Intern
+
+GQ-069 | Personal | Rekrytering och bemanning | Medel | Scenario
+  Q: Vilken effekt får en ny senior specialist på beläggning och lönsamhet?
+  Underlag: HR + projekt + budget
+  Databehov: Intern
+
+GQ-070 | Personal | Rekrytering och bemanning | Medel | Scenario
+  Q: Vilka kritiska kompetenser finns bara hos en enda person?
+  Underlag: HR + projekt + budget
+  Databehov: Intern
+
+GQ-071 | Personal | Arbetsmiljö och medarbetare | Enkel | Integritetskänslig analys
+  Q: Hur har personalomsättningen utvecklats senaste året?
+  Underlag: HR + policy + möten
+  Databehov: Intern
+
+GQ-072 | Personal | Arbetsmiljö och medarbetare | Enkel | Integritetskänslig analys
+  Q: Vilka signaler tyder på ökad arbetsbelastning i något team?
+  Underlag: HR + policy + möten
+  Databehov: Intern
+
+GQ-073 | Personal | Arbetsmiljö och medarbetare | Enkel | Integritetskänslig analys
+  Q: Vilka medarbetare har inte haft utvecklingssamtal på länge?
+  Underlag: HR + policy + möten
+  Databehov: Intern
+
+GQ-074 | Personal | Arbetsmiljö och medarbetare | Medel | Integritetskänslig analys
+  Q: Vilka åtgärder från senaste medarbetarundersökningen är fortfarande öppna?
+  Underlag: HR + policy + möten
+  Databehov: Intern
+
+GQ-075 | Personal | Arbetsmiljö och medarbetare | Medel | Integritetskänslig analys
+  Q: Vad är orsakerna till att medarbetare slutar hos oss?
+  Underlag: HR + policy + möten
+  Databehov: Intern
+
+GQ-076 | Personal | Arbetsmiljö och medarbetare | Medel | Integritetskänslig analys
+  Q: Vilka utbildningar behöver vi prioritera?
+  Underlag: HR + policy + möten
+  Databehov: Intern
+
+GQ-077 | Personal | Arbetsmiljö och medarbetare | Medel | Integritetskänslig analys
+  Q: Har vi dokumenterat riskbedömningar för arbetsmiljön?
+  Underlag: HR + policy + möten
+  Databehov: Intern
+
+GQ-078 | Personal | Arbetsmiljö och medarbetare | Medel | Integritetskänslig analys
+  Q: Hur har sjukfrånvaron förändrats och finns det mönster att följa upp?
+  Underlag: HR + policy + möten
+  Databehov: Intern
+
+GQ-079 | Personal | Arbetsmiljö och medarbetare | Medel | Integritetskänslig analys
+  Q: Vilka ledarskapsfrågor återkommer i medarbetarnas feedback?
+  Underlag: HR + policy + möten
+  Databehov: Intern
+
+GQ-080 | Personal | Arbetsmiljö och medarbetare | Medel | Integritetskänslig analys
+  Q: Vad behöver vi ändra för att förbättra trivsel och retention?
+  Underlag: HR + policy + möten
+  Databehov: Intern
+
+GQ-081 | Personal | Ledning och organisation | Enkel | Sammanställning
+  Q: Vilka beslut från senaste ledningsmötet är ännu inte genomförda?
+  Underlag: Mötesanteckningar + måldokument
+  Databehov: Intern
+
+GQ-082 | Personal | Ledning och organisation | Enkel | Sammanställning
+  Q: Vem ansvarar för våra fem viktigaste initiativ?
+  Underlag: Mötesanteckningar + måldokument
+  Databehov: Intern
+
+GQ-083 | Personal | Ledning och organisation | Enkel | Sammanställning
+  Q: Vilka mål saknar en tydlig ansvarig?
+  Underlag: Mötesanteckningar + måldokument
+  Databehov: Intern
+
+GQ-084 | Personal | Ledning och organisation | Medel | Sammanställning
+  Q: Var uppstår flest överlämningsproblem mellan avdelningar?
+  Underlag: Mötesanteckningar + måldokument
+  Databehov: Intern
+
+GQ-085 | Personal | Ledning och organisation | Medel | Sammanställning
+  Q: Vilka återkommande rapporter tar mycket tid men används sällan?
+  Underlag: Mötesanteckningar + måldokument
+  Databehov: Intern
+
+GQ-086 | Personal | Ledning och organisation | Medel | Sammanställning
+  Q: Vad har förändrats sedan förra styrelsemötet?
+  Underlag: Mötesanteckningar + måldokument
+  Databehov: Intern
+
+GQ-087 | Personal | Ledning och organisation | Medel | Sammanställning
+  Q: Vilka frågor borde finnas på nästa ledningsmötes agenda?
+  Underlag: Mötesanteckningar + måldokument
+  Databehov: Intern
+
+GQ-088 | Personal | Ledning och organisation | Medel | Sammanställning
+  Q: Vilka strategiska beslut har vi skjutit upp för länge?
+  Underlag: Mötesanteckningar + måldokument
+  Databehov: Intern
+
+GQ-089 | Personal | Ledning och organisation | Medel | Sammanställning
+  Q: Vilka processer är beroende av muntlig kunskap i stället för dokumentation?
+  Underlag: Mötesanteckningar + måldokument
+  Databehov: Intern
+
+GQ-090 | Personal | Ledning och organisation | Medel | Sammanställning
+  Q: Vad behöver jag som VD agera på innan veckans slut?
+  Underlag: Mötesanteckningar + måldokument
+  Databehov: Intern
+
+GQ-091 | Juridik | Kundavtal och leverantörsavtal | Medel | Klausulretrieval + jämförelse
+  Q: Vilka kundavtal förnyas automatiskt inom 90 dagar?
+  Underlag: Avtal + avtalsmallar
+  Databehov: Intern
+
+GQ-092 | Juridik | Kundavtal och leverantörsavtal | Medel | Klausulretrieval + jämförelse
+  Q: Vilka avtal innehåller ovanligt långtgående ansvarsbegränsningar eller garantier?
+  Underlag: Avtal + avtalsmallar
+  Databehov: Intern
+
+GQ-093 | Juridik | Kundavtal och leverantörsavtal | Medel | Klausulretrieval + jämförelse
+  Q: Vilka kundavtal saknar tydliga regler om prisjustering?
+  Underlag: Avtal + avtalsmallar
+  Databehov: Intern + extern
+
+GQ-094 | Juridik | Kundavtal och leverantörsavtal | Medel | Klausulretrieval + jämförelse
+  Q: Vilka leverantörsavtal kan sägas upp de kommande tre månaderna?
+  Underlag: Avtal + avtalsmallar
+  Databehov: Intern
+
+GQ-095 | Juridik | Kundavtal och leverantörsavtal | Medel | Klausulretrieval + jämförelse
+  Q: Vilka avtalsvillkor avviker från vår vanliga avtalsmall?
+  Underlag: Avtal + avtalsmallar
+  Databehov: Intern
+
+GQ-096 | Juridik | Kundavtal och leverantörsavtal | Medel | Klausulretrieval + jämförelse
+  Q: Finns det avtal som förbjuder oss att arbeta med vissa kunder?
+  Underlag: Avtal + avtalsmallar
+  Databehov: Intern
+
+GQ-097 | Juridik | Kundavtal och leverantörsavtal | Medel | Klausulretrieval + jämförelse
+  Q: Vilka avtal innehåller förändrings- eller kontrollägarklausuler?
+  Underlag: Avtal + avtalsmallar
+  Databehov: Intern
+
+GQ-098 | Juridik | Kundavtal och leverantörsavtal | Medel | Klausulretrieval + jämförelse
+  Q: Vad händer om vår viktigaste leverantör bryter avtalet?
+  Underlag: Avtal + avtalsmallar
+  Databehov: Intern
+
+GQ-099 | Juridik | Kundavtal och leverantörsavtal | Medel | Klausulretrieval + jämförelse
+  Q: Vilka uppsägningstider gäller för våra tio största avtal?
+  Underlag: Avtal + avtalsmallar
+  Databehov: Intern
+
+GQ-100 | Juridik | Kundavtal och leverantörsavtal | Medel | Klausulretrieval + jämförelse
+  Q: Vilka risker finns i det nya avtalet jämfört med våra tidigare avtal?
+  Underlag: Avtal + avtalsmallar
+  Databehov: Intern
+
+GQ-101 | Juridik | Arbetsrätt och bolagsjuridik | Medel | Extern rättskälla + analys
+  Q: Vilka skyldigheter har vi innan vi genomför en omorganisation?
+  Underlag: Avtal + svensk lag
+  Databehov: Intern
+
+GQ-102 | Juridik | Arbetsrätt och bolagsjuridik | Medel | Extern rättskälla + analys
+  Q: Vilka anställningsavtal saknar uppdaterade sekretessbestämmelser?
+  Underlag: Avtal + svensk lag
+  Databehov: Intern
+
+GQ-103 | Juridik | Arbetsrätt och bolagsjuridik | Medel | Extern rättskälla + analys
+  Q: Hur ska vi hantera en medarbetare som inte når sina prestationsmål?
+  Underlag: Avtal + svensk lag
+  Databehov: Intern
+
+GQ-104 | Juridik | Arbetsrätt och bolagsjuridik | Medel | Extern rättskälla + analys
+  Q: Vilka beslut måste tas av styrelsen och vilka kan VD fatta?
+  Underlag: Avtal + svensk lag
+  Databehov: Intern
+
+GQ-105 | Juridik | Arbetsrätt och bolagsjuridik | Medel | Extern rättskälla + analys
+  Q: Vilka formella steg krävs om vi vill göra en riktad nyemission?
+  Underlag: Avtal + svensk lag
+  Databehov: Intern + extern
+
+GQ-106 | Juridik | Arbetsrätt och bolagsjuridik | Medel | Extern rättskälla + analys
+  Q: När behöver vi kalla till kontrollstämma vid kapitalbrist?
+  Underlag: Avtal + svensk lag
+  Databehov: Intern + extern
+
+GQ-107 | Juridik | Arbetsrätt och bolagsjuridik | Medel | Extern rättskälla + analys
+  Q: Har vi rätt att använda konsulter på det sätt vi gör idag?
+  Underlag: Avtal + svensk lag
+  Databehov: Intern + extern
+
+GQ-108 | Juridik | Arbetsrätt och bolagsjuridik | Medel | Extern rättskälla + analys
+  Q: Vilka konkurrensklausuler i våra anställningsavtal är osäkra?
+  Underlag: Avtal + svensk lag
+  Databehov: Intern
+
+GQ-109 | Juridik | Arbetsrätt och bolagsjuridik | Medel | Extern rättskälla + analys
+  Q: Vilka dokument måste finnas inför nästa årsstämma?
+  Underlag: Avtal + svensk lag
+  Databehov: Intern
+
+GQ-110 | Juridik | Arbetsrätt och bolagsjuridik | Medel | Extern rättskälla + analys
+  Q: Vad behöver vi tänka på juridiskt om vi köper ett mindre bolag?
+  Underlag: Avtal + svensk lag
+  Databehov: Intern + extern
+
+GQ-111 | Juridik | Regelefterlevnad och informationsskydd | Medel | Regelefterlevnad + källstöd
+  Q: Vilka personuppgifter behandlar vi och varför?
+  Underlag: Policy + avtal + gällande regler
+  Databehov: Intern
+
+GQ-112 | Juridik | Regelefterlevnad och informationsskydd | Medel | Regelefterlevnad + källstöd
+  Q: Vilka personuppgiftsbiträdesavtal saknas eller är för gamla?
+  Underlag: Policy + avtal + gällande regler
+  Databehov: Intern
+
+GQ-113 | Juridik | Regelefterlevnad och informationsskydd | Medel | Regelefterlevnad + källstöd
+  Q: Hur skulle vi agera vid ett personuppgiftsincident i morgon?
+  Underlag: Policy + avtal + gällande regler
+  Databehov: Intern
+
+GQ-114 | Juridik | Regelefterlevnad och informationsskydd | Medel | Regelefterlevnad + källstöd
+  Q: Vilka nya regler kan påverka vårt bolag kommande tolv månader?
+  Underlag: Policy + avtal + gällande regler
+  Databehov: Intern + extern
+
+GQ-115 | Juridik | Regelefterlevnad och informationsskydd | Medel | Regelefterlevnad + källstöd
+  Q: Vilka av våra system hanterar känsliga uppgifter utan tydlig åtkomstkontroll?
+  Underlag: Policy + avtal + gällande regler
+  Databehov: Intern
+
+GQ-116 | Juridik | Regelefterlevnad och informationsskydd | Medel | Regelefterlevnad + källstöd
+  Q: Har vi dokumenterat laglig grund för vår kundkommunikation?
+  Underlag: Policy + avtal + gällande regler
+  Databehov: Intern
+
+GQ-117 | Juridik | Regelefterlevnad och informationsskydd | Medel | Regelefterlevnad + källstöd
+  Q: Vilka leverantörer överför personuppgifter utanför EU/EES?
+  Underlag: Policy + avtal + gällande regler
+  Databehov: Intern + extern
+
+GQ-118 | Juridik | Regelefterlevnad och informationsskydd | Medel | Regelefterlevnad + källstöd
+  Q: Vilka interna policyer behöver uppdateras efter senaste regeländring?
+  Underlag: Policy + avtal + gällande regler
+  Databehov: Intern
+
+GQ-119 | Juridik | Regelefterlevnad och informationsskydd | Medel | Regelefterlevnad + källstöd
+  Q: Vilka avtals- och lagkrav gäller för hur länge vi sparar kunddokument?
+  Underlag: Policy + avtal + gällande regler
+  Databehov: Intern
+
+GQ-120 | Juridik | Regelefterlevnad och informationsskydd | Medel | Regelefterlevnad + källstöd
+  Q: Kan vi visa en revisor vilka kontroller vi faktiskt har genomfört?
+  Underlag: Policy + avtal + gällande regler
+  Databehov: Intern
+
+GQ-121 | Strategi | Strategi och måluppföljning | Medel | Syntes
+  Q: Ligger vi i fas med våra tre viktigaste strategiska mål?
+  Underlag: Strategidokument + KPI
+  Databehov: Intern
+
+GQ-122 | Strategi | Strategi och måluppföljning | Medel | Syntes
+  Q: Vilka strategiska initiativ ger ännu ingen mätbar effekt?
+  Underlag: Strategidokument + KPI
+  Databehov: Intern
+
+GQ-123 | Strategi | Strategi och måluppföljning | Medel | Syntes
+  Q: Vilka affärsområden borde vi satsa mer på nästa år?
+  Underlag: Strategidokument + KPI
+  Databehov: Intern
+
+GQ-124 | Strategi | Strategi och måluppföljning | Medel | Syntes
+  Q: Vilka av våra antaganden om marknaden har visat sig felaktiga?
+  Underlag: Strategidokument + KPI
+  Databehov: Intern + extern
+
+GQ-125 | Strategi | Strategi och måluppföljning | Medel | Syntes
+  Q: Vilka nya möjligheter syns i våra kunders återkommande förfrågningar?
+  Underlag: Strategidokument + KPI
+  Databehov: Intern
+
+GQ-126 | Strategi | Strategi och måluppföljning | Medel | Syntes
+  Q: Vad måste vi sluta göra för att frigöra resurser?
+  Underlag: Strategidokument + KPI
+  Databehov: Intern
+
+GQ-127 | Strategi | Strategi och måluppföljning | Medel | Syntes
+  Q: Hur skulle vår strategi påverkas om största kunden försvann?
+  Underlag: Strategidokument + KPI
+  Databehov: Intern
+
+GQ-128 | Strategi | Strategi och måluppföljning | Medel | Syntes
+  Q: Vilka konkurrentförändringar kräver ett beslut från oss?
+  Underlag: Strategidokument + KPI
+  Databehov: Intern + extern
+
+GQ-129 | Strategi | Strategi och måluppföljning | Medel | Syntes
+  Q: Hur hänger våra investeringar ihop med de mål styrelsen har beslutat?
+  Underlag: Strategidokument + KPI
+  Databehov: Intern
+
+GQ-130 | Strategi | Strategi och måluppföljning | Medel | Syntes
+  Q: Vilka indikatorer skulle visa tidigt att strategin inte fungerar?
+  Underlag: Strategidokument + KPI
+  Databehov: Intern
+
+GQ-131 | Strategi | Tillväxt och expansion | Medel | Scenario + omvärld
+  Q: Vilka kundsegment har bäst potential för lönsam tillväxt?
+  Underlag: CRM + marknadsdata + budget
+  Databehov: Intern
+
+GQ-132 | Strategi | Tillväxt och expansion | Medel | Scenario + omvärld
+  Q: Vad skulle det kosta att etablera oss i en ny svensk region?
+  Underlag: CRM + marknadsdata + budget
+  Databehov: Intern
+
+GQ-133 | Strategi | Tillväxt och expansion | Medel | Scenario + omvärld
+  Q: Kan vi växa med 30 procent utan att försämra leveranskvaliteten?
+  Underlag: CRM + marknadsdata + budget
+  Databehov: Intern
+
+GQ-134 | Strategi | Tillväxt och expansion | Medel | Scenario + omvärld
+  Q: Vilka partnerskap kan ge oss snabbare marknadstillträde?
+  Underlag: CRM + marknadsdata + budget
+  Databehov: Intern + extern
+
+GQ-135 | Strategi | Tillväxt och expansion | Medel | Scenario + omvärld
+  Q: När skulle ett förvärv vara mer lönsamt än organisk tillväxt?
+  Underlag: CRM + marknadsdata + budget
+  Databehov: Intern + extern
+
+GQ-136 | Strategi | Tillväxt och expansion | Medel | Scenario + omvärld
+  Q: Vilka tjänster kan vi skala utan motsvarande personalökning?
+  Underlag: CRM + marknadsdata + budget
+  Databehov: Intern
+
+GQ-137 | Strategi | Tillväxt och expansion | Medel | Scenario + omvärld
+  Q: Vilka hinder gör att vi inte kan ta fler uppdrag idag?
+  Underlag: CRM + marknadsdata + budget
+  Databehov: Intern
+
+GQ-138 | Strategi | Tillväxt och expansion | Medel | Scenario + omvärld
+  Q: Hur lång tid tar det innan en ny marknad blir lönsam?
+  Underlag: CRM + marknadsdata + budget
+  Databehov: Intern + extern
+
+GQ-139 | Strategi | Tillväxt och expansion | Medel | Scenario + omvärld
+  Q: Vilka befintliga kunder kan köpa fler av våra tjänster?
+  Underlag: CRM + marknadsdata + budget
+  Databehov: Intern
+
+GQ-140 | Strategi | Tillväxt och expansion | Medel | Scenario + omvärld
+  Q: Vilken tillväxttakt klarar vår nuvarande organisation?
+  Underlag: CRM + marknadsdata + budget
+  Databehov: Intern
+
+GQ-141 | Strategi | Ägare, styrelse och investeringar | Medel | Syntes + dokument
+  Q: Vilka frågor kommer styrelsen sannolikt att ställa om senaste kvartalet?
+  Underlag: Styrelseprotokoll + finansdata
+  Databehov: Intern
+
+GQ-142 | Strategi | Ägare, styrelse och investeringar | Medel | Syntes + dokument
+  Q: Hur ser vårt företagsvärde ut under olika rimliga antaganden?
+  Underlag: Styrelseprotokoll + finansdata
+  Databehov: Intern
+
+GQ-143 | Strategi | Ägare, styrelse och investeringar | Medel | Syntes + dokument
+  Q: Vilka nyckeltal har försämrats sedan föregående styrelsemöte?
+  Underlag: Styrelseprotokoll + finansdata
+  Databehov: Intern
+
+GQ-144 | Strategi | Ägare, styrelse och investeringar | Medel | Syntes + dokument
+  Q: Vilka investeringar har högst förväntad avkastning?
+  Underlag: Styrelseprotokoll + finansdata
+  Databehov: Intern
+
+GQ-145 | Strategi | Ägare, styrelse och investeringar | Medel | Syntes + dokument
+  Q: Vilka risker bör styrelsen informeras om omedelbart?
+  Underlag: Styrelseprotokoll + finansdata
+  Databehov: Intern
+
+GQ-146 | Strategi | Ägare, styrelse och investeringar | Medel | Syntes + dokument
+  Q: Vad behöver ett investeringsunderlag för ett nytt affärsområde innehålla?
+  Underlag: Styrelseprotokoll + finansdata
+  Databehov: Intern
+
+GQ-147 | Strategi | Ägare, styrelse och investeringar | Medel | Syntes + dokument
+  Q: Hur påverkar ett nytt delägarskap befintliga ägare?
+  Underlag: Styrelseprotokoll + finansdata
+  Databehov: Intern
+
+GQ-148 | Strategi | Ägare, styrelse och investeringar | Medel | Syntes + dokument
+  Q: Vilka tidigare styrelsebeslut är fortfarande inte verkställda?
+  Underlag: Styrelseprotokoll + finansdata
+  Databehov: Intern
+
+GQ-149 | Strategi | Ägare, styrelse och investeringar | Medel | Syntes + dokument
+  Q: Hur har avkastningen på våra större investeringar utvecklats?
+  Underlag: Styrelseprotokoll + finansdata
+  Databehov: Intern
+
+GQ-150 | Strategi | Ägare, styrelse och investeringar | Medel | Syntes + dokument
+  Q: Vad är de viktigaste argumenten för och emot en utdelning i år?
+  Underlag: Styrelseprotokoll + finansdata
+  Databehov: Intern
+
+GQ-151 | Verksamhet | Leverans och projekt | Enkel | Flera källor
+  Q: Vilka pågående projekt riskerar att bli försenade?
+  Underlag: Projektverktyg + tidrapport
+  Databehov: Intern
+
+GQ-152 | Verksamhet | Leverans och projekt | Enkel | Flera källor
+  Q: Vilka uppdrag överskrider budgeterad tid just nu?
+  Underlag: Projektverktyg + tidrapport
+  Databehov: Intern
+
+GQ-153 | Verksamhet | Leverans och projekt | Enkel | Flera källor
+  Q: Vilka leveranser är beroende av samma nyckelperson?
+  Underlag: Projektverktyg + tidrapport
+  Databehov: Intern
+
+GQ-154 | Verksamhet | Leverans och projekt | Medel | Flera källor
+  Q: Vilka kundlöften riskerar vi att missa denna månad?
+  Underlag: Projektverktyg + tidrapport
+  Databehov: Intern
+
+GQ-155 | Verksamhet | Leverans och projekt | Medel | Flera källor
+  Q: Varför blev förra månadens största projekt olönsamt?
+  Underlag: Projektverktyg + tidrapport
+  Databehov: Intern
+
+GQ-156 | Verksamhet | Leverans och projekt | Medel | Flera källor
+  Q: Vilka projekt har högst andel omarbete?
+  Underlag: Projektverktyg + tidrapport
+  Databehov: Intern
+
+GQ-157 | Verksamhet | Leverans och projekt | Medel | Flera källor
+  Q: Vad är den verkliga beläggningsgraden per team?
+  Underlag: Projektverktyg + tidrapport
+  Databehov: Intern
+
+GQ-158 | Verksamhet | Leverans och projekt | Medel | Flera källor
+  Q: Vilka återkommande hinder rapporteras i projektmöten?
+  Underlag: Projektverktyg + tidrapport
+  Databehov: Intern
+
+GQ-159 | Verksamhet | Leverans och projekt | Medel | Flera källor
+  Q: Vilka åtgärder kan frigöra mest leveranskapacitet?
+  Underlag: Projektverktyg + tidrapport
+  Databehov: Intern
+
+GQ-160 | Verksamhet | Leverans och projekt | Medel | Flera källor
+  Q: Vilka projekt bör eskaleras till ledningen idag?
+  Underlag: Projektverktyg + tidrapport
+  Databehov: Intern
+
+GQ-161 | Verksamhet | Inköp och leverantörer | Enkel | Sammanställning + jämförelse
+  Q: Vilka fem leverantörer står för störst del av våra inköp?
+  Underlag: Inköpsdata + avtal
+  Databehov: Intern
+
+GQ-162 | Verksamhet | Inköp och leverantörer | Enkel | Sammanställning + jämförelse
+  Q: Vilka inköpsavtal löper snart ut och behöver omförhandlas?
+  Underlag: Inköpsdata + avtal
+  Databehov: Intern
+
+GQ-163 | Verksamhet | Inköp och leverantörer | Enkel | Sammanställning + jämförelse
+  Q: Har vi onödigt många verktyg som löser samma problem?
+  Underlag: Inköpsdata + avtal
+  Databehov: Intern
+
+GQ-164 | Verksamhet | Inköp och leverantörer | Medel | Sammanställning + jämförelse
+  Q: Hur beroende är vi av enskilda underleverantörer?
+  Underlag: Inköpsdata + avtal
+  Databehov: Intern
+
+GQ-165 | Verksamhet | Inköp och leverantörer | Medel | Sammanställning + jämförelse
+  Q: Vilka leverantörer har ofta sena eller felaktiga leveranser?
+  Underlag: Inköpsdata + avtal
+  Databehov: Intern
+
+GQ-166 | Verksamhet | Inköp och leverantörer | Medel | Sammanställning + jämförelse
+  Q: Hur mycket skulle vi spara genom samordnade inköp?
+  Underlag: Inköpsdata + avtal
+  Databehov: Intern
+
+GQ-167 | Verksamhet | Inköp och leverantörer | Medel | Sammanställning + jämförelse
+  Q: Vilka kostnader saknar ett tydligt inköpsgodkännande?
+  Underlag: Inköpsdata + avtal
+  Databehov: Intern
+
+GQ-168 | Verksamhet | Inköp och leverantörer | Medel | Sammanställning + jämförelse
+  Q: Har vi leverantörer som inte uppfyller våra säkerhetskrav?
+  Underlag: Inköpsdata + avtal
+  Databehov: Intern
+
+GQ-169 | Verksamhet | Inköp och leverantörer | Medel | Sammanställning + jämförelse
+  Q: Vilka inköp behöver godkännas under nästa månad?
+  Underlag: Inköpsdata + avtal
+  Databehov: Intern
+
+GQ-170 | Verksamhet | Inköp och leverantörer | Medel | Sammanställning + jämförelse
+  Q: Vilken alternativ leverantör kan vi använda om en kritisk tjänst försvinner?
+  Underlag: Inköpsdata + avtal
+  Databehov: Intern
+
+GQ-171 | Verksamhet | IT, data och AI | Medel | Tekniska verktyg + analys
+  Q: Vilka verksamhetskritiska system saknar fungerande reservrutin?
+  Underlag: IT-loggar + kostnadsdata + policy
+  Databehov: Intern
+
+GQ-172 | Verksamhet | IT, data och AI | Medel | Tekniska verktyg + analys
+  Q: Vilka integrationer går ofta sönder och påverkar verksamheten?
+  Underlag: IT-loggar + kostnadsdata + policy
+  Databehov: Intern
+
+GQ-173 | Verksamhet | IT, data och AI | Medel | Tekniska verktyg + analys
+  Q: Vilka användare har mer systembehörighet än de behöver?
+  Underlag: IT-loggar + kostnadsdata + policy
+  Databehov: Intern
+
+GQ-174 | Verksamhet | IT, data och AI | Medel | Tekniska verktyg + analys
+  Q: Vilka av våra datakällor är mest opålitliga?
+  Underlag: IT-loggar + kostnadsdata + policy
+  Databehov: Intern
+
+GQ-175 | Verksamhet | IT, data och AI | Medel | Tekniska verktyg + analys
+  Q: Var lägger personalen mest tid på manuell överföring av data?
+  Underlag: IT-loggar + kostnadsdata + policy
+  Databehov: Intern
+
+GQ-176 | Verksamhet | IT, data och AI | Medel | Tekniska verktyg + analys
+  Q: Vilka AI-användningsfall kan ge mätbar nytta inom tre månader?
+  Underlag: IT-loggar + kostnadsdata + policy
+  Databehov: Intern
+
+GQ-177 | Verksamhet | IT, data och AI | Medel | Tekniska verktyg + analys
+  Q: Hur mycket spenderar vi på molntjänster och AI-modeller per månad?
+  Underlag: IT-loggar + kostnadsdata + policy
+  Databehov: Intern
+
+GQ-178 | Verksamhet | IT, data och AI | Medel | Tekniska verktyg + analys
+  Q: Vilka säkerhetsincidenter behöver ledningen känna till?
+  Underlag: IT-loggar + kostnadsdata + policy
+  Databehov: Intern
+
+GQ-179 | Verksamhet | IT, data och AI | Medel | Tekniska verktyg + analys
+  Q: Hur lång tid skulle det ta att återställa vår verksamhet efter ett driftstopp?
+  Underlag: IT-loggar + kostnadsdata + policy
+  Databehov: Intern
+
+GQ-180 | Verksamhet | IT, data och AI | Medel | Tekniska verktyg + analys
+  Q: Vilka AI-svar i våra interna system saknar kontrollerbart källstöd?
+  Underlag: IT-loggar + kostnadsdata + policy
+  Databehov: Intern
+
+GQ-181 | Risk | Risk och kontinuitet | Komplex | Flerstegssyntes
+  Q: Vilka är bolagets fem största risker just nu?
+  Underlag: Riskregister + ekonomi + avtal
+  Databehov: Intern
+
+GQ-182 | Risk | Risk och kontinuitet | Komplex | Flerstegssyntes
+  Q: Vad händer med resultat och likviditet om vår största kund lämnar oss?
+  Underlag: Riskregister + ekonomi + avtal
+  Databehov: Intern
+
+GQ-183 | Risk | Risk och kontinuitet | Komplex | Flerstegssyntes
+  Q: Vilka risker saknar ansvarig eller beslutad åtgärd?
+  Underlag: Riskregister + ekonomi + avtal
+  Databehov: Intern
+
+GQ-184 | Risk | Risk och kontinuitet | Komplex | Flerstegssyntes
+  Q: Hur påverkas vi om en nyckelperson är borta i tre månader?
+  Underlag: Riskregister + ekonomi + avtal
+  Databehov: Intern
+
+GQ-185 | Risk | Risk och kontinuitet | Komplex | Flerstegssyntes
+  Q: Vilka försäkringar täcker inte våra viktigaste verksamhetsrisker?
+  Underlag: Riskregister + ekonomi + avtal
+  Databehov: Intern + extern
+
+GQ-186 | Risk | Risk och kontinuitet | Komplex | Flerstegssyntes
+  Q: Vilka tecken skulle indikera ett kommande likviditetsproblem?
+  Underlag: Riskregister + ekonomi + avtal
+  Databehov: Intern
+
+GQ-187 | Risk | Risk och kontinuitet | Komplex | Flerstegssyntes
+  Q: Hur hanterar vi ett längre avbrott hos vår viktigaste IT-leverantör?
+  Underlag: Riskregister + ekonomi + avtal
+  Databehov: Intern
+
+GQ-188 | Risk | Risk och kontinuitet | Komplex | Flerstegssyntes
+  Q: Vilka påståenden i vår riskrapport saknar aktuellt underlag?
+  Underlag: Riskregister + ekonomi + avtal
+  Databehov: Intern
+
+GQ-189 | Risk | Risk och kontinuitet | Komplex | Flerstegssyntes
+  Q: Vilka leverantörs- och kundrisker är korrelerade med varandra?
+  Underlag: Riskregister + ekonomi + avtal
+  Databehov: Intern
+
+GQ-190 | Risk | Risk och kontinuitet | Komplex | Flerstegssyntes
+  Q: Vilka riskreducerande åtgärder har bäst effekt per investerad krona?
+  Underlag: Riskregister + ekonomi + avtal
+  Databehov: Intern
+
+GQ-191 | VD-beslut | Tvärfunktionella VD-beslut | Komplex | Agentorkestrering + syntes
+  Q: Kan vi anställa fem personer om två stora kundavtal inte förlängs?
+  Underlag: Ekonomi + avtal + CRM + HR
+  Databehov: Intern
+
+GQ-192 | VD-beslut | Tvärfunktionella VD-beslut | Komplex | Agentorkestrering + syntes
+  Q: Vilka avtal, kundrelationer och projekt påverkas av en föreslagen prisökning?
+  Underlag: Ekonomi + avtal + CRM + HR
+  Databehov: Intern
+
+GQ-193 | VD-beslut | Tvärfunktionella VD-beslut | Komplex | Agentorkestrering + syntes
+  Q: Vad händer med kassaflöde, beläggning och marginal om vi tappar största uppdraget?
+  Underlag: Ekonomi + avtal + CRM + HR
+  Databehov: Intern
+
+GQ-194 | VD-beslut | Tvärfunktionella VD-beslut | Komplex | Agentorkestrering + syntes
+  Q: Bör vi öppna ett nytt kontor utifrån pipeline, kompetenstillgång och kostnader?
+  Underlag: Ekonomi + avtal + CRM + HR
+  Databehov: Intern
+
+GQ-195 | VD-beslut | Tvärfunktionella VD-beslut | Komplex | Agentorkestrering + syntes
+  Q: Vilka beslut behöver jag fatta den här veckan och vilket underlag saknas?
+  Underlag: Ekonomi + avtal + CRM + HR
+  Databehov: Intern
+
+GQ-196 | VD-beslut | Tvärfunktionella VD-beslut | Komplex | Agentorkestrering + syntes
+  Q: Kan vi minska kostnaderna med tio procent utan att bryta avtal eller försämra leveransen?
+  Underlag: Ekonomi + avtal + CRM + HR
+  Databehov: Intern
+
+GQ-197 | VD-beslut | Tvärfunktionella VD-beslut | Komplex | Agentorkestrering + syntes
+  Q: Är det bättre att rekrytera, använda underkonsulter eller tacka nej till nya affärer?
+  Underlag: Ekonomi + avtal + CRM + HR
+  Databehov: Intern
+
+GQ-198 | VD-beslut | Tvärfunktionella VD-beslut | Komplex | Agentorkestrering + syntes
+  Q: Vilka motsägelser finns mellan vår budget, ledningsrapport och säljpipeline?
+  Underlag: Ekonomi + avtal + CRM + HR
+  Databehov: Intern
+
+GQ-199 | VD-beslut | Tvärfunktionella VD-beslut | Komplex | Agentorkestrering + syntes
+  Q: Vad behöver styrelsen veta om våra största affärsrisker och vilka källor stödjer slutsatsen?
+  Underlag: Ekonomi + avtal + CRM + HR
+  Databehov: Intern
+
+GQ-200 | VD-beslut | Tvärfunktionella VD-beslut | Komplex | Agentorkestrering + syntes
+  Q: Om du bara fick rekommendera tre beslut inför nästa kvartal, vilka är de och varför?
+  Underlag: Ekonomi + avtal + CRM + HR
+  Databehov: Intern
+

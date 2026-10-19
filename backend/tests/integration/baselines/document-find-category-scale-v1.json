@@ -3,9 +3,15 @@
     {
       "documents": 50,
       "returned": 50,
+<<<<<<< HEAD
       "seed_ms": 8.941958003561012,
       "db_ms": 0.3052910033147782,
       "wall_ms": 0.3173749864799902,
+=======
+      "seed_ms": 4.248749995895196,
+      "db_ms": 0.14695799472974613,
+      "wall_ms": 0.15441700088558719,
+>>>>>>> origin/main
       "embedding_calls": 0,
       "text_unit_reads": 0,
       "vector_searches": 0,
@@ -14,9 +20,15 @@
     {
       "documents": 100,
       "returned": 100,
+<<<<<<< HEAD
       "seed_ms": 15.594291995512322,
       "db_ms": 0.33658300526440144,
       "wall_ms": 0.3490840026643127,
+=======
+      "seed_ms": 13.128083002811763,
+      "db_ms": 0.5389579964685254,
+      "wall_ms": 0.55429100029869,
+>>>>>>> origin/main
       "embedding_calls": 0,
       "text_unit_reads": 0,
       "vector_searches": 0,

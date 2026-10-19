@@ -90,6 +90,8 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 * [Använda SME-chatten](anvanda-sme-chatten.md) — Chatta med experter och expertpaneler, följ olästa svar och bakgrundsjobb
 * [Använda workspace-chatten](anvanda-workspace-chatten.md) — Välj företagets eller klientens workspace, ladda upp dokument och gör research i chatten
+* [Visa modellens arbete i workspace](visa-modellens-arbete-i-workspace.md) — Verktygsanrop, mellansteg och källnummer i SME-workspace
+* [Arbeta med dokument i workspace](arbeta-med-dokument-i-workspace.md) — Ladda upp flera filer samtidigt, arbeta med dokumentsamlingar och kommentera passager
 
 # Expertgranskning
 

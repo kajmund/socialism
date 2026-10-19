@@ -12,6 +12,8 @@ from app.services.document_find.strategies import (
     find_within_documents,
 )
 from app.services.document_find.tool import (
+    FindRequest,
+    empty_scope_result,
     needs_embedding,
     normalize_find_mode,
     presentation_slice,
@@ -21,10 +23,12 @@ from app.services.document_find.tool import (
 from app.services.document_find.types import FindResult, OpCounters
 
 __all__ = [
+    "FindRequest",
     "FindResult",
     "OpCounters",
     "classify_and_index",
     "classify_document",
+    "empty_scope_result",
     "extend_set",
     "filter_to_set",
     "find_by_category",

@@ -522,7 +522,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tabular-enrich",
         action="store_true",
-        help="Freeze structure-aware embedding protocol. No encode. No Jev.",
+        help="Freeze structure-aware embedding protocol. Baseline JSON needs --freeze-baseline. No encode. No Jev.",
     )
     parser.add_argument(
         "--tabular-enrich-run",
@@ -537,7 +537,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tabular-present",
         action="store_true",
-        help="Freeze candidate-presentation protocol. Same five units. No Jev.",
+        help="Freeze candidate-presentation protocol. Baseline JSON needs --freeze-baseline. Same five units. No Jev.",
     )
     parser.add_argument(
         "--tabular-present-run",
@@ -557,7 +557,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--doctype-gold",
         action="store_true",
-        help="Freeze document-type gold. Principal function only. No Jev.",
+        help="Freeze document-type gold. Baseline JSON needs --freeze-baseline. Principal function only. No Jev.",
     )
     parser.add_argument(
         "--doctype-run",
@@ -567,7 +567,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--document-tags-gold",
         action="store_true",
-        help="Freeze document-tag gold. Limited classes. No Jev.",
+        help="Freeze document-tag gold. Baseline JSON needs --freeze-baseline. Limited classes. No Jev.",
     )
     parser.add_argument(
         "--document-tags-run",
@@ -583,6 +583,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--document-tags-close",
         action="store_true",
         help="Close the document-tag experiment. No Jev.",
+    )
+    parser.add_argument(
+        "--freeze-baseline",
+        action="store_true",
+        help=(
+            "Write experimental baseline JSONs for commands that freeze them. "
+            "Off by default; existing baselines are never overwritten."
+        ),
     )
     parser.add_argument(
         "--coverage-query-variant",
@@ -731,6 +739,7 @@ def main(argv: list[str] | None = None) -> int:
         document_tags_run=args.document_tags_run,
         document_tags_lifecycle=args.document_tags_lifecycle,
         document_tags_close=args.document_tags_close,
+        freeze_baseline=args.freeze_baseline,
     )
     if config.generate_corpus is not None and not config.suite:
         if config.input_dir is None:
@@ -1583,7 +1592,8 @@ def _run_tabular_holdout_run(config: IngestConfig) -> int:
         jev_timeout_seconds=config.jev_timeout_seconds,
     )
     write_holdout_run_table(payload)
-    write_holdout_run_baseline(payload)
+    if config.freeze_baseline:
+        write_holdout_run_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1597,7 +1607,8 @@ def _run_tabular_holdout_run(config: IngestConfig) -> int:
 def _run_tabular_enrich(config: IngestConfig) -> int:
     payload = review_enrich_protocol()
     write_enrich_protocol_table(payload)
-    write_enrich_protocol_baseline(payload)
+    if config.freeze_baseline:
+        write_enrich_protocol_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1618,7 +1629,8 @@ def _run_tabular_enrich_run(config: IngestConfig) -> int:
         dense_model=config.dense_model,
     )
     write_enrich_run_table(payload)
-    write_enrich_run_baseline(payload)
+    if config.freeze_baseline:
+        write_enrich_run_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1632,7 +1644,8 @@ def _run_tabular_enrich_run(config: IngestConfig) -> int:
 def _run_tabular_enrich_reject(config: IngestConfig) -> int:
     payload = review_enrich_reject()
     write_enrich_reject_table(payload)
-    write_enrich_reject_baseline(payload)
+    if config.freeze_baseline:
+        write_enrich_reject_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1646,7 +1659,8 @@ def _run_tabular_enrich_reject(config: IngestConfig) -> int:
 def _run_tabular_present(config: IngestConfig) -> int:
     payload = review_present_protocol()
     write_present_protocol_table(payload)
-    write_present_protocol_baseline(payload)
+    if config.freeze_baseline:
+        write_present_protocol_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1670,7 +1684,8 @@ def _run_tabular_present_run(config: IngestConfig) -> int:
         jev_timeout_seconds=config.jev_timeout_seconds,
     )
     write_present_run_table(payload)
-    write_present_run_baseline(payload)
+    if config.freeze_baseline:
+        write_present_run_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1684,7 +1699,8 @@ def _run_tabular_present_run(config: IngestConfig) -> int:
 def _run_tabular_present_reject(config: IngestConfig) -> int:
     payload = review_present_reject()
     write_present_reject_table(payload)
-    write_present_reject_baseline(payload)
+    if config.freeze_baseline:
+        write_present_reject_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1708,7 +1724,8 @@ def _run_tabular_multi_run(config: IngestConfig) -> int:
         jev_timeout_seconds=config.jev_timeout_seconds,
     )
     write_multi_run_table(payload)
-    write_multi_run_baseline(payload)
+    if config.freeze_baseline:
+        write_multi_run_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1722,7 +1739,8 @@ def _run_tabular_multi_run(config: IngestConfig) -> int:
 def _run_doctype_gold(config: IngestConfig) -> int:
     payload = review_doctype_gold()
     write_doctype_gold_table(payload)
-    write_doctype_gold_baseline(payload)
+    if config.freeze_baseline:
+        write_doctype_gold_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1743,7 +1761,8 @@ def _run_doctype_run(config: IngestConfig) -> int:
         jev_timeout_seconds=config.jev_timeout_seconds,
     )
     write_doctype_run_table(payload)
-    write_doctype_run_baseline(payload)
+    if config.freeze_baseline:
+        write_doctype_run_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1757,7 +1776,8 @@ def _run_doctype_run(config: IngestConfig) -> int:
 def _run_document_tags_gold(config: IngestConfig) -> int:
     payload = review_document_tags_gold()
     write_document_tags_gold_table(payload)
-    write_document_tags_gold_baseline(payload)
+    if config.freeze_baseline:
+        write_document_tags_gold_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1778,7 +1798,8 @@ def _run_document_tags_run(config: IngestConfig) -> int:
         jev_timeout_seconds=config.jev_timeout_seconds,
     )
     write_document_tags_run_table(payload)
-    write_document_tags_run_baseline(payload)
+    if config.freeze_baseline:
+        write_document_tags_run_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1792,7 +1813,8 @@ def _run_document_tags_run(config: IngestConfig) -> int:
 def _run_document_tags_lifecycle(config: IngestConfig) -> int:
     payload = run_document_tags_lifecycle()
     write_document_tags_lifecycle_table(payload)
-    write_document_tags_lifecycle_baseline(payload)
+    if config.freeze_baseline:
+        write_document_tags_lifecycle_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
@@ -1806,7 +1828,8 @@ def _run_document_tags_lifecycle(config: IngestConfig) -> int:
 def _run_document_tags_close(config: IngestConfig) -> int:
     payload = review_document_tags_close()
     write_document_tags_close_table(payload)
-    write_document_tags_close_baseline(payload)
+    if config.freeze_baseline:
+        write_document_tags_close_baseline(payload)
     if config.output_path is not None:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         config.output_path.write_text(
