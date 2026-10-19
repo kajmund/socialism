@@ -28,6 +28,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Starta en simulering](starta-simulering.md) — Starta en sparad körning och följ jobbet
 * [Reaktionsmodell i simuleringen](reaktionsmodell-i-simulering.md) — Vem reagerar, vem får kommentera och när nollställs reglerna
 * [Läsa simuleringsresultat](lasa-simuleringsresultat.md) — Flöde, agenter och jämförelser
+* [Följa live-flöde vid A/B-simulering](folja-live-flode-vid-ab-simulering.md) — Växla variant A/B medan simuleringen körs
 * [Kopiera inlägg och kommentarer från simulering](kopiera-inlagg-och-kommentarer-fran-simulering.md) — Urklipp från flödet
 * [Visa agentresonemang i simulering](visa-agentresonemang-i-simulering.md) — Läs resonemang före inlägg och kommentarer
 * [Visa agentverktyg i simulering](visa-agentverktyg-i-simulering.md) — Se verktygsanrop före inlägg och kommentarer
@@ -89,6 +90,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # SME
 
 * [Använda SME-chatten](anvanda-sme-chatten.md) — Chatta med experter och expertpaneler, följ olästa svar och bakgrundsjobb
+* [Välja talare i gruppröst](valja-talare-i-gruppröst.md) — Ge ordet till expert som räckt upp handen under panelröst
 * [Använda workspace-chatten](anvanda-workspace-chatten.md) — Välj företagets eller klientens workspace, ladda upp dokument och gör research i chatten
 * [Visa modellens arbete i workspace](visa-modellens-arbete-i-workspace.md) — Verktygsanrop, mellansteg och källnummer i SME-workspace
 * [Arbeta med dokument i workspace](arbeta-med-dokument-i-workspace.md) — Ladda upp flera filer samtidigt, arbeta med dokumentsamlingar och kommentera passager
@@ -99,6 +101,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Förstå och annotera underlag](forsta-och-annotera-underlag.md) — Lägg till egna fakta, frågor, bokmärken och anteckningar i dokumentet
 * [Använda expertgranskning i bolagsytan](anvanda-expertgranskning-i-bolagsytan.md) — Samma funktion under Bolag-menyn för DD-only-konton
 * [Granska ett dokument i Word](granska-dokument-i-word.md) — Välj panel och omfattning, svara på avsiktsfrågor i Word-tillägget; tillämpa eller avfärda förslag medan granskningen körs
+* [Byta språk och inloggning i Word-tillägget](byta-sprak-och-inloggning-i-word-tillagget.md) — Språk i sidopanelen och byta sparad token
 
 # Rättsunderlag
 
