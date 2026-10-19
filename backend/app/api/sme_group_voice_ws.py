@@ -160,8 +160,8 @@ class _Call:
     user_id: str
     customer_id: int
     language: str
-    workspace_id: str | None
     speaking_task: dict[str, Any]
+    workspace_id: str | None = None
 
 
 async def _replace_speech(speaking_task: dict[str, Any], speech) -> None:
