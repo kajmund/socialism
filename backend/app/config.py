@@ -87,6 +87,9 @@ class Settings(LiveSpeechSettings, BaseSettings):
     document_tool_relevance_gap: float = Field(default=0.55, ge=0.0, le=1.0)
     document_tool_relevance_complement_floor: float = Field(default=0.45, ge=0.0, le=1.0)
     document_tool_require_score: float = Field(default=0.40, ge=0.0, le=1.0)
+    # Frozen EvidenceSet revalidation. False clear is worse than extra review.
+    revalidation_impact_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
+    revalidation_clear_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
     cerebras_api_key: str = ""
     cerebras_base_url: str = CEREBRAS_DEFAULT_BASE_URL
     deepseek_api_key: str = ""

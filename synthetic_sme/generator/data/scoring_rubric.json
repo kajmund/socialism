@@ -1,0 +1,66 @@
+[
+ [
+  "Dimension",
+  "0 poäng",
+  "1 poäng",
+  "2 poäng",
+  "3 poäng",
+  "4 poäng"
+ ],
+ [
+  "Datatäckning",
+  "Nödvändiga uppgifter saknas",
+  "Delar av materialet tillgängligt",
+  "Tillräckliga uppgifter tillgängliga",
+  null,
+  null
+ ],
+ [
+  "Verktygstäckning",
+  "Saknar nödvändiga verktyg",
+  "Kan utföra delar av kedjan",
+  "Kan genomföra hela kedjan",
+  null,
+  null
+ ],
+ [
+  "Svarskvalitet",
+  "Felaktigt eller missvisande",
+  "Stora luckor",
+  "Delvis rätt, men väsentliga brister",
+  "Rätt med små brister",
+  "Korrekt, komplett, relevant"
+ ],
+ [
+  "Källstöd",
+  "Saknas eller felaktigt",
+  "Delvis korrekt och lokaliserbart",
+  "Källor stödjer alla väsentliga påståenden",
+  null,
+  null
+ ],
+ [
+  "Status",
+  "Ej testad",
+  "Godkänd",
+  "Delvis",
+  "Underkänd",
+  "Blockerad"
+ ],
+ [
+  "Feltyper",
+  "Saknad data",
+  "Saknad integration/verktyg",
+  "Retrievalmiss",
+  "Resonemang eller beräkning",
+  "Felaktigt källstöd"
+ ],
+ [
+  "Godkänd",
+  "Minst 8 av 10",
+  "Inga kritiska faktamissar",
+  "Källstöd minst 1 av 2",
+  "Ej rätt gissning utan underlag",
+  null
+ ]
+]

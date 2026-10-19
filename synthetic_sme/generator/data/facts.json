@@ -1,0 +1,2558 @@
+{
+  "company": {
+    "name": "Nordviken Digital AB",
+    "org_no": "559245-1673",
+    "address": "Kajplatsen 4, 115 27 Stockholm",
+    "phone": "08-555 014 27",
+    "email": "info@nordvikendigital.se",
+    "website": "www.nordvikendigital.se",
+    "vat_no": "SE559245167301",
+    "bankgiro": "5561-8892",
+    "founded": "2018-03-12",
+    "seat": "Stockholm",
+    "share_capital": 250000,
+    "shares": 2500,
+    "auditor": "Revision & Tal AB",
+    "accounting_firm": "Lön & Redo AB",
+    "bank": "Norrvidden Bank AB",
+    "bank_account": "9951 12 345 67",
+    "insurance": "Tryggast Försäkring AB"
+  },
+  "period": {
+    "history": [
+      "2024-10-01",
+      "2026-09-30"
+    ],
+    "analysis_date": "2026-10-18",
+    "fiscal_years": {
+      "FY2025": [
+        "2024-10-01",
+        "2025-09-30"
+      ],
+      "FY2026": [
+        "2025-10-01",
+        "2026-09-30"
+      ]
+    }
+  },
+  "employees": [
+    {
+      "id": "EMP-001",
+      "person_id": "P-001",
+      "name": "Maja Lindqvist",
+      "emp_no": 1,
+      "title": "Verkställande direktör",
+      "dept": "LED",
+      "level": "EXP",
+      "hired": "2018-03-12",
+      "left": null,
+      "salary": 98000,
+      "billing_rate": 1350,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-002",
+      "person_id": "P-002",
+      "name": "Jonas Sandberg",
+      "emp_no": 2,
+      "title": "CTO",
+      "dept": "LED",
+      "level": "EXP",
+      "hired": "2018-03-12",
+      "left": null,
+      "salary": 92000,
+      "billing_rate": 1250,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-003",
+      "person_id": "P-003",
+      "name": "Anders Bergström",
+      "emp_no": 3,
+      "title": "CFO",
+      "dept": "LED",
+      "level": "EXP",
+      "hired": "2021-01-11",
+      "left": null,
+      "salary": 74000,
+      "billing_rate": null,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-004",
+      "person_id": "P-004",
+      "name": "Petra Wahlgren",
+      "emp_no": 4,
+      "title": "HR- och kontorschef",
+      "dept": "STAB",
+      "level": "SEN",
+      "hired": "2020-08-17",
+      "left": null,
+      "salary": 52000,
+      "billing_rate": null,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-005",
+      "person_id": "P-005",
+      "name": "Sara Holm",
+      "emp_no": 5,
+      "title": "Försäljningschef",
+      "dept": "STAB",
+      "level": "EXP",
+      "hired": "2021-04-06",
+      "left": null,
+      "salary": 68000,
+      "billing_rate": null,
+      "current": true,
+      "note": "Provision 1,2 % på nyförsäljning"
+    },
+    {
+      "id": "EMP-006",
+      "person_id": "P-006",
+      "name": "Lisa Sundberg",
+      "emp_no": 6,
+      "title": "Marknadsansvarig",
+      "dept": "STAB",
+      "level": "REG",
+      "hired": "2023-02-01",
+      "left": null,
+      "salary": 46000,
+      "billing_rate": null,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-007",
+      "person_id": "P-007",
+      "name": "Erik Norén",
+      "emp_no": 7,
+      "title": "Leveranschef",
+      "dept": "STAB",
+      "level": "EXP",
+      "hired": "2019-05-06",
+      "left": null,
+      "salary": 78000,
+      "billing_rate": 1300,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-008",
+      "person_id": "P-008",
+      "name": "David Ekström",
+      "emp_no": 8,
+      "title": "Projektledare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2019-09-02",
+      "left": null,
+      "salary": 66000,
+      "billing_rate": 1200,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-009",
+      "person_id": "P-009",
+      "name": "Karin Olsson",
+      "emp_no": 9,
+      "title": "Projektledare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2021-03-15",
+      "left": null,
+      "salary": 64000,
+      "billing_rate": 1200,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-010",
+      "person_id": "P-010",
+      "name": "Magnus Ryd",
+      "emp_no": 10,
+      "title": "Projektledare",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2022-11-01",
+      "left": "2026-03-31",
+      "salary": 62000,
+      "billing_rate": 1150,
+      "current": false,
+      "note": "Sade upp sig 2026-02-27 (3 mån uppsägning); uppgav utmattningsrelaterade skäl i avslutssamtal."
+    },
+    {
+      "id": "EMP-011",
+      "person_id": "P-011",
+      "name": "Tomas Berg",
+      "emp_no": 11,
+      "title": "Lösningsarkitekt",
+      "dept": "LEV",
+      "level": "EXP",
+      "hired": "2019-01-07",
+      "left": null,
+      "salary": 74000,
+      "billing_rate": 1300,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-012",
+      "person_id": "P-012",
+      "name": "Nadia Haddad",
+      "emp_no": 12,
+      "title": "Lösningsarkitekt",
+      "dept": "LEV",
+      "level": "EXP",
+      "hired": "2026-05-04",
+      "left": null,
+      "salary": 72000,
+      "billing_rate": 1250,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-013",
+      "person_id": "P-013",
+      "name": "Fredrik Lund",
+      "emp_no": 13,
+      "title": "Senior utvecklare",
+      "dept": "LEV",
+      "level": "EXP",
+      "hired": "2019-04-01",
+      "left": null,
+      "salary": 64000,
+      "billing_rate": 1150,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-014",
+      "person_id": "P-014",
+      "name": "Emma Persson",
+      "emp_no": 14,
+      "title": "Senior utvecklare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2020-03-09",
+      "left": null,
+      "salary": 62000,
+      "billing_rate": 1150,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-015",
+      "person_id": "P-015",
+      "name": "Johan Wall",
+      "emp_no": 15,
+      "title": "Senior utvecklare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2020-09-14",
+      "left": null,
+      "salary": 61000,
+      "billing_rate": 1150,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-016",
+      "person_id": "P-016",
+      "name": "Sofia Lindgren",
+      "emp_no": 16,
+      "title": "Senior utvecklare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2021-08-23",
+      "left": "2026-06-30",
+      "salary": 60000,
+      "billing_rate": 1150,
+      "current": false,
+      "note": "Sade upp sig 2026-04-29; började hos kunden Polstjärnan Försäkring AB 2026-07-01."
+    },
+    {
+      "id": "EMP-017",
+      "person_id": "P-017",
+      "name": "Oskar Nilsson",
+      "emp_no": 17,
+      "title": "Senior utvecklare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2022-04-04",
+      "left": null,
+      "salary": 58000,
+      "billing_rate": 1100,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-018",
+      "person_id": "P-018",
+      "name": "Camilla Westin",
+      "emp_no": 18,
+      "title": "Senior utvecklare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2025-02-03",
+      "left": null,
+      "salary": 62000,
+      "billing_rate": 1100,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-019",
+      "person_id": "P-019",
+      "name": "Viktor Lind",
+      "emp_no": 19,
+      "title": "Utvecklare",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2025-01-12",
+      "left": null,
+      "salary": 50000,
+      "billing_rate": 980,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-020",
+      "person_id": "P-020",
+      "name": "Elin Andersson",
+      "emp_no": 20,
+      "title": "Utvecklare",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2023-08-14",
+      "left": null,
+      "salary": 50000,
+      "billing_rate": 980,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-021",
+      "person_id": "P-021",
+      "name": "Robin Åkerlund",
+      "emp_no": 21,
+      "title": "Utvecklare",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2025-09-01",
+      "left": "2026-01-31",
+      "salary": 46000,
+      "billing_rate": 980,
+      "current": false,
+      "note": "Provanställning avslutades 2026-01-31 (ej övergång till tillsvidare)."
+    },
+    {
+      "id": "EMP-022",
+      "person_id": "P-022",
+      "name": "Alice Forsberg",
+      "emp_no": 22,
+      "title": "Junior utvecklare",
+      "dept": "LEV",
+      "level": "JUN",
+      "hired": "2025-04-01",
+      "left": null,
+      "salary": 36000,
+      "billing_rate": 850,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-023",
+      "person_id": "P-023",
+      "name": "Hugo Larsson",
+      "emp_no": 23,
+      "title": "Junior utvecklare",
+      "dept": "LEV",
+      "level": "JUN",
+      "hired": "2026-01-12",
+      "left": null,
+      "salary": 35000,
+      "billing_rate": 850,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-024",
+      "person_id": "P-024",
+      "name": "Maria Gustavsson",
+      "emp_no": 24,
+      "title": "Testledare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2020-11-02",
+      "left": null,
+      "salary": 52000,
+      "billing_rate": 1050,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-025",
+      "person_id": "P-025",
+      "name": "Johanna Sjöberg",
+      "emp_no": 25,
+      "title": "UX-designer",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2022-02-07",
+      "left": null,
+      "salary": 50000,
+      "billing_rate": 1000,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-026",
+      "person_id": "P-026",
+      "name": "Daniel Nyström",
+      "emp_no": 26,
+      "title": "Data/AI-specialist",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2023-05-08",
+      "left": null,
+      "salary": 60000,
+      "billing_rate": 1150,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-027",
+      "person_id": "P-027",
+      "name": "Patrik Öberg",
+      "emp_no": 27,
+      "title": "DevOps-ingenjör",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2024-11-01",
+      "left": null,
+      "salary": 56000,
+      "billing_rate": 1050,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-028",
+      "person_id": "P-028",
+      "name": "Simon Dahl",
+      "emp_no": 28,
+      "title": "DevOps-ingenjör",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2025-08-18",
+      "left": null,
+      "salary": 52000,
+      "billing_rate": 1050,
+      "current": true,
+      "note": ""
+    },
+    {
+      "id": "EMP-029",
+      "person_id": "P-029",
+      "name": "Björn Falk",
+      "emp_no": 29,
+      "title": "Utvecklare",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2021-02-15",
+      "left": "2026-08-31",
+      "salary": 49000,
+      "billing_rate": 980,
+      "current": false,
+      "note": "Sade upp sig 2026-07-01; flyttar utomlands."
+    },
+    {
+      "id": "EMP-030",
+      "person_id": "P-030",
+      "name": "Klara Månsson",
+      "emp_no": 30,
+      "title": "Supportansvarig",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2022-09-05",
+      "left": "2026-09-30",
+      "salary": 44000,
+      "billing_rate": 950,
+      "current": false,
+      "note": "Sade upp sig 2026-08-27 (1 mån uppsägning); ny tjänst. Supporten har därefter ett bemanningsgap."
+    },
+    {
+      "id": "EMP-031",
+      "person_id": "P-031",
+      "name": "Lukas Ek",
+      "emp_no": 31,
+      "title": "Dataanalytiker",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2024-06-10",
+      "left": "2026-05-31",
+      "salary": 47000,
+      "billing_rate": 980,
+      "current": false,
+      "note": "Rekryterad av underkonsulten Dataverket Nord AB 2026-06-01. Därefter är Daniel Nyström ensam dataspecialist (nyckelpersonsrisk)."
+    },
+    {
+      "id": "EMP-032",
+      "person_id": "P-032",
+      "name": "Gustav Pettersson",
+      "emp_no": 32,
+      "title": "Senior utvecklare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2019-11-04",
+      "left": "2024-11-15",
+      "salary": 60000,
+      "billing_rate": 1150,
+      "current": false,
+      "note": "Sade upp sig; gick till konkurrenten Blå Ocean IT AB. Konkurrensklausul diskuterad."
+    },
+    {
+      "id": "EMP-033",
+      "person_id": "P-033",
+      "name": "Martina Bergqvist",
+      "emp_no": 33,
+      "title": "Projektledare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2021-09-20",
+      "left": "2025-01-31",
+      "salary": 60000,
+      "billing_rate": 1200,
+      "current": false,
+      "note": "Sade upp sig; flyttade till Göteborg."
+    },
+    {
+      "id": "EMP-034",
+      "person_id": "P-034",
+      "name": "Tobias Lindqvist",
+      "emp_no": 34,
+      "title": "Utvecklare",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2023-03-13",
+      "left": "2025-03-14",
+      "salary": 47000,
+      "billing_rate": 980,
+      "current": false,
+      "note": "Avskedad p.g.a. bristande prestation. Tvist; förlikning 2025-08-27 med avgångsvederlag om 3 månadslöner (141 000 kr)."
+    },
+    {
+      "id": "EMP-035",
+      "person_id": "P-035",
+      "name": "Jenny Lindholm",
+      "emp_no": 35,
+      "title": "Testare",
+      "dept": "LEV",
+      "level": "REG",
+      "hired": "2022-05-09",
+      "left": "2025-06-30",
+      "salary": 46000,
+      "billing_rate": 1000,
+      "current": false,
+      "note": "Sade upp sig; ny roll i annan bransch."
+    },
+    {
+      "id": "EMP-036",
+      "person_id": "P-036",
+      "name": "Rasmus Holm",
+      "emp_no": 36,
+      "title": "Senior utvecklare",
+      "dept": "LEV",
+      "level": "SEN",
+      "hired": "2020-10-12",
+      "left": "2025-10-31",
+      "salary": 62000,
+      "billing_rate": 1150,
+      "current": false,
+      "note": "Rekryterad av kunden Skogsbygdens Energi AB (SE-Billing). Intressekonflikt noterad i ledningsgruppen."
+    },
+    {
+      "id": "EMP-037",
+      "person_id": "P-037",
+      "name": "Anna Westberg",
+      "emp_no": 37,
+      "title": "Marknadskoordinator",
+      "dept": "STAB",
+      "level": "JUN",
+      "hired": "2023-06-19",
+      "left": "2026-02-28",
+      "salary": 41000,
+      "billing_rate": null,
+      "current": false,
+      "note": "Sade upp sig; uppgav arbetsbelastning i avslutssamtal."
+    }
+  ],
+  "customers": [
+    {
+      "id": "CUS-001",
+      "name": "Skogsbygdens Energi AB",
+      "segment": "ENTERPRISE",
+      "industry": "Energi",
+      "status": "ACTIVE",
+      "is_key": true,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "Största kund (ca 35 % av omsättningen). Ramavtal + SE-Billing + SE-Integration + SE-Förvaltning."
+    },
+    {
+      "id": "CUS-002",
+      "name": "Gråvikens kommun",
+      "segment": "OFFENTLIG",
+      "industry": "Offentlig förvaltning",
+      "status": "ACTIVE",
+      "is_key": true,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "Ramavtal med KPI-indexklausul; indexuppräkning per 2025-10-01 missad i faktureringen."
+    },
+    {
+      "id": "CUS-003",
+      "name": "Fyrstadens kommun",
+      "segment": "OFFENTLIG",
+      "industry": "Offentlig förvaltning",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "slow",
+      "credit_days": 45,
+      "note": "Fakturering efterskott. Långsam betalare (45 dgr kredittid + fördröjning)."
+    },
+    {
+      "id": "CUS-004",
+      "name": "Kustlandets region",
+      "segment": "OFFENTLIG",
+      "industry": "Offentlig förvaltning",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "KL-Vårdportal, avslutad 2026-03."
+    },
+    {
+      "id": "CUS-005",
+      "name": "Kustbandets Färjor AB",
+      "segment": "ENTERPRISE",
+      "industry": "Sjöfart och logistik",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "KF-Biljettsystem. Indexhöjning per 2025-11-01 (till 1 150 kr/h) debiterades felaktigt först från 2026-02; eftersläpningsfaktura utfärdad 2026-02-28."
+    },
+    {
+      "id": "CUS-006",
+      "name": "Timmervikens Såg AB",
+      "segment": "ENTERPRISE",
+      "industry": "Tillverkning",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "TS-Produktionsportal (fast pris). 8 veckor försenad; vite förhandlat, kreditnota 90 000 kr 2026-06-30."
+    },
+    {
+      "id": "CUS-007",
+      "name": "Blåklintens Vård AB",
+      "segment": "SMB",
+      "industry": "Vård och omsorg",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "slow",
+      "credit_days": 45,
+      "note": "BV-Journalsystem. Indexklausul per 2026-04-01 missad i faktureringen. Långsam betalare."
+    },
+    {
+      "id": "CUS-008",
+      "name": "Mossbackens Mekaniska AB",
+      "segment": "SMB",
+      "industry": "Tillverkning",
+      "status": "CHURNED",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "Lämnade oss 2026-06-30 till konkurrent (Prispress). MM-Underhållssystem avslutat."
+    },
+    {
+      "id": "CUS-009",
+      "name": "Örby Handel & Logistik AB",
+      "segment": "SMB",
+      "industry": "Handel",
+      "status": "CHURNED",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "Lämnade 2025-03-31. Tvist om slutfaktura 96 800 kr (acceptans); fordran obetald och tvistig."
+    },
+    {
+      "id": "CUS-010",
+      "name": "Sjöstadens Bryggeri AB",
+      "segment": "SMB",
+      "industry": "Livsmedel",
+      "status": "BANKRUPT",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "Konkurs 2025-12-08. September- och novemberfakturorna (totalt 220 065,00 kr inkl. moms) obetalda, avskrivna som kundförlust 2025-12-31. Oktoberfakturan betalades sent (2025-11-20)."
+    },
+    {
+      "id": "CUS-011",
+      "name": "Norrhamns Hamn AB",
+      "segment": "ENTERPRISE",
+      "industry": "Logistik",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "NH-Logistikportal (t.o.m. 2025-12) + NH-Förvaltning fr.o.m. 2026-01."
+    },
+    {
+      "id": "CUS-012",
+      "name": "Åsen Bostäder AB",
+      "segment": "SMB",
+      "industry": "Fastighet",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "ÅB-Bostadsportal (fast pris, klar 2025-11)."
+    },
+    {
+      "id": "CUS-013",
+      "name": "Gruvbergets Mineral AB",
+      "segment": "ENTERPRISE",
+      "industry": "Industri",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "GM-Bergdatasystem, löpande räkning."
+    },
+    {
+      "id": "CUS-014",
+      "name": "Solvind Kraft AB",
+      "segment": "SMB",
+      "industry": "Energi",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "SV-Molnmigrering (fast pris, klar 2026-03)."
+    },
+    {
+      "id": "CUS-015",
+      "name": "Polstjärnan Försäkring AB",
+      "segment": "ENTERPRISE",
+      "industry": "Försäkring",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "PF-Kundportal, löpande räkning."
+    },
+    {
+      "id": "CUS-016",
+      "name": "Kapellbacken Fastigheter AB",
+      "segment": "SMB",
+      "industry": "Fastighet",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "KP-Fastighetssystem. Även vår hyresvärd (leverantör SUP-001) – intresseberoende noterat i riskregistret."
+    },
+    {
+      "id": "CUS-017",
+      "name": "Ljusåns Livsmedel AB",
+      "segment": "SMB",
+      "industry": "Livsmedel",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "LL-Spårbarhet (fast pris, klar 2026-01)."
+    },
+    {
+      "id": "CUS-018",
+      "name": "Sjöbrisens Marina AB",
+      "segment": "SMB",
+      "industry": "Handel",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "SM-Bokningssystem, löpande räkning."
+    },
+    {
+      "id": "CUS-019",
+      "name": "Nybygget Entreprenad AB",
+      "segment": "SMB",
+      "industry": "Bygg",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "NE-Projektportal, löpande räkning."
+    },
+    {
+      "id": "CUS-020",
+      "name": "Trädkronans Skog AB",
+      "segment": "SMB",
+      "industry": "Skogsbruk",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "TR-Skogsportal (fast pris, pågår)."
+    },
+    {
+      "id": "CUS-021",
+      "name": "Aftonrodnans Restauranger AB",
+      "segment": "SMB",
+      "industry": "Restaurang",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "AR-Beställningsapp, avslutad 2025-10."
+    },
+    {
+      "id": "CUS-022",
+      "name": "Läromedelshuset AB",
+      "segment": "SMB",
+      "industry": "Förlag",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "LM-Lärplattform (fast pris, klar 2026-08)."
+    },
+    {
+      "id": "CUS-023",
+      "name": "Forsen Kraft & Miljö AB",
+      "segment": "SMB",
+      "industry": "Energi och miljö",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "FK-Miljödata, avslutad 2026-02."
+    },
+    {
+      "id": "CUS-024",
+      "name": "Fjällporten Hotell AB",
+      "segment": "SMB",
+      "industry": "Hotell och turism",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "FP-Bokningsplattform, löpande räkning."
+    },
+    {
+      "id": "CUS-025",
+      "name": "Sundbygdens Varv AB",
+      "segment": "SMB",
+      "industry": "Industri",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "SU-Produktionssystem (fast pris, pågår)."
+    },
+    {
+      "id": "CUS-026",
+      "name": "Fjäderholmens Rekond AB",
+      "segment": "SMB",
+      "industry": "Service",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-027",
+      "name": "Mjölkvägens Transport AB",
+      "segment": "SMB",
+      "industry": "Logistik",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-028",
+      "name": "Klockbergets Skola AB",
+      "segment": "SMB",
+      "industry": "Utbildning",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-029",
+      "name": "Bivägens Honung AB",
+      "segment": "SMB",
+      "industry": "Livsmedel",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-030",
+      "name": "Stjärnklart Media AB",
+      "segment": "SMB",
+      "industry": "Media",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-031",
+      "name": "Guldstaden Revision AB",
+      "segment": "SMB",
+      "industry": "Tjänster",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-032",
+      "name": "Havsbrisens Hotell AB",
+      "segment": "SMB",
+      "industry": "Hotell",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-033",
+      "name": "Silverlinjen Buss AB",
+      "segment": "SMB",
+      "industry": "Transport",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-034",
+      "name": "Kopparbergets Museum AB",
+      "segment": "SMB",
+      "industry": "Kultur",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-035",
+      "name": "Nordanvinden Advokat AB",
+      "segment": "SMB",
+      "industry": "Juridik",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-036",
+      "name": "Östergårdens Lantbruk AB",
+      "segment": "SMB",
+      "industry": "Lantbruk",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": "Uppdrag avslutat 2025-12."
+    },
+    {
+      "id": "CUS-037",
+      "name": "Vintergatans IT AB",
+      "segment": "SMB",
+      "industry": "IT",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-038",
+      "name": "Sommarängens Trädgård AB",
+      "segment": "SMB",
+      "industry": "Trädgård",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-039",
+      "name": "Höstlövets Förlag AB",
+      "segment": "SMB",
+      "industry": "Förlag",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-040",
+      "name": "Vårflodens Energi AB",
+      "segment": "SMB",
+      "industry": "Energi",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-041",
+      "name": "Regnbågens Design AB",
+      "segment": "SMB",
+      "industry": "Design",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-042",
+      "name": "Snöflingans Skidanläggning AB",
+      "segment": "SMB",
+      "industry": "Turism",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-043",
+      "name": "Tidvattnets Fiskeri AB",
+      "segment": "SMB",
+      "industry": "Fiske",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-044",
+      "name": "Morgonrodnadens Bageri AB",
+      "segment": "SMB",
+      "industry": "Livsmedel",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-045",
+      "name": "Skymningsvakten AB",
+      "segment": "SMB",
+      "industry": "Säkerhet",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-046",
+      "name": "Nattugglans Kundservice AB",
+      "segment": "SMB",
+      "industry": "Kundservice",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-047",
+      "name": "Gryningsljusets Reklam AB",
+      "segment": "SMB",
+      "industry": "Reklam",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-048",
+      "name": "Åskmolns Data AB",
+      "segment": "SMB",
+      "industry": "IT",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    },
+    {
+      "id": "CUS-049",
+      "name": "Stormvindens Logistik AB",
+      "segment": "SMB",
+      "industry": "Logistik",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "very_slow",
+      "credit_days": 45,
+      "note": ""
+    },
+    {
+      "id": "CUS-050",
+      "name": "Kristallkronans Smycken AB",
+      "segment": "SMB",
+      "industry": "Handel",
+      "status": "ACTIVE",
+      "is_key": false,
+      "payment_profile": "normal",
+      "credit_days": 30,
+      "note": ""
+    }
+  ],
+  "suppliers": [
+    {
+      "id": "SUP-001",
+      "name": "Kapellbacken Fastigheter AB",
+      "category": "Lokal",
+      "is_subcontractor": false,
+      "note": "Hyresvärd, Lokalgatan 12 (även kund CUS-016)."
+    },
+    {
+      "id": "SUP-002",
+      "name": "Datorlagret AB",
+      "category": "IT-hårdvara",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-003",
+      "name": "Cloudserve Ireland Ltd",
+      "category": "SaaS",
+      "is_subcontractor": false,
+      "note": "M365 + Azure. Omvänd skattskyldighet (reverse charge)."
+    },
+    {
+      "id": "SUP-004",
+      "name": "Nordhost AB",
+      "category": "SaaS/hosting",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-005",
+      "name": "Agila Verktyg AB",
+      "category": "SaaS",
+      "is_subcontractor": false,
+      "note": "Ärendehantering och wiki."
+    },
+    {
+      "id": "SUP-006",
+      "name": "Kanalen AB",
+      "category": "SaaS",
+      "is_subcontractor": false,
+      "note": "Chattverktyg."
+    },
+    {
+      "id": "SUP-007",
+      "name": "Designsuiten AB",
+      "category": "SaaS",
+      "is_subcontractor": false,
+      "note": "Designverktyg, 18 licenser varav 9 används – låg utnyttjandegrad."
+    },
+    {
+      "id": "SUP-008",
+      "name": "Säkra Nät AB",
+      "category": "Säkerhet",
+      "is_subcontractor": false,
+      "note": "VPN och nätverkssäkerhet."
+    },
+    {
+      "id": "SUP-009",
+      "name": "Pipeline AB",
+      "category": "SaaS/CRM",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-010",
+      "name": "Löneportalen AB",
+      "category": "SaaS/lön",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-011",
+      "name": "Företagssystem Nord AB",
+      "category": "SaaS/ekonomi",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-012",
+      "name": "Modellfabriken AB",
+      "category": "SaaS/AI",
+      "is_subcontractor": false,
+      "note": "AI-modell-API:er. Användningen ökade kraftigt 2026."
+    },
+    {
+      "id": "SUP-013",
+      "name": "Analytics Cloud Inc",
+      "category": "SaaS/AI",
+      "is_subcontractor": false,
+      "note": "Amerikansk molntjänst – personuppgifter överförs utanför EU/EES (SCC)."
+    },
+    {
+      "id": "SUP-014",
+      "name": "Datainsikt AB",
+      "category": "SaaS/analys",
+      "is_subcontractor": false,
+      "note": "Analysverktyg, 10 licenser varav 2 används – låg utnyttjandegrad."
+    },
+    {
+      "id": "SUP-015",
+      "name": "Whiteboard AB",
+      "category": "SaaS",
+      "is_subcontractor": false,
+      "note": "Digital samarbetsyta."
+    },
+    {
+      "id": "SUP-016",
+      "name": "Bygglådan AB",
+      "category": "SaaS/CI-CD",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-017",
+      "name": "Vakthuset AB",
+      "category": "SaaS/monitoring",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-018",
+      "name": "Signera AB",
+      "category": "SaaS/e-sign",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-019",
+      "name": "Telefonbolaget Väst AB",
+      "category": "Telekom",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-020",
+      "name": "Arkivet AB",
+      "category": "SaaS/dokument",
+      "is_subcontractor": false,
+      "note": "Dokumenthantering."
+    },
+    {
+      "id": "SUP-021",
+      "name": "Säkerhetskopian AB",
+      "category": "SaaS/backup",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-022",
+      "name": "Personalen AB",
+      "category": "SaaS/HR",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-023",
+      "name": "Elbolaget Syd AB",
+      "category": "El",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-024",
+      "name": "Städfirman Ren & Fin AB",
+      "category": "Städning",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-025",
+      "name": "Pensionsvalet AB",
+      "category": "Pension",
+      "is_subcontractor": false,
+      "note": "Pensionspremier, faktureras månadsvis."
+    },
+    {
+      "id": "SUP-026",
+      "name": "Blixt & Båge Byrå AB",
+      "category": "Marknadsföring",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-027",
+      "name": "Kontorspartner AB",
+      "category": "Kontorsmaterial",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-028",
+      "name": "Resebolaget Nord AB",
+      "category": "Resor",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-029",
+      "name": "Billotsen AB",
+      "category": "Billeasing",
+      "is_subcontractor": false,
+      "note": "2 tjänstebilar."
+    },
+    {
+      "id": "SUP-030",
+      "name": "Datorlagret Leasing AB",
+      "category": "IT-leasing",
+      "is_subcontractor": false,
+      "note": "60 laptops."
+    },
+    {
+      "id": "SUP-031",
+      "name": "Talangjakten AB",
+      "category": "Rekrytering",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-032",
+      "name": "Kompetensbron AB",
+      "category": "Utbildning",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-033",
+      "name": "Advokatfirman Krav & Klar KB",
+      "category": "Juridik",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-034",
+      "name": "Kraftkod Konsult AB",
+      "category": "Underkonsult",
+      "is_subcontractor": true,
+      "note": "2 utvecklare på SE-Billing."
+    },
+    {
+      "id": "SUP-035",
+      "name": "Dataverket Nord AB",
+      "category": "Underkonsult",
+      "is_subcontractor": true,
+      "note": "Data engineer, GM-Bergdatasystem."
+    },
+    {
+      "id": "SUP-036",
+      "name": "Testhuset Stockholm AB",
+      "category": "Underkonsult",
+      "is_subcontractor": true,
+      "note": "Test, PF-Kundportal."
+    },
+    {
+      "id": "SUP-037",
+      "name": "Pixel & Form AB",
+      "category": "Underkonsult",
+      "is_subcontractor": true,
+      "note": "UX, KF-Biljettsystem."
+    },
+    {
+      "id": "SUP-038",
+      "name": "Tryggast Försäkring AB",
+      "category": "Försäkring",
+      "is_subcontractor": false,
+      "note": "Företagsförsäkring, årlig premie."
+    },
+    {
+      "id": "SUP-039",
+      "name": "Revision & Tal AB",
+      "category": "Revision",
+      "is_subcontractor": false,
+      "note": ""
+    },
+    {
+      "id": "SUP-040",
+      "name": "Lön & Redo AB",
+      "category": "Redovisning",
+      "is_subcontractor": false,
+      "note": "Löpande redovisning."
+    }
+  ],
+  "projects": [
+    {
+      "id": "PRJ-001",
+      "code": "P-2401",
+      "customer_id": "CUS-001",
+      "name": "SE-Billing – ny faktureringsplattform",
+      "ptype": "MIGR",
+      "start": "2024-10-01",
+      "end": "2026-07-15",
+      "status": "DONE",
+      "contract_id": "CTR-2023-002",
+      "billing_model": "FIXED",
+      "fixed_amount": 9400000,
+      "note": "Fast pris 9,4 MSEK. Försenad ca 15 veckor; tilläggsavtal 2026-02-06 (CTR-2026-004). Slutleverans 2026-07-15. Underkonsulter Kraftkod (2 utv.)."
+    },
+    {
+      "id": "PRJ-002",
+      "code": "P-2402",
+      "customer_id": "CUS-001",
+      "name": "SE-Integration – löpande konsultstöd",
+      "ptype": "UTV",
+      "start": "2025-01-12",
+      "end": "2026-09-30",
+      "status": "ACTIVE",
+      "contract_id": "CTR-2023-002",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning enligt ramavtal, 1 180 kr/h. Ramavtal CTR-2023-002, förlängt 2026-01-15 (CTR-2026-002) t.o.m. 2028-01-31."
+    },
+    {
+      "id": "PRJ-003",
+      "code": "P-2403",
+      "customer_id": "CUS-001",
+      "name": "SE-Förvaltning",
+      "ptype": "FORV",
+      "start": "2025-04-01",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2024-010",
+      "billing_model": "MANAGED",
+      "fixed_amount": null,
+      "note": "Förvaltningsavtal 320 000 kr/mån ex moms fr.o.m. 2025-04-01."
+    },
+    {
+      "id": "PRJ-004",
+      "code": "P-2404",
+      "customer_id": "CUS-002",
+      "name": "GV-Digitalisering",
+      "ptype": "UTV",
+      "start": "2024-10-01",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2022-007",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 050 kr/h. Ramavtal har KPI-klausul (bas 2023-10, uppräkning per 2025-10-01) – EJ tillämpad i faktureringen (avvikelse)."
+    },
+    {
+      "id": "PRJ-005",
+      "code": "P-2405",
+      "customer_id": "CUS-003",
+      "name": "FS-Intranät",
+      "ptype": "UTV",
+      "start": "2025-02-02",
+      "end": "2025-09-30",
+      "status": "DONE",
+      "contract_id": "CTR-2024-021",
+      "billing_model": "FIXED",
+      "fixed_amount": 1250000,
+      "note": "Fast pris 1 250 000 kr. Slutfaktura (300 000 kr ex moms) faktureras efterskott 2025-10-10; 240 000 kr periodiseras som upplupen intäkt 2025-09-30."
+    },
+    {
+      "id": "PRJ-006",
+      "code": "P-2406",
+      "customer_id": "CUS-003",
+      "name": "FS-Förvaltning",
+      "ptype": "FORV",
+      "start": "2025-10-01",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2025-014",
+      "billing_model": "MANAGED",
+      "fixed_amount": null,
+      "note": "Förvaltningsavtal 85 000 kr/mån ex moms."
+    },
+    {
+      "id": "PRJ-007",
+      "code": "P-2407",
+      "customer_id": "CUS-004",
+      "name": "KL-Vårdportal",
+      "ptype": "UTV",
+      "start": "2024-11-04",
+      "end": "2026-03-31",
+      "status": "DONE",
+      "contract_id": "CTR-2024-014",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 090 kr/h."
+    },
+    {
+      "id": "PRJ-008",
+      "code": "P-2408",
+      "customer_id": "CUS-005",
+      "name": "KF-Biljettsystem",
+      "ptype": "UTV",
+      "start": "2024-10-01",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2023-015",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning. Avtalet medger indexuppräkning per 2025-11-01: 1 050 -> 1 150 kr/h. Höjningen debiterades felaktigt först fr.o.m. 2026-02; eftersläpningsfaktura 2026-02-28 (nov 2025–jan 2026)."
+    },
+    {
+      "id": "PRJ-009",
+      "code": "P-2409",
+      "customer_id": "CUS-006",
+      "name": "TS-Produktionsportal",
+      "ptype": "UTV",
+      "start": "2025-10-01",
+      "end": "2026-05-31",
+      "status": "DONE",
+      "contract_id": "CTR-2025-011",
+      "billing_model": "FIXED",
+      "fixed_amount": 1800000,
+      "note": "Fast pris 1,8 MSEK. 8 veckor försenad. Viteklausul 1 %/vecka, tak 10 %. Förlikning: kreditnota 90 000 kr 2026-06-30 mot slutacceptans."
+    },
+    {
+      "id": "PRJ-010",
+      "code": "P-2410",
+      "customer_id": "CUS-007",
+      "name": "BV-Journalsystem",
+      "ptype": "UTV",
+      "start": "2024-10-01",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2023-018",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 990 kr/h. Indexklausul (bas 2024-04, uppräkning per 2026-04-01) – EJ tillämpad i faktureringen (avvikelse). Kunden betalar långsamt."
+    },
+    {
+      "id": "PRJ-011",
+      "code": "P-2411",
+      "customer_id": "CUS-008",
+      "name": "MM-Underhållssystem",
+      "ptype": "UTV",
+      "start": "2025-01-06",
+      "end": "2026-06-30",
+      "status": "DONE",
+      "contract_id": "CTR-2024-030",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 030 kr/h. Kunden lämnade oss 2026-06-30 till konkurrent."
+    },
+    {
+      "id": "PRJ-012",
+      "code": "P-2412",
+      "customer_id": "CUS-009",
+      "name": "ÖH-Webbplattform",
+      "ptype": "UTV",
+      "start": "2024-10-01",
+      "end": "2025-02-28",
+      "status": "DONE",
+      "contract_id": "CTR-2024-016",
+      "billing_model": "FIXED",
+      "fixed_amount": 1450000,
+      "note": "Fast pris 1,45 MSEK. Tvist om slutfaktura: kunden har hållit inne 96 800 kr (inkl. moms) p.g.a. acceptansanmärkningar. Kunden lämnade oss 2025-03-31."
+    },
+    {
+      "id": "PRJ-013",
+      "code": "P-2413",
+      "customer_id": "CUS-010",
+      "name": "SB-E-handel",
+      "ptype": "UTV",
+      "start": "2025-03-03",
+      "end": "2025-11-30",
+      "status": "DONE",
+      "contract_id": "CTR-2024-031",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 020 kr/h. Kunden gick i konkurs 2025-12-08; september- och novemberfakturorna (totalt 220 065,00 kr) avskrivna 2025-12-31, oktoberfakturan betalades sent (2025-11-20)."
+    },
+    {
+      "id": "PRJ-014",
+      "code": "P-2414",
+      "customer_id": "CUS-011",
+      "name": "NH-Logistikportal",
+      "ptype": "UTV",
+      "start": "2024-10-01",
+      "end": "2025-12-31",
+      "status": "DONE",
+      "contract_id": "CTR-2023-021",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 120 kr/h."
+    },
+    {
+      "id": "PRJ-015",
+      "code": "P-2415",
+      "customer_id": "CUS-011",
+      "name": "NH-Förvaltning",
+      "ptype": "FORV",
+      "start": "2026-01-01",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2025-020",
+      "billing_model": "MANAGED",
+      "fixed_amount": null,
+      "note": "Förvaltningsavtal 95 000 kr/mån ex moms."
+    },
+    {
+      "id": "PRJ-016",
+      "code": "P-2416",
+      "customer_id": "CUS-012",
+      "name": "ÅB-Bostadsportal",
+      "ptype": "UTV",
+      "start": "2025-03-03",
+      "end": "2025-11-28",
+      "status": "DONE",
+      "contract_id": "CTR-2025-002",
+      "billing_model": "FIXED",
+      "fixed_amount": 980000,
+      "note": "Fast pris 980 000 kr."
+    },
+    {
+      "id": "PRJ-017",
+      "code": "P-2417",
+      "customer_id": "CUS-013",
+      "name": "GM-Bergdatasystem",
+      "ptype": "DATA",
+      "start": "2024-10-01",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2023-026",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 150 kr/h. Inkluderar underkonsult Dataverket Nord (60 h/mån)."
+    },
+    {
+      "id": "PRJ-018",
+      "code": "P-2418",
+      "customer_id": "CUS-014",
+      "name": "SV-Molnmigrering",
+      "ptype": "MIGR",
+      "start": "2025-06-02",
+      "end": "2026-03-31",
+      "status": "DONE",
+      "contract_id": "CTR-2025-006",
+      "billing_model": "FIXED",
+      "fixed_amount": 2400000,
+      "note": "Fast pris 2,4 MSEK."
+    },
+    {
+      "id": "PRJ-019",
+      "code": "P-2419",
+      "customer_id": "CUS-015",
+      "name": "PF-Kundportal",
+      "ptype": "UTV",
+      "start": "2025-04-01",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2025-007",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 180 kr/h. Inkluderar underkonsult Testhuset (45 h/mån)."
+    },
+    {
+      "id": "PRJ-020",
+      "code": "P-2420",
+      "customer_id": "CUS-016",
+      "name": "KP-Fastighetssystem",
+      "ptype": "FORV",
+      "start": "2024-10-01",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2022-028",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 080 kr/h."
+    },
+    {
+      "id": "PRJ-021",
+      "code": "P-2421",
+      "customer_id": "CUS-017",
+      "name": "LL-Spårbarhet",
+      "ptype": "DATA",
+      "start": "2025-08-04",
+      "end": "2026-01-30",
+      "status": "DONE",
+      "contract_id": "CTR-2025-009",
+      "billing_model": "FIXED",
+      "fixed_amount": 1100000,
+      "note": "Fast pris 1,1 MSEK."
+    },
+    {
+      "id": "PRJ-022",
+      "code": "P-2422",
+      "customer_id": "CUS-018",
+      "name": "SM-Bokningssystem",
+      "ptype": "UTV",
+      "start": "2025-05-05",
+      "end": "2026-04-30",
+      "status": "DONE",
+      "contract_id": "CTR-2025-008",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 040 kr/h."
+    },
+    {
+      "id": "PRJ-023",
+      "code": "P-2423",
+      "customer_id": "CUS-019",
+      "name": "NE-Projektportal",
+      "ptype": "UTV",
+      "start": "2025-09-01",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2025-013",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 060 kr/h."
+    },
+    {
+      "id": "PRJ-024",
+      "code": "P-2424",
+      "customer_id": "CUS-020",
+      "name": "TR-Skogsportal",
+      "ptype": "UTV",
+      "start": "2026-01-05",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2025-019",
+      "billing_model": "FIXED",
+      "fixed_amount": 850000,
+      "note": "Fast pris 850 000 kr."
+    },
+    {
+      "id": "PRJ-025",
+      "code": "P-2425",
+      "customer_id": "CUS-021",
+      "name": "AR-Beställningsapp",
+      "ptype": "UTV",
+      "start": "2025-02-03",
+      "end": "2025-10-31",
+      "status": "DONE",
+      "contract_id": "CTR-2024-032",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 010 kr/h."
+    },
+    {
+      "id": "PRJ-026",
+      "code": "P-2426",
+      "customer_id": "CUS-022",
+      "name": "LM-Lärplattform",
+      "ptype": "UTV",
+      "start": "2025-11-03",
+      "end": "2026-08-31",
+      "status": "DONE",
+      "contract_id": "CTR-2025-016",
+      "billing_model": "FIXED",
+      "fixed_amount": 1600000,
+      "note": "Fast pris 1,6 MSEK."
+    },
+    {
+      "id": "PRJ-027",
+      "code": "P-2427",
+      "customer_id": "CUS-023",
+      "name": "FK-Miljödata",
+      "ptype": "DATA",
+      "start": "2025-03-03",
+      "end": "2026-02-27",
+      "status": "DONE",
+      "contract_id": "CTR-2025-004",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 110 kr/h."
+    },
+    {
+      "id": "PRJ-028",
+      "code": "P-2428",
+      "customer_id": "CUS-024",
+      "name": "FP-Bokningsplattform",
+      "ptype": "UTV",
+      "start": "2026-02-02",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2025-022",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 1 030 kr/h."
+    },
+    {
+      "id": "PRJ-029",
+      "code": "P-2429",
+      "customer_id": "CUS-025",
+      "name": "SU-Produktionssystem",
+      "ptype": "UTV",
+      "start": "2026-03-02",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2026-001",
+      "billing_model": "FIXED",
+      "fixed_amount": 1950000,
+      "note": "Fast pris 1,95 MSEK. Fakturerat 1,6 MSEK t.o.m. 2026-09; 350 000 kr återstår (plan 2026-11)."
+    },
+    {
+      "id": "PRJ-030",
+      "code": "P-2430",
+      "customer_id": "CUS-028",
+      "name": "KS-Skolplattform",
+      "ptype": "UTV",
+      "start": "2025-08-04",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": "CTR-2025-015",
+      "billing_model": "TIME",
+      "fixed_amount": null,
+      "note": "Löpande räkning 990 kr/h."
+    },
+    {
+      "id": "PRJ-090",
+      "code": "P-2490",
+      "customer_id": null,
+      "name": "ND-Intern plattform (produktutveckling)",
+      "ptype": "UTV",
+      "start": "2025-06-02",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": null,
+      "billing_model": "FIXED",
+      "fixed_amount": null,
+      "note": "Internt projekt, ingen extern fakturering. Budget 2025/26: 2,4 MSEK (lönekostnad)."
+    },
+    {
+      "id": "PRJ-091",
+      "code": "P-2491",
+      "customer_id": null,
+      "name": "ND-Internt AI-initiativ",
+      "ptype": "DATA",
+      "start": "2026-01-07",
+      "end": null,
+      "status": "ACTIVE",
+      "contract_id": null,
+      "billing_model": "FIXED",
+      "fixed_amount": null,
+      "note": "Internt AI-initiativ, ingen extern fakturering. Budget 2026: 1,2 MSEK."
+    }
+  ],
+  "events": [
+    {
+      "id": "EVT-001",
+      "date": "2024-10-07",
+      "etype": "MGMT",
+      "title": "Ledningsgrupp: budgetförutsättningar FY25",
+      "description": "Ledningsgruppen går igenom budgetförutsättningar för FY25 (okt 2024–sep 2025). Omsättningsmål 41 MSEK, EBIT-mål 6 %.",
+      "note": ""
+    },
+    {
+      "id": "EVT-002",
+      "date": "2024-10-15",
+      "etype": "INCIDENT",
+      "title": "Säkerhetsincident: phishing",
+      "description": "Phishingmejl till ekonomiavdelningen; två medarbetare klickade. Inget konstaterat dataintrång. Incidentrapport upprättad.",
+      "note": "GQ-178 (säkerhetsincidenter)."
+    },
+    {
+      "id": "EVT-003",
+      "date": "2024-11-01",
+      "etype": "HIRE",
+      "title": "Nyanställning DevOps",
+      "description": "Patrik Öberg (EMP-027) börjar som DevOps-ingenjör.",
+      "note": "Lön 54 000 kr/mån."
+    },
+    {
+      "id": "EVT-004",
+      "date": "2024-11-15",
+      "etype": "LEAVE",
+      "title": "Gustav Pettersson slutar",
+      "description": "Gustav Pettersson (EMP-032) sade upp sig och gick till konkurrenten Blå Ocean IT AB. Konkurrensklausul (12 mån) i anställningsavtalet diskuteras med advokat.",
+      "note": "GQ-108."
+    },
+    {
+      "id": "EVT-005",
+      "date": "2024-11-21",
+      "etype": "BOARD",
+      "title": "Styrelsemöte (nov)",
+      "description": "Styrelsen fastställer FY25-budget. Beslut: bibehållen investeringsnivå, rekryteringsplan 6 nyanställningar, mål beläggning >= 82 %.",
+      "note": ""
+    },
+    {
+      "id": "EVT-006",
+      "date": "2024-11-29",
+      "etype": "DECISION",
+      "title": "Datorinköp aktiveras",
+      "description": "Beslut om inköp av 20 laptops + skärmar (350 000 kr ex moms) från Datorlagret; aktiveras som datorer (3 års avskrivning).",
+      "note": "Verk: C-2024-014."
+    },
+    {
+      "id": "EVT-007",
+      "date": "2024-12-18",
+      "etype": "COMPLAINT",
+      "title": "Kundklagomål: NH-Logistikportal",
+      "description": "Norrhamns Hamn klagar på prestanda i NH-Logistikportal (tredje gången på samma tema). Åtgärdsplan beslutad.",
+      "note": "GQ-046, GQ-158."
+    },
+    {
+      "id": "EVT-008",
+      "date": "2024-12-20",
+      "etype": "MGMT",
+      "title": "Ledningsgrupp: riskgenomgång",
+      "description": "Halvårsvis riskgenomgång. Riskregistret uppdateras; kundkoncentration (SEAB) och nyckelpersonsberoende lyfts till styrelsen.",
+      "note": ""
+    },
+    {
+      "id": "EVT-009",
+      "date": "2025-01-07",
+      "etype": "MGMT",
+      "title": "Ledningsgrupp: SE-Integration start",
+      "description": "Uppstart SE-Integration (löpande konsultstöd till SEAB, 1 150 kr/h initialt).",
+      "note": ""
+    },
+    {
+      "id": "EVT-010",
+      "date": "2025-01-12",
+      "etype": "HIRE",
+      "title": "Nyanställning utvecklare",
+      "description": "Viktor Lind (EMP-019) börjar som utvecklare.",
+      "note": "Lön 48 000 kr/mån."
+    },
+    {
+      "id": "EVT-011",
+      "date": "2025-01-31",
+      "etype": "LEAVE",
+      "title": "Martina Bergqvist slutar",
+      "description": "Martina Bergqvist (EMP-033) slutar; flyttar till Göteborg.",
+      "note": ""
+    },
+    {
+      "id": "EVT-012",
+      "date": "2025-02-03",
+      "etype": "HIRE",
+      "title": "Nyanställning senior utvecklare",
+      "description": "Camilla Westin (EMP-018) börjar som senior utvecklare.",
+      "note": "Lön 59 000 kr/mån."
+    },
+    {
+      "id": "EVT-013",
+      "date": "2025-02-10",
+      "etype": "BOARD",
+      "title": "Styrelsemöte (feb)",
+      "description": "Kvartalsrapport Q1 (okt–dec). Styrelsen noterar att checkräkningskrediten var utnyttjad till 190 000 kr i december och att likviditeten försämras; beslut om månatlig likviditetsprognos.",
+      "note": ""
+    },
+    {
+      "id": "EVT-014",
+      "date": "2025-02-28",
+      "etype": "CREDIT_NOTE",
+      "title": "ÖH-Webbplattform: tvistig slutfaktura",
+      "description": "Örby Handel bestrider slutfakturan (500 000 kr ex moms). Kunden betalar 528 200 kr (625 000 − 96 800) och håller inne 96 800 kr p.g.a. acceptansanmärkningar. Tvist pågår.",
+      "note": "GQ-004, GQ-046."
+    },
+    {
+      "id": "EVT-015",
+      "date": "2025-03-10",
+      "etype": "DECISION",
+      "title": "Datorinköp aktiveras",
+      "description": "Inköp av servrar och nätverksutrustning 480 000 kr ex moms (aktiveras).",
+      "note": ""
+    },
+    {
+      "id": "EVT-016",
+      "date": "2025-03-14",
+      "etype": "LEAVE",
+      "title": "Tobias Lindqvist avskedas",
+      "description": "Tobias Lindqvist (EMP-034) avskedas p.g.a. bristande prestation. Medarbetaren bestrider uppsägningen via facket. Tvist.",
+      "note": "GQ-075, GQ-103."
+    },
+    {
+      "id": "EVT-017",
+      "date": "2025-03-31",
+      "etype": "CONTRACT_END",
+      "title": "Örby Handel lämnar oss",
+      "description": "Örby Handel & Logistik AB avslutar samarbetet 2025-03-31 (tvisten olöst).",
+      "note": ""
+    },
+    {
+      "id": "EVT-018",
+      "date": "2025-04-01",
+      "etype": "HIRE",
+      "title": "Nyanställning junior utvecklare",
+      "description": "Alice Forsberg (EMP-022) börjar som junior utvecklare (exjobb).",
+      "note": "Lön 34 000 kr/mån."
+    },
+    {
+      "id": "EVT-019",
+      "date": "2025-04-03",
+      "etype": "RAISE",
+      "title": "Lönerevision 2025",
+      "description": "Årlig lönerevision: 8 medarbetare får höjningar fr.o.m. 2025-04-01 (se löneunderlag).",
+      "note": ""
+    },
+    {
+      "id": "EVT-020",
+      "date": "2025-04-15",
+      "etype": "DECISION",
+      "title": "Förlikningsförhandling Tobias Lindqvist",
+      "description": "Advokat Krav & Klar förhandlar med Tobias Lindqvists ombud. Motbud 6 månadslöner.",
+      "note": "GQ-075."
+    },
+    {
+      "id": "EVT-021",
+      "date": "2025-04-28",
+      "etype": "MGMT",
+      "title": "Ledningsgrupp: kapacitetsbrist",
+      "description": "Leveranschefen flaggar kapacitetsbrist i leveransteamet (beläggning > 95 % i maj–juni). Beslut: öka underkonsultanvändning och prioritera rekrytering.",
+      "note": "GQ-072, GQ-137."
+    },
+    {
+      "id": "EVT-022",
+      "date": "2025-05-19",
+      "etype": "BOARD",
+      "title": "Styrelsemöte (maj)",
+      "description": "Kvartalsrapport Q2. Godkänd. Diskussion om SEAB-beroendet (30 % av omsättningen).",
+      "note": "GQ-042, GQ-127."
+    },
+    {
+      "id": "EVT-023",
+      "date": "2025-06-30",
+      "etype": "LEAVE",
+      "title": "Jenny Lindholm slutar",
+      "description": "Jenny Lindholm (EMP-035) slutar för ny roll i annan bransch.",
+      "note": ""
+    },
+    {
+      "id": "EVT-024",
+      "date": "2025-06-12",
+      "etype": "DECISION",
+      "title": "Optionsprogram beslutas",
+      "description": "Styrelsen beslutar om teckningsoptionsprogram för nyckelpersoner (3 %).",
+      "note": "GQ-147."
+    },
+    {
+      "id": "EVT-025",
+      "date": "2025-08-18",
+      "etype": "HIRE",
+      "title": "Nyanställning DevOps",
+      "description": "Simon Dahl (EMP-028) börjar som DevOps-ingenjör.",
+      "note": "Lön 52 000 kr/mån."
+    },
+    {
+      "id": "EVT-026",
+      "date": "2025-08-15",
+      "etype": "DECISION",
+      "title": "Möbelinköp aktiveras",
+      "description": "Inköp av möbler till nya kontorsplatser 250 000 kr ex moms (inventarier, 5 år).",
+      "note": ""
+    },
+    {
+      "id": "EVT-027",
+      "date": "2025-08-27",
+      "etype": "SETTLEMENT",
+      "title": "Förlikning Tobias Lindqvist",
+      "description": "Förlikning: avgångsvederlag 3 månadslöner (141 000 kr) + advokatkostnader. Utbetalas 2025-09-05.",
+      "note": "Lönekörning september: 141 000 kr (7210/7510)."
+    },
+    {
+      "id": "EVT-028",
+      "date": "2025-08-31",
+      "etype": "PAYMENT_DELAY",
+      "title": "Likviditetsansträngning",
+      "description": "Likviditeten var som mest ansträngd i mars (checkkrediten utnyttjad till 1,18 MSEK). Läget har förbättrats, men ledningen inför veckovisa likviditetsavstämningar inför bankmötet.",
+      "note": "GQ-005, GQ-186."
+    },
+    {
+      "id": "EVT-029",
+      "date": "2025-09-01",
+      "etype": "HIRE",
+      "title": "Nyanställning utvecklare",
+      "description": "Robin Åkerlund (EMP-021) börjar som utvecklare.",
+      "note": "Lön 46 000 kr/mån."
+    },
+    {
+      "id": "EVT-030",
+      "date": "2025-09-15",
+      "etype": "MGMT",
+      "title": "Bankmöte: covenant",
+      "description": "Norrvidden Bank kräver kvartalsvisa covenant-rapporter (soliditet >= 25 %, EBITDA > 0) och månatlig likviditetsprognos som villkor för förnyad checkkredit.",
+      "note": "GQ-029."
+    },
+    {
+      "id": "EVT-031",
+      "date": "2025-09-25",
+      "etype": "BOARD",
+      "title": "Styrelsemöte (sep): budget FY26",
+      "description": "Styrelsen fastställer FY26-budget: omsättning 47 MSEK, EBIT-mål 7 %, investeringsram produktutveckling 2,4 MSEK.",
+      "note": "GQ-021, GQ-129."
+    },
+    {
+      "id": "EVT-032",
+      "date": "2025-09-30",
+      "etype": "PERIOD",
+      "title": "Bokslut FY2025",
+      "description": "Räkenskapsåret 2024-10-01–2025-09-30 avslutas. Revision november.",
+      "note": "Årsbokslut."
+    },
+    {
+      "id": "EVT-033",
+      "date": "2025-10-01",
+      "etype": "INDEX_MISSED",
+      "title": "Gråvikens kommun: indexuppräkning missad",
+      "description": "Enligt ramavtalet (CTR-2022-007) skulle timpriset räknas upp med KPI per 2025-10-01 (bas 2023-10). Uppräkningen har inte tillämpats i faktureringen. Ingen har agerat.",
+      "note": "GQ-053, GQ-092."
+    },
+    {
+      "id": "EVT-034",
+      "date": "2025-10-31",
+      "etype": "LEAVE",
+      "title": "Rasmus Holm slutar – rekryterad av kund",
+      "description": "Rasmus Holm (EMP-036) slutar och börjar hos kunden Skogsbygdens Energi AB. Intressekonflikt och konkurrensklausul diskuteras i ledningsgruppen.",
+      "note": "GQ-108."
+    },
+    {
+      "id": "EVT-035",
+      "date": "2025-11-01",
+      "etype": "UNDERBILLING",
+      "title": "KF-Biljettsystem: indexhöjning ej debiterad",
+      "description": "Enligt avtalet gäller 1 150 kr/h fr.o.m. 2025-11-01, men faktureringen fortsätter på 1 050 kr/h (internt fel i debiteringsunderlaget).",
+      "note": "GQ-052, GQ-053. Upptäckt 2026-02."
+    },
+    {
+      "id": "EVT-036",
+      "date": "2025-11-08",
+      "etype": "DECISION",
+      "title": "Kickoff produktutveckling",
+      "description": "Start av ND-Intern plattform (produktutveckling). Budget 2,4 MSEK.",
+      "note": "GQ-026, GQ-144."
+    },
+    {
+      "id": "EVT-037",
+      "date": "2025-11-20",
+      "etype": "DECISION",
+      "title": "Revisionsarvode FY25",
+      "description": "Revision & Tal fakturerar 95 000 kr för revision av FY2025.",
+      "note": ""
+    },
+    {
+      "id": "EVT-038",
+      "date": "2025-11-24",
+      "etype": "BOARD",
+      "title": "Styrelsemöte (nov)",
+      "description": "Godkännande av bokslutskommuniké FY25. Resultat efter skatt presenteras. Styrelsen skjuter upp utdelningsbeslut till årsstämman.",
+      "note": "GQ-150."
+    },
+    {
+      "id": "EVT-039",
+      "date": "2025-12-08",
+      "etype": "BANKRUPTCY",
+      "title": "Sjöstadens Bryggeri i konkurs",
+      "description": "Kunden Sjöstadens Bryggeri AB försätts i konkurs. Konkursförvaltare Carl Broman. Septemberfakturan (110 032,50 kr) hölls inne p.g.a. reklamation, oktoberfakturan betalades sent (2025-11-20) och novemberfakturan (110 032,50 kr) förblev obetald.",
+      "note": "GQ-182, GQ-004."
+    },
+    {
+      "id": "EVT-040",
+      "date": "2025-12-31",
+      "etype": "DECISION",
+      "title": "Kundförlust avskriven",
+      "description": "Kundfordringar på Sjöstadens Bryggeri (september- och novemberfakturorna, totalt 220 065,00 kr) konstateras som kundförlust (6351). Ingen momsåtervinning.",
+      "note": "Bokförd 2025-12-31."
+    },
+    {
+      "id": "EVT-041",
+      "date": "2026-01-12",
+      "etype": "HIRE",
+      "title": "Nyanställning junior utvecklare",
+      "description": "Hugo Larsson (EMP-023) börjar som junior utvecklare.",
+      "note": "Lön 35 000 kr/mån."
+    },
+    {
+      "id": "EVT-042",
+      "date": "2026-01-15",
+      "etype": "CONTRACT_SIGN",
+      "title": "SEAB-ramavtal förlängt",
+      "description": "Förlängning av ramavtalet med SEAB (CTR-2026-002): 1 180 kr/h, t.o.m. 2028-01-31.",
+      "note": "GQ-045, GQ-052."
+    },
+    {
+      "id": "EVT-043",
+      "date": "2026-01-20",
+      "etype": "DECISION",
+      "title": "Datorinköp aktiveras",
+      "description": "Inköp av arbetsstationer 520 000 kr ex moms (aktiveras).",
+      "note": ""
+    },
+    {
+      "id": "EVT-044",
+      "date": "2026-01-30",
+      "etype": "MGMT",
+      "title": "Ledningsgrupp: AI-strategi",
+      "description": "Beslut om internt AI-initiativ (ND-Intern AI). Budget 1,2 MSEK 2026. AI-policyn fastställs.",
+      "note": "GQ-176, GQ-180."
+    },
+    {
+      "id": "EVT-045",
+      "date": "2026-02-06",
+      "etype": "CONTRACT_SIGN",
+      "title": "Tilläggsavtal SE-Billing",
+      "description": "Tilläggsavtal CTR-2026-004: slutdatum 2026-07-15, +800 000 kr.",
+      "note": "GQ-086."
+    },
+    {
+      "id": "EVT-046",
+      "date": "2026-02-10",
+      "etype": "UNDERBILLING",
+      "title": "KF-underfakturering upptäckt",
+      "description": "Ekonomichefen upptäcker att KF-Biljettsystem fakturerats med 1 050 kr/h i stället för 1 150 kr/h sedan 2025-11-01. Eftersläpningsfaktura beslutas.",
+      "note": "GQ-052, GQ-053."
+    },
+    {
+      "id": "EVT-047",
+      "date": "2026-02-24",
+      "etype": "CONTRACT_SIGN",
+      "title": "SU-Produktionssystem signerat",
+      "description": "Nytt avtal med Sundbygdens Varv (CTR-2026-001): fast pris 1,95 MSEK, vite 1 %/vecka (tak 10 %), källkodsdepåkrav.",
+      "note": "GQ-100."
+    },
+    {
+      "id": "EVT-048",
+      "date": "2026-02-28",
+      "etype": "LEAVE",
+      "title": "Anna Westberg slutar",
+      "description": "Anna Westberg (EMP-037) slutar; uppger arbetsbelastning i avslutssamtal.",
+      "note": "GQ-075, GQ-078."
+    },
+    {
+      "id": "EVT-071",
+      "date": "2026-01-31",
+      "etype": "LEAVE",
+      "title": "Robin Åkerlunds provanställning avslutas",
+      "description": "Robin Åkerlunds (EMP-021) provanställning avslutas 2026-01-31.",
+      "note": "GQ-071."
+    },
+    {
+      "id": "EVT-072",
+      "date": "2026-02-27",
+      "etype": "LEAVE",
+      "title": "Magnus Ryd säger upp sig",
+      "description": "Magnus Ryd (EMP-010) säger upp sig (3 mån uppsägning); uppger utmattningsrelaterade skäl i avslutssamtal. Sista dag 2026-03-31.",
+      "note": "GQ-072, GQ-075, GQ-078."
+    },
+    {
+      "id": "EVT-073",
+      "date": "2026-04-29",
+      "etype": "LEAVE",
+      "title": "Sofia Lindgren säger upp sig",
+      "description": "Sofia Lindgren (EMP-016) säger upp sig; börjar hos kunden Polstjärnan Försäkring AB 2026-07-01. Sista dag hos oss 2026-06-30.",
+      "note": "GQ-075."
+    },
+    {
+      "id": "EVT-074",
+      "date": "2026-05-31",
+      "etype": "LEAVE",
+      "title": "Lukas Ek lämnar",
+      "description": "Lukas Ek (EMP-031) lämnar 2026-05-31; rekryterad av underkonsulten Dataverket Nord AB. Daniel Nyström blir ensam dataspecialist (nyckelpersonsrisk).",
+      "note": "GQ-070, GQ-184."
+    },
+    {
+      "id": "EVT-075",
+      "date": "2026-07-01",
+      "etype": "LEAVE",
+      "title": "Björn Falk säger upp sig",
+      "description": "Björn Falk (EMP-029) säger upp sig 2026-07-01 (2 mån uppsägning); flyttar utomlands. Sista dag 2026-08-31.",
+      "note": "GQ-071."
+    },
+    {
+      "id": "EVT-076",
+      "date": "2026-08-27",
+      "etype": "LEAVE",
+      "title": "Klara Månsson säger upp sig",
+      "description": "Klara Månsson (EMP-030) säger upp sig (1 mån uppsägning). Sista dag 2026-09-30. Supporten står därefter utan ansvarig.",
+      "note": "GQ-066, GQ-153."
+    },
+    {
+      "id": "EVT-049",
+      "date": "2026-02-28",
+      "etype": "DECISION",
+      "title": "Eftersläpningsfaktura KF",
+      "description": "Eftersläpningsfaktura till Kustbandets Färjor: 3 månader × (1 150 − 1 050) kr/h × fakturerade timmar.",
+      "note": "Beräknas av motorn."
+    },
+    {
+      "id": "EVT-050",
+      "date": "2026-03-02",
+      "etype": "DECISION",
+      "title": "Extra kontorsplan",
+      "description": "Tilläggshyra extra våningsplan fr.o.m. 2026-07-01 (48 000 kr/mån) för planerad tillväxt.",
+      "note": "GQ-024, GQ-194."
+    },
+    {
+      "id": "EVT-051",
+      "date": "2026-03-12",
+      "etype": "BOARD",
+      "title": "Styrelsemöte (mars)",
+      "description": "Q2-rapport (okt–dec FY26). Styrelsen uttrycker oro för SEAB-beroendet (35 %) och beslutar om fördjupad scenarioanalys.",
+      "note": "GQ-127, GQ-182."
+    },
+    {
+      "id": "EVT-052",
+      "date": "2026-03-20",
+      "etype": "MGMT",
+      "title": "Bankmöte: förnyad checkkredit",
+      "description": "Banken bekräftar förnyad checkkredit t.o.m. 2026-12-31 under förutsättning av covenants.",
+      "note": "GQ-029."
+    },
+    {
+      "id": "EVT-053",
+      "date": "2026-03-26",
+      "etype": "CONTRACT_END",
+      "title": "Mossbackens Mekaniska säger upp",
+      "description": "Mossbackens Mekaniska säger upp MM-Underhållssystem (3 mån uppsägning) – kunden går till konkurrent med lägre pris.",
+      "note": "GQ-044, GQ-055."
+    },
+    {
+      "id": "EVT-054",
+      "date": "2026-04-01",
+      "etype": "INDEX_MISSED",
+      "title": "Blåklintens Vård: indexuppräkning missad",
+      "description": "Enligt avtalet (CTR-2023-018) skulle timpriset räknas upp med KPI per 2026-04-01 (bas 2024-04). Har inte tillämpats.",
+      "note": "GQ-053."
+    },
+    {
+      "id": "EVT-055",
+      "date": "2026-04-01",
+      "etype": "RAISE",
+      "title": "Lönerevision 2026",
+      "description": "Årlig lönerevision: 12 medarbetare får höjningar fr.o.m. 2026-04-01.",
+      "note": ""
+    },
+    {
+      "id": "EVT-056",
+      "date": "2026-04-20",
+      "etype": "INCIDENT",
+      "title": "Integrationshaveri lönesystem",
+      "description": "Integrationen lönesystem -> ekonomisystem fallerade (tredje gången på 6 månader). Manuell överföring tog 2 dagar.",
+      "note": "GQ-172, GQ-175."
+    },
+    {
+      "id": "EVT-057",
+      "date": "2026-05-04",
+      "etype": "HIRE",
+      "title": "Nyanställning arkitekt",
+      "description": "Nadia Haddad (EMP-012) börjar som lösningsarkitekt (senior specialist, rekrytering via Talangjakten).",
+      "note": "Lön 72 000 kr/mån."
+    },
+    {
+      "id": "EVT-058",
+      "date": "2026-05-25",
+      "etype": "BOARD",
+      "title": "Styrelsemöte (maj)",
+      "description": "Q3-rapport. Styrelsen efterfrågar åtgärder mot försenade projekt och underfakturering. Prognos revideras.",
+      "note": "GQ-143."
+    },
+    {
+      "id": "EVT-059",
+      "date": "2026-06-01",
+      "etype": "DECISION",
+      "title": "Helårsprognos reviderad",
+      "description": "CFO presenterar reviderad helårsprognos FY26 (bas/scenario) – lägre än budget p.g.a. kundförlust och förseningar.",
+      "note": "GQ-022, GQ-028."
+    },
+    {
+      "id": "EVT-060",
+      "date": "2026-06-12",
+      "etype": "DECISION",
+      "title": "Slutlig skatt FY25 betald",
+      "description": "Slutlig skatt FY2025 regleras via skattekontot.",
+      "note": ""
+    },
+    {
+      "id": "EVT-061",
+      "date": "2026-06-30",
+      "etype": "CREDIT_NOTE",
+      "title": "TS-Produktionsportal: förlikning",
+      "description": "Förlikning med Timmervikens Såg: kreditnota 90 000 kr (motsvarande 50 % av avtalsenligt vite) mot slutacceptans.",
+      "note": "GQ-046, GQ-182."
+    },
+    {
+      "id": "EVT-062",
+      "date": "2026-06-30",
+      "etype": "CONTRACT_END",
+      "title": "Mossbackens Mekaniska lämnar",
+      "description": "Samarbetet med Mossbackens Mekaniska upphör 2026-06-30 (kunden gick till konkurrent).",
+      "note": "GQ-043."
+    },
+    {
+      "id": "EVT-063",
+      "date": "2026-07-15",
+      "etype": "DECISION",
+      "title": "SE-Billing slutlevererad",
+      "description": "SE-Billing slutlevererad och godkänd 2026-07-15. Slutmilestone 800 000 kr faktureras.",
+      "note": "GQ-151."
+    },
+    {
+      "id": "EVT-064",
+      "date": "2026-08-04",
+      "etype": "INCIDENT",
+      "title": "Driftstörning Nordhost",
+      "description": "Nordhost-driften låg nere 6 timmar; kundpåverkan på förvaltningskunder. SLA-ersättning diskuteras.",
+      "note": "GQ-171, GQ-187."
+    },
+    {
+      "id": "EVT-065",
+      "date": "2026-08-20",
+      "etype": "MGMT",
+      "title": "Ledningsgrupp: kostnadsprogram",
+      "description": "Beslut om kostnadsöversyn inför FY27: licensinventering, utvärdering av underutnyttjade verktyg, pausad rekrytering.",
+      "note": "GQ-018, GQ-163, GQ-196."
+    },
+    {
+      "id": "EVT-066",
+      "date": "2026-09-02",
+      "etype": "INCIDENT",
+      "title": "AI-verktyg med osäkra svar",
+      "description": "Internt AI-verktyg levererade svar utan källstöd i två kundrapporter; korrigerades efter granskning. Logg saknas.",
+      "note": "GQ-180."
+    },
+    {
+      "id": "EVT-067",
+      "date": "2026-09-10",
+      "etype": "COMPLAINT",
+      "title": "Kundklagomål: BV-Journalsystem",
+      "description": "Blåklintens Vård klagar på supportens svarstider (tredje klagomålet på samma tema 2026).",
+      "note": "GQ-046."
+    },
+    {
+      "id": "EVT-068",
+      "date": "2026-09-15",
+      "etype": "DECISION",
+      "title": "Uppsägning av BV-avtalet övervägs",
+      "description": "Ledningen överväger att säga upp BV-Journalsystem-avtalet senast 2026-09-30 (3 mån uppsägning) för omförhandling av pris och supportnivå. Beslut skjuts till nästa ledningsmöte.",
+      "note": "GQ-091, GQ-047."
+    },
+    {
+      "id": "EVT-069",
+      "date": "2026-09-28",
+      "etype": "BOARD",
+      "title": "Styrelsemöte (sep)",
+      "description": "Styrelsemöte inför bokslut FY26. Utdelningsfrågan bordläggs till årsstämman. Styrelsen kräver riskrapport med källhänvisningar till nästa möte.",
+      "note": "GQ-145, GQ-150, GQ-199."
+    },
+    {
+      "id": "EVT-070",
+      "date": "2026-09-30",
+      "etype": "PERIOD",
+      "title": "Bokslut FY2026",
+      "description": "Räkenskapsåret 2025-10-01–2026-09-30 avslutas. Analysdatum 2026-10-18.",
+      "note": ""
+    }
+  ],
+  "key_figures": {
+    "revenue_net": {
+      "FY2025": "42638187.00",
+      "FY2026": "54310278.00"
+    },
+    "seab_share_pct": {
+      "FY2025": "27.78",
+      "FY2026": "34.40"
+    },
+    "net_results": {
+      "FY2025": "-264298.46",
+      "FY2026": "6252296.61"
+    },
+    "tax": {
+      "loss_carryforward_used": "264298.46",
+      "payable": "1437700.00",
+      "prelim_paid": "360000.00",
+      "tax": "2097700.00",
+      "taxable": "10183398.15"
+    },
+    "cash_at_end": "9436780.73",
+    "overdraft_drawn_at_end": "0.00",
+    "max_overdraft_drawn": "1180000.00",
+    "bad_debt": "220065.00",
+    "bank_loan_balance_at_end": "0.00 (slutamorterat)",
+    "open_ar_total": "6981670.00",
+    "open_ap_total": null
+  },
+  "anomalies": [
+    {
+      "id": "KF-UNDERBILLING",
+      "description": "KF-Biljettsystem (CUS-005): indexhöjning 1 050 -> 1 150 kr/h gällde fr.o.m. 2025-11-01 men debiterades först fr.o.m. 2026-02-01. Eftersläpningsfaktura utfärdad 2026-02-28.",
+      "computed": {
+        "catchup_net": "53730.00"
+      }
+    },
+    {
+      "id": "GV-MISSED-INDEX",
+      "description": "Gråvikens kommun (CUS-002, CTR-2022-007): KPI-uppräkning per 2025-10-01 (bas 2023-10) har inte tillämpats i faktureringen.",
+      "computed": {
+        "correct_rate": 1075,
+        "missed_net": "54220.00"
+      }
+    },
+    {
+      "id": "BV-MISSED-INDEX",
+      "description": "Blåklintens Vård (CUS-007, CTR-2023-018): KPI-uppräkning per 2026-04-01 (bas 2024-04) har inte tillämpats i faktureringen.",
+      "computed": {
+        "correct_rate": 1009,
+        "missed_net": "14042.90"
+      }
+    },
+    {
+      "id": "TS-CREDIT-NOTE",
+      "description": "Timmervikens Såg: viteförlikning, kreditnota 90 000 kr (inkl. moms) 2026-06-30."
+    },
+    {
+      "id": "SB-BAD-DEBT",
+      "description": "Sjöstadens Bryggeri i konkurs 2025-12-08; september- och novemberfakturorna (totalt 220 065,00 kr inkl. moms) avskrivna som kundförlust 2025-12-31 (septemberfakturan hölls inne p.g.a. reklamation; oktoberfakturan betalades sent 2025-11-20)."
+    },
+    {
+      "id": "OH-DISPUTE",
+      "description": "Örby Handel: tvist om slutfaktura; 96 800 kr (inkl. moms) hålls inne, fordran tvistig."
+    },
+    {
+      "id": "FS-ACCRUAL",
+      "description": "FS-Intranät slutfaktura 300 000 kr ex moms fakturerades efter periodens slut (2025-10-10); 240 000 kr periodiserades som upplupen intäkt 2025-09-30."
+    }
+  ]
+}

@@ -27,6 +27,17 @@ from app.services.overgraph.catalogs import Catalog
 
 
 @dataclass(frozen=True)
+class FindRequest:
+    customer_id: int
+    query: str
+    mode: str
+    current: tuple[str, ...] = ()
+    dense_query: tuple[float, ...] | None = None
+    limit: int = 50
+    allowed: frozenset[str] | None = None
+
+
+@dataclass(frozen=True)
 class _FindRequest:
     customer_id: int
     query: str
@@ -35,6 +46,7 @@ class _FindRequest:
     document_type: str | None
     dense_query: tuple[float, ...] | None
     limit: int
+    allowed: frozenset[str] | None
 
 _FILLER = re.compile(
     r"\b(visa|alla|dokument|avtal|the|all|show|me|please|bara|dem|med|som|har|and|with|"
@@ -69,31 +81,38 @@ def normalize_find_mode(mode: str, *, has_current_set: bool, query: str) -> str:
     return mode
 
 
-def run_find(
-    catalog: Catalog,
-    *,
-    customer_id: int,
-    query: str,
-    mode: str,
-    current_document_ids: Sequence[str],
-    dense_query: Sequence[float] | None,
-    limit: int = 50,
-) -> FindResult:
+def empty_scope_result(query: str) -> FindResult:
+    """No readable documents: every strategy completes trivially and honestly."""
+    return FindResult(
+        document_ids=(),
+        strategy="category" if type_from_user_phrase(query) is not None else "hybrid",
+        completeness="complete",
+        counters=OpCounters(),
+        notes=("no_readable_documents",),
+    )
+
+
+def run_find(catalog: Catalog, request: FindRequest) -> FindResult:
     started = time.perf_counter()
-    current = tuple(current_document_ids)
-    mode = normalize_find_mode(mode, has_current_set=bool(current), query=query)
-    request = _FindRequest(
-        customer_id=customer_id,
-        query=query,
+    if request.allowed is not None and not request.allowed:
+        return empty_scope_result(request.query)
+    current = tuple(
+        doc for doc in request.current if request.allowed is None or doc in request.allowed
+    )
+    mode = normalize_find_mode(request.mode, has_current_set=bool(current), query=request.query)
+    inner = _FindRequest(
+        customer_id=request.customer_id,
+        query=request.query,
         mode=mode,
         current=current,
-        document_type=type_from_user_phrase(query),
-        dense_query=tuple(dense_query) if dense_query is not None else None,
-        limit=limit,
+        document_type=type_from_user_phrase(request.query),
+        dense_query=request.dense_query,
+        limit=request.limit,
+        allowed=request.allowed,
     )
-    result = _dispatch(catalog, request)
-    if mode == "extend" and request.current and "extend" not in result.notes:
-        merged = extend_set(request.current, result.document_ids)
+    result = _dispatch(catalog, inner)
+    if mode == "extend" and inner.current and "extend" not in result.notes:
+        merged = extend_set(inner.current, result.document_ids)
         result = FindResult(
             document_ids=tuple(merged),
             strategy=result.strategy,
@@ -132,7 +151,11 @@ def _dispatch(catalog: Catalog, request: _FindRequest) -> FindResult:
     if request.mode in {"within", "filter"} and request.current:
         return _within_or_filter(catalog, request)
     if request.document_type is not None and request.dense_query is None:
-        return find_by_category(catalog, document_type=request.document_type)
+        return find_by_category(
+            catalog,
+            document_type=request.document_type,
+            allowed_document_ids=request.allowed,
+        )
     if request.document_type is not None and request.dense_query is not None:
         return find_category_then_hybrid(
             catalog,
@@ -140,6 +163,7 @@ def _dispatch(catalog: Catalog, request: _FindRequest) -> FindResult:
             document_type=request.document_type,
             dense_query=request.dense_query,
             limit=request.limit,
+            allowed_document_ids=request.allowed,
         )
     if request.dense_query is None:
         return FindResult(
@@ -154,13 +178,18 @@ def _dispatch(catalog: Catalog, request: _FindRequest) -> FindResult:
         customer_id=request.customer_id,
         dense_query=request.dense_query,
         limit=request.limit,
+        allowed_document_ids=request.allowed,
     )
 
 
 def _within_or_filter(catalog: Catalog, request: _FindRequest) -> FindResult:
     if request.dense_query is None and request.document_type is not None:
         return filter_to_set(
-            find_by_category(catalog, document_type=request.document_type),
+            find_by_category(
+                catalog,
+                document_type=request.document_type,
+                allowed_document_ids=request.allowed,
+            ),
             request.current,
         )
     if request.dense_query is None:
@@ -177,6 +206,7 @@ def _within_or_filter(catalog: Catalog, request: _FindRequest) -> FindResult:
         document_ids=request.current,
         dense_query=request.dense_query,
         limit=request.limit,
+        allowed_document_ids=request.allowed,
     )
 
 

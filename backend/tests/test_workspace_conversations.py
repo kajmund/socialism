@@ -455,7 +455,7 @@ async def test_clear_thread_removes_this_chat_and_keeps_the_rest(provider, user_
     kept = {"event_key": "u1", "kind": "user", "text": "Kvar i andra arbetsytan"}
     assert (await client.post(other_url, json=kept)).status_code == 200
     async with factory() as db:
-        db.add(PersonaMessage(persona_id=expert_id, mode="character", role="user", content="Text i chatten"))
+        db.add(PersonaMessage(persona_id=expert_id, mode="character", role="user", content="SME-chatten ligger kvar"))
         db.add(PersonaMessage(persona_id=expert_id, mode="interview", role="user", content="Intervjun ligger kvar"))
         await db.commit()
     denied = await client.delete(
@@ -472,7 +472,7 @@ async def test_clear_thread_removes_this_chat_and_keeps_the_rest(provider, user_
     character = await client.get(f"/personas/{expert_id}/messages", params={"mode": "character"})
     interview = await client.get(f"/personas/{expert_id}/messages", params={"mode": "interview"})
     assert character.status_code == interview.status_code == 200
-    assert character.json() == []
+    assert [row["content"] for row in character.json()] == ["SME-chatten ligger kvar"]
     assert [row["content"] for row in interview.json()] == ["Intervjun ligger kvar"]
     stale = await client.post(url, json={"event_key": "u2", "kind": "user", "text": "Efter rensning"})
     assert stale.status_code == 401

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { renderAsync } from "docx-preview"
 import type { DocumentKnowledgeAnchor } from "@/api/underlag"
 import { useLocale } from "@/i18n"
@@ -14,8 +14,6 @@ export type DocxHighlight = {
   locked?: boolean
 }
 
-export type DocxMarkAnchor = { key: string; top: number; height: number }
-
 export function DocxKnowledgeViewer({
   blob,
   zoom = 1,
@@ -29,7 +27,6 @@ export function DocxKnowledgeViewer({
   onClearSelection,
   onFocusPassage,
   commentsOpen = false,
-  renderComments,
 }: {
   blob: Blob
   zoom?: number
@@ -43,14 +40,11 @@ export function DocxKnowledgeViewer({
   onClearSelection?: () => void
   onFocusPassage?: (passageKey: string) => void
   commentsOpen?: boolean
-  renderComments?: (anchors: DocxMarkAnchor[]) => ReactNode
 }) {
   const { t } = useLocale()
   const hostRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
-  const stageRef = useRef<HTMLDivElement>(null)
   const [rendered, setRendered] = useState(0)
-  const [markAnchors, setMarkAnchors] = useState<DocxMarkAnchor[]>([])
   const callbacks = useRef({ onReady, onError, onPageCount })
   callbacks.current = { onReady, onError, onPageCount }
 
@@ -86,29 +80,13 @@ export function DocxKnowledgeViewer({
     paintDocxMarks(body, focusAnchors)
   }, [blob, focusAnchors, rendered])
 
-  useLayoutEffect(() => {
-    const stage = stageRef.current
-    if (!stage || !commentsOpen) return
-    const origin = stage.getBoundingClientRect().top
-    const seen = new Set<string>()
-    const next: DocxMarkAnchor[] = []
-    for (const node of stage.querySelectorAll<HTMLElement>("[data-passage-key]")) {
-      const key = node.dataset.passageKey
-      if (!key || seen.has(key)) continue
-      seen.add(key)
-      const rect = node.getBoundingClientRect()
-      next.push({ key, top: rect.top - origin, height: rect.height })
-    }
-    setMarkAnchors((current) => sameMarkAnchors(current, next) ? current : next)
-  }, [commentsOpen, focusAnchors, rendered])
-
   useEffect(() => {
     const host = hostRef.current
     const body = bodyRef.current
     if (!host || !body || pageNumber == null) return
     const page = docxPages(body)[pageNumber - 1]
     if (page) host.scrollTo({ top: page.offsetTop, behavior: "auto" })
-  }, [blob, pageNumber])
+  }, [blob, pageNumber, rendered])
 
   return (
     <div
@@ -143,13 +121,8 @@ export function DocxKnowledgeViewer({
         else if (selection.isCollapsed) onClearSelection?.()
       }}
     >
-      <div ref={stageRef} className="flex min-h-full">
-        <div className="min-w-0 flex-1">
-          <div className="docx-preview-scale origin-top" style={{ transform: `scale(${zoom})`, width: `${100 / zoom}%` }}>
-            <div ref={bodyRef} />
-          </div>
-        </div>
-        {commentsOpen && renderComments ? <div className="relative w-[296px] shrink-0 border-l border-[color:var(--border-hairline)] bg-db-ink-50">{renderComments(markAnchors)}</div> : null}
+      <div className="docx-preview-scale origin-top" style={{ transform: `scale(${zoom})`, width: `${100 / zoom}%` }}>
+        <div ref={bodyRef} />
       </div>
     </div>
   )
@@ -205,8 +178,4 @@ function wrapExactText(root: HTMLElement, exact: string, highlight: DocxHighligh
     range.surroundContents(mark)
     return
   }
-}
-
-function sameMarkAnchors(left: DocxMarkAnchor[], right: DocxMarkAnchor[]): boolean {
-  return left.length === right.length && left.every((row, index) => row.key === right[index]?.key && Math.abs(row.top - (right[index]?.top ?? 0)) < 0.5 && Math.abs(row.height - (right[index]?.height ?? 0)) < 0.5)
 }

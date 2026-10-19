@@ -2,9 +2,15 @@
   "chain": "find_documents_category",
   "document_count": 5,
   "strategy": "category",
+<<<<<<< HEAD
   "db_ms": 0.07991700840648264,
   "total_ms": 0.10608299635350704,
   "wall_ms": 3.6103750026086345,
+=======
+  "db_ms": 0.0788750039646402,
+  "total_ms": 0.0959169992711395,
+  "wall_ms": 2.623416999995243,
+>>>>>>> origin/main
   "counters": {
     "embedding_calls": 0,
     "jev_calls": 0,

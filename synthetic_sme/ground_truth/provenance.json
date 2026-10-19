@@ -1,0 +1,2115 @@
+[
+ {
+  "fact_id": "F-001",
+  "fact": "Kassa (företagskonto 1930) per 2026-09-30: 9436780.73 kr",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/banking/bankkontoutdrag.csv",
+    "position": "saldo sista raden",
+    "doc_id": "DOC-accounting-banking-bankkontoutdrag.csv"
+   },
+   {
+    "path": "accounting/sie4/Nordviken_Digital_FY2026.SE",
+    "position": "#UB 0 1930",
+    "doc_id": "DOC-accounting-sie4-Nordviken_Digital_FY2026.SE"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-002",
+  "fact": "Checkkrediten ej utnyttjad 2026-09-30 (0 kr); disponibel checkkredit 3 000 000 kr",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/banking/bankkontoutdrag.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-banking-bankkontoutdrag.csv"
+   },
+   {
+    "path": "contracts/corporate/CTR-BANK-001_Checkräkningskredit.docx",
+    "position": "limit 3 000 000 kr",
+    "doc_id": "CTR-BANK-001"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-003",
+  "fact": "Checkkrediten utnyttjades som mest med 1 180 000 kr (mars 2025); bankmötet anger 1 270 000 kr i februari 2025",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/banking/bankkontoutdrag.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-banking-bankkontoutdrag.csv"
+   },
+   {
+    "path": "management/bankmote_2025-09-15.docx",
+    "position": "1 270 000 kr feb 2025",
+    "doc_id": "DOC-management-bankmote_2025-09-15.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-004",
+  "fact": "Nettoomsättning FY2025: 42638187.00 kr; FY2026: 54310278.00 kr",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/financial_reports/resultatrakning_FY2025.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-financial_reports-resultatrakning_FY2025.csv"
+   },
+   {
+    "path": "accounting/financial_reports/resultatrakning_FY2026.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-financial_reports-resultatrakning_FY2026.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-005",
+  "fact": "Årets resultat FY2025: -264298.46 kr (förlust); FY2026: 6252296.61 kr (vinst)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/sie4/Nordviken_Digital_FY2025.SE",
+    "position": "#TRANS 2091",
+    "doc_id": "DOC-accounting-sie4-Nordviken_Digital_FY2025.SE"
+   },
+   {
+    "path": "accounting/sie4/Nordviken_Digital_FY2026.SE",
+    "position": "#TRANS 2091",
+    "doc_id": "DOC-accounting-sie4-Nordviken_Digital_FY2026.SE"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-006",
+  "fact": "Skatt FY2026: 2097700.00 kr (skattepliktigt resultat 10183398.15 kr; betald preliminärskatt 360000.00 kr; kvarstående skatteskuld 1437700.00 kr)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/sie4/Nordviken_Digital_FY2026.SE",
+    "position": "8910/2510",
+    "doc_id": "DOC-accounting-sie4-Nordviken_Digital_FY2026.SE"
+   },
+   {
+    "path": "accounting/tax/skattekonto.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-tax-skattekonto.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-007",
+  "fact": "SEAB:s andel av omsättningen: 27.8 % FY2025, 34.4 % FY2026",
+  "entities": [
+   "CUS-001"
+  ],
+  "sources": [
+   {
+    "path": "accounting/financial_reports/projektintakter.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-financial_reports-projektintakter.csv"
+   },
+   {
+    "path": "management/styrelseprotokoll_2026-09-28.docx",
+    "position": "§ 2: 34,4 %",
+    "doc_id": "DOC-management-styrelseprotokoll_2026-09-28.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-008",
+  "fact": "SEAB:s FY2026-omsättning: 18685350.00 kr",
+  "entities": [
+   "CUS-001"
+  ],
+  "sources": [
+   {
+    "path": "accounting/financial_reports/projektintakter.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-financial_reports-projektintakter.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-009",
+  "fact": "Öppna kundfordringar per 2026-09-30: 6981670.00 kr (1510)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/accounts_receivable/kundreskontra_oppna.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-accounts_receivable-kundreskontra_oppna.csv"
+   },
+   {
+    "path": "accounting/sie4/Nordviken_Digital_FY2026.SE",
+    "position": "#UB 0 1510",
+    "doc_id": "DOC-accounting-sie4-Nordviken_Digital_FY2026.SE"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-010",
+  "fact": "Förfallna kundfordringar per 2026-09-30: 1809393.75 kr",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/accounts_receivable/kundreskontra_oppna.csv",
+    "position": "förfallodatum < 2026-09-30",
+    "doc_id": "DOC-accounting-accounts_receivable-kundreskontra_oppna.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-011",
+  "fact": "Tvist Örby Handel & Logistik: kunden höll inne 96 800 kr (inkl. moms) av slutfakturan 625 000 kr p.g.a. acceptansanmärkningar",
+  "entities": [
+   "CUS-009",
+   "PRJ-012"
+  ],
+  "sources": [
+   {
+    "path": "correspondence/mail_2025-02-28_oh_slutfaktura_tvist.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2025-02-28_oh_slutfaktura_tvist.eml"
+   },
+   {
+    "path": "accounting/accounts_receivable/kundreskontra_oppna.csv",
+    "position": "INV-2025-0035 PARTIAL",
+    "doc_id": "DOC-accounting-accounts_receivable-kundreskontra_oppna.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-012",
+  "fact": "Kundförlust Sjöstadens Bryggeri (konkurs 2025-12-08): 220 065 kr avskrivna (septemberfakturan 110 032,50 kr hölls inne p.g.a. reklamation + novemberfakturan 110 032,50 kr obetald); oktoberfakturan betalades sent 2025-11-20",
+  "entities": [
+   "CUS-010",
+   "PRJ-013"
+  ],
+  "sources": [
+   {
+    "path": "correspondence/mail_2025-12-08_sjostadens_konkurs.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2025-12-08_sjostadens_konkurs.eml"
+   },
+   {
+    "path": "accounting/financial_reports/resultatrakning_FY2026.csv",
+    "position": "6351: 220 065,00",
+    "doc_id": "DOC-accounting-financial_reports-resultatrakning_FY2026.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-013",
+  "fact": "TS-Produktionsportal: försening 8 veckor, avtalsenligt vite 144 000 kr (8 %), förlikning med kreditnota 90 000 kr 2026-06-30",
+  "entities": [
+   "CUS-006",
+   "PRJ-009"
+  ],
+  "sources": [
+   {
+    "path": "projects/ts_produktionsportal_status_2026-05-15.docx",
+    "position": null,
+    "doc_id": "DOC-projects-ts_produktionsportal_status_2026-05-15.docx"
+   },
+   {
+    "path": "correspondence/mail_2026-06-30_ts_forlikning.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2026-06-30_ts_forlikning.eml"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-014",
+  "fact": "SE-Billing: fast pris 9 400 000 + tillägg 800 000 = 10 200 000 kr; slutleverans 2026-07-15; total försening ca 15 veckor",
+  "entities": [
+   "CUS-001",
+   "PRJ-001"
+  ],
+  "sources": [
+   {
+    "path": "projects/se_billing_slutrapport_2026-07-15.docx",
+    "position": null,
+    "doc_id": "DOC-projects-se_billing_slutrapport_2026-07-15.docx"
+   },
+   {
+    "path": "contracts/customers/CTR-2026-004_Tilläggsavtal-SE-Billing-slutleverans.docx",
+    "position": null,
+    "doc_id": "CTR-2026-004"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-015",
+  "fact": "KF-Biljettsystem: indexhöjning 1 050 → 1 150 kr/h per 2025-11-01 debiterades först fr.o.m. 2026-02; eftersläpningsfaktura 53 730 kr utfärdad 2026-02-28",
+  "entities": [
+   "CUS-005",
+   "PRJ-008"
+  ],
+  "sources": [
+   {
+    "path": "correspondence/mail_2026-02-10_kf_underfakturering_upptackt.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2026-02-10_kf_underfakturering_upptackt.eml"
+   },
+   {
+    "path": "correspondence/mail_2026-02-12_kf_fakturafel_intern.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2026-02-12_kf_fakturafel_intern.eml"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-016",
+  "fact": "GV (Gråvikens kommun): KPI-indexklausul (bas 2023-10) per 2025-10-01 EJ tillämpad; korrekt pris 1 075 kr/h; missad intäkt 54 220 kr",
+  "entities": [
+   "CUS-002",
+   "PRJ-004"
+  ],
+  "sources": [
+   {
+    "path": "correspondence/mail_2025-10-01_gv_indexupprakning.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2025-10-01_gv_indexupprakning.eml"
+   },
+   {
+    "path": "contracts/customers/CTR-2022-007_Ramavtal-IT-tjänster-Gråvikens-kommun.docx",
+    "position": null,
+    "doc_id": "CTR-2022-007"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-017",
+  "fact": "BV (Blåklintens Vård): KPI-indexklausul (bas 2024-04) per 2026-04-01 EJ tillämpad; korrekt pris 1 009 kr/h; missad intäkt 14 042,90 kr",
+  "entities": [
+   "CUS-007",
+   "PRJ-010"
+  ],
+  "sources": [
+   {
+    "path": "correspondence/mail_2026-04-01_bv_indexupprakning.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2026-04-01_bv_indexupprakning.eml"
+   },
+   {
+    "path": "contracts/customers/CTR-2023-018_BV-Journalsystem.docx",
+    "position": null,
+    "doc_id": "CTR-2023-018"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-018",
+  "fact": "FS-Intranät: slutfaktura 300 000 kr ex moms fakturerad 2025-10-10; 240 000 kr periodiserad som upplupen intäkt 2025-09-30",
+  "entities": [
+   "CUS-003",
+   "PRJ-005"
+  ],
+  "sources": [
+   {
+    "path": "accounting/sie4/Nordviken_Digital_FY2025.SE",
+    "position": "1790",
+    "doc_id": "DOC-accounting-sie4-Nordviken_Digital_FY2025.SE"
+   },
+   {
+    "path": "accounting/financial_reports/resultatrakning_FY2025.csv",
+    "position": "1790: 240 000",
+    "doc_id": "DOC-accounting-financial_reports-resultatrakning_FY2025.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-019",
+  "fact": "Fritt eget kapital (balanserat resultat 2091) per 2026-09-30: 8 996 718,15 kr",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/sie4/Nordviken_Digital_FY2026.SE",
+    "position": "#UB 0 2091",
+    "doc_id": "DOC-accounting-sie4-Nordviken_Digital_FY2026.SE"
+   },
+   {
+    "path": "accounting/financial_reports/balans_per_manad.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-financial_reports-balans_per_manad.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-020",
+  "fact": "Soliditet ≈ 48,6 % och EBITDA 11 318 296 kr per 2026-09-30 (covenants: soliditet ≥ 25 %, EBITDA > 0)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/financial_reports/balans_per_manad.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-financial_reports-balans_per_manad.csv"
+   },
+   {
+    "path": "management/bankmote_2025-09-15.docx",
+    "position": "covenants",
+    "doc_id": "DOC-management-bankmote_2025-09-15.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-021",
+  "fact": "Budget FY2026 (beslutad 2025-09-25): nettoomsättning 47 000 000 kr, EBIT-mål 7,0 % (3 290 000 kr)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/budget_fy2026.docx",
+    "position": null,
+    "doc_id": "DOC-management-budget_fy2026.docx"
+   },
+   {
+    "path": "management/styrelseprotokoll_2025-09-25.docx",
+    "position": "§ 3",
+    "doc_id": "DOC-management-styrelseprotokoll_2025-09-25.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-022",
+  "fact": "Reviderad helårsprognos FY2026 (2026-06-01): worst 48,5 / bas 52,5 / best 55,0 MSEK (EBIT 9/10/12 %)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/prognos_fy2026.docx",
+    "position": "scenariotabell",
+    "doc_id": "DOC-management-prognos_fy2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-023",
+  "fact": "Öppen pipeline: 16 affärer, ovägt 13 910 000 kr, committed (förhandling) 10 810 000 kr, vägt ≈ 6 925 500 kr",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "customers/crm_export.csv",
+    "position": "öppna affärer",
+    "doc_id": "DOC-customers-crm_export.csv"
+   },
+   {
+    "path": "management/kpi_rapport_sep2026.docx",
+    "position": "pipeline 13,4 MSEK",
+    "doc_id": "DOC-management-kpi_rapport_sep2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-024",
+  "fact": "Top-5 leverantörer FY2026: Kapellbacken 2 131 000; Pensionsvalet 1 771 952; Kraftkod 1 360 000; Cloudserve 1 147 000; Dataverket 764 400 kr",
+  "entities": [
+   "SUP-001",
+   "SUP-025",
+   "SUP-034",
+   "SUP-003",
+   "SUP-035"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/inkopsregister.csv",
+    "position": "Totalt FY26",
+    "doc_id": "DOC-suppliers-inkopsregister.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-025",
+  "fact": "Moln-/SaaS-kostnad (5420): 259 200 kr/mån i basläge (jan 265 200, mar 266 200); FY2026 totalt 3 123 400 kr; AI-del (Modellfabriken+Analytics+Datainsikt) 32 500 kr/mån",
+  "entities": [
+   "SUP-003",
+   "SUP-012",
+   "SUP-013",
+   "SUP-014"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/molnkostnadsrapport.csv",
+    "position": "TOTALT-rad",
+    "doc_id": "DOC-suppliers-molnkostnadsrapport.csv"
+   },
+   {
+    "path": "management/kpi_rapport_sep2026.docx",
+    "position": "SaaS 259 tkr vs mål 240 tkr",
+    "doc_id": "DOC-management-kpi_rapport_sep2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-026",
+  "fact": "Licensutnyttjande: Designsuiten 9/18 (5 600 kr/mån outnyttjat), Datainsikt 2/10 (6 240), Whiteboard 24/30 (1 280) = 11 840 kr/mån",
+  "entities": [
+   "SUP-007",
+   "SUP-014",
+   "SUP-015"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/licensutnyttjande_rapport.docx",
+    "position": "tabell",
+    "doc_id": "DOC-suppliers-licensutnyttjande_rapport.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-027",
+  "fact": "Lönekostnader FY2026: löner 20 353 000, sociala avgifter 7 162 302, pensioner 1 771 952, semesterlöneskuld-förändring 2 442 360 kr",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/financial_reports/resultatrakning_FY2026.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-financial_reports-resultatrakning_FY2026.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-028",
+  "fact": "Antal anställda i lönelistan 2026-09: 25; total månadslönesumma 1 532 000 kr",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/payroll/lonelista_aktuell.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-payroll-lonelista_aktuell.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-029",
+  "fact": "Personalomsättning FY2026: 8 verkliga avgångar (HR-rapporten anger 9 inkl. efterregistrerad Tobias Lindqvist; kalenderåret 2026 har 7)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "employees/personalomsattning_fy26.docx",
+    "position": null,
+    "doc_id": "DOC-employees-personalomsattning_fy26.docx"
+   },
+   {
+    "path": "accounting/payroll/lonelista_alla.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-payroll-lonelista_alla.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-030",
+  "fact": "Sjukfrånvaro FY2026: 4,4 % (FY2025: 4,2 %); Q1-konflikt: HR 3,5 % vs löneexport 4,5 %; leveransteamet stiger till 5,2 % i Q4",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "employees/sjukfranvaro_rapport_fy26_hr.docx",
+    "position": null,
+    "doc_id": "DOC-employees-sjukfranvaro_rapport_fy26_hr.docx"
+   },
+   {
+    "path": "employees/sjukfranvaro_rapport_fy26_loneexport.docx",
+    "position": null,
+    "doc_id": "DOC-employees-sjukfranvaro_rapport_fy26_loneexport.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-031",
+  "fact": "Beläggning leveransteamet september 2026: 88 % (mål ≥ 82 %); debiteringsgrad 91 %; NPS 38 (mål ≥ 40)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/kpi_rapport_sep2026.docx",
+    "position": "KPI-tabell",
+    "doc_id": "DOC-management-kpi_rapport_sep2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-032",
+  "fact": "Förlikning Tobias Lindqvist (avsked p.g.a. prestation): avgångsvederlag 3 månadslöner, 141 000 kr, utbetalat 2025-09-05",
+  "entities": [
+   "EMP-034"
+  ],
+  "sources": [
+   {
+    "path": "employees/hr_2025-08-27_forlikning_tobias_lindqvist.docx",
+    "position": null,
+    "doc_id": "DOC-employees-hr_2025-08-27_forlikning_tobias_lindqvist.docx"
+   },
+   {
+    "path": "management/styrelseprotokoll_2025-09-25.docx",
+    "position": "§ 5",
+    "doc_id": "DOC-management-styrelseprotokoll_2025-09-25.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-033",
+  "fact": "Gustav Pettersson gick till konkurrenten Blå Ocean IT 2024-11-15 (konkurrensklausul 12 mån diskuterad men ej åberopad)",
+  "entities": [
+   "EMP-032"
+  ],
+  "sources": [
+   {
+    "path": "correspondence/mail_2024-11-15_gustav_pettersson_uppsagning.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2024-11-15_gustav_pettersson_uppsagning.eml"
+   },
+   {
+    "path": "employees/hr_2024-11-15_gustav_pettersson_avslutssamtal.docx",
+    "position": null,
+    "doc_id": "DOC-employees-hr_2024-11-15_gustav_pettersson_avslutssamtal.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-034",
+  "fact": "Rasmus Holm rekryterades av kunden SEAB 2025-10-31 (intressekonflikt + konkurrensklausul)",
+  "entities": [
+   "EMP-036",
+   "CUS-001"
+  ],
+  "sources": [
+   {
+    "path": "employees/hr_2025-10-31_rasmus_holm_avslutssamtal.docx",
+    "position": null,
+    "doc_id": "DOC-employees-hr_2025-10-31_rasmus_holm_avslutssamtal.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-035",
+  "fact": "Sofia Lindgren började hos kunden Polstjärnan Försäkring 2026-07-01",
+  "entities": [
+   "EMP-016",
+   "CUS-015"
+  ],
+  "sources": [
+   {
+    "path": "employees/hr_2026-04-29_sofia_lindgren_avslutssamtal.docx",
+    "position": null,
+    "doc_id": "DOC-employees-hr_2026-04-29_sofia_lindgren_avslutssamtal.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-036",
+  "fact": "Lukas Ek rekryterades av underkonsulten Dataverket Nord 2026-06-01; Daniel Nyström blev ensam dataspecialist",
+  "entities": [
+   "EMP-031",
+   "EMP-026",
+   "SUP-035"
+  ],
+  "sources": [
+   {
+    "path": "employees/hr_2026-05-31_lukas_ek_avslutssamtal.docx",
+    "position": null,
+    "doc_id": "DOC-employees-hr_2026-05-31_lukas_ek_avslutssamtal.docx"
+   },
+   {
+    "path": "correspondence/mail_2026-05-15_lukas_ek_dataverket.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2026-05-15_lukas_ek_dataverket.eml"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-037",
+  "fact": "Klara Månsson (supportansvarig) slutade 2026-09-30; supporten har därefter ett bemanningsgap (rekrytering REC-2026-03 pågår)",
+  "entities": [
+   "EMP-030"
+  ],
+  "sources": [
+   {
+    "path": "employees/hr_2026-08-27_klara_mansson_avslutssamtal.docx",
+    "position": null,
+    "doc_id": "DOC-employees-hr_2026-08-27_klara_mansson_avslutssamtal.docx"
+   },
+   {
+    "path": "employees/rekrytering_supportansvarig.docx",
+    "position": null,
+    "doc_id": "DOC-employees-rekrytering_supportansvarig.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-038",
+  "fact": "Blåklintens Vård: tre klagomål på supportsvarstider 2026 (2026-02-19, 2026-05-12, 2026-09-10)",
+  "entities": [
+   "CUS-007"
+  ],
+  "sources": [
+   {
+    "path": "customers/klagomalsregister.csv",
+    "position": "CL-2026-01..03",
+    "doc_id": "DOC-customers-klagomalsregister.csv"
+   },
+   {
+    "path": "correspondence/mail_2026-09-10_bv_klagomal_svarstider.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2026-09-10_bv_klagomal_svarstider.eml"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-039",
+  "fact": "Norrhamns Hamn: tre prestandaklagomål på NH-Logistikportal (2024-09-04, 2024-11-06, 2024-12-18)",
+  "entities": [
+   "CUS-011"
+  ],
+  "sources": [
+   {
+    "path": "customers/klagomalsregister.csv",
+    "position": "CL-2024-01..03",
+    "doc_id": "DOC-customers-klagomalsregister.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-040",
+  "fact": "Mossbackens Mekaniska sade upp MM-Underhållssystem 2026-03-26 och gick till konkurrent med 20 % lägre pris; samarbetet upphörde 2026-06-30",
+  "entities": [
+   "CUS-008"
+  ],
+  "sources": [
+   {
+    "path": "correspondence/mail_2026-03-26_mossbacken_uppsagning.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2026-03-26_mossbacken_uppsagning.eml"
+   },
+   {
+    "path": "customers/forlorade_affarer.csv",
+    "position": null,
+    "doc_id": "DOC-customers-forlorade_affarer.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-041",
+  "fact": "Riskregister R-01..R-10 (v3.2, 2026-05-11); R-02/R-09/R-10 saknar ägare; R-06/R-08 markerade åtgärdade trots nya förfallna fordringar och integrationsfel",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/riskregister.docx",
+    "position": "tabell + kommentarer",
+    "doc_id": "DOC-management-riskregister.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-042",
+  "fact": "Bankens covenantkrav: soliditet ≥ 25 %, EBITDA > 0, månatlig likviditetsprognos (13 veckors sikt), omedelbar information vid kundförluster/tvister",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/bankmote_2025-09-15.docx",
+    "position": "covenants",
+    "doc_id": "DOC-management-bankmote_2025-09-15.docx"
+   },
+   {
+    "path": "management/styrelseprotokoll_2025-09-25.docx",
+    "position": "§ 2",
+    "doc_id": "DOC-management-styrelseprotokoll_2025-09-25.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-043",
+  "fact": "Utdelningsfrågan bordlagd av styrelsen 2025-11-24 och 2026-09-28 till årsstämman",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/styrelseprotokoll_2025-11-24.docx",
+    "position": "§ 3",
+    "doc_id": "DOC-management-styrelseprotokoll_2025-11-24.docx"
+   },
+   {
+    "path": "management/styrelseprotokoll_2026-09-28.docx",
+    "position": "§ 3",
+    "doc_id": "DOC-management-styrelseprotokoll_2026-09-28.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-044",
+  "fact": "BV-uppsägning övervägdes 2026-09-15 (frist 2026-09-30, 3 mån uppsägning) men beslut sköts upp — uppsägning ej skickad",
+  "entities": [
+   "CUS-007"
+  ],
+  "sources": [
+   {
+    "path": "management/ledningsgruppsprotokoll_2026_09_15.docx",
+    "position": "punkt 1",
+    "doc_id": "DOC-management-ledningsgruppsprotokoll_2026_09_15.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-045",
+  "fact": "Kostnadsprogram inför FY27 (2026-08-20): licensinventering, utvärdering av underutnyttjade verktyg, pausad rekrytering (undantag support), underkonsultöversyn",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/ledningsgruppsprotokoll_2026_08_20.docx",
+    "position": "punkt 1",
+    "doc_id": "DOC-management-ledningsgruppsprotokoll_2026_08_20.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-046",
+  "fact": "Internt AI-initiativ (ND-Intern AI) startat 2026-01-30 med budget 1,2 MSEK; Daniel Nyström samordnare; AI-policy fastställd",
+  "entities": [
+   "PRJ-091",
+   "EMP-026"
+  ],
+  "sources": [
+   {
+    "path": "management/ledningsgruppsprotokoll_2026_01_30.docx",
+    "position": null,
+    "doc_id": "DOC-management-ledningsgruppsprotokoll_2026_01_30.docx"
+   },
+   {
+    "path": "policies/ai_policy.docx",
+    "position": null,
+    "doc_id": "DOC-policies-ai_policy.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-047",
+  "fact": "AI-incident 2026-09-02: AI-svar utan källstöd i två kundrapporter; loggning saknades; åtgärd pågår",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/incidentrapport_ai_kallstod_2026-09-02.docx",
+    "position": null,
+    "doc_id": "DOC-suppliers-incidentrapport_ai_kallstod_2026-09-02.docx"
+   },
+   {
+    "path": "suppliers/sakerhetsincidentlogg.csv",
+    "position": null,
+    "doc_id": "DOC-suppliers-sakerhetsincidentlogg.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-048",
+  "fact": "Driftstörning Nordhost 2026-08-04: 6 timmar, kundpåverkan, SLA-ersättning diskuteras; reservrutin för hosting saknas",
+  "entities": [
+   "SUP-004"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/incidentrapport_nordhost_2026-08-04.docx",
+    "position": null,
+    "doc_id": "DOC-suppliers-incidentrapport_nordhost_2026-08-04.docx"
+   },
+   {
+    "path": "suppliers/reservrutiner.docx",
+    "position": null,
+    "doc_id": "DOC-suppliers-reservrutiner.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-049",
+  "fact": "Lönesystemsintegrationen felade 4 gånger sedan 2025-11 (haveri 2026-04-20: 2 dagars manuell överföring; nytt fel 2026-09-14)",
+  "entities": [
+   "SUP-010"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/integrationslogg.csv",
+    "position": null,
+    "doc_id": "DOC-suppliers-integrationslogg.csv"
+   },
+   {
+    "path": "suppliers/incidentrapport_integration_2026-04-20.docx",
+    "position": null,
+    "doc_id": "DOC-suppliers-incidentrapport_integration_2026-04-20.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-050",
+  "fact": "Phishingincident 2024-10-15: två medarbetare klickade, lösenord återställda, inget konstaterat intrång",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/sakerhetsincidentlogg.csv",
+    "position": null,
+    "doc_id": "DOC-suppliers-sakerhetsincidentlogg.csv"
+   },
+   {
+    "path": "suppliers/incidentrapport_phishing_2024-10-15.docx",
+    "position": null,
+    "doc_id": "DOC-suppliers-incidentrapport_phishing_2024-10-15.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-051",
+  "fact": "DR/BCP-plan: RTO 48 h, RPO 24 h; test senast 2024-11-14; vårens 2026-test uppskjutet",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/dr_bcp_plan.docx",
+    "position": "måltabell",
+    "doc_id": "DOC-suppliers-dr_bcp_plan.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-052",
+  "fact": "Försäkring: ansvar 10 MSEK, egendom 5 MSEK, rättsskydd 2 MSEK, förmögenhetsbrott 1 MSEK; cyber-/avbrottsförsäkring SAKNAS (erbjudande 85 000 kr/år avböjt tills vidare)",
+  "entities": [
+   "SUP-038"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/forsakringsbrev.docx",
+    "position": null,
+    "doc_id": "DOC-suppliers-forsakringsbrev.docx"
+   },
+   {
+    "path": "correspondence/mail_2026-08-10_forsakring_cyber.eml",
+    "position": null,
+    "doc_id": "DOC-correspondence-mail_2026-08-10_forsakring_cyber.eml"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-053",
+  "fact": "Behörighetsavvikelser: David Ekström M365 global admin; Petra Wahlgren attestroll i ekonomi; Björn Falks konto aktivt efter avgång",
+  "entities": [
+   "EMP-008",
+   "EMP-004",
+   "EMP-029"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/behorighetsmatris.csv",
+    "position": "ÖVERDRIVEN/AVVIKELSE",
+    "doc_id": "DOC-suppliers-behorighetsmatris.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-054",
+  "fact": "Attestordning (v3, 2025-06-01): VD 1 M, CFO 500 tkr, CTO 100 tkr, Erik 100 tkr, Petra 50 tkr; > 500 tkr kräver två attester; SaaS > 10 000 kr/mån kräver CFO+VD-beslut",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "company/attestordning.docx",
+    "position": "attestanter + SaaS-regler",
+    "doc_id": "DOC-company-attestordning.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-055",
+  "fact": "VD-instruktion (2025-09-25): styrelsebeslut krävs för avtal > 2 MSEK, investeringar > 500 tkr, förvärv, nyemission, optionsprogram, avtal > 3 år",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "company/vd-instruktion.docx",
+    "position": "beslutsgränser",
+    "doc_id": "DOC-company-vd-instruktion.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-056",
+  "fact": "Göteborg-kalkyl: hyra 110 000 kr/mån, engångsposter 1,9 MSEK, löpande 600 000 kr/mån, break-even månad 9, återbetalning månad 26",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/investeringskalkyl_goteborg.docx",
+    "position": "kalkyltabell",
+    "doc_id": "DOC-management-investeringskalkyl_goteborg.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-057",
+  "fact": "Värderingsmemo: EV/EBIT 8–10× på 8,6 MSEK = 68,8–86,0 MSEK; DCF ≈ 73,8 MSEK; SEAB-rabatt 15 % → 63–73 MSEK; kundförlustscenario 45–55 MSEK",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/varderingsmemo.docx",
+    "position": "värderingstabell",
+    "doc_id": "DOC-management-varderingsmemo.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-058",
+  "fact": "Bilkalkyl: leasing 500 400 kr vs köp ≈ 580 900 kr över 36 mån (leasing 80 500 kr billigare); nuvarande leasing löper ut 2026-11-30",
+  "entities": [
+   "SUP-029"
+  ],
+  "sources": [
+   {
+    "path": "management/bilkalkyl_lease_vs_kop.docx",
+    "position": "kalkyltabell",
+    "doc_id": "DOC-management-bilkalkyl_lease_vs_kop.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-059",
+  "fact": "SEAB-ramavtal förlängt 2026-01-15 (CTR-2026-002, 1 180 kr/h) t.o.m. 2028-01-31, uppsägning 3 mån, auto-renew 12 mån",
+  "entities": [
+   "CUS-001"
+  ],
+  "sources": [
+   {
+    "path": "contracts/customers/",
+    "position": "CTR-2026-002",
+    "doc_id": "DOC-contracts-customers-"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-060",
+  "fact": "Obegränsat ansvar i CTR-2024-016 (ÖH-Webbplattform) — avvikelse från standardmallen",
+  "entities": [
+   "CUS-009"
+  ],
+  "sources": [
+   {
+    "path": "contracts/customers/CTR-2024-016_ÖH-Webbplattform.docx",
+    "position": null,
+    "doc_id": "CTR-2024-016"
+   },
+   {
+    "path": "management/riskregister.docx",
+    "position": "R-03",
+    "doc_id": "DOC-management-riskregister.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-061",
+  "fact": "24 månaders funktionsgaranti i CTR-2023-015 (KF-Biljettsystem)",
+  "entities": [
+   "CUS-005"
+  ],
+  "sources": [
+   {
+    "path": "contracts/customers/CTR-2023-015_KF-Biljettsystem.docx",
+    "position": null,
+    "doc_id": "CTR-2023-015"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-062",
+  "fact": "Vite 1 %/vecka, tak 10 %: CTR-2025-011 (TS) och CTR-2026-001 (SU, + källkodsdepåkrav)",
+  "entities": [
+   "CUS-006",
+   "CUS-025"
+  ],
+  "sources": [
+   {
+    "path": "contracts/customers/",
+    "position": "CTR-2025-011, CTR-2026-001",
+    "doc_id": "DOC-contracts-customers-"
+   },
+   {
+    "path": "management/riskregister.docx",
+    "position": "R-04",
+    "doc_id": "DOC-management-riskregister.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-063",
+  "fact": "Exklusivitet: CTR-2023-002 (12 mån efter avtalsslut mot konkurrerande energibolag) och CTR-2025-007 (konkurrerande försäkringsbolag)",
+  "entities": [
+   "CUS-001",
+   "CUS-015"
+  ],
+  "sources": [
+   {
+    "path": "contracts/customers/",
+    "position": "CTR-2023-002, CTR-2025-007",
+    "doc_id": "DOC-contracts-customers-"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-064",
+  "fact": "Change-of-control-klausuler: CTR-2023-002, CTR-2023-022, CTR-2026-002, CTR-2024-010, CTR-2025-007, CTR-AKT-001",
+  "entities": [
+   "CUS-001",
+   "CUS-015"
+  ],
+  "sources": [
+   {
+    "path": "contracts/customers/",
+    "position": "change-of-control",
+    "doc_id": "DOC-contracts-customers-"
+   },
+   {
+    "path": "contracts/corporate/CTR-AKT-001_Aktieägaravtal.docx",
+    "position": null,
+    "doc_id": "CTR-AKT-001"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-065",
+  "fact": "16 aktiva anställningsavtal med GAMMAL_SEKRETESS (mallen före 2023-02-15)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "contracts/employees/",
+    "position": "CTR-EMP-* riskflaggor",
+    "doc_id": "DOC-contracts-employees-"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-066",
+  "fact": "Konkurrensklausuler: CTR-EMP-32 (Gustav, 12 mån) och CTR-EMP-36 (Rasmus) + gamla mallen i flertalet CTR-EMP-*",
+  "entities": [
+   "EMP-032",
+   "EMP-036"
+  ],
+  "sources": [
+   {
+    "path": "contracts/employees/",
+    "position": "CTR-EMP-32, CTR-EMP-36",
+    "doc_id": "DOC-contracts-employees-"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-067",
+  "fact": "16 DPAs på gammal mall (GAMMAL_DPA_MALL) + Whiteboard AB saknar DPA helt",
+  "entities": [
+   "COMPANY",
+   "SUP-015"
+  ],
+  "sources": [
+   {
+    "path": "policies/personuppgiftspolicy_gdpr.docx",
+    "position": "biträdeslista",
+    "doc_id": "DOC-policies-personuppgiftspolicy_gdpr.docx"
+   },
+   {
+    "path": "contracts/",
+    "position": "DPA-register",
+    "doc_id": "DOC-contracts-"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-068",
+  "fact": "Tredjelandsöverföring: Analytics Cloud Inc (USA) med SCC 2025-05-01; känsliga personuppgifter förbjudna; TIA saknas",
+  "entities": [
+   "SUP-013"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/leverantorsbedomning_analytics_cloud.docx",
+    "position": null,
+    "doc_id": "DOC-suppliers-leverantorsbedomning_analytics_cloud.docx"
+   },
+   {
+    "path": "management/riskregister.docx",
+    "position": "R-09",
+    "doc_id": "DOC-management-riskregister.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-069",
+  "fact": "System utan reservrutin: hosting (Nordhost), CRM (Pipeline), AI-modell-API (Modellfabriken); säkerhetsbedömning saknas för Nordhost",
+  "entities": [
+   "SUP-004",
+   "SUP-009",
+   "SUP-012"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/reservrutiner.docx",
+    "position": null,
+    "doc_id": "DOC-suppliers-reservrutiner.docx"
+   },
+   {
+    "path": "suppliers/systemforteckning.docx",
+    "position": null,
+    "doc_id": "DOC-suppliers-systemforteckning.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-070",
+  "fact": "Konkurrentbevakning: Blå Ocean aggressiv prissättning; Dataverket kan bli konkurrent inom data/AI; offentliga ramavtal pressas",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "correspondence/konkurrentbevakning_2026-09-30.docx",
+    "position": null,
+    "doc_id": "DOC-correspondence-konkurrentbevakning_2026-09-30.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-071",
+  "fact": "Segmentutveckling FY26: ENTERPRISE +39,7 % (28,35 MSEK), OFFENTLIG −21,7 % (4,51 MSEK), SMB +29,0 % (21,38 MSEK)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "customers/kundsegmentering.docx",
+    "position": "segmenttabell",
+    "doc_id": "DOC-customers-kundsegmentering.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-072",
+  "fact": "Affärsplanens strategiska mål: M1 SEAB ≤ 25 %; M2 förvaltning 15 MSEK/år; M3 offentlig +15 %/år (samtliga ej i fas)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/affarsplan_2026_2028.docx",
+    "position": "måltabell",
+    "doc_id": "DOC-management-affarsplan_2026_2028.docx"
+   },
+   {
+    "path": "management/kpi_rapport_sep2026.docx",
+    "position": null,
+    "doc_id": "DOC-management-kpi_rapport_sep2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-073",
+  "fact": "Konvertibelavtal (CTR-SUPPL-028): 1 500 000 kr från ägarna, konvertering tidigast 2027-03-31 till värdering 12 MSEK",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "contracts/corporate/CTR-SUPPL-028_Konvertibelavtal.docx",
+    "position": null,
+    "doc_id": "CTR-SUPPL-028"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-074",
+  "fact": "Optionsprogram för nyckelpersoner (CTR-AKT-002): 3 % teckningsoptioner, beslutat 2025-06-12",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "contracts/corporate/CTR-AKT-002_Optionsprogram-för-nyckelpersoner.docx",
+    "position": null,
+    "doc_id": "CTR-AKT-002"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-075",
+  "fact": "NDA med icke-konkurrens/icke-värvning 12 mån inför förvärvsdiskussioner med Stenbacken Software AB (CTR-SUPPL-012)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "contracts/corporate/CTR-SUPPL-012_Sekretessavtal-ömsesidigt-Stenbacken-Software-AB.docx",
+    "position": null,
+    "doc_id": "CTR-SUPPL-012"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-076",
+  "fact": "Likviditetsprognos Q4 2026: lägsta likviditet v41 (11 434 000 kr); december skattebetalning 1 459 300 kr; checkkredit behövs ej",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/likviditetsprognos_q4_2026.docx",
+    "position": "veckotabell",
+    "doc_id": "DOC-management-likviditetsprognos_q4_2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-077",
+  "fact": "KPI-rapporten sammanställs manuellt varje vecka (≈ 4 h) men används främst inför styrelsemöten",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/kpi_rapport_sep2026.docx",
+    "position": "Not",
+    "doc_id": "DOC-management-kpi_rapport_sep2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-078",
+  "fact": "SU-Produktionssystem: 90 % klart, kundens driftsättningsmiljö 2 veckor försenad, slutleverans 2026-11-30, fakturerat 1,6 MSEK, 350 000 kr kvar, källkodsdeponering 2026-10-15",
+  "entities": [
+   "CUS-025",
+   "PRJ-029"
+  ],
+  "sources": [
+   {
+    "path": "projects/su_produktionssystem_status_2026-09-30.docx",
+    "position": "fälttabell",
+    "doc_id": "DOC-projects-su_produktionssystem_status_2026-09-30.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-079",
+  "fact": "Gruvberget vill ha utökad dataplattform (kundmöte 2026-08-19); Polstjärnan AI-förstudie offererad (OFF-2026-17, 1 350 kr/h); Gråviken e-tjänstplattform offererad (OFF-2026-18, 1 100 kr/h)",
+  "entities": [
+   "CUS-013",
+   "CUS-015",
+   "CUS-002"
+  ],
+  "sources": [
+   {
+    "path": "customers/kundmote_2026-08-19_gruvberget.docx",
+    "position": null,
+    "doc_id": "DOC-customers-kundmote_2026-08-19_gruvberget.docx"
+   },
+   {
+    "path": "customers/offert_2026-17_polstjarnan_ai.docx",
+    "position": null,
+    "doc_id": "DOC-customers-offert_2026-17_polstjarnan_ai.docx"
+   },
+   {
+    "path": "customers/offert_2026-18_graviken.docx",
+    "position": null,
+    "doc_id": "DOC-customers-offert_2026-18_graviken.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-080",
+  "fact": "Kustlandets region planerar ny upphandling och kräver lokal närvaro + offentliga referenser (kundmöte 2026-09-25)",
+  "entities": [
+   "CUS-004"
+  ],
+  "sources": [
+   {
+    "path": "customers/kundmote_2026-09-25_kustlandet.docx",
+    "position": null,
+    "doc_id": "DOC-customers-kundmote_2026-09-25_kustlandet.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-081",
+  "fact": "Öppna leverantörsfakturor med förfall ≤ 30 dagar: 36 st, 1203980.63 kr brutto",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/accounts_payable/leverantorsreskontra.csv",
+    "position": "öppna poster",
+    "doc_id": "DOC-accounting-accounts_payable-leverantorsreskontra.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-082",
+  "fact": "Banklånet slutamorterat (2350 = 0 per 2026-01-31); räntekostnader FY2026: 11 932,39 kr",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/financial_reports/resultatrakning_FY2026.csv",
+    "position": "8410",
+    "doc_id": "DOC-accounting-financial_reports-resultatrakning_FY2026.csv"
+   },
+   {
+    "path": "accounting/sie4/Nordviken_Digital_FY2026.SE",
+    "position": null,
+    "doc_id": "DOC-accounting-sie4-Nordviken_Digital_FY2026.SE"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-083",
+  "fact": "Nadia Haddad anställd 2026-05-04 (via Talangjakten, 72 000 kr/mån, debiterbar 1 250 kr/h)",
+  "entities": [
+   "EMP-012"
+  ],
+  "sources": [
+   {
+    "path": "employees/rekrytering_arkitekt.docx",
+    "position": "beslut",
+    "doc_id": "DOC-employees-rekrytering_arkitekt.docx"
+   },
+   {
+    "path": "accounting/payroll/lonelista_aktuell.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-payroll-lonelista_aktuell.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-084",
+  "fact": "SE-Integration budgeterades 550–600 h/mån men utföll med 700–800 h/mån (huvudförklaringen till budgetöverträffandet)",
+  "entities": [
+   "CUS-001"
+  ],
+  "sources": [
+   {
+    "path": "management/prognos_fy2026.docx",
+    "position": "utfall hittills",
+    "doc_id": "DOC-management-prognos_fy2026.docx"
+   },
+   {
+    "path": "management/styrelseprotokoll_2025-09-25.docx",
+    "position": "§ 3",
+    "doc_id": "DOC-management-styrelseprotokoll_2025-09-25.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-085",
+  "fact": "Två planerade rekryteringar i budgeten genomfördes inte; SU och TR ingick inte i budgeten; indexuppräkningar antogs tillämpade (två missades)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/budget_fy2026.docx",
+    "position": "antaganden",
+    "doc_id": "DOC-management-budget_fy2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-086",
+  "fact": "Medarbetarundersökning 2026: svarsfrekvens 68 %, eNPS 11, arbetsbelastning 3,1/5 (leverans 2,7/5) lägst betyg",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "employees/medarbetarundersokning_2026.docx",
+    "position": "tema-tabell",
+    "doc_id": "DOC-employees-medarbetarundersokning_2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-087",
+  "fact": "Åtgärdsstatus från 2025 års undersökning: övertidsöversyn ÖPPEN, karriärramverk ÖPPEN, ledarskapsutbildning ÖPPEN; verktyg och friskvård GENOMFÖRDA",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "employees/medarbetarundersokning_2025.docx",
+    "position": "åtgärdslista",
+    "doc_id": "DOC-employees-medarbetarundersokning_2025.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-088",
+  "fact": "10 medarbetare har inte haft utvecklingssamtal på > 12 månader (bl.a. Tomas Berg, Fredrik Lund, Johan Wall, Patrik Öberg)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "employees/utvecklingssamtalsregister.csv",
+    "position": "Senaste samtal",
+    "doc_id": "DOC-employees-utvecklingssamtalsregister.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-089",
+  "fact": "SAM-riskbedömning 2026-02-10 (AFS 2001:1): ensamkompetensåtgärden EJ STARTAD; nästa bedömning 2027-02",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "employees/sam_riskbedomning_arbetsmiljo.docx",
+    "position": "risktabell",
+    "doc_id": "DOC-employees-sam_riskbedomning_arbetsmiljo.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-090",
+  "fact": "Utbildningsplan 2026: budget 450 000 kr; Data/AI-fördjupning delvis (endast Daniel deltog); ledarskapsutbildning risk att skjutas",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "employees/utbildningsplan_2026.docx",
+    "position": "tabell",
+    "doc_id": "DOC-employees-utbildningsplan_2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-091",
+  "fact": "Bolagsordning: räkenskapsår 1 okt–30 sep; kallelse 6/2 veckor före stämma; aktiekapital 250 000–1 000 000 kr; styrelse 3–5 ledamöter",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "company/bolagsordning.docx",
+    "position": "§ 4–9",
+    "doc_id": "DOC-company-bolagsordning.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-092",
+  "fact": "GDPR-policy: lagliga grunder per behandling dokumenterade; gallringsfrister 7 år (bokföring/kunddok), 24 mån (rekrytering), 36 mån (CRM), 90 dgr (backup), 30 dgr (kamera)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "policies/personuppgiftspolicy_gdpr.docx",
+    "position": "behandlings-/gallringstabell",
+    "doc_id": "DOC-policies-personuppgiftspolicy_gdpr.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-093",
+  "fact": "Säkerhetsincidentlogg: credential stuffing 2026-09-28 (ÖPPEN); MFA-trötthet 2026-01-18; misstänkta inloggningsförsök 2025-03-22",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "suppliers/sakerhetsincidentlogg.csv",
+    "position": "rader",
+    "doc_id": "DOC-suppliers-sakerhetsincidentlogg.csv"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-094",
+  "fact": "Q4 (jul–sep) utföll till 9 633 203 kr medan KPI-rapportens prognos angav 12,4 MSEK (prognosfel)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "accounting/financial_reports/resultat_per_manad.csv",
+    "position": null,
+    "doc_id": "DOC-accounting-financial_reports-resultat_per_manad.csv"
+   },
+   {
+    "path": "management/kpi_rapport_sep2026.docx",
+    "position": "prognos Q4",
+    "doc_id": "DOC-management-kpi_rapport_sep2026.docx"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-095",
+  "fact": "Tilläggshyra extra våningsplan 48 000 kr/mån fr.o.m. 2026-07-01 (styrelseinformerat 2026-03-12)",
+  "entities": [
+   "COMPANY"
+  ],
+  "sources": [
+   {
+    "path": "management/styrelseprotokoll_2026-03-12.docx",
+    "position": "§ 4",
+    "doc_id": "DOC-management-styrelseprotokoll_2026-03-12.docx"
+   },
+   {
+    "path": "contracts/corporate/CTR-HYRA-002_Tilläggsavtal-extra-våningsplan.docx",
+    "position": null,
+    "doc_id": "CTR-HYRA-002"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ },
+ {
+  "fact_id": "F-096",
+  "fact": "Kraftkod QA-förstärkning (CTR-SUPPL-026): 920 kr/h, ca 40 h/mån, utgång 2026-12-31, uppsägning 1 mån",
+  "entities": [
+   "SUP-034"
+  ],
+  "sources": [
+   {
+    "path": "contracts/suppliers/",
+    "position": "CTR-SUPPL-026",
+    "doc_id": "DOC-contracts-suppliers-"
+   }
+  ],
+  "derived_from": [
+   "truth_model"
+  ],
+  "valid_from": null,
+  "valid_to": null
+ }
+]

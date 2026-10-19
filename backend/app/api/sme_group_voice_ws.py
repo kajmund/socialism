@@ -225,12 +225,21 @@ async def _on_grant_floor(call: _Call, raw: dict) -> None:
 async def _on_release_floor(call: _Call, raw: dict) -> None:
     msg = ReleaseFloor.model_validate(raw)
     call.session.release_floor()
-    keep_prompt = await _prompt(
-        "sme.group_voice.keep_hand",
-        customer_id=call.customer_id,
-        language=call.language,
+    factory = jobs_service.job_session_factory()
+    async with factory() as db:
+        prompts = await require_active_prompts(
+            db,
+            customer_id=call.customer_id,
+            module="dd",
+            language=call.language,
+        )
+    keep_prompt = prompts.get("sme.group_voice.keep_hand")
+    if keep_prompt is None or not str(keep_prompt).strip():
+        raise RuntimeError("Active configuration is missing prompt 'sme.group_voice.keep_hand'")
+    await call.session.decide_keep_hands(
+        msg.transcript,
+        keep_hand_prompt=str(keep_prompt),
     )
-    await call.session.decide_keep_hands(msg.transcript, keep_hand_prompt=keep_prompt)
     await call.push_snapshot()
 
 

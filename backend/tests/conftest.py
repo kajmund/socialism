@@ -377,6 +377,24 @@ def _sme_panel_api_tests_skip_jev(request, monkeypatch):
     )
 
 
+@pytest.fixture(autouse=True)
+def _sme_panel_api_tests_skip_jev(request, monkeypatch):
+    """Panel API tests expect every member to reply and must not call Jev."""
+    if request.module.__name__ != "tests.test_sme":
+        return
+
+    async def everyone(self, _utterance, jev=None, raise_hand_prompt=None):
+        for persona_id in self.member_ids:
+            self.raise_hand(persona_id)
+        ordered = sorted(self.member_ids)
+        return ordered[0] if ordered else None
+
+    monkeypatch.setattr(
+        "app.services.sme_group_voice.GroupVoiceSession.decide_raise_hands",
+        everyone,
+    )
+
+
 def pytest_addoption(parser):
     parser.addoption("--live-research-sources", action="store_true", help="Read real lagen.nu source paths")
     parser.addoption("--live-research-model", action="store_true", help="Run configured model against live legal sources")

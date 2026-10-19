@@ -8,6 +8,9 @@
 
 * **SME**: I live voice fångas det du säger från första stund: tal som yttras medan röstsamtalet kopplar upp tappas inte längre. Kort brus (till exempel en hosta) visar inte längre ett fel i chatten — samtalet fortsätter lyssna.
 
+## 2026-10-12
+
+* **SME / workspace**: Ny guide för **Modellens arbete** — flikikonen i workspace visar verktygsanrop och mellansteg. Numrerade källknappar i chatten öppnar citerade källor i workspace.
 ## 2026-10-17
 
 * **SME**: När du skickar en fråga skriver experten först en kort rad i chatten (till exempel att hen kollar på det) och skickar den direkt till dig; därefter följer det fullständiga svaret som en fortsättning på den raden. Dröjer svaret skriver experten också en framstegsrad, till exempel att hen fortfarande arbetar med avtalet. Båda ligger kvar; bara det fullständiga svaret sparas.
@@ -27,6 +30,11 @@
 
 * **SME**: **Lägg till underlag** tar emot många Word- och PDF-filer i samma ruta. Varje fil visar uppladdning och ingest. Du kan lämna rutan och komma tillbaka. När en fil är sökbar kan du öppna den. En fil som misslyckades kan du försöka med igen.
 * **SME**: När en relationskarta har många samband står de också i en lista vid grafen. Välj en uppgift eller ett samband så visas de kopplingarna, och de övriga tonas ner.
+## 2026-10-18
+
+* **SME / dokument**: Rutan **Läs in dokument** tar emot flera filer samtidigt. Varje fil får en egen rad med uppladdnings- och bearbetningsstatus som går stegvis fram till **Klar**, och arbetet fortsätter i bakgrunden om du lämnar rutan.
+* **SME / dokumentsamling**: Experten kan samla utvalda dokument i en **Dokumentsamling** som visas med miniatyrer och avgränsar vilka dokument du arbetar med. Samlingen får en egen flik i dokumentraden.
+* **SME / dokumentkommentarer**: Markera en passage i ett dokument och kommentera den i kommentarslisten till höger. Korten visar vem som skrev vad, egna kommentarer kan ändras och trådar svaras på med **Svara**.
 
 ## 2026-10-11
 
