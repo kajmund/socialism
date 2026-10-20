@@ -31,6 +31,7 @@ BACKCHANNELS = frozenset(
         "just det",
         "jajust",
         "ja precis",
+        "precis",
         "okej",
         "ok",
         "ja",
@@ -63,7 +64,7 @@ def classify_utterance(
     normalized = normalize_utterance(text)
     if not normalized:
         kind: BackchannelKind = "uncertain"
-    elif echoed and normalize_utterance(echoed) == normalized:
+    elif is_playback_echo(normalized, echoed):
         kind = "backchannel"
     elif _urgent(normalized):
         kind = "interruption"
@@ -119,7 +120,9 @@ async def confirm_barge(prompt: str, text: str) -> bool:
         kind,
         (monotonic() - started) * 1000,
     )
-    return kind != "backchannel"
+    # Bounded confirm: only stop on a positive interrupt class. Uncertain
+    # must not barge — confirmation words should keep the reply going.
+    return kind in {"interruption", "new_question", "amend"}
 
 
 class SpeechBarge:
@@ -196,6 +199,19 @@ class SpeechBarge:
     async def _note_backchannel(self, text: str) -> None:
         if self._on_backchannel is not None:
             await self._on_backchannel(text)
+
+
+def is_playback_echo(text: str, spoken: str | None) -> bool:
+    """True when STT is repeating TTS rather than a new user utterance."""
+    if not spoken:
+        return False
+    heard = normalize_utterance(text)
+    playback = normalize_utterance(spoken)
+    if not heard or not playback:
+        return False
+    if heard == playback:
+        return True
+    return len(heard) >= 12 and heard in playback
 
 
 def _interrupts(normalized: str) -> bool:

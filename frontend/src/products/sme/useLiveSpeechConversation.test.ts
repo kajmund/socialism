@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { generationFrame } from "./liveSpeechPcm"
 
 vi.mock("@/lib/env", () => ({
   env: {
@@ -177,7 +178,7 @@ describe("LiveSpeechClient lifecycle", () => {
       reason: "barge_in",
       spoken_text: "",
     }))
-    client["play"](new ArrayBuffer(4))
+    client["play"](generationFrame(1, new ArrayBuffer(4)))
     expect(createBuffer).not.toHaveBeenCalled()
     client["handleControl"](JSON.stringify({
       type: "audio.output.start",
@@ -186,7 +187,7 @@ describe("LiveSpeechClient lifecycle", () => {
       codec: "pcm16",
       sample_rate: 24000,
     }))
-    client["play"](new ArrayBuffer(4))
+    client["play"](generationFrame(1, new ArrayBuffer(4)))
     expect(createBuffer).toHaveBeenCalledOnce()
   })
 
@@ -242,7 +243,7 @@ describe("LiveSpeechClient lifecycle", () => {
       turn_id: "turn-1",
       reason: "urgent",
     })
-    client["play"](new ArrayBuffer(4))
+    client["play"](generationFrame(3, new ArrayBuffer(4)))
     expect(createBuffer).not.toHaveBeenCalled()
   })
 
@@ -287,13 +288,13 @@ describe("LiveSpeechClient lifecycle", () => {
     }))
 
     start(1)
-    client["play"](new ArrayBuffer(4))
+    client["play"](generationFrame(1, new ArrayBuffer(4)))
     expect(createBuffer).toHaveBeenCalledTimes(1)
     end(1)
-    client["play"](new ArrayBuffer(4))
+    client["play"](generationFrame(1, new ArrayBuffer(4)))
     expect(createBuffer).toHaveBeenCalledTimes(1)
     start(2)
-    client["play"](new ArrayBuffer(4))
+    client["play"](generationFrame(2, new ArrayBuffer(4)))
     expect(createBuffer).toHaveBeenCalledTimes(2)
   })
 
@@ -332,10 +333,51 @@ describe("LiveSpeechClient lifecycle", () => {
     start(1)
     client.cancel()
     start(1)
-    client["play"](new ArrayBuffer(4))
+    client["play"](generationFrame(1, new ArrayBuffer(4)))
     expect(createBuffer).not.toHaveBeenCalled()
     start(2)
-    client["play"](new ArrayBuffer(4))
+    client["play"](generationFrame(2, new ArrayBuffer(4)))
+    expect(createBuffer).toHaveBeenCalledOnce()
+  })
+
+  it("drops a late websocket frame from a cancelled generation after the next start", async () => {
+    vi.stubGlobal("window", { location: { hash: "", search: "" } })
+    const { LiveSpeechClient } = await import("./useLiveSpeechConversation")
+    const client = new LiveSpeechClient("workspace", "expert", "sv", {
+      state: vi.fn(),
+      message: vi.fn(),
+      preview: vi.fn(),
+      tool: vi.fn(async () => undefined),
+      error: vi.fn(),
+      trace: vi.fn(),
+    })
+    const createBuffer = vi.fn(() => ({
+      getChannelData: () => ({ set: vi.fn() }),
+      duration: 0.1,
+    }))
+    const source = { buffer: null, connect: vi.fn(), start: vi.fn(), onended: null }
+    client["playback"] = {
+      createBuffer,
+      createBufferSource: () => source,
+      currentTime: 0,
+      destination: {},
+    } as unknown as AudioContext
+    const start = (generation: number) => client["handleControl"](JSON.stringify({
+      type: "audio.output.start",
+      turn_id: "turn-1",
+      response_id: "turn-1",
+      generation_id: generation,
+      sequence: generation,
+      codec: "pcm16",
+      sample_rate: 24000,
+    }))
+
+    start(4)
+    client.cancel()
+    start(5)
+    client["play"](generationFrame(4, new ArrayBuffer(4)))
+    expect(createBuffer).not.toHaveBeenCalled()
+    client["play"](generationFrame(5, new ArrayBuffer(4)))
     expect(createBuffer).toHaveBeenCalledOnce()
   })
 

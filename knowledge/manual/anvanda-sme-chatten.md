@@ -37,7 +37,7 @@ Menyn till höger om namnet i en öppen chatt innehåller **Rensa chatt**, **Min
 När du byter expert eller privat chatt avslutas det aktuella samtalet. Redan sparade meddelanden ligger kvar. Dokumentjobb som har startats fortsätter även när samtalet avslutas.
 
 Telefonknappen vid skrivfältet startar **live voice**. Tillåt mikrofonen i webbläsaren. Experten tar upp tråden från det ni senast pratade om och pratar först. Har ni ingen tidigare historik håller experten tyst och du inleder. Du kan stänga av mikrofonen, avbryta ett uppläst svar eller avsluta röstsamtalet. Du kan också skriva medan röstsamtalet är aktivt; texten avbryter uppläsningen
-men samtalet fortsätter. Korta lyssnarsignaler som *mm* avbryter inte svaret.
+men samtalet fortsätter. Korta lyssnarsignaler som *mm*, *ja* och *precis* avbryter inte svaret. *Stopp*, *nej* och *vänta* tystar uppläsningen direkt.
 Om du talar en längre stund kan experten nynna med utan att det sparas i
 chatten. När ett uppslag tar tid kan experten säga att hen väntar eller att
 en del har kommit. Talade frågor och expertsvar visas i chatten. Dokument och

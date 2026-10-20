@@ -8,7 +8,8 @@ from time import monotonic
 from typing import TYPE_CHECKING
 
 from app.config import settings
-from app.services.live_speech_backchannel import SpeechBarge
+from app.services.conversation_controller import ConversationEvent
+from app.services.live_speech_backchannel import SpeechBarge, is_playback_echo
 from app.services.live_speech_amend import amend_turn
 from app.services.live_speech_phrases import (
     BACKCHANNEL_PROMPT_KEY,
@@ -126,7 +127,7 @@ class LiveSpeechCues:
         if not runtime._first_partial_logged and runtime._speech_started_at is not None:
             runtime._first_partial_logged = True
             runtime._metrics.add(
-                "first_partial",
+                "server.first_partial",
                 (monotonic() - runtime._speech_started_at) * 1000,
             )
         text = runtime._partials.get(item_id, "") + delta
@@ -134,6 +135,12 @@ class LiveSpeechCues:
         runtime._user_text_partial = text
         revision = runtime._revisions.get(item_id, 0) + 1
         runtime._revisions[item_id] = revision
+        epoch = runtime._item_epoch.setdefault(item_id, runtime._utterance_id or item_id)
+        partial = runtime._conversation.handle(
+            ConversationEvent(kind="user_partial", utterance_id=epoch, sequence=revision),
+        )
+        if not partial.accepted:
+            return
         if self.echoes_listener(text):
             return
         await runtime._emit_json(
@@ -155,29 +162,38 @@ class LiveSpeechCues:
         last_aside = (
             runtime._coordinator.spoken_asides[-1] if runtime._coordinator.spoken_asides else None
         )
-        return await self._barge.consider(
+        echoed = runtime._coordinator.spoken_text or last_aside
+        started = monotonic()
+        kept = await self._barge.consider(
             text,
             final=final,
             duration_ms=duration,
-            echoed=last_aside,
+            echoed=echoed,
         )
+        runtime._metrics.add("server.barge_classified", (monotonic() - started) * 1000)
+        return kept
 
     def echoes_listener(self, text: str) -> bool:
+        spoken = self._rt._coordinator.spoken_text
         last = (
             self._rt._coordinator.spoken_asides[-1]
             if self._rt._coordinator.spoken_asides
             else ""
         )
-        return bool(last) and text.casefold().strip() == last.casefold()
+        return is_playback_echo(text, spoken) or is_playback_echo(text, last)
 
     async def barge_in(self, reason: str, text: str) -> None:
         started = monotonic()
         self._rt._coordinator.drop_aside()
         if self.assistant_active():
             if reason == "amend":
+                self._rt._conversation.handle(
+                    ConversationEvent(kind="barge_amend", turn_id=self._rt._turn_id),
+                )
                 await amend_turn(self._rt, self._rt._turn_id, text)
             else:
                 await self._rt.cancel_turn(self._rt._turn_id, reason)
+            self._rt._metrics.add("server.barge_in", (monotonic() - started) * 1000)
             logger.info(
                 "live_speech.barge_in reason=%s latency_ms=%.1f",
                 reason,

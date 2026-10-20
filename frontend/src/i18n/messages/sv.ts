@@ -104,6 +104,7 @@ export const sv = {
     "sessionError": "Samtalet kunde inte anslutas.",
     "transcriptionError": "Talet kunde inte transkriberas. Försök igen.",
     "speechError": "Svaret kunde inte läsas upp. Textsvaret finns kvar i chatten.",
+    "aecError": "Ekoreducering är av i webbläsaren. Live voice kräver att mikrofonens ekoreducering är på.",
     "voiceStart": "Starta röstsamtal",
     "voiceStop": "Avsluta röstsamtal",
     "cancelSpeech": "Avbryt uppläsning",
