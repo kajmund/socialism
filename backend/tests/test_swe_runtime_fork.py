@@ -199,3 +199,10 @@ async def test_nested_fork_and_loop_back_to_same_fork() -> None:
     assert result.status == "completed"
     spawned = [event for event in result.events if event["type"] == "BranchSpawned"]
     assert len(spawned) >= 6
+    epochs = {
+        event["lineage"]["loop_epoch"]
+        for event in result.events
+        if event.get("lineage") is not None
+    }
+    assert 0 in epochs
+    assert 1 in epochs

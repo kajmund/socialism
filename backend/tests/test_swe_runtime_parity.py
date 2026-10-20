@@ -73,6 +73,21 @@ def test_expression_parity_including_nested_bool() -> None:
         assert rust == python == expected
 
 
+def test_nan_infinity_and_key_collision_match() -> None:
+    native = require_native()
+    with pytest.raises(Exception, match="NaN"):
+        canonical_json_bytes(float("nan"))
+    with pytest.raises(ValueError, match="NaN and Infinity"):
+        native.canonical_json_bytes(float("nan"))
+    with pytest.raises(ValueError, match="NaN and Infinity"):
+        native.canonical_json_bytes(float("inf"))
+    colliding = {"é": 1, "e\u0301": 2}
+    with pytest.raises(Exception, match="canonical key collision"):
+        canonical_json_bytes(colliding)
+    with pytest.raises(ValueError, match="canonical key collision"):
+        native.canonical_json_bytes(colliding)
+
+
 def test_expression_errors_match() -> None:
     native = require_native()
     with pytest.raises(ValueError, match="missing value"):

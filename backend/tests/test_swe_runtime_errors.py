@@ -122,6 +122,78 @@ async def test_timeout_is_terminal() -> None:
     assert "timeout" in result.error["message"]
 
 
+async def test_max_depth_is_terminal() -> None:
+    compiled = compile_runtime(
+        {
+            "outer": {
+                "type": "fork",
+                "branches": {"left": "inner", "right": "leaf"},
+                "join": "outer_join",
+            },
+            "inner": {
+                "type": "fork",
+                "branches": {"a": "leaf_a", "b": "leaf_b"},
+                "join": "inner_join",
+            },
+            "leaf": {"type": "task", "handler": "demo.leaf"},
+            "leaf_a": {"type": "task", "handler": "demo.leaf"},
+            "leaf_b": {"type": "task", "handler": "demo.leaf"},
+            "inner_join": {"type": "join", "mode": "all"},
+            "outer_join": {"type": "join", "mode": "all", "next": "done"},
+            "done": {"type": "end", "status": "completed"},
+        },
+        name="deep",
+        entrypoint="outer",
+        limits={"max_steps": 20, "max_depth": 1, "timeout_seconds": 5},
+        handlers=frozenset({"demo.leaf"}),
+    )
+
+    async def leaf(_payload: dict[str, object]) -> dict[str, bool]:
+        return {"ok": True}
+
+    result = await run_workflow(compiled, {"demo.leaf": leaf}, {})
+    assert result.status == "failed"
+    assert result.error is not None
+    assert "max_depth" in result.error["message"]
+
+
+async def test_output_schema_is_enforced() -> None:
+    compiled = compile_runtime(
+        {
+            "work": {
+                "type": "task",
+                "handler": "demo.work",
+                "output_schema": {
+                    "type": "object",
+                    "required": ["n"],
+                    "properties": {"n": {"type": "integer"}},
+                    "additionalProperties": False,
+                },
+                "next": "done",
+            },
+            "done": {"type": "end", "status": "completed"},
+        },
+        name="schema",
+        entrypoint="work",
+        handlers=frozenset({"demo.work"}),
+    )
+
+    async def bad(_payload: dict[str, object]) -> dict[str, str]:
+        return {"n": "nope"}
+
+    failed = await run_workflow(compiled, {"demo.work": bad}, {})
+    assert failed.status == "failed"
+    assert failed.error is not None
+    assert "output_schema" in failed.error["message"]
+
+    async def good(_payload: dict[str, object]) -> dict[str, int]:
+        return {"n": 1}
+
+    ok = await run_workflow(compiled, {"demo.work": good}, {})
+    assert ok.status == "completed"
+    assert ok.output["work"]["result"] == {"n": 1}
+
+
 async def test_max_steps_is_terminal() -> None:
     compiled = compile_runtime(
         {
