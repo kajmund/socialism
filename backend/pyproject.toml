@@ -28,6 +28,8 @@ dependencies = [
     "psycopg[binary]>=3.2.0",
     # Mem0's pgvector provider uses Psycopg's maintained connection pool.
     "psycopg-pool>=3.2.0",
+    # YAML 1.1 authoring syntax for SWD; runtime validates the JSON object only.
+    "pyyaml>=6.0.3",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
     "pyjwt>=2.10.1",

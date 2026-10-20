@@ -47,6 +47,8 @@ backend/
 └── pyproject.toml
 ```
 
+**SWE / SWD 1.0:** definition schema, parser and host-context isolation live in `app/swe/`. No scheduler is wired yet. Contracts: [swe-swd-1.0.md](../docs/specs/swe-swd-1.0.md), inventory: [swe-inventory.md](../docs/specs/swe-inventory.md).
+
 Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (`uv sync --extra oasis`). That install is heavy (CAMEL + torch). On Python 3.13, `pyproject.toml` overrides pin conflicts (`openai`, `tiktoken`, `pillow`, pytest).
 
 **Model benchmark:** `uv run python scripts/benchmark_simulation_models.py --run-id N` runs the same körning under each `--models` id (default reasoner vs chat), prints wall time + activity metrics, and writes JSON under `data/`. **Prompt benchmark:** `uv run python scripts/benchmark_prompt_configurations.py --run-id N` compares engagement balance across `oasis.agents.action_rules` variants on dedicated Configuration rows; see [docs/guides/backend-setup.md](../docs/guides/backend-setup.md#benchmark-prompt-configurations-engagement-balance). Neither benchmark script commits `run.results` (unlike `python -m app.services.oasis_run`).
