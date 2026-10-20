@@ -1,0 +1,141 @@
+"""Parse and validate a canonical SWD 1.0 document."""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from typing import Any
+
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
+
+from app.swe.canonicalize import canonical_json_bytes, sha256_hex
+from app.swe.errors import SwdValidationError
+from app.swe.graph import assert_known_node_types, validate_graph
+from app.swe.schema import (
+    HANDLER_NAME_PATTERN,
+    PROVIDER_NAME_PATTERN,
+    SWD_VERSION,
+    load_schema,
+)
+from app.swe.yaml_load import json_object, load_swd_text
+
+HANDLER_NAME_RE = re.compile(HANDLER_NAME_PATTERN)
+PROVIDER_NAME_RE = re.compile(PROVIDER_NAME_PATTERN)
+MAX_DOCUMENT_BYTES = 1_000_000
+
+
+@dataclass(frozen=True)
+class CompiledDefinition:
+    document: dict[str, Any]
+    sha256: str
+    version: str
+    name: str
+    entrypoint: str
+
+
+def compile_definition(
+    document: object,
+    *,
+    handlers: frozenset[str] | None = None,
+    providers: frozenset[str] | None = None,
+) -> CompiledDefinition:
+    parsed = json_object(document)
+    _assert_version(parsed)
+    _assert_size(parsed)
+    assert_known_node_types(parsed)
+    _validate_schema(parsed)
+    validate_graph(parsed)
+    _validate_registry(parsed, handlers=handlers, providers=providers)
+    return CompiledDefinition(
+        document=parsed,
+        sha256=sha256_hex(parsed),
+        version=str(parsed["version"]),
+        name=str(parsed["name"]),
+        entrypoint=str(parsed["entrypoint"]),
+    )
+
+
+def compile_swd_text(
+    raw: str | bytes,
+    *,
+    handlers: frozenset[str] | None = None,
+    providers: frozenset[str] | None = None,
+) -> CompiledDefinition:
+    return compile_definition(load_swd_text(raw), handlers=handlers, providers=providers)
+
+
+def _assert_version(document: dict[str, Any]) -> None:
+    if document.get("version") != SWD_VERSION:
+        raise SwdValidationError(
+            f"unsupported SWD version {document.get('version')!r}",
+            path="version",
+        )
+
+
+def _assert_size(document: dict[str, Any]) -> None:
+    if len(canonical_json_bytes(document)) > MAX_DOCUMENT_BYTES:
+        raise SwdValidationError("definition exceeds 1MB canonical size", path="")
+
+
+def _validate_schema(document: dict[str, Any]) -> None:
+    validator = Draft202012Validator(load_schema())
+    error = next(validator.iter_errors(document), None)
+    if error is None:
+        return
+    raise _schema_error(error)
+
+
+def _schema_error(error: ValidationError) -> SwdValidationError:
+    path = ".".join(str(part) for part in error.absolute_path)
+    return SwdValidationError(error.message, path=path)
+
+
+def _validate_registry(
+    document: dict[str, Any],
+    *,
+    handlers: frozenset[str] | None,
+    providers: frozenset[str] | None,
+) -> None:
+    nodes = document["nodes"]
+    for node_id, node in nodes.items():
+        if node["type"] == "task":
+            _check_handler(node_id, node, handlers)
+        elif node["type"] == "decision" and node.get("evaluator") == "provider":
+            _check_provider(node_id, node, providers)
+
+
+def _check_handler(
+    node_id: str,
+    node: dict[str, Any],
+    handlers: frozenset[str] | None,
+) -> None:
+    handler = node.get("handler")
+    if not isinstance(handler, str) or not HANDLER_NAME_RE.fullmatch(handler):
+        raise SwdValidationError(
+            f"invalid handler name {handler!r}",
+            path=f"nodes.{node_id}.handler",
+        )
+    if handlers is not None and handler not in handlers:
+        raise SwdValidationError(
+            f"unknown handler {handler!r}",
+            path=f"nodes.{node_id}.handler",
+        )
+
+
+def _check_provider(
+    node_id: str,
+    node: dict[str, Any],
+    providers: frozenset[str] | None,
+) -> None:
+    provider = node.get("provider")
+    if not isinstance(provider, str) or not PROVIDER_NAME_RE.fullmatch(provider):
+        raise SwdValidationError(
+            f"invalid provider name {provider!r}",
+            path=f"nodes.{node_id}.provider",
+        )
+    if providers is not None and provider not in providers:
+        raise SwdValidationError(
+            f"unknown decision provider {provider!r}",
+            path=f"nodes.{node_id}.provider",
+        )

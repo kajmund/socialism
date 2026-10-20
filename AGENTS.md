@@ -44,7 +44,7 @@ socialism/
 ├── integrations/       # MCP servers + shared OKF helpers
 ├── knowledge/          # OKF bundles (end-user manuals)
 │   └── manual/         # Swedish operator guides
-├── backend/            # FastAPI service (see backend/AGENTS.md)
+├── backend/            # FastAPI service (see backend/AGENTS.md); SWD 1.0 parser in app/swe/
 ├── frontend/           # React SPA (see frontend/AGENTS.md)
 └── word-addin/         # Word desktop task pane (expertgranskning)
 ```
