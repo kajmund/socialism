@@ -18,6 +18,7 @@ Do not reimplement these. SWE will call them as Python handlers / decision input
 | Area | Location | Why |
 | --- | --- | --- |
 | Need / plan / evidence types | `backend/app/services/research/models.py`, `plan.py`, `planner.py` | Domain contracts |
+| Prompt catalog | `prompt_store.py`, `prompt_catalog.py` | Provider questions are `prompt_key` refs, not inline text |
 | Assessment + completeness | `assessment.py`, `completeness.py`, `loop_decision.py` | Sufficiency and stop policy |
 | Follow-up / runtime needs | `followup.py` | Wave planning |
 | Quality + Jev relevance | `quality.py`, `quality_persist.py`, `evidence_screen.py`, `relevance_judge.py` | Scoring and NOUL |

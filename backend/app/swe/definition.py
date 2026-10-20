@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
-from app.swe.canonicalize import canonical_json_bytes, sha256_hex
+from app.services.prompt_catalog import PROMPT_KEY_SET
+from app.swe.canonicalize import canonicalize, canonical_json_bytes, sha256_hex
 from app.swe.errors import SwdValidationError
+from app.swe.freeze import freeze_json
 from app.swe.graph import assert_known_node_types, validate_graph
 from app.swe.schema import (
     HANDLER_NAME_PATTERN,
+    PROMPT_KEY_PATTERN,
     PROVIDER_NAME_PATTERN,
     SWD_VERSION,
     load_schema,
@@ -22,12 +26,13 @@ from app.swe.yaml_load import json_object, load_swd_text
 
 HANDLER_NAME_RE = re.compile(HANDLER_NAME_PATTERN)
 PROVIDER_NAME_RE = re.compile(PROVIDER_NAME_PATTERN)
+PROMPT_KEY_RE = re.compile(PROMPT_KEY_PATTERN)
 MAX_DOCUMENT_BYTES = 1_000_000
 
 
 @dataclass(frozen=True)
 class CompiledDefinition:
-    document: dict[str, Any]
+    document: Mapping[str, Any]
     sha256: str
     version: str
     name: str
@@ -42,17 +47,19 @@ def compile_definition(
 ) -> CompiledDefinition:
     parsed = json_object(document)
     _assert_version(parsed)
-    _assert_size(parsed)
-    assert_known_node_types(parsed)
-    _validate_schema(parsed)
-    validate_graph(parsed)
-    _validate_registry(parsed, handlers=handlers, providers=providers)
+    canonical = canonicalize(parsed)
+    _assert_size(canonical)
+    assert_known_node_types(canonical)
+    _validate_schema(canonical)
+    validate_graph(canonical)
+    _validate_registry(canonical, handlers=handlers, providers=providers)
+    frozen = freeze_json(canonical)
     return CompiledDefinition(
-        document=parsed,
-        sha256=sha256_hex(parsed),
-        version=str(parsed["version"]),
-        name=str(parsed["name"]),
-        entrypoint=str(parsed["entrypoint"]),
+        document=frozen,
+        sha256=sha256_hex(frozen),
+        version=str(frozen["version"]),
+        name=str(frozen["name"]),
+        entrypoint=str(frozen["entrypoint"]),
     )
 
 
@@ -103,6 +110,7 @@ def _validate_registry(
             _check_handler(node_id, node, handlers)
         elif node["type"] == "decision" and node.get("evaluator") == "provider":
             _check_provider(node_id, node, providers)
+            _check_prompt_key(node_id, node)
 
 
 def _check_handler(
@@ -138,4 +146,18 @@ def _check_provider(
         raise SwdValidationError(
             f"unknown decision provider {provider!r}",
             path=f"nodes.{node_id}.provider",
+        )
+
+
+def _check_prompt_key(node_id: str, node: dict[str, Any]) -> None:
+    prompt_key = node.get("prompt_key")
+    if not isinstance(prompt_key, str) or not PROMPT_KEY_RE.fullmatch(prompt_key):
+        raise SwdValidationError(
+            f"invalid prompt_key {prompt_key!r}",
+            path=f"nodes.{node_id}.prompt_key",
+        )
+    if prompt_key not in PROMPT_KEY_SET:
+        raise SwdValidationError(
+            f"unknown prompt_key {prompt_key!r}",
+            path=f"nodes.{node_id}.prompt_key",
         )

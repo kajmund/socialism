@@ -18,6 +18,7 @@ FEATURE_IDS = frozenset(
 )
 HANDLER_NAME_PATTERN = r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$"
 PROVIDER_NAME_PATTERN = r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$"
+PROMPT_KEY_PATTERN = HANDLER_NAME_PATTERN
 NODE_ID_PATTERN = r"^[a-z][a-z0-9_]*$"
 WORKFLOW_NAME_PATTERN = r"^[a-z][a-z0-9_]*$"
 CUSTOMER_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"

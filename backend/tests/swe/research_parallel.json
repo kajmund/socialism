@@ -52,7 +52,7 @@
       "type": "decision",
       "evaluator": "provider",
       "provider": "jev",
-      "question": "Ger dessa resultat tillräckligt stöd för frågan?",
+      "prompt_key": "research.assessment.user",
       "input": {
         "contracts": "$.combine.contracts",
         "legal": "$.combine.legal"

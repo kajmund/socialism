@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from app.swe.canonicalize import canonical_json_bytes, sha256_hex
+from app.swe.canonicalize import canonical_json_bytes, canonicalize, sha256_hex
 from app.swe.errors import SwdParseError
 
 
@@ -41,3 +41,22 @@ def test_nan_is_rejected() -> None:
 def test_bool_is_not_an_int() -> None:
     assert canonical_json_bytes(True) == b"true"
     assert json.loads(canonical_json_bytes(True)) is True
+
+
+def test_object_keys_are_nfc_normalized() -> None:
+    composed = canonical_json_bytes({"é": 1})
+    decomposed = canonical_json_bytes({"e\u0301": 1})
+    assert composed == decomposed
+    assert composed == '{"é":1}'.encode("utf-8")
+
+
+def test_nfc_key_collision_is_rejected() -> None:
+    with pytest.raises(SwdParseError, match="canonical key collision"):
+        canonical_json_bytes({"é": 1, "e\u0301": 2})
+
+
+def test_canonicalize_is_idempotent() -> None:
+    value = {"e\u0301": 1.0, "child": ["a\r\nb"]}
+    once = canonicalize(value)
+    assert once == {"é": 1, "child": ["a\nb"]}
+    assert canonicalize(once) == once
