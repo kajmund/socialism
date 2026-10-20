@@ -12,6 +12,8 @@ from jsonschema import Draft202012Validator
 from app.swe.canonicalize import sha256_hex
 from app.swe.definition import CompiledDefinition, compile_definition, compile_swd_text
 from app.swe.errors import SwdValidationError
+from app.swe.expression import evaluate_expression
+from app.swe.freeze import freeze_json
 from app.swe.schema import load_schema
 from app.swe.yaml_load import load_swd_json, load_swd_yaml
 from tests.swe.helpers import (
@@ -211,3 +213,16 @@ def test_expression_routes_must_be_exactly_true_false() -> None:
     document["nodes"]["check_budget"]["routes"]["maybe"] = "evaluate"
     with pytest.raises(SwdValidationError, match="exactly true and false|not valid under any"):
         _compile(document)
+
+
+def test_compiled_decision_condition_evaluates_from_frozen_document() -> None:
+    json_doc = _compile(load_swd_json(EXAMPLE_JSON.read_text(encoding="utf-8")))
+    yaml_doc = _compile(load_swd_yaml(EXAMPLE_YAML.read_text(encoding="utf-8")))
+    context = {"run": {"steps_used": 3, "max_steps": 5}}
+    frozen_context = freeze_json(context)
+    for compiled in (json_doc, yaml_doc):
+        condition = compiled.document["nodes"]["check_budget"]["condition"]
+        assert evaluate_expression(condition, context) is True
+        assert evaluate_expression(condition, frozen_context) is True
+        exhausted = {"run": {"steps_used": 5, "max_steps": 5}}
+        assert evaluate_expression(condition, exhausted) is False

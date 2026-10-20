@@ -6,6 +6,7 @@ import pytest
 
 from app.swe.errors import SwdExpressionError
 from app.swe.expression import evaluate_expression
+from app.swe.freeze import freeze_json
 
 
 def test_lt_three_less_than_five_is_true() -> None:
@@ -52,3 +53,39 @@ def test_in_does_not_treat_true_as_one() -> None:
     assert evaluate_expression({"in": [{"const": 1}, {"const": [True]}]}, {}) is False
     assert evaluate_expression({"in": [{"const": True}, {"const": [True]}]}, {}) is True
     assert evaluate_expression({"in": [{"const": 1}, {"const": [1]}]}, {}) is True
+
+
+def test_eq_nested_bool_is_not_int() -> None:
+    assert evaluate_expression(
+        {"eq": [{"const": {"a": True}}, {"const": {"a": 1}}]}, {}
+    ) is False
+    assert evaluate_expression(
+        {"eq": [{"const": [True]}, {"const": [1]}]}, {}
+    ) is False
+    assert evaluate_expression(
+        {"eq": [{"const": {"a": True}}, {"const": {"a": True}}]}, {}
+    ) is True
+
+
+def test_in_nested_object_bool_is_not_int() -> None:
+    assert evaluate_expression(
+        {"in": [{"const": {"a": True}}, {"const": [{"a": 1}]}]}, {}
+    ) is False
+    assert evaluate_expression(
+        {"in": [{"const": {"a": True}}, {"const": [{"a": True}]}]}, {}
+    ) is True
+
+
+def test_frozen_const_array_membership() -> None:
+    true_in_bools = freeze_json({"in": [{"const": True}, {"const": [True, False]}]})
+    true_in_ints = freeze_json({"in": [{"const": True}, {"const": [1, 0]}]})
+    assert evaluate_expression(true_in_bools, {}) is True
+    assert evaluate_expression(true_in_ints, {}) is False
+
+
+def test_frozen_context_json_path() -> None:
+    context = freeze_json({"run": {"items": [{"ok": True}, {"ok": False}]}})
+    expr = freeze_json({"var": "$.run.items.0.ok"})
+    assert evaluate_expression(expr, context) is True
+    assert evaluate_expression(freeze_json({"exists": {"var": "$.run.items.1.ok"}}), context) is True
+    assert evaluate_expression(freeze_json({"exists": "$.run.missing"}), context) is False
