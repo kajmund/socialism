@@ -15,10 +15,15 @@ from app.database.models import (
 )
 from app.database.workspace_models import VoiceWorkspace
 from app.database.workspaces import WorkspaceChat
-from app.schemas.workspace import WorkspaceState
+from app.schemas.workspace import WorkspaceDocumentTab, WorkspaceState
 from app.services import jobs as jobs_service
 from app.services.live_speech_runtime import LiveSpeechRuntime, LiveSpeechScope
-from app.services.live_speech_stt_terms import readable_focus_source_ids
+from app.services.live_speech_stt_terms import (
+    keywords_from_text_units,
+    readable_focus_source_ids,
+    readable_focus_texts,
+    shown_source_ids,
+)
 from app.services.workspaces import create_client_workspace, ensure_company_workspace
 from tests.text_unit_fakes import persisted_text_unit
 
@@ -197,3 +202,27 @@ async def test_focus_sources_excludes_unreadable_text_from_stt(factory, caplog):
     assert "servitut" not in folded
     assert "live_speech.focus_source_dropped" in caplog.text
     assert "src-b" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_session_bootstrap_stt_skips_unreadable_shown_sources(factory):
+    """Stale open tabs must not seed STT keywords from a private client workspace."""
+    workspace_ids = await _seed_scope(factory)
+    await _seed_documents(factory, workspace_ids)
+    canvas_id = await _seed_canvas(factory, workspace_ids["common"])
+    state = WorkspaceState(
+        documents=[WorkspaceDocumentTab(source_id="src-b")],
+    )
+    async with factory() as session:
+        texts, dropped = await readable_focus_texts(
+            session,
+            customer_id=1,
+            user_id="user-1",
+            canvas_workspace_id=canvas_id,
+            source_ids=shown_source_ids(state),
+        )
+    assert dropped == ["src-b"]
+    keywords = keywords_from_text_units(texts)
+    folded = {word.casefold() for word in keywords}
+    assert "fastighetsbildningsavtal" not in folded
+    assert "servitut" not in folded
