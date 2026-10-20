@@ -45,3 +45,10 @@ def test_string_expression_is_rejected() -> None:
 def test_eq_rejects_mixed_types() -> None:
     with pytest.raises(SwdExpressionError, match="matching JSON types"):
         evaluate_expression({"eq": [{"const": 1}, {"const": "1"}]}, {})
+
+
+def test_in_does_not_treat_true_as_one() -> None:
+    assert evaluate_expression({"in": [{"const": True}, {"const": [1]}]}, {}) is False
+    assert evaluate_expression({"in": [{"const": 1}, {"const": [True]}]}, {}) is False
+    assert evaluate_expression({"in": [{"const": True}, {"const": [True]}]}, {}) is True
+    assert evaluate_expression({"in": [{"const": 1}, {"const": [1]}]}, {}) is True

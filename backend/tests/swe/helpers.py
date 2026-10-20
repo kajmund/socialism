@@ -16,3 +16,4 @@ EXAMPLE_HANDLERS = frozenset(
     }
 )
 EXAMPLE_PROVIDERS = frozenset({"jev"})
+EXAMPLE_PROMPT_KEY = "research.assessment.user"

@@ -36,6 +36,12 @@
       "maxLength": 128,
       "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
     },
+    "promptKey": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
     "providerName": {
       "type": "string",
       "minLength": 1,
@@ -195,7 +201,7 @@
         "condition": { "$ref": "#/$defs/expr" },
         "routes": {
           "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/nodeId" },
+          "additionalProperties": false,
           "required": ["true", "false"],
           "properties": {
             "true": { "$ref": "#/$defs/nodeId" },
@@ -207,12 +213,12 @@
     "providerDecisionNode": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "evaluator", "provider", "question", "choices", "routes"],
+      "required": ["type", "evaluator", "provider", "prompt_key", "choices", "routes"],
       "properties": {
         "type": { "const": "decision" },
         "evaluator": { "const": "provider" },
         "provider": { "$ref": "#/$defs/providerName" },
-        "question": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "prompt_key": { "$ref": "#/$defs/promptKey" },
         "input": { "$ref": "#/$defs/bindings" },
         "choices": {
           "type": "array",

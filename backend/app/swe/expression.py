@@ -126,11 +126,15 @@ def _eval_not(payload: object, context: Mapping[str, Any]) -> bool:
     return not _require_bool(evaluate_expression(payload, context), op="not")
 
 
+def _json_equal(left: object, right: object) -> bool:
+    return _same_json_type(left, right) and left == right
+
+
 def _eval_in(payload: object, context: Mapping[str, Any]) -> bool:
     item, collection = _operands(payload, context, count=2)
     if not isinstance(collection, list):
         raise SwdExpressionError("in requires an array collection")
-    return item in collection
+    return any(_json_equal(item, element) for element in collection)
 
 
 def _eval_add(payload: object, context: Mapping[str, Any]) -> int | float:

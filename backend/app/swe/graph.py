@@ -6,6 +6,7 @@ from collections import defaultdict, deque
 from typing import Any
 
 from app.swe.errors import SwdValidationError
+from app.swe.joins import validate_join_structure
 from app.swe.schema import NODE_TYPES
 
 NodeMap = dict[str, dict[str, Any]]
@@ -22,9 +23,8 @@ def validate_graph(document: dict[str, Any]) -> None:
     entrypoint = document["entrypoint"]
     _require_node(nodes, entrypoint, path="entrypoint")
     edges = _explicit_edges(nodes)
-    _add_implicit_join_edges(nodes, edges)
-    _check_join_pairing(nodes)
     _check_decision_routes(nodes)
+    edges = validate_join_structure(nodes, edges)
     _check_reachability(nodes, edges, entrypoint)
     _check_end_reachable(nodes, edges, entrypoint)
 
@@ -109,13 +109,13 @@ def _fork_targets(node_id: str, node: dict[str, Any]) -> list[tuple[str, str]]:
         raise SwdValidationError("fork requires named branches", path=f"nodes.{node_id}.branches")
     if not isinstance(join_id, str):
         raise SwdValidationError("fork requires join", path=f"nodes.{node_id}.join")
-    targets = [
+    if join_id == node_id:
+        raise SwdValidationError("fork cannot join to itself", path=f"nodes.{node_id}.join")
+    return [
         (target, f"nodes.{node_id}.branches.{name}")
         for name, target in branches.items()
         if _branch_target(name, target, node_id)
     ]
-    targets.append((join_id, f"nodes.{node_id}.join"))
-    return targets
 
 
 def _branch_target(name: object, target: object, node_id: str) -> str:
@@ -133,81 +133,14 @@ def _map_targets(node_id: str, node: dict[str, Any]) -> list[tuple[str, str]]:
     join_id = node.get("join")
     if not isinstance(child, str):
         raise SwdValidationError("map requires child", path=f"nodes.{node_id}.child")
-    targets = [(child, f"nodes.{node_id}.child")]
-    if isinstance(join_id, str):
-        targets.append((join_id, f"nodes.{node_id}.join"))
-    if isinstance(nxt, str):
-        targets.append((nxt, f"nodes.{node_id}.next"))
+    if isinstance(join_id, str) and isinstance(nxt, str):
+        raise SwdValidationError(
+            "map with join continues from the join, not next",
+            path=f"nodes.{node_id}",
+        )
     if not isinstance(join_id, str) and not isinstance(nxt, str):
         raise SwdValidationError("map requires join or next", path=f"nodes.{node_id}")
-    return targets
-
-
-def _check_join_pairing(nodes: NodeMap) -> None:
-    owners: dict[str, str] = {}
-    for node_id, node in nodes.items():
-        if node["type"] not in {"fork", "map"}:
-            continue
-        join_id = node.get("join")
-        if not isinstance(join_id, str):
-            continue
-        join_node = _require_node(nodes, join_id, path=f"nodes.{node_id}.join")
-        if join_node["type"] != "join":
-            raise SwdValidationError(
-                "join reference must target a join node",
-                path=f"nodes.{node_id}.join",
-            )
-        previous = owners.get(join_id)
-        if previous is not None:
-            raise SwdValidationError(
-                f"join {join_id!r} is owned by both {previous!r} and {node_id!r}",
-                path=f"nodes.{node_id}.join",
-            )
-        owners[join_id] = node_id
-    _assert_joins_owned(nodes, owners)
-
-
-def _assert_joins_owned(nodes: NodeMap, owners: dict[str, str]) -> None:
-    for node_id, node in nodes.items():
-        if node["type"] == "join" and node_id not in owners:
-            raise SwdValidationError(
-                "join must be referenced by exactly one fork or map",
-                path=f"nodes.{node_id}",
-            )
-
-
-def _add_implicit_join_edges(nodes: NodeMap, edges: EdgeMap) -> None:
-    for node_id, node in nodes.items():
-        if node["type"] not in {"fork", "map"}:
-            continue
-        join_id = node.get("join")
-        if not isinstance(join_id, str):
-            continue
-        starts = []
-        if node["type"] == "fork":
-            starts = list(node["branches"].values())
-        elif isinstance(node.get("child"), str):
-            starts = [node["child"]]
-        for start in starts:
-            for leaf in _branch_leaves(start, join_id, edges):
-                edges[leaf].add(join_id)
-
-
-def _branch_leaves(start: str, join_id: str, edges: EdgeMap) -> list[str]:
-    seen: set[str] = set()
-    leaves: list[str] = []
-    queue = deque([start])
-    while queue:
-        node_id = queue.popleft()
-        if node_id == join_id or node_id in seen:
-            continue
-        seen.add(node_id)
-        outgoing = [target for target in edges.get(node_id, set()) if target != join_id]
-        if not outgoing:
-            leaves.append(node_id)
-            continue
-        queue.extend(outgoing)
-    return leaves
+    return [(child, f"nodes.{node_id}.child")]
 
 
 def _check_decision_routes(nodes: NodeMap) -> None:
@@ -218,9 +151,9 @@ def _check_decision_routes(nodes: NodeMap) -> None:
         if not isinstance(routes, dict):
             continue
         evaluator = node.get("evaluator")
-        if evaluator == "expression" and not {"true", "false"} <= set(routes):
+        if evaluator == "expression" and set(routes) != {"true", "false"}:
             raise SwdValidationError(
-                "expression decisions require true and false routes",
+                "expression decisions require exactly true and false routes",
                 path=f"nodes.{node_id}.routes",
             )
         if evaluator == "provider":

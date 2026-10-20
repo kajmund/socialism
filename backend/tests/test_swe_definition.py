@@ -9,11 +9,17 @@ import pytest
 
 from jsonschema import Draft202012Validator
 
+from app.swe.canonicalize import sha256_hex
 from app.swe.definition import CompiledDefinition, compile_definition, compile_swd_text
 from app.swe.errors import SwdValidationError
 from app.swe.schema import load_schema
 from app.swe.yaml_load import load_swd_json, load_swd_yaml
-from tests.swe.helpers import EXAMPLE_HANDLERS, EXAMPLE_PROVIDERS, FIXTURES
+from tests.swe.helpers import (
+    EXAMPLE_HANDLERS,
+    EXAMPLE_PROMPT_KEY,
+    EXAMPLE_PROVIDERS,
+    FIXTURES,
+)
 
 EXAMPLE_YAML = FIXTURES / "research_parallel.yaml"
 EXAMPLE_JSON = FIXTURES / "research_parallel.json"
@@ -147,3 +153,61 @@ def test_example_document_is_not_mutated() -> None:
     original = copy.deepcopy(document)
     _compile(document)
     assert document == original
+
+
+def test_compiled_document_is_immutable() -> None:
+    compiled = _compile(json.loads(EXAMPLE_JSON.read_text(encoding="utf-8")))
+    with pytest.raises(TypeError):
+        compiled.document["name"] = "mutated"  # type: ignore[index]
+    nodes = compiled.document["nodes"]
+    with pytest.raises(TypeError):
+        nodes["investigate"] = {}
+    investigate = nodes["investigate"]
+    with pytest.raises(TypeError):
+        investigate["type"] = "task"
+    choices = nodes["evaluate"]["choices"]
+    with pytest.raises(TypeError):
+        choices[0] = "mutated"  # type: ignore[index]
+
+
+def test_compiled_document_matches_canonical_hash() -> None:
+    document = json.loads(EXAMPLE_JSON.read_text(encoding="utf-8"))
+    document["nodes"]["search_contracts"]["input"] = {
+        "label": {"const": "e\u0301"},
+        "count": {"const": 1.0},
+    }
+    compiled = _compile(document)
+    payload = compiled.document["nodes"]["search_contracts"]["input"]
+    assert payload["label"]["const"] == "é"
+    assert payload["count"]["const"] == 1
+    assert compiled.sha256 == sha256_hex(compiled.document)
+
+
+def test_example_uses_catalog_prompt_key() -> None:
+    compiled = _compile(json.loads(EXAMPLE_JSON.read_text(encoding="utf-8")))
+    evaluate = compiled.document["nodes"]["evaluate"]
+    assert evaluate["prompt_key"] == EXAMPLE_PROMPT_KEY
+    assert "question" not in evaluate
+
+
+def test_inline_provider_question_is_rejected() -> None:
+    document = json.loads(EXAMPLE_JSON.read_text(encoding="utf-8"))
+    evaluate = document["nodes"]["evaluate"]
+    evaluate.pop("prompt_key")
+    evaluate["question"] = "hardcoded question"
+    with pytest.raises(SwdValidationError):
+        _compile(document)
+
+
+def test_unknown_prompt_key_is_rejected() -> None:
+    document = json.loads(EXAMPLE_JSON.read_text(encoding="utf-8"))
+    document["nodes"]["evaluate"]["prompt_key"] = "research.not_a_catalog_key"
+    with pytest.raises(SwdValidationError, match="unknown prompt_key"):
+        _compile(document)
+
+
+def test_expression_routes_must_be_exactly_true_false() -> None:
+    document = json.loads(EXAMPLE_JSON.read_text(encoding="utf-8"))
+    document["nodes"]["check_budget"]["routes"]["maybe"] = "evaluate"
+    with pytest.raises(SwdValidationError, match="exactly true and false|not valid under any"):
+        _compile(document)
