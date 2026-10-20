@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-10-20
+
+* **SME / live voice**: Korta bekräftelser som *mm*, *ja* och *precis* avbryter inte experten. *Stopp*, *nej* och *vänta* tystar uppläsningen direkt. Webbläsarens ekoreducering måste vara på.
+
 ## 2026-10-19
 
 * **Kunder**: Ny guide för att rensa en kunds dokument och härledd kunskap.

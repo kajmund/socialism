@@ -31,6 +31,14 @@ def test_silero_vad_band_order_is_enforced() -> None:
         )
 
 
+def test_speculation_and_tts_timeout_defaults() -> None:
+    configured = _settings()
+    assert configured.live_speech_speculation_enabled is False
+    assert configured.live_speech_speculation_ttl_ms == 8000
+    assert configured.live_speech_speculation_concurrency == 2
+    assert configured.live_speech_tts_timeout_seconds == 8.0
+
+
 def test_silero_vad_band_accepts_a_wider_band() -> None:
     configured = _settings(
         live_speech_vad_silero_threshold=0.6,

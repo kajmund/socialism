@@ -4,13 +4,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from time import monotonic
 from types import SimpleNamespace
 from uuid import uuid4
 
 from openai import OpenAIError
 
+from app.config import settings
 from app.services.expert_workspace_tool_run import run_workspace_tool_call
-from app.services.speculative_results import normalize_query
+from app.services.speculative_results import (
+    normalize_query,
+    permission_version,
+    query_extends,
+    query_fingerprint,
+    scope_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +30,9 @@ class SpeculativeReader:
     """Prefetch read-only results while the user is still speaking.
 
     Only the latest stable partial runs; a newer partial cancels the previous
-    task. Results are keyed by (tool, normalized query) and are reusable only
-    when the final question matches the preliminary query exactly.
+    task. Independent read-only tools run in parallel with a concurrency cap.
+    Results are reusable when the final question extends the prefetch, the
+    scope/permission version still matches, and the entry has not expired.
     """
 
     def __init__(
@@ -34,15 +43,31 @@ class SpeculativeReader:
         workspace_state: object,
         min_chars: int,
         enabled: bool,
+        customer_id: int = 0,
     ) -> None:
         self._workspace_id = workspace_id
         self._user_id = user_id
         self._workspace_state = workspace_state
         self._min_chars = min_chars
         self._enabled = enabled
+        self._scope = scope_key(
+            customer_id=customer_id, workspace_id=workspace_id, user_id=user_id,
+        )
+        self._version = permission_version(workspace_state)
+        self._ttl_s = settings.live_speech_speculation_ttl_ms / 1000
+        self._concurrency = settings.live_speech_speculation_concurrency
         self._task: asyncio.Task[None] | None = None
         self._query = ""
+        self._fingerprint = ""
+        self._ready_at: float | None = None
         self._results: dict[tuple[str, str], str] = {}
+        self.stats: dict[str, int | list[float]] = {
+            "cache_hits": 0,
+            "wasted": 0,
+            "incorrect": 0,
+            "rejected_mismatch": 0,
+            "latency_gain_ms": [],
+        }
 
     def on_partial(self, text: str) -> None:
         if not self._enabled:
@@ -51,41 +76,89 @@ class SpeculativeReader:
         if len(query) < self._min_chars or query == self._query:
             return
         self._query = query
+        self._fingerprint = query_fingerprint(
+            query, scope=self._scope, version=self._version,
+        )
         if self._task is not None and not self._task.done():
             self._task.cancel()
+            self._bump("wasted")
+        self._ready_at = None
         self._task = asyncio.create_task(self._run(query))
 
     def matches(self, final_text: str) -> dict[tuple[str, str], str] | None:
         if not self._enabled or not self._results:
             return None
-        if self._query and normalize_query(final_text) == self._query:
-            return self._results
-        return None
+        if not self._reuse_allowed(final_text):
+            return None
+        self._bump("cache_hits")
+        if self._ready_at is not None:
+            gains = self.stats["latency_gain_ms"]
+            assert isinstance(gains, list)
+            gains.append((monotonic() - self._ready_at) * 1000)
+        return self._results
 
     async def aclose(self) -> None:
         task = self._task
         self._task = None
         if task is not None and not task.done():
             task.cancel()
+            self._bump("wasted")
             await asyncio.gather(task, return_exceptions=True)
 
+    def _reuse_allowed(self, final_text: str) -> bool:
+        final_query = normalize_query(final_text)
+        if permission_version(self._workspace_state) != self._version:
+            self._bump("rejected_mismatch")
+            return False
+        if self._ready_at is not None and monotonic() - self._ready_at > self._ttl_s:
+            self._bump("wasted")
+            return False
+        if not self._query or not query_extends(self._query, final_query):
+            if final_query and query_extends(final_query, self._query):
+                self._bump("incorrect")
+            else:
+                self._bump("rejected_mismatch")
+            return False
+        return True
+
+    def _bump(self, name: str) -> None:
+        current = self.stats[name]
+        if isinstance(current, int):
+            self.stats[name] = current + 1
+
     async def _run(self, query: str) -> None:
-        results: dict[tuple[str, str], str] = {}
         try:
-            for name in READ_ONLY_QUERY_TOOLS:
-                call = SimpleNamespace(
-                    name=name, arguments={"query": query}, id=f"spec-{uuid4().hex}",
-                )
-                work = SimpleNamespace(
-                    workspace_id=self._workspace_id,
-                    actor_user_id=self._user_id,
-                    workspace_state=self._workspace_state,
-                    workspace_intent=None,
-                )
-                results[(name, query)] = await run_workspace_tool_call(call, work)
+            results = await self._prefetch(query)
         except asyncio.CancelledError:
             raise
         except (ValueError, RuntimeError, TimeoutError, OSError, OpenAIError):
             logger.warning("live_speech.speculation_failed query=%r", query)
+            self._bump("wasted")
+            return
         if query == self._query:
             self._results = results
+            self._ready_at = monotonic()
+
+    async def _prefetch(self, query: str) -> dict[tuple[str, str], str]:
+        limit = asyncio.Semaphore(self._concurrency)
+
+        async def one(name: str) -> tuple[tuple[str, str], str]:
+            async with limit:
+                return await self._read_only(name, query)
+
+        gathered = await asyncio.gather(*(one(name) for name in READ_ONLY_QUERY_TOOLS))
+        return dict(gathered)
+
+    async def _read_only(self, name: str, query: str) -> tuple[tuple[str, str], str]:
+        if name not in READ_ONLY_QUERY_TOOLS:
+            raise RuntimeError("speculative_write_forbidden")
+        call = SimpleNamespace(
+            name=name, arguments={"query": query}, id=f"spec-{uuid4().hex}",
+        )
+        work = SimpleNamespace(
+            workspace_id=self._workspace_id,
+            actor_user_id=self._user_id,
+            workspace_state=self._workspace_state,
+            workspace_intent=None,
+        )
+        return (name, query), await run_workspace_tool_call(call, work)

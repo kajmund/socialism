@@ -10,7 +10,7 @@ from app.realtime.library_chat_broadcast import library_chat_broadcast
 from app.schemas.live_speech import SessionStart, client_control_adapter
 from app.schemas.workspace import WorkspaceState
 from app.database.models import Persona, PersonaMessage
-from app.services import live_speech_runtime, openai_live_transcription
+from app.services import live_speech_runtime, live_speech_turn_run, openai_live_transcription
 from app.services.live_speech_history import persist_interrupted_voice_turn
 from app.services.live_speech_runtime import LiveSpeechRuntime, LiveSpeechScope
 from app.services.live_speech_sessions import LiveSpeechRegistry
@@ -364,8 +364,9 @@ async def test_tts_can_acquire_only_connection_after_turn_admission(
             yield b"\x00\x00"
 
     monkeypatch.setattr(live_speech_runtime.jobs_service, "job_session_factory", lambda: factory)
-    monkeypatch.setattr(live_speech_runtime, "admit_voice_turn", admit)
-    monkeypatch.setattr(live_speech_runtime, "execute_expert_turn", execute)
+    monkeypatch.setattr(live_speech_turn_run.jobs_service, "job_session_factory", lambda: factory)
+    monkeypatch.setattr(live_speech_turn_run, "admit_voice_turn", admit)
+    monkeypatch.setattr(live_speech_turn_run, "execute_expert_turn", execute)
     events: list[dict] = []
 
     async def emit_json(event):
@@ -392,7 +393,7 @@ async def test_tts_can_acquire_only_connection_after_turn_admission(
     async def current_workspace_state(_factory, _scope):
         return runtime.scope.workspace_state
 
-    monkeypatch.setattr(live_speech_runtime, "current_workspace_state", current_workspace_state)
+    monkeypatch.setattr(live_speech_turn_run, "current_workspace_state", current_workspace_state)
     try:
         await runtime._run_turn("turn", "Hej")
         assert any(event["type"] == "assistant.text.final" for event in events)
