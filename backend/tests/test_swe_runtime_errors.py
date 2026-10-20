@@ -12,7 +12,7 @@ from app.swe.runtime import run_workflow, require_native
 from app.swe.runtime_clock import FrozenClock
 from app.swe.runtime_errors import SwePreflightError
 from app.swe.runtime_thaw import thaw_json
-from tests.swe.runtime_helpers import compile_runtime
+from tests.swe.runtime_helpers import compile_runtime, swe_tasks
 
 pytestmark = pytest.mark.swe_runtime
 
@@ -85,6 +85,7 @@ async def test_task_exception_fails_and_cancels_siblings() -> None:
     )
     assert result.status == "failed"
     await asyncio.wait_for(cancelled.wait(), timeout=1)
+    assert swe_tasks() == []
 
 
 async def test_cancellation_does_not_reroute() -> None:
@@ -106,6 +107,7 @@ async def test_cancellation_does_not_reroute() -> None:
     )
     assert result.status == "cancelled"
     assert any(event["type"] == "RunCancelled" for event in result.events)
+    assert swe_tasks() == []
 
 
 async def test_timeout_is_terminal() -> None:
@@ -120,6 +122,59 @@ async def test_timeout_is_terminal() -> None:
     assert result.status == "failed"
     assert result.error is not None
     assert "timeout" in result.error["message"]
+    assert swe_tasks() == []
+
+
+async def test_hanging_handler_hits_deadline_and_is_cancelled() -> None:
+    cancelled = asyncio.Event()
+
+    async def hang(_payload: dict[str, object]) -> dict[str, str]:
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+        return {"ok": "late"}
+
+    result = await asyncio.wait_for(
+        run_workflow(_task_flow(), {"demo.work": hang}, {}),
+        timeout=3,
+    )
+    assert result.status == "failed"
+    assert result.error is not None
+    assert result.error["kind"] == "timeout"
+    assert "timeout" in result.error["message"]
+    await asyncio.wait_for(cancelled.wait(), timeout=1)
+    assert swe_tasks() == []
+    assert not any(event["type"] == "RunCompleted" for event in result.events)
+
+
+async def test_success_leaves_no_swe_tasks() -> None:
+    async def work(_payload: dict[str, object]) -> dict[str, bool]:
+        return {"ok": True}
+
+    result = await run_workflow(_task_flow(), {"demo.work": work}, {})
+    assert result.status == "completed"
+    assert swe_tasks() == []
+
+
+async def test_ignore_cancel_late_result_does_not_reroute() -> None:
+    async def stubborn(_payload: dict[str, object]) -> dict[str, str]:
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            return {"ok": "late"}
+        return {"ok": "no"}
+
+    result = await asyncio.wait_for(
+        run_workflow(_task_flow(), {"demo.work": stubborn}, {}),
+        timeout=3,
+    )
+    assert result.status == "failed"
+    assert result.error is not None
+    assert "timeout" in result.error["message"]
+    assert "work" not in result.output
+    assert swe_tasks() == []
 
 
 async def test_max_depth_is_terminal() -> None:

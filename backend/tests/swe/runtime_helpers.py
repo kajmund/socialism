@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from typing import Any
 
 from app.swe.definition import CompiledDefinition, compile_definition
 
 DEFAULT_LIMITS = {"max_steps": 80, "max_depth": 4, "timeout_seconds": 30}
+
+
+def swe_tasks() -> list[asyncio.Task[Any]]:
+    return [
+        task
+        for task in asyncio.all_tasks()
+        if task.get_name().startswith("swe:") and not task.done()
+    ]
 
 
 def compile_runtime(
