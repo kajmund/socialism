@@ -48,7 +48,7 @@ jobs:
           else
             while IFS= read -r path; do
               case "$path" in
-                backend/*|integrations/*|data/*)
+                backend/*|integrations/*|data/*|crates/*)
                   backend=true
                   ;;
                 frontend/*)
@@ -108,7 +108,7 @@ jobs:
       - name: Run pytest
         run: >-
           uv run pytest
-          -m "not smoke and not research_reuse"
+          -m "not smoke and not research_reuse and not swe_runtime"
           --splits 4
           --group ${{ matrix.group }}
           --splitting-algorithm least_duration
@@ -143,6 +143,37 @@ jobs:
         if: always()
         run: uv run python scripts/summarize_reuse_contracts.py data/reuse-contracts.xml >> "$GITHUB_STEP_SUMMARY"
 
+
+  swe-runtime:
+    name: SWE runtime
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.83.0
+          components: clippy, rustfmt
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Rust tests and lint
+        working-directory: .
+        run: |
+          cargo fmt --manifest-path crates/swe-native/Cargo.toml --check
+          cargo clippy --manifest-path crates/swe-native/Cargo.toml --all-targets -- -D warnings
+          cargo test --manifest-path crates/swe-native/Cargo.toml
+      - name: Build swe_native
+        run: uv run maturin develop --manifest-path ../crates/swe-native/Cargo.toml
+      - name: SWD and runtime tests
+        run: uv run pytest tests/test_swe_*.py -m "not smoke"
 
   postgres-schema:
     name: PostgreSQL schema
@@ -273,7 +304,7 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [changes, backend, research-reuse, postgres-schema, frontend, word-addin, knowledge]
+    needs: [changes, backend, research-reuse, swe-runtime, postgres-schema, frontend, word-addin, knowledge]
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
@@ -281,6 +312,7 @@ jobs:
           changes="${{ needs.changes.result }}"
           backend="${{ needs.backend.result }}"
           research_reuse="${{ needs.research-reuse.result }}"
+          swe_runtime="${{ needs.swe-runtime.result }}"
           postgres_schema="${{ needs.postgres-schema.result }}"
           frontend="${{ needs.frontend.result }}"
           word_addin="${{ needs.word-addin.result }}"
@@ -291,9 +323,9 @@ jobs:
             exit 1
           fi
 
-          for result in "$backend" "$research_reuse" "$postgres_schema" "$frontend" "$word_addin" "$knowledge"; do
+          for result in "$backend" "$research_reuse" "$swe_runtime" "$postgres_schema" "$frontend" "$word_addin" "$knowledge"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              echo "Required jobs: backend=$backend research-reuse=$research_reuse postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge"
+              echo "Required jobs: backend=$backend research-reuse=$research_reuse swe-runtime=$swe_runtime postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge"
               exit 1
             fi
           done
