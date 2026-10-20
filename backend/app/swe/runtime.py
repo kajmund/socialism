@@ -3,6 +3,12 @@
 Python compiles SWD, owns the event loop, and runs registered async handlers.
 Rust owns routing, join barriers, and typed events. The adapter never calls
 into Rust while awaiting a handler.
+
+Deadline: the driver waits with the remaining monotonic timeout and calls
+`Machine.tick(now_ms)` when it expires. Tick fails the run and emits
+`CancelInvocation` for open handlers. Handlers that swallow
+`CancelledError` are not force-stopped; terminal status stays protected and
+late results do not route again.
 """
 
 from __future__ import annotations
@@ -20,6 +26,7 @@ from app.swe.runtime_dispatch import (
     HandlerOutcome,
     cancel_all,
     cancel_invocations,
+    reap_owned,
     spawn_invocations,
 )
 from app.swe.runtime_errors import SweRuntimeError
@@ -37,6 +44,7 @@ class _Driver:
     pending: dict[str, asyncio.Task[HandlerOutcome]]
     semaphore: asyncio.Semaphore
     cancel_task: asyncio.Task[bool] | None = None
+
 
 try:
     import swe_native
@@ -98,24 +106,29 @@ async def run_workflow(
         pending={},
         semaphore=asyncio.Semaphore(concurrency),
     )
-    await _drive(driver, outcome)
-    return RunResult(
-        run_id=run_id,
-        status=machine.status(),
-        output=machine.output(),
-        events=list(machine.events()),
-        error=machine.error(),
-    )
+    try:
+        await _drive(driver, outcome)
+        return RunResult(
+            run_id=run_id,
+            status=machine.status(),
+            output=machine.output(),
+            events=list(machine.events()),
+            error=machine.error(),
+        )
+    finally:
+        await reap_owned(driver.pending, driver.cancel_task)
+        driver.cancel_task = None
 
 
 async def _drive(driver: _Driver, outcome: Mapping[str, Any]) -> None:
     _apply_effects(driver, outcome["effects"])
     while driver.machine.status() == "running":
         if _cancelled(driver):
-            cancel_all(driver.pending)
-            driver.machine.cancel(driver.clock.now_ms())
+            _apply_effects(driver, driver.machine.cancel(driver.clock.now_ms())["effects"])
             return
         if not driver.pending:
+            if _remaining_seconds(driver) <= 0:
+                _timeout_run(driver)
             return
         await _apply_one(driver)
 
@@ -135,16 +148,39 @@ def _cancelled(driver: _Driver) -> bool:
     return driver.cancel_event is not None and driver.cancel_event.is_set()
 
 
+def _remaining_seconds(driver: _Driver) -> float:
+    deadline = driver.machine.deadline_ms()
+    now = driver.clock.now_ms()
+    if now >= deadline:
+        return 0.0
+    return (deadline - now) / 1000.0
+
+
+def _timeout_run(driver: _Driver) -> None:
+    now = max(driver.clock.now_ms(), driver.machine.deadline_ms())
+    outcome = driver.machine.tick(now)
+    _apply_effects(driver, outcome["effects"])
+
+
 async def _apply_one(driver: _Driver) -> None:
+    remaining = _remaining_seconds(driver)
+    if remaining <= 0:
+        _timeout_run(driver)
+        return
     watch = set(driver.pending.values())
     if driver.cancel_event is not None:
-        if driver.cancel_task is None:
-            driver.cancel_task = asyncio.create_task(
-                driver.cancel_event.wait(), name="swe:cancel"
-            )
+        if driver.cancel_task is None or driver.cancel_task.done():
+            driver.cancel_task = asyncio.create_task(driver.cancel_event.wait(), name="swe:cancel")
         watch.add(driver.cancel_task)
-    finished, _ = await asyncio.wait(watch, return_when=asyncio.FIRST_COMPLETED)
+    finished, _ = await asyncio.wait(
+        watch,
+        return_when=asyncio.FIRST_COMPLETED,
+        timeout=remaining,
+    )
     if _cancelled(driver):
+        return
+    if not finished:
+        _timeout_run(driver)
         return
     tasks = [task for task in finished if task.get_name() != "swe:cancel"]
     if not tasks:
@@ -173,12 +209,8 @@ def _report_task(
     if result.cancelled:
         return {"status": "running", "effects": []}
     if result.ok:
-        return driver.machine.complete(
-            result.invocation_id, result.value, driver.clock.now_ms()
-        )
-    return driver.machine.fail(
-        result.invocation_id, str(result.value), driver.clock.now_ms()
-    )
+        return driver.machine.complete(result.invocation_id, result.value, driver.clock.now_ms())
+    return driver.machine.fail(result.invocation_id, str(result.value), driver.clock.now_ms())
 
 
 async def identity_handler(_input: Mapping[str, Any]) -> Mapping[str, Any]:

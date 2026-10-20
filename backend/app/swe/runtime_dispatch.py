@@ -47,15 +47,30 @@ def cancel_invocations(
     for effect in effects:
         if effect["type"] != "cancel_invocation":
             continue
-        task = pending.pop(effect["invocation_id"], None)
-        if task is not None:
+        task = pending.get(effect["invocation_id"])
+        if task is not None and not task.done():
             task.cancel()
 
 
 def cancel_all(pending: dict[str, asyncio.Task[HandlerOutcome]]) -> None:
     for task in pending.values():
-        task.cancel()
+        if not task.done():
+            task.cancel()
+
+
+async def reap_owned(
+    pending: dict[str, asyncio.Task[HandlerOutcome]],
+    cancel_task: asyncio.Task[bool] | None,
+) -> None:
+    owned: list[asyncio.Task[Any]] = list(pending.values())
+    if cancel_task is not None:
+        owned.append(cancel_task)
     pending.clear()
+    for task in owned:
+        if not task.done():
+            task.cancel()
+    if owned:
+        await asyncio.gather(*owned, return_exceptions=True)
 
 
 async def _run_handler(

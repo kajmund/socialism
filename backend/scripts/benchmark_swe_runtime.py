@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import resource
 import time
 from collections.abc import Mapping
 from typing import Any
@@ -60,7 +61,11 @@ def _fanout(count: int) -> object:
         },
         name="bench_map",
         entrypoint="fanout",
-        limits={"max_steps": count + 16, "max_depth": 2, "timeout_seconds": 60},
+        limits={
+            "max_steps": count + 16,
+            "max_depth": 2,
+            "timeout_seconds": max(60, count // 20 + 60),
+        },
         handlers=frozenset({"bench.work"}),
     )
 
@@ -91,9 +96,11 @@ async def _run() -> None:
     if fan.status != "completed":
         raise SystemExit(f"fan-out failed: {fan.status} {fan.error}")
 
+    rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     print(f"deterministic_transitions steps={args.steps} ms={loop_ms:.2f}")
     print(f"async_fanout items={args.fanout} ms={fan_ms:.2f}")
     print(f"events loop={len(loop.events)} fanout={len(fan.events)}")
+    print(f"max_rss_kb={rss_kb}")
 
 
 if __name__ == "__main__":
