@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, TypeGuard
 
 from app.swe.errors import SwdExpressionError
 from app.swe.paths import MISSING, resolve_path
@@ -24,7 +24,7 @@ def evaluate_expression(expr: object, context: Mapping[str, Any]) -> object:
 
 
 def split_expr(expr: object) -> tuple[str, object]:
-    if not isinstance(expr, dict) or not expr:
+    if not isinstance(expr, Mapping) or not expr:
         raise SwdExpressionError("expression must be a non-empty object")
     if "var" in expr:
         extra = set(expr) - {"var", "default"}
@@ -38,7 +38,7 @@ def split_expr(expr: object) -> tuple[str, object]:
 
 
 def _eval_var(payload: object, context: Mapping[str, Any]) -> object:
-    if not isinstance(payload, dict) or not isinstance(payload.get("var"), str):
+    if not isinstance(payload, Mapping) or not isinstance(payload.get("var"), str):
         raise SwdExpressionError("var requires a string path")
     value = resolve_path(context, payload["var"])
     if value is not MISSING:
@@ -49,19 +49,38 @@ def _eval_var(payload: object, context: Mapping[str, Any]) -> object:
 
 
 def _operands(payload: object, context: Mapping[str, Any], *, count: int) -> list[object]:
-    if not isinstance(payload, list) or len(payload) != count:
+    if not _is_array(payload) or len(payload) != count:
         raise SwdExpressionError(f"operator requires exactly {count} operands")
     return [evaluate_expression(item, context) for item in payload]
 
 
+def _is_array(value: object) -> TypeGuard[list[object] | tuple[object, ...]]:
+    return isinstance(value, (list, tuple))
+
+
+def _json_kind(value: object) -> str | None:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "bool"
+    return _json_container_kind(value)
+
+
+def _json_container_kind(value: object) -> str | None:
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, Mapping):
+        return "object"
+    if _is_array(value):
+        return "array"
+    return None
+
+
 def _same_json_type(left: object, right: object) -> bool:
-    if left is None or right is None:
-        return left is None and right is None
-    if isinstance(left, bool) or isinstance(right, bool):
-        return isinstance(left, bool) and isinstance(right, bool)
-    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
-        return not isinstance(left, bool) and not isinstance(right, bool)
-    return type(left) is type(right)
+    kind = _json_kind(left)
+    return kind is not None and kind == _json_kind(right)
 
 
 def _require_bool(value: object, *, op: str) -> bool:
@@ -80,7 +99,7 @@ def _eval_eq(payload: object, context: Mapping[str, Any]) -> bool:
     left, right = _operands(payload, context, count=2)
     if not _same_json_type(left, right):
         raise SwdExpressionError("eq/ne require matching JSON types")
-    return left == right
+    return _json_equal(left, right)
 
 
 def _eval_ne(payload: object, context: Mapping[str, Any]) -> bool:
@@ -127,12 +146,23 @@ def _eval_not(payload: object, context: Mapping[str, Any]) -> bool:
 
 
 def _json_equal(left: object, right: object) -> bool:
-    return _same_json_type(left, right) and left == right
+    kind = _json_kind(left)
+    if kind is None or kind != _json_kind(right):
+        return False
+    if kind == "array" and _is_array(left) and _is_array(right):
+        return len(left) == len(right) and all(
+            _json_equal(item, other) for item, other in zip(left, right, strict=True)
+        )
+    if kind == "object" and isinstance(left, Mapping) and isinstance(right, Mapping):
+        if set(left) != set(right):
+            return False
+        return all(_json_equal(left[key], right[key]) for key in left)
+    return left == right
 
 
 def _eval_in(payload: object, context: Mapping[str, Any]) -> bool:
     item, collection = _operands(payload, context, count=2)
-    if not isinstance(collection, list):
+    if not _is_array(collection):
         raise SwdExpressionError("in requires an array collection")
     return any(_json_equal(item, element) for element in collection)
 
@@ -160,7 +190,7 @@ def _eval_div(payload: object, context: Mapping[str, Any]) -> float:
 
 
 def _eval_exists(payload: object, context: Mapping[str, Any]) -> bool:
-    if isinstance(payload, dict) and set(payload) <= {"var", "default"}:
+    if isinstance(payload, Mapping) and set(payload) <= {"var", "default"}:
         path = payload.get("var")
     elif isinstance(payload, str):
         path = payload

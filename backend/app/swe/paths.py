@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 
 from app.swe.errors import SwdExpressionError
 from app.swe.schema import JSON_PATH_PATTERN
@@ -29,11 +30,11 @@ def resolve_path(context: object, path: str) -> object:
 
 
 def _step(current: object, segment: str, path: str) -> object:
-    if isinstance(current, dict):
+    if isinstance(current, Mapping):
         if segment in current:
             return current[segment]
         return MISSING
-    if isinstance(current, list) and segment.isdigit():
+    if isinstance(current, (list, tuple)) and segment.isdigit():
         index = int(segment)
         if 0 <= index < len(current):
             return current[index]
