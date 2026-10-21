@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
 from app.database.models import Kund
-from app.database.graph_v2 import GraphFact, GraphFactSource, GraphIngestWork, GraphNode
+from app.database.graph_v2 import GraphFact, GraphIngestWork
 from sqlalchemy import func, select
 from app.services.graph_v2.outbox import process_graph_work
 from app.services.lagen_nu import graph_writeback as writeback
@@ -157,19 +157,18 @@ async def test_graph_writeback_waits_until_every_document_is_interpreted(
     assert [item.status for item in evidence] == ["found", "found"]
     assert events == ["interpret", "interpret", "persist", "persist"]
     assert await session.scalar(select(func.count()).select_from(GraphIngestWork)) == 2
-    assert await session.scalar(select(func.count()).select_from(GraphFact)) == 0
+    from app.services.overgraph.catalogs import require_knowledge
+
+    graph_facts_before = require_knowledge().count_nodes_by_labels(["Fact"])
     factory = async_sessionmaker(session.bind, expire_on_commit=False)
     assert (await process_graph_work(
-        factory, embedder=FakeEmbedder(), judge=FakeJudge(), node_judge=FakeNodeJudge(),
+        factory, embedder=FakeEmbedder(),
     ))["completed"] == 2
-    assert await session.scalar(select(func.count()).select_from(GraphFact)) > 0
-    assert await session.scalar(select(func.count()).select_from(GraphFactSource)) > 0
-    targets = (await session.scalars(select(GraphNode).join(
-        GraphFact, GraphFact.target_id == GraphNode.id,
-    ))).all()
-    assert targets and all(row.node_type.endswith(".value") for row in targets)
+    # OverGraph is authoritative: facts land there, never in the SQL mirror.
+    assert require_knowledge().count_nodes_by_labels(["Fact"]) > graph_facts_before
+    assert await session.scalar(select(func.count()).select_from(GraphFact)) == 0
     assert (await process_graph_work(
-        factory, embedder=FakeEmbedder(), judge=FakeJudge(), node_judge=FakeNodeJudge(),
+        factory, embedder=FakeEmbedder(),
     )) == {"completed": 0, "failed": 0}
 
 

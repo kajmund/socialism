@@ -21,7 +21,6 @@ from app.database.models import (
     DocumentVersionRecord,
     Kund,
     StoredObject,
-    TextUnitRecord,
 )
 from app.services.document_knowledge import supporting_text_unit_ids
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
@@ -29,12 +28,10 @@ from app.services.knowledge.chunking import KnowledgeChunker, make_chunk_id, tex
 from app.services.knowledge.extractors import ExtractedBlock, ExtractedDocument
 from app.services.knowledge.models import KnowledgeDocument, KnowledgeScope
 from app.services.knowledge.persistence import (
-    current_text_units,
     get_canonical_document_by_identity,
     get_current_document_version,
     list_document_versions,
     persist_segmented_document,
-    text_units_for_version,
 )
 from app.services.knowledge.segmentation import DocumentSegmenter, expand_text_unit_context
 from app.services.knowledge.units import (
@@ -44,7 +41,9 @@ from app.services.knowledge.units import (
     make_text_unit_id,
 )
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
+from app.services.overgraph.text_units import load_domain_text_unit, load_domain_text_units
 from tests.knowledge_fakes import FakeEmbeddingProvider
+from tests.text_unit_fakes import current_graph_units, version_graph_units
 
 KNOWLEDGE_CORE = (
     Path(__file__).resolve().parents[1]
@@ -299,7 +298,7 @@ def test_context_expansion_stays_in_section():
     assert all(unit.section_id == "a" for unit in expanded)
 
 
-async def test_persist_reuses_same_content_version(session: AsyncSession):
+async def test_persist_reuses_same_content_version(session: AsyncSession, research_overgraph):
     kund = Kund(name="acme", slug="acme", available_modules=["dd"])
     session.add(kund)
     await session.flush()
@@ -326,13 +325,13 @@ async def test_persist_reuses_same_content_version(session: AsyncSession):
     assert persisted_first.version.id == persisted_second.version.id
     documents = list((await session.execute(select(CanonicalDocumentRecord))).scalars().all())
     versions = await list_document_versions(session, "doc-a")
-    units = list((await session.execute(select(TextUnitRecord))).scalars().all())
+    units = load_domain_text_units(research_overgraph, document_version_id=first.version.id)
     assert len(documents) == 1
     assert len(versions) == 1
-    assert {row.id for row in units} == {unit.id for unit in first.text_units}
+    assert {unit.id for unit in units} == {unit.id for unit in first.text_units}
 
 
-async def test_persist_changed_content_creates_immutable_version(session: AsyncSession):
+async def test_persist_changed_content_creates_immutable_version(session: AsyncSession, research_overgraph):
     kund = Kund(name="acme", slug="acme", available_modules=["dd"])
     session.add(kund)
     await session.flush()
@@ -365,10 +364,10 @@ async def test_persist_changed_content_creates_immutable_version(session: AsyncS
     documents = list((await session.execute(select(CanonicalDocumentRecord))).scalars().all())
     versions = await list_document_versions(session, "doc-a")
     current = await get_current_document_version(session, "doc-a")
-    current_units = await current_text_units(session, "doc-a")
-    historical = await session.get(
-        TextUnitRecord,
-        next(unit.id for unit in first.text_units if "parties" in unit.text),
+    current_units = await current_graph_units(session, "doc-a")
+    historical = load_domain_text_unit(
+        research_overgraph,
+        unit_id=next(unit.id for unit in first.text_units if "parties" in unit.text),
     )
     first_version = await session.get(DocumentVersionRecord, persisted_first.version.id)
     assert len(documents) == 1
@@ -387,7 +386,7 @@ async def test_persist_changed_content_creates_immutable_version(session: AsyncS
     assert historical.text == "First passage about parties."
 
 
-async def test_current_text_units_follow_section_then_unit_order(session: AsyncSession):
+async def test_current_graph_units_follow_section_then_unit_order(session: AsyncSession):
     kund = Kund(name="acme", slug="acme", available_modules=["dd"])
     session.add(kund)
     await session.flush()
@@ -408,14 +407,14 @@ async def test_current_text_units_follow_section_then_unit_order(session: AsyncS
         segmented=segmented,
     )
     await session.flush()
-    rows = await current_text_units(session, "doc-a")
+    rows = await current_graph_units(session, "doc-a")
     assert [row.id for row in rows] == [unit.id for unit in segmented.text_units]
     assert [row.section_id for row in rows] == [unit.section_id for unit in segmented.text_units]
     assert any("Acme AB" in row.text for row in rows)
     assert any("100 SEK" in row.text for row in rows)
 
 
-async def test_recurring_hash_creates_new_version_occurrence(session: AsyncSession):
+async def test_recurring_hash_creates_new_version_occurrence(session: AsyncSession, research_overgraph):
     kund = Kund(name="acme", slug="acme", available_modules=["dd"])
     session.add(kund)
     await session.flush()
@@ -447,9 +446,11 @@ async def test_recurring_hash_creates_new_version_occurrence(session: AsyncSessi
     current = await get_current_document_version(session, "doc-a")
     first_again = await session.get(DocumentVersionRecord, first.version.id)
     second_after = await session.get(DocumentVersionRecord, second.version.id)
-    first_units = await text_units_for_version(session, first.version.id)
-    third_units = await text_units_for_version(session, third.version.id)
-    historical = await session.get(TextUnitRecord, first_segmented.text_units[0].id)
+    first_units = version_graph_units(first.version.id)
+    third_units = version_graph_units(third.version.id)
+    historical = load_domain_text_unit(
+        research_overgraph, unit_id=first_segmented.text_units[0].id,
+    )
 
     assert len(documents) == 1
     assert len(versions) == 3
@@ -485,7 +486,7 @@ async def test_recurring_hash_creates_new_version_occurrence(session: AsyncSessi
     assert all(row.text == "Passage A." for row in third_units)
 
 
-async def test_extracted_source_reuses_canonical_identity(session: AsyncSession):
+async def test_extracted_source_reuses_canonical_identity(session: AsyncSession, research_overgraph):
     kund = Kund(name="acme", slug="acme", available_modules=["dd"])
     session.add(kund)
     await session.flush()
@@ -534,13 +535,13 @@ async def test_extracted_source_reuses_canonical_identity(session: AsyncSession)
     assert first.document_version_id == second.document_version_id
     assert second.reused_version is True
     versions = await list_document_versions(session, "fetch-1")
-    units = list((await session.execute(select(TextUnitRecord))).scalars().all())
+    units = load_domain_text_units(research_overgraph, document_version_id=first.document_version_id)
     assert len(versions) == 1
     assert len(units) == 1
     assert len(embeddings.calls) == 1
 
 
-async def test_extracted_source_new_version_keeps_historical_units(session: AsyncSession):
+async def test_extracted_source_new_version_keeps_historical_units(session: AsyncSession, research_overgraph):
     kund = Kund(name="acme", slug="acme", available_modules=["dd"])
     session.add(kund)
     await session.flush()
@@ -577,8 +578,8 @@ async def test_extracted_source_new_version_keeps_historical_units(session: Asyn
     assert first.document_version_id != second.document_version_id
     versions = await list_document_versions(session, "fetch-1")
     current = await get_current_document_version(session, "fetch-1")
-    current_units = await current_text_units(session, "fetch-1")
-    historical = await session.get(TextUnitRecord, first.segmented.text_units[0].id)
+    current_units = await current_graph_units(session, "fetch-1")
+    historical = load_domain_text_unit(research_overgraph, unit_id=first.segmented.text_units[0].id)
     old_version = await session.get(DocumentVersionRecord, first.document_version_id)
     assert len(versions) == 2
     assert current is not None
@@ -603,7 +604,7 @@ async def test_extracted_source_new_version_keeps_historical_units(session: Asyn
     assert len(embeddings.calls) == 2
 
 
-async def test_qa_revision_keeps_historical_text_unit_after_new_version(session: AsyncSession):
+async def test_qa_revision_keeps_historical_text_unit_after_new_version(session: AsyncSession, research_overgraph):
     kund = Kund(name="acme", slug="acme", available_modules=["dd"])
     session.add(kund)
     await session.flush()
@@ -682,7 +683,7 @@ async def test_qa_revision_keeps_historical_text_unit_after_new_version(session:
             )
         )
     ).scalar_one()
-    historical = await session.get(TextUnitRecord, unit_id)
+    historical = load_domain_text_unit(research_overgraph, unit_id=unit_id)
     current = await get_current_document_version(session, source.id)
     assert revision.snapshot["supporting_text_unit_ids"] == [unit_id]
     assert linked.text_unit_id == unit_id
@@ -732,6 +733,36 @@ async def test_current_document_version_is_unique(session: AsyncSession):
     )
     with pytest.raises(IntegrityError):
         await session.flush()
+
+
+async def test_ingest_writes_text_units_to_overgraph(session: AsyncSession, research_overgraph):
+    from app.services.overgraph.labels import TEXT_UNIT
+
+    kund = Kund(name="acme", slug="acme", available_modules=["dd"])
+    session.add(kund)
+    await session.flush()
+    result = await ingest_extracted_source(
+        session,
+        customer_id=kund.id,
+        extracted=_extracted(
+            ExtractedBlock(text="Shared public source passage.", locator="page:1", metadata={"page": 1})
+        ),
+        document=_document(document_id="fetch-1", version="v1"),
+        source_type="public_document",
+        canonical_uri="https://example.test/sources/graph",
+        content_hash="hash-graph",
+        embeddings=FakeEmbeddingProvider(),
+        vector_store=MemoryKnowledgeVectorStore(),
+    )
+    assert result.status == "indexed"
+    assert result.segmented is not None
+    unit_id = result.segmented.text_units[0].id
+
+    node = research_overgraph.get_by_key(TEXT_UNIT, unit_id)
+    assert node is not None
+    assert node.props["text"] == "Shared public source passage."
+    assert node.props["document_id"] == "fetch-1"
+    assert node.props["document_version_id"] == result.document_version_id
 
 
 def test_core_knowledge_modules_have_no_legal_domain_logic():

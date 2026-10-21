@@ -20,7 +20,6 @@ from sqlalchemy.types import JSON
 
 from app.database.base import Base
 from app.database.stored_objects import StoredObject as StoredObject
-from app.database.text_units import TextUnitRecord as TextUnitRecord
 from app.database.knowledge_observation import KnowledgeObservationRecord as KnowledgeObservationRecord
 
 
@@ -1670,11 +1669,6 @@ class DocumentVersionRecord(Base):
         cascade="all, delete-orphan",
         order_by="DocumentSectionRecord.ordinal",
     )
-    text_units: Mapped[list["TextUnitRecord"]] = relationship(
-        back_populates="document_version",
-        cascade="all, delete-orphan",
-        order_by="TextUnitRecord.ordinal",
-    )
 
 
 class DocumentSectionRecord(Base):
@@ -1727,7 +1721,6 @@ class DocumentSectionRecord(Base):
     extra: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     document_version: Mapped[DocumentVersionRecord] = relationship(back_populates="sections")
-    text_units: Mapped[list["TextUnitRecord"]] = relationship(back_populates="section")
 
 
 
@@ -1746,15 +1739,10 @@ class DocumentKnowledgeItemTextUnit(Base):
         nullable=False,
         index=True,
     )
-    text_unit_id: Mapped[str] = mapped_column(
-        ForeignKey("text_units.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
+    text_unit_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     item: Mapped[DocumentKnowledgeItem] = relationship(back_populates="text_unit_links")
-    text_unit: Mapped[TextUnitRecord] = relationship()
 
 
 class KnowledgeClaimRecord(Base):
@@ -1822,16 +1810,11 @@ class KnowledgeClaimTextUnit(Base):
         nullable=False,
         index=True,
     )
-    text_unit_id: Mapped[str] = mapped_column(
-        ForeignKey("text_units.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
+    text_unit_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     relation: Mapped[str] = mapped_column(String(32), nullable=False)
 
     claim: Mapped[KnowledgeClaimRecord] = relationship(back_populates="text_unit_links")
-    text_unit: Mapped[TextUnitRecord] = relationship()
 
 
 class KnowledgeClaimAnswer(Base):

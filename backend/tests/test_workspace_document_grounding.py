@@ -13,7 +13,7 @@ from app.services.document_knowledge import create_manual_document_knowledge, su
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.extractors import ExtractedBlock, ExtractedDocument
 from app.services.knowledge.models import KnowledgeDocument, KnowledgeQuery, KnowledgeScope, KnowledgeScopeRequiredError
-from app.services.knowledge.persistence import current_text_units, text_unit_from_record
+from tests.text_unit_fakes import current_graph_views, version_graph_views
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
 from app.services.knowledge.shared_document_grounding import readable_shared_document_passage
 from app.services.knowledge.units import hash_text
@@ -102,7 +102,7 @@ async def test_orphaned_upload_is_not_reused_as_unattached_private_knowledge(doc
         document = await session.get(CanonicalDocumentRecord, "source-1")
         document.source_object_id = None
         await session.commit()
-        units = await current_text_units(session, document.id)
+        units = await current_graph_views(session, document.id)
         context = ResearchContext(KnowledgeScope(customer_id=1, workspace_id=first, readable_workspace_ids=(common, first)))
         assert not await passages_allowed(session, units, context)
 
@@ -129,7 +129,7 @@ async def test_same_hash_reuses_sql_ids_and_vectors(documents):
     before_calls = len(embeddings.calls)
     async with factory() as session:
         result = await _ingest(session, store, embeddings, "source-1", workspace_id=first)
-        units = await current_text_units(session, "source-1")
+        units = await current_graph_views(session, "source-1")
         versions = list(await session.scalars(select(DocumentVersionRecord).where(DocumentVersionRecord.document_id == "source-1")))
     assert result.reused_version
     assert len(versions) == 1
@@ -170,7 +170,7 @@ async def test_manual_qa_is_not_in_vector_search(documents):
 async def test_locator_cannot_validate_fabricated_quote(documents):
     factory, _store, _embeddings, _workspace_ids = documents
     async with factory() as session:
-        units = [text_unit_from_record(unit) for unit in await current_text_units(session, "source-1")]
+        units = [unit for unit in await current_graph_views(session, "source-1")]
     assert supporting_text_unit_ids(locator="line:1", exact_quote=SOURCE_TEXT, units=units)
     assert supporting_text_unit_ids(locator="line:1", exact_quote="Avtalets uppsägningstid är tre månader.", units=units) == []
     assert supporting_text_unit_ids(locator="wrong", exact_quote=SOURCE_TEXT, units=units) == []
@@ -241,7 +241,7 @@ async def test_canonical_ids_are_durable_while_ingest_embedding_is_pending(docum
     await asyncio.wait_for(started.wait(), 1)
     try:
         async with factory() as other:
-            units = await asyncio.wait_for(current_text_units(other, "source-pending"), 1)
+            units = await asyncio.wait_for(current_graph_views(other, "source-pending"), 1)
             assert units
             persisted_ids = {unit.id for unit in units}
     finally:
@@ -323,10 +323,9 @@ async def test_global_document_knowledge_stays_shared_and_private_sources_stay_p
         version = await session.get(DocumentVersionRecord, result.document_version_id)
         version.superseded_at = utcnow()
     async with factory() as session:
-        unit = (await current_text_units(session, "global-reference"))
+        unit = (await current_graph_views(session, "global-reference"))
         assert unit == []
-        from app.database.models import TextUnitRecord
-        original = await session.scalar(select(TextUnitRecord).where(TextUnitRecord.document_version_id == result.document_version_id))
+        original = version_graph_views(result.document_version_id)[0]
         assert await readable_shared_document_passage(session, original) is None
         historical = await readable_shared_document_passage(session, original, allow_superseded=True)
         assert historical is not None and historical[1].id == result.document_version_id
