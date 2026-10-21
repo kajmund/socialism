@@ -47,7 +47,7 @@ backend/
 └── pyproject.toml
 ```
 
-**SWE / SWD 1.0:** definition schema, parser and host-context isolation live in `app/swe/`. The phase-2 in-memory runtime is the Rust crate `crates/swe-native` (`swe_native`) plus the thin asyncio adapter `app.swe.runtime`. Build with `make swe-native`. Contracts: [swe-swd-1.0.md](../docs/specs/swe-swd-1.0.md), runtime: [swe-runtime.md](../docs/specs/swe-runtime.md), inventory: [swe-inventory.md](../docs/specs/swe-inventory.md). Do not wire OverGraph, Jev, or research cutover here.
+**SWE / SWD 1.0:** definition schema, parser and host-context isolation live in `app/swe/`. The runtime is the Rust crate `crates/swe-native` (`swe_native`) plus the thin asyncio adapter `app.swe.runtime`. Build with `make swe-native`. Phase 3 adds the durable OverGraph run store (`app/services/overgraph/workflows.py`, `immediate` WAL, resume); phase 4 adds provider decisions with the exact Jev cache (`app/swe/providers.py`, `app/services/overgraph/jev_cache.py`). Contracts: [swe-swd-1.0.md](../docs/specs/swe-swd-1.0.md), runtime: [swe-runtime.md](../docs/specs/swe-runtime.md), durable runs: [swe-overgraph.md](../docs/specs/swe-overgraph.md), providers: [swe-provider.md](../docs/specs/swe-provider.md), inventory: [swe-inventory.md](../docs/specs/swe-inventory.md). Research cutover is phase 5 — do not wire it here before that PR.
 
 Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (`uv sync --extra oasis`). That install is heavy (CAMEL + torch). On Python 3.13, `pyproject.toml` overrides pin conflicts (`openai`, `tiktoken`, `pillow`, pytest).
 

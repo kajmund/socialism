@@ -8,7 +8,7 @@ import pytest
 
 pytest.importorskip("swe_native")
 
-from app.swe.runtime import run_workflow, require_native
+from app.swe.runtime import WorkflowResources, run_workflow, require_native
 from app.swe.runtime_clock import FrozenClock
 from app.swe.runtime_errors import SwePreflightError
 from app.swe.runtime_thaw import thaw_json
@@ -102,7 +102,12 @@ async def test_cancellation_does_not_reroute() -> None:
         cancel.set()
 
     result, _ = await asyncio.gather(
-        run_workflow(_task_flow(), {"demo.work": work}, {}, cancel_event=cancel),
+        run_workflow(
+            _task_flow(),
+            {"demo.work": work},
+            {},
+            resources=WorkflowResources(cancel_event=cancel),
+        ),
         trip(),
     )
     assert result.status == "cancelled"

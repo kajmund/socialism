@@ -1,9 +1,8 @@
-"""Reject reserved SWD features before a run starts."""
+"""Reject reserved SWD features and unregistered registries before a run starts."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from app.swe.runtime_errors import SwePreflightError, SweUnsupportedError
@@ -27,26 +26,53 @@ def assert_handlers_registered(
             )
 
 
+def assert_providers_registered(
+    document: Mapping[str, Any],
+    providers: Mapping[str, Callable[..., Any]],
+    prompts: Mapping[str, str] | None,
+    cache: Any | None,
+) -> None:
+    nodes = document["nodes"]
+    for node_id, node in nodes.items():
+        if node["type"] != "decision" or node.get("evaluator") != "provider":
+            continue
+        name = node["provider"]
+        if name not in providers:
+            raise SwePreflightError(
+                f"unregistered decision provider {name!r}",
+                path=f"nodes.{node_id}.provider",
+            )
+        prompt_key = node["prompt_key"]
+        if prompts is None or not str(prompts.get(prompt_key) or "").strip():
+            raise SwePreflightError(
+                f"active prompt {prompt_key!r} is missing",
+                path=f"nodes.{node_id}.prompt_key",
+            )
+        if node.get("cache_policy") == "exact" and cache is None:
+            raise SwePreflightError(
+                "cache_policy exact requires a provider cache",
+                path=f"nodes.{node_id}.cache_policy",
+            )
+
+
 def assert_phase2_supported(document: Mapping[str, Any]) -> None:
     for node_id, node in document["nodes"].items():
         node_type = node["type"]
         if node_type in UNSUPPORTED_TYPES:
             raise SweUnsupportedError(
-                f"{node_type} nodes are not executable in SWE phase 2",
+                f"{node_type} nodes are not executable in SWE v1",
                 path=f"nodes.{node_id}.type",
-            )
-        if node_type == "decision" and node.get("evaluator") == "provider":
-            raise SweUnsupportedError(
-                "decision provider evaluators are not executable in SWE phase 2",
-                path=f"nodes.{node_id}.evaluator",
             )
         if node.get("retry") is not None:
             raise SweUnsupportedError(
-                "retry is not executable in SWE phase 2",
+                "retry is not executable in SWE v1",
                 path=f"nodes.{node_id}.retry",
             )
-        if node.get("cache_policy") == "exact":
+        provider_decision = (
+            node_type == "decision" and node.get("evaluator") == "provider"
+        )
+        if node.get("cache_policy") == "exact" and not provider_decision:
             raise SweUnsupportedError(
-                "cache_policy exact is not executable in SWE phase 2",
+                "cache_policy exact is only executable on provider decisions",
                 path=f"nodes.{node_id}.cache_policy",
             )
