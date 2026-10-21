@@ -50,7 +50,9 @@ Retry semantics: SWE rejects retry = True; baseline has no retry path; timeout i
 
 ## 3. Live quality (observational, non-deterministic, not a gate)
 
-Live layer not run in this invocation (**freeze #3 runs fake+parity only**). Live is **environment-blocked** on this measurement host: `https://lagen.nu/mcp` was verified unreachable (curl exit 000 / no connection) while OpenAI/Cerebras respond normally. The live wiring itself works (app lifespan, vector store, OverGraph runtime, judge), but retrieval quality cannot be measured from here. Live must be rerun in a healthy environment before it is used as anything but an observational follow-up; it is never a gate.
+Live layer not run in this invocation (**freeze #4 runs fake+parity only**). Live is **environment-blocked** on this measurement host: `https://lagen.nu/mcp` was verified unreachable (curl exit 000 / no connection) while OpenAI/Cerebras respond normally. The live wiring itself works (app lifespan, vector store, OverGraph runtime, judge), but retrieval quality cannot be measured from here. Live must be rerun in a healthy environment before it is used as anything but an observational follow-up; it is never a gate.
+
+> Erratum: the frozen harness template hardcodes "freeze #3" for this sentence. The measured artifact is freeze #4 (`528d26d4…`, commit `175b2ffe…`); this generated line was corrected by hand and the template string will be made neutral the next time the harness changes.
 
 ## 4. Scope limits
 
