@@ -3,6 +3,12 @@
 .env.*
 !.env.example
 
+# Rust
+/target/
+/crates/*/target/
+*.so
+*.pyd
+
 # Python
 __pycache__/
 *.py[cod]

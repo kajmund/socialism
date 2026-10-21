@@ -47,7 +47,7 @@ backend/
 └── pyproject.toml
 ```
 
-**SWE / SWD 1.0:** definition schema, parser and host-context isolation live in `app/swe/`. No scheduler is wired yet. Contracts: [swe-swd-1.0.md](../docs/specs/swe-swd-1.0.md), inventory: [swe-inventory.md](../docs/specs/swe-inventory.md).
+**SWE / SWD 1.0:** definition schema, parser and host-context isolation live in `app/swe/`. The phase-2 in-memory runtime is the Rust crate `crates/swe-native` (`swe_native`) plus the thin asyncio adapter `app.swe.runtime`. Build with `make swe-native`. Contracts: [swe-swd-1.0.md](../docs/specs/swe-swd-1.0.md), runtime: [swe-runtime.md](../docs/specs/swe-runtime.md), inventory: [swe-inventory.md](../docs/specs/swe-inventory.md). Do not wire OverGraph, Jev, or research cutover here.
 
 Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (`uv sync --extra oasis`). That install is heavy (CAMEL + torch). On Python 3.13, `pyproject.toml` overrides pin conflicts (`openai`, `tiktoken`, `pillow`, pytest).
 
