@@ -7,7 +7,9 @@ from app.config import Settings
 
 
 def _settings(**overrides) -> Settings:
+    # Ignore the developer's backend/.env so the defaults under test stay defaults.
     return Settings(
+        _env_file=None,
         database_url="sqlite+aiosqlite://",
         supabase_url="https://example.supabase.co",
         supabase_service_role_key="secret",
