@@ -11,7 +11,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.models import KnowledgeQuestionRow
-from app.services.graph_v2.questions import question_node
 from app.services.knowledge.scope import persist_scope_fields
 from app.services.research.knowledge_question import (
     KnowledgeQuestion,
@@ -74,11 +73,22 @@ async def prepare_sql_question(
         )
         session.add(row)
         await session.flush()
-        await question_node(session, row)
+        await _ensure_overgraph_node(row)
         created = _question_from_row(row)
     await graph._matcher.index([created])
     await _indexed_metadata(factory, [created], graph._matcher.embedding_metadata)
     return created
+
+
+async def _ensure_overgraph_node(row) -> None:
+    """Anchor the new question in OverGraph (SQL graph_v2 is retired)."""
+    from app.services.knowledge.scope import require_persist_scope
+    from app.services.overgraph.questions import ensure_question_node
+
+    scope = require_persist_scope(scope_type=row.scope_type, customer_id=row.customer_id)
+    await ensure_question_node(
+        question_id=row.id, display_text=row.display_text, scope=scope,
+    )
 
 
 async def prepare_graph_questions(

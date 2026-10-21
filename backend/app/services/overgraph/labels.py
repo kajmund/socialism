@@ -5,6 +5,11 @@ TEXT_UNIT = "TextUnit"
 ENTITY = "Entity"
 DOCUMENT_VERSION = "DocumentVersion"
 IDENTIFIER = "Identifier"
+CLAIM = "Claim"  # logical, document-independent assertion
+DOCUMENT_PROPERTY = "DocumentProperty"  # version-bound verified document property
+VERIFICATION_OBSERVATION = "VerificationObservation"
+KNOWLEDGE_QUESTION = "KnowledgeQuestion"
+DOCUMENT = "Document"  # adjacency anchor; metadata/ownership stay in SQL
 MEMORY = "Memory"
 MEMORY_ENTITY = "MemoryEntity"
 
@@ -17,6 +22,8 @@ NEXT = "NEXT"
 CONTRADICTS = "CONTRADICTS"
 LINKED = "LINKED"
 DEPENDS_ON = "DEPENDS_ON"
+HAS_CLAIM = "HAS_CLAIM"
+ANSWERED_BY = "ANSWERED_BY"
 
 KNOWLEDGE_TYPES = (FACT, TEXT_UNIT, ENTITY, DOCUMENT_VERSION, IDENTIFIER)
 

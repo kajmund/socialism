@@ -14,7 +14,7 @@ from typing import Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import TextUnitRecord
+from app.services.knowledge.units import TextUnit
 from app.llm.legal_research import LegalDomainExtractionError
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.vector_store import KnowledgeVectorStore
@@ -81,7 +81,7 @@ class _Slot:
     candidate: object
     canonical_uri: str
     pinpoint: str | None
-    units: list[TextUnitRecord] | None = None
+    units: list[TextUnit] | None = None
     document: LagenNuDocument | None = None
     reused_units: bool = False
     needs_fetch: bool = False
@@ -317,7 +317,7 @@ def _mcp_failure(
     )
 
 
-async def _units_for_slot(work: _Work, slot: _Slot) -> list[TextUnitRecord]:
+async def _units_for_slot(work: _Work, slot: _Slot) -> list[TextUnit]:
     if slot.units is not None:
         return slot.units
     document = slot.document

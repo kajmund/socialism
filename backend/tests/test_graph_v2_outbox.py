@@ -142,11 +142,11 @@ async def test_transient_embedding_failure_stays_retryable(tmp_path):
             id="version", scope_type="customer", scope_key="customer:1", customer_id=1,
             document_id="doc", content_hash="version-hash", mime_type="text/plain", extra={},
         ))
-        session.add(await persisted_text_unit(session,
+        await persisted_text_unit(session,
             id="unit", scope_type="customer", scope_key="customer:1", customer_id=1,
             document_version_id="version", document_id="doc", section_id=None,
             ordinal=0, text="No adjustment",
-        ))
+        )
         session.add(GraphIngestWork(
             id="transient", customer_id=1, scope_key="customer:1", status="pending",
             attempts=0, payload={

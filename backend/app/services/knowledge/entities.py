@@ -2,22 +2,24 @@
 
 from __future__ import annotations
 
+import asyncio
+
+
+
 import hashlib
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import KnowledgeEntityRecord
+from app.services.knowledge.graph_entity_mirror import entity_in_graph, mirror_entity
+from app.services.overgraph.catalogs import require_knowledge
 from app.services.knowledge.scope import (
     SCOPE_CUSTOMER,
     KnowledgeScopeError,
     KnowledgeTenantScope,
-    persist_scope_fields,
     require_persist_scope,
-    scope_from_row,
     shared_scope,
     visible_to,
 )
@@ -91,82 +93,63 @@ def knowledge_entity(
     )
 
 
+@dataclass(frozen=True)
+class PersistedEntity:
+    """Outcome of an entity write, without leaking the SQL model to callers."""
+
+    id: str
+
+
 async def persist_knowledge_entities(
     session: AsyncSession,
     entities: Sequence[KnowledgeEntity],
-) -> list[KnowledgeEntityRecord]:
+) -> list[KnowledgeEntity]:
     return [await persist_knowledge_entity(session, entity) for entity in entities]
 
 
 async def persist_knowledge_entity(
     session: AsyncSession,
     entity: KnowledgeEntity,
-) -> KnowledgeEntityRecord:
-    row, _reused = await persist_knowledge_entity_result(session, entity)
-    return row
+) -> KnowledgeEntity:
+    merged, _reused = await persist_knowledge_entity_result(session, entity)
+    return merged
 
 
 async def persist_knowledge_entity_result(
     session: AsyncSession,
     entity: KnowledgeEntity,
-) -> tuple[KnowledgeEntityRecord, bool]:
-    row = await session.get(KnowledgeEntityRecord, entity.id)
-    if row is None:
-        row = await _entity_by_stable_key(session, entity)
-    if row is not None:
-        return await _update_entity(session, row, entity), True
-    row = KnowledgeEntityRecord(
-        id=entity.id,
-        entity_type=entity.entity_type,
-        entity_key=entity.key,
-        name=entity.name,
-        extra=entity.extra,
-        **persist_scope_fields(entity.scope),
+) -> tuple[KnowledgeEntity, bool]:
+    """Write the node to OverGraph; identity is deterministic per scope/type/key."""
+    catalog = require_knowledge()
+    existing = await asyncio.to_thread(
+        entity_in_graph, catalog, scope_key=entity.scope.scope_key, entity_id=entity.id,
     )
-    try:
-        async with session.begin_nested():
-            session.add(row)
-            await session.flush()
-    except IntegrityError:
-        # Concurrent or legacy rows may use a different PK for the same stable key.
-        winner = await _entity_by_stable_key(session, entity)
-        if winner is None:
-            raise
-        return await _update_entity(session, winner, entity), True
-    return row, False
-
-
-async def _entity_by_stable_key(
-    session: AsyncSession,
-    entity: KnowledgeEntity,
-) -> KnowledgeEntityRecord | None:
-    rows = (
-        await session.execute(
-            select(KnowledgeEntityRecord).where(
-                KnowledgeEntityRecord.scope_key == entity.scope.scope_key,
-                KnowledgeEntityRecord.entity_type == entity.entity_type,
-            )
-        )
-    ).scalars().all()
-    return next(
-        (row for row in rows if _normalize_key(row.entity_key) == entity.key),
-        None,
-    )
-
-
-async def _update_entity(
-    session: AsyncSession,
-    row: KnowledgeEntityRecord,
-    entity: KnowledgeEntity,
-) -> KnowledgeEntityRecord:
-    if scope_from_row(row) != entity.scope:
+    if (
+        existing is not None
+        and str(existing.props.get("scope_key") or "") != entity.scope.scope_key
+    ):
         raise KnowledgeEntityError(
             f"entity {entity.id} already exists in a different knowledge scope"
         )
-    row.name = entity.name
-    row.extra = {**(row.extra or {}), **entity.extra}
-    await session.flush()
-    return row
+    await asyncio.to_thread(mirror_entity, entity)
+    row = await asyncio.to_thread(catalog.get_by_key, "Entity", entity.id)
+    if row is None:
+        raise KnowledgeEntityError(f"entity {entity.id} was not written to OverGraph")
+    return _domain_from_graph(row, entity), existing is not None
+
+
+def _domain_from_graph(row, entity: KnowledgeEntity) -> KnowledgeEntity:
+    """The graph node is the truth after a merge; mirror exactly that."""
+    extra = row.props.get("attributes_json")
+    return KnowledgeEntity(
+        id=entity.id,
+        customer_id=entity.customer_id,
+        entity_type=entity.entity_type,
+        key=entity.key,
+        name=str(row.props.get("name") or entity.name),
+        extra=dict(json.loads(str(extra)) if extra else {}),
+        scope_type=entity.scope_type,
+    )
 
 
 async def lookup_knowledge_entity(
@@ -176,12 +159,12 @@ async def lookup_knowledge_entity(
     key: str,
     customer_id: int | None = None,
     scope: KnowledgeTenantScope | None = None,
-) -> KnowledgeEntityRecord | None:
+):
     """Same-scope identity only. Does not merge customer entities into shared."""
     resolved = require_persist_scope(scope=scope, customer_id=customer_id)
-    return await session.get(
-        KnowledgeEntityRecord,
-        knowledge_entity_id(scope=resolved, entity_type=entity_type, key=key),
+    identity = knowledge_entity_id(scope=resolved, entity_type=entity_type, key=key)
+    return entity_in_graph(
+        require_knowledge(), scope_key=resolved.scope_key, entity_id=identity,
     )
 
 
@@ -191,7 +174,7 @@ async def lookup_readable_entity(
     reader_customer_id: int,
     entity_type: str,
     key: str,
-) -> KnowledgeEntityRecord | None:
+):
     """Customer entity first, then shared. Never another tenant. Never merges."""
     owned = await lookup_knowledge_entity(
         session,
@@ -209,7 +192,7 @@ async def lookup_readable_entity(
     )
     if shared is None:
         return None
-    if not visible_to(owned=scope_from_row(shared), reader_customer_id=reader_customer_id):
+    if not visible_to(owned=shared_scope(), reader_customer_id=reader_customer_id):
         raise KnowledgeEntityError("shared entity was not readable")
     return shared
 

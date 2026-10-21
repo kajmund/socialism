@@ -7,8 +7,10 @@ import pytest
 from sqlalchemy import func, select, text
 
 from app.database.answer_review import KnowledgeAnswerReview
-from app.database.models import DocumentVersionRecord, KnowledgeQuestionRow, TextUnitRecord
+from app.database.models import DocumentVersionRecord, KnowledgeQuestionRow
 from app.services.execution import list_evidence_items, list_runtime_needs
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.text_units import count_text_units
 from app.services.research.execution import execute_attempt_research
 from tests.research_reuse.helpers import MAIN, attempt, objective, reviewed_answer
 from tests.test_research_graph_v2_reuse import Embeddings
@@ -19,9 +21,9 @@ pytestmark = pytest.mark.research_reuse
 
 async def _stored_source_counts(factory):
     async with factory() as session:
-        return tuple(
-            [await session.scalar(select(func.count()).select_from(model))
-             for model in (DocumentVersionRecord, TextUnitRecord)]
+        return (
+            await session.scalar(select(func.count()).select_from(DocumentVersionRecord)),
+            count_text_units(require_knowledge()),
         )
 
 

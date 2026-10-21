@@ -21,6 +21,8 @@ dependencies = [
     "openai==2.48.0",
     # Embedded graph + hybrid vector engine; not something we write in <30 lines.
     "overgraph==0.17.0",
+    # Embedded fulltext engine (BM25 + Swedish analysis) for the derived search index.
+    "tantivy==0.26.2",
     "pdfplumber==0.11.9",
     # Decode, validate and strip image metadata; robust codecs are not a small helper.
     "pillow>=10.4.0",
@@ -28,6 +30,8 @@ dependencies = [
     "psycopg[binary]>=3.2.0",
     # Mem0's pgvector provider uses Psycopg's maintained connection pool.
     "psycopg-pool>=3.2.0",
+    # YAML 1.1 authoring syntax for SWD; runtime validates the JSON object only.
+    "pyyaml>=6.0.3",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
     "pyjwt>=2.10.1",
@@ -142,7 +146,7 @@ tests-max-lines = 1000
 "app/api/reports.py" = 566
 "app/api/runs.py" = 922
 "app/api/ws.py" = 746
-"app/database/models.py" = 3110
+"app/database/models.py" = 3093
 "app/llm/__init__.py" = 648
 "app/schemas/domain.py" = 1415
 "app/seed.py" = 1340
@@ -291,7 +295,6 @@ tests-max-lines = 1000
 "app/services/knowledge/events.py:PLR0913" = 1
 "app/services/knowledge/extractors.py:BLE001" = 2
 "app/services/knowledge/ingest.py:BLE001" = 1
-"app/services/knowledge/persistence.py:PLR0917" = 1
 "app/services/knowledge/relationships.py:PLR0913" = 1
 "app/services/label_vocabulary.py:C901" = 1
 "app/services/label_vocabulary.py:PLR0917" = 1

@@ -12,7 +12,6 @@ from app.database.models import (
     DocumentVersionRecord,
     Job,
     StoredObject,
-    TextUnitRecord,
 )
 from app.services import jobs as jobs_service
 from app.services.document_ingest_status import document_text_ready
@@ -25,6 +24,7 @@ from app.services.research.composition import set_knowledge_vector_store_factory
 from tests.conftest import USER_USER_ID
 from tests.knowledge_fakes import FakeEmbeddingProvider
 from tests.test_knowledge_ingest import build_text_pdf
+from tests.text_unit_fakes import current_graph_units
 
 
 async def _upload_without_worker(user_client, filename: str, data: bytes, content_type: str):
@@ -187,15 +187,7 @@ async def test_document_ingest_indexes_text_units_without_generated_cards(  # no
                 .all()
             )
             assert rows == []
-            units = list(
-                (
-                    await session.execute(
-                        select(TextUnitRecord).where(TextUnitRecord.document_id == source.id)
-                    )
-                )
-                .scalars()
-                .all()
-            )
+            units = await current_graph_units(session, source.id)
             assert units
             assert any("Avtalet galler" in unit.text for unit in units)
             canonical = await session.get(CanonicalDocumentRecord, source.id)

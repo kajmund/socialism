@@ -1,0 +1,34 @@
+{
+  "id": "document-properties-gold-mapping-v1",
+  "version": "v1",
+  "description": "Declared mapping from the nine retrieval golds to document-property class ids. Frozen before evaluation; used only for scoring, never as extraction input.",
+  "golds": {
+    "auto-renewal": {
+      "class_ids": ["automatic_renewal"]
+    },
+    "notice-period": {
+      "class_ids": ["termination_notice"]
+    },
+    "liability-cap": {
+      "class_ids": ["liability_limitation"]
+    },
+    "confidentiality": {
+      "class_ids": ["confidentiality_obligation"]
+    },
+    "liability-secrecy-carveout": {
+      "class_ids": ["liability_secrecy_carveout"]
+    },
+    "governing-law": {
+      "class_ids": ["governing_law"]
+    },
+    "force-majeure": {
+      "class_ids": ["force_majeure"]
+    },
+    "personal-data": {
+      "class_ids": ["personal_data_processing"]
+    },
+    "assignment": {
+      "class_ids": ["assignment_restriction"]
+    }
+  }
+}

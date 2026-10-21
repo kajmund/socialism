@@ -37,6 +37,7 @@ from app.api import (
     users,
     voice_workspaces,
     document_ingest_batches,
+    document_properties,
     voice_workspace_inbox,
     workspace_exports,
     workspace_conversations,
@@ -178,6 +179,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(live_speech.router)
     app.include_router(voice_workspaces.router)
     app.include_router(document_ingest_batches.router)
+    app.include_router(document_properties.router)
     app.include_router(voice_workspace_inbox.router)
     app.include_router(workspace_exports.router)
     app.include_router(workspace_conversations.router)

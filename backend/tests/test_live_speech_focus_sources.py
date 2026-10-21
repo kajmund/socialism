@@ -96,7 +96,7 @@ async def _seed_documents(factory, workspace_ids: dict[str, str]) -> None:
                 mime_type="text/plain",
             ))
         await session.flush()
-        session.add(await persisted_text_unit(
+        await persisted_text_unit(
             session,
             id="tu-a",
             document_version_id="ver-doc-a",
@@ -107,8 +107,8 @@ async def _seed_documents(factory, workspace_ids: dict[str, str]) -> None:
             section_id=None,
             ordinal=0,
             text="Aktieägaravtalet reglerar uppsägningstid och uppsägningstid igen.",
-        ))
-        session.add(await persisted_text_unit(
+        )
+        await persisted_text_unit(
             session,
             id="tu-b",
             document_version_id="ver-doc-b",
@@ -119,7 +119,7 @@ async def _seed_documents(factory, workspace_ids: dict[str, str]) -> None:
             section_id=None,
             ordinal=0,
             text="Fastighetsbildningsavtal om servitut och servitut.",
-        ))
+        )
 
 
 async def _seed_canvas(factory, common_id: str) -> str:

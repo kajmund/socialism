@@ -18,7 +18,6 @@ from app.database.models import (
     StoredObject,
     UserAccount,
 )
-from app.database.text_units import SharedTextChunkRecord, TextUnitRecord
 from app.schemas.workspace_chat import WorkspaceChatCreate
 from app.services.knowledge.units import hash_text
 from app.services.prompt_store import ensure_default_configurations
@@ -26,6 +25,7 @@ from app.services.workspace_chat_documents import document_inventory, workspace_
 from app.services.workspace_chat_turn import workspace_chat_turn
 from app.services.workspace_chats import create_chat
 from app.services.workspaces import create_client_workspace, ensure_company_workspace
+from tests.text_unit_fakes import persisted_text_unit
 
 USER_ID = "document-selection-user"
 SOURCE_TEXT = "Parkeringskvittot visar ett belopp på 85 kronor inklusive moms."
@@ -46,12 +46,16 @@ async def _seed_ready_document(session, source):
         id=version_id, **scope, document_id=document_id, content_hash=content_hash,
         mime_type=source.content_type,
     ))
-    session.add(SharedTextChunkRecord(content_hash=content_hash, text=f"{source.filename}: {SOURCE_TEXT}"))
-    await session.flush()
-    session.add(TextUnitRecord(
-        id=f"unit-{source.id}", **scope, document_id=document_id,
-        document_version_id=version_id, ordinal=0, content_hash=content_hash, locator="page:1",
-    ))
+    await persisted_text_unit(
+        session,
+        id=f"unit-{source.id}",
+        document_id=document_id,
+        document_version_id=version_id,
+        ordinal=0,
+        locator="page:1",
+        text=f"{source.filename}: {SOURCE_TEXT}",
+        **scope,
+    )
 
 
 async def _seed_sources(factory, workspaces):

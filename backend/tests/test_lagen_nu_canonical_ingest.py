@@ -8,10 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund, TextUnitRecord
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund
 from app.services.knowledge.canonical_ingest import index_missing_persisted_documents
 from app.services.knowledge.persistence import (
-    current_text_units,
     get_canonical_document_by_identity,
     get_current_document_version,
     list_document_versions,
@@ -26,7 +25,9 @@ from app.services.lagen_nu.canonical_ingest import (
 from app.services.lagen_nu.models import LagenNuDocument
 from app.services.lagen_nu.registration import LAGEN_NU_PROVIDER_ID
 from app.services.lagen_nu.uris import canonical_lagen_nu_document_uri
+from app.services.overgraph.text_units import load_domain_text_unit, load_domain_text_units
 from tests.knowledge_fakes import FakeEmbeddingProvider
+from tests.text_unit_fakes import current_graph_units
 
 AVTALSLAGEN_URI = "https://lagen.nu/1915:218"
 AVTALSLAGEN_TEXT = (
@@ -137,7 +138,7 @@ async def test_ingest_creates_canonical_document_and_text_units(session: AsyncSe
         source_type=LAGEN_NU_PROVIDER_ID,
         canonical_uri=AVTALSLAGEN_URI,
     )
-    units = await current_text_units(session, expected_id)
+    units = await current_graph_units(session, expected_id)
     assert result.status == "indexed"
     assert result.reused_version is False
     assert result.document_id == expected_id
@@ -155,7 +156,7 @@ async def test_ingest_creates_canonical_document_and_text_units(session: AsyncSe
     assert len(embeddings.calls) == 1
 
 
-async def test_ingest_reuses_current_version_on_same_hash(session: AsyncSession):
+async def test_ingest_reuses_current_version_on_same_hash(session: AsyncSession, research_overgraph):
     kund = await _kund(session)
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
@@ -176,7 +177,7 @@ async def test_ingest_reuses_current_version_on_same_hash(session: AsyncSession)
     await session.flush()
     documents = list((await session.execute(select(CanonicalDocumentRecord))).scalars().all())
     versions = await list_document_versions(session, first.document_id)
-    units = list((await session.execute(select(TextUnitRecord))).scalars().all())
+    units = load_domain_text_units(research_overgraph, document_version_id=first.document_version_id)
     assert first.document_id == second.document_id
     assert first.document_version_id == second.document_version_id
     assert second.reused_version is True
@@ -247,7 +248,7 @@ async def test_index_missing_persisted_documents_fills_empty_index(session: Asyn
     assert len(empty.chunks) == len(populated.chunks)
 
 
-async def test_ingest_new_version_on_content_change(session: AsyncSession):
+async def test_ingest_new_version_on_content_change(session: AsyncSession, research_overgraph):
     kund = await _kund(session)
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
@@ -268,8 +269,8 @@ async def test_ingest_new_version_on_content_change(session: AsyncSession):
     await session.flush()
     versions = await list_document_versions(session, first.document_id)
     current = await get_current_document_version(session, first.document_id)
-    current_units = await current_text_units(session, first.document_id)
-    historical = await session.get(TextUnitRecord, first.segmented.text_units[0].id)
+    current_units = await current_graph_units(session, first.document_id)
+    historical = load_domain_text_unit(research_overgraph, unit_id=first.segmented.text_units[0].id)
     old_version = await session.get(DocumentVersionRecord, first.document_version_id)
     assert first.document_id == second.document_id
     assert first.document_version_id != second.document_version_id
@@ -289,7 +290,7 @@ async def test_ingest_new_version_on_content_change(session: AsyncSession):
     assert len(embeddings.calls) == 2
 
 
-async def test_ingest_recurring_historical_hash_creates_new_occurrence(session: AsyncSession):
+async def test_ingest_recurring_historical_hash_creates_new_occurrence(session: AsyncSession, research_overgraph):
     kund = await _kund(session)
     store = MemoryKnowledgeVectorStore()
     embeddings = FakeEmbeddingProvider()
@@ -322,20 +323,8 @@ async def test_ingest_recurring_historical_hash_creates_new_occurrence(session: 
     second_after = await session.get(DocumentVersionRecord, second.document_version_id)
     current = await get_current_document_version(session, first.document_id)
     versions = await list_document_versions(session, first.document_id)
-    first_units = list(
-        (await session.execute(
-            select(TextUnitRecord).where(
-                TextUnitRecord.document_version_id == first.document_version_id
-            )
-        )).scalars().all()
-    )
-    third_units = list(
-        (await session.execute(
-            select(TextUnitRecord).where(
-                TextUnitRecord.document_version_id == third.document_version_id
-            )
-        )).scalars().all()
-    )
+    first_units = load_domain_text_units(research_overgraph, document_version_id=first.document_version_id)
+    third_units = load_domain_text_units(research_overgraph, document_version_id=third.document_version_id)
     assert len(versions) == 3
     assert third.reused_version is False
     assert first.document_version_id != third.document_version_id

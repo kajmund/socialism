@@ -6,8 +6,10 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy import func, select, text
 
-from app.database.models import DocumentVersionRecord, KnowledgeQuestionRow, TextUnitRecord
+from app.database.models import DocumentVersionRecord, KnowledgeQuestionRow
 from app.services.execution import list_evidence_items, list_runtime_needs
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.text_units import count_text_units
 from app.services.research import ResearchPlan, execute_attempt_research
 from app.services.research.answer_review import capture_answer_reviews
 from app.services.research.planner import ResearchObjective
@@ -21,10 +23,11 @@ pytestmark = pytest.mark.research_reuse
 
 async def stored_counts(factory):
     async with factory() as session:
-        return tuple([
-            await session.scalar(select(func.count()).select_from(model))
-            for model in (DocumentVersionRecord, TextUnitRecord, KnowledgeQuestionRow)
-        ])
+        return (
+            await session.scalar(select(func.count()).select_from(DocumentVersionRecord)),
+            count_text_units(require_knowledge()),
+            await session.scalar(select(func.count()).select_from(KnowledgeQuestionRow)),
+        )
 
 
 async def saved_questions(factory):
