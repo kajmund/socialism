@@ -28,6 +28,9 @@ class LiveSpeechSettings(BaseModel):
     # Speculative read-only prefetch on stable partial transcripts (default off).
     live_speech_speculation_enabled: bool = False
     live_speech_speculation_min_chars: int = Field(default=8, ge=4, le=200)
+    live_speech_speculation_ttl_ms: int = Field(default=8000, ge=250, le=60_000)
+    live_speech_speculation_concurrency: int = Field(default=2, ge=1, le=4)
+    live_speech_tts_timeout_seconds: float = Field(default=8.0, gt=1, le=30)
     # ElevenLabs live-speech PCM segment cache (SHA256 keys). Pure disk, no database.
     tts_cache_dir: str = "data/tts_cache"
     # LRU cap for tts_cache_dir: oldest .pcm entries are evicted above it.

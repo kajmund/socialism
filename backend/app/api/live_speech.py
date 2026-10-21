@@ -213,7 +213,7 @@ class LiveSpeechSocket:
         if isinstance(event, AudioStart):
             await runtime.audio_started(event.sequence)
         elif isinstance(event, AudioCommit):
-            await runtime.commit_audio(event.sequence)
+            await runtime.commit_audio(event.sequence, event.input_item_id)
         elif isinstance(event, AudioCancel):
             await runtime.cancel_audio()
         elif isinstance(event, TurnCancel):

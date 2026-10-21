@@ -106,6 +106,7 @@ export const en: LocalizedTree<SvMessages> = {
     "sessionError": "The conversation could not connect.",
     "transcriptionError": "Speech could not be transcribed. Try again.",
     "speechError": "The reply could not be spoken. The text remains in the chat.",
+    "aecError": "Echo cancellation is off in the browser. Live voice needs microphone echo cancellation to stay on.",
     "voiceStart": "Start voice conversation",
     "voiceStop": "End voice conversation",
     "cancelSpeech": "Stop speaking",

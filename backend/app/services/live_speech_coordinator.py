@@ -7,6 +7,8 @@ import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from time import monotonic
 
+from app.config import settings
+from app.services.live_speech_pcm import frame_pcm
 from app.services.speech_segmenter import strip_voice_tags
 
 logger = logging.getLogger(__name__)
@@ -61,6 +63,7 @@ class SpeechResponseCoordinator:
         self._aside_token += 1
         self._playback_token += 1
         self._main_generation = None
+        self._generation += 1
 
     def _next_generation(self) -> int:
         self._generation += 1
@@ -117,45 +120,44 @@ class SpeechResponseCoordinator:
             await self._on_state("speaking")
         started_at = monotonic()
         audio_bytes = 0
-        await self._emit_json(
-            {
-                "type": "audio.output.start",
-                "turn_id": turn_id,
-                "response_id": turn_id,
-                "generation_id": generation,
-                "sequence": self._next_sequence(),
-                "codec": "pcm16",
-                "sample_rate": self._sample_rate,
-            }
+        await self._emit_json(self._audio_event("audio.output.start", turn_id, generation))
+        try:
+            async with asyncio.timeout(settings.live_speech_tts_timeout_seconds):
+                async for chunk in self._stream(text):
+                    if self._token_cancelled(announce, token):
+                        await self._emit_json(
+                            self._audio_event("audio.output.end", turn_id, generation)
+                        )
+                        return
+                    if self._on_first_audio is not None:
+                        self._on_first_audio()
+                    audio_bytes += len(chunk)
+                    duration = audio_bytes / (self._sample_rate * 2)
+                    lead = duration - (monotonic() - started_at)
+                    if lead > 0.4:
+                        await asyncio.sleep(lead - 0.4)
+                    await self._emit_audio(frame_pcm(generation, chunk))
+        except TimeoutError:
+            logger.warning("live_speech.tts_timeout generation=%s turn_id=%s", generation, turn_id)
+            await self._emit_json(self._audio_event("audio.output.end", turn_id, generation))
+            raise
+        await self._emit_json(self._audio_event("audio.output.end", turn_id, generation))
+
+    def _token_cancelled(self, announce: bool, token: int) -> bool:
+        return (announce and token != self._playback_token) or (
+            not announce and token != self._aside_token
         )
-        async for chunk in self._stream(text):
-            if (announce and token != self._playback_token) or (
-                not announce and token != self._aside_token
-            ):
-                await self._emit_json(
-                    {
-                        "type": "audio.output.end",
-                        "turn_id": turn_id,
-                        "response_id": turn_id,
-                        "generation_id": generation,
-                        "sequence": self._next_sequence(),
-                    }
-                )
-                return
-            if self._on_first_audio is not None:
-                self._on_first_audio()
-            audio_bytes += len(chunk)
-            duration = audio_bytes / (self._sample_rate * 2)
-            lead = duration - (monotonic() - started_at)
-            if lead > 0.4:
-                await asyncio.sleep(lead - 0.4)
-            await self._emit_audio(chunk)
-        await self._emit_json(
-            {
-                "type": "audio.output.end",
-                "turn_id": turn_id,
-                "response_id": turn_id,
-                "generation_id": generation,
-                "sequence": self._next_sequence(),
-            }
-        )
+
+    def _audio_event(self, event_type: str, turn_id: str, generation: int) -> dict:
+        return {
+            "type": event_type,
+            "turn_id": turn_id,
+            "response_id": turn_id,
+            "generation_id": generation,
+            "sequence": self._next_sequence(),
+            **(
+                {"codec": "pcm16", "sample_rate": self._sample_rate}
+                if event_type.endswith(".start")
+                else {}
+            ),
+        }

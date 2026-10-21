@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from app.services.live_speech_backchannel import utterance_barge
+from app.services.live_speech_pcm import unframe_pcm
 from app.services.openai_live_transcription import TranscriptEvent
 from app.services.sme_group_voice import GroupVoiceSession
 from app.services.sme_group_voice_runtime import GroupVoiceAudioRuntime, GroupVoiceAudioScope
@@ -107,6 +108,6 @@ def test_talking_over_a_reply_stops_the_rest_of_the_audio(monkeypatch):
             await task
 
     asyncio.run(run())
-    assert audio == [b"\x00\x01"]
+    assert [unframe_pcm(item)[1] for item in audio] == [b"\x00\x01"]
     assert any(event.get("type") == "assistant.cancelled" for event in events)
     assert session.floor is None

@@ -4,7 +4,9 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.live_speech_backchannel import classify_utterance, utterance_barge
+from app.services.live_speech_backchannel import confirm_barge
 from app.services.live_speech_coordinator import SpeechResponseCoordinator
+from app.services.live_speech_pcm import unframe_pcm
 from app.services.live_speech_phrases import (
     ProgressContext,
     generate_listener_phrase,
@@ -28,6 +30,7 @@ from app.services.live_speech_runtime import LiveSpeechRuntime, LiveSpeechScope
         ("just det", "backchannel"),
         ("jajust", "backchannel"),
         ("ja, precis", "backchannel"),
+        ("precis", "backchannel"),
         ("okej", "backchannel"),
         ("stopp", "interruption"),
         ("nej", "interruption"),
@@ -57,6 +60,10 @@ def test_amendment_barges_with_amend_reason() -> None:
 
 def test_listener_echo_is_not_a_new_turn() -> None:
     assert classify_utterance("intressant", echoed="intressant") == "backchannel"
+    assert classify_utterance(
+        "omsättningen är tolv",
+        echoed="Omsättningen är tolv miljoner i år.",
+    ) == "backchannel"
 
 
 async def test_progress_hook_is_silent_without_voice_bind() -> None:
@@ -178,8 +185,62 @@ async def test_coordinator_stops_main_playback_when_interrupted() -> None:
     coordinator.interrupt_playback()
     released.set()
     await playing
-    assert audio == [b"\x00\x01"]
+    assert [unframe_pcm(item)[1] for item in audio] == [b"\x00\x01"]
     assert coordinator.spoken_text == ""
+
+
+async def test_uncertain_confirm_does_not_barge_when_llm_is_slow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def slow(_prompt: str, _text: str) -> str:
+        await asyncio.sleep(10)
+        return "interruption"
+
+    monkeypatch.setattr(
+        "app.services.live_speech_backchannel.classify_backchannel_llm", slow,
+    )
+    monkeypatch.setattr(
+        "app.services.live_speech_backchannel.settings.live_speech_backchannel_confirm_ms",
+        1,
+    )
+    assert await confirm_barge("prompt", "kanske") is False
+
+
+async def test_coordinator_times_out_tts_without_a_second_stream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[dict] = []
+    streams = 0
+
+    async def stream(_text: str):
+        nonlocal streams
+        streams += 1
+        await asyncio.sleep(1)
+        yield b"\x00\x00"
+
+    async def emit_json(event: dict) -> None:
+        events.append(event)
+
+    async def emit_audio(_chunk: bytes) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "app.services.live_speech_coordinator.settings.live_speech_tts_timeout_seconds",
+        0.05,
+    )
+    coordinator = SpeechResponseCoordinator(
+        stream=stream,
+        emit_json=emit_json,
+        emit_audio=emit_audio,
+        sample_rate=24_000,
+        next_sequence=lambda: 1,
+    )
+    with pytest.raises(TimeoutError):
+        await coordinator.play_main("Omsättningen är tolv.", "turn")
+    assert streams == 1
+    types = [event["type"] for event in events]
+    assert types.count("audio.output.start") == 1
+    assert types.count("audio.output.end") == 1
 
 
 async def test_runtime_does_not_barge_in_on_audio_start() -> None:

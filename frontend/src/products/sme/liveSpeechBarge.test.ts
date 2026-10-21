@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { isUrgentBargeIn } from "./liveSpeechBarge"
+import { isListenerCue, isUrgentBargeIn } from "./liveSpeechBarge"
 
 describe("isUrgentBargeIn", () => {
   it("recognizes urgent stop words", () => {
@@ -14,5 +14,14 @@ describe("isUrgentBargeIn", () => {
     expect(isUrgentBargeIn("mm")).toBe(false)
     expect(isUrgentBargeIn("ja, precis")).toBe(false)
     expect(isUrgentBargeIn("")).toBe(false)
+  })
+})
+
+describe("isListenerCue", () => {
+  it("keeps confirmation words from stopping playback", () => {
+    expect(isListenerCue("precis")).toBe(true)
+    expect(isListenerCue("just det")).toBe(true)
+    expect(isListenerCue("jajust")).toBe(true)
+    expect(isListenerCue("stopp")).toBe(false)
   })
 })

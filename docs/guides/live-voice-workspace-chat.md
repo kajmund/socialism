@@ -84,11 +84,11 @@ citations such as `[R1]` remain unchanged.
 - JSON controls and binary audio share one socket.
 - Input and output are PCM16 mono at 24 kHz.
 - `audio.output.start` and `audio.output.end` carry `response_id` and
-  `generation_id`. A new generation starts for each reply or aside; stale
-  generations are never played.
-- Binary output belongs to the most recent `audio.output.start`. The client
-  drops chunks after `audio.output.end` and after a locally cancelled
-  generation until a newer generation starts.
+  `generation_id`. A new generation starts for each reply or aside; barge-in
+  also advances the generation fence.
+- Downlink PCM frames are prefixed with a big-endian `uint32` generation id
+  (`app/services/live_speech_pcm.py`). The client drops queued, in-flight and
+  late websocket frames whose generation is blocked or not the active one.
 - OpenAI transcription has `turn_detection: null` and `noise_reduction: near_field`; browser VAD sends commit.
 - `stt.focus` carries source ids. The server turns the open document's text units into keywords.
 - Binary output belongs to the most recent `audio.output.start`.
@@ -96,10 +96,11 @@ citations such as `[R1]` remain unchanged.
   AI_THINKING/AI_SPEAKING/OVERLAPPING/AI_INTERRUPTED), owned by the
   Conversation Controller (`app/services/conversation_controller.py`).
 - The client sends `client.latency` (`phase`, `milliseconds`) for phases it
-  owns: `vad_reaction` and `stop_playback`.
-- On close the server emits `session.metrics` with p50/p95/p99 per phase
-  (`first_partial`, `final_transcript`, `first_llm_delta`, `first_tts_audio`,
-  `turn_cancelled`, plus any client-reported phases).
+  owns: `browser.vad_reaction`, `browser.stop_playback`,
+  `browser.first_audible_audio`, and `browser.aec_applied`.
+- On close the server emits `session.metrics` with p50/p95/p99 per phase and
+  speculation counters (`cache_hits`, `wasted`, `incorrect`,
+  `rejected_mismatch`, `latency_gain_ms`).
 - Invalid sequences fail visibly. V1 does not reconnect in the middle of a turn.
 - Starting a second session for the same user/workspace revokes the first.
 
@@ -125,12 +126,20 @@ conditions and sample count.
 ## Latency measurement
 
 `session.metrics` on socket close reports p50/p95/p99 for each named phase, so
-a representative run can be summarized without code changes. The server-side
-phases are `first_partial` (VAD→first partial), `final_transcript`
-(commit→final), `first_llm_delta` (final→first token), `first_tts_audio`
-(final→first audio), `turn_cancelled`, and `barge_in`/backchannel decisions
-logged elsewhere. The client adds `vad_reaction` (first frame→VAD opened) and
-`stop_playback` (urgent partial→local queue cleared) via `client.latency`.
+a representative run can be summarized without code changes. Phases are
+prefixed by owner:
+
+- `browser.vad_reaction` — first captured frame → VAD opened
+- `browser.stop_playback` — urgent partial → local queue cleared
+- `browser.first_audible_audio` — `audio.output.start` → first PCM scheduled
+- `browser.aec_applied` — 1 if `getSettings().echoCancellation` is true
+- `server.first_partial` / `server.barge_classified` / `server.barge_in`
+- `server.first_llm_delta` / `server.turn_complete` / `server.turn_cancelled`
+- `provider.final_transcript` / `provider.first_tts_audio`
+
+Speculative reuse is gated by `LIVE_SPEECH_SPECULATION_ENABLED` (default off).
+Prefetch is read-only, parallel, TTL-bounded, and reused only when the final
+question extends the partial under the same tenant/permission fingerprint.
 
 To record p50/p95/p99: run several representative Swedish sessions, collect
 the `session.metrics` payloads (and backend `live_speech.latency` log lines),

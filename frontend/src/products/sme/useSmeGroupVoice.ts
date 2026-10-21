@@ -6,6 +6,7 @@ import { liveSpeechMicrophone } from "./liveSpeechMicrophone"
 import { preloadSpeechVad } from "./speechVad"
 import { SpeechVadPipeline } from "./speechVadPipeline"
 import { startVoiceCapture, type VoiceCaptureHandle } from "./voiceCapture"
+import { splitGenerationFrame } from "./liveSpeechPcm"
 import { PcmQueue } from "./pcmQueue"
 
 export type GroupVoiceMember = { id: string; name: string }
@@ -87,7 +88,9 @@ export function useSmeGroupVoice({
     }
     const ctx = playbackCtx.current
     if (ctx.state === "suspended") void ctx.resume()
-    queue.current.play(ctx, pcm)
+    const framed = splitGenerationFrame(pcm)
+    if (framed === null) return
+    queue.current.play(ctx, framed.pcm)
   }, [])
 
   const stopPlayback = useCallback(() => {
