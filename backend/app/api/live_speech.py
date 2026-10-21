@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from datetime import UTC, datetime
 from time import monotonic
 
@@ -39,14 +40,15 @@ from app.services.live_speech_stt_terms import (
     TRANSCRIPTION_PROMPT_KEY,
     keywords_from_text_units,
     parse_keyword_field,
+    readable_focus_texts,
     shown_source_ids,
-    text_unit_texts,
 )
 from app.services.live_speech_sessions import LiveSpeechLease, LiveSpeechRegistry
 from app.services.prompt_store import require_prompts_for_persona
 from app.services.workspace.service import require_expert, require_workspace
 
 router = APIRouter(tags=["websocket"])
+logger = logging.getLogger(__name__)
 
 
 async def _authenticate(websocket: WebSocket) -> UserAccount:
@@ -79,11 +81,19 @@ async def _scope(start: SessionStart, user: UserAccount) -> LiveSpeechScope:
         state.expert_id = start.expert_id
         recent_turns = await recent_interview_turns(session, start.expert_id)
         base_keywords = parse_keyword_field(prompts.get(TRANSCRIPTION_KEYWORDS_KEY, ""))
-        texts = await text_unit_texts(
+        texts, dropped = await readable_focus_texts(
             session,
             customer_id=user.kund_id,
+            user_id=user.id,
+            canvas_workspace_id=start.workspace_id,
             source_ids=shown_source_ids(state),
         )
+        for source_id in dropped:
+            logger.warning(
+                "live_speech.bootstrap_focus_dropped source_id=%s customer_id=%s",
+                source_id,
+                user.kund_id,
+            )
         await session.rollback()
     return LiveSpeechScope(
         user_id=user.id,
