@@ -175,6 +175,15 @@ forbids new `noqa` exemptions.
 - timeout fails and persists the run;
 - resume keeps the persisted start time, so the original deadline applies.
 
+## Production wiring
+
+The run store is implemented and tested, but it is **not production-wired** in
+the research cutover. No per-attempt `WorkflowRunner(run_store=...)` is created
+in production: `immediate` WAL costs one fsync per transition, OverGraph 0.17
+has no multiprocess writer lock, and research recovery is still the DB/lease
+path. The store is used by tests and the measurement harness; enabling it is a
+follow-up after the host-lock and cost decisions.
+
 ## Follow-ups
 
 - Phase 4: the Jev cache gets its own catalog in the same per-customer layout.
