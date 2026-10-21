@@ -4,8 +4,10 @@ import { encodePcm16 } from "@/components/chat/liveVoiceAudio"
 import { useLocale } from "@/i18n"
 import { authAdapter } from "@/lib/auth"
 import { env } from "@/lib/env"
+import { appliedEchoCancellation } from "./liveSpeechAec"
 import { liveSpeechMicrophone } from "./liveSpeechMicrophone"
 import { isUrgentBargeIn } from "./liveSpeechBarge"
+import { splitGenerationFrame } from "./liveSpeechPcm"
 import { preloadSpeechVad } from "./speechVad"
 import { SpeechVadPipeline } from "./speechVadPipeline"
 import { startVoiceCapture, type VoiceCaptureHandle } from "./voiceCapture"
@@ -66,6 +68,9 @@ export class LiveSpeechClient {
   private lastGeneration = 0
   private blockedThroughGeneration = 0
   private firstFrameAt = 0
+  private audioStartedAt = 0
+  private heardFirstAudio = false
+  private aecApplied: boolean | null = null
 
   constructor(
     private readonly workspaceId: string,
@@ -76,7 +81,7 @@ export class LiveSpeechClient {
     this.pipeline = new SpeechVadPipeline({
       onStarted: () => {
         if (this.firstFrameAt > 0) {
-          this.sendLatency("vad_reaction", performance.now() - this.firstFrameAt)
+          this.sendLatency("browser.vad_reaction", performance.now() - this.firstFrameAt)
         }
         this.send({
           type: "audio.start",
@@ -124,6 +129,7 @@ export class LiveSpeechClient {
       throw new DOMException("Live Speech start cancelled", "AbortError")
     }
     this.microphone = microphone
+    this.aecApplied = appliedEchoCancellation(microphone)
     // 24 kHz lets the browser's filtered resampler do the 48k→24k step once;
     // Silero then resamples 2:3 to 16 kHz and the PCM goes out as-is. The code
     // reads context.sampleRate, so browsers that ignore the request still work.
@@ -180,7 +186,7 @@ export class LiveSpeechClient {
       this.lastGeneration,
     )
     this.clearPlayback()
-    this.sendLatency("stop_playback", performance.now() - stopStartedAt)
+    this.sendLatency("browser.stop_playback", performance.now() - stopStartedAt)
     if (this.currentTurn) {
       this.send({ type: "turn.cancel", turn_id: this.currentTurn, reason })
     }
@@ -256,6 +262,12 @@ export class LiveSpeechClient {
         return
       }
       this.sendFocus()
+      this.sendLatency("browser.aec_applied", this.aecApplied === true ? 1 : 0)
+      if (this.aecApplied === false) {
+        this.callbacks.error("aec_unavailable", false)
+        void this.stop().then(() => this.callbacks.state("error"))
+        return
+      }
     } else if (type === "session.state") {
       this.handleState(event.state)
     } else if (type === "transcript.partial") {
@@ -291,6 +303,8 @@ export class LiveSpeechClient {
       this.audioOpen = true
       this.dropIncomingAudio = false
       this.speaking = true
+      this.audioStartedAt = performance.now()
+      this.heardFirstAudio = false
     } else if (type === "audio.output.end") {
       const generation = number(event.generation_id)
       if (generation === null || generation >= this.lastGeneration) {
@@ -350,9 +364,17 @@ export class LiveSpeechClient {
 
   private play(data: ArrayBuffer): void {
     if (this.dropIncomingAudio || !this.audioOpen) return
+    const framed = splitGenerationFrame(data)
+    if (framed === null) return
+    if (framed.generation <= this.blockedThroughGeneration) return
+    if (this.lastGeneration !== 0 && framed.generation !== this.lastGeneration) return
     const context = this.playback
     if (!context) return
-    this.queue.play(context, data)
+    this.queue.play(context, framed.pcm)
+    if (!this.heardFirstAudio && this.audioStartedAt > 0) {
+      this.heardFirstAudio = true
+      this.sendLatency("browser.first_audible_audio", performance.now() - this.audioStartedAt)
+    }
   }
 
   private clearPlayback(): void {
@@ -437,7 +459,9 @@ export function useLiveSpeechConversation(options: Options) {
               ? t("voiceWorkspaceChat.transcriptionError")
               : code === "tts_failed"
                 ? t("voiceWorkspaceChat.speechError")
-                : t("voiceWorkspaceChat.sessionError"),
+                : code === "aec_unavailable"
+                  ? t("voiceWorkspaceChat.aecError")
+                  : t("voiceWorkspaceChat.sessionError"),
           )
         },
       },
