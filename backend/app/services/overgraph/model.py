@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
 
-from app.services.knowledge.scope import KnowledgeTenantScope
+from app.database.knowledge_scope import KnowledgeTenantScope
 
 
 @dataclass(frozen=True)
@@ -26,6 +26,8 @@ class TextUnitWrite:
     content_hash: str
     ordinal: int
     section_id: str | None = None
+    section_title: str | None = None
+    section_ordinal: int | None = None
     locator: str | None = None
     page_start: int | None = None
     page_end: int | None = None
@@ -36,6 +38,7 @@ class TextUnitWrite:
     ingested_at: datetime | None = None
     embedding: tuple[float, ...] | None = None
     next_id: str | None = None
+    metadata: dict[str, object] | None = None
 
 
 @dataclass
@@ -68,6 +71,7 @@ class TextUnitView:
     text: str
     content_hash: str
     ordinal: int
+    section_id: str | None = None
     customer_id: int | None = None
     locator: str | None = None
     page_start: int | None = None

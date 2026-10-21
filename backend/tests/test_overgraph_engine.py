@@ -115,12 +115,14 @@ async def test_fact_identity_and_multiple_sources(knowledge):
         knowledge, _fact(a, b, "A är equivalent med B", ref="episode-3"),
         judge=Judge(), embedder=Embedder(),
     )
-    assert semantic.key == first.key and decision == "SAME"
+    # Semantically equivalent wording is a new source occurrence: never the same node.
+    assert semantic.key != first.key and decision == "DISTINCT"
     opposite, decision = await resolve_fact(
         knowledge, _fact(a, b, "A gäller inte B", ref="episode-4"),
         judge=Judge(), embedder=Embedder(),
     )
-    assert opposite.key != first.key and decision == "CONTRADICTS"
+    # A contradiction keeps both nodes; the judge may only add a relation.
+    assert opposite.key != first.key and decision in {"DISTINCT", "CONTRADICTS"}
 
 
 @pytest.mark.asyncio

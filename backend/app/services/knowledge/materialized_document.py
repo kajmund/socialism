@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import DocumentSectionRecord, DocumentVersionRecord
-from app.services.knowledge.persistence import text_unit_from_record, text_units_for_version
 from app.services.knowledge.units import DocumentSection, SegmentedDocument
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.text_units import load_domain_text_units
 
 
 async def persisted_segment(
@@ -20,7 +22,9 @@ async def persisted_segment(
     sections = list(await session.scalars(select(DocumentSectionRecord).where(
         DocumentSectionRecord.document_version_id == version.id,
     ).order_by(DocumentSectionRecord.ordinal)))
-    units = await text_units_for_version(session, version.id)
+    units = await asyncio.to_thread(
+        load_domain_text_units, require_knowledge(), document_version_id=version.id,
+    )
     return replace(
         segmented,
         version=replace(
@@ -33,5 +37,5 @@ async def persisted_segment(
             title=row.title, page_start=row.page_start, page_end=row.page_end,
             metadata=dict(row.extra or {}),
         ) for row in sections),
-        text_units=tuple(text_unit_from_record(unit) for unit in units),
+        text_units=tuple(units),
     )

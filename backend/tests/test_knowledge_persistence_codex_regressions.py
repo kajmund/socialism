@@ -9,7 +9,6 @@ from app.database.base import Base
 from app.database.models import (
     CanonicalDocumentRecord,
     DocumentVersionRecord,
-    KnowledgeEntityRecord,
     KnowledgeRelationshipRecord,
     Kund,
 )
@@ -56,26 +55,22 @@ def test_ocr_marker_does_not_match_democracy():
 
 
 @pytest.mark.asyncio
-async def test_legacy_relationship_reuses_stable_tuple_despite_old_id():
+async def test_relationship_reuses_the_stable_tuple_despite_a_new_id():
     session = await _session()
     left = knowledge_entity(customer_id=1, entity_type="org", key="a", name="A")
     right = knowledge_entity(customer_id=1, entity_type="org", key="b", name="B")
     await persist_knowledge_entity_result(session, left)
     await persist_knowledge_entity_result(session, right)
-    session.add(
-        KnowledgeRelationshipRecord(
-            id="legacy-edge-id",
-            customer_id=1,
-            relation=ABOUT,
-            from_kind="entity",
-            from_id=left.id,
-            to_kind="entity",
-            to_id=right.id,
-            temporal_key="",
-            extra={"legacy": True},
-        )
+    first = knowledge_relationship(
+        customer_id=1,
+        relation=ABOUT,
+        from_kind="entity",
+        from_id=left.id,
+        to_kind="entity",
+        to_id=right.id,
+        extra={"legacy": True},
     )
-    await session.flush()
+    await persist_knowledge_relationship_result(session, first)
     edge = knowledge_relationship(
         customer_id=1,
         relation=ABOUT,
@@ -87,9 +82,11 @@ async def test_legacy_relationship_reuses_stable_tuple_despite_old_id():
     )
     row, reused = await persist_knowledge_relationship_result(session, edge)
     assert reused is True
-    assert row.id == "legacy-edge-id"
     assert row.extra == {"legacy": True, "new": True}
-    assert await session.scalar(select(func.count()).select_from(KnowledgeRelationshipRecord)) == 1
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import LINKED
+
+    assert require_knowledge().count_edges_by_label(LINKED) == 1
     await session.close()
 
 
@@ -133,19 +130,8 @@ async def test_observation_rejects_other_tenant_provenance():
 
 
 @pytest.mark.asyncio
-async def test_legacy_entity_reuses_normalized_stable_key():
+async def test_entity_reuses_the_normalized_stable_key():
     session = await _session()
-    session.add(
-        KnowledgeEntityRecord(
-            id="legacy-court",
-            customer_id=1,
-            entity_type="org",
-            entity_key="Court  X",
-            name="Court X",
-            extra={"aliases": ["legacy"]},
-        )
-    )
-    await session.flush()
     entity = knowledge_entity(
         customer_id=1,
         entity_type="org",
@@ -153,27 +139,25 @@ async def test_legacy_entity_reuses_normalized_stable_key():
         name="Court X",
         extra={"aliases": ["canonical"]},
     )
+    _first, created = await persist_knowledge_entity_result(session, entity)
+    assert created is False
     row, reused = await persist_knowledge_entity_result(session, entity)
     assert reused is True
-    assert row.id == "legacy-court"
-    assert await session.scalar(select(func.count()).select_from(KnowledgeEntityRecord)) == 1
+    assert row.id == entity.id
+    assert row.extra == {"aliases": ["canonical"]}
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import ENTITY
+
+    rows, _ = require_knowledge().query_nodes(
+        label_filter={"labels": [ENTITY], "mode": "all"}, limit=10,
+    )
+    assert [str(node.key) for node in rows] == [entity.id]
     await session.close()
 
 
 @pytest.mark.asyncio
-async def test_reused_legacy_entity_remaps_relationship_endpoint():
+async def test_reused_entity_keeps_the_canonical_relationship_endpoint():
     session = await _session()
-    session.add(
-        KnowledgeEntityRecord(
-            id="legacy-court",
-            customer_id=1,
-            entity_type="org",
-            entity_key="Court  X",
-            name="Court X",
-            extra={},
-        )
-    )
-    await session.flush()
     proposed = knowledge_entity(
         customer_id=1,
         entity_type="org",
@@ -199,7 +183,13 @@ async def test_reused_legacy_entity_remaps_relationship_endpoint():
         entities=[proposed, other],
         relationships=[edge],
     )
-    stored_edge = (await session.execute(select(KnowledgeRelationshipRecord))).scalar_one()
-    assert stored_edge.from_id == "legacy-court"
-    assert stored_edge.to_id == other.id
+    from app.services.overgraph.catalogs import require_knowledge
+
+    catalog = require_knowledge()
+    left = catalog.get_by_key("Entity", proposed.id)
+    right = catalog.get_by_key("Entity", other.id)
+    stored_edge = catalog.get_edge_by_triple(left.engine_id, right.engine_id, "LINKED")
+    assert stored_edge is not None
+    assert stored_edge.props["relation"] == ABOUT
+    assert await session.scalar(select(func.count()).select_from(KnowledgeRelationshipRecord)) == 0
     await session.close()

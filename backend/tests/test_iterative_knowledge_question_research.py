@@ -105,8 +105,7 @@ async def _seed_claim(
                 extra={},
             )
         )
-        session.add(
-            await persisted_text_unit(session,
+        await persisted_text_unit(session,
                 id=f"tu-{doc_id}",
                 document_version_id=f"ver-{doc_id}",
                 document_id=doc_id,
@@ -115,7 +114,6 @@ async def _seed_claim(
                 ordinal=0,
                 text=unit_text,
             )
-        )
         await session.flush()
     value: dict[str, object] = {"rate": 32}
     claim = KnowledgeClaim(
