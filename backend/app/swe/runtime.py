@@ -1,8 +1,8 @@
 """Thin asyncio adapter around the Rust SWE machine.
 
-Python compiles SWD, owns the event loop, and runs registered async handlers.
-Rust owns routing, join barriers, and typed events. The adapter never calls
-into Rust while awaiting a handler.
+Python compiles SWD, owns the event loop, and runs registered async handlers and
+decision providers. Rust owns routing, join barriers, and typed events. The
+adapter never calls into Rust while awaiting a handler or a provider.
 
 Deadline: the driver waits with the remaining monotonic timeout and calls
 `Machine.tick(now_ms)` when it expires. Tick fails the run and emits
@@ -26,18 +26,25 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.swe.cache import DecisionCache
 from app.swe.definition import CompiledDefinition
 from app.swe.runtime_clock import FrozenClock, WorkflowClock
 from app.swe.runtime_dispatch import (
     Handler,
     HandlerOutcome,
+    Provider,
+    ProviderDispatch,
     cancel_all,
     cancel_invocations,
     reap_owned,
     spawn_invocations,
 )
 from app.swe.runtime_errors import SweRuntimeError
-from app.swe.runtime_preflight import assert_handlers_registered, assert_phase2_supported
+from app.swe.runtime_preflight import (
+    assert_handlers_registered,
+    assert_phase2_supported,
+    assert_providers_registered,
+)
 from app.swe.run_store import InvocationRecord, RunRecord, RunStore
 from app.swe.runtime_thaw import thaw_json
 
@@ -46,6 +53,7 @@ from app.swe.runtime_thaw import thaw_json
 class _Driver:
     machine: Any
     handlers: Mapping[str, Handler]
+    provider_dispatch: ProviderDispatch
     nodes: Mapping[str, Any]
     clock: WorkflowClock | FrozenClock
     cancel_event: asyncio.Event | None
@@ -94,6 +102,16 @@ class _RunStart:
     last_seq: int
 
 
+@dataclass(frozen=True)
+class WorkflowResources:
+    """Optional run resources shared by the runner and provider dispatch."""
+
+    providers: Mapping[str, Provider] = field(default_factory=dict)
+    prompts: Mapping[str, str] | None = None
+    cache: DecisionCache | None = None
+    cancel_event: asyncio.Event | None = None
+
+
 def require_native() -> Any:
     if swe_native is None:
         raise SweRuntimeError(
@@ -104,24 +122,24 @@ def require_native() -> Any:
 
 
 class WorkflowRunner:
-    """Run configuration: handlers and an optional durable store."""
+    """Run configuration: handlers, resources and an optional durable store."""
 
     def __init__(
         self,
         compiled: CompiledDefinition,
         handlers: Mapping[str, Handler],
         *,
+        resources: WorkflowResources | None = None,
         run_store: RunStore | None = None,
         clock: WorkflowClock | FrozenClock | None = None,
         concurrency: int = 32,
-        cancel_event: asyncio.Event | None = None,
     ) -> None:
         self.compiled = compiled
         self.handlers = handlers
+        self.resources = resources or WorkflowResources()
         self.run_store = run_store
         self.clock = clock
         self.concurrency = concurrency
-        self.cancel_event = cancel_event
 
     async def run(
         self,
@@ -134,6 +152,12 @@ class WorkflowRunner:
         document = thaw_json(self.compiled.document)
         assert_phase2_supported(document)
         assert_handlers_registered(document, self.handlers)
+        assert_providers_registered(
+            document,
+            self.resources.providers,
+            self.resources.prompts,
+            self.resources.cache,
+        )
         machine = native.Machine()
         run_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
         clock = self.clock or WorkflowClock()
@@ -183,6 +207,12 @@ class WorkflowRunner:
         document = thaw_json(self.compiled.document)
         assert_phase2_supported(document)
         assert_handlers_registered(document, self.handlers)
+        assert_providers_registered(
+            document,
+            self.resources.providers,
+            self.resources.prompts,
+            self.resources.cache,
+        )
         machine = native.Machine()
         clock = self.clock or WorkflowClock()
         events = await store.events(run_id)
@@ -219,9 +249,14 @@ def _build_driver(runner: WorkflowRunner, start: _RunStart) -> _Driver:
     return _Driver(
         machine=start.machine,
         handlers=runner.handlers,
+        provider_dispatch=ProviderDispatch(
+            providers=runner.resources.providers,
+            prompts=runner.resources.prompts,
+            cache=runner.resources.cache,
+        ),
         nodes=start.document["nodes"],
         clock=start.clock,
-        cancel_event=runner.cancel_event,
+        cancel_event=runner.resources.cancel_event,
         pending={},
         semaphore=asyncio.Semaphore(runner.concurrency),
         run_id=start.run_id,
@@ -240,18 +275,18 @@ async def run_workflow(
     handlers: Mapping[str, Handler],
     input_data: Mapping[str, Any] | None = None,
     *,
+    resources: WorkflowResources | None = None,
     run_id: str | None = None,
     clock: WorkflowClock | FrozenClock | None = None,
     concurrency: int = 32,
-    cancel_event: asyncio.Event | None = None,
 ) -> RunResult:
     """Unpersisted run. Use `WorkflowRunner(run_store=...)` for durable runs."""
     runner = WorkflowRunner(
         compiled,
         handlers,
+        resources=resources,
         clock=clock,
         concurrency=concurrency,
-        cancel_event=cancel_event,
     )
     return await runner.run(input_data, run_id=run_id)
 
@@ -260,20 +295,20 @@ async def resume_run(
     compiled: CompiledDefinition,
     handlers: Mapping[str, Handler],
     *,
+    resources: WorkflowResources | None = None,
     run_store: RunStore,
     run_id: str,
     clock: WorkflowClock | FrozenClock | None = None,
     concurrency: int = 32,
-    cancel_event: asyncio.Event | None = None,
 ) -> RunResult:
     """Continue a persisted run after a crash; terminal runs return as-is."""
     runner = WorkflowRunner(
         compiled,
         handlers,
+        resources=resources,
         run_store=run_store,
         clock=clock,
         concurrency=concurrency,
-        cancel_event=cancel_event,
     )
     return await runner.resume(run_id)
 
@@ -355,6 +390,7 @@ async def _apply_effect(
             nodes=driver.nodes,
             pending=driver.pending,
             semaphore=driver.semaphore,
+            provider_dispatch=driver.provider_dispatch,
         )
         return []
     outcome = _apply_replay(driver, replayed)
