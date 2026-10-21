@@ -9,7 +9,7 @@ from storage3.types import VectorMatch
 
 from app.database.models import DocumentVersionRecord, Kund
 from app.services.knowledge.canonical_ingest import index_missing_persisted_documents
-from app.services.knowledge.persistence import current_text_units, text_units_for_version
+from tests.text_unit_fakes import current_graph_units, version_graph_units
 from app.services.knowledge.supabase_vector_client import SupabaseStorageVectorClient
 from app.services.knowledge.vector_store import SupabaseVectorBucketStore
 from tests.research_reuse.test_03_chunk_sha import (
@@ -66,8 +66,7 @@ def projected(lab):
 
 
 async def vectors_for(lab, result):
-    async with lab.factory() as session:
-        unit_ids = [row.id for row in await text_units_for_version(session, result.document_version_id)]
+    unit_ids = [row.id for row in version_graph_units(result.document_version_id)]
     return await lab.store.get_text_unit_embeddings(
         document_id=result.document_id, document_version_id=result.document_version_id,
         text_unit_ids=unit_ids,
@@ -99,7 +98,7 @@ async def test_a_b_a_keeps_all_three_versions_addressable_by_exact_keys(projecte
     assert set(first_vectors).isdisjoint(third_vectors)
     assert len(lab.inner.calls) == 2
     async with lab.factory() as session:
-        current = await current_text_units(session, third.document_id)
+        current = await current_graph_units(session, third.document_id)
     assert {row.document_version_id for row in current} == {third.document_version_id}
 
 

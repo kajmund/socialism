@@ -25,11 +25,11 @@ from tests.test_research_graph_v2_reuse import graph_db as graph_db
     ],
 )
 async def test_ingested_nature_is_usable_graph_evidence(graph_db, uri, source, nature):
-    from app.services.knowledge.persistence import current_text_units
     from app.services.knowledge.scope import customer_scope
     from app.services.overgraph.model import TextUnitWrite
     from app.services.overgraph.research import knowledge_catalog, set_text_unit_refs
     from app.services.overgraph.write import upsert_text_unit
+    from tests.text_unit_fakes import current_graph_units
 
     fact = await seed_fact(graph_db)
     document = replace(_document(uri=uri), source=source)
@@ -40,7 +40,7 @@ async def test_ingested_nature_is_usable_graph_evidence(graph_db, uri, source, n
         embeddings=FakeEmbeddingProvider(),
         vector_store=MemoryKnowledgeVectorStore(),
     )
-    units = await current_text_units(graph_db, result.document_id)
+    units = await current_graph_units(graph_db, result.document_id)
     unit = units[0]
     catalog = knowledge_catalog()
     upsert_text_unit(catalog, TextUnitWrite(

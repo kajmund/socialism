@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -13,11 +14,9 @@ from app.database.models import (
     DocumentSectionRecord,
     DocumentVersionRecord,
     KnowledgeClaimTextUnit,
-    TextUnitRecord,
 )
 from app.serializers import utcnow
 from app.services.knowledge.claim_store import prune_unsupported_claims
-from app.services.knowledge.shared_chunks import resolve_shared_chunks
 from app.services.knowledge.scope import (
     KnowledgeTenantScope,
     persist_scope_fields,
@@ -25,7 +24,14 @@ from app.services.knowledge.scope import (
     scope_from_row,
     visible_to,
 )
-from app.services.knowledge.units import DocumentSection, SegmentedDocument, TextUnit
+from app.services.knowledge.units import DocumentSection, SegmentedDocument
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.legal_claims import unlink_document_versions
+from app.services.overgraph.text_units import (
+    delete_text_units_for_document,
+    text_unit_ids_for_document,
+    upsert_text_units,
+)
 
 
 @dataclass(frozen=True)
@@ -180,60 +186,16 @@ async def persist_segmented_document(
     session.add(version_row)
     await session.flush()
     await _insert_sections(session, version_row, segmented.sections, resolved)
-    await _insert_text_units(session, version_row, segmented.text_units, now, resolved)
+    # TextUnits are authoritative in OverGraph (no SQL mirror).
+    await asyncio.to_thread(
+        upsert_text_units,
+        require_knowledge(),
+        segmented.text_units,
+        scope=resolved,
+        section_titles={section.id: section.title or "" for section in segmented.sections},
+        section_ordinals={section.id: section.ordinal for section in segmented.sections},
+    )
     return PersistedDocumentGraph(document=row, version=version_row, reused_current=False)
-
-
-async def current_text_units(
-    session: AsyncSession,
-    document_id: str,
-) -> list[TextUnitRecord]:
-    version = await get_current_document_version(session, document_id)
-    if version is None:
-        return []
-    return await text_units_for_version(session, version.id)
-
-
-async def text_units_for_version(
-    session: AsyncSession,
-    document_version_id: str,
-) -> list[TextUnitRecord]:
-    stmt = (
-        select(TextUnitRecord)
-        .outerjoin(
-            DocumentSectionRecord,
-            TextUnitRecord.section_id == DocumentSectionRecord.id,
-        )
-        .where(TextUnitRecord.document_version_id == document_version_id)
-        .order_by(
-            DocumentSectionRecord.ordinal.asc().nullsfirst(),
-            TextUnitRecord.ordinal.asc(),
-            TextUnitRecord.id.asc(),
-        )
-    )
-    return list((await session.execute(stmt)).scalars().all())
-
-
-def text_unit_from_record(row: TextUnitRecord) -> TextUnit:
-    return TextUnit(
-        id=row.id,
-        document_version_id=row.document_version_id,
-        document_id=row.document_id,
-        section_id=row.section_id,
-        ordinal=row.ordinal,
-        text=row.text,
-        content_hash=row.content_hash,
-        locator=row.locator,
-        page_start=row.page_start,
-        page_end=row.page_end,
-        char_start=row.char_start,
-        char_end=row.char_end,
-        valid_from=row.valid_from,
-        valid_to=row.valid_to,
-        ingested_at=row.ingested_at,
-        embedding_id=row.embedding_id,
-        metadata=dict(row.extra or {}),
-    )
 
 
 async def _insert_sections(
@@ -262,51 +224,13 @@ async def _insert_sections(
     await session.flush()
 
 
-async def _insert_text_units(  # noqa: PLR0917
-    session: AsyncSession,
-    version: DocumentVersionRecord,
-    units: Sequence[TextUnit],
-    now,
-    scope: KnowledgeTenantScope,
-) -> None:
-    fields = persist_scope_fields(scope)
-    chunks = await resolve_shared_chunks(session, [(unit.content_hash, unit.text) for unit in units])
-    for unit in units:
-        session.add(
-            TextUnitRecord(
-                id=unit.id,
-                document_version_id=version.id,
-                document_id=version.document_id,
-                section_id=unit.section_id,
-                ordinal=unit.ordinal,
-                chunk=chunks[unit.content_hash],
-                content_hash=unit.content_hash,
-                locator=unit.locator,
-                page_start=unit.page_start,
-                page_end=unit.page_end,
-                char_start=unit.char_start,
-                char_end=unit.char_end,
-                valid_from=unit.valid_from,
-                valid_to=unit.valid_to,
-                ingested_at=now,
-                embedding_id=unit.embedding_id or unit.id,
-                extra=dict(unit.metadata),
-                **fields,
-            )
-        )
-    await session.flush()
-
-
 async def delete_canonical_document(session: AsyncSession, document_id: str) -> None:
     row = await session.get(CanonicalDocumentRecord, document_id)
     if row is None:
         return
-    unit_ids = list(
-        (
-            await session.execute(
-                select(TextUnitRecord.id).where(TextUnitRecord.document_id == document_id)
-            )
-        ).scalars().all()
+    catalog = require_knowledge()
+    unit_ids = await asyncio.to_thread(
+        text_unit_ids_for_document, catalog, document_id=document_id,
     )
     if unit_ids:
         links = list(
@@ -320,6 +244,20 @@ async def delete_canonical_document(session: AsyncSession, document_id: str) -> 
         )
         for link in links:
             await session.delete(link)
+    version_ids = list(
+        (
+            await session.execute(
+                select(DocumentVersionRecord.id).where(
+                    DocumentVersionRecord.document_id == document_id
+                )
+            )
+        ).scalars().all()
+    )
+    if version_ids:
+        await asyncio.to_thread(unlink_document_versions, catalog, version_ids)
+    await asyncio.to_thread(
+        delete_text_units_for_document, catalog, document_id=document_id,
+    )
     await session.delete(row)
     await session.flush()
     await prune_unsupported_claims(session)

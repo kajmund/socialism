@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections import Counter
 from collections.abc import Iterable, Sequence
@@ -10,9 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, StoredObject
-from app.database.text_units import SharedTextChunkRecord, TextUnitRecord
 from app.database.workspace_models import VoiceWorkspace
 from app.schemas.workspace import WorkspaceState
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.text_units import load_domain_text_units
 from app.services.workspaces import resolve_readable_workspace_ids
 
 TRANSCRIPTION_PROMPT_KEY = "chat.expert.live_speech_transcription"
@@ -157,17 +159,24 @@ async def text_unit_texts(
     ids = [item.strip() for item in source_ids if item.strip()][:4]
     if not ids:
         return []
-    statement = (
-        select(SharedTextChunkRecord.text)
-        .join(TextUnitRecord, TextUnitRecord.content_hash == SharedTextChunkRecord.content_hash)
-        .join(DocumentVersionRecord, DocumentVersionRecord.id == TextUnitRecord.document_version_id)
-        .join(CanonicalDocumentRecord, CanonicalDocumentRecord.id == TextUnitRecord.document_id)
+    version_ids = list((await session.scalars(
+        select(DocumentVersionRecord.id)
+        .join(CanonicalDocumentRecord, CanonicalDocumentRecord.id == DocumentVersionRecord.document_id)
         .where(
             CanonicalDocumentRecord.source_object_id.in_(ids),
             CanonicalDocumentRecord.customer_id == customer_id,
             DocumentVersionRecord.superseded_at.is_(None),
         )
-        .order_by(TextUnitRecord.ordinal)
-        .limit(300)
-    )
-    return [row for row in (await session.scalars(statement)).all() if row]
+    )).all())
+    catalog = require_knowledge()
+    texts: list[str] = []
+    for version_id in version_ids:
+        units = await asyncio.to_thread(
+            load_domain_text_units, catalog, document_version_id=version_id,
+        )
+        for unit in units:
+            if len(texts) >= 300:
+                return texts
+            if unit.text:
+                texts.append(unit.text)
+    return texts

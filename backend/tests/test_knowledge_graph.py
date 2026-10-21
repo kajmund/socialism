@@ -9,6 +9,8 @@ from sqlalchemy.pool import StaticPool
 from app.database.base import Base
 from app.database.models import Kund
 from app.services.knowledge.claims import SUPPORTED_BY
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.labels import CLAIM, TEXT_UNIT, scope_label
 from app.services.knowledge.entities import (
     KnowledgeEntityError,
     knowledge_entity,
@@ -83,27 +85,24 @@ async def test_entity_insert_conflict_reuses_the_committed_row(session: AsyncSes
 
 
 async def test_relationship_insert_conflict_reuses_the_committed_row(session: AsyncSession):
+    seed_claim("claim-1")
+    target = await persist_knowledge_entity(
+        session,
+        knowledge_entity(
+            customer_id=1, entity_type="court", key="Högsta domstolen", name="Högsta domstolen",
+        ),
+    )
     edge = knowledge_relationship(
         customer_id=1,
         relation=ABOUT,
         from_kind="claim",
         from_id="claim-1",
         to_kind="entity",
-        to_id="entity-1",
+        to_id=target.id,
     )
     await persist_knowledge_relationship(session, edge)
     await session.commit()
-    original_get = session.get
-    hidden = False
-
-    async def hide_first_edge_read(model, ident, **kwargs):
-        nonlocal hidden
-        if ident == edge.id and not hidden:
-            hidden = True
-            return None
-        return await original_get(model, ident, **kwargs)
-
-    session.get = hide_first_edge_read
+    # Repeating the write reuses the same edge and merges the new metadata.
     stored = await persist_knowledge_relationship(
         session,
         knowledge_relationship(
@@ -112,7 +111,7 @@ async def test_relationship_insert_conflict_reuses_the_committed_row(session: As
             from_kind="claim",
             from_id="claim-1",
             to_kind="entity",
-            to_id="entity-1",
+            to_id=target.id,
             extra={"note": "later"},
         ),
     )
@@ -122,6 +121,25 @@ async def test_relationship_insert_conflict_reuses_the_committed_row(session: As
         session, customer_id=1, node_kind="relationship", node_id=edge.id
     )
     assert len(events) == 1
+
+
+def seed_claim(claim_id: str) -> None:
+    catalog = require_knowledge()
+    catalog.upsert_node(
+        [CLAIM, scope_label("customer:1")], claim_id,
+        props={"scope_key": "customer:1", "predicate": "legal.rule", "value_json": "{}"},
+    )
+
+
+def seed_text_unit(unit_id: str) -> None:
+    catalog = require_knowledge()
+    catalog.upsert_node(
+        [TEXT_UNIT, scope_label("customer:1")], unit_id,
+        props={
+            "scope_key": "customer:1", "document_id": "doc-1",
+            "document_version_id": "ver-1", "text": "36 §",
+        },
+    )
 
 
 def replace_name(entity):
@@ -148,6 +166,9 @@ async def test_persist_about_supported_by_and_same_as(session: AsyncSession):
         name="HD",
     )
     await persist_knowledge_entities(session, [court, alias])
+    seed_claim("claim-1")
+    seed_claim("claim-2")
+    seed_text_unit("tu-42")
     edges = [
         knowledge_relationship(
             customer_id=1,
