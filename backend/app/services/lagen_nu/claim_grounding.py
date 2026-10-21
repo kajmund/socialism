@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from app.database.models import TextUnitRecord
+from app.services.knowledge.units import TextUnit
 from app.llm.legal_research import LegalDomainExtractionError
 from app.services.knowledge.claims import (
     KnowledgeClaim,
@@ -38,7 +38,7 @@ class GroundedLegalKnowledge:
 
 def ground_legal_claims(
     result: LegalResearchResult,
-    units: Sequence[TextUnitRecord],
+    units: Sequence[TextUnit],
     *,
     customer_id: int,
     research_need_id: str,
@@ -59,7 +59,7 @@ def ground_legal_claims(
 
 def ground_legal_extraction(
     result: LegalResearchResult,
-    units: Sequence[TextUnitRecord],
+    units: Sequence[TextUnit],
     *,
     customer_id: int,
     research_need_id: str,
@@ -172,7 +172,7 @@ def _ground_domain_claim(
     predicate: str,
     value: dict[str, object],
     citations: list[dict[str, object]],
-    units: Sequence[TextUnitRecord],
+    units: Sequence[TextUnit],
     *,
     customer_id: int,
 ) -> KnowledgeClaim | None:

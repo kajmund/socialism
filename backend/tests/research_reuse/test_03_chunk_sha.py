@@ -9,10 +9,12 @@ import pytest
 from sqlalchemy import select, text
 
 from app.database.graph_v2 import GraphEmbeddingCache
-from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, TextUnitRecord
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord
 from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider, _cache_identity
 from app.services.knowledge.units import hash_text
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.text_units import load_all_domain_text_units
 from app.services.lagen_nu.canonical_ingest import ingest_lagen_nu_document
 from tests.knowledge_fakes import FakeEmbeddingProvider, fake_embed_text
 from tests.test_lagen_nu_canonical_ingest import _document
@@ -58,6 +60,9 @@ class Lab:
         async with self.factory() as session:
             return list(await session.scalars(select(model)))
 
+    async def units(self):
+        return load_all_domain_text_units(require_knowledge())
+
 
 @pytest.fixture
 async def lab(reuse_db):
@@ -91,7 +96,7 @@ async def test_identical_chunks_reuse_embedding_but_preserve_both_sources(lab):
     assert len(await lab.rows(GraphEmbeddingCache)) == 1
     documents = await lab.rows(CanonicalDocumentRecord)
     versions = await lab.rows(DocumentVersionRecord)
-    units = await lab.rows(TextUnitRecord)
+    units = await lab.units()
     assert {row.canonical_uri for row in documents} == {URI_A, URI_B}
     assert len(versions) == 2 and all(row.superseded_at is None for row in versions)
     assert len(units) == 2 and len({row.content_hash for row in units}) == 1
@@ -103,7 +108,7 @@ async def test_identical_chunks_reuse_embedding_but_preserve_both_sources(lab):
 
 async def test_embedding_cache_hash_is_the_exact_chunk_sha(lab):
     await lab.ingest(URI_A)
-    units = await lab.rows(TextUnitRecord)
+    units = await lab.units()
     rows = await lab.rows(GraphEmbeddingCache)
     assert {row.normalized_text_hash for row in rows} == {row.content_hash for row in units}
 
@@ -160,7 +165,7 @@ async def test_changed_text_does_not_overwrite_the_other_document(lab):
     assert first_version.superseded_at is None
     assert first_version.content_hash == hash_text(TEXT)
     assert changed.document_id != first.document_id
-    units = await lab.rows(TextUnitRecord)
+    units = await lab.units()
     assert next(row for row in units if row.document_id == first.document_id).text == TEXT
 
 

@@ -6,14 +6,15 @@ from unittest.mock import AsyncMock, Mock
 
 from sqlalchemy import select, text
 
-from app.database.models import DocumentVersionRecord, TextUnitRecord
+from app.database.models import DocumentVersionRecord
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
-from app.services.graph_v2.write import resolve_fact, resolve_node
 from app.services.knowledge.scope import customer_scope
 from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.model import TextUnitWrite
 from app.services.overgraph.publish import publish_legal_fact
 from app.services.knowledge.units import hash_text
+from app.services.overgraph.text_units import load_all_domain_text_units
+from app.services.overgraph.write import fact_key
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.canonical_ingest import ingest_lagen_nu_document
 from app.services.lagen_nu.models import SearchResults, ResolvedCitations
@@ -47,7 +48,7 @@ class CachedSource:
     async def snapshot(self):
         async with self.factory() as session:
             versions = list(await session.scalars(select(DocumentVersionRecord)))
-            units = list(await session.scalars(select(TextUnitRecord)))
+            units = load_all_domain_text_units(require_knowledge())
             assert len(versions) == 1 and versions[0].content_hash == hash_text(SOURCE_TEXT)
             assert all(unit.content_hash == hash_text(unit.text) for unit in units)
             return [(unit.id, unit.content_hash, unit.text) for unit in units]
@@ -61,25 +62,30 @@ async def seed_cache(factory) -> CachedSource:
             embeddings=FakeEmbeddingProvider(), vector_store=store,
         )
         scope = customer_scope(1)
-        subject = await resolve_node(session, NodeInput(node_type="legal.source", name=URI, scope=scope))
-        target = await resolve_node(session, NodeInput(node_type="legal.concept", name="Jämkning", scope=scope))
-        fact, _decision = await resolve_fact(session, FactInput(
-            source_id=subject.id, target_id=target.id, scope=scope, predicate="legal.provision",
-            fact_text="36 § avtalslagen avser oskäliga avtalsvillkor",
-            embedding=tuple(fake_embed_text("36 § avtalslagen avser oskäliga avtalsvillkor")),
-            embedding_model=FakeEmbeddingProvider.model,
-            sources=(SourceRef("text_unit", result.segmented.text_units[0].id),),
+        from app.services.overgraph.write import upsert_entity
+
+        catalog = require_knowledge()
+        subject = upsert_entity(catalog, NodeInput(
+            node_type="legal.source", name=URI, scope=scope,
+        ))
+        target = upsert_entity(catalog, NodeInput(
+            node_type="legal.concept", name="Jämkning", scope=scope,
         ))
         unit = result.segmented.text_units[0]
         publish_legal_fact(
             require_knowledge(),
             FactInput(
-                source_id=subject.id, target_id=target.id, scope=scope, predicate="legal.provision",
+                source_id=subject.key, target_id=target.key, scope=scope, predicate="legal.provision",
                 fact_text="36 § avtalslagen avser oskäliga avtalsvillkor",
                 embedding=tuple(fake_embed_text("36 § avtalslagen avser oskäliga avtalsvillkor")),
                 sources=(SourceRef("text_unit", unit.id),),
             ),
-            fact_id=fact.id,
+            fact_id=fact_key(FactInput(
+                source_id=subject.key, target_id=target.key, scope=scope,
+                predicate="legal.provision",
+                fact_text="36 § avtalslagen avser oskäliga avtalsvillkor",
+                sources=(SourceRef("text_unit", unit.id),),
+            ), require_knowledge()),
             source=NodeInput(node_type="legal.source", name=URI, scope=scope),
             target=NodeInput(node_type="legal.concept", name="Jämkning", scope=scope),
             units=[TextUnitWrite(

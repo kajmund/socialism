@@ -6,7 +6,6 @@ from dataclasses import asdict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.graph_v2 import GraphFact, GraphNode
 from app.database.models import (
     EvidenceSetItem,
     ExecutionAttempt,
@@ -17,6 +16,10 @@ from app.database.models import (
     ResearchRuntimeNeed,
 )
 from app.services.execution.reuse_reference import REUSE_KEY
+from app.services.overgraph.answers import ANSWER_TYPE, entity_attributes
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.labels import FACT
+from app.services.overgraph.views import fact_view
 
 
 async def reuse_payloads(
@@ -29,17 +32,6 @@ async def reuse_payloads(
     ]
     if not bound:
         return []
-    rows = (
-        await session.execute(
-            select(GraphFact, GraphNode)
-            .join(
-                GraphNode,
-                GraphNode.id == GraphFact.target_id,
-            )
-            .where(GraphFact.id.in_([ref["answer_fact_id"] for _, ref in bound]))
-        )
-    ).all()
-    answers = {fact.id: (fact, node) for fact, node in rows}
     runs = {
         run.id: run
         for run in await session.scalars(
@@ -48,17 +40,35 @@ async def reuse_payloads(
             )
         )
     }
+    catalog = require_knowledge()
     output = []
     for attempt, ref in bound:
-        fact, node = answers[ref["answer_fact_id"]]
+        parts = await catalog.run(
+            _reuse_answer, catalog, str(ref["answer_fact_id"]),
+            f"customer:{runs[attempt.run_id].customer_id}",
+        )
+        if parts is None:
+            raise RuntimeError("Research reuse reference does not match its frozen result")
+        fact, target = parts
         if (
-            node.attributes["evidence_set_id"] != attempt.evidence_set_id
-            or fact.scope_key != node.scope_key
+            str(target.attributes.get("evidence_set_id") or "") != attempt.evidence_set_id
+            or fact.scope_key != target.scope_key
             or fact.scope_key != f"customer:{runs[attempt.run_id].customer_id}"
         ):
             raise RuntimeError("Research reuse reference does not match its frozen result")
-        output.append((attempt, ref, node.attributes))
+        output.append((attempt, ref, target.attributes))
     return output
+
+
+def _reuse_answer(catalog, fact_id: str, scope_key: str):
+    row = catalog.get_by_key(FACT, fact_id)
+    if row is None:
+        return None
+    fact = fact_view(row)
+    target = entity_attributes(catalog, fact.target_id)
+    if target is None or target.node_type != ANSWER_TYPE or target.scope_key != scope_key:
+        return None
+    return fact, target
 
 
 def evidence_refs(payload: dict) -> list[str]:

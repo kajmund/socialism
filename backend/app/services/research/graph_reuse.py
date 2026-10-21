@@ -75,7 +75,7 @@ async def lookup_graph_evidence(
             break
     log_event(
         logger,
-        "research.graph_v2.retrieval.completed",
+        "research.graph_reuse.completed",
         dataset=EVENT_DATASET_RESEARCH,
         outcome="success",
         fields={

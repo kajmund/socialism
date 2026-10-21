@@ -5,9 +5,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import text
 
-from app.database.graph_v2 import GraphNode
 from app.jev.system import JevClientError
 from app.services.research import execute_attempt_research
 from app.services.research.planner import ResearchObjective
@@ -240,13 +239,14 @@ async def test_cancelled_jev_returns_the_only_connection(reuse_db, monkeypatch):
 
 
 async def test_cycle_is_bounded_and_low_relevance_does_not_prune_other_seeds(reuse_db):
-    from app.services.graph_v2.questions import question_node
     from app.services.graph_v2.types import FactInput, SourceRef
-    from app.services.graph_v2.write import resolve_fact
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import ENTITY, scope_label
+    from app.services.overgraph.questions import upsert_question_entity
+    from app.services.overgraph.write import write_fact
     from app.services.research.result_search import ResultSearch, _traverse
     from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
     from app.services.research.knowledge_question import identity_from_text, tenant_question_scope
-    from app.database.models import KnowledgeQuestionRow
 
     await ready_result(reuse_db)
     async with reuse_db.begin() as session:
@@ -254,23 +254,28 @@ async def test_cycle_is_bounded_and_low_relevance_does_not_prune_other_seeds(reu
         seed = await graph.upsert_question(
             session, identity_from_text("Other 36 § branch"), tenant_question_scope(1)
         )
-        other = await question_node(session, await session.get(KnowledgeQuestionRow, seed.id))
-        answered = await session.scalar(
-            select(GraphNode).where(GraphNode.name == MAIN, GraphNode.node_type == "core.question")
-        )
-        for source, target in ((other, answered), (answered, other)):
-            await resolve_fact(
-                session,
-                FactInput(
-                    source_id=source.id,
-                    target_id=target.id,
-                    predicate="research.decomposed_to",
-                    scope=tenant_question_scope(1).tenant,
-                    fact_text="related questions",
-                    sources=(SourceRef("episode", "test-cycle"),),
-                ),
-            )
-        seeds = [other.id, answered.id]
+    catalog = require_knowledge()
+    scope = tenant_question_scope(1).tenant
+    other = upsert_question_entity(
+        question_id=seed.id, display_text="Other 36 § branch", scope=scope,
+    )
+    answered = next(
+        row
+        for row in catalog.query_nodes(
+            label_filter={"labels": [ENTITY, scope_label(scope.scope_key)], "mode": "all"},
+            limit=500,
+        )[0]
+        if str(row.props.get("name") or "") == MAIN
+    )
+    for source, target in ((other, answered), (answered, other)):
+        write_fact(catalog, FactInput(
+            source_id=source.key, target_id=target.key,
+            predicate="research.decomposed_to", scope=scope,
+            fact_text="related questions",
+            sources=(SourceRef("episode", "test-cycle"),),
+            occurrence_key=f"{source.key}:{target.key}",
+        ))
+    seeds = [str(other.key), str(answered.key)]
     visits = []
 
     async def navigate(_need, _context, edges):

@@ -6,6 +6,7 @@ parser, or anchor system.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -21,10 +22,13 @@ from app.database.models import (
     DocumentSectionRecord,
     DocumentVersionRecord,
     StoredObject,
-    TextUnitRecord,
 )
 from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifact, WorkspaceSource
 from app.services.document_ingest_status import document_text_ready
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.model import TextUnitView
+from app.services.overgraph.research import text_unit_view
+from app.services.overgraph.text_units import load_text_units as load_version_units
 from app.services.workspace.service import require_source
 from app.services.workspace.sources import citation, reference_out, source_version
 from app.services.workspace.tool_arguments import ReadArguments
@@ -168,14 +172,22 @@ async def _sections(session: AsyncSession, source_id: str) -> list[DocumentSecti
     return list(rows.all())
 
 
-async def _units(session: AsyncSession, source_id: str) -> list[TextUnitRecord]:
+async def _units(session: AsyncSession, source_id: str) -> list[TextUnitView]:
     version_ids = _current_versions().where(CanonicalDocumentRecord.source_object_id == source_id)
-    rows = await session.scalars(
-        select(TextUnitRecord)
-        .where(TextUnitRecord.document_version_id.in_(version_ids))
-        .order_by(TextUnitRecord.ordinal)
-    )
-    return list(rows.all())
+    ids = list((await session.scalars(version_ids)).all())
+    catalog = require_knowledge()
+    return await asyncio.to_thread(_load_units_for_versions, catalog, ids)
+
+
+def _load_units_for_versions(catalog, version_ids: list[str]) -> list[TextUnitView]:
+    units: list[TextUnitView] = []
+    for version_id in version_ids:
+        units.extend(
+            text_unit_view(row)
+            for row in load_version_units(catalog, document_version_id=version_id)
+        )
+    units.sort(key=lambda unit: (unit.ordinal, unit.id))
+    return units
 
 
 def unit_on_page(
@@ -191,7 +203,7 @@ def unit_on_page(
     return False
 
 
-def _unit_page(unit: TextUnitRecord) -> int | None:
+def _unit_page(unit: TextUnitView) -> int | None:
     if unit.page_start:
         return unit.page_start
     locator = unit.locator or ""
@@ -397,7 +409,7 @@ async def _exact_hits(
     return [reference_out(ref)]
 
 
-async def _unit_citation(session, workspace, source: StoredObject, unit: TextUnitRecord):
+async def _unit_citation(session, workspace, source: StoredObject, unit: TextUnitView):
     quote = unit.text.strip()
     return await citation(
         session,

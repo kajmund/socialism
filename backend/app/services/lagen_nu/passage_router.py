@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from app.config import settings
-from app.database.models import TextUnitRecord
+from app.services.knowledge.units import TextUnit
 from app.jev.system import (
     HttpJevSystemOne,
     JevClientError,
@@ -59,7 +59,7 @@ class PassageRoutingError(Exception):
 
 @dataclass(frozen=True)
 class RoutedPassages:
-    units: list[TextUnitRecord]
+    units: list[TextUnit]
     interpreter_text: str
     candidate_ids: tuple[str, ...]
     kept_ids: tuple[str, ...]
@@ -74,7 +74,7 @@ class LagenNuPassageRouter(Protocol):
         self,
         *,
         question: str,
-        units: Sequence[TextUnitRecord],
+        units: Sequence[TextUnit],
         embeddings: EmbeddingProvider,
         stored: TextUnitEmbeddingReader,
     ) -> RoutedPassages: ...
@@ -87,7 +87,7 @@ class KeepAllPassageRouter:
         self,
         *,
         question: str,
-        units: Sequence[TextUnitRecord],
+        units: Sequence[TextUnit],
         embeddings: EmbeddingProvider,
         stored: TextUnitEmbeddingReader,
     ) -> RoutedPassages:
@@ -140,7 +140,7 @@ class JevPassageRouter:
         self,
         *,
         question: str,
-        units: Sequence[TextUnitRecord],
+        units: Sequence[TextUnit],
         embeddings: EmbeddingProvider,
         stored: TextUnitEmbeddingReader,
     ) -> RoutedPassages:
@@ -208,7 +208,7 @@ class JevPassageRouter:
     async def _keep_ids(
         self,
         question: str,
-        seeds: Sequence[TextUnitRecord],
+        seeds: Sequence[TextUnit],
     ) -> tuple[list[str], bool]:
         questions = {
             f"relevant_{index}": {
@@ -252,10 +252,10 @@ class JevPassageRouter:
 
 async def rank_text_units(
     question: str,
-    units: Sequence[TextUnitRecord],
+    units: Sequence[TextUnit],
     embeddings: EmbeddingProvider,
     stored: TextUnitEmbeddingReader,
-) -> list[tuple[float, TextUnitRecord]]:
+) -> list[tuple[float, TextUnit]]:
     """Cosine-rank current units with ingest embeddings. Embed the question only."""
     document_ids = {unit.document_id for unit in units}
     version_ids = {unit.document_version_id for unit in units}
@@ -281,15 +281,15 @@ async def rank_text_units(
 
 
 def expand_selected_neighbors(
-    selected: Sequence[TextUnitRecord],
-    units: Sequence[TextUnitRecord],
+    selected: Sequence[TextUnit],
+    units: Sequence[TextUnit],
     *,
     adjacent: int = PASSAGE_NEIGHBOR_SPAN,
-) -> list[TextUnitRecord]:
+) -> list[TextUnit]:
     """Same-section neighbours of the kept seeds. Preserves document order."""
     if adjacent < 0:
         raise ValueError("adjacent must be >= 0")
-    chosen: dict[str, TextUnitRecord] = {}
+    chosen: dict[str, TextUnit] = {}
     for unit in selected:
         same = [item for item in units if item.section_id == unit.section_id]
         same.sort(key=lambda item: (item.ordinal, item.id))

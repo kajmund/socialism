@@ -23,6 +23,37 @@ from tests.research_reuse.probes import capture
 pytestmark = pytest.mark.research_reuse
 
 
+def _answer_facts():
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import FACT, scope_label
+
+    return [
+        node
+        for node in require_knowledge().query_nodes(
+            label_filter={"labels": [FACT, scope_label("customer:1")], "mode": "all"},
+            limit=200,
+        )[0]
+        if str(node.props.get("predicate") or "") == "research.answered_by"
+    ]
+
+
+def _answer_nodes():
+    import json
+
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import ENTITY, scope_label
+
+    rows = require_knowledge().query_nodes(
+        label_filter={"labels": [ENTITY, scope_label("customer:1")], "mode": "all"},
+        limit=500,
+    )[0]
+    return [
+        (row, json.loads(str(row.props.get("attributes_json") or "{}")))
+        for row in rows
+        if str(row.props.get("node_type") or "") == "research.answer"
+    ]
+
+
 async def persisted_basis(factory, *, sufficient=True, sources=("prop-1976", "prop-1995")):
     async with factory.begin() as session:
         row = await attempt(session)
@@ -130,7 +161,6 @@ async def test_main_answer_is_projected_for_the_next_research(reuse_db):
 
 @pytest.mark.parametrize("main_question", [MAIN, "Hur bedöms avtalsvillkor enligt paragraf 36?"])
 async def test_a_second_research_reuses_the_whole_assessed_main_answer(reuse_db, main_question, result_jev):
-    from app.database.graph_v2 import GraphFact, GraphNode
     from app.services.execution import list_runtime_needs, list_evidence_items
     from app.services.research import execute_attempt_research
     from app.services.research.planner import (
@@ -172,11 +202,7 @@ async def test_a_second_research_reuses_the_whole_assessed_main_answer(reuse_db,
             for row in await list_runtime_needs(session, first.id)
             if row.research_need_id == "research-main"
         )
-        facts_before = list(
-            await session.scalars(
-                select(GraphFact).where(GraphFact.predicate == "research.answered_by")
-            )
-        )
+        facts_before = _answer_facts()
         assert facts_before, [
             (r.research_need_id, r.question_key)
             for r in await list_runtime_needs(session, first.id)
@@ -188,7 +214,10 @@ async def test_a_second_research_reuses_the_whole_assessed_main_answer(reuse_db,
         direct = await lookup_question(
             reuse_db, need(question=MAIN, need_id="research-main", question_id=canonical), context()
         )
-        assert direct, [(f.attributes, f.source_id, f.target_id) for f in facts_before]
+        assert direct, [
+            (f.props.get("attributes_json"), f.props.get("source_key"), f.props.get("target_key"))
+            for f in facts_before
+        ]
 
     class SemanticBoundary:
         embedding_metadata = ("mock", "v1", 3)
@@ -236,26 +265,14 @@ async def test_a_second_research_reuses_the_whole_assessed_main_answer(reuse_db,
         # Source provenance remains the original provider on the shared frozen set.
         assert all(item.provider == "mock-public-source" for item in items if item.source_type != "derived")
         await session.commit()
-        answers = list(
-            await session.scalars(select(GraphNode).where(GraphNode.node_type == "research.answer"))
-        )
-        assert any(row.attributes["assessment"]["sufficient"] for row in answers)
-        assert (
-            len(
-                list(
-                    await session.scalars(
-                        select(GraphFact).where(GraphFact.predicate == "research.answered_by")
-                    )
-                )
-            )
-            >= 3
-        )
+        assessments = [attributes.get("assessment", {}) for _row, attributes in _answer_nodes()]
+        assert any(item.get("sufficient") for item in assessments)
+        assert len(_answer_facts()) >= 3
 
 
 @pytest.mark.parametrize("sufficient", [True, False])
 async def test_graph_answer_preserves_status_all_sources_and_context(reuse_db, sufficient):
     from dataclasses import replace
-    from app.database.graph_v2 import GraphFact, GraphNode
     from app.database.models import KnowledgeQuestionRow
     from app.services.research.graph_lookup import lookup_question
     from tests.research_reuse.helpers import context
@@ -266,27 +283,19 @@ async def test_graph_answer_preserves_status_all_sources_and_context(reuse_db, s
         canonical = await session.scalar(
             select(KnowledgeQuestionRow).where(KnowledgeQuestionRow.display_text == MAIN)
         )
-        nodes = list(
-            await session.scalars(select(GraphNode).where(GraphNode.node_type == "research.answer"))
+        def _answer_fact_ids() -> set[str]:
+            return {str(node.key) for node in _answer_facts()}
+
+        nodes = _answer_nodes()
+        main, attributes = next(
+            (row, attrs) for row, attrs in nodes if str(row.props.get("name") or "") == MAIN
         )
-        main = next(row for row in nodes if row.name == MAIN)
-        assert main.attributes["assessment"]["sufficient"] is sufficient
-        assert len(main.attributes["basis"]) == 2
-        assert main.attributes["assessment"]["needs"][0]["supporting_evidence_ids"]
-        first_ids = set(
-            await session.scalars(
-                select(GraphFact.id).where(GraphFact.predicate == "research.answered_by")
-            )
-        )
+        assert attributes["assessment"]["sufficient"] is sufficient
+        assert len(attributes["basis"]) == 2
+        assert attributes["assessment"]["needs"][0]["supporting_evidence_ids"]
+        first_ids = _answer_fact_ids()
         await capture_answer_reviews(session, attempt_id=attempt_id, evidence_set_id=set_id)
-        assert (
-            set(
-                await session.scalars(
-                    select(GraphFact.id).where(GraphFact.predicate == "research.answered_by")
-                )
-            )
-            == first_ids
-        )
+        assert _answer_fact_ids() == first_ids
         canonical_id = canonical.id
     question = need(question=MAIN, question_id=canonical_id)
     correct = context()
