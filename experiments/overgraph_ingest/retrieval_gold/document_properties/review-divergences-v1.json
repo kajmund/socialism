@@ -1,0 +1,205 @@
+{
+  "id": "review-divergences-v1",
+  "version": "v1",
+  "status": "pending_review",
+  "description": "Four cases where the Jev property-verification run and the preliminary AI review disagree, plus the one case Jev missed. For independent human review. The frozen taxonomy, gold, and discovery are unchanged.",
+  "source": {
+    "preliminary_review": "review-false-positives-sample-v1.ai-preliminary-review.json",
+    "jev_run": "phase2-jev-property-verification-v1"
+  },
+  "count": 4,
+  "entries": [
+    {
+      "case_id": "termination_notice:Avtal_97_Skuldebrev.docx",
+      "kind": "jev_missed_error",
+      "gold_id": "notice-period",
+      "property_class": "termination_notice",
+      "relative_path": "Avtal_97_Skuldebrev.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "f98e38eb2a48b805fdd771862b4d5945814890711118597d69a836aded9435e3",
+          "excerpt": "säga upp",
+          "unit_text": "6.2 Om Gäldenären är mer än 60 dagar sen med en betalning, och inte har fått uppskov enligt punkt 5, får Borgenären säga upp hela den återstående skulden till omedelbar betalning.\n",
+          "clause_title": "6.2 Om Gäldenären är mer än 60 dagar sen med en betalning, och inte har fått uppskov enligt punkt 5, får Borgenären säga upp hela den återstående skulden till omedelbar betalning.",
+          "previous_text": "6.1 Om Gäldenären inte betalar i tid utgår dröjsmålsränta enligt räntelagen.\n",
+          "next_text": "7. Kvitton\nBorgenären ska på begäran lämna kvitto på betalningar. När lånet är fullt betalt ska Borgenären återlämna skuldebrevet med en anteckning om att skulden är betald.\n"
+        }
+      ],
+      "preliminary_review": {
+        "property_judgment": "no",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_relation_or_polarity",
+        "note": "AI-preliminär: Acceleration vid dröjsmål, inte uppsägningstid."
+      },
+      "jev_verdict": {
+        "verdict": "SUPPORTED",
+        "effective": "SUPPORTED",
+        "source_valid": true,
+        "source_unit_key": "f98e38eb2a48b805fdd771862b4d5945814890711118597d69a836aded9435e3"
+      },
+      "unsupported_two_meanings": "UNSUPPORTED är tvetydigt: (a) dokumentet saknar egenskapen, eller (b) Jev fick inte den klausul som faktiskt bevisar egenskapen.",
+      "question_for_reviewer": "Är detta en uppsägningstid (Jev SUPPORTED) eller enbart en accelerationsklausul vid dröjsmål (preliminärt wrong_relation_or_polarity)?",
+      "resolution_hypotheses": [
+        "Preliminärt fel korrekt: acceleration är inte uppsägningstid; Jev misstolkade.",
+        "Jev korrekt: det finns en faktisk uppsägningsbestämmelse som citeringen visar."
+      ],
+      "proposed_definition_clarification": null,
+      "review": {
+        "property_judgment": null,
+        "citation_judgment": null,
+        "resolution": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "personal_data_processing:Avtal_11_Distansarbetsavtal.docx",
+      "kind": "jev_gold_gap_disagreement",
+      "gold_id": "personal-data",
+      "property_class": "personal_data_processing",
+      "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "751c7731dff8f9115c1ab7a1a6a4731ffd8df2cd60a2b39e1bb708fbfdb4a984",
+          "excerpt": "personuppgift",
+          "unit_text": "6.3 Säkerhetsincidenter och misstänkta personuppgiftsincidenter ska rapporteras omedelbart till [kontaktperson]. Det är viktigt eftersom anmälan till IMY ska göras inom 72 timmar.\n",
+          "clause_title": "6.3 Säkerhetsincidenter och misstänkta personuppgiftsincidenter ska rapporteras omedelbart till [kontaktperson]. Det är viktigt eftersom anmälan till IMY ska göras inom 72 timmar.",
+          "previous_text": "6.2 Konfidentiella handlingar ska förvaras så att obehöriga inte kan ta del av dem.\n",
+          "next_text": "7. Försäkring\nArbetsgivaren upplyser om att [företagsförsäkring/hemförsäkring/arbetsskadeförsäkring] gäller enligt sina villkor. Arbetstagaren uppmanas kontrollera sin egen hemförsäkring.\n"
+        }
+      ],
+      "preliminary_review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Personuppgiftsincidenter regleras med rapporteringsplikt."
+      },
+      "jev_verdict": {
+        "verdict": "UNSUPPORTED",
+        "effective": "UNSUPPORTED",
+        "source_valid": true,
+        "source_unit_key": "751c7731dff8f9115c1ab7a1a6a4731ffd8df2cd60a2b39e1bb708fbfdb4a984"
+      },
+      "unsupported_two_meanings": "UNSUPPORTED är tvetydigt: (a) dokumentet saknar egenskapen, eller (b) Jev fick inte den klausul som faktiskt bevisar egenskapen.",
+      "question_for_reviewer": "Har dokumentet faktiskt egenskapen (preliminärt gold_gap), eller är Jevs UNSUPPORTED korrekt för att klausulen bara omnämner personuppgifter utan att reglera behandlingen?",
+      "resolution_hypotheses": [
+        "Preliminärt gold_gap korrekt: dokumentet reglerar personuppgiftsbehandling; Jevs definition är för snäv.",
+        "Jev korrekt: bara omnämnande/incidentrapportering/biträdeshänvisning, inte en operativ reglering."
+      ],
+      "proposed_definition_clarification": "Förslag (ej fryst): Egenskapen föreligger endast om dokumentet innehåller en operativ bestämmelse som upprättar eller reglerar behandling av personuppgifter (t.ex. biträdesklausul, ändamål/rättslig grund, lagring/radering). Enbart omnämnande av en biträdesrelation, en incidentrapporteringsskyldighet eller sekretess över personuppgifter är inte tillräckligt.",
+      "review": {
+        "property_judgment": null,
+        "citation_judgment": null,
+        "resolution": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "personal_data_processing:Avtal_59_Agilt_IT_konsultavtal.docx",
+      "kind": "jev_gold_gap_disagreement",
+      "gold_id": "personal-data",
+      "property_class": "personal_data_processing",
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "d5550d1e4520524a58a635a43c3e533112ed22e73a45897bc7aab8f2174569f2",
+          "excerpt": "personuppgift",
+          "unit_text": "8. Sekretess, personuppgifter och patientdata\n",
+          "clause_title": "8. Sekretess, personuppgifter och patientdata",
+          "previous_text": "7. Rättigheter\nAll kod, dokumentation och annat resultat som Teamet tar fram tillhör DevBrains när det har skapats, och omfattas av DevBrains åtaganden mot Vindö Vårdcenter AB enligt avtal 48. Leverantören ska se till att konsulterna har överlåtit sina rättigheter till Leverantören.\n",
+          "next_text": "8.1 Leverantören och konsulterna ska följa sekretess om DevBrains och Kundprojektet. Varje konsult ska underteckna en personlig sekretessförbindelse.\n"
+        },
+        {
+          "unit_key": "d77de63b102e8c39aab8e137d16dbe95e4ea31eac42baa9917e11556dd02494e",
+          "excerpt": "personuppgift",
+          "unit_text": "8.2 Leverantören är underbiträde till DevBrains i den mån Teamet behandlar personuppgifter. Underbiträdesavtalet till avtal 36 gäller i tillämpliga delar. Testdata ska vara pseudonymiserade. Teamet får inte ta del av riktiga patientuppgifter utan särskilt beslut.\n",
+          "clause_title": "8.2 Leverantören är underbiträde till DevBrains i den mån Teamet behandlar personuppgifter. Underbiträdesavtalet till avtal 36 gäller i tillämpliga delar. Testdata ska vara pseudonymiserade. Teamet får inte ta del av riktiga patientuppgifter utan särskilt beslut.",
+          "previous_text": "8.1 Leverantören och konsulterna ska följa sekretess om DevBrains och Kundprojektet. Varje konsult ska underteckna en personlig sekretessförbindelse.\n",
+          "next_text": "9. Värvningsförbud\nIngen av parterna får under avtalstiden och sex (6) månader därefter aktivt värva den andra partens personal som har arbetat i Kundprojektet.\n"
+        }
+      ],
+      "preliminary_review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Underbiträdes-/personuppgiftsbehandling regleras."
+      },
+      "jev_verdict": {
+        "verdict": "UNSUPPORTED",
+        "effective": "UNSUPPORTED",
+        "source_valid": true,
+        "source_unit_key": "d5550d1e4520524a58a635a43c3e533112ed22e73a45897bc7aab8f2174569f2"
+      },
+      "unsupported_two_meanings": "UNSUPPORTED är tvetydigt: (a) dokumentet saknar egenskapen, eller (b) Jev fick inte den klausul som faktiskt bevisar egenskapen.",
+      "question_for_reviewer": "Har dokumentet faktiskt egenskapen (preliminärt gold_gap), eller är Jevs UNSUPPORTED korrekt för att klausulen bara omnämner personuppgifter utan att reglera behandlingen?",
+      "resolution_hypotheses": [
+        "Preliminärt gold_gap korrekt: dokumentet reglerar personuppgiftsbehandling; Jevs definition är för snäv.",
+        "Jev korrekt: bara omnämnande/incidentrapportering/biträdeshänvisning, inte en operativ reglering."
+      ],
+      "proposed_definition_clarification": "Förslag (ej fryst): Egenskapen föreligger endast om dokumentet innehåller en operativ bestämmelse som upprättar eller reglerar behandling av personuppgifter (t.ex. biträdesklausul, ändamål/rättslig grund, lagring/radering). Enbart omnämnande av en biträdesrelation, en incidentrapporteringsskyldighet eller sekretess över personuppgifter är inte tillräckligt.",
+      "review": {
+        "property_judgment": null,
+        "citation_judgment": null,
+        "resolution": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "personal_data_processing:Avtal_73_Volontaravtal.docx",
+      "kind": "jev_gold_gap_disagreement",
+      "gold_id": "personal-data",
+      "property_class": "personal_data_processing",
+      "relative_path": "Avtal_73_Volontaravtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "9619c12b63fc89d8e5eaebab8b2e4d1de67b839dd9c2b9926cbcc9631e7cee39",
+          "excerpt": "personuppgift",
+          "unit_text": "8. Tystnadsplikt och personuppgifter\n",
+          "clause_title": "8. Tystnadsplikt och personuppgifter",
+          "previous_text": "7. Försäkring\nVolontären omfattas av [IK Stjärnfalls olycksfallsförsäkring för ledare / DevBrains försäkring för volontärer hos Försäkrings AB Värnet] vid aktiviteter inom Kodklubben, inklusive resor till och från.\n",
+          "next_text": "8.1 Volontären ska iaktta tystnadsplikt om personliga förhållanden som rör barnen och deras familjer, och om DevBrains interna förhållanden.\n"
+        },
+        {
+          "unit_key": "ab0d5afff2be6a201841e9e28429cab58d8d4133d7d777eb8c7c479a9504df97",
+          "excerpt": "GDPR",
+          "unit_text": "8.2 DevBrains behandlar Volontärens namn, kontaktuppgifter och uppgift om att utdrag ur belastningsregistret har visats, för att administrera uppdraget, med stöd av avtal och berättigat intresse enligt GDPR. Uppgifterna raderas tolv (12) månader efter att uppdraget har upphört.\n",
+          "clause_title": "8.2 DevBrains behandlar Volontärens namn, kontaktuppgifter och uppgift om att utdrag ur belastningsregistret har visats, för att administrera uppdraget, med stöd av avtal och berättigat intresse enligt GDPR. Uppgifterna raderas tolv (12) månader efter att uppdraget har upphört.",
+          "previous_text": "8.1 Volontären ska iaktta tystnadsplikt om personliga förhållanden som rör barnen och deras familjer, och om DevBrains interna förhållanden.\n",
+          "next_text": "8.3 Bilder på barn får endast tas och publiceras om vårdnadshavare har lämnat samtycke.\n"
+        }
+      ],
+      "preliminary_review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Behandling, rättslig grund och lagringstid anges."
+      },
+      "jev_verdict": {
+        "verdict": "UNSUPPORTED",
+        "effective": "UNSUPPORTED",
+        "source_valid": true,
+        "source_unit_key": "9619c12b63fc89d8e5eaebab8b2e4d1de67b839dd9c2b9926cbcc9631e7cee39"
+      },
+      "unsupported_two_meanings": "UNSUPPORTED är tvetydigt: (a) dokumentet saknar egenskapen, eller (b) Jev fick inte den klausul som faktiskt bevisar egenskapen.",
+      "question_for_reviewer": "Har dokumentet faktiskt egenskapen (preliminärt gold_gap), eller är Jevs UNSUPPORTED korrekt för att klausulen bara omnämner personuppgifter utan att reglera behandlingen?",
+      "resolution_hypotheses": [
+        "Preliminärt gold_gap korrekt: dokumentet reglerar personuppgiftsbehandling; Jevs definition är för snäv.",
+        "Jev korrekt: bara omnämnande/incidentrapportering/biträdeshänvisning, inte en operativ reglering."
+      ],
+      "proposed_definition_clarification": "Förslag (ej fryst): Egenskapen föreligger endast om dokumentet innehåller en operativ bestämmelse som upprättar eller reglerar behandling av personuppgifter (t.ex. biträdesklausul, ändamål/rättslig grund, lagring/radering). Enbart omnämnande av en biträdesrelation, en incidentrapporteringsskyldighet eller sekretess över personuppgifter är inte tillräckligt.",
+      "review": {
+        "property_judgment": null,
+        "citation_judgment": null,
+        "resolution": null,
+        "note": ""
+      }
+    }
+  ]
+}
