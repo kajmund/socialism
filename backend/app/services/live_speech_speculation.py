@@ -31,8 +31,10 @@ class SpeculativeReader:
 
     Only the latest stable partial runs; a newer partial cancels the previous
     task. Independent read-only tools run in parallel with a concurrency cap.
-    Results are reusable when the final question extends the prefetch, the
-    scope/permission version still matches, and the entry has not expired.
+    Results are reusable when the final question is the same normalized
+    query, a freshly loaded workspace state still matches the prefetch
+    permission version, and the entry has not expired. Search results are
+    not reused for a longer query: extra constraints are not monotonic.
     """
 
     def __init__(
@@ -85,10 +87,14 @@ class SpeculativeReader:
         self._ready_at = None
         self._task = asyncio.create_task(self._run(query))
 
-    def matches(self, final_text: str) -> dict[tuple[str, str], str] | None:
+    def matches(
+        self,
+        final_text: str,
+        workspace_state: object | None = None,
+    ) -> dict[tuple[str, str], str] | None:
         if not self._enabled or not self._results:
             return None
-        if not self._reuse_allowed(final_text):
+        if not self._reuse_allowed(final_text, workspace_state):
             return None
         self._bump("cache_hits")
         if self._ready_at is not None:
@@ -105,15 +111,20 @@ class SpeculativeReader:
             self._bump("wasted")
             await asyncio.gather(task, return_exceptions=True)
 
-    def _reuse_allowed(self, final_text: str) -> bool:
+    def _reuse_allowed(
+        self,
+        final_text: str,
+        workspace_state: object | None,
+    ) -> bool:
         final_query = normalize_query(final_text)
-        if permission_version(self._workspace_state) != self._version:
+        current_state = workspace_state if workspace_state is not None else self._workspace_state
+        if permission_version(current_state) != self._version:
             self._bump("rejected_mismatch")
             return False
         if self._ready_at is not None and monotonic() - self._ready_at > self._ttl_s:
             self._bump("wasted")
             return False
-        if not self._query or not query_extends(self._query, final_query):
+        if not self._query or final_query != self._query:
             if final_query and query_extends(final_query, self._query):
                 self._bump("incorrect")
             else:

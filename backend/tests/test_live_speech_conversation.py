@@ -348,6 +348,56 @@ def _runtime(
     )
 
 
+async def test_late_provider_final_does_not_start_the_new_turn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started: list[tuple[str, str]] = []
+    runtime = _runtime()
+
+    async def begin(item_id: str, text: str) -> None:
+        started.append((item_id, text))
+
+    async def commit() -> None:
+        return None
+
+    monkeypatch.setattr(runtime, "_begin_turn", begin)
+    monkeypatch.setattr(runtime._stt, "commit", commit)
+    await runtime.audio_started(1)
+    await runtime.commit_audio(2)
+    await runtime.audio_started(3)
+    await runtime.commit_audio(4)
+    from app.services.openai_live_transcription import TranscriptEvent
+
+    await runtime._on_transcript(
+        TranscriptEvent(kind="final", item_id="late-a", text="gammal fråga", code=None)
+    )
+    assert started == []
+
+
+async def test_provider_final_starts_a_turn_for_the_current_commit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started: list[tuple[str, str]] = []
+    runtime = _runtime()
+
+    async def begin(item_id: str, text: str) -> None:
+        started.append((item_id, text))
+
+    async def commit() -> None:
+        return None
+
+    monkeypatch.setattr(runtime, "_begin_turn", begin)
+    monkeypatch.setattr(runtime._stt, "commit", commit)
+    await runtime.audio_started(1)
+    await runtime.commit_audio(2)
+    from app.services.openai_live_transcription import TranscriptEvent
+
+    await runtime._on_transcript(
+        TranscriptEvent(kind="final", item_id="prov-a", text="vilka avtal", code=None)
+    )
+    assert started == [("prov-a", "vilka avtal")]
+
+
 async def test_stopp_interrupts_the_active_turn(monkeypatch: pytest.MonkeyPatch) -> None:
     events: list[dict] = []
     runtime = _runtime(events)

@@ -26,7 +26,7 @@ def test_speculative_result_for_looks_up_query_and_tool():
         assert speculative_result_for("create_document", {"query": "vilka avtal?"}) is None
 
 
-def test_speculative_result_for_reuses_when_final_extends_partial():
+def test_speculative_result_for_does_not_reuse_an_extended_query():
     mapping = {("find_documents", "vilka avtal"): '{"status":"completed"}'}
     with speculative_results(mapping):
         assert (
@@ -34,7 +34,7 @@ def test_speculative_result_for_reuses_when_final_extends_partial():
                 "find_documents",
                 {"query": "Vilka avtal löper ut nästa kvartal?"},
             )
-            == '{"status":"completed"}'
+            is None
         )
 
 
@@ -73,7 +73,7 @@ async def test_reader_drops_mismatched_final(monkeypatch: pytest.MonkeyPatch):
     await reader.aclose()
 
 
-async def test_reader_reuses_an_extended_final(monkeypatch: pytest.MonkeyPatch):
+async def test_reader_refuses_an_extended_final(monkeypatch: pytest.MonkeyPatch):
     async def fake_tool(_call, _work):
         return '{"status":"completed"}'
 
@@ -83,9 +83,27 @@ async def test_reader_reuses_an_extended_final(monkeypatch: pytest.MonkeyPatch):
     )
     reader.on_partial("Vilka avtal")
     await asyncio.sleep(0.01)
-    reused = reader.matches("Vilka avtal löper ut nästa kvartal?")
-    assert reused is not None
-    assert reader.stats["cache_hits"] == 1
+    assert reader.matches("Vilka avtal löper ut nästa kvartal?") is None
+    assert reader.stats["rejected_mismatch"] == 1
+    await reader.aclose()
+
+
+async def test_reader_rejects_stale_workspace_permissions(monkeypatch: pytest.MonkeyPatch):
+    async def fake_tool(_call, _work):
+        return '{"status":"completed"}'
+
+    monkeypatch.setattr(ls, "run_workspace_tool_call", fake_tool)
+    reader = ls.SpeculativeReader(
+        workspace_id="ws",
+        user_id="u",
+        workspace_state={"readable": True},
+        min_chars=4,
+        enabled=True,
+    )
+    reader.on_partial("Vilka avtal löper ut?")
+    await asyncio.sleep(0.01)
+    assert reader.matches("Vilka avtal löper ut?", {"readable": False}) is None
+    assert reader.stats["rejected_mismatch"] == 1
     await reader.aclose()
 
 

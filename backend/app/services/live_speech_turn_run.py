@@ -47,7 +47,7 @@ async def run_voice_turn(runtime: LiveSpeechRuntime, turn_id: str, text: str) ->
         with (
             bind_tool_progress(runtime._cues.on_tool_progress),
             bind_turn_cancel(runtime._turn_cancel),
-            speculative_results(runtime._speculation.matches(text)),
+            speculative_results(runtime._speculation.matches(text, workspace_state)),
             bound_amendment_channel(runtime),
         ):
             done = await execute_expert_turn(
