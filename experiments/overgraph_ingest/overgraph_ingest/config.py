@@ -166,6 +166,35 @@ class IngestConfig:
     document_tags_run: bool = False
     document_tags_lifecycle: bool = False
     document_tags_close: bool = False
+    bm25_compare: bool = False
+    bm25_scope: str = "both"
+    bm25_analyzer: str = "sv_stem_v1"
+    bm25_index_dir: Path | None = None
+    bm25_branch_depth: int = 100
+    bm25_local_ks: tuple[int, ...] = (1, 3, 5, 10)
+    bm25_paging: bool = False
+    bm25_page_size: int = 20
+    bm25_answer_test: bool = False
+    bm25_candidates: Path | None = None
+    bm25_repeats: int = 20
+    bm25_gold_dir: Path | None = None
+    bm25_question_gold: Path | None = None
+    bm25_rebuild_index: bool = False
+    discovery_test: bool = False
+    document_properties: bool = False
+    property_track: str = "structure"
+    property_taxonomy: Path | None = None
+    property_gold_mapping: Path | None = None
+    property_bm25_run: Path | None = None
+    jev_property_verification: bool = False
+    jev_property_review: Path | None = None
+    jev_end_to_end: bool = False
+    jev_local_k: int = 5
+    jev_local_abc: bool = False
+    jev_local_baseline: Path | None = None
+    jev_evidence_queries: Path | None = None
+    jev_presentation: bool = False
+    jev_validation: bool = False
     freeze_baseline: bool = False
 
     def resolved_cache_dir(self) -> Path:
