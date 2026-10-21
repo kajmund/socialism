@@ -1,0 +1,17 @@
+{
+  "id": "evidence-queries-v1",
+  "version": "v1",
+  "description": "Arm C evidence descriptions for the local dense A/B/C experiment. Derived from the frozen taxonomy definitions, not from missed documents or gold.",
+  "provenance": "Derived from taxonomy-v1.json definitions. Frozen; do not change from experiment results.",
+  "queries": {
+    "governing_law": "En bestämmelse som anger vilket lands lag som gäller eller vilken domstol som avgör tvister.",
+    "confidentiality_obligation": "En bestämmelse som ålägger en part tystnadsplikt eller förbud att röja konfidentiell information.",
+    "termination_notice": "En bestämmelse som anger uppsägningstid, varsel eller hur avtalet kan sägas upp.",
+    "automatic_renewal": "En bestämmelse om att avtalet förlängs automatiskt om det inte sägs upp i tid.",
+    "liability_limitation": "En bestämmelse som begränsar eller utesluter skadeståndsansvar.",
+    "liability_secrecy_carveout": "En bestämmelse om att ansvarsbegränsningen inte gäller vid brott mot sekretess.",
+    "force_majeure": "En bestämmelse som befriar en part från skyldigheter vid oförutsedda omständigheter utanför partens kontroll.",
+    "personal_data_processing": "En bestämmelse som reglerar behandling av personuppgifter, t.ex. biträde, ändamål eller lagring.",
+    "assignment_restriction": "En bestämmelse som förbjuder eller begränsar överlåtelse av rättigheter eller av avtalet."
+  }
+}

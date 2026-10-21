@@ -8,6 +8,7 @@ dependencies = [
     "overgraph==0.17.0",
     "pymupdf==1.26.5",
     "python-docx==1.2.0",
+    "tantivy==0.26.2",
 ]
 
 [project.scripts]

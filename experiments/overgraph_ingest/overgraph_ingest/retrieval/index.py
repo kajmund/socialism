@@ -25,6 +25,7 @@ class StoredUnit:
     char_end: int | None = None
     content_hash: str = ""
     props: dict[str, object] = field(default_factory=dict)
+    collection_id: str = ""
 
 
 @dataclass
@@ -34,12 +35,12 @@ class IndexStats:
 
 
 def load_published_units(writer: GraphWriter) -> list[StoredUnit]:
-    paths = _document_paths(writer)
+    documents = _document_scope(writer)
     units: list[StoredUnit] = []
     for node in writer.iter_nodes(TEXT_UNIT):
         props = dict(node.props)
         document_id = str(props.get("document_id") or "")
-        relative_path = paths.get(document_id, "")
+        relative_path, collection_id = documents.get(document_id, ("", ""))
         if not relative_path:
             continue
         dense = _vector(getattr(node, "dense_vector", None))
@@ -59,6 +60,7 @@ def load_published_units(writer: GraphWriter) -> list[StoredUnit]:
                 char_end=_optional_int(props.get("char_end")),
                 content_hash=str(props.get("content_hash") or ""),
                 props=props,
+                collection_id=collection_id,
             )
         )
     return units
@@ -131,13 +133,16 @@ def encode_unit_vectors(
     return stats, payloads
 
 
-def _document_paths(writer: GraphWriter) -> dict[str, str]:
-    paths: dict[str, str] = {}
+def _document_scope(writer: GraphWriter) -> dict[str, tuple[str, str]]:
+    documents: dict[str, tuple[str, str]] = {}
     for node in writer.iter_nodes(DOCUMENT):
         props = dict(node.props)
         document_id = str(props.get("document_id") or node.key)
-        paths[document_id] = str(props.get("relative_path") or "")
-    return paths
+        documents[document_id] = (
+            str(props.get("relative_path") or ""),
+            str(props.get("collection_id") or ""),
+        )
+    return documents
 
 
 def _vector(raw: Any) -> list[float] | None:
