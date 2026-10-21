@@ -772,7 +772,9 @@ def _performance(samples: list[Sample]) -> dict[str, Any]:
     ]
     runs = sorted({row.run_index for row in samples})
     by_key = {
-        (row.run_index, row.question_id, row.repeat): row.wall_ms for row in samples
+        (row.run_index, row.question_id, row.repeat): row.wall_ms
+        for row in samples
+        if row.arm == "baseline"
     }
     baseline_median_by_run = {
         run_index: _median(
