@@ -11,11 +11,9 @@ from app.database.base import Base
 from app.database.models import (
     CanonicalDocumentRecord,
     KnowledgeClaimAnswer,
-    KnowledgeClaimRecord,
     KnowledgeEntityRecord,
     KnowledgeQuestionRow,
     Kund,
-    TextUnitRecord,
 )
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
 from app.services.knowledge.claims import (
@@ -56,6 +54,7 @@ from app.services.knowledge.relationships import (
     persist_knowledge_relationship,
     relationships_touching,
 )
+from tests.text_unit_fakes import all_graph_views, version_graph_units
 from app.services.knowledge.scope import (
     SCOPE_SHARED,
     KnowledgeScopeError,
@@ -174,15 +173,7 @@ async def _claim_for_doc(
     value: dict[str, object],
     scope_type: str = "customer",
 ) -> KnowledgeClaim:
-    units = list(
-        (
-            await session.execute(
-                select(TextUnitRecord).where(
-                    TextUnitRecord.document_version_id == persisted.version.id
-                )
-            )
-        ).scalars().all()
-    )
+    units = version_graph_units(persisted.version.id)
     claim = KnowledgeClaim(
         id=knowledge_claim_id(
             scope_key="shared" if scope_type == "shared" else f"customer:{customer_id}",
@@ -228,7 +219,7 @@ async def test_customer_document_is_not_readable_or_reused_by_other_customer(
     rows = list((await session.execute(select(CanonicalDocumentRecord))).scalars().all())
     assert {row.customer_id for row in rows} == {1, 2}
     assert other.document.id == "contract-b"
-    units = list((await session.execute(select(TextUnitRecord))).scalars().all())
+    units = all_graph_views()
     assert {row.customer_id for row in units} == {1, 2}
 
 
@@ -323,15 +314,7 @@ async def test_missing_customer_id_cannot_promote_private_claim_to_global(
         require_persist_scope(customer_id=None)
     with pytest.raises(KnowledgeScopeRequiredError):
         KnowledgeScope()
-    units = list(
-        (
-            await session.execute(
-                select(TextUnitRecord).where(
-                    TextUnitRecord.document_id == persisted.document.id
-                )
-            )
-        ).scalars().all()
-    )
+    units = version_graph_units(persisted.version.id)
     with pytest.raises(KnowledgeScopeError):
         KnowledgeClaim(
             id="claim-missing-scope",
@@ -456,13 +439,19 @@ async def test_private_claim_may_reference_shared_entity_without_becoming_global
             to_id=volvo.id,
         ),
     )
-    stored_claim = await session.get(KnowledgeClaimRecord, claim.id)
-    assert stored_claim is not None
-    assert stored_claim.scope_type == "customer"
-    assert stored_claim.customer_id == 1
-    assert edge.scope_type == "customer"
-    assert edge.customer_id == 1
-    assert await session.get(KnowledgeEntityRecord, volvo.id)
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.legal_claims import claim_in_graph
+
+    node = claim_in_graph(
+        require_knowledge(), scope_key="customer:1", identity=claim.id,
+    )
+    assert node is not None
+    assert node.props["scope_key"] == "customer:1"
+    assert edge.id
+    from app.services.overgraph.catalogs import require_knowledge
+
+    assert await session.get(KnowledgeEntityRecord, volvo.id) is None
+    assert require_knowledge().get_by_key("Entity", volvo.id) is not None
     assert (
         await lookup_knowledge_entity(
             session, customer_id=1, entity_type="org", key="volvo ab"
@@ -715,7 +704,7 @@ async def test_ingest_keeps_embeddings_and_units_in_the_same_scope(
         vector_store=store,
     )
     assert result.status == "indexed"
-    units = list((await session.execute(select(TextUnitRecord))).scalars().all())
+    units = all_graph_views()
     assert {unit.scope_type for unit in units} == {"customer"}
     assert {unit.customer_id for unit in units} == {1}
     hits = await store.search(
@@ -749,7 +738,16 @@ async def test_answered_by_rows_are_tenant_scoped(session: AsyncSession):
         claim_ids=[claim.id],
         source_type="upload",
     )
-    rows = list((await session.execute(select(KnowledgeClaimAnswer))).scalars().all())
-    assert len(rows) == 1
-    assert rows[0].scope_type == "customer"
-    assert rows[0].customer_id == 1
+    from sqlalchemy import func
+
+    assert await session.scalar(select(func.count()).select_from(KnowledgeClaimAnswer)) == 0
+    # The same link must be readable from the graph, tenant-filtered.
+    from app.services.overgraph.claim_answers import claim_answers_for_question
+    from app.services.overgraph.catalogs import require_knowledge
+
+    catalog = require_knowledge()
+    own = claim_answers_for_question(catalog, customer_id=1, question_key="q-private")
+    other = claim_answers_for_question(catalog, customer_id=2, question_key="q-private")
+    assert [node.key for node in own] == [claim.id]
+    assert other == []
+

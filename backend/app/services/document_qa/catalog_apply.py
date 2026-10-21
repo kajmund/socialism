@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 from sqlalchemy import update
@@ -17,8 +18,9 @@ from app.services.document_qa.outbox import require_owned_ids
 from app.services.document_qa.tenants import require_tenant_catalogs
 from app.services.graph_v2.errors import PermanentGraphError
 from app.services.knowledge.embeddings import EmbeddingProvider
-from app.services.knowledge.persistence import text_unit_from_record, text_units_for_version
 from app.services.knowledge.units import TextUnit
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.text_units import load_domain_text_units
 
 
 async def apply_document_catalog_work(
@@ -68,10 +70,9 @@ async def _load(
         await require_owned_ids(session, customer_id, document_id, version_id)
         document = await session.get(CanonicalDocumentRecord, document_id)
         title = document.title if document is not None else document_id
-        units = tuple(
-            text_unit_from_record(item)
-            for item in await text_units_for_version(session, version_id)
-        )
+        units = tuple(await asyncio.to_thread(
+            load_domain_text_units, require_knowledge(), document_version_id=version_id,
+        ))
         if not units:
             raise PermanentGraphError("document catalog write has no TextUnits")
         return customer_id, document_id, version_id, units, title

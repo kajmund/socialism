@@ -8,13 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database.base import Base
-from app.database.models import CanonicalDocumentRecord, Kund, TextUnitRecord
+from app.database.models import CanonicalDocumentRecord, Kund
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
 from app.services.lagen_nu.models import ResolvedCitations, SearchResults
 from app.services.lagen_nu.passage_router import KeepAllPassageRouter
 from app.services.lagen_nu.registration import LAGEN_NU_PROVIDER_ID
 from app.services.lagen_nu.research_source import LagenNuResearchSource
 from app.services.lagen_nu.text_unit_research import LagenNuResearchKnowledgeError
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.text_units import load_all_domain_text_units
 from tests.knowledge_fakes import FakeEmbeddingProvider
 from tests.test_lagen_nu_provider import (
     FakeLagenNuClient,
@@ -75,7 +77,7 @@ async def test_research_ingests_and_grounds_evidence_in_text_units(session: Asyn
         _context(),
     )
     await session.flush()
-    units = list((await session.execute(select(TextUnitRecord))).scalars().all())
+    units = load_all_domain_text_units(require_knowledge())
     documents = list((await session.execute(select(CanonicalDocumentRecord))).scalars().all())
     fetches = [args for name, args in client.calls if name == "get_document"]
     assert [item.status for item in evidence] == ["found"]
@@ -107,7 +109,7 @@ async def test_second_research_reuses_text_units_without_mcp_fetch(session: Asyn
     await session.flush()
     fetches = [args for name, args in client.calls if name == "get_document"]
     documents = list((await session.execute(select(CanonicalDocumentRecord))).scalars().all())
-    units = list((await session.execute(select(TextUnitRecord))).scalars().all())
+    units = load_all_domain_text_units(require_knowledge())
     assert [item.status for item in first] == ["found"]
     assert [item.status for item in second] == ["found"]
     assert len(fetches) == 1

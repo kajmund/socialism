@@ -21,32 +21,18 @@
     ],
     "recall_at_limit": 1.0,
     "vector_searches": 30,
-<<<<<<< HEAD
-    "db_ms": 1.0256250097882003,
-    "total_ms": 1.0331669909646735,
+    "db_ms": 1.374665996991098,
+    "total_ms": 1.3838750019203871,
     "text_unit_reads": 30,
-    "wall_ms": 1.0370419913670048
-=======
-    "db_ms": 1.7632090020924807,
-    "total_ms": 1.7773750005289912,
-    "text_unit_reads": 30,
-    "wall_ms": 1.7835000035120174
->>>>>>> origin/main
+    "wall_ms": 1.3893750146962702
   },
   "global_post_filter": {
     "ids": [],
     "recall_at_limit": 0.0,
     "vector_searches": 1,
-<<<<<<< HEAD
-    "db_ms": 0.23504201089963317,
-    "total_ms": 0.23808299738448113,
+    "db_ms": 0.305124995065853,
+    "total_ms": 0.3097080043517053,
     "text_unit_reads": 8,
-    "wall_ms": 0.241083005676046
-=======
-    "db_ms": 0.3482910033199005,
-    "total_ms": 0.3533329945639707,
-    "text_unit_reads": 8,
-    "wall_ms": 0.3579580006771721
->>>>>>> origin/main
+    "wall_ms": 0.3137500025331974
   }
 }

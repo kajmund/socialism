@@ -12,7 +12,6 @@ from app.database.models import (
     KnowledgeGraphEventRecord,
     KnowledgeQuestionRow,
     KnowledgeRelationshipRecord,
-    TextUnitRecord,
 )
 
 
@@ -21,8 +20,7 @@ def register_knowledge_scope_listeners() -> None:
         CanonicalDocumentRecord,
         DocumentVersionRecord,
         DocumentSectionRecord,
-        TextUnitRecord,
-        KnowledgeClaimRecord,
+            KnowledgeClaimRecord,
         KnowledgeClaimAnswer,
         KnowledgeEntityRecord,
         KnowledgeRelationshipRecord,

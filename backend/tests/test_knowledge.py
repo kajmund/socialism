@@ -19,9 +19,7 @@ from app.database.models import (
     KnowledgeDocumentRecord,
     Kund,
     StoredObject,
-    TextUnitRecord,
 )
-from app.database.text_units import SharedTextChunkRecord
 from app.services.knowledge.models import (
     EmbeddedKnowledgeChunk,
     EmbeddedKnowledgeQuery,
@@ -58,6 +56,7 @@ from app.services.knowledge.vector_store import (
 from app.services.object_storage import get_object, get_object_storage, put_object
 from app.services.knowledge.units import hash_text
 from app.services.workspaces import company_workspace_id, ensure_company_workspace
+from tests.text_unit_fakes import persisted_text_unit
 from tests.knowledge_fakes import FakeEmbeddingProvider, fake_embed_text
 
 KNOWLEDGE_ROOT = Path(__file__).resolve().parents[1] / "app" / "services" / "knowledge"
@@ -148,8 +147,6 @@ async def _seed_document_grounding(session: AsyncSession, row: KnowledgeDocument
     ))
     scope = {"scope_type": "customer", "scope_key": f"customer:{row.customer_id}", "customer_id": row.customer_id}
     content_hash = hash_text(SOURCE_TEXT)
-    if await session.get(SharedTextChunkRecord, content_hash) is None:
-        session.add(SharedTextChunkRecord(content_hash=content_hash, text=SOURCE_TEXT))
     session.add(CanonicalDocumentRecord(
         id=row.document_id, source_object_id=source_id, source_type="uploaded_file",
         canonical_uri=row.external_id, title=row.title, **scope,
@@ -158,11 +155,16 @@ async def _seed_document_grounding(session: AsyncSession, row: KnowledgeDocument
         id=f"version-{row.document_id}", document_id=row.document_id, content_hash=content_hash,
         version="1", mime_type="application/pdf", **scope,
     ))
-    session.add(TextUnitRecord(
-        id=f"unit-{row.document_id}", document_id=row.document_id,
-        document_version_id=f"version-{row.document_id}", ordinal=0,
-        content_hash=content_hash, locator="p1", **scope,
-    ))
+    await persisted_text_unit(
+        session,
+        id=f"unit-{row.document_id}",
+        document_id=row.document_id,
+        document_version_id=f"version-{row.document_id}",
+        ordinal=0,
+        locator="p1",
+        text=SOURCE_TEXT,
+        **scope,
+    )
 
 
 def _scope(

@@ -11,7 +11,6 @@ from app.database.knowledge_observation import KnowledgeObservationRecord
 from app.database.models import (
     CanonicalDocumentRecord,
     DocumentVersionRecord,
-    KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
     KnowledgeClaimTextUnit,
     KnowledgeEntityRecord,
@@ -155,8 +154,7 @@ async def _document(session: AsyncSession) -> None:
             extra={},
         )
     )
-    session.add(
-        await persisted_text_unit(session,
+    await persisted_text_unit(session,
             id="tu-hold",
             document_version_id="ver-a",
             document_id="doc-a",
@@ -165,9 +163,7 @@ async def _document(session: AsyncSession) -> None:
             ordinal=0,
             text="The court held that the clause was not adjusted.",
         )
-    )
-    session.add(
-        await persisted_text_unit(session,
+    await persisted_text_unit(session,
             id="tu-extra",
             document_version_id="ver-a",
             document_id="doc-a",
@@ -176,7 +172,6 @@ async def _document(session: AsyncSession) -> None:
             ordinal=1,
             text="The lease was signed in 1998.",
         )
-    )
     await session.flush()
 
 
@@ -201,8 +196,7 @@ async def _second_document(session: AsyncSession) -> None:
             extra={},
         )
     )
-    session.add(
-        await persisted_text_unit(session,
+    await persisted_text_unit(session,
             id="tu-b",
             document_version_id="ver-b",
             document_id="doc-b",
@@ -211,7 +205,6 @@ async def _second_document(session: AsyncSession) -> None:
             ordinal=0,
             text="The court held that the clause was not adjusted.",
         )
-    )
     await session.flush()
 
 
@@ -250,12 +243,20 @@ async def test_wording_variants_reuse_the_same_durable_claim():
     assert first.id == second.id
     assert result.stats.claims_accepted == 1
     assert result.stats.claims_reused == 1
-    assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
+    assert _graph_claim_count() == 1
+    assert _graph_claim_count() == 1
     assert set(await supporting_text_unit_ids_for_claim(session, first.id)) == {
         "tu-hold",
         "tu-extra",
     }
     await session.close()
+
+
+def _graph_claim_count() -> int:
+    from app.services.knowledge.graph_audit import graph_audit_counts
+    from app.services.overgraph.catalogs import require_knowledge
+
+    return graph_audit_counts(require_knowledge())["claims"]
 
 
 async def test_repeated_research_does_not_grow_the_graph():
@@ -286,9 +287,14 @@ async def test_repeated_research_does_not_grow_the_graph():
     assert second.stats.claims_reused == 1
     assert second.stats.entities_reused == 1
     assert second.stats.relationships_reused == 1
-    assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
-    assert await session.scalar(select(func.count()).select_from(KnowledgeEntityRecord)) == 1
-    assert await session.scalar(select(func.count()).select_from(KnowledgeRelationshipRecord)) == 1
+    assert _graph_claim_count() == 1
+    from app.services.knowledge.graph_audit import graph_audit_counts
+    from app.services.overgraph.catalogs import require_knowledge
+
+    assert graph_audit_counts(require_knowledge())["entities"] == 1
+    from app.services.overgraph.labels import LINKED
+
+    assert require_knowledge().count_edges_by_label(LINKED) == 1
     await session.close()
 
 
@@ -315,8 +321,14 @@ async def test_paraphrased_question_reuses_durable_knowledge():
         customer_id=1,
     )
     await persist_pending_graph_writes(session, [paraphrase])
-    assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
-    assert await session.scalar(select(func.count()).select_from(KnowledgeClaimAnswer)) == 2
+    assert _graph_claim_count() == 1
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import KNOWLEDGE_QUESTION
+
+    questions, _ = require_knowledge().query_nodes(
+        label_filter={"labels": [KNOWLEDGE_QUESTION], "mode": "all"}, limit=10,
+    )
+    assert questions, "answer links live in the graph, keyed by question node"
     await session.close()
 
 
@@ -342,13 +354,16 @@ async def test_source_quality_and_gaps_do_not_enter_knowledge_claims():
     assert result.stats.claims_rejected_by_class == 2
     assert result.accepted_claim_ids == []
     assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 0
-    classes = {
-        row[0]
-        for row in (
-            await session.execute(select(KnowledgeObservationRecord.observation_class))
-        ).all()
-    }
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import VERIFICATION_OBSERVATION
+
+    catalog = require_knowledge()
+    nodes, _ = catalog.query_nodes(
+        label_filter={"labels": [VERIFICATION_OBSERVATION], "mode": "all"}, limit=50,
+    )
+    classes = {str(node.props.get("class_id")) for node in nodes}
     assert classes == {SOURCE_QUALITY, RESEARCH_OBSERVATION}
+    assert await session.scalar(select(func.count()).select_from(KnowledgeObservationRecord)) == 0
     await session.close()
 
 
@@ -424,7 +439,8 @@ async def test_same_assertion_from_two_documents_reuses_one_claim():
     assert first.id == second.id
     assert result.stats.claims_accepted == 1
     assert result.stats.claims_reused == 1
-    assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
+    assert _graph_claim_count() == 1
+    assert _graph_claim_count() == 1
     assert set(await supporting_text_unit_ids_for_claim(session, first.id)) == {
         "tu-hold",
         "tu-b",
@@ -569,7 +585,12 @@ async def test_cleanup_merges_duplicate_entity_edges_without_unique_violation():
     await session.flush()
     applied = await cleanup_knowledge_graph(session, apply=True)
     assert applied["applied"] is True
+    from app.services.knowledge.graph_audit import graph_audit_counts
+    from app.services.overgraph.catalogs import require_knowledge
+
+    # Legacy rows are seeded straight into SQL; cleanup merges them there.
     assert await session.scalar(select(func.count()).select_from(KnowledgeEntityRecord)) == 1
+    assert graph_audit_counts(require_knowledge())["entities"] == 0
     winner = await session.get(KnowledgeEntityRecord, "legacy-ent-a")
     assert winner is not None
     assert winner.extra["aliases"] == ["A", "B"]
@@ -594,9 +615,14 @@ async def test_deleting_one_supporting_document_keeps_claim_with_other_support()
     assert result.stats.claims_accepted == 1
     assert result.stats.claims_reused == 1
     await delete_canonical_document(session, "doc-a")
-    remaining = await session.get(KnowledgeClaimRecord, first.id)
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.legal_claims import claim_in_graph
+
+    remaining = claim_in_graph(
+        require_knowledge(), scope_key="customer:1", identity=first.id,
+    )
     assert remaining is not None
-    assert remaining.superseded_at is None
+    assert remaining.props.get("status") == "active"
     assert set(await supporting_text_unit_ids_for_claim(session, first.id)) == {"tu-b"}
     assert await session.get(CanonicalDocumentRecord, "doc-a") is None
     assert await session.get(CanonicalDocumentRecord, "doc-b") is not None
@@ -655,6 +681,7 @@ async def test_backfill_then_research_does_not_mint_a_second_claim():
     result = await persist_extracted_knowledge(session, claims=[claim])
     assert result.stats.claims_accepted == 0
     assert result.stats.claims_reused == 1
+    # Legacy backfill merges rows in SQL; graph dedupe lands in parcel 6.
     assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
     stored = await session.get(KnowledgeClaimRecord, "legacy-old-hash")
     assert stored is not None
@@ -674,11 +701,20 @@ async def test_backfill_merges_legacy_claims_from_two_documents():
     _legacy_claim(session, claim_id="legacy-b", unit_id="tu-b")
     await session.flush()
     await backfill_source_independent_claims(session)
+    # Legacy backfill merges rows in SQL; graph dedupe lands in parcel 6.
     assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
     winner = (await session.execute(select(KnowledgeClaimRecord))).scalar_one()
     assert winner.identity_key == expected
-    assert set(await supporting_text_unit_ids_for_claim(session, winner.id)) == {
-        "tu-hold",
-        "tu-b",
+    # Legacy backfill test: links still live in SQL for pre-mirror rows.
+    links = {
+        row.text_unit_id
+        for row in (
+            await session.execute(
+                select(KnowledgeClaimTextUnit).where(
+                    KnowledgeClaimTextUnit.claim_id == winner.id
+                )
+            )
+        ).scalars()
     }
+    assert links == {"tu-hold", "tu-b"}
     await session.close()

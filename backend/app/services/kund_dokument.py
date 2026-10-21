@@ -10,22 +10,16 @@ connection checked out; see AGENTS.md "release database connections".
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import asdict, dataclass
 
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.document_ingest_batches import DocumentIngestBatch, DocumentIngestBatchItem
 from app.database.graph_v2 import (
-    GraphFact,
-    GraphFactQuestionDependency,
-    GraphFactRelation,
-    GraphFactSource,
-    GraphIdentifier,
     GraphIngestWork,
-    GraphNode,
 )
-from app.database.knowledge_observation import KnowledgeObservationRecord
 from app.database.models import (
     CanonicalDocumentRecord,
     DocumentKnowledgeAnchor,
@@ -35,23 +29,28 @@ from app.database.models import (
     DocumentSectionRecord,
     DocumentVersionRecord,
     Job,
-    KnowledgeClaimAnswer,
-    KnowledgeClaimRecord,
-    KnowledgeClaimTextUnit,
     KnowledgeDocumentRecord,
-    KnowledgeEntityRecord,
     KnowledgeGraphEventRecord,
-    KnowledgeRelationshipRecord,
     Kund,
     RattsunderlagSession,
     StoredObject,
-    TextUnitRecord,
 )
 from app.database.workspace_models import WorkspaceSource
 from app.database.workspaces import WorkspaceChatMessage
 from app.services.document_knowledge import DOCUMENT_ITEM_VECTOR_PREFIX, DOCUMENT_INGEST_JOB_KIND
 from app.services.knowledge.vector_store import KnowledgeVectorStoreError
 from app.services.object_storage import KIND_UNDERLAG, ObjectStorageError, delete_object
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.labels import (
+    CLAIM,
+    DOCUMENT_VERSION,
+    ENTITY,
+    FACT,
+    KNOWLEDGE_QUESTION,
+    TEXT_UNIT,
+    VERIFICATION_OBSERVATION,
+    scope_label,
+)
 from app.services.research.composition import ResearchCompositionError, require_knowledge_vector_store
 
 ACTIVE_JOB_STATUSES = ("pending", "running")
@@ -166,21 +165,17 @@ async def load_kund_document_summary(
         canonical_documents=await _count(
             session, CanonicalDocumentRecord,
             CanonicalDocumentRecord.customer_id == customer_id),
-        text_units=await _count(session, TextUnitRecord, TextUnitRecord.customer_id == customer_id),
+        text_units=await asyncio.to_thread(_count_text_units, customer_id),
         document_knowledge_items=await _count(
             session, DocumentKnowledgeItem, DocumentKnowledgeItem.customer_id == customer_id),
-        claims=await _count(
-            session, KnowledgeClaimRecord, KnowledgeClaimRecord.customer_id == customer_id),
-        entities=await _count(
-            session, KnowledgeEntityRecord, KnowledgeEntityRecord.customer_id == customer_id),
-        relationships=await _count(
-            session, KnowledgeRelationshipRecord,
-            KnowledgeRelationshipRecord.customer_id == customer_id),
+        claims=await asyncio.to_thread(_graph_node_count, CLAIM, customer_id),
+        entities=await asyncio.to_thread(_graph_node_count, ENTITY, customer_id),
+        relationships=await asyncio.to_thread(_graph_edge_count, customer_id),
         graph_events=await _count(
             session, KnowledgeGraphEventRecord,
             KnowledgeGraphEventRecord.customer_id == customer_id),
-        graph_facts=await _count(session, GraphFact, GraphFact.customer_id == customer_id),
-        graph_nodes=await _count(session, GraphNode, GraphNode.customer_id == customer_id),
+        graph_facts=await asyncio.to_thread(_graph_node_count, FACT, customer_id),
+        graph_nodes=await asyncio.to_thread(_graph_node_count, ENTITY, customer_id),
         ingest_batches=await _count(
             session, DocumentIngestBatch, DocumentIngestBatch.customer_id == customer_id),
     )
@@ -267,58 +262,46 @@ async def _delete_external_objects(snapshot: _PurgeSnapshot) -> None:
         raise KundDocumentsStorageError(str(exc)) from exc
 
 
+def _graph_edge_count(customer_id: int) -> int:
+    """Relationship edges owned by this tenant: from or to a tenant-scoped node."""
+    catalog = require_knowledge()
+    seen: set[int] = set()
+    for label in (ENTITY, CLAIM, TEXT_UNIT, FACT, DOCUMENT_VERSION):
+        nodes, _ = catalog.query_nodes(
+            label_filter={"labels": [label, scope_label(f"customer:{customer_id}")], "mode": "all"},
+            limit=5000,
+        )
+        for node in nodes:
+            if node.engine_id is None:
+                continue
+            for edge_id in catalog.neighbors(node.engine_id, direction="outgoing"):
+                seen.add(edge_id)
+    return len(seen)
+
+
+def _graph_node_count(label: str, customer_id: int) -> int:
+    catalog = require_knowledge()
+    return catalog.count_nodes_by_labels([label, scope_label(f"customer:{customer_id}")])
+
+
 async def _delete_graph_v2(session: AsyncSession, customer_id: int) -> None:
-    fact_ids = select(GraphFact.id).where(GraphFact.customer_id == customer_id)
-    node_ids = select(GraphNode.id).where(GraphNode.customer_id == customer_id)
-    await session.execute(delete(GraphFactSource).where(GraphFactSource.fact_id.in_(fact_ids)))
-    await session.execute(
-        delete(GraphFactRelation).where(
-            or_(
-                GraphFactRelation.from_fact_id.in_(fact_ids),
-                GraphFactRelation.to_fact_id.in_(fact_ids),
-            )
-        )
-    )
-    await session.execute(
-        delete(GraphFactQuestionDependency).where(
-            or_(
-                GraphFactQuestionDependency.fact_id.in_(fact_ids),
-                GraphFactQuestionDependency.question_node_id.in_(node_ids),
-            )
-        )
-    )
-    await session.execute(delete(GraphIdentifier).where(GraphIdentifier.node_id.in_(node_ids)))
-    await session.execute(delete(GraphFact).where(GraphFact.customer_id == customer_id))
-    await session.execute(delete(GraphNode).where(GraphNode.customer_id == customer_id))
-    await session.execute(
-        delete(GraphIngestWork).where(GraphIngestWork.customer_id == customer_id)
-    )
+    """Purge this tenant's graph nodes; incident edges and identifiers cascade."""
+    for label in (FACT, ENTITY, KNOWLEDGE_QUESTION):
+        await asyncio.to_thread(_delete_scope_nodes, label, customer_id)
 
 
 async def _delete_claims(session: AsyncSession, customer_id: int) -> None:
-    claim_ids = select(KnowledgeClaimRecord.id).where(
-        KnowledgeClaimRecord.customer_id == customer_id
-    )
-    unit_ids = select(TextUnitRecord.id).where(TextUnitRecord.customer_id == customer_id)
-    await session.execute(
-        delete(KnowledgeClaimTextUnit).where(
-            or_(
-                KnowledgeClaimTextUnit.claim_id.in_(claim_ids),
-                KnowledgeClaimTextUnit.text_unit_id.in_(unit_ids),
-            )
-        )
-    )
-    await session.execute(
-        delete(KnowledgeClaimAnswer).where(KnowledgeClaimAnswer.customer_id == customer_id)
-    )
-    await session.execute(
-        delete(KnowledgeClaimRecord).where(KnowledgeClaimRecord.customer_id == customer_id)
-    )
+    await asyncio.to_thread(_delete_claims_from_graph, customer_id)
 
 
 async def _delete_other_knowledge(session: AsyncSession, customer_id: int) -> None:
-    for model in (KnowledgeEntityRecord, KnowledgeRelationshipRecord, KnowledgeGraphEventRecord):
-        await session.execute(delete(model).where(model.customer_id == customer_id))
+    for label in (ENTITY, CLAIM):
+        await asyncio.to_thread(_delete_scope_nodes, label, customer_id)
+    await session.execute(
+        delete(KnowledgeGraphEventRecord).where(
+            KnowledgeGraphEventRecord.customer_id == customer_id
+        )
+    )
 
 
 async def _delete_document_graph(session: AsyncSession, customer_id: int) -> None:
@@ -339,12 +322,9 @@ async def _delete_document_graph(session: AsyncSession, customer_id: int) -> Non
             DocumentKnowledgeItemTextUnit.item_id.in_(item_ids)
         )
     )
-    await session.execute(
-        delete(KnowledgeObservationRecord).where(
-            KnowledgeObservationRecord.document_id.in_(canonical_ids)
-        )
-    )
-    await session.execute(delete(TextUnitRecord).where(TextUnitRecord.customer_id == customer_id))
+    await asyncio.to_thread(_delete_text_units_from_graph, customer_id)
+    await asyncio.to_thread(_delete_observations_from_graph, customer_id)
+    await asyncio.to_thread(_delete_claims_from_graph, customer_id)
     await session.execute(
         delete(DocumentSectionRecord).where(DocumentSectionRecord.document_id.in_(canonical_ids))
     )
@@ -402,6 +382,38 @@ async def _delete_stored_documents(session: AsyncSession, customer_id: int) -> N
             StoredObject.kind == KIND_UNDERLAG,
         )
     )
+
+
+
+def _count_text_units(customer_id: int) -> int:
+    return require_knowledge().count_nodes_by_labels(
+        [TEXT_UNIT, scope_label(f"customer:{customer_id}")],
+    )
+
+
+def _delete_scope_nodes(label: str, customer_id: int) -> None:
+    catalog = require_knowledge()
+    label_filter = {"labels": [label, scope_label(f"customer:{customer_id}")], "mode": "all"}
+    after: int | None = None
+    while True:
+        page, after = catalog.query_nodes(label_filter=label_filter, limit=1000, after=after)
+        for row in page:
+            if row.engine_id is not None:
+                catalog.delete_node(row.engine_id)
+        if after is None or not page:
+            break
+
+
+def _delete_text_units_from_graph(customer_id: int) -> None:
+    _delete_scope_nodes(TEXT_UNIT, customer_id)
+
+
+def _delete_observations_from_graph(customer_id: int) -> None:
+    _delete_scope_nodes(VERIFICATION_OBSERVATION, customer_id)
+
+
+def _delete_claims_from_graph(customer_id: int) -> None:
+    _delete_scope_nodes(CLAIM, customer_id)
 
 
 async def _delete_customer_rows(session: AsyncSession, customer_id: int) -> None:

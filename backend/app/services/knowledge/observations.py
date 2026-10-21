@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.knowledge_observation import KnowledgeObservationRecord
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord
 from app.services.knowledge.identity import knowledge_observation_id
 from app.services.knowledge.persistence_class import (
@@ -19,10 +18,12 @@ from app.services.knowledge.persistence_class import (
     PersistenceClassError,
     require_persistence_class,
 )
+from app.services.knowledge.graph_observation_mirror import mirror_observation
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.labels import VERIFICATION_OBSERVATION
 from app.services.knowledge.scope import (
     SCOPE_CUSTOMER,
     KnowledgeTenantScope,
-    persist_scope_fields,
     require_persist_scope,
     scope_from_row,
 )
@@ -101,45 +102,30 @@ def knowledge_observation(
     )
 
 
+@dataclass(frozen=True)
+class PersistedObservation:
+    """Outcome of an observation write. The graph node uses the domain id."""
+
+    id: str
+
+
 async def persist_knowledge_observations(
     session: AsyncSession,
     observations: Sequence[KnowledgeObservation],
-) -> list[tuple[KnowledgeObservationRecord, bool]]:
+) -> list[tuple[PersistedObservation, bool]]:
     return [await persist_knowledge_observation(session, item) for item in observations]
 
 
 async def persist_knowledge_observation(
     session: AsyncSession,
     observation: KnowledgeObservation,
-) -> tuple[KnowledgeObservationRecord, bool]:
+) -> tuple[PersistedObservation, bool]:
+    """Write the observation to OverGraph. Provenance stays a database-read check."""
     await _validate_observation_provenance(session, observation)
-    row = await session.get(KnowledgeObservationRecord, observation.id)
-    if row is not None:
-        return row, True
-    row = KnowledgeObservationRecord(
-        id=observation.id,
-        observation_class=observation.observation_class,
-        kind=observation.kind,
-        document_id=observation.document_id,
-        document_version_id=observation.document_version_id,
-        question_key=observation.question_key,
-        statement_normalized=observation.statement_normalized,
-        extra=observation.extra,
-        **persist_scope_fields(observation.scope),
-    )
-    try:
-        async with session.begin_nested():
-            session.add(row)
-            await session.flush()
-    except IntegrityError:
-        winner = await session.get(KnowledgeObservationRecord, observation.id)
-        if winner is None:
-            winner = await _lookup_observation(session, observation)
-        if winner is None:
-            raise
-        return winner, True
-    return row, False
-
+    catalog = require_knowledge()
+    existing = catalog.get_by_key(VERIFICATION_OBSERVATION, observation.id)
+    await asyncio.to_thread(mirror_observation, observation)
+    return PersistedObservation(id=observation.id), existing is not None
 
 
 async def _validate_observation_provenance(
@@ -163,19 +149,3 @@ async def _validate_observation_provenance(
         raise KnowledgeObservationError("shared observation cannot reference customer provenance")
 
 
-async def _lookup_observation(
-    session: AsyncSession,
-    observation: KnowledgeObservation,
-) -> KnowledgeObservationRecord | None:
-    return (
-        await session.execute(
-            select(KnowledgeObservationRecord).where(
-                KnowledgeObservationRecord.scope_key == observation.scope.scope_key,
-                KnowledgeObservationRecord.observation_class == observation.observation_class,
-                KnowledgeObservationRecord.kind == observation.kind,
-                KnowledgeObservationRecord.document_version_id == observation.document_version_id,
-                KnowledgeObservationRecord.question_key == observation.question_key,
-                KnowledgeObservationRecord.statement_normalized == observation.statement_normalized,
-            )
-        )
-    ).scalar_one_or_none()

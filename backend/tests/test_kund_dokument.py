@@ -8,24 +8,19 @@ import pytest
 from sqlalchemy import func, select
 
 from app.database.document_ingest_batches import DocumentIngestBatch, DocumentIngestBatchItem
-from app.database.graph_v2 import GraphFact, GraphNode
 from app.database.models import (
     CanonicalDocumentRecord,
     DocumentKnowledgeItem,
     DocumentVersionRecord,
     Job,
-    KnowledgeClaimRecord,
     KnowledgeClaimTextUnit,
     KnowledgeDocumentRecord,
-    KnowledgeEntityRecord,
     KnowledgeGraphEventRecord,
-    KnowledgeRelationshipRecord,
     Kund,
     StoredObject,
-    TextUnitRecord,
 )
-from app.database.text_units import SharedTextChunkRecord
 from app.services import kund_dokument
+from tests.text_unit_fakes import persisted_text_unit
 from app.services.document_knowledge import DOCUMENT_INGEST_JOB_KIND
 from app.services.knowledge.units import hash_text
 from app.services.object_storage import ObjectStorageError, get_object_storage
@@ -59,6 +54,39 @@ class _Seed:
         }
 
 
+def _seed_graph_claim_and_link(seed: _Seed) -> None:
+    """The graph is authoritative: claim, entity and the linking edge live in OverGraph."""
+    from app.services.graph_v2.types import NodeInput
+    from app.services.knowledge.scope import require_persist_scope
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import CLAIM, LINKED, scope_label
+    from app.services.overgraph.write import upsert_entity
+
+    catalog = require_knowledge()
+    scope = require_persist_scope(scope_type="customer", customer_id=seed.customer_id)
+    claim_id = catalog.upsert_node(
+        [CLAIM, scope_label(seed.scope_key)],
+        f"{seed.prefix}-claim",
+        props={"scope_key": seed.scope_key, "predicate": "har", "value_json": "{}"},
+    )
+    entity = upsert_entity(catalog, NodeInput(
+        node_type="knowledge.entity.company",
+        name="Acme",
+        scope=scope,
+        identifier_namespace="knowledge.entity",
+        identifier=f"{seed.prefix}-acme",
+    ))
+    catalog.upsert_edge(
+        claim_id, entity.engine_id, LINKED,
+        props={
+            "relation": "ABOUT",
+            "extra": {},
+            "from_kind": "claim",
+            "to_kind": "entity",
+        },
+    )
+
+
 def _stored_object(seed: _Seed) -> StoredObject:
     return StoredObject(
         id=seed.object_id,
@@ -81,7 +109,6 @@ async def _seed_customer_documents(factory, customer_id: int, prefix: str) -> _S
     text = f"Hemlig text for kund {customer_id}."
     digest = hash_text(text)
     async with factory() as session:
-        session.add(SharedTextChunkRecord(content_hash=digest, text=text))
         session.add(_stored_object(seed))
         session.add(
             CanonicalDocumentRecord(
@@ -103,16 +130,15 @@ async def _seed_customer_documents(factory, customer_id: int, prefix: str) -> _S
                 **seed.scope,
             )
         )
-        session.add(
-            TextUnitRecord(
-                id=f"{seed.prefix}-unit",
-                document_id=seed.object_id,
-                document_version_id=f"{seed.prefix}-ver",
-                ordinal=0,
-                content_hash=digest,
-                locator="page:1",
-                **seed.scope,
-            )
+        await persisted_text_unit(
+            session,
+            id=f"{seed.prefix}-unit",
+            document_id=seed.object_id,
+            document_version_id=f"{seed.prefix}-ver",
+            ordinal=0,
+            locator="page:1",
+            text="Hemlig text.",
+            **seed.scope,
         )
         session.add(
             DocumentKnowledgeItem(
@@ -126,42 +152,13 @@ async def _seed_customer_documents(factory, customer_id: int, prefix: str) -> _S
             )
         )
         session.add(
-            KnowledgeClaimRecord(
-                id=f"{seed.prefix}-claim",
-                identity_key=f"{seed.prefix}-claim",
-                predicate="har",
-                value={"text": "Hemlig text."},
-                **seed.scope,
-            )
-        )
-        session.add(
             KnowledgeClaimTextUnit(
                 claim_id=f"{seed.prefix}-claim",
                 text_unit_id=f"{seed.prefix}-unit",
                 relation="SUPPORTED_BY",
             )
         )
-        session.add(
-            KnowledgeEntityRecord(
-                id=f"{seed.prefix}-entity",
-                entity_type="company",
-                entity_key=f"{seed.prefix}-acme",
-                name="Acme",
-                extra={},
-                **seed.scope,
-            )
-        )
-        session.add(
-            KnowledgeRelationshipRecord(
-                id=f"{seed.prefix}-relationship",
-                relation="ABOUT",
-                from_kind="claim",
-                from_id=f"{seed.prefix}-claim",
-                to_kind="entity",
-                to_id=f"{seed.prefix}-entity",
-                **seed.scope,
-            )
-        )
+        _seed_graph_claim_and_link(seed)
         session.add(
             KnowledgeGraphEventRecord(
                 id=f"{seed.prefix}-event",
@@ -184,41 +181,27 @@ async def _seed_customer_documents(factory, customer_id: int, prefix: str) -> _S
                 extra={},
             )
         )
-        session.add(
-            GraphNode(
-                id=f"{seed.prefix}-node-a",
-                scope_key=seed.scope_key,
-                customer_id=customer_id,
-                node_type="company",
-                identity_key=f"{seed.prefix}-a",
-                name="Acme",
-                normalized_name="acme",
-            )
-        )
-        session.add(
-            GraphNode(
-                id=f"{seed.prefix}-node-b",
-                scope_key=seed.scope_key,
-                customer_id=customer_id,
-                node_type="company",
-                identity_key=f"{seed.prefix}-b",
-                name="Beta",
-                normalized_name="beta",
-            )
-        )
-        session.add(
-            GraphFact(
-                id=f"{seed.prefix}-fact",
-                identity_key=f"{seed.prefix}-fact",
-                scope_key=seed.scope_key,
-                customer_id=customer_id,
-                source_id=f"{seed.prefix}-node-a",
-                target_id=f"{seed.prefix}-node-b",
-                predicate="agerar",
-                fact_text="Acme agerar.",
-                normalized_text="acme agerar",
-            )
-        )
+        # The graph is authoritative: seed the tenant's nodes and fact in OverGraph.
+        from app.services.graph_v2.types import FactInput, NodeInput
+        from app.services.knowledge.scope import require_persist_scope
+        from app.services.overgraph.catalogs import require_knowledge
+        from app.services.overgraph.write import upsert_entity, write_fact
+
+        catalog = require_knowledge()
+        scope = require_persist_scope(customer_id=customer_id, scope_type="customer")
+        node_a = upsert_entity(catalog, NodeInput(
+            node_type="core.company", name="Acme", scope=scope,
+            identifier_namespace="test.entity", identifier=f"{seed.prefix}-a",
+        ))
+        node_b = upsert_entity(catalog, NodeInput(
+            node_type="core.company", name="Beta", scope=scope,
+            identifier_namespace="test.entity", identifier=f"{seed.prefix}-b",
+        ))
+        write_fact(catalog, FactInput(
+            source_id=node_a.key, target_id=node_b.key, scope=scope,
+            predicate="core.agerar", fact_text="Acme agerar.",
+            sources=(), occurrence_key=f"{seed.prefix}-fact",
+        ))
         session.add(
             DocumentIngestBatch(
                 id=f"{seed.prefix}-batch",
@@ -286,6 +269,17 @@ _EMPTY_COUNTS = {
 }
 
 
+def _graph_fact_present(prefix: str) -> bool:
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import FACT
+
+    catalog = require_knowledge()
+    facts, _ = catalog.query_nodes(label_filter={"labels": [FACT], "mode": "all"}, limit=500)
+    return any(
+        str(node.props.get("occurrence_key") or "") == f"{prefix}-fact" for node in facts
+    )
+
+
 async def _assert_seed_intact(factory, seed: _Seed) -> None:
     counts = await _purge_snapshot(factory, seed.customer_id)
     assert counts["files"] == 1
@@ -296,15 +290,19 @@ async def _assert_seed_intact(factory, seed: _Seed) -> None:
 
 
 async def _assert_seed_removed(factory, seed: _Seed) -> None:
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import FACT
+
+    catalog = require_knowledge()
+    facts, _ = catalog.query_nodes(label_filter={"labels": [FACT], "mode": "all"}, limit=500)
+    assert not any(
+        str(node.props.get("occurrence_key") or "") == f"{seed.prefix}-fact" for node in facts
+    )
     async with factory() as session:
-        assert await session.get(GraphNode, f"{seed.prefix}-node-a") is None
         assert await session.get(DocumentIngestBatch, f"{seed.prefix}-batch") is None
         assert await session.get(DocumentIngestBatchItem, f"{seed.prefix}-batch-item") is None
         assert await session.get(KnowledgeDocumentRecord, f"{seed.prefix}-kdoc") is None
         assert await session.get(DocumentKnowledgeItem, f"{seed.prefix}-item") is None
-        assert await session.get(KnowledgeClaimRecord, f"{seed.prefix}-claim") is None
-        assert await session.get(KnowledgeEntityRecord, f"{seed.prefix}-entity") is None
-        assert await session.get(KnowledgeRelationshipRecord, f"{seed.prefix}-relationship") is None
         assert await session.get(KnowledgeGraphEventRecord, f"{seed.prefix}-event") is None
 
 
@@ -339,7 +337,7 @@ async def test_purge_removes_only_target_kund_documents(client, client_db):
     async with factory() as session:
         assert await session.get(Kund, TEST_CUSTOMER_ID) is not None
         assert await session.get(CanonicalDocumentRecord, other.object_id) is not None
-        assert await session.get(GraphFact, f"{other.prefix}-fact") is not None
+        assert _graph_fact_present(other.prefix)
 
     storage = get_object_storage()
     with pytest.raises(ObjectStorageError):
