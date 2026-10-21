@@ -1,4 +1,4 @@
-.PHONY: help backend frontend word-addin elk-proxy kibana-proxy start install test test-backend test-frontend test-word-addin knowledge-validate
+.PHONY: help backend frontend word-addin elk-proxy kibana-proxy start install test test-backend test-frontend test-word-addin test-swe swe-native knowledge-validate
 
 # Pinned OKF CLI (validate + future MCP). Not a runtime app dependency.
 OKF_MCP_PKG := @mfdaves/okf-mcp@0.3.3
@@ -28,6 +28,8 @@ help:
 	@echo "  make install             Install backend + frontend + word-addin deps"
 	@echo "  make test                Backend pytest + frontend and word-addin lint/vitest"
 	@echo "  make test-backend        Backend pytest (excludes smoke)"
+	@echo "  make swe-native          Build the SWE PyO3 extension"
+	@echo "  make test-swe            Rust + SWE runtime pytest"
 	@echo "  make test-frontend       Frontend oxlint + vitest"
 	@echo "  make test-word-addin     Word add-in oxlint + vitest"
 	@echo "  make knowledge-validate  Validate OKF manual bundle"
@@ -155,6 +157,13 @@ test-backend:
 	cd backend && uv run $(BACKEND_UV_EXTRA) ruff check app tests scripts/check_maintainability.py
 	cd backend && uv run $(BACKEND_UV_EXTRA) python scripts/check_maintainability.py
 	cd backend && uv run $(BACKEND_UV_EXTRA) pytest
+
+swe-native:
+	cd backend && uv run $(BACKEND_UV_EXTRA) maturin develop --manifest-path ../crates/swe-native/Cargo.toml
+
+test-swe: swe-native
+	cargo test --manifest-path crates/swe-native/Cargo.toml
+	cd backend && uv run $(BACKEND_UV_EXTRA) pytest tests/test_swe_*.py
 
 test-frontend:
 	cd frontend && pnpm lint
