@@ -42,7 +42,10 @@ Granskningen hittade att parningen av parade kvoter byggde nämnaren från *sist
 skrivna arm* i stället för baseline (`by_key` saknade `row.arm == "baseline"`),
 vilket gav fel nämnare i 2/3 av de parade kvoterna. Fixen är en rad; mät- och
 analys-sha är nu samma. Korrigerade p95 på de äldre stickproven: n=8 A 1,1712 /
-B 1,2169; n=3 A 1,1563 / B 1,1505 — alla beslut oförändrade. Den slutliga
+B 1,2169; n=3 A 1,1563 / B 1,1505; freeze#1-artefakten A 1,1948 / B 1,2681.
+Notera att freeze#1:s historiska "B fastest" därmed inte heller skulle ha
+passerat p95-gaten (1,2681 > 1,25) — cutover-beslutet påverkas inte (A passerar
+p95 i alla körningar; det är A:s median-CI som avgör cutover). Den slutliga
 körningen (5) har p95 beräknad av fryst #3-kod: A 1,1584 / B 1,2000.
 
 ## Beslut: statistisk styrka n=3 → n=8
