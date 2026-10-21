@@ -5,38 +5,47 @@ from uuid import uuid4
 
 from app.database.models import KnowledgeQuestionLineage, KnowledgeQuestionRow
 from app.services.graph_v2.errors import PermanentGraphError
-from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
-from app.services.graph_v2.write import resolve_fact, resolve_node
+from app.services.graph_v2.types import FactInput, SourceRef
 from app.services.knowledge.scope import require_persist_scope
-
-
-async def question_node(session: AsyncSession, question: KnowledgeQuestionRow):
-    scope = require_persist_scope(
-        scope_type=question.scope_type, customer_id=question.customer_id,
-    )
-    return await resolve_node(session, NodeInput(
-        node_type="core.question", name=question.display_text, scope=scope,
-        identifier_namespace="research.question_id", identifier=question.id,
-        attributes={"canonical_question_id": question.id},
-    ))
 
 
 async def link_decomposition(
     session: AsyncSession, parent: KnowledgeQuestionRow, child: KnowledgeQuestionRow,
 ) -> None:
-    source = await question_node(session, parent)
-    target = await question_node(session, child)
+    """Parent → child decomposition edge in OverGraph (SQL graph_v2 is retired)."""
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.questions import upsert_question_entity
+    from app.services.overgraph.research import attach_question_dependency
+    from app.services.overgraph.write import write_fact
+
+    if parent is None or child is None:
+        raise PermanentGraphError("decomposition needs both questions")
+    if child.scope_key != parent.scope_key:
+        raise PermanentGraphError("decomposition cannot cross question scopes")
     scope = require_persist_scope(
         scope_type=parent.scope_type, customer_id=parent.customer_id,
     )
-    if child.scope_key != parent.scope_key:
-        raise PermanentGraphError("decomposition cannot cross question scopes")
-    await resolve_fact(session, FactInput(
-        source_id=source.id, target_id=target.id, scope=scope,
+    catalog = require_knowledge()
+    parent_node = upsert_question_entity(
+        question_id=parent.id, display_text=parent.display_text, scope=scope,
+    )
+    child_node = upsert_question_entity(
+        question_id=child.id, display_text=child.display_text, scope=scope,
+    )
+    fact = write_fact(catalog, FactInput(
+        source_id=parent_node.key, target_id=child_node.key, scope=scope,
         predicate="research.decomposed_to",
         fact_text=f"{parent.display_text} → {child.display_text}",
         sources=(SourceRef("episode", parent.id),),
+        occurrence_key=child.id,
     ))
+    attach_question_dependency(
+        catalog,
+        question_id=parent.id,
+        question_text=parent.display_text,
+        fact_id=str(fact.key),
+        scope=scope,
+    )
 
 
 async def persist_decomposition(

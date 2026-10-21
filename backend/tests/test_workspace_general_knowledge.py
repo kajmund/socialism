@@ -61,7 +61,7 @@ async def _private_fact(session, identity, parent, *, customer_id=1, owner_id="u
     nodes = [GraphNode(id=f"{identity}-{side}", scope_key=scope, customer_id=customer_id,
         node_type="core.concept", identity_key=f"{identity}-{side}", name=side, normalized_name=side)
         for side in ("source", "target")]
-    session.add_all([unit, *nodes])
+    session.add_all(list(nodes))
     await session.flush()
     fact = GraphFact(id=f"fact-{identity}", scope_key=scope, customer_id=customer_id,
         identity_key=identity, source_id=nodes[0].id, target_id=nodes[1].id, predicate="test.policy",

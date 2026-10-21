@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -12,6 +14,8 @@ from app.observability.knowledge import (
     KnowledgePersistStats,
     record_knowledge_decision,
 )
+from app.services.knowledge.graph_claim_mirror import mirror_claim
+from app.services.knowledge.graph_relationship_mirror import mirror_relationship
 from app.services.knowledge.claim_store import persist_domain_claim
 from app.services.knowledge.claims import (
     KnowledgeClaim,
@@ -83,6 +87,8 @@ async def persist_extracted_claim(
             session, claim, decision, counters=counters, question_key=question_key
         )
     row, reused = await persist_domain_claim(session, claim)
+    # Transitional mirror so the OverGraph reader has real data before parcel 5.
+    await asyncio.to_thread(mirror_claim, claim)
     record_knowledge_decision(
         counters,
         KnowledgeDecision(
@@ -154,6 +160,8 @@ async def persist_extracted_knowledge(
             ),
         )
         _row, reused = await persist_knowledge_relationship_result(session, edge)
+        # Transitional mirror so the OverGraph reader has real edges before parcel 5.
+        await asyncio.to_thread(mirror_relationship, edge)
         record_knowledge_decision(
             counters,
             KnowledgeDecision(
@@ -182,7 +190,7 @@ async def _persist_rejected_claim(
     observation = await _observation_from_claim(
         session, claim, decision, question_key=question_key
     )
-    row, reused = await persist_knowledge_observation(session, observation)
+    _persisted, reused = await persist_knowledge_observation(session, observation)
     record_knowledge_decision(
         counters,
         KnowledgeDecision(
@@ -201,14 +209,14 @@ async def _persist_rejected_claim(
             action="reused" if reused else "accepted",
             persistence_class=decision.persistence_class,
             reason=decision.kind,
-            identity_key=row.id,
+            identity_key=_persisted.id,
             document_id=observation.document_id,
         ),
     )
     return ClaimPersistResult(
         action="rejected_by_class",
         claim_id=None,
-        observation_id=row.id,
+        observation_id=_persisted.id,
         proposed_id=claim.id,
         persistence_class=decision.persistence_class,
         reason=decision.reason,
@@ -220,7 +228,7 @@ async def _persist_observation(
     observation: KnowledgeObservation,
     counters: KnowledgePersistStats,
 ) -> None:
-    row, reused = await persist_knowledge_observation(session, observation)
+    _persisted, reused = await persist_knowledge_observation(session, observation)
     record_knowledge_decision(
         counters,
         KnowledgeDecision(
@@ -228,7 +236,7 @@ async def _persist_observation(
             action="reused" if reused else "accepted",
             persistence_class=observation.observation_class,
             reason=observation.kind,
-            identity_key=row.id,
+            identity_key=_persisted.id,
             document_id=observation.document_id,
         ),
     )

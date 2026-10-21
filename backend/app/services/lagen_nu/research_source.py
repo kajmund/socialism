@@ -18,13 +18,13 @@ from app.database.models import (
     EvidenceSource,
     RawSource,
     ResearchRuntimeNeed,
-    TextUnitRecord,
 )
 from app.llm.legal_research import (
     LegalDomainExtractionError,
     LegalInterpreter,
     LlmLegalInterpreter,
 )
+from app.services.knowledge.units import TextUnit
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.graph_writeback import (
@@ -931,7 +931,7 @@ class LagenNuResearchSource:
         need: ResearchNeed,
         context: ResearchContext,
         candidate: _Candidate,
-        units: list[TextUnitRecord],
+        units: list[TextUnit],
         budget: _CallBudget,
         *,
         terms: frozenset[str],

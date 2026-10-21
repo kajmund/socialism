@@ -1,0 +1,942 @@
+{
+  "id": "review-false-positives-sample-v1",
+  "version": "v1",
+  "sample_of": "review-false-positives-v1",
+  "status": "ai_preliminary_review",
+  "description": "Stratified sample for the first independent review wave (~30 entries), proportional to the seven properties with a minimum of one per property. Judgments remain null and are added by an independent reviewer.",
+  "selection_method": {
+    "target": 30,
+    "allocation": {
+      "termination_notice": 9,
+      "confidentiality_obligation": 8,
+      "personal_data_processing": 5,
+      "assignment_restriction": 5,
+      "governing_law": 1,
+      "force_majeure": 1,
+      "liability_limitation": 1
+    },
+    "order": "entries sorted by relative_path within each property class",
+    "selection": "evenly spaced indices (middle entry when one is selected)",
+    "deterministic": true
+  },
+  "allocation": {
+    "termination_notice": {
+      "total": 34,
+      "selected": 9,
+      "indices": [
+        0,
+        4,
+        8,
+        12,
+        16,
+        21,
+        25,
+        29,
+        33
+      ]
+    },
+    "confidentiality_obligation": {
+      "total": 32,
+      "selected": 8,
+      "indices": [
+        0,
+        4,
+        9,
+        13,
+        18,
+        22,
+        27,
+        31
+      ]
+    },
+    "personal_data_processing": {
+      "total": 20,
+      "selected": 5,
+      "indices": [
+        0,
+        5,
+        10,
+        14,
+        19
+      ]
+    },
+    "assignment_restriction": {
+      "total": 18,
+      "selected": 5,
+      "indices": [
+        0,
+        4,
+        8,
+        13,
+        17
+      ]
+    },
+    "governing_law": {
+      "total": 4,
+      "selected": 1,
+      "indices": [
+        2
+      ]
+    },
+    "force_majeure": {
+      "total": 2,
+      "selected": 1,
+      "indices": [
+        1
+      ]
+    },
+    "liability_limitation": {
+      "total": 1,
+      "selected": 1,
+      "indices": [
+        0
+      ]
+    }
+  },
+  "count": 30,
+  "entries": [
+    {
+      "gold_id": "assignment",
+      "property_class": "assignment_restriction",
+      "relative_path": "Avtal_18_Hyresavtal_bostad.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "332b1dceb915ee8f1415edaab236f0d377e2066057598baa2f6cb57922b63296",
+          "excerpt": "överlåta",
+          "unit_text": "8. Användning\nBostaden får användas endast som bostad för Hyresgästen [och [antal] personer i hushållet]. Hyresgästen får inte hyra ut bostaden i andra hand, överlåta den eller ha inneboende som stör, utan Hyresvärdens skriftliga samtycke.\n",
+          "clause_title": "8. Användning",
+          "previous_text": "7.4 Hyresgästen ska ha en hemförsäkring.\n",
+          "next_text": "9. Förverkande\nHyresrätten kan förverkas enligt 12 kap. 42 § jordabalken, t.ex. om hyran betalas mer än en vecka efter förfallodagen, om bostaden hyrs ut i andra hand utan tillstånd eller om Hyresgästen allvarligt stör grannar. Hyresgästen har rätt till återvinning enligt 43–44 §§. Vid obetald hyra underrättas socialnämnden.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Uttryckligt förbud mot överlåtelse utan samtycke."
+      }
+    },
+    {
+      "gold_id": "assignment",
+      "property_class": "assignment_restriction",
+      "relative_path": "Avtal_28_Aktieagaravtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "8c759b85f769b9d54d07e35daa0a8b6b0d29c0665a3f4bdf4d0ce5a82f69038d",
+          "excerpt": "överlåtelse",
+          "unit_text": "Avtal 28 – Aktieägaravtal\nNär används det: När ett aktiebolag har två eller fler ägare som vill reglera sitt förhållande till varandra utöver aktiebolagslagen och bolagsordningen, t.ex. styrelse, viktiga beslut, överlåtelse av aktier, utträde och konflikter.\nAvtalsdatum (tidslinje): 2019-09-02 – ursprungligt aktieägaravtal mellan grundaren Erik Lindqvist och delägaren Petra Sandell. Avtalet uppdateras 2025 när nya aktieägare kommer in (avtal 87).\n",
+          "clause_title": "Avtal 28 – Aktieägaravtal",
+          "previous_text": "",
+          "next_text": "1. Parter\n"
+        },
+        {
+          "unit_key": "f4d082295a589e3dd1eac4ab5b745ec21823e26fec7ac4ca2ecc73bb17377642",
+          "excerpt": "Överlåtelse",
+          "unit_text": "8. Överlåtelse av aktier\n",
+          "clause_title": "8. Överlåtelse av aktier",
+          "previous_text": "7. Utdelningspolicy\nBolagets vinstmedel ska i första hand återinvesteras i verksamheten. Utdelning får lämnas när Bolaget har en soliditet på minst [30] procent och en tillfredsställande likviditet, med beaktande av försiktighetsregeln i 17 kap. 3 § aktiebolagslagen.\n",
+          "next_text": "8.1 Förbud mot pantsättning: En Aktieägare får inte pantsätta sina Aktier utan de övriga Aktieägarnas skriftliga samtycke.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "unknown",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_property",
+        "note": "AI-preliminär: Endast rubrik/omnämnande; pantsättningsförbud är inte överlåtelseförbud."
+      }
+    },
+    {
+      "gold_id": "assignment",
+      "property_class": "assignment_restriction",
+      "relative_path": "Avtal_43_Leasingavtal_utrustning.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "2dc793d0015dc02d28f1eda629087c9d881b23f4c4b679ed60cf631d2b1e42c9",
+          "excerpt": "Överlåtelse",
+          "unit_text": "11. Överlåtelse\nLeasegivaren får överlåta sina rättigheter enligt avtalet till ett finansbolag. DevBrains ska underrättas om överlåtelsen.\n",
+          "clause_title": "11. Överlåtelse",
+          "previous_text": "10.2 Leasegivaren får säga upp avtalet med omedelbar verkan om DevBrains är mer än 30 dagar sen med betalning, väsentligt bryter mot avtalet eller kan antas vara på obestånd. DevBrains ska då återlämna Utrustningen och betala ersättning enligt punkt 7.3.\n",
+          "next_text": "12. Tvister\nSvensk lag gäller. Tvister avgörs av Stockholms tingsrätt.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "no",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_relation_or_polarity",
+        "note": "AI-preliminär: Tillåten överlåtelse är motsatsen till ett överlåtelseförbud."
+      }
+    },
+    {
+      "gold_id": "assignment",
+      "property_class": "assignment_restriction",
+      "relative_path": "Avtal_86_Aktieoverlatelseavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "f441a513b097e74336604dbc6c5bf752ca05ac25a8e2b69943c90eb89dc4988c",
+          "excerpt": "överlåtelse",
+          "unit_text": "Avtal 86 – Aktieöverlåtelseavtal\nNär används det: När en aktieägare säljer aktier i ett privat aktiebolag till en köpare. Avtalet reglerar pris, tillträde, säljarens garantier och hur förköpsrätt och samtycke hanteras.\nAvtalsdatum (tidslinje): 2025-05-15 – Petra Sandell säljer hälften av sina aktier i DevBrains till Brofjord Ventures AB, som ett led i Brofjords investering (avtal 39 och 87).\n",
+          "clause_title": "Avtal 86 – Aktieöverlåtelseavtal",
+          "previous_text": "",
+          "next_text": "1. Parter\nSäljare: Petra Sandell, pers.nr [Personnummer], [Adress] (\"Säljaren\").\nKöpare: Brofjord Ventures AB, org.nr [Organisationsnummer], [Adress] (\"Köparen\").\n"
+        },
+        {
+          "unit_key": "e11c0eceb96fddaa0d9211687043d7b77331d6d5312886079d7cdd4ff695cc83",
+          "excerpt": "Överlåtelse",
+          "unit_text": "3. Överlåtelse\n",
+          "clause_title": "3. Överlåtelse",
+          "previous_text": "2.2 Parterna har i avsiktsförklaringen den 2025-02-03 (avtal 39) kommit överens om att Köparen, utöver att teckna nya aktier, ska förvärva en del av Säljarens aktier.\n",
+          "next_text": "3.1 Säljaren säljer härmed [antal] aktier i Bolaget, motsvarande 10 procent av aktierna och rösterna före nyemissionen (\"Aktierna\"), till Köparen.\n"
+        },
+        {
+          "unit_key": "1b321280a7f450b48cc1cd698597ad76a318f3651052eccd8957f373314d6a5c",
+          "excerpt": "överlåtelse",
+          "unit_text": "4.2 Erik Lindqvist har skriftligen avstått från sin förköpsrätt och samtycker till överlåtelsen (Bilaga 1).\n",
+          "clause_title": "4.2 Erik Lindqvist har skriftligen avstått från sin förköpsrätt och samtycker till överlåtelsen (Bilaga 1).",
+          "previous_text": "4.1 Bolagets bolagsordning innehåller förbehåll om förköp, och aktieägaravtalet mellan Säljaren och Erik Lindqvist (avtal 28) innehåller förköpsrätt.\n",
+          "next_text": "5. Tillträde\n"
+        },
+        {
+          "unit_key": "778c32830a6688f44f28fad780f94d1a72e2d36f166f02a8371ea85c96710ddb",
+          "excerpt": "överlåtelse",
+          "unit_text": "5.2 På Tillträdesdagen ska\na) Köparen betala köpeskillingen till Säljarens konto [kontonummer]; och\nb) Säljaren överlämna en anmälan till Bolagets styrelse om aktieöverlåtelsen och se till att Köparen förs in i aktieboken.\n",
+          "clause_title": "5.2 På Tillträdesdagen ska",
+          "previous_text": "5.1 Tillträde sker den 2025-06-02, samtidigt med tillträdet enligt investeringsavtalet (avtal 87) (\"Tillträdesdagen\").\n",
+          "next_text": "5.3 Äganderätten till Aktierna, och rätten till utdelning som beslutas efter Tillträdesdagen, övergår på Tillträdesdagen.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "unknown",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_property",
+        "note": "AI-preliminär: Aktieöverlåtelse/förköpsrätt, inte uttryckligt överlåtelseförbud."
+      }
+    },
+    {
+      "gold_id": "assignment",
+      "property_class": "assignment_restriction",
+      "relative_path": "Avtal_93_Avveckling_av_samarbete.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "8b1a46b590708e3269a670e36412ba2b1eedcb92757b9f7998911acdf0f3c053",
+          "excerpt": "överlåtelse",
+          "unit_text": "2.1 Parterna har samarbetat genom\na) ett samarbetsavtal om design daterat 2021-09-01 (avtal 29) (\"Designavtalet\"), och överlåtelse av immateriella rättigheter till varumärkesidentiteten för DevBrains Flow (avtal 53) (\"Överlåtelseavtalet\"); och\nb) ett avtal om andrahandsuthyrning av del av lokalen i Göteborg (avtal 19) (\"Andrahandsavtalet\").\n",
+          "clause_title": "2.1 Parterna har samarbetat genom",
+          "previous_text": "2. Bakgrund\n",
+          "next_text": "2.2 Efter omstruktureringen 2025 har DevBrains behov av designtjänster minskat och DevBrains behöver hela lokalen i Göteborg. Parterna vill därför avsluta samarbetet i samförstånd.\n"
+        },
+        {
+          "unit_key": "b116d66432f32f9d227017dbe6983c4132e814a2177b5556ed802302fb3c03e7",
+          "excerpt": "Överlåtelse",
+          "unit_text": "5.1 De rättigheter som har överlåtits eller upplåtits till DevBrains enligt Designavtalet och Överlåtelseavtalet består, även efter upphörandet. Överlåtelseavtalet påverkas inte av detta avtal.\n",
+          "clause_title": "5.1 De rättigheter som har överlåtits eller upplåtits till DevBrains enligt Designavtalet och Överlåtelseavtalet består, även efter upphörandet. Överlåtelseavtalet påverkas inte av detta avtal.",
+          "previous_text": "5. Immateriella rättigheter\n",
+          "next_text": "5.2 Ljusgård ska senast den 2025-12-31 lämna över alla källfiler, designsystem och bildbanker som tillhör DevBrains, i redigerbart format.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "no",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_property",
+        "note": "AI-preliminär: Hänvisning till tidigare överlåtelse är ingen begränsning."
+      }
+    },
+    {
+      "gold_id": "confidentiality",
+      "property_class": "confidentiality_obligation",
+      "relative_path": "Avtal_04_Timanstallning_behovsanstallning.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "dc9d6ebc4368445a9372b43c665deb83e0718362f84edf806f6a4b289226fb3d",
+          "excerpt": "Sekretess",
+          "unit_text": "7. Sekretess\nArbetstagaren har tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella uppgifter.\n",
+          "clause_title": "7. Sekretess",
+          "previous_text": "6. Arbetstid\nArbetstidslagen gäller, bland annat reglerna om dygnsvila (11 timmar), veckovila (36 timmar) och raster.\n",
+          "next_text": "8. Ramavtalets giltighet\nRamavtalet gäller från och med den [2022-06-01] tills vidare. Båda parter kan säga upp ramavtalet med omedelbar verkan. Ett pågående eller bekräftat pass ska dock fullgöras eller ersättas enligt punkt 3.4.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Uttrycklig tystnadsplikt."
+      }
+    },
+    {
+      "gold_id": "confidentiality",
+      "property_class": "confidentiality_obligation",
+      "relative_path": "Avtal_12_Uppsagningsbesked_overenskommelse_avslut.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "6c635f61d317cc7819d76bc144674bc908ecdc67bf9d5afda3d2e85eed10c32a",
+          "excerpt": "företagshemligheter",
+          "unit_text": "B9. Slutreglering\nMed fullgörandet av denna överenskommelse har parterna inga ytterligare anspråk på varandra med anledning av anställningen eller dess upphörande. Undantag gäller för pensionsförmåner, ansvar enligt lagen om företagshemligheter och fel i slutlöneberäkningen.\n",
+          "clause_title": "B9. Slutreglering",
+          "previous_text": "B8. Frivillighet och betänketid\nArbetstagaren bekräftar att överenskommelsen har ingåtts frivilligt och att Arbetstagaren har haft möjlighet att rådgöra med facklig företrädare eller jurist. Arbetstagaren har fått minst [en vecka] betänketid.\n",
+          "next_text": "B10. Underskrifter\n[Ort], 2025-03-31\n[Ort], 2025-03-31\nFör DevBrains AB\nArbetstagare\n______________________\n______________________\nErik Lindqvist, VD\nPatrik Lund"
+        }
+      ],
+      "review": {
+        "property_judgment": "no",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_relation_or_polarity",
+        "note": "AI-preliminär: Lagbaserat företagshemlighetsförbehåll är inte en sekretessplikt."
+      }
+    },
+    {
+      "gold_id": "confidentiality",
+      "property_class": "confidentiality_obligation",
+      "relative_path": "Avtal_33_Agentavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "d1a4e8f7e0768b077014bd2bdb1a882c21f2394c24ac67d73e025f6a3cf4661f",
+          "excerpt": "sekretess",
+          "unit_text": "4.4 Agenten ska iaktta sekretess om Huvudmannens affärs- och yrkeshemligheter även efter avtalets upphörande.\n",
+          "clause_title": "4.4 Agenten ska iaktta sekretess om Huvudmannens affärs- och yrkeshemligheter även efter avtalets upphörande.",
+          "previous_text": "4.3 Agenten får inte utan Huvudmannens skriftliga samtycke representera eller sälja produkter som konkurrerar med Tjänsten.\n",
+          "next_text": "5. Huvudmannens åtaganden\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Uttrycklig sekretessplikt."
+      }
+    },
+    {
+      "gold_id": "confidentiality",
+      "property_class": "confidentiality_obligation",
+      "relative_path": "Avtal_50_Support_underhallsavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "b66da19bf2e3935d6aed3f4978f40989ec474671e2660c631df7a183854d7844",
+          "excerpt": "sekretess",
+          "unit_text": "8. Personuppgifter och sekretess\nPersonuppgiftsbiträdesavtalet till avtal 48 gäller även för detta avtal. DevBrains personal ska följa tystnadsplikt om patientuppgifter.\n",
+          "clause_title": "8. Personuppgifter och sekretess",
+          "previous_text": "7. Servicekrediter\nOm DevBrains inte uppfyller tillgänglighetsnivån eller tiderna för A-fel har Kunden rätt till servicekrediter på [5] procent av månadsavgiften per överträdelse, dock högst 25 procent per månad.\n",
+          "next_text": "9. Ansvar\nDevBrains sammanlagda ansvar per avtalsår är begränsat till de avgifter som Kunden har betalat under de senaste tolv (12) månaderna, utom vid uppsåt, grov vårdslöshet eller brott mot personuppgiftsbiträdesavtalet. Ingen part ansvarar för indirekt skada.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Tystnadsplikt om patientuppgifter."
+      }
+    },
+    {
+      "gold_id": "confidentiality",
+      "property_class": "confidentiality_obligation",
+      "relative_path": "Avtal_62_PUB_GDPR_databehandlingsavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "8f0794aad327494c1701283587c1dfe0e94ccff816933d388c042b66f77cad10",
+          "excerpt": "tystnadsplikt",
+          "unit_text": "5.2 DevBrains personal som har åtkomst till personuppgifterna omfattas av tystnadsplikt.\n",
+          "clause_title": "5.2 DevBrains personal som har åtkomst till personuppgifterna omfattas av tystnadsplikt.",
+          "previous_text": "5.1 DevBrains ska vidta lämpliga tekniska och organisatoriska åtgärder enligt artikel 32 GDPR, minst enligt Bilaga 1. Åtgärderna omfattar kryptering under överföring och i vila, tvåfaktorsautentisering för personal, behörighetsstyrning enligt principen om minsta behörighet, loggning, sårbarhetshantering, årliga penetrationstester och dagliga säkerhetskopior.\n",
+          "next_text": "6. Underbiträden\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Uttrycklig tystnadsplikt."
+      }
+    },
+    {
+      "gold_id": "confidentiality",
+      "property_class": "confidentiality_obligation",
+      "relative_path": "Avtal_75_Visselblasarfunktion.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "a804101923cacce18a936dddd1eae03bf0e847d2f68612c044d15e0a5a9f5703",
+          "excerpt": "Tystnadsplikt",
+          "unit_text": "5. Tystnadsplikt\n",
+          "clause_title": "5. Tystnadsplikt",
+          "previous_text": "4. Kontaktpersoner hos DevBrains\nDevBrains utser Erik Lindqvist, VD, och Petra Sandell, styrelseledamot, som behöriga att ta emot information från Mottagaren. Om en rapport gäller en av dessa personer ska Mottagaren endast vända sig till den andra, eller till styrelsen i övrigt.\n",
+          "next_text": "5.1 Mottagaren ska behandla rapporter med strikt konfidentialitet och får inte röja den rapporterande personens identitet eller uppgifter som kan avslöja identiteten utan personens samtycke, om inte annat följer av lag.\n"
+        },
+        {
+          "unit_key": "b3922f56c16b0c10cf396ba0303163fbb07f7b4e79ab355dbf673d377c31560c",
+          "excerpt": "röja",
+          "unit_text": "5.1 Mottagaren ska behandla rapporter med strikt konfidentialitet och får inte röja den rapporterande personens identitet eller uppgifter som kan avslöja identiteten utan personens samtycke, om inte annat följer av lag.\n",
+          "clause_title": "5.1 Mottagaren ska behandla rapporter med strikt konfidentialitet och får inte röja den rapporterande personens identitet eller uppgifter som kan avslöja identiteten utan personens samtycke, om inte annat följer av lag.",
+          "previous_text": "5. Tystnadsplikt\n",
+          "next_text": "5.2 DevBrains kontaktpersoner omfattas av tystnadsplikt enligt visselblåsarlagen.\n"
+        },
+        {
+          "unit_key": "511e66d0598d26ec2583d8b9470d00ea487fd6298522e2d5d9ab19c9cbced080",
+          "excerpt": "tystnadsplikt",
+          "unit_text": "5.2 DevBrains kontaktpersoner omfattas av tystnadsplikt enligt visselblåsarlagen.\n",
+          "clause_title": "5.2 DevBrains kontaktpersoner omfattas av tystnadsplikt enligt visselblåsarlagen.",
+          "previous_text": "5.1 Mottagaren ska behandla rapporter med strikt konfidentialitet och får inte röja den rapporterande personens identitet eller uppgifter som kan avslöja identiteten utan personens samtycke, om inte annat följer av lag.\n",
+          "next_text": "6. Personuppgifter\nMottagaren är personuppgiftsbiträde för DevBrains vid hanteringen av rapporter. Personuppgiftsbiträdesavtal enligt Bilaga 1 gäller. Personuppgifter i ett uppföljningsärende ska raderas senast två (2) år efter att ärendet har avslutats.\n"
+        },
+        {
+          "unit_key": "43ba117d9b718b16b3f74905d5ca5d629e1eb8e39bec3c43f383388662edd3e8",
+          "excerpt": "röja",
+          "unit_text": "8.2 Handläggning av rapporter debiteras med [Belopp] kronor per timme. Om utredningen beräknas överstiga [antal] timmar ska Mottagaren först inhämta DevBrains godkännande, utan att röja den rapporterande personens identitet.\n",
+          "clause_title": "8.2 Handläggning av rapporter debiteras med [Belopp] kronor per timme. Om utredningen beräknas överstiga [antal] timmar ska Mottagaren först inhämta DevBrains godkännande, utan att röja den rapporterande personens identitet.",
+          "previous_text": "8.1 Fast årsavgift för rapporteringskanal och beredskap: [Belopp] kronor exklusive moms, faktureras årsvis i förskott.\n",
+          "next_text": "9. Jäv och oberoende\nMottagaren ska inte ta emot rapporter som gäller ärenden där Mottagaren har en intressekonflikt, t.ex. ärenden där Mottagaren företräder DevBrains. Sådana rapporter ska överlämnas till en annan oberoende mottagare som parterna har kommit överens om.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Flera uttryckliga sekretess-/tystnadsplikter."
+      }
+    },
+    {
+      "gold_id": "confidentiality",
+      "property_class": "confidentiality_obligation",
+      "relative_path": "Avtal_81_VD_anstallningsavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "bedf80e708b76ae2725ac1a18ad56c4056f248fec9a0ebd6279e1f7ad1254c4c",
+          "excerpt": "Sekretess",
+          "unit_text": "8. Sekretess, immateriella rättigheter och konkurrens\n",
+          "clause_title": "8. Sekretess, immateriella rättigheter och konkurrens",
+          "previous_text": "7.4 Bolaget får under uppsägningstiden befria VD från arbetsskyldighet, med bibehållen lön och förmåner.\n",
+          "next_text": "8.1 VD har tystnadsplikt om Bolagets affärs- och yrkeshemligheter under och efter anställningen, i enlighet med lagen (2018:558) om företagshemligheter.\n"
+        },
+        {
+          "unit_key": "76ba5285fbc5a9f7ce51d66405731c2f2deb7ff67f38904bc3362e558bdc3c9e",
+          "excerpt": "tystnadsplikt",
+          "unit_text": "8.1 VD har tystnadsplikt om Bolagets affärs- och yrkeshemligheter under och efter anställningen, i enlighet med lagen (2018:558) om företagshemligheter.\n",
+          "clause_title": "8.1 VD har tystnadsplikt om Bolagets affärs- och yrkeshemligheter under och efter anställningen, i enlighet med lagen (2018:558) om företagshemligheter.",
+          "previous_text": "8. Sekretess, immateriella rättigheter och konkurrens\n",
+          "next_text": "8.2 Alla rättigheter till resultat som VD skapar i anställningen tillfaller Bolaget, inklusive upphovsrätt till datorprogram enligt 40 a § upphovsrättslagen.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Tystnadsplikt under och efter anställning."
+      }
+    },
+    {
+      "gold_id": "confidentiality",
+      "property_class": "confidentiality_obligation",
+      "relative_path": "Avtal_93_Avveckling_av_samarbete.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "0a5cf4d778f5031b15491f3f1b32134289bea7d0561d52788fdb657fd59bd376",
+          "excerpt": "Sekretess",
+          "unit_text": "9. Sekretess\nSekretessbestämmelserna i Designavtalet gäller fortsatt i tre (3) år.\n",
+          "clause_title": "9. Sekretess",
+          "previous_text": "8. Kommunikation och relation\nParterna ska kommunicera avvecklingen på ett sätt som inte skadar någon av dem. Ingen part ska uttala sig nedsättande om den andra.\n",
+          "next_text": "10. Tvister\nSvensk lag gäller. Tvister avgörs av Göteborgs tingsrätt.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Sekretessbestämmelser förlängs genom hänvisning."
+      }
+    },
+    {
+      "gold_id": "force-majeure",
+      "property_class": "force_majeure",
+      "relative_path": "Avtal_13_Avgangsvederlagsavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "b6ba8ad4e5e9a93399cd6017d37037eaed23b9afefccbec4cb7238fb6ca4da42",
+          "excerpt": "befriad från",
+          "unit_text": "3.2 Arbetstagaren är arbetsbefriad från och med den [Datum]. [Lön från ny anställning under arbetsbefrielsen ska / ska inte avräknas.]\n",
+          "clause_title": "3.2 Arbetstagaren är arbetsbefriad från och med den [Datum]. [Lön från ny anställning under arbetsbefrielsen ska / ska inte avräknas.]",
+          "previous_text": "3.1 Arbetstagaren har fram till Avgångsdagen oförändrad lön och oförändrade förmåner.\n",
+          "next_text": "3.3 Semester som har tjänats in men inte tagits ut [ska anses förlagd under arbetsbefrielsen / betalas ut som semesterersättning].\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "no",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_property",
+        "note": "AI-preliminär: Arbetsbefrielse är inte force majeure."
+      }
+    },
+    {
+      "gold_id": "governing-law",
+      "property_class": "governing_law",
+      "relative_path": "Avtal_74_Forsakringsavtal.docx",
+      "polarity": "positive",
+      "value": "Sweden",
+      "evidence": [
+        {
+          "unit_key": "05030a7836073922e9d791c46de3c910d76e46e69f937366a68658b69bd5ca92",
+          "excerpt": "svensk lag",
+          "unit_text": "10. Klagomål och tvister\nKlagomål ska i första hand lämnas till Försäkringsgivarens klagomålsansvarige. Tvister avgörs av allmän domstol enligt svensk lag. Rådgivning finns hos Konsumenternas Försäkringsbyrå för mindre företag.\n",
+          "clause_title": "10. Klagomål och tvister",
+          "previous_text": "9.2 Försäkringsgivaren får säga upp försäkringen i förtid endast om DevBrains grovt har åsidosatt sina förpliktelser mot Försäkringsgivaren, eller om det finns andra synnerliga skäl.\n",
+          "next_text": "11. Underskrifter\nStockholm, 2020-02-03\nStockholm, 2020-02-03\nFör Försäkrings AB Värnet\nFör DevBrains AB\n______________________\n______________________\nPernilla Ek, företagsrådgivare\nErik Lindqvist, VD\nBilaga 1: Allmänna villkor för företagsförsäkring"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Svensk lag och domstol anges uttryckligen."
+      }
+    },
+    {
+      "gold_id": "liability-cap",
+      "property_class": "liability_limitation",
+      "relative_path": "Avtal_61_PUB_avtal_DevBrains_ansvarig.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "199529ae0f7e18ccd459cd203fe9c1e79be5982c04fc943aebf47785e95d4ca9",
+          "excerpt": "Ansvarsbegränsning",
+          "unit_text": "10. Ansvar\nParternas ansvar för skada som orsakats den registrerade eller den andra parten följer av artikel 82 GDPR. En part som har betalat skadestånd eller sanktionsavgift som helt eller delvis beror på den andra partens brott mot GDPR eller detta avtal har rätt att få ersättning av den andra parten för dennes andel. Ansvarsbegränsningar i Huvudavtalet gäller inte för sådan ersättning.\n",
+          "clause_title": "10. Ansvar",
+          "previous_text": "9. Ersättning\nBiträdets bistånd enligt punkterna 5.4 och 5.5 ersätts enligt Huvudavtalets prislista, utom när biståndet beror på att Biträdet har brutit mot detta avtal.\n",
+          "next_text": "11. Avtalstid och återlämnande\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "no",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_relation_or_polarity",
+        "note": "AI-preliminär: Ansvarsbegränsningarna undantas; inte en begränsning."
+      }
+    },
+    {
+      "gold_id": "personal-data",
+      "property_class": "personal_data_processing",
+      "relative_path": "Avtal_11_Distansarbetsavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "751c7731dff8f9115c1ab7a1a6a4731ffd8df2cd60a2b39e1bb708fbfdb4a984",
+          "excerpt": "personuppgift",
+          "unit_text": "6.3 Säkerhetsincidenter och misstänkta personuppgiftsincidenter ska rapporteras omedelbart till [kontaktperson]. Det är viktigt eftersom anmälan till IMY ska göras inom 72 timmar.\n",
+          "clause_title": "6.3 Säkerhetsincidenter och misstänkta personuppgiftsincidenter ska rapporteras omedelbart till [kontaktperson]. Det är viktigt eftersom anmälan till IMY ska göras inom 72 timmar.",
+          "previous_text": "6.2 Konfidentiella handlingar ska förvaras så att obehöriga inte kan ta del av dem.\n",
+          "next_text": "7. Försäkring\nArbetsgivaren upplyser om att [företagsförsäkring/hemförsäkring/arbetsskadeförsäkring] gäller enligt sina villkor. Arbetstagaren uppmanas kontrollera sin egen hemförsäkring.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Personuppgiftsincidenter regleras med rapporteringsplikt."
+      }
+    },
+    {
+      "gold_id": "personal-data",
+      "property_class": "personal_data_processing",
+      "relative_path": "Avtal_47_Programvarulicensavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "525668513155fba0ebcd5325af697671941e97e08939e86a25edeb5ecbc690b4",
+          "excerpt": "personuppgift",
+          "unit_text": "11. Sekretess och personuppgifter\nParterna ska hålla den andra partens konfidentiella information hemlig. Licensgivaren behandlar inte personuppgifter för DevBrains räkning, utöver kontaktuppgifter till användare för licensadministration.\n",
+          "clause_title": "11. Sekretess och personuppgifter",
+          "previous_text": "10. Ansvarsbegränsning\nIngen part ansvarar för indirekt skada. Respektive parts sammanlagda ansvar är begränsat till de avgifter som har betalats under de senaste tolv (12) månaderna, utom vid uppsåt, grov vårdslöshet eller ansvar enligt punkt 8.\n",
+          "next_text": "12. Avtalstid och uppsägning\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "no",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_relation_or_polarity",
+        "note": "AI-preliminär: Texten säger att personuppgifter inte behandlas i nämnd utsträckning."
+      }
+    },
+    {
+      "gold_id": "personal-data",
+      "property_class": "personal_data_processing",
+      "relative_path": "Avtal_59_Agilt_IT_konsultavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "d5550d1e4520524a58a635a43c3e533112ed22e73a45897bc7aab8f2174569f2",
+          "excerpt": "personuppgift",
+          "unit_text": "8. Sekretess, personuppgifter och patientdata\n",
+          "clause_title": "8. Sekretess, personuppgifter och patientdata",
+          "previous_text": "7. Rättigheter\nAll kod, dokumentation och annat resultat som Teamet tar fram tillhör DevBrains när det har skapats, och omfattas av DevBrains åtaganden mot Vindö Vårdcenter AB enligt avtal 48. Leverantören ska se till att konsulterna har överlåtit sina rättigheter till Leverantören.\n",
+          "next_text": "8.1 Leverantören och konsulterna ska följa sekretess om DevBrains och Kundprojektet. Varje konsult ska underteckna en personlig sekretessförbindelse.\n"
+        },
+        {
+          "unit_key": "d77de63b102e8c39aab8e137d16dbe95e4ea31eac42baa9917e11556dd02494e",
+          "excerpt": "personuppgift",
+          "unit_text": "8.2 Leverantören är underbiträde till DevBrains i den mån Teamet behandlar personuppgifter. Underbiträdesavtalet till avtal 36 gäller i tillämpliga delar. Testdata ska vara pseudonymiserade. Teamet får inte ta del av riktiga patientuppgifter utan särskilt beslut.\n",
+          "clause_title": "8.2 Leverantören är underbiträde till DevBrains i den mån Teamet behandlar personuppgifter. Underbiträdesavtalet till avtal 36 gäller i tillämpliga delar. Testdata ska vara pseudonymiserade. Teamet får inte ta del av riktiga patientuppgifter utan särskilt beslut.",
+          "previous_text": "8.1 Leverantören och konsulterna ska följa sekretess om DevBrains och Kundprojektet. Varje konsult ska underteckna en personlig sekretessförbindelse.\n",
+          "next_text": "9. Värvningsförbud\nIngen av parterna får under avtalstiden och sex (6) månader därefter aktivt värva den andra partens personal som har arbetat i Kundprojektet.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Underbiträdes-/personuppgiftsbehandling regleras."
+      }
+    },
+    {
+      "gold_id": "personal-data",
+      "property_class": "personal_data_processing",
+      "relative_path": "Avtal_73_Volontaravtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "9619c12b63fc89d8e5eaebab8b2e4d1de67b839dd9c2b9926cbcc9631e7cee39",
+          "excerpt": "personuppgift",
+          "unit_text": "8. Tystnadsplikt och personuppgifter\n",
+          "clause_title": "8. Tystnadsplikt och personuppgifter",
+          "previous_text": "7. Försäkring\nVolontären omfattas av [IK Stjärnfalls olycksfallsförsäkring för ledare / DevBrains försäkring för volontärer hos Försäkrings AB Värnet] vid aktiviteter inom Kodklubben, inklusive resor till och från.\n",
+          "next_text": "8.1 Volontären ska iaktta tystnadsplikt om personliga förhållanden som rör barnen och deras familjer, och om DevBrains interna förhållanden.\n"
+        },
+        {
+          "unit_key": "ab0d5afff2be6a201841e9e28429cab58d8d4133d7d777eb8c7c479a9504df97",
+          "excerpt": "GDPR",
+          "unit_text": "8.2 DevBrains behandlar Volontärens namn, kontaktuppgifter och uppgift om att utdrag ur belastningsregistret har visats, för att administrera uppdraget, med stöd av avtal och berättigat intresse enligt GDPR. Uppgifterna raderas tolv (12) månader efter att uppdraget har upphört.\n",
+          "clause_title": "8.2 DevBrains behandlar Volontärens namn, kontaktuppgifter och uppgift om att utdrag ur belastningsregistret har visats, för att administrera uppdraget, med stöd av avtal och berättigat intresse enligt GDPR. Uppgifterna raderas tolv (12) månader efter att uppdraget har upphört.",
+          "previous_text": "8.1 Volontären ska iaktta tystnadsplikt om personliga förhållanden som rör barnen och deras familjer, och om DevBrains interna förhållanden.\n",
+          "next_text": "8.3 Bilder på barn får endast tas och publiceras om vårdnadshavare har lämnat samtycke.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Behandling, rättslig grund och lagringstid anges."
+      }
+    },
+    {
+      "gold_id": "personal-data",
+      "property_class": "personal_data_processing",
+      "relative_path": "Avtal_91_Inkramsoverlatelse.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "015bbbe06bb4ff5d83a66457443c2653fc85fd8e16851dae63cf6cb26b0c6524",
+          "excerpt": "Personuppgift",
+          "unit_text": "11. Personuppgifter\nPersonuppgifter i kundregister och personalakter överförs till Köparen i den mån det behövs. Köparen blir personuppgiftsansvarig för dessa från Tillträdesdagen.\n",
+          "clause_title": "11. Personuppgifter",
+          "previous_text": "10. Konkurrens och värvning\nUnder 24 månader efter Tillträdesdagen ska Säljaren inte erbjuda integrationskonsulttjänster till kunderna i Bilaga 2. Säljaren får dock sälja och leverera DevBrains Flow, inklusive integrationer som behövs för Flow, till alla kunder.\n",
+          "next_text": "12. Tvister\nSvensk lag gäller. Tvister avgörs av Göteborgs tingsrätt.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Överföring av personuppgifter och ansvar regleras."
+      }
+    },
+    {
+      "gold_id": "notice-period",
+      "property_class": "termination_notice",
+      "relative_path": "Avtal_02_Provanstallningsavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "1e2aa170c62b40397a1de8d88c2ea00127845fffdc4f981ea36d457cec248115",
+          "excerpt": "uppsägningstid",
+          "unit_text": "4.1 Båda parter får avbryta provanställningen före provtidens utgång [utan uppsägningstid / med [två veckors] varsel].\n",
+          "clause_title": "4.1 Båda parter får avbryta provanställningen före provtidens utgång [utan uppsägningstid / med [två veckors] varsel].",
+          "previous_text": "4. Avbrytande och besked\n",
+          "next_text": "4.2 Om Arbetsgivaren inte vill att anställningen ska fortsätta efter provtiden ska Arbetsgivaren lämna besked om detta minst två veckor i förväg (31 § LAS). Om Arbetstagaren är fackligt organiserad ska Arbetsgivaren samtidigt underrätta den lokala arbetstagarorganisationen. Arbetstagaren har rätt till överläggning.\n"
+        },
+        {
+          "unit_key": "74883e01c23814f4b925e8bcf5c183241c05c8e4503bc9f612ddb4d0588637ba",
+          "excerpt": "uppsägningstid",
+          "unit_text": "9. Villkor efter övergång\nOm anställningen övergår i en tillsvidareanställning gäller uppsägningstid enligt 11 § LAS, eller den längre tid som parterna har avtalat. I övrigt gäller detta avtal i tillämpliga delar.\n",
+          "clause_title": "9. Villkor efter övergång",
+          "previous_text": "8. Sekretess\nArbetstagaren har tystnadsplikt om Arbetsgivarens företagshemligheter och konfidentiella uppgifter, både under och efter anställningen.\n",
+          "next_text": "10. Tvister och tillämplig lag\nSvensk lag gäller. Tvister prövas enligt lagen (1974:371) om rättegången i arbetstvister.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Uppsägningstid och varsel regleras."
+      }
+    },
+    {
+      "gold_id": "notice-period",
+      "property_class": "termination_notice",
+      "relative_path": "Avtal_10_Arbetstidsavtal_flextid.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "1ba1fa6f94f1e4579413a31c5cfd1904db0ddc6edbb803b77221cb0ceb141468",
+          "excerpt": "säga upp",
+          "unit_text": "7.2 Båda parter kan säga upp detta tilläggsavtal med [en månads] varsel. Anställningsavtalet i övrigt påverkas inte.\n",
+          "clause_title": "7.2 Båda parter kan säga upp detta tilläggsavtal med [en månads] varsel. Anställningsavtalet i övrigt påverkas inte.",
+          "previous_text": "7.1 Arbetsgivaren får av verksamhetsskäl begränsa eller avsluta flextiden för Arbetstagaren eller för en grupp. Det ska ske med minst [en månads] varsel. Arbetstiden återgår då till kl. [08.00–17.00].\n",
+          "next_text": "8. Underskrifter\n[Ort], 2022-08-15\n[Ort], 2022-08-15\nFör DevBrains AB\nArbetstagare\n______________________\n______________________\nErik Lindqvist, VD\nLinnea Sjöberg"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Uppsägning av tilläggsavtal med en månads varsel."
+      }
+    },
+    {
+      "gold_id": "notice-period",
+      "property_class": "termination_notice",
+      "relative_path": "Avtal_30_Ramavtal_tjanster.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "e35972ca64e2a50a76afa1a6255a6509164325c77796a107c2ace191cb641540",
+          "excerpt": "säga upp",
+          "unit_text": "14. Force majeure\nEn part är befriad från sina skyldigheter om fullgörandet förhindras av omständigheter som parten inte rimligen kunde förutse eller råda över, t.ex. krig, myndighetsbeslut, naturkatastrof, omfattande cyberattack mot infrastruktur eller avbrott i allmänna kommunikationsnät. Om hindret varar längre än 60 dagar får vardera parten säga upp avtalet.\n",
+          "clause_title": "14. Force majeure",
+          "previous_text": "13.4 Begränsningarna gäller inte vid uppsåt, grov vårdslöshet, brott mot sekretess eller brott mot personuppgiftsbiträdesavtalet [med det belopp som anges där].\n",
+          "next_text": "15. Avtalstid och uppsägning\n"
+        },
+        {
+          "unit_key": "5e362128ed8f71c41c290eff4035d59ef0af733af2b2d64695c40d6d9d6c4dce",
+          "excerpt": "sägs upp",
+          "unit_text": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.\n",
+          "clause_title": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+          "previous_text": "15. Avtalstid och uppsägning\n",
+          "next_text": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.\n"
+        },
+        {
+          "unit_key": "8578bae7bb5cf8d08c6d1f44fe7e0a5bfd368005087e40c615b6f39941670894",
+          "excerpt": "säga upp",
+          "unit_text": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.\n",
+          "clause_title": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.",
+          "previous_text": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.\n",
+          "next_text": "16. Avveckling\nNär avtalet upphör ska DevBrains under en övergångsperiod på [tre (3)] månader, mot ersättning enligt prislistan, bistå Kunden med att flytta Lösningen och Kunddata till Kunden eller till en ny leverantör. Kunddata ska lämnas ut i ett strukturerat, maskinläsbart format och därefter raderas.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Avtalstid, uppsägningsfrist och uppsägningsrätt regleras."
+      }
+    },
+    {
+      "gold_id": "notice-period",
+      "property_class": "termination_notice",
+      "relative_path": "Avtal_37_Allmanna_villkor_B2B.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "410ce928b1b88844f7aa4f5127ab38e89ec37dfe7aedbe503bd001298d5da417",
+          "excerpt": "sägs upp",
+          "unit_text": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.\n",
+          "clause_title": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+          "previous_text": "12. Avtalstid och uppsägning\n",
+          "next_text": "12.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar efter skriftlig anmodan, eller om den andra parten blir insolvent.\n"
+        },
+        {
+          "unit_key": "d15dbcf08a80452703f72050e2622d14908b26e870866059ed6a70082eaec4aa",
+          "excerpt": "säga upp",
+          "unit_text": "12.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar efter skriftlig anmodan, eller om den andra parten blir insolvent.\n",
+          "clause_title": "12.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar efter skriftlig anmodan, eller om den andra parten blir insolvent.",
+          "previous_text": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.\n",
+          "next_text": "12.3 När avtalet upphör kan Kunden under 30 dagar exportera sina data. Därefter raderas data, med undantag för data som DevBrains måste spara enligt lag.\n"
+        },
+        {
+          "unit_key": "27b6d4505c129b8826863e0b4603e40c7288dd9b9c7fc92fea3acdb530a07bb3",
+          "excerpt": "säga upp",
+          "unit_text": "13.1 DevBrains får ändra Villkoren med minst 30 dagars varsel. Om ändringen är till väsentlig nackdel för Kunden får Kunden säga upp avtalet så att det upphör när ändringen börjar gälla.\n",
+          "clause_title": "13.1 DevBrains får ändra Villkoren med minst 30 dagars varsel. Om ändringen är till väsentlig nackdel för Kunden får Kunden säga upp avtalet så att det upphör när ändringen börjar gälla.",
+          "previous_text": "13. Övrigt\n",
+          "next_text": "13.2 DevBrains får nämna Kunden som referens, om inte Kunden har meddelat något annat.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Uppsägningsfrist och uppsägningsrätter regleras."
+      }
+    },
+    {
+      "gold_id": "notice-period",
+      "property_class": "termination_notice",
+      "relative_path": "Avtal_43_Leasingavtal_utrustning.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "e9557b4cdabfebb1b59516d1cf014d0afe61968b64b936d15b4a57165e692b7f",
+          "excerpt": "sägas upp",
+          "unit_text": "10.1 Avtalet kan inte sägas upp i förtid av DevBrains, om inte Leasegivaren samtycker. Om Leasegivaren samtycker ska DevBrains betala återstående avgifter diskonterade enligt punkt 7.3, samt restvärdet.\n",
+          "clause_title": "10.1 Avtalet kan inte sägas upp i förtid av DevBrains, om inte Leasegivaren samtycker. Om Leasegivaren samtycker ska DevBrains betala återstående avgifter diskonterade enligt punkt 7.3, samt restvärdet.",
+          "previous_text": "10. Förtida upphörande\n",
+          "next_text": "10.2 Leasegivaren får säga upp avtalet med omedelbar verkan om DevBrains är mer än 30 dagar sen med betalning, väsentligt bryter mot avtalet eller kan antas vara på obestånd. DevBrains ska då återlämna Utrustningen och betala ersättning enligt punkt 7.3.\n"
+        },
+        {
+          "unit_key": "dc2b2e89bcbc7139547ef45bac27c974bd87e7e7c9c49b9ad2d816a1a3025e25",
+          "excerpt": "säga upp",
+          "unit_text": "10.2 Leasegivaren får säga upp avtalet med omedelbar verkan om DevBrains är mer än 30 dagar sen med betalning, väsentligt bryter mot avtalet eller kan antas vara på obestånd. DevBrains ska då återlämna Utrustningen och betala ersättning enligt punkt 7.3.\n",
+          "clause_title": "10.2 Leasegivaren får säga upp avtalet med omedelbar verkan om DevBrains är mer än 30 dagar sen med betalning, väsentligt bryter mot avtalet eller kan antas vara på obestånd. DevBrains ska då återlämna Utrustningen och betala ersättning enligt punkt 7.3.",
+          "previous_text": "10.1 Avtalet kan inte sägas upp i förtid av DevBrains, om inte Leasegivaren samtycker. Om Leasegivaren samtycker ska DevBrains betala återstående avgifter diskonterade enligt punkt 7.3, samt restvärdet.\n",
+          "next_text": "11. Överlåtelse\nLeasegivaren får överlåta sina rättigheter enligt avtalet till ett finansbolag. DevBrains ska underrättas om överlåtelsen.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Förtida uppsägning och uppsägningsrätt regleras."
+      }
+    },
+    {
+      "gold_id": "notice-period",
+      "property_class": "termination_notice",
+      "relative_path": "Avtal_52_Licensavtal_varumarke.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "bbb9f5b5a527034e46d526b69418725f173f6bae53facc745244a9ec0399cab8",
+          "excerpt": "sägs upp",
+          "unit_text": "8.1 Avtalet gäller från och med 2024-06-03 till och med 2025-12-31 och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast tre (3) månader före avtalstidens utgång.\n",
+          "clause_title": "8.1 Avtalet gäller från och med 2024-06-03 till och med 2025-12-31 och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast tre (3) månader före avtalstidens utgång.",
+          "previous_text": "8. Avtalstid och uppsägning\n",
+          "next_text": "8.2 Licensgivaren får säga upp avtalet med omedelbar verkan om Licenstagaren använder Varumärkena i strid med avtalet eller på ett sätt som kan skada Licensgivarens anseende.\n"
+        },
+        {
+          "unit_key": "b04a5d0c62172003839f4ac3c1b1720550c1026f803d976c5563df9bb1663e11",
+          "excerpt": "säga upp",
+          "unit_text": "8.2 Licensgivaren får säga upp avtalet med omedelbar verkan om Licenstagaren använder Varumärkena i strid med avtalet eller på ett sätt som kan skada Licensgivarens anseende.\n",
+          "clause_title": "8.2 Licensgivaren får säga upp avtalet med omedelbar verkan om Licenstagaren använder Varumärkena i strid med avtalet eller på ett sätt som kan skada Licensgivarens anseende.",
+          "previous_text": "8.1 Avtalet gäller från och med 2024-06-03 till och med 2025-12-31 och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast tre (3) månader före avtalstidens utgång.\n",
+          "next_text": "9. Följder av upphörande\nNär avtalet upphör ska Licenstagaren upphöra med tillverkning. Licenstagaren får under tre (3) månader sälja sitt kvarvarande lager enligt avtalets villkor. Därefter ska kvarvarande Licensprodukter förstöras eller, efter Licensgivarens val, säljas till Licensgivaren till självkostnadspris.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Förnyelse och tre månaders uppsägningstid."
+      }
+    },
+    {
+      "gold_id": "notice-period",
+      "property_class": "termination_notice",
+      "relative_path": "Avtal_63_Appavtal_utveckling_publicering.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "a0324b8d40ea4be4e9fb905756e28fb5b2701a9cde08cf3c271dc2ebae4ad511",
+          "excerpt": "uppsägningstid",
+          "unit_text": "11. Avtalstid\nUtvecklingsdelen gäller till och med M4 och garantitidens utgång. Förvaltningen gäller från publiceringen i tolv (12) månader och förlängs därefter med tolv (12) månader i taget, med tre (3) månaders uppsägningstid.\n",
+          "clause_title": "11. Avtalstid",
+          "previous_text": "10. Ansvar\nDevBrains ansvarar inte för beslut som Apple eller Google fattar om granskning, borttagning eller ändrade villkor, och inte heller för avbrott i appbutikerna. DevBrains sammanlagda ansvar är begränsat till det fasta priset enligt punkt 7.1, utom vid uppsåt eller grov vårdslöshet.\n",
+          "next_text": "12. Tvister\nSvensk lag gäller. Tvister avgörs av Stockholms tingsrätt.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "yes",
+        "citation_judgment": "supported",
+        "classification": "gold_gap",
+        "note": "AI-preliminär: Förvaltningen har tre månaders uppsägningstid."
+      }
+    },
+    {
+      "gold_id": "notice-period",
+      "property_class": "termination_notice",
+      "relative_path": "Avtal_72_Utbildningsavtal.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "d20014c29e3af646de0235101dd02b436be8b8cfe176fbd5726355c41212e4f7",
+          "excerpt": "säga upp",
+          "unit_text": "7. Förhållande till anställningsavtalet\nAvtalet utgör ett tillägg till anställningsavtalet daterat 2020-03-02 (avtal 1). Arbetstagarens rätt att säga upp sig påverkas inte, utöver återbetalningsskyldigheten.\n",
+          "clause_title": "7. Förhållande till anställningsavtalet",
+          "previous_text": "6. Arbetstagarens åtaganden\nArbetstagaren ska delta i Utbildningen, genomföra provet och efter Utbildningen dela med sig av kunskaperna till kollegor, bl.a. genom en intern utbildning.\n",
+          "next_text": "8. Tvister\nSvensk lag gäller. Tvister prövas enligt lagen (1974:371) om rättegången i arbetstvister.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "no",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_property",
+        "note": "AI-preliminär: Rätten att säga upp sig skyddas, ingen uppsägningstid."
+      }
+    },
+    {
+      "gold_id": "notice-period",
+      "property_class": "termination_notice",
+      "relative_path": "Avtal_97_Skuldebrev.docx",
+      "polarity": "positive",
+      "value": "true",
+      "evidence": [
+        {
+          "unit_key": "f98e38eb2a48b805fdd771862b4d5945814890711118597d69a836aded9435e3",
+          "excerpt": "säga upp",
+          "unit_text": "6.2 Om Gäldenären är mer än 60 dagar sen med en betalning, och inte har fått uppskov enligt punkt 5, får Borgenären säga upp hela den återstående skulden till omedelbar betalning.\n",
+          "clause_title": "6.2 Om Gäldenären är mer än 60 dagar sen med en betalning, och inte har fått uppskov enligt punkt 5, får Borgenären säga upp hela den återstående skulden till omedelbar betalning.",
+          "previous_text": "6.1 Om Gäldenären inte betalar i tid utgår dröjsmålsränta enligt räntelagen.\n",
+          "next_text": "7. Kvitton\nBorgenären ska på begäran lämna kvitto på betalningar. När lånet är fullt betalt ska Borgenären återlämna skuldebrevet med en anteckning om att skulden är betald.\n"
+        }
+      ],
+      "review": {
+        "property_judgment": "no",
+        "citation_judgment": "unsupported",
+        "classification": "wrong_relation_or_polarity",
+        "note": "AI-preliminär: Acceleration vid dröjsmål, inte uppsägningstid."
+      }
+    }
+  ],
+  "review_metadata": {
+    "reviewer": "AI (Codex)",
+    "review_type": "preliminary_ai_review",
+    "independent_human_expert_review": false,
+    "source_file": "Inklistrad text(5).txt",
+    "reviewed_at": "2026-10-19",
+    "instruction": "Use only as suggested review fields; frozen gold/facit was not changed.",
+    "definition_status": "Human expert confirmation required."
+  }
+}

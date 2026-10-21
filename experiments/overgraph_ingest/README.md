@@ -234,6 +234,262 @@ taxonomy against an exhaustive in-process ranking of every TextUnit:
 | `unretrieved` | Finns i grafen men saknas i motorns topp-k även när uttömmande rank ≤ k |
 | `low_rank` | Finns, men uttömmande rank ≤ k och motorn placerar den utanför k |
 
+## Tantivy BM25 v1
+
+Opt-in comparison of dense, sparse, current hybrid, two locked-RRF
+controls, Tantivy BM25, and dense + BM25. It reads already-ingested
+TextUnits; it does not re-embed, re-ingest, or change the default
+retriever. Step A is model-free retrieval. Step B (`--bm25-answer-test`)
+is separate and was not run for the frozen result.
+
+```bash
+uv sync
+uv run overgraph-ingest \
+  --db ./data/extra-overgraph-phase2 \
+  --dense-dimension 3072 \
+  --openai-api-key "$OPENAI_API_KEY" \
+  --bm25-compare \
+  --bm25-scope both \
+  --bm25-analyzer both \
+  --bm25-index-dir ./data/bm25-index \
+  --bm25-branch-depth 100 \
+  --bm25-local-ks 1,3,5,10 \
+  --bm25-repeats 20 \
+  --bm25-paging \
+  --output ./data/tantivy-bm25-v1/run.json
+```
+
+The index is built from published TextUnits with stable key, document
+ID, document version, content hash, and original text. The `sv_stem_v1`
+profile is `simple` tokenizer + lowercase + Swedish stemmer, with **no
+stopword filter**. `sv_plain_v1` is the same without stemming. The query
+is an OR over unique analyzed terms; document/collection filters are
+`Must` clauses and cannot create a lexical hit alone. BM25 uses Tantivy's
+default k1=1.2, b=0.75. Fusion is the existing locked RRF with k=60:
+`sum(1/(60+rank))`, equal weight, stable key as the final tie-breaker.
+BM25 does not fill an empty list; an empty BM25 branch leaves the dense
+order unchanged. `hybrid_current` keeps its historical contract and is
+marked separately when it differs from `hybrid_rrf_control`.
+
+**Frozen result:** `baselines/phase2-tantivy-bm25-v1.json` and
+`eval/tantivy-bm25-v1.md`. Full candidate lists and per-cell misses are
+in `data/tantivy-bm25-v1/run.json` (gitignored). The readable result is
+the source for the numbers below.
+
+Global macro, 9 golds (development + locked holdout), k=20/50:
+
+| Arm | DocumentRecall@20 | EvidenceRecall@20 | NDCG@20 | DocumentRecall@50 | CompleteEvidence@5 doc-local |
+|---|---:|---:|---:|---:|---:|
+| dense | 39.7 % | 38.3 % | 0.461 | 69.3 % | 98.7 % |
+| sparse | 28.8 % | 26.7 % | 0.281 | 51.9 % | 55.8 % |
+| hybrid_current | **57.0 %** | **54.7 %** | 0.553 | 76.0 % | 67.5 % |
+| hybrid_rrf_control | **57.1 %** | 54.8 % | 0.583 | 76.2 % | 67.5 % |
+| hybrid_rrf_positive | **57.1 %** | 54.8 % | **0.583** | 76.2 % | **80.5 %** |
+| bm25 | 28.3 % | 26.0 % | 0.306 | 38.6 % | 52.0 % |
+| **dense_bm25** | 49.6 % | 47.4 % | 0.456 | 71.3 % | 71.4 % |
+
+The `sv_plain_v1` control lowers BM25 and dense+BM25 slightly
+(R@20 27.2 %, CE@5 46.8 % for BM25; R@20 50.1 %, CE@5 68.8 % for
+dense+BM25). The first result is the whole named pipeline, not a pure
+proof of the BM25 formula: Tantivy's Swedish stemmer maps `förlängs` to
+`förläng` but leaves `förlängning` unchanged, and that differs from the
+existing TF-IDF analyzer.
+
+**Controls:** `hybrid_rrf_control` and `hybrid_rrf_positive` are
+identical globally (no zero-score sparse hits in the engine top-100).
+Document-locally the zero-score control matters: positive sparse raises
+CE@5 from 67.5 % to 80.5 %. That gain is not attributable to BM25.
+
+**20 versus 50:** the target is not met. For auto-renewal there are 20
+required groups, so full coverage at 20 is possible; dense+BM25 reaches
+25 % at 20 versus hybrid's 100 % at 50. Notice-period 76.9 % vs 84.6 %,
+confidentiality 15.4 % vs 46.2 %, personal-data 26.7 % vs 60.0 %.
+Liability-cap (34 required) and governing-law (75) are marked
+`not_applicable` with ceiling 20; they cannot reach full coverage at 20.
+
+**Verdict: mixed.** Dense+BM25 beats dense on global DocumentRecall@20
+(49.6 % vs 39.7 %) and has a higher aggregate 50-guard (71.3 % vs
+69.3 %), but several individual golds lose coverage at 50
+(auto-renewal, confidentiality, governing-law). It loses to
+`hybrid_current` at 20 (49.6 % vs 57.0 %) and loses to dense
+document-locally (CE@5 71.4 % vs 98.7 %). No production change and no
+router. `HOLD_OUT_CELLS` is locked but not blind (it was used for the
+tabular holdout), so the result is a development result, not a
+generalisation claim. The eight documents with no question gold are
+`Avtal_26_Stiftelseurkund.docx`, `Avtal_27_Bolagsordning.docx`,
+`Avtal_73_Volontaravtal.docx`, `Avtal_95_Gavobrev.docx`,
+`Avtal_96_Testamente.docx`, `Avtal_97_Skuldebrev.docx`,
+`Avtal_98_Samboavtal.docx`, and `Avtal_99_Aktenskapsforord.docx`;
+they do not support a blind claim.
+
+Latency: index build ~0.67 s and 1.3 MB for 2 548 TextUnits. Global warm
+retrieval p50 is ~11–12 ms for dense, ~0.3 ms for sparse, ~1 ms for BM25,
+and ~0.2 ms for fusion; query encoding p50 is ~0.19 s, giving an
+end-to-end p50 of ~0.20 s. Document-local Python ranking is reported
+separately and is not Tantivy/OverGraph latency.
+Paging replay completed with 20-unit pages and no duplicates. Step B
+was not run, so the claim is **improved retrieval only**, not proved
+better final answers.
+
+Freeze only after review. An existing baseline is never overwritten:
+
+```bash
+uv run overgraph-ingest ... --output ./data/tantivy-bm25-v1/run.json \
+  --freeze-baseline
+```
+
+## Document discovery v1
+
+A model-free diagnostic that ranks *documents* by aggregating their
+TextUnit dense scores, to test whether the discovery bottleneck is the
+aggregation rather than the underlying signal. It compares at an equal
+50-unit budget: hybrid top-50 TextUnits vs 10 documents x 5 units.
+
+```bash
+uv run overgraph-ingest   --db ./data/extra-overgraph-phase2   --dense-dimension 3072   --openai-api-key "$OPENAI_API_KEY"   --discovery-test   --output ./data/tantivy-bm25-v1/discovery.json
+```
+
+Frozen as `baselines/phase2-document-discovery-v1.json`; readable table
+in `eval/document-discovery-v1.md`.
+
+**Result (negative for the aggregation hypothesis).** At equal budget
+(50 units), dense-document discovery reaches ~42 % document recall
+versus hybrid's ~86 %. Aggregating top-3/top-5 scores instead of the best
+hit only nudges the 10-document number (+4 points) and is neutral to
+negative at 50 documents (top1 91.7 % vs top3 90.6 %). CompleteEvidence
+among found documents stays ~99 % regardless of aggregation. So the
+discovery loss is in the dense signal and its document ordering, not in
+how passage scores are aggregated. An independent document signal
+(headings, key concepts, rights/obligations) remains the better next
+experiment, targeting the documents that neither dense nor hybrid finds.
+
+## Document properties v1 (Track A, deterministic structure)
+
+Model-free document-property discovery from a frozen relation taxonomy and
+the existing OverGraph Structure/TextUnit data. Two operations: ranked search
+and paginated property lookup (lookup is never truncated to top-k).
+
+```bash
+uv run overgraph-ingest   --db ./data/extra-overgraph-phase2   --dense-dimension 3072   --document-properties   --output ./data/tantivy-bm25-v1/properties.json
+```
+
+Frozen: taxonomy `retrieval_gold/document_properties/taxonomy-v1.json`,
+gold mapping `gold-mapping-v1.json`, baseline
+`baselines/phase2-document-properties-v1.json`, table
+`eval/document-properties-v1.md`.
+
+**Result.** Property recall 97.5 %, precision 65.8 %. Lookup recovers 81
+previously missed documents — 63 of the 75 `governing-law` docs that
+hybrid top-50 misses. The deterministic signal is strong where wording is
+canonical (`governing-law` 100 % recall / 95 % precision, `auto-renewal`
+95 % / 100 %, `liability-secrecy-carveout` 100 % / 100 %) and weak on
+broad concepts (`confidentiality` 29 %, `notice-period` 28 %, `assignment`
+31 %, `personal-data` 43 % precision). Verification keeps `GROUNDED`
+(citation exists) separate from `SUPPORTED` (citation asserts the
+property with the right polarity); the broad concepts have many
+grounded-only matches, which is exactly where the deterministic lexicon
+over-reaches and where the later Jev track would add value.
+
+## Jev property verification v1
+
+Jev verifies deterministic document properties as a non-hard filter:
+SUPPORTED / UNSUPPORTED / UNDECIDED, one judgment per document-property
+pair, source-grounded via `validate_source` (an unvalidatable citation is
+never SUPPORTED). Frozen result:
+`baselines/phase2-jev-property-verification-v1.json`, table
+`eval/jev-property-verification-v1.md`.
+
+```bash
+uv run overgraph-ingest   --db ./data/extra-overgraph-phase2   --dense-dimension 3072   --jev-property-verification   --jev-property-review ./retrieval_gold/document_properties/review-false-positives-sample-v1.ai-preliminary-review.json   --typesafe-api-key "$TYPESAFE_API_KEY"   --jev-model "$JEV_MODEL"   --output ./data/tantivy-bm25-v1/jev-property-verification.json
+```
+
+**Result (50 cases: 20 gold-positive, 10 preliminary errors, 20 gold-gap).**
+`keep_rate_strict` **100 %** (no false rejection), `reject_rate_errors`
+**90 %** (one miss: Avtal 97 acceleration read as notice), `gold_gap_agreement`
+85 %. The three disagreements are all `personal_data_processing` (Avtal 11,
+59, 73), which points to a fuzzy definition rather than a Jev failure.
+Latency ~14 s wall / ~282 ms per call. Verdict:
+`jev_adds_precision_without_recall_loss` on this sample. This is a
+preliminary AI review, not independent human expert review; the
+personal-data boundary and the one miss are flagged for human review.
+
+## Jev end-to-end verification v1
+
+Discovery -> Jev -> document-local dense -> Jev, with the discovery citation
+first and local dense only when Jev does not SUPPORT. A second UNSUPPORTED is
+NOT_VERIFIED (document stays a candidate). Frozen result:
+`baselines/phase2-jev-end-to-end-v1.json`, table `eval/jev-end-to-end-v1.md`.
+
+```bash
+uv run overgraph-ingest   --db ./data/extra-overgraph-phase2   --dense-dimension 3072   --jev-end-to-end   --jev-property-review ./retrieval_gold/document_properties/review-false-positives-sample-v1.ai-preliminary-review.json   --typesafe-api-key "$TYPESAFE_API_KEY" --jev-model "$JEV_MODEL"   --openai-api-key "$OPENAI_API_KEY"   --output ./data/tantivy-bm25-v1/jev-end-to-end.json
+```
+
+**Result (20 positive, 10 error, 20 gold-gap).** 17/20 correct documents
+verify at discovery, 3 are NOT_VERIFIED, and document-local dense recovered
+**0** (recovery_count = 0): the existing document-local query is the
+inventory question, not an evidence query, so it does not surface the
+operative clause when discovery cited the wrong unit. Local dense ran for
+14/50 cases (skip rate 72 %), mean 1.28 Jev calls per property, latency p50
+284 ms / p95 563 ms. The three NOT_VERIFIED positives are exactly the
+discovery-citation failures (Avtal 81, 76, 05). Closing the 15 % gap needs an
+evidence-level supplement, not a tuning of discovery or taxonomy.
+
+## Jev local dense query A/B/C v1
+
+Three arms for the document-local dense query (A = gold.query, B = definition,
+C = evidence description), same 50 cases and stage-1 verdicts as the end-to-end
+run. Frozen result: `baselines/phase2-jev-local-query-abc-v1.json`, table
+`eval/jev-local-query-abc-v1.md`.
+
+```bash
+uv run overgraph-ingest   --db ./data/extra-overgraph-phase2   --dense-dimension 3072   --jev-local-abc   --jev-local-baseline ./baselines/phase2-jev-end-to-end-v1.json   --jev-evidence-queries ./retrieval_gold/document_properties/evidence-queries-v1.json   --typesafe-api-key "$TYPESAFE_API_KEY" --jev-model "$JEV_MODEL"   --openai-api-key "$OPENAI_API_KEY"   --output ./data/tantivy-bm25-v1/jev-local-query-abc.json
+```
+
+**Result.** EvidenceRecall@5 is 3/3 for the three NOT_VERIFIED positives in
+every arm — the correct clause is in the top-5 — but JevRecovery@5 is 0/14.
+Retrieval is not the bottleneck; the verification contract/presentation is:
+`_verify` shows only the discovery citation as primary text, while the top-5
+clauses appear only as excerpt choices. The next step is a presentation fix,
+not query reformulation.
+
+## Jev presentation fix v1
+
+Same 50 cases, stage-1 verdicts, and local dense top-5 as the A/B/C run; only
+the Jev presentation changes: the top-5 clauses are shown as primary evidence
+(`evidence_clauses`), not just excerpt choices. Frozen result:
+`baselines/phase2-jev-presentation-v1.json`, table
+`eval/jev-presentation-v1.md`.
+
+```bash
+uv run overgraph-ingest   --db ./data/extra-overgraph-phase2   --dense-dimension 3072   --jev-presentation   --jev-local-baseline ./baselines/phase2-jev-end-to-end-v1.json   --jev-evidence-queries ./retrieval_gold/document_properties/evidence-queries-v1.json   --typesafe-api-key "$TYPESAFE_API_KEY" --jev-model "$JEV_MODEL"   --openai-api-key "$OPENAI_API_KEY"   --output ./data/tantivy-bm25-v1/jev-presentation-v1.json
+```
+
+**Result.** The presentation fix recovers all three previously NOT_VERIFIED
+positives (3/3) in every arm. JevRecovery@5 rises from 0/14 to 5/14 (A),
+6/14 (B, C). Arm A (gold.query) is cleanest: 0 new false positives, while
+B/C each introduce one new assignment false positive (Avtal 43, Avtal 28).
+Conclusion: presentation was the bottleneck, not retrieval; the best
+combination is the presentation fix with the gold.query local dense query.
+
+## Jev chain broad validation v1
+
+Frozen pipeline (discovery -> Jev -> local dense -> Jev, presentation fix,
+gold.query) over all 111 suspected false positives plus a balanced >=100
+gold-positive sample. Frozen result:
+`baselines/phase2-jev-validation-v1.json`, table `eval/jev-validation-v1.md`.
+
+```bash
+uv run overgraph-ingest   --db ./data/extra-overgraph-phase2   --dense-dimension 3072   --jev-validation   --typesafe-api-key "$TYPESAFE_API_KEY" --jev-model "$JEV_MODEL"   --openai-api-key "$OPENAI_API_KEY"   --output ./data/tantivy-bm25-v1/jev-validation-v1.json
+```
+
+**Result.** Recall loss 0/116 gold-positives (98 verified at discovery, 18 via
+local dense). Of 111 suspected false positives Jev rejects 26 (assignment 12,
+personal-data 4, termination 3, confidentiality 3, force-majeure 2,
+governing-law 1, liability 1) and keeps 85; the preliminary 30 agree 19/20
+gold-gap, reject 5/5 wrong-property, and 3/5 wrong-relation. Local dense ran
+77 times and recovered 51 (skip rate 66 %). Latency p50 258 ms / p95 560 ms,
+1.34 Jev calls per property. Near-100 % recall holds at this scale.
+
 ## Frozen classify decisions
 
 These are closed against the measured A/B/C/E runs. Do not reopen

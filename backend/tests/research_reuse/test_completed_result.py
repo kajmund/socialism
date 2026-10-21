@@ -199,20 +199,41 @@ async def test_invalid_or_other_scope_result_is_not_reused(reuse_db, monkeypatch
 
     await ready_result(reuse_db)
     if guard.startswith("invalidated"):
-        async with reuse_db.begin() as session:
-            answer = await session.scalar(
-                select(GraphFact)
-                .join(GraphNode, GraphNode.id == GraphFact.target_id)
-                .where(GraphFact.predicate == ANSWER_PREDICATE, GraphNode.name == MAIN)
-            )
-            if guard == "invalidated-answer":
-                answer.status = "invalidated"
-                answer.invalid_at = datetime.now(UTC)
-            else:
-                node = await session.get(GraphNode, answer.target_id)
-                value = deepcopy(node.attributes)
-                value["basis"][0]["metadata"]["graph_fact_ids"] = ["missing-or-invalidated-fact"]
-                node.attributes = value
+        import json
+
+        from app.services.overgraph.catalogs import require_knowledge
+        from app.services.overgraph.labels import ENTITY, FACT, scope_label
+        from app.services.overgraph.research import update_fact
+
+        # The graph is authoritative: locate the answer fact in OverGraph.
+        catalog = require_knowledge()
+        answer = next(
+            (
+                row
+                for row in catalog.query_nodes(
+                    label_filter={"labels": [FACT, scope_label("customer:1")], "mode": "all"},
+                    limit=200,
+                )[0]
+                if str(row.props.get("predicate") or "") == ANSWER_PREDICATE
+                and str(
+                    (catalog.get_by_key(
+                        ENTITY, str(row.props.get("target_key") or ""),
+                    ) or row).props.get("name") or ""
+                ) == MAIN
+            ),
+            None,
+        )
+        assert answer is not None, "the answer fact must exist in OverGraph"
+        if guard == "invalidated-answer":
+            update_fact(catalog, str(answer.key), status="invalidated", invalid_at=datetime.now(UTC))
+        else:
+            fact_row = catalog.get_by_key(FACT, str(answer.key))
+            node = catalog.get_by_key(ENTITY, str(fact_row.props["target_key"]))
+            value = deepcopy(json.loads(str(node.props["attributes_json"])))
+            value["basis"][0]["metadata"]["graph_fact_ids"] = ["missing-or-invalidated-fact"]
+            props = dict(node.props)
+            props["attributes_json"] = json.dumps(value, ensure_ascii=False, sort_keys=True)
+            catalog.upsert_node(list(node.labels), node.key, props=props)
     if guard == "expired-source":
         monkeypatch.setattr(settings, "research_knowledge_freshness_max_age_seconds", 0)
     judge = SimpleNamespace(navigate=AsyncMock(return_value=set()), covers=AsyncMock())
