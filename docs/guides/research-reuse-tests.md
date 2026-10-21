@@ -445,15 +445,16 @@ fortfarande per dokument; befintliga indexvektorer migreras inte.
 
 `test_04_shared_chunks.py` kontrollerar dessutom gemensam SQL-textlagring med
 separata dokument- och versionsrelationer: identiska och delvis överlappande
-dokument, versionsföljden A → B → A, samtidiga skrivningar, oföränderliga
-chunktexter och innehållsreferenser samt bevarade chunks när en relation tas bort.
-Texten ska vara läsbar efter att databassessionen stängts. Samma testgrupp
-kontrollerar att externa anrop kan låna den enda databaskopplingen.
+dokument, versionsföljden A → B → A samt separata TextUnit-förekomster per
+dokument/version med bevarad historik när en förekomst tas bort. TextUnits läses
+från OverGraph (den auktoritativa lagringen); SQL-spegeln `text_units` är borttagen.
+Samma testgrupp kontrollerar att externa anrop kan låna den enda databaskopplingen.
 
 `tests/test_shared_chunk_migration.py` verifierar SQLite-migrering och downgrade
 med befintliga källhänvisningar samt att felaktiga SHA stoppar migreringen.
 PostgreSQL-jobbet i CI kör hela migreringskedjan och därefter
-`tests/test_shared_chunk_postgres.py`, inklusive riktig samtidig ingestion.
+`tests/test_shared_chunk_postgres.py`, som verifierar OverGraph-baserad ingestion
+(två TextUnit-noder för identisk text, en återanvänd embedding) mot riktig Postgres.
 LLM-, embedding- och indextjänster mockas även där.
 
 PostgreSQL-kontrollerna kan köras isolerat mot en testdatabas:
