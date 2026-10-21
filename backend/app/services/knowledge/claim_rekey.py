@@ -21,7 +21,6 @@ from app.database.models import (
     KnowledgeQuestionLineage,
     KnowledgeRelationshipRecord,
     ResearchRuntimeNeed,
-    TextUnitRecord,
 )
 from app.services.knowledge.claims import SUPPORTED_BY
 from app.services.knowledge.identity import knowledge_claim_identity
@@ -36,6 +35,10 @@ from app.services.knowledge.persistence_class import (
     classify_persistence,
 )
 from app.services.knowledge.relationships import merge_relationship_extra
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.labels import CLAIM
+from app.services.overgraph.legal_claims import merge_claims
+from app.services.overgraph.text_units import load_domain_text_unit
 from app.services.knowledge.scope import persist_scope_fields, require_persist_scope
 
 
@@ -61,8 +64,17 @@ def rekey_claim_identities(session: Session) -> None:
         winner = ordered[0]
         for loser in ordered[1:]:
             _merge_loser(session, winner, loser)
+            _merge_graph_claims(winner.id, loser.id)
         winner.identity_key = identity
     session.flush()
+
+
+def _merge_graph_claims(winner_id: str, loser_id: str) -> None:
+    """Keep the graph in step with the SQL merge; pre-mirror rows may be absent."""
+    catalog = require_knowledge()
+    if catalog.get_by_key(CLAIM, winner_id) is None or catalog.get_by_key(CLAIM, loser_id) is None:
+        return
+    merge_claims(catalog, winner_key=winner_id, loser_key=loser_id)
 
 
 def _reclassify_non_domain_claims(session: Session) -> None:
@@ -83,7 +95,7 @@ def _migrate_observation(
     support = _support_ids(session, claim.id)
     if not support:
         return
-    unit = session.get(TextUnitRecord, support[0])
+    unit = load_domain_text_unit(require_knowledge(), unit_id=support[0])
     if unit is None:
         return
     try:

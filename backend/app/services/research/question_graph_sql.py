@@ -13,7 +13,6 @@ from app.database.models import (
     KnowledgeQuestionEvidenceLink,
     KnowledgeQuestionRow,
 )
-from app.services.graph_v2.questions import question_node
 from app.services.knowledge.scope import persist_scope_fields
 from app.services.research.knowledge_question import (
     ExactQuestionIdentityMatcher,
@@ -24,11 +23,26 @@ from app.services.research.knowledge_question import (
     QuestionIdentityMatcher,
     question_scope_from_namespace,
 )
+from app.services.overgraph.questions import ensure_question_node
 from app.services.research.question_graph import (
     ANSWERED_BY,
     Freshness,
     QuestionEvidenceLink,
 )
+
+
+async def _ensure_node(row: KnowledgeQuestionRow) -> None:
+    """Anchor the question in OverGraph; the SQL row keeps the identity data."""
+    if row is None:
+        return
+    from app.services.knowledge.scope import require_persist_scope
+
+    scope = require_persist_scope(
+        scope_type=row.scope_type, customer_id=row.customer_id,
+    )
+    await ensure_question_node(
+        question_id=row.id, display_text=row.display_text, scope=scope,
+    )
 
 
 class SqlQuestionEvidenceGraph:
@@ -75,7 +89,7 @@ class SqlQuestionEvidenceGraph:
         existing = await self.match_question(session, identity, scope)
         if existing is not None:
             row = await session.get(KnowledgeQuestionRow, existing.id)
-            await question_node(session, row)
+            await _ensure_node(row)
             return existing
         row = KnowledgeQuestionRow(
             id=uuid4().hex,
@@ -88,7 +102,7 @@ class SqlQuestionEvidenceGraph:
         )
         session.add(row)
         await session.flush()
-        await question_node(session, row)
+        await _ensure_node(row)
         metadata = self._matcher.embedding_metadata
         if metadata is not None:
             row.embedding_model, row.embedding_version, row.embedding_dimension = metadata

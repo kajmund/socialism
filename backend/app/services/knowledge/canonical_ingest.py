@@ -6,6 +6,7 @@ identity and extracted text. This module does not import provider adapters.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
@@ -24,13 +25,13 @@ from app.services.knowledge.models import (
 )
 from app.services.knowledge.materialized_document import persisted_segment
 from app.services.knowledge.persistence import (
-    current_text_units,
     get_canonical_document_by_identity,
     get_current_document_version,
     persist_segmented_document,
-    text_unit_from_record,
 )
 from app.services.knowledge.provider import KnowledgeVectorStoreError
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.text_units import load_domain_text_units
 from app.services.knowledge.scope import (
     KnowledgeTenantScope,
     require_persist_scope,
@@ -280,7 +281,9 @@ async def _current_index_inputs(
         version = await get_current_document_version(session, row.id)
         if version is None:
             continue
-        units = [text_unit_from_record(unit) for unit in await current_text_units(session, row.id)]
+        units = await asyncio.to_thread(
+            load_domain_text_units, require_knowledge(), document_version_id=version.id,
+        )
         if not units:
             continue
         inputs.append((_knowledge_document_for_index(row, version), units))

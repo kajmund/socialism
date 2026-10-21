@@ -6,20 +6,19 @@ Adapters choose predicate strings; this module does not interpret them.
 
 from __future__ import annotations
 
+import asyncio
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Protocol
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import (
-    KnowledgeClaimAnswer,
     KnowledgeClaimRecord,
-    KnowledgeClaimTextUnit,
     KnowledgeQuestionRow,
-    TextUnitRecord,
 )
 from app.services.knowledge.events import (
     CLAIM_SUPERSEDED,
@@ -32,12 +31,21 @@ from app.services.knowledge.scope import (
     KnowledgeScopeError,
     KnowledgeTenantScope,
     assert_not_promoted,
-    persist_scope_fields,
     require_persist_scope,
     scope_from_row,
     visible_to,
-    visible_to_customer_clause,
 )
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.knowledge.claim_supersession import supersede_graph_claim
+from app.services.overgraph.claim_answers import (
+    ClaimAnswerSource,
+    answered_claim_ids,
+    claim_answer_edges,
+    link_claim_answer,
+)
+from app.services.overgraph.legal_claims import mark_claim_superseded, supporting_text_units
+from app.services.overgraph.research import load_text_units
+from app.services.overgraph.text_units import load_domain_text_unit
 
 SUPPORTED_BY = "SUPPORTED_BY"
 ANSWERED_BY = "ANSWERED_BY"
@@ -174,11 +182,14 @@ async def supersede_knowledge_claim(
     successor: KnowledgeClaim | None = None,
     at: datetime | None = None,
     valid_to: datetime | None = None,
-) -> KnowledgeClaimRecord:
+) -> object:
     """Close valid/system time on a claim. History stays queryable."""
     row = await session.get(KnowledgeClaimRecord, claim_id)
     if row is None:
-        raise KnowledgeClaimError(f"claim {claim_id} is missing")
+        return await supersede_graph_claim(
+            session, claim_id, KnowledgeClaimError,
+            successor=successor, at=at, valid_to=valid_to,
+        )
     if row.superseded_at is not None:
         raise KnowledgeClaimError(f"claim {claim_id} is already superseded")
     stamp = at or utc_now()
@@ -192,6 +203,15 @@ async def supersede_knowledge_claim(
     row.valid_to = valid_to or stamp
     row.successor_id = successor_id
     await session.flush()
+    # Supersession must be visible in the graph, not only in the SQL mirror.
+    await asyncio.to_thread(
+        mark_claim_superseded,
+        require_knowledge(),
+        claim_id,
+        superseded_at=stamp,
+        valid_to=valid_to or stamp,
+        successor_id=successor_id,
+    )
     await record_graph_event(
         session,
         scope=scope_from_row(row),
@@ -233,30 +253,30 @@ async def answer_research_need(
         question_key=question_key,
         scope=claim_scope,
     )
-    existing = {
-        row[0]
-        for row in (
-            await session.execute(
-                select(KnowledgeClaimAnswer.claim_id).where(
-                    KnowledgeClaimAnswer.research_need_id == research_need_id,
-                    KnowledgeClaimAnswer.claim_id.in_(list(claim_ids)),
-                )
-            )
-        ).all()
-    }
+    existing = set(
+        await asyncio.to_thread(
+            answered_claim_ids,
+            require_knowledge(),
+            research_need_id=research_need_id,
+            claim_ids=tuple(claim_ids),
+        )
+    )
     for claim_id in claim_ids:
         if claim_id in existing:
             continue
-        session.add(
-            KnowledgeClaimAnswer(
-                claim_id=claim_id,
-                research_need_id=research_need_id,
-                question_key=question_key,
+        await asyncio.to_thread(
+            link_claim_answer,
+            require_knowledge(),
+            claim_key=claim_id,
+            scope=claim_scope,
+            question_key=question_key,
+            research_need_id=research_need_id,
+            source=ClaimAnswerSource(
                 source_type=source_type,
                 knowledge_question_id=question_id,
                 relation=ANSWERED_BY,
-                **persist_scope_fields(claim_scope),
-            )
+                created_at_ms=int(utc_now().timestamp() * 1000),
+            ),
         )
     await session.flush()
 
@@ -267,61 +287,49 @@ async def claim_answers_for_question_key(
     customer_id: int,
     question_key: str,
 ) -> list[KnowledgeClaimAnswerHit]:
-    """Reuse: grounded claims that already answer this question key."""
-    rows = (
-        await session.execute(
-            select(KnowledgeClaimRecord, KnowledgeClaimAnswer)
-            .join(
-                KnowledgeClaimAnswer,
-                KnowledgeClaimAnswer.claim_id == KnowledgeClaimRecord.id,
-            )
-            .where(
-                visible_to_customer_clause(
-                    KnowledgeClaimRecord.scope_type,
-                    KnowledgeClaimRecord.customer_id,
-                    customer_id,
-                ),
-                visible_to_customer_clause(
-                    KnowledgeClaimAnswer.scope_type,
-                    KnowledgeClaimAnswer.customer_id,
-                    customer_id,
-                ),
-                KnowledgeClaimRecord.superseded_at.is_(None),
-                KnowledgeClaimAnswer.question_key == question_key,
-                KnowledgeClaimAnswer.relation == ANSWERED_BY,
-            )
-            .order_by(KnowledgeClaimRecord.predicate, KnowledgeClaimRecord.id)
-        )
-    ).all()
-    seen: set[str] = set()
+    """Reuse: claims that answer this question, read from OverGraph."""
+    catalog = require_knowledge()
+    edges = await asyncio.to_thread(
+        claim_answer_edges, catalog, customer_id=customer_id, question_key=question_key,
+    )
     hits: list[KnowledgeClaimAnswerHit] = []
-    for record, answer in rows:
-        if record.id in seen:
-            continue
-        if not answer.source_type.strip():
-            raise KnowledgeClaimError(
-                f"ANSWERED_BY row for claim {record.id} is missing source_type"
-            )
-        seen.add(record.id)
-        support = await supporting_text_unit_ids_for_claim(session, record.id)
+    for node, props in edges:
+        claim_id = str(node.key)
+        support = await catalog.run(supporting_text_units, catalog, claim_id)
         if not support:
-            raise KnowledgeClaimError(f"claim {record.id} has no SUPPORTED_BY TextUnits")
+            raise KnowledgeClaimError(f"claim {claim_id} has no SUPPORTED_BY TextUnits")
+        scope_customer = scope_customer_from_node(node)
         hits.append(
             KnowledgeClaimAnswerHit(
                 claim=KnowledgeClaim(
-                    id=record.id,
-                    customer_id=scope_from_row(record).customer_id,
-                    scope_type=scope_from_row(record).scope_type,
-                    predicate=record.predicate,
-                    value=record.value,
+                    id=claim_id,
+                    customer_id=scope_customer,
+                    scope_type="customer" if scope_customer is not None else "shared",
+                    predicate=str(node.props.get("predicate") or ""),
+                    value=json.loads(str(node.props.get("value_json") or "{}")),
                     supporting_text_unit_ids=tuple(support),
                 ),
-                source_type=answer.source_type,
-                knowledge_question_id=answer.knowledge_question_id,
-                created_at=record.created_at,
+                source_type=str(props.get("source_type") or ""),
+                knowledge_question_id=str(props.get("knowledge_question_id") or "") or None,
+                created_at=_created_at(props, node),
             )
         )
     return hits
+
+
+def scope_customer_from_node(node) -> int | None:
+    """Customer id encoded in a graph node's ``scope_key`` (None for shared)."""
+    scope_key = str(node.props.get("scope_key") or "")
+    if not scope_key.startswith("customer:"):
+        return None
+    return int(scope_key.split(":", 1)[1])
+
+
+def _created_at(props: dict[str, object], node=None):
+    """When the evidence was created: the claim node wins over the answer edge."""
+    claim_created = int((node.props.get("created_at_ms") if node is not None else 0) or 0)
+    created = claim_created or int(props.get("created_at_ms") or 0)
+    return datetime.fromtimestamp(created / 1000, tz=UTC) if created else utc_now()
 
 
 async def claims_answering_question_key(
@@ -359,18 +367,29 @@ async def _scoped_knowledge_question_id(
 
 
 async def _claim_scope(session: AsyncSession, claim_id: str) -> KnowledgeTenantScope:
-    row = await session.get(KnowledgeClaimRecord, claim_id)
-    if row is None:
+    """Claim scope from SQL, or from the graph node when the claim lives only there."""
+    catalog = require_knowledge()
+    node = catalog.get_by_key("Claim", claim_id)
+    if node is None:
         raise KnowledgeClaimError(f"claim {claim_id} is missing")
-    return scope_from_row(row)
+    scope_key = str(node.props.get("scope_key") or "")
+    if not scope_key:
+        raise KnowledgeClaimError(f"claim {claim_id} has no scope")
+    if scope_key == "shared":
+        return require_persist_scope(scope_type="shared")
+    if scope_key.startswith("customer:"):
+        return require_persist_scope(customer_id=int(scope_key.split(":", 1)[1]))
+    raise KnowledgeClaimError(f"claim {claim_id} has an unknown scope {scope_key!r}")
 
 
 async def assert_claim_grounding_scope(
     session: AsyncSession,
     claim: KnowledgeClaim,
 ) -> None:
+    catalog = require_knowledge()
     for unit_id in claim.supporting_text_unit_ids:
-        unit = await session.get(TextUnitRecord, unit_id)
+        loaded = await catalog.run(load_text_units, catalog, [unit_id])
+        unit = loaded[0] if loaded else None
         if unit is None:
             raise KnowledgeClaimError(f"SUPPORTED_BY TextUnit {unit_id} is missing")
         unit_scope = scope_from_row(unit)
@@ -394,7 +413,9 @@ async def document_refs_for_units(
 ) -> tuple[str, str] | None:
     if not unit_ids:
         return None
-    unit = await session.get(TextUnitRecord, unit_ids[0])
+    unit = await asyncio.to_thread(
+        load_domain_text_unit, require_knowledge(), unit_id=unit_ids[0],
+    )
     if unit is None:
         return None
     return unit.document_id, unit.document_version_id
@@ -404,14 +425,8 @@ async def supporting_text_unit_ids_for_claim(
     session: AsyncSession,
     claim_id: str,
 ) -> list[str]:
-    rows = (
-        await session.execute(
-            select(KnowledgeClaimTextUnit.text_unit_id)
-            .where(KnowledgeClaimTextUnit.claim_id == claim_id)
-            .order_by(KnowledgeClaimTextUnit.ordinal, KnowledgeClaimTextUnit.text_unit_id)
-        )
-    ).all()
-    return [row[0] for row in rows]
+    catalog = require_knowledge()
+    return await catalog.run(supporting_text_units, catalog, claim_id)
 
 
 def _compact(value: str) -> str:

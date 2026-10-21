@@ -1,28 +1,26 @@
 """Legal adapter: structured facts link source/context subjects to reusable values."""
 
+import asyncio
 import json
 from dataclasses import replace
 from collections.abc import Sequence
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import KnowledgeClaimAnswer, KnowledgeQuestionRow, TextUnitRecord
-from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
 from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
 from app.services.graph_v2.errors import PermanentGraphError
-from app.services.graph_v2.questions import question_node
-from app.services.graph_v2.dependencies import attach_question_dependency
 from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
-from app.services.graph_v2.write import resolve_exact_fact, resolve_fact, resolve_node
 from app.services.knowledge.claims import KnowledgeClaim
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.entities import KnowledgeEntity
-from app.services.knowledge.scope import KnowledgeTenantScope
+from app.services.knowledge.scope import KnowledgeTenantScope, require_persist_scope
 from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.claim_answers import questions_answered_by_claim
+from app.services.overgraph.research import attach_question_dependency
 from app.services.overgraph.model import TextUnitWrite
 from app.services.overgraph.publish import link_legal_questions, publish_legal_fact
-from app.services.prompt_store import require_active_prompts
+from app.services.overgraph.text_units import load_domain_text_unit
+from app.services.overgraph.write import fact_key
 
 
 async def write_legal_facts(
@@ -31,8 +29,6 @@ async def write_legal_facts(
     claims: Sequence[KnowledgeClaim],
     entities: Sequence[KnowledgeEntity],
     embedder: EmbeddingProvider,
-    judge: JevFactJudge | None = None,
-    node_judge: JevNodeJudge | None = None,
     module: str = "dd",
 ) -> list[str]:
     if not claims:
@@ -41,42 +37,19 @@ async def write_legal_facts(
     if source.customer_id is None:
         raise PermanentGraphError("legal graph projection requires a customer scope")
     scope = source.scope
-    subject = await resolve_node(
-        session,
-        NodeInput(
-            node_type=source.entity_type,
-            name=source.name,
-            scope=scope,
-            identifier_namespace="legal.canonical_uri",
-            identifier=source.key,
-            attributes=source.extra,
-        ),
-    )
-    lazy_judges = _LazyJudges(
-        session,
-        customer_id=source.customer_id,
-        module=module,
-        fact_judge=judge,
-        node_judge=node_judge,
-    )
     pending: list[tuple[KnowledgeClaim, FactInput]] = []
     ids_by_claim: dict[str, str] = {}
     for claim in claims:
         text = _fact_text(source.name, claim)
-        target = await resolve_node(session, value_node_input(claim, scope), judge=lazy_judges.node)
         proposed = FactInput(
-            source_id=subject.id,
-            target_id=target.id,
+            source_id=source.key,
+            target_id=claim.id,
             scope=scope,
             predicate=claim.predicate,
             fact_text=text,
             sources=tuple(SourceRef("text_unit", ref) for ref in claim.supporting_text_unit_ids),
         )
-        exact = await resolve_exact_fact(session, proposed)
-        if exact is not None:
-            ids_by_claim[claim.id] = exact.id
-        else:
-            pending.append((claim, proposed))
+        pending.append((claim, proposed))
 
     # Exact edge resolution precedes provider work; all remaining misses are one batch.
     texts = [proposed.fact_text for _, proposed in pending]
@@ -86,36 +59,28 @@ async def write_legal_facts(
         vectors = await embedder.embed_in_session(session, texts)
     else:
         vectors = await embedder.embed(texts)
+    catalog = require_knowledge()
     for (claim, proposed), vector in zip(pending, vectors, strict=True):
-        row, _decision = await resolve_fact(
-            session,
-            replace(proposed, embedding=tuple(vector), embedding_model=embedder.model),
-            judge=lazy_judges.fact,
-        )
-        ids_by_claim[claim.id] = row.id
+        # Additive contract: deterministic identity, no semantic merge, no Jev gate.
+        stamped = replace(proposed, embedding=tuple(vector), embedding_model=embedder.model)
+        ids_by_claim[claim.id] = await asyncio.to_thread(fact_key, stamped, catalog)
 
     ids: list[str] = []
     for claim in claims:
         fact_id = ids_by_claim[claim.id]
-        question_ids = set(
-            (
-                await session.scalars(
-                    select(KnowledgeClaimAnswer.knowledge_question_id).where(
-                        KnowledgeClaimAnswer.claim_id == claim.id,
-                        KnowledgeClaimAnswer.knowledge_question_id.is_not(None),
-                    )
-                )
-            ).all()
+        questions = await asyncio.to_thread(
+            questions_answered_by_claim, require_knowledge(), claim_key=claim.id,
         )
-        for question_id in sorted(question_ids):
-            question = await session.get(KnowledgeQuestionRow, question_id)
-            if question is None:
-                continue
-            question_node_row = await question_node(session, question)
-            await attach_question_dependency(
-                session,
-                question_node_id=question_node_row.id,
+        for question_id, question_text in questions:
+            await asyncio.to_thread(
+                attach_question_dependency,
+                require_knowledge(),
+                question_id=question_id,
+                question_text=question_text,
                 fact_id=fact_id,
+                scope=require_persist_scope(
+                    scope_type=source.scope.scope_type, customer_id=source.scope.customer_id,
+                ),
             )
         ids.append(fact_id)
     await _publish_overgraph(
@@ -125,51 +90,6 @@ async def write_legal_facts(
     return ids
 
 
-class _LazyJudges:
-    def __init__(
-        self,
-        session,
-        *,
-        customer_id: int,
-        module: str,
-        fact_judge: JevFactJudge | None,
-        node_judge: JevNodeJudge | None,
-    ) -> None:
-        self.session = session
-        self.customer_id = customer_id
-        self.module = module
-        self.fact_judge = fact_judge
-        self.node_judge = node_judge
-        self._loaded = False
-
-    async def _load(self) -> None:
-        if self._loaded:
-            return
-        if self.fact_judge is not None and self.node_judge is not None:
-            self._loaded = True
-            return
-        prompts = await require_active_prompts(
-            self.session,
-            customer_id=self.customer_id,
-            module=self.module,
-            language="sv",
-        )
-        prefix = "rattsunderlag" if self.module == "rattsunderlag" else "research"
-        self.fact_judge = self.fact_judge or JevFactJudge(
-            prompts[f"{prefix}.graph_fact_resolution"]
-        )
-        self.node_judge = self.node_judge or JevNodeJudge(
-            prompts[f"{prefix}.graph_node_resolution"]
-        )
-        self._loaded = True
-
-    @property
-    def fact(self):
-        return _LazyJudgeProxy(self, "fact")
-
-    @property
-    def node(self):
-        return _LazyJudgeProxy(self, "node")
 
 
 def _source_entity(entities: Sequence[KnowledgeEntity]) -> KnowledgeEntity:
@@ -179,18 +99,6 @@ def _source_entity(entities: Sequence[KnowledgeEntity]) -> KnowledgeEntity:
     return source
 
 
-class _LazyJudgeProxy:
-    def __init__(self, owner: _LazyJudges, kind: str) -> None:
-        self.owner = owner
-        self.kind = kind
-
-    async def compare(self, proposed: FactInput, candidate_text: str):
-        await self.owner._load()
-        return await self.owner.fact_judge.compare(proposed, candidate_text)
-
-    async def same_node(self, proposed: NodeInput, candidate_name: str) -> bool:
-        await self.owner._load()
-        return await self.owner.node_judge.same_node(proposed, candidate_name)
 
 
 def _fact_text(source_name: str, claim: KnowledgeClaim) -> str:
@@ -220,7 +128,7 @@ async def _publish_overgraph(session, *, claims, source, ids_by_claim, pending, 
         text = _fact_text(source.name, claim)
         units = []
         for ref in claim.supporting_text_unit_ids:
-            unit = await session.get(TextUnitRecord, ref)
+            unit = await asyncio.to_thread(load_domain_text_unit, catalog, unit_id=ref)
             if unit is None:
                 raise PermanentGraphError(f"legal fact missing TextUnit {ref}")
             units.append(TextUnitWrite(
@@ -252,21 +160,9 @@ async def _publish_overgraph(session, *, claims, source, ids_by_claim, pending, 
             target=value_node_input(claim, scope),
             units=units,
         )
-        question_ids = set(
-            (
-                await session.scalars(
-                    select(KnowledgeClaimAnswer.knowledge_question_id).where(
-                        KnowledgeClaimAnswer.claim_id == claim.id,
-                        KnowledgeClaimAnswer.knowledge_question_id.is_not(None),
-                    )
-                )
-            ).all()
+        questions = await asyncio.to_thread(
+            questions_answered_by_claim, require_knowledge(), claim_key=claim.id,
         )
-        questions = []
-        for question_id in sorted(question_ids):
-            question = await session.get(KnowledgeQuestionRow, question_id)
-            if question is not None:
-                questions.append((question.id, question.display_text))
         link_legal_questions(
             catalog, fact_id=ids_by_claim[claim.id], scope=scope, questions=questions,
         )

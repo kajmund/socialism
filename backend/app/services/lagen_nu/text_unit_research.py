@@ -6,15 +6,17 @@ interpreter corpus is the current TextUnits — not MCP text or RawSource.
 
 from __future__ import annotations
 
+import asyncio
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import TextUnitRecord
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.knowledge.ingest import KnowledgeIngestResult
 from app.services.knowledge.persistence import (
-    current_text_units,
     get_canonical_document_by_identity,
+    get_current_document_version,
 )
+from app.services.knowledge.units import TextUnit
 from app.services.knowledge.vector_store import KnowledgeVectorStore
 from app.services.lagen_nu.canonical_ingest import (
     ingest_lagen_nu_document,
@@ -23,6 +25,8 @@ from app.services.lagen_nu.canonical_ingest import (
 from app.services.lagen_nu.models import LagenNuDocument
 from app.services.lagen_nu.registration import LAGEN_NU_PROVIDER_ID
 from app.services.lagen_nu.uris import canonical_lagen_nu_document_uri
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.text_units import load_domain_text_units
 
 
 class LagenNuResearchKnowledgeError(RuntimeError):
@@ -57,7 +61,7 @@ async def current_lagen_nu_units(
     *,
     customer_id: int,
     canonical_uri: str,
-) -> list[TextUnitRecord] | None:
+) -> list[TextUnit] | None:
     row = await get_canonical_document_by_identity(
         session,
         customer_id=customer_id,
@@ -66,7 +70,14 @@ async def current_lagen_nu_units(
     )
     if row is None:
         return None
-    units = await current_text_units(session, row.id)
+    version = await get_current_document_version(session, row.id)
+    if version is None:
+        raise LagenNuResearchKnowledgeError(
+            f"CanonicalDocument {row.id} has no current version"
+        )
+    units = await asyncio.to_thread(
+        load_domain_text_units, require_knowledge(), document_version_id=version.id,
+    )
     if not units:
         raise LagenNuResearchKnowledgeError(
             f"CanonicalDocument {row.id} has no current TextUnits"
@@ -81,7 +92,7 @@ async def ingest_and_load_text_units(
     document: LagenNuDocument,
     embeddings: EmbeddingProvider,
     vector_store: KnowledgeVectorStore,
-) -> tuple[KnowledgeIngestResult, list[TextUnitRecord] | None]:
+) -> tuple[KnowledgeIngestResult, list[TextUnit] | None]:
     result = await ingest_lagen_nu_document(
         session,
         customer_id=customer_id,

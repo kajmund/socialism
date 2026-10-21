@@ -12,13 +12,8 @@
     "ids": [],
     "recall_at_limit": 0.0,
     "vector_searches": 1,
-<<<<<<< HEAD
-    "db_ms": 0.09837500692810863,
-    "total_ms": 0.11249999806750566,
-=======
-    "db_ms": 0.19174999761162326,
-    "total_ms": 0.21008399926358834,
->>>>>>> origin/main
+    "db_ms": 0.1346249773632735,
+    "total_ms": 0.1483329979237169,
     "text_unit_reads": 0,
     "note": "OverGraph scope from Category node returned no usable hits in v1"
   },
@@ -32,26 +27,16 @@
     ],
     "recall_at_limit": 1.0,
     "vector_searches": 8,
-<<<<<<< HEAD
-    "db_ms": 0.4445829981705174,
-    "total_ms": 0.4505419929046184,
-=======
-    "db_ms": 0.9064590049092658,
-    "total_ms": 0.9164590010186657,
->>>>>>> origin/main
+    "db_ms": 0.5590839718934149,
+    "total_ms": 0.5654580018017441,
     "text_unit_reads": 8
   },
   "global_post_filter": {
     "ids": [],
     "recall_at_limit": 0.0,
     "vector_searches": 1,
-<<<<<<< HEAD
-    "db_ms": 0.18083301256410778,
-    "total_ms": 0.18404200091026723,
-=======
-    "db_ms": 0.36791700404137373,
-    "total_ms": 0.3747910013771616,
->>>>>>> origin/main
+    "db_ms": 0.21783399279229343,
+    "total_ms": 0.22216601064428687,
     "text_unit_reads": 5
   },
   "gold": [

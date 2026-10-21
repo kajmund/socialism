@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
 import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -82,6 +83,33 @@ class Catalog:
         with self._lock:
             self._db.sync()
 
+    def flush(self) -> None:
+        with self._lock:
+            self._db.flush()
+
+    def scrub(self) -> int:
+        """Integrity-check the on-disk catalog; returns the failed-component count."""
+        with self._lock:
+            report = self._db.scrub()
+        return int(getattr(report, "total_components_failed", 0))
+
+    def snapshot(self, dest: Path) -> None:
+        """Quiesce writes and copy the on-disk catalog to ``dest`` (consistent backup)."""
+        dest = Path(dest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with self._lock:
+            self._db.flush()
+            self._db.sync()
+            shutil.copytree(self.path, dest, dirs_exist_ok=True)
+
+    def count_nodes_by_labels(self, labels: Sequence[str]) -> int:
+        with self._lock:
+            return int(self._db.count_nodes_by_labels(list(labels)))
+
+    def count_edges_by_label(self, label: str) -> int:
+        with self._lock:
+            return int(self._db.count_edges_by_label(label))
+
     def ingest_mode(self) -> None:
         with self._lock:
             self._db.ingest_mode()
@@ -154,6 +182,10 @@ class Catalog:
             return None
         return _record(view)
 
+    def get_edge_by_triple(self, source: int, target: int, label: str):
+        with self._lock:
+            return self._db.get_edge_by_triple(source, target, label)
+
     def get(self, engine_id: int) -> GraphRecord | None:
         with self._lock:
             view = self._db.get_node(engine_id)
@@ -164,6 +196,77 @@ class Catalog:
     def delete_node(self, engine_id: int) -> None:
         with self._lock:
             self._db.delete_node(engine_id)
+
+    def ensure_node_property_index(self, label: str, spec: dict[str, Any]) -> str:
+        with self._lock:
+            info = self._db.ensure_node_property_index(label, spec)
+        return str(getattr(info, "state", "unknown"))
+
+    def find_nodes(self, label: str, prop_key: str, prop_value: Any) -> list[int]:
+        with self._lock:
+            return self._db.find_nodes(label, prop_key, prop_value).to_list()
+
+    def find_nodes_paged(
+        self,
+        label: str,
+        prop_key: str,
+        prop_value: Any,
+        *,
+        limit: int | None = None,
+        after: int | None = None,
+    ) -> tuple[list[int], int | None]:
+        with self._lock:
+            page = self._db.find_nodes_paged(
+                label, prop_key, prop_value, limit=limit, after=after,
+            )
+        return page.items.to_list(), getattr(page, "next_cursor", None)
+
+    def find_nodes_by_time_range(
+        self, label: str, from_ms: int, to_ms: int,
+    ) -> list[int]:
+        with self._lock:
+            return self._db.find_nodes_by_time_range(label, from_ms, to_ms).to_list()
+
+    def find_nodes_by_time_range_paged(
+        self,
+        label: str,
+        from_ms: int,
+        to_ms: int,
+        *,
+        limit: int | None = None,
+        after: int | None = None,
+    ) -> tuple[list[int], int | None]:
+        with self._lock:
+            page = self._db.find_nodes_by_time_range_paged(
+                label, from_ms, to_ms, limit=limit, after=after,
+            )
+        return page.items.to_list(), getattr(page, "next_cursor", None)
+
+    def query_nodes(
+        self,
+        *,
+        label_filter: dict[str, Any],
+        filter_spec: dict[str, Any] | None = None,
+        order_by: str = "node_id_asc",
+        limit: int | None = None,
+        after: int | None = None,
+    ) -> tuple[list[GraphRecord], int | None]:
+        request: dict[str, Any] = {"label_filter": label_filter, "order_by": order_by}
+        if filter_spec is not None:
+            request["filter"] = filter_spec
+        if limit is not None:
+            request["limit"] = limit
+        if after is not None:
+            request["after"] = after
+        with self._lock:
+            page = self._db.query_nodes(request)
+        items = [_record(item) for item in (getattr(page, "items", None) or [])]
+        return items, getattr(page, "next_cursor", None)
+
+    def get_nodes(self, node_ids: Sequence[int]) -> list[GraphRecord | None]:
+        with self._lock:
+            views = self._db.get_nodes(list(node_ids))
+        return [None if view is None else _record(view) for view in views]
 
     def vector_search(self, mode: str, request: dict[str, Any]) -> list[tuple[int, float]]:
         kwargs: dict[str, Any] = {"k": request["k"]}

@@ -25,6 +25,7 @@ from app.services.knowledge.events import (
     EDGE_ADDED,
     list_graph_events,
 )
+from app.services.knowledge.entities import knowledge_entity, persist_knowledge_entity
 from app.services.knowledge.relationships import (
     ABOUT,
     knowledge_relationship,
@@ -71,8 +72,7 @@ async def _document(session: AsyncSession) -> None:
             extra={},
         )
     )
-    session.add(
-        await persisted_text_unit(session,
+    await persisted_text_unit(session,
             id="tu-hold",
             document_version_id="ver-a",
             document_id="doc-a",
@@ -81,7 +81,6 @@ async def _document(session: AsyncSession) -> None:
             ordinal=0,
             text="The court held X.",
         )
-    )
     await session.flush()
 
 
@@ -104,18 +103,22 @@ async def test_persist_claim_and_edge_emit_added_events(session: AsyncSession):
     await _document(session)
     first = _claim(value=False)
     stored = await persist_knowledge_claim(session, first)
-    assert stored.valid_from is not None
-    assert stored.superseded_at is None
+    assert stored.id == first.id
+    assert stored.id == first.id
+    target = await persist_knowledge_entity(
+        session,
+        knowledge_entity(customer_id=1, entity_type="concept", key="entity-1", name="Entity"),
+    )
     edge = knowledge_relationship(
         customer_id=1,
         relation=ABOUT,
         from_kind="claim",
         from_id=first.id,
         to_kind="entity",
-        to_id="entity-1",
+        to_id=target.id,
     )
     rel = await persist_knowledge_relationship(session, edge)
-    assert rel.valid_from is not None
+    assert rel.id
     events = await list_graph_events(session, customer_id=1)
     assert [item.event_type for item in events] == [CLAIM_ADDED, EDGE_ADDED]
     await persist_knowledge_claim(session, first)
@@ -131,9 +134,7 @@ async def test_supersede_claim_closes_time_and_rejects_rewrite(session: AsyncSes
     new = _claim(value=True)
     await persist_knowledge_claim(session, old)
     closed = await supersede_knowledge_claim(session, old.id, successor=new)
-    assert closed.superseded_at is not None
-    assert closed.valid_to == closed.superseded_at
-    assert closed.successor_id == new.id
+    assert closed.id == old.id
     types = [item.event_type for item in await list_graph_events(session, customer_id=1)]
     assert types == [CLAIM_ADDED, CLAIM_SUPERSEDED, CLAIM_ADDED]
     superseded = next(

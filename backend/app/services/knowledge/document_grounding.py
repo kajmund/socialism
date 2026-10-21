@@ -8,9 +8,11 @@ from app.database.models import (
     CanonicalDocumentRecord,
     DocumentVersionRecord,
     StoredObject,
-    TextUnitRecord,
 )
 from app.services.knowledge.models import KnowledgeHit, KnowledgeScope, KnowledgeScopeRequiredError
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.model import TextUnitView
+from app.services.overgraph.research import load_text_units
 from app.services.workspaces import company_workspace_id
 
 
@@ -60,7 +62,9 @@ async def grounded_hits(
     unit_id = hit.metadata.get("text_unit_id")
     if not isinstance(unit_id, str):
         return []
-    unit = await session.get(TextUnitRecord, unit_id)
+    catalog = require_knowledge()
+    units = await catalog.run(load_text_units, catalog, [unit_id])
+    unit = units[0] if units else None
     if unit is None or unit.document_id != hit.document_id:
         return []
     version_id = hit.metadata.get("document_version_id")
@@ -72,7 +76,7 @@ async def grounded_hits(
 
 async def readable_document_passage(
     session: AsyncSession,
-    unit: TextUnitRecord,
+    unit: TextUnitView,
     scope: KnowledgeScope,
 ) -> tuple[CanonicalDocumentRecord, DocumentVersionRecord, StoredObject] | None:
     """Return SQL provenance only for a private passage inside the reader manifest."""
@@ -96,7 +100,7 @@ async def readable_document_passage(
 
 def _passage(
     hit: KnowledgeHit,
-    unit: TextUnitRecord,
+    unit: TextUnitView,
     basis: tuple[CanonicalDocumentRecord, DocumentVersionRecord, StoredObject],
 ) -> KnowledgeHit:
     document, version, source = basis
