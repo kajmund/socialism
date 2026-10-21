@@ -123,5 +123,5 @@ Baslinjen för dagens loop mäts separat av
 - Fake: 8 oberoende runs x 6 repeats x 2 frågor, needs=16, latens=40 ms
 - Live (observationslager): 2 frågor x 3 armar x 2 repeats
 - Paritet: alla scenarier lika
-- Live: ej körd
+- Live: ej körd — environment-blocked (lagen.nu/mcp onåbar från mäthosten; live-wiring verifierad men ingen retrieval)
 - v1-artefakten `a00ba565…` (n=8) är fortsatt cutover-bas.
