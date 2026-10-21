@@ -4,10 +4,16 @@ Both paths get the same attempt, plan, router, assessor and planner. The only
 difference is which function `execute_attempt_research` calls for the wave loop
 (`app.services.research.execution._run_research_loop` is patched), so the
 persisted domain state must match exactly.
+
+Neither path retries: SWD rejects `retry`, and the phase-2 loop has no retry
+either. The only time control is `research_need_timeout_seconds`, covered by
+`test_need_timeout_parity`. Freeze/persistence, stop reasons, evidence errors,
+not-found evidence and empty evidence are all part of the compared snapshot.
 """
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +27,7 @@ pytest.importorskip("swe_native")
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.config import settings
 from app.database.base import Base
 from app.services.execution import (
     get_attempt,
@@ -82,6 +89,46 @@ def _follow_up_scenario() -> tuple[ResearchPlan, Any, Any, Any]:
     )
     planner = ScriptedPlanner([[_follow_up("Vad är kommunens taxa?")]])
     return plan, router, assessor, planner
+
+
+def _mixed_evidence_scenario() -> tuple[ResearchPlan, Any, Any, Any]:
+    plan = ResearchPlan(
+        needs=[
+            _need("research_found", "case_knowledge"),
+            _need("research_missing", "customer_knowledge"),
+            _need("research_error", "domain_knowledge"),
+        ]
+    )
+    router, _ = _router(
+        RecordingSource("case_knowledge"),
+        RecordingSource("customer_knowledge", mode="empty"),
+        RecordingSource("domain_knowledge", error=RuntimeError("provider down")),
+    )
+    return plan, router, RecordingAssessor(), ScriptedPlanner([])
+
+
+def _no_evidence_scenario() -> tuple[ResearchPlan, Any, Any, Any]:
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    router, _ = _router(RecordingSource("case_knowledge", mode="empty"))
+    return plan, router, RecordingAssessor(), ScriptedPlanner([])
+
+
+async def _slow_source(need: Any, _context: Any) -> Any:
+    await asyncio.sleep(0.5)
+    return []
+
+
+def _timeout_scenario() -> tuple[ResearchPlan, Any, Any, Any]:
+    class SlowSource:
+        source_type = "case_knowledge"
+        provider_id = "fake"
+
+        async def research(self, need: Any, context: Any) -> Any:
+            return await _slow_source(need, context)
+
+    plan = ResearchPlan(needs=[_need("research_1", "case_knowledge")])
+    router, _ = _router(SlowSource())
+    return plan, router, RecordingAssessor(), ScriptedPlanner([])
 
 
 async def _run(
@@ -225,11 +272,44 @@ async def test_swe_run_is_persisted_in_the_overgraph_run_store(tmp_path: Path) -
     assert replay
 
 
-def test_variants_differ_only_in_fanout_concurrency() -> None:
+def test_variants_share_the_wave_definition() -> None:
+    """The map mirrors the phase-2 loop (one child per pending need)."""
     narrow = swe_bridge._workflow(4)
     wide = swe_bridge._workflow(8)
-    assert narrow.sha256 != wide.sha256
+    assert narrow.sha256 == wide.sha256
     assert set(narrow.document["nodes"]) == set(wide.document["nodes"])
-    assert narrow.document["nodes"]["needs"]["concurrency"] == 4
-    assert wide.document["nodes"]["needs"]["concurrency"] == 8
+    assert narrow.document["nodes"]["needs"]["concurrency"] == swe_bridge._MAP_CONCURRENCY
     assert narrow.document["nodes"]["execute_need"] == wide.document["nodes"]["execute_need"]
+    assert swe_bridge.PARALLEL_FANOUT_FACTOR == 2
+
+
+async def test_mixed_error_and_not_found_evidence_parity(tmp_path: Path) -> None:
+    baseline = await _run(tmp_path, "base", _mixed_evidence_scenario)
+    variant = await _run(
+        tmp_path, "swe", _mixed_evidence_scenario,
+        loop_impl=swe_bridge.run_research_loop_via_swe,
+    )
+    assert variant == baseline
+    statuses = {row[2] for row in baseline.evidence}
+    assert {"found", "not_found", "error"} <= statuses
+
+
+async def test_no_evidence_parity(tmp_path: Path) -> None:
+    baseline = await _run(tmp_path, "base", _no_evidence_scenario)
+    variant = await _run(
+        tmp_path, "swe", _no_evidence_scenario,
+        loop_impl=swe_bridge.run_research_loop_via_swe,
+    )
+    assert variant == baseline
+    assert baseline.evidence and all(row[2] == "not_found" for row in baseline.evidence)
+
+
+async def test_need_timeout_parity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "research_need_timeout_seconds", 0.05)
+    baseline = await _run(tmp_path, "base", _timeout_scenario)
+    variant = await _run(
+        tmp_path, "swe", _timeout_scenario,
+        loop_impl=swe_bridge.run_research_loop_via_swe,
+    )
+    assert variant == baseline
+    assert any(row[2] == "error" for row in baseline.evidence)

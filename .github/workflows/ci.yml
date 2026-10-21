@@ -101,6 +101,11 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.83.0
+      - name: Build swe_native
+        run: uv run maturin develop --manifest-path ../crates/swe-native/Cargo.toml
       - name: Maintainability
         run: |
           uv run ruff check app tests scripts/check_maintainability.py
@@ -129,6 +134,11 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.83.0
+      - name: Build swe_native
+        run: uv run maturin develop --manifest-path ../crates/swe-native/Cargo.toml
       - name: Mocked reuse contracts and per-test timings
         run: >-
           uv run pytest tests/research_reuse -m research_reuse
@@ -213,6 +223,11 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.83.0
+      - name: Build swe_native
+        run: uv run maturin develop --manifest-path ../crates/swe-native/Cargo.toml
       - name: Apply all Alembic migrations
         run: uv run alembic upgrade head
       - name: Verify shared chunk migration and concurrent ingestion

@@ -22,15 +22,15 @@ from app.services.research.execution import (
     _assert_need_barrier,
     _assess_persisted_evidence,
     _freeze_ready_attempt,
-    _pending_need_pairs,
+    pending_need_pairs,
     _persist_evidence_quality,
     _plan_and_persist_follow_ups,
     _plan_and_persist_global_needs,
-    _quality_descriptors,
+    quality_descriptors,
     _raise_if_write_fenced,
     _review_and_persist_completeness,
     _run_need_executions,
-    _runtime_plan,
+    runtime_plan,
 )
 from app.services.research.followup import (
     FollowUpResearchPlanner,
@@ -55,7 +55,7 @@ ResearchRouterFactory = Callable[[AsyncSession], ResearchRouter]
 
 
 @dataclass(frozen=True)
-class ResearchLoopConfig:
+class ResearchWaveConfig:
     factory: async_sessionmaker[AsyncSession]
     attempt_id: str
     evidence_set_id: str
@@ -75,15 +75,15 @@ class ResearchLoopConfig:
     need_normalizer: ResearchNeedNormalizer | None
 
 
-def _loop_config(raw: dict[str, object]) -> ResearchLoopConfig:
-    values = {item.name: raw[item.name] for item in fields(ResearchLoopConfig)}
-    return ResearchLoopConfig(**values)
+def wave_config_from_kwargs(raw: dict[str, object]) -> ResearchWaveConfig:
+    values = {item.name: raw[item.name] for item in fields(ResearchWaveConfig)}
+    return ResearchWaveConfig(**values)
 
 
 async def stop_and_freeze(
     session: AsyncSession,
     progress: ProgressTracker,
-    config: ResearchLoopConfig,
+    config: ResearchWaveConfig,
     *,
     wave: int,
     reason: ResearchStopReason,
@@ -108,7 +108,7 @@ async def stop_and_freeze(
 async def advance_research_wave(
     session: AsyncSession,
     progress: ProgressTracker,
-    config: ResearchLoopConfig,
+    config: ResearchWaveConfig,
     *,
     follow_up_wave: int,
 ) -> int:
@@ -124,7 +124,7 @@ async def advance_research_wave(
 
 
 async def run_research_loop(**kwargs: object) -> None:
-    config = _loop_config(kwargs)
+    config = wave_config_from_kwargs(kwargs)
     _, relevance_assessor = bind_attempt_relevance(config.assessor, config.relevance_assessor)
     config = replace(config, relevance_assessor=relevance_assessor)
     snapshot_plan = kwargs["snapshot_plan"]
@@ -133,16 +133,16 @@ async def run_research_loop(**kwargs: object) -> None:
     while True:
         bind_log_context(wave_number=wave)
         async with config.factory() as wave_session:
-            pending = await _pending_need_pairs(wave_session, config.attempt_id)
-            runtime_plan = await _runtime_plan(wave_session, config.attempt_id)
-            if not runtime_plan.needs:
-                runtime_plan = snapshot_plan
+            pending = await pending_need_pairs(wave_session, config.attempt_id)
+            active_plan = await runtime_plan(wave_session, config.attempt_id)
+            if not active_plan.needs:
+                active_plan = snapshot_plan
         if pending:
             await _run_need_executions(
                 factory=config.factory,
                 pending=pending,
                 evidence_set_id=config.evidence_set_id,
-                plan=runtime_plan,
+                plan=active_plan,
                 context=config.context,
                 router=config.router,
                 router_factory=config.router_factory,
@@ -150,22 +150,22 @@ async def run_research_loop(**kwargs: object) -> None:
                 attempt_id=config.attempt_id,
                 concurrency=config.concurrency,
                 eager=EagerQualityBind(
-                    descriptors=_quality_descriptors(
+                    descriptors=quality_descriptors(
                         config.router, config.provider_descriptors
                     ),
                     relevance_assessor=config.relevance_assessor,
                     reuse_assessor=config.assessor,
                 ),
             )
-        next_wave = await _finish_research_wave(config, snapshot_plan=snapshot_plan, wave=wave)
+        next_wave = await finish_research_wave(config, snapshot_plan=snapshot_plan, wave=wave)
         if next_wave is None:
             return
         snapshot_plan = next_wave[1]
         wave = next_wave[0]
 
 
-async def _finish_research_wave(
-    config: ResearchLoopConfig,
+async def finish_research_wave(
+    config: ResearchWaveConfig,
     *,
     snapshot_plan: ResearchPlan,
     wave: int,
@@ -183,9 +183,9 @@ async def _finish_research_wave(
                 return None
             if attempt.research_plan_snapshot is not None:
                 snapshot_plan = research_plan_from_snapshot(attempt.research_plan_snapshot)
-            runtime_plan = await _runtime_plan(barrier_session, config.attempt_id)
-            quality_plan = runtime_plan if runtime_plan.needs else snapshot_plan
-            descriptors = _quality_descriptors(config.router, config.provider_descriptors)
+            active_plan = await runtime_plan(barrier_session, config.attempt_id)
+            quality_plan = active_plan if active_plan.needs else snapshot_plan
+            descriptors = quality_descriptors(config.router, config.provider_descriptors)
             quality = await _persist_evidence_quality(
                 barrier_session,
                 evidence_set_id=config.evidence_set_id,
@@ -224,7 +224,7 @@ async def _finish_research_wave(
 
 
 async def _decide_research_wave(
-    config: ResearchLoopConfig,
+    config: ResearchWaveConfig,
     session: AsyncSession,
     progress: ProgressTracker,
     *,
@@ -282,7 +282,7 @@ async def _decide_research_wave(
 
 
 async def _plan_follow_up_or_stop(
-    config: ResearchLoopConfig,
+    config: ResearchWaveConfig,
     session: AsyncSession,
     progress: ProgressTracker,
     *,
@@ -326,7 +326,7 @@ async def _plan_follow_up_or_stop(
 
 
 async def _continue_after_completeness(
-    config: ResearchLoopConfig,
+    config: ResearchWaveConfig,
     session: AsyncSession,
     progress: ProgressTracker,
     *,
