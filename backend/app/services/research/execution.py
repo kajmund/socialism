@@ -304,7 +304,7 @@ async def _retrieve_need(
 
 
 
-async def _execute_one_need(  # noqa: PLR0913
+async def execute_one_need(  # noqa: PLR0913
     *,
     factory: async_sessionmaker[AsyncSession],
     persist_lock: asyncio.Lock,
@@ -423,7 +423,7 @@ async def _run_need_executions(  # noqa: PLR0913
         need = needs_by_id[need_id]
         try:
             await asyncio.wait_for(
-                _execute_one_need(
+                execute_one_need(
                     factory=factory,
                     persist_lock=persist_lock,
                     retrieve_slots=retrieve_slots,
@@ -440,7 +440,7 @@ async def _run_need_executions(  # noqa: PLR0913
                 timeout=settings.research_need_timeout_seconds,
             )
         except TimeoutError:
-            await _complete_timed_out_need(
+            await complete_timed_out_need(
                 factory,
                 persist_lock,
                 execution_id=execution_id,
@@ -452,7 +452,7 @@ async def _run_need_executions(  # noqa: PLR0913
     await asyncio.gather(*(worker(execution_id, need_id) for execution_id, need_id in pending))
 
 
-async def _complete_timed_out_need(
+async def complete_timed_out_need(
     factory: async_sessionmaker[AsyncSession],
     persist_lock: asyncio.Lock,
     *,
@@ -592,7 +592,7 @@ def _loop_limits(
     return waves, needs, completeness
 
 
-async def _pending_need_pairs(session: AsyncSession, attempt_id: str) -> list[tuple[str, str]]:
+async def pending_need_pairs(session: AsyncSession, attempt_id: str) -> list[tuple[str, str]]:
     return [
         (row.id, row.research_need_id)
         for row in await list_need_executions(session, attempt_id)
@@ -600,12 +600,12 @@ async def _pending_need_pairs(session: AsyncSession, attempt_id: str) -> list[tu
     ]
 
 
-async def _runtime_plan(session: AsyncSession, attempt_id: str) -> ResearchPlan:
+async def runtime_plan(session: AsyncSession, attempt_id: str) -> ResearchPlan:
     rows = await list_runtime_needs(session, attempt_id)
     return plan_from_runtime_needs([runtime_need_from_row(row) for row in rows])
 
 
-def _quality_descriptors(
+def quality_descriptors(
     router: ResearchRouter | None,
     descriptors: tuple[KnowledgeProviderDescriptor, ...] | None,
 ) -> tuple[KnowledgeProviderDescriptor, ...]:
@@ -990,9 +990,9 @@ async def _plan_and_persist_global_needs(  # noqa: PLR0913
 
 
 async def _run_research_loop(**kwargs: object) -> None:
-    """Delegate to loop_control. Imported lazily to avoid a cycle."""
-    from app.services.research.loop_control import run_research_loop
-    await run_research_loop(**kwargs)
+    """Delegate to the SWE bridge. Imported lazily to avoid a cycle."""
+    from app.services.research.swe_bridge import run_research_loop_via_swe
+    await run_research_loop_via_swe(**kwargs)
 
 
 async def _resolve_research_objective(
@@ -1235,7 +1235,7 @@ async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
             max_needs=need_limit,
             max_completeness_passes=completeness_limit,
             start_wave=start_wave,
-            need_normalizer=need_normalizer,
+            need_normalizer=need_normalizer, lease_lost=lease_lost,
         )
         async with factory() as final_session:
             finished = await get_attempt(final_session, attempt_id)

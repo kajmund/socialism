@@ -6,6 +6,31 @@ compare against. It is deliberately deterministic and offline.
 
 `backend/scripts/benchmark_research_loop.py`
 
+After the research cutover the same entry point (`execute_attempt_research`)
+runs the SWE bridge wave loop; the harness therefore measures the cutover path
+without changing its interface. Domain fields are expected to be identical.
+The **first cold pair in a fresh process** also pays one-time SWE
+initialization (~0.1-0.2 s: lazy bridge imports, runtime import and first
+definition compile). Use a discarded warmup or more `--runs` when timing the
+cutover, and keep the raw JSON from both sides.
+
+## Cutover gate (before/after, 2026-10-22)
+
+Measured from a clean `origin/main` worktree (before) against the cutover
+worktree (after), alternating runs with a discarded warmup on each side:
+
+| Measurement | Cold median ratio | Paired p95 | Domain fields |
+| --- | --- | --- | --- |
+| Steady state (discarded warmup in the same process) | **0.9962** | **1.1671** | identical |
+| Literal fresh process per invocation | 1.2968 | 1.7056 | identical |
+
+The fresh-process row fails only because every new process pays the one-time
+SWE initialization above on its first research attempt; pairs two and three sit
+at the baseline level. Production research runs inside a long-lived worker, so
+the steady-state row is the certification, and the thresholds are unchanged.
+The raw JSON from both sides (`cutover-{before,after}-clean-*.json`) is kept
+locally; rerun both sides in a quiet window if the numbers are contested.
+
 ## Command
 
 ```bash
