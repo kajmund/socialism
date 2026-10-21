@@ -23,6 +23,7 @@ from app.services.live_speech_speculation import SpeculativeReader
 from app.services.live_speech_traces import forward_library_trace
 from app.services.live_speech_turn_run import run_voice_turn
 from app.services.live_speech_focus import focus_sources as _focus_sources
+from app.services.live_speech_item_bind import ProviderItemBinder
 from app.services.openai_live_transcription import (
     OpenAITranscriptionStream,
     TranscriptEvent,
@@ -87,8 +88,7 @@ class LiveSpeechRuntime:
         self._conversation = ConversationController()
         self._metrics = LatencyStats(logger)
         self._commit_seq = 0
-        self._item_commit: dict[str, int] = {}
-        self._item_epoch: dict[str, str] = {}
+        self._items = ProviderItemBinder()
         self._utterance_id: str | None = None
         self._pending_final: ConversationEvent | None = None
         self._speculation = SpeculativeReader(
@@ -137,6 +137,7 @@ class LiveSpeechRuntime:
         self._first_partial_logged = False
         self._user_text_partial = ""
         self._utterance_id = str(sequence)
+        self._items.start_utterance(self._utterance_id)
         self._conversation.handle(
             ConversationEvent(kind="user_vad_start", utterance_id=self._utterance_id),
         )
@@ -146,13 +147,12 @@ class LiveSpeechRuntime:
         self._advance_audio_sequence(sequence)
         self._commit_at = monotonic()
         self._commit_seq += 1
-        if item_id:
-            self._item_commit[item_id] = self._commit_seq
+        self._items.commit(self._commit_seq)
         self._conversation.handle(
             ConversationEvent(
                 kind="user_vad_commit",
                 sequence=self._commit_seq,
-                utterance_id=item_id,
+                utterance_id=self._utterance_id,
             )
         )
         self._cues.stop_listener()
@@ -165,6 +165,7 @@ class LiveSpeechRuntime:
     async def cancel_audio(self) -> None:
         await self._stt.clear()
         self._partials.clear()
+        self._items.reset()
         await self._state("listening")
 
     async def set_muted(self, muted: bool) -> None:
@@ -258,10 +259,14 @@ class LiveSpeechRuntime:
                 False,
             )
             return
-        item_id = event.item_id or "pending"
+        item_id = event.item_id
         if event.kind == "partial":
+            if item_id is None:
+                return
             await self._cues.on_partial(item_id, event.text)
             self._speculation.on_partial(event.text)
+            return
+        if item_id is None:
             return
         await self._on_final_transcript(item_id, event.text)
 
@@ -282,10 +287,14 @@ class LiveSpeechRuntime:
             self._metrics.add(
                 "provider.final_transcript", (self._final_at - self._commit_at) * 1000,
             )
+        bound = self._items.observe(item_id, final=True)
+        if bound is None:
+            return
+        sequence, utterance_id = bound
         final_event = ConversationEvent(
             kind="user_final",
-            sequence=self._item_commit.get(item_id, self._commit_seq),
-            utterance_id=self._item_epoch.get(item_id, self._utterance_id),
+            sequence=sequence,
+            utterance_id=utterance_id,
         )
         if self._conversation.reject_reason(final_event) is not None:
             return
@@ -382,6 +391,7 @@ class LiveSpeechRuntime:
     def _advance_audio_sequence(self, sequence: int) -> None:
         if sequence <= self._last_audio_sequence:
             self._conversation.handle(ConversationEvent(kind="session_reset"))
+            self._items.reset()
             raise ValueError("audio_sequence_out_of_order")
         self._last_audio_sequence = sequence
 

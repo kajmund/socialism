@@ -135,7 +135,10 @@ class LiveSpeechCues:
         runtime._user_text_partial = text
         revision = runtime._revisions.get(item_id, 0) + 1
         runtime._revisions[item_id] = revision
-        epoch = runtime._item_epoch.setdefault(item_id, runtime._utterance_id or item_id)
+        bound = runtime._items.observe(item_id, final=False)
+        if bound is None:
+            return
+        epoch = bound[1]
         partial = runtime._conversation.handle(
             ConversationEvent(kind="user_partial", utterance_id=epoch, sequence=revision),
         )

@@ -32,17 +32,14 @@ def reset_speculative_results(token: Token) -> None:
 
 
 def speculative_result_for(name: str, arguments: dict[str, Any]) -> str | None:
-    """Return a cached read-only result when the final query extends a prefetch."""
+    """Return a cached read-only result only for an exact normalized query."""
     mapping = _results.get()
     if not mapping or name not in _READ_ONLY:
         return None
     query = normalize_query(arguments.get("query"))
     if not query:
         return None
-    exact = mapping.get((name, query))
-    if exact is not None:
-        return exact
-    return _longest_prefix_result(mapping, name, query)
+    return mapping.get((name, query))
 
 
 def normalize_query(value: object) -> str:
@@ -79,19 +76,3 @@ def scope_key(*, customer_id: int, workspace_id: str | None, user_id: str) -> st
 
 def query_fingerprint(query: str, *, scope: str, version: str) -> str:
     return hashlib.sha256(f"{scope}|{version}|{query}".encode()).hexdigest()[:24]
-
-
-def _longest_prefix_result(
-    mapping: dict[tuple[str, str], str],
-    name: str,
-    query: str,
-) -> str | None:
-    best: str | None = None
-    best_len = -1
-    for (tool, prefetch), result in mapping.items():
-        if tool != name:
-            continue
-        if query_extends(prefetch, query) and len(prefetch) > best_len:
-            best = result
-            best_len = len(prefetch)
-    return best
