@@ -34,6 +34,7 @@ pnpm-debug.log*
 # Data / artifacts (downloaded corpus files are large, never check in)
 /data/downloads/*
 !/data/downloads/.gitkeep
+/data/research_swe/
 *.parquet
 
 # Generated synthetic SME corpus (large; regenerate with synthetic_sme/generator)
