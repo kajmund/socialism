@@ -23,7 +23,7 @@ from app.services.research import (
     execute_attempt_research,
 )
 from app.services.research.assessment import ProgrammaticResearchAssessor
-from app.services.research.execution import _complete_timed_out_need, assessable_from_item
+from app.services.research.execution import complete_timed_out_need, assessable_from_item
 from app.services.research.models import ResearchContext, ResearchNeed
 from app.services.research.progress import list_research_progress_events
 from tests.test_research_execution import (
@@ -176,7 +176,7 @@ async def test_timeout_after_completed_need_does_not_write_evidence(db):
     items_before = await list_evidence_items(session, result.evidence_set_id)
     assert [row.status for row in executions] == ["completed"]
     assert [item.status for item in items_before] == ["found"]
-    await _complete_timed_out_need(
+    await complete_timed_out_need(
         factory,
         asyncio.Lock(),
         execution_id=executions[0].id,
