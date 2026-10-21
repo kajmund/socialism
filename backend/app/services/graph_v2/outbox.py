@@ -16,7 +16,6 @@ from app.services.document_qa.kinds import DOCUMENT_CATALOG_WRITE, DOCUMENT_QA_W
 from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
 from app.services.graph_v2.errors import PermanentGraphError
 from app.services.graph_v2.identity import stable_id
-from app.services.graph_v2.jev_judge import JevFactJudge, JevNodeJudge
 from app.services.graph_v2.legal_writeback import write_legal_facts
 from app.services.knowledge.claims import KnowledgeClaim
 from app.services.knowledge.embeddings import EmbeddingProvider, OpenAIEmbeddingProvider
@@ -96,8 +95,7 @@ async def claim_graph_work(factory: async_sessionmaker[AsyncSession]) -> tuple[s
 
 async def process_graph_work(
     factory: async_sessionmaker[AsyncSession], *, limit: int = 50,
-    embedder: EmbeddingProvider | None = None, judge: JevFactJudge | None = None,
-    node_judge: JevNodeJudge | None = None,
+    embedder: EmbeddingProvider | None = None,
 ) -> dict[str, int]:
     completed = failed = 0
     provider: GraphEmbeddingCacheProvider | EmbeddingProvider | None = None
@@ -125,8 +123,7 @@ async def process_graph_work(
                 claims, entities, module = _deserialize(row)
                 await write_legal_facts(
                     session, claims=claims, entities=entities,
-                    embedder=provider, judge=judge, node_judge=node_judge,
-                    module=module,
+                    embedder=provider, module=module,
                 )
                 result = await session.execute(update(GraphIngestWork).where(
                     GraphIngestWork.id == work_id,

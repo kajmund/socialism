@@ -41,8 +41,8 @@ async def seed_source(session, workspace, user, identity, *, attach=True):
         mime_type="application/pdf", content_hash=f"hash-{identity}", ingested_at=datetime.now(UTC))
     session.add(version)
     await session.flush()
-    session.add(await persisted_text_unit(session, id=f"unit-{identity}", **fields, document_id=document.id,
-        document_version_id=version.id, ordinal=0, text=PASSAGE, locator="page:1", ingested_at=datetime.now(UTC)))
+    await persisted_text_unit(session, id=f"unit-{identity}", **fields, document_id=document.id,
+        document_version_id=version.id, ordinal=0, text=PASSAGE, locator="page:1", ingested_at=datetime.now(UTC))
 
 
 @pytest.fixture
