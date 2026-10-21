@@ -1,5 +1,8 @@
 import os
+import shutil
 import tempfile
+from pathlib import Path
+from unittest import mock
 from datetime import UTC, datetime, timedelta
 
 # Required before importing app.config — Settings fails without keys.
@@ -87,6 +90,36 @@ TEST_JWT_SECRET = "test-supabase-jwt-secret-not-real"
 ADMIN_USER_ID = "00000000-0000-4000-8000-aaaaaaaaaaaa"
 USER_USER_ID = "00000000-0000-4000-8000-bbbbbbbbbbbb"
 BOLAG_USER_ID = "00000000-0000-4000-8000-cccccccccccc"
+
+
+@pytest.fixture(autouse=True)
+def lexical_index_recovery(research_overgraph):
+    """Tests keep the derived Tantivy index current on demand (production raises instead)."""
+    from app.services import retrieval_index
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.tantivy_index import (
+        build_from_overgraph, read_watermark, reconcile, write_watermark,
+    )
+
+    directory = Path(tempfile.mkdtemp(prefix="lexical-index-"))
+
+    def _current_index():
+        catalog = require_knowledge()
+        index = retrieval_index.get_index()
+        if index is None:
+            index = build_from_overgraph(catalog, directory)
+            retrieval_index.set_index(index, directory)
+            return index
+        new_watermark = reconcile(catalog, index, watermark_ms=read_watermark(directory))
+        write_watermark(directory, new_watermark)
+        return index
+
+    with mock.patch(
+        "app.services.research.result_search.require_current_index", _current_index,
+    ):
+        yield
+    retrieval_index.set_index(None)
+    shutil.rmtree(directory, ignore_errors=True)
 
 
 @pytest.fixture(autouse=True)

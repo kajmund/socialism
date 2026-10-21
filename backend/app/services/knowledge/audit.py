@@ -9,7 +9,6 @@ from typing import Any
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.knowledge_observation import KnowledgeObservationRecord
 from app.database.models import (
     KnowledgeClaimRecord,
     KnowledgeEntityRecord,
@@ -67,12 +66,16 @@ async def audit_knowledge_graph(session: AsyncSession) -> KnowledgeAuditReport:
     edges = list(
         (await session.execute(select(KnowledgeRelationshipRecord))).scalars().all()
     )
-    observations = (
-        await session.execute(select(KnowledgeObservationRecord.id))
-    ).all()
-    report = KnowledgeAuditReport(observation_count=len(observations))
+    # Observations live in OverGraph; the SQL table is no longer written by persist.
+    from app.services.knowledge.graph_audit import graph_audit_counts
+    from app.services.overgraph.catalogs import require_knowledge
+
+    report = KnowledgeAuditReport(
+        observation_count=graph_audit_counts(require_knowledge())["observations"],
+    )
     exact: dict[str, list[KnowledgeClaimRecord]] = defaultdict(list)
     normalized: dict[str, list[KnowledgeClaimRecord]] = defaultdict(list)
+    _count_graph_claims(report)
     for claim in claims:
         decision = classify_persistence(value=claim.value)
         if decision.persistence_class == "source_quality":
@@ -135,6 +138,28 @@ async def cleanup_knowledge_graph(
     payload["applied"] = True
     payload["stats"] = stats.as_dict()
     return payload
+
+
+def _count_graph_claims(report: KnowledgeAuditReport) -> None:
+    """Claims live in OverGraph; classify their values for the report."""
+    import json
+
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import CLAIM
+
+    catalog = require_knowledge()
+    nodes, _ = catalog.query_nodes(
+        label_filter={"labels": [CLAIM], "mode": "all"}, limit=1000,
+    )
+    for node in nodes:
+        value = json.loads(str(node.props.get("value_json") or "{}"))
+        decision = classify_persistence(value=value)
+        if decision.persistence_class == "source_quality":
+            report.source_quality_claim_count += 1
+        elif decision.persistence_class == "research_observation":
+            report.research_observation_claim_count += 1
+        else:
+            report.domain_claim_count += 1
 
 
 def _groups(buckets: dict[str, list[Any]]) -> list[DuplicateGroup]:

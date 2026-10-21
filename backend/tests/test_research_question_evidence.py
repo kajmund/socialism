@@ -14,7 +14,6 @@ from app.database.base import Base
 from app.database.models import (
     CanonicalDocumentRecord,
     DocumentVersionRecord,
-    KnowledgeClaimRecord,
     Kund,
 )
 from app.services.execution import (
@@ -738,8 +737,7 @@ async def _seed_claim_answer(
             extra={},
         )
     )
-    session.add(
-        await persisted_text_unit(session,
+    await persisted_text_unit(session,
             id="tu-claim",
             document_version_id="ver-claim",
             document_id="doc-claim",
@@ -748,7 +746,6 @@ async def _seed_claim_answer(
             ordinal=0,
             text=unit_text,
         )
-    )
     await session.flush()
     value: dict[str, object] = {"value": False}
     claim = KnowledgeClaim(
@@ -771,9 +768,14 @@ async def _seed_claim_answer(
         source_type=source_type,
     )
     if created_at is not None:
-        row = await session.get(KnowledgeClaimRecord, claim.id)
-        assert row is not None
-        row.created_at = created_at
+        # Freshness is read from the graph: stamp the claim node.
+        from app.services.overgraph.catalogs import require_knowledge
+
+        node = require_knowledge().get_by_key("Claim", claim.id)
+        assert node is not None
+        props = dict(node.props)
+        props["created_at_ms"] = int(created_at.timestamp() * 1000)
+        require_knowledge().upsert_node(list(node.labels), node.key, props=props)
     await session.flush()
     return claim.id
 
@@ -829,9 +831,22 @@ async def test_legacy_claim_answers_are_not_used_when_graph_v2_is_empty(db):
 
     from app.database.graph_v2 import GraphFact
     from sqlalchemy import delete
-    # The first freeze now publishes a real Graph answer. Remove it to test an empty Graph.
+
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.overgraph.labels import FACT
+
+    # The first freeze publishes a real Graph answer into OverGraph (authoritative) and
+    # mirrors it in SQL. Remove both so the graph is genuinely empty.
     await session.execute(delete(GraphFact).where(GraphFact.predicate == "research.answered_by"))
     await session.commit()
+    catalog = require_knowledge()
+    answer_rows, _cursor = catalog.query_nodes(
+        label_filter={"labels": [FACT], "mode": "all"},
+        filter_spec={"property": "predicate", "eq": "research.answered_by"},
+    )
+    for answer_row in answer_rows:
+        if answer_row.engine_id is not None:
+            catalog.delete_node(answer_row.engine_id)
 
     second = await create_attempt(
         session,

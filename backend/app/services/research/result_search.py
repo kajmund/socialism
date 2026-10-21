@@ -1,19 +1,31 @@
 """Bounded, read-only traversal of question nodes to completed Graph answers."""
 
+import asyncio
+import json
 from dataclasses import dataclass, field
 from time import perf_counter
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import settings
-from app.database.graph_v2 import GraphFact, GraphFactQuestionDependency, GraphNode
 from app.database.models import EvidenceSet, ExecutionAttempt, ExecutionRun
-from app.services.graph_v2.retrieval import hybrid_facts
+from app.services.overgraph.labels import (
+    ENTITY,
+    FACT,
+    OBJECT,
+    SUBJECT,
+    scope_label,
+    visible_scope_keys,
+)
 from app.services.knowledge.embeddings import EmbeddingProvider, require_embedding_vectors
 from app.services.prompt_store import require_active_prompts
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.hybrid_retrieval import hybrid_fact_hits
+from app.services.overgraph.labels import DEPENDS_ON
+from app.services.overgraph.research import QUESTION_TYPE
 from app.services.research.answer_graph import ANSWER_PREDICATE
-from app.services.research.graph_grounding import fact_is_current
+from app.services.retrieval_index import require_current_index
 from app.services.research.models import ResearchContext, ResearchNeed, utc_now
 from app.services.research.result_judge import Coverage, ResultJudge
 from app.services.research.result_store import SavedResearch, exact_answers, load_saved_answer
@@ -45,9 +57,10 @@ async def find_completed_research(
     result = ResultSearch()
     started = perf_counter()
     async with factory() as session:
-        ids = await exact_answers(session, need, scope)
+        now = utc_now()
+        ids = await exact_answers(session, need, scope, now=now)
         for fact_id in ids:
-            saved = await load_saved_answer(session, fact_id, scope, now=utc_now())
+            saved = await load_saved_answer(session, fact_id, scope, now=now)
             if (
                 saved
                 and saved.context == context
@@ -63,100 +76,168 @@ async def find_completed_research(
     return result
 
 
+def _graph_seeds(catalog, index, question: str, customer_id: int, *, vector) -> dict[str, list[str]]:
+    """Hybrid fact hits plus their endpoints and question dependencies (OverGraph only)."""
+    hits = hybrid_fact_hits(
+        catalog, index, customer_id=customer_id, query=question,
+        limit=8, dense_query=list(vector) if vector is not None else None,
+    )
+    endpoints: set[str] = set()
+    dependencies: set[str] = set()
+    for hit in hits:
+        endpoints.update((hit.fact.source_id, hit.fact.target_id))
+        row = catalog.get_by_key(FACT, hit.fact.id)
+        if row is None or row.engine_id is None:
+            continue
+        for engine_id in catalog.neighbors(
+            row.engine_id, direction="incoming", edge_label_filter=[DEPENDS_ON],
+        ):
+            question_row = catalog.get(engine_id)
+            if question_row is not None:
+                dependencies.add(question_row.key)
+    return {"endpoints": sorted(endpoints), "dependencies": sorted(dependencies)}
+
+
+def _question_seeds(catalog, keys: list[str], scope_key: str) -> list[str]:
+    seeds: list[str] = []
+    for key in sorted(set(keys)):
+        row = catalog.get_by_key(ENTITY, key)
+        if row is None:
+            continue
+        if str(row.props.get("node_type") or "") != QUESTION_TYPE:
+            continue
+        if str(row.props.get("scope_key") or "") != scope_key:
+            continue
+        seeds.append(key)
+    return seeds[:8]
+
+
 async def _seeds(session, need, scope, embeddings, *, vector) -> list[str]:
-    hits = await hybrid_facts(
-        session,
-        customer_id=scope.scope.customer_id,
-        query=need.question,
-        embedding=vector,
-        embedding_model=embeddings.model,
-        limit=8,
+    catalog = require_knowledge()
+    index = require_current_index()
+    customer_id = scope.scope.customer_id
+    collected = await asyncio.to_thread(
+        _graph_seeds, catalog, index, need.question, customer_id, vector=vector,
     )
-    valid = [hit.fact for hit in hits if fact_is_current(hit.fact, utc_now())]
-    dependencies = list(
-        await session.scalars(
-            select(GraphFactQuestionDependency.question_node_id)
-            .where(
-                GraphFactQuestionDependency.fact_id.in_([fact.id for fact in valid]),
-                GraphFactQuestionDependency.scope_key == f"customer:{scope.scope.customer_id}",
-            )
-            .limit(16)
-        )
+    scope_key = f"customer:{customer_id}"
+    return _question_seeds(
+        catalog, collected["endpoints"] + collected["dependencies"], scope_key,
     )
-    endpoints = {node for fact in valid for node in (fact.source_id, fact.target_id)}
-    return list(
-        await session.scalars(
-            select(GraphNode.id)
-            .where(
-                GraphNode.id.in_(endpoints | set(dependencies)),
-                GraphNode.node_type == "core.question",
-                GraphNode.scope_key == f"customer:{scope.scope.customer_id}",
-            )
-            .order_by(GraphNode.id)
-            .limit(8)
-        )
-    )
+
+
+FRONTIER_PREDICATES = (ANSWER_PREDICATE, "research.decomposed_to")
+ANSWER_ATTRS_EVIDENCE_SET = "evidence_set_id"
+
+
+def _in_visible_scope(props, visible: set[str]) -> bool:
+    return str(props.get("scope_key") or "") in visible
+
+
+def _frontier_fact(fact, *, visible: set[str], visited: set[str], found: dict) -> bool:
+    if fact is None or str(fact.key) in visited or str(fact.key) in found:
+        return False
+    if not _in_visible_scope(fact.props, visible):
+        return False
+    if str(fact.props.get("status") or "active") != "active":
+        return False
+    return str(fact.props.get("predicate") or "") in FRONTIER_PREDICATES
+
+
+def _frontier_row(catalog, fact, visible: set[str]) -> dict | None:
+    source = catalog.get_by_key(ENTITY, str(fact.props.get("source_key") or ""))
+    target = catalog.get_by_key(ENTITY, str(fact.props.get("target_key") or ""))
+    if source is None or target is None:
+        return None
+    if not _in_visible_scope(source.props, visible) or not _in_visible_scope(target.props, visible):
+        return None
+    return {
+        "id": str(fact.key),
+        "predicate": str(fact.props.get("predicate") or ""),
+        "source_id": str(source.key),
+        "target_id": str(target.key),
+        "source_question": str(source.props.get("name") or ""),
+        "target_question": str(target.props.get("name") or ""),
+    }
+
+
+def _frontier_rows(catalog, *, customer_id: int, frontier: list[str], visited: set[str], remaining: int) -> list[dict]:
+    """Neighbouring answer/decomposition facts, read from OverGraph."""
+    visible = set(visible_scope_keys(customer_id))
+    found: dict[str, object] = {}
+    for node_key in sorted(frontier):
+        node = catalog.get_by_key(ENTITY, node_key)
+        if node is None or node.engine_id is None:
+            continue
+        for fact_id in catalog.neighbors(
+            node.engine_id, direction="incoming", edge_label_filter=[SUBJECT, OBJECT],
+        ):
+            fact = catalog.get(fact_id)
+            if _frontier_fact(fact, visible=visible, visited=visited, found=found):
+                found[str(fact.key)] = fact
+    rows: list[dict] = []
+    for key in sorted(found, key=lambda item: (str(found[item].props.get("predicate")), item)):
+        row = _frontier_row(catalog, found[key], visible)
+        if row is None:
+            continue
+        rows.append(row)
+        if len(rows) >= remaining:
+            break
+    return rows
 
 
 async def _frontier(session, frontier, scope, visited, *, remaining) -> list[dict]:
-    rows = list(
-        await session.scalars(
-            select(GraphFact)
-            .where(
-                GraphFact.scope_key == f"customer:{scope.scope.customer_id}",
-                GraphFact.status == "active",
-                GraphFact.id.not_in(visited),
-                GraphFact.predicate.in_((ANSWER_PREDICATE, "research.decomposed_to")),
-                or_(GraphFact.source_id.in_(frontier), GraphFact.target_id.in_(frontier)),
-            )
-            .order_by(GraphFact.predicate, GraphFact.id)
-            .limit(remaining)
-        )
+    catalog = require_knowledge()
+    return await asyncio.to_thread(
+        _frontier_rows, catalog,
+        customer_id=scope.scope.customer_id,
+        frontier=list(frontier), visited=set(visited), remaining=remaining,
     )
-    nodes = {
-        node.id: node
-        for node in await session.scalars(
-            select(GraphNode).where(
-                GraphNode.id.in_({ref for row in rows for ref in (row.source_id, row.target_id)}),
-                GraphNode.scope_key == f"customer:{scope.scope.customer_id}",
-            )
+
+
+async def _completed_evidence_sets(session, scope) -> set[str]:
+    """Evidence sets of ready/completed attempts for this customer and module."""
+    rows = await session.execute(
+        select(EvidenceSet.id)
+        .join(ExecutionAttempt, ExecutionAttempt.evidence_set_id == EvidenceSet.id)
+        .join(ExecutionRun, ExecutionRun.id == EvidenceSet.run_id)
+        .where(
+            ExecutionAttempt.status.in_(("ready", "completed")),
+            ExecutionRun.customer_id == scope.scope.customer_id,
+            ExecutionRun.module == scope.scope.module,
         )
-    }
-    return [
-        {
-            "id": row.id,
-            "predicate": row.predicate,
-            "source_id": row.source_id,
-            "target_id": row.target_id,
-            "source_question": nodes[row.source_id].name,
-            "target_question": nodes[row.target_id].name,
-        }
-        for row in rows
-        if fact_is_current(row, utc_now()) and row.source_id in nodes and row.target_id in nodes
-    ]
+        .limit(200)
+    )
+    return {row[0] for row in rows.all()}
+
+
+def _answer_target_in_sets(catalog, customer_id: int, set_ids: set[str]) -> bool:
+    """Any answer fact whose target node belongs to a completed evidence set."""
+    for scope_key in visible_scope_keys(customer_id):
+        nodes, _ = catalog.query_nodes(
+            label_filter={"labels": [FACT, scope_label(scope_key)], "mode": "all"},
+            limit=500,
+        )
+        for node in nodes:
+            if str(node.props.get("predicate") or "") != ANSWER_PREDICATE:
+                continue
+            target = catalog.get_by_key(ENTITY, str(node.props.get("target_key") or ""))
+            if target is None:
+                continue
+            attributes = json.loads(str(target.props.get("attributes_json") or "{}"))
+            if str(attributes.get(ANSWER_ATTRS_EVIDENCE_SET) or "") in set_ids:
+                return True
+    return False
 
 
 async def _nearby(factory, need, scope, context, *, result, embeddings, judge) -> None:
     async with factory() as session:
-        present = await session.scalar(
-            select(GraphFact.id)
-            .join(GraphNode, GraphNode.id == GraphFact.target_id)
-            .join(
-                EvidenceSet, EvidenceSet.id == GraphNode.attributes["evidence_set_id"].as_string()
-            )
-            .join(ExecutionAttempt, ExecutionAttempt.evidence_set_id == EvidenceSet.id)
-            .join(ExecutionRun, ExecutionRun.id == EvidenceSet.run_id)
-            .where(
-                GraphFact.scope_key == f"customer:{scope.scope.customer_id}",
-                GraphFact.predicate == ANSWER_PREDICATE,
-                GraphFact.status == "active",
-                ExecutionAttempt.status.in_(("ready", "completed")),
-                ExecutionRun.customer_id == scope.scope.customer_id,
-                ExecutionRun.module == scope.scope.module,
-            )
-            .limit(1)
-        )
-    if present is None:
+        completed = await _completed_evidence_sets(session, scope)
+    if not completed:
+        return
+    present = await asyncio.to_thread(
+        _answer_target_in_sets, require_knowledge(), scope.scope.customer_id, completed,
+    )
+    if not present:
         return
     if embeddings is None:
         from app.services.research.composition import research_embeddings

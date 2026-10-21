@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.database.base import Base
 from app.database.graph_v2 import GraphIngestWork
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund
-from app.database.text_units import SharedTextChunkRecord, TextUnitRecord
 from app.services.document_qa.catalog_outbox import enqueue_document_catalog
 from app.services.document_qa.kinds import DOCUMENT_CATALOG_WRITE
 from app.services.document_find.category_index import documents_for_type
@@ -22,6 +21,7 @@ from app.services.document_qa.tenants import TenantCatalogs, set_tenant_catalogs
 from app.services.graph_v2.outbox import process_graph_work
 from app.services.knowledge.units import hash_text
 from app.services.overgraph.labels import CONTAINS, DOCUMENT_VERSION
+from tests.text_unit_fakes import persisted_text_unit
 
 DIM = 8
 OUTBOX = Path(__file__).resolve().parents[1] / "app/services/document_qa/catalog_outbox.py"
@@ -59,13 +59,16 @@ async def _seed(session, *, customer_id=1):
         id="ver-1", **_scope(customer_id), document_id="doc-1",
         content_hash=hash_text("body"), mime_type="text/plain", extra={},
     ))
-    digest = hash_text("Paragraf 12 reglerar uppsägning.")
-    session.add(SharedTextChunkRecord(content_hash=digest, text="Paragraf 12 reglerar uppsägning."))
-    await session.flush()
-    session.add(TextUnitRecord(
-        id="unit-1", **_scope(customer_id), document_id="doc-1",
-        document_version_id="ver-1", ordinal=0, content_hash=digest, locator="p1",
-    ))
+    await persisted_text_unit(
+        session,
+        id="unit-1",
+        customer_id=customer_id,
+        document_id="doc-1",
+        document_version_id="ver-1",
+        ordinal=0,
+        locator="p1",
+        text="Paragraf 12 reglerar uppsägning.",
+    )
 
 
 @pytest.fixture

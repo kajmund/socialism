@@ -11,15 +11,12 @@ import hashlib
 import json
 from uuid import uuid4
 
-from sqlalchemy import select
-
 from app.database.models import (
     CanonicalDocumentRecord,
     DocumentKnowledgeItem,
     DocumentVersionRecord,
     Job,
     StoredObject,
-    TextUnitRecord,
 )
 from app.services.document_ingest_job import run_document_ingest_job
 from app.services.knowledge.canonical_ingest import ingest_extracted_source
@@ -33,9 +30,15 @@ from app.services.knowledge.models import (
 )
 from app.services.knowledge.scope import shared_scope
 from app.services.knowledge.supabase_provider import SupabaseKnowledgeProvider
+from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.text_units import (
+    load_domain_text_unit,
+    load_domain_text_units,
+)
 from app.services.research.composition import require_knowledge_vector_store
 from app.services.research.knowledge_source import KnowledgeResearchSource
 from app.services.research.models import ResearchContext, ResearchNeed
+from sqlalchemy import select
 
 
 async def run_checks(factory, appclient, report: dict, observation) -> dict:
@@ -264,11 +267,7 @@ async def _snapshot(factory, source_id: str) -> dict:
                 DocumentVersionRecord.superseded_at.is_(None),
             )
         )
-        units = list(
-            await session.scalars(
-                select(TextUnitRecord).where(TextUnitRecord.document_version_id == version.id)
-            )
-        )
+        units = load_domain_text_units(require_knowledge(), document_version_id=version.id)
         items = list(
             await session.scalars(
                 select(DocumentKnowledgeItem).where(
@@ -298,15 +297,8 @@ async def run_manual_qa_checks(factory, appclient, report: dict, ingest: dict) -
     source = ingest["sources"]["client_a"]
     chat = ingest["client_a_chat"]
     async with factory() as session:
-        units = list(
-            await session.scalars(
-                select(TextUnitRecord)
-                .where(
-                    TextUnitRecord.document_id == source["document_id"],
-                    TextUnitRecord.document_version_id == source["document_version_id"],
-                )
-                .order_by(TextUnitRecord.ordinal)
-            )
+        units = load_domain_text_units(
+            require_knowledge(), document_version_id=source["document_version_id"],
         )
         unit = next((unit for unit in units if source["start_date"] in unit.text), None)
         if unit is None:
@@ -399,7 +391,7 @@ async def _check_originals(factory, client, checks: list, chat_id: str, *, hits)
     valid, api_valid = True, True
     for hit in hits:
         async with factory() as session:
-            unit = await session.get(TextUnitRecord, hit.metadata["text_unit_id"])
+            unit = load_domain_text_unit(require_knowledge(), unit_id=hit.metadata["text_unit_id"])
             source = await session.get(StoredObject, hit.metadata["source_object_id"])
             valid = (
                 valid

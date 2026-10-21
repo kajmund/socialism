@@ -4,6 +4,7 @@ Database reads are materialized and released before embeddings/model calls.
 There is deliberately no replacement implementation of the proposed reuse gate.
 """
 
+import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 from time import perf_counter
 
@@ -11,7 +12,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.answer_review import KnowledgeAnswerReview
-from app.database.graph_v2 import GraphFact, GraphNode
 from app.llm.research_assessment import build_llm_research_assessor
 from app.llm.research_followup import build_llm_follow_up_planner
 from app.llm.legal_question_validator import build_llm_legal_question_validator
@@ -150,23 +150,22 @@ async def capture(factory: Factory, attempt_id: str) -> dict[str, object]:
                 KnowledgeQuestionRow.identity_key == main_key,
             )
         )
-        nodes = list(
-            await session.scalars(
-                select(GraphNode.id).where(
-                    GraphNode.scope_key == f"customer:{run.customer_id}",
-                    GraphNode.node_type == "core.question",
-                    GraphNode.attributes["canonical_question_id"].as_string() == canonical_id,
-                )
-            )
+        from app.services.overgraph.answers import answer_facts, find_question
+        from app.services.overgraph.catalogs import require_knowledge
+
+        catalog = require_knowledge()
+        question_node = (
+            await asyncio.to_thread(find_question, catalog, canonical_id, run.customer_id)
+            if canonical_id
+            else None
         )
-        facts = list(
-            await session.scalars(
-                select(GraphFact.id).where(
-                    GraphFact.source_id.in_(nodes),
-                    GraphFact.predicate == "research.answered_by",
-                    GraphFact.status == "active",
-                )
-            )
+        nodes = [str(question_node.key)] if question_node is not None else []
+        facts = (
+            [view.id for view in await asyncio.to_thread(
+                answer_facts, catalog, canonical_id, run.customer_id, limit=10,
+            )]
+            if canonical_id
+            else []
         )
         main_captured = objective in [text for _key, text in captured]
         output = {

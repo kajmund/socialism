@@ -609,6 +609,102 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Frozen Coverage v3 JSON to compare against a treatment run",
     )
+    parser.add_argument(
+        "--bm25-compare",
+        action="store_true",
+        help="Opt-in Tantivy BM25 comparison. Step A is model-free retrieval.",
+    )
+    parser.add_argument(
+        "--bm25-scope",
+        choices=("global", "document", "both"),
+        default="both",
+        help="Run global inventory, document-local, or both BM25 scopes.",
+    )
+    parser.add_argument(
+        "--bm25-analyzer",
+        choices=("sv_stem_v1", "sv_plain_v1", "both"),
+        default="sv_stem_v1",
+        help="Tantivy analysis profile. Both also runs the plain control.",
+    )
+    parser.add_argument("--bm25-index-dir", type=Path)
+    parser.add_argument("--bm25-branch-depth", type=int, default=100)
+    parser.add_argument(
+        "--bm25-local-ks",
+        default="1,3,5,10",
+        help="Comma-separated document-local final k values",
+    )
+    parser.add_argument(
+        "--bm25-paging",
+        action="store_true",
+        help="Replay the frozen dense_bm25 list in pages of 20.",
+    )
+    parser.add_argument("--bm25-page-size", type=int, default=20)
+    parser.add_argument(
+        "--bm25-answer-test",
+        action="store_true",
+        help="Separate Step B: answer_cell on frozen candidates. Off by default.",
+    )
+    parser.add_argument("--bm25-candidates", type=Path)
+    parser.add_argument("--bm25-repeats", type=int, default=20)
+    parser.add_argument("--bm25-gold-dir", type=Path)
+    parser.add_argument("--bm25-question-gold", type=Path)
+    parser.add_argument(
+        "--bm25-rebuild-index",
+        action="store_true",
+        help="Explicitly rebuild the derived BM25 index instead of reusing a match.",
+    )
+    parser.add_argument(
+        "--discovery-test",
+        action="store_true",
+        help="Model-free document discovery diagnostic: aggregate TextUnit scores per document.",
+    )
+    parser.add_argument(
+        "--document-properties",
+        action="store_true",
+        help="Track A document-property discovery: deterministic structure + frozen taxonomy.",
+    )
+    parser.add_argument(
+        "--property-track",
+        choices=("structure", "jev", "both"),
+        default="structure",
+        help="Which document-property track to run. Only structure is implemented first.",
+    )
+    parser.add_argument("--property-taxonomy", type=Path)
+    parser.add_argument("--property-gold-mapping", type=Path)
+    parser.add_argument("--property-bm25-run", type=Path)
+    parser.add_argument(
+        "--jev-property-verification",
+        action="store_true",
+        help="Jev verification of deterministic document properties. Isolated experiment.",
+    )
+    parser.add_argument(
+        "--jev-property-review",
+        type=Path,
+        help="Per-entry review JSON with filled review.classification fields.",
+    )
+    parser.add_argument(
+        "--jev-end-to-end",
+        action="store_true",
+        help="End-to-end document-property verification (discovery -> Jev -> local dense -> Jev).",
+    )
+    parser.add_argument("--jev-local-k", type=int, default=5)
+    parser.add_argument(
+        "--jev-local-abc",
+        action="store_true",
+        help="A/B/C comparison of the document-local dense query (evidence supplement).",
+    )
+    parser.add_argument("--jev-local-baseline", type=Path)
+    parser.add_argument("--jev-evidence-queries", type=Path)
+    parser.add_argument(
+        "--jev-presentation",
+        action="store_true",
+        help="Presentation-fix experiment: show local dense top-5 clauses as primary Jev evidence.",
+    )
+    parser.add_argument(
+        "--jev-validation",
+        action="store_true",
+        help="Broad validation of the Jev verification chain (111 FP + >=100 positives).",
+    )
     return parser
 
 
@@ -739,6 +835,35 @@ def main(argv: list[str] | None = None) -> int:
         document_tags_run=args.document_tags_run,
         document_tags_lifecycle=args.document_tags_lifecycle,
         document_tags_close=args.document_tags_close,
+        bm25_compare=args.bm25_compare,
+        bm25_scope=args.bm25_scope,
+        bm25_analyzer=args.bm25_analyzer,
+        bm25_index_dir=args.bm25_index_dir,
+        bm25_branch_depth=args.bm25_branch_depth,
+        bm25_local_ks=_parse_ks(args.bm25_local_ks),
+        bm25_paging=args.bm25_paging,
+        bm25_page_size=args.bm25_page_size,
+        bm25_answer_test=args.bm25_answer_test,
+        bm25_candidates=args.bm25_candidates,
+        bm25_repeats=args.bm25_repeats,
+        bm25_gold_dir=args.bm25_gold_dir,
+        bm25_question_gold=args.bm25_question_gold,
+        bm25_rebuild_index=args.bm25_rebuild_index,
+        discovery_test=args.discovery_test,
+        document_properties=args.document_properties,
+        property_track=args.property_track,
+        property_taxonomy=args.property_taxonomy,
+        property_gold_mapping=args.property_gold_mapping,
+        property_bm25_run=args.property_bm25_run,
+        jev_property_verification=args.jev_property_verification,
+        jev_property_review=args.jev_property_review,
+        jev_end_to_end=args.jev_end_to_end,
+        jev_local_k=args.jev_local_k,
+        jev_local_abc=args.jev_local_abc,
+        jev_local_baseline=args.jev_local_baseline,
+        jev_evidence_queries=args.jev_evidence_queries,
+        jev_presentation=args.jev_presentation,
+        jev_validation=args.jev_validation,
         freeze_baseline=args.freeze_baseline,
     )
     if config.generate_corpus is not None and not config.suite:
@@ -760,6 +885,22 @@ def main(argv: list[str] | None = None) -> int:
         return _run_coverage_v3(config)
     if config.expand_queries:
         return _run_expand_queries(config)
+    if config.bm25_compare:
+        return _run_bm25_compare(config)
+    if config.discovery_test:
+        return _run_discovery(config)
+    if config.document_properties:
+        return _run_document_properties(config)
+    if config.jev_property_verification:
+        return _run_jev_property_verification(config)
+    if config.jev_end_to_end:
+        return _run_jev_end_to_end(config)
+    if config.jev_local_abc:
+        return _run_jev_local_abc(config)
+    if config.jev_presentation:
+        return _run_jev_presentation(config)
+    if config.jev_validation:
+        return _run_jev_validation(config)
     if config.profile_retrieval:
         return _run_profile_retrieval(config)
     if config.decide_expansion:
@@ -3798,6 +3939,632 @@ def _delta_preview(delta: object) -> dict[str, object] | None:
             }
             for row in (delta.get("watched") or [])
         ],
+    }
+
+
+def _run_jev_property_verification(config: IngestConfig) -> int:
+    from overgraph_ingest.retrieval.jev_property_verify import (
+        ROOT as VERIFY_ROOT,
+    )
+    from overgraph_ingest.retrieval.jev_property_verify import (
+        run_jev_property_verification,
+        write_verification_baseline,
+        write_verification_report,
+    )
+
+    if config.jev_property_review is None:
+        print("--jev-property-review is required", file=sys.stderr)
+        return 2
+    if not config.typesafe_api_key:
+        print("--typesafe-api-key is required with --jev-property-verification", file=sys.stderr)
+        return 2
+    dimension = config.dense_dimension or 3072
+    try:
+        report = run_jev_property_verification(
+            RetrievalConfig(
+                db_path=config.db_path,
+                dense_dimension=dimension,
+                write_batch_size=config.write_batch_size,
+            ),
+            review_path=config.jev_property_review,
+            taxonomy_path=config.property_taxonomy,
+            mapping_path=config.property_gold_mapping,
+            typesafe_api_key=config.typesafe_api_key,
+            typesafe_base_url=config.typesafe_base_url,
+            jev_model=config.jev_model,
+            jev_timeout_seconds=config.jev_timeout_seconds,
+        )
+    except (ValueError, RuntimeError) as exc:
+        print(f"Jev property verification blocked: {exc}", file=sys.stderr)
+        return 2
+    if config.output_path is not None:
+        config.output_path.parent.mkdir(parents=True, exist_ok=True)
+        config.output_path.write_text(
+            json.dumps(report.payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    report_path = (
+        config.output_path.with_suffix(".md")
+        if config.output_path is not None
+        else VERIFY_ROOT / "eval" / "jev-property-verification-v1.md"
+    )
+    write_verification_report(report.payload, report_path)
+    if config.freeze_baseline:
+        try:
+            baseline = write_verification_baseline(report.payload)
+        except FileExistsError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f"wrote {baseline}", file=sys.stderr)
+    print(json.dumps(_verification_preview(report.payload), ensure_ascii=False, indent=2))
+    return 0
+
+
+def _verification_preview(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "operation": payload.get("operation"),
+        "experiment": payload.get("experiment"),
+        "groups": payload.get("groups"),
+        "metrics": payload.get("metrics"),
+        "decision": payload.get("decision"),
+        "manifest": payload.get("manifest"),
+    }
+
+
+def _run_jev_end_to_end(config: IngestConfig) -> int:
+    from overgraph_ingest.retrieval.jev_end_to_end import ROOT as E2E_ROOT
+    from overgraph_ingest.retrieval.jev_end_to_end import (
+        run_jev_end_to_end,
+        write_e2e_baseline,
+        write_e2e_report,
+    )
+
+    if config.jev_property_review is None:
+        print("--jev-property-review is required", file=sys.stderr)
+        return 2
+    if not config.typesafe_api_key:
+        print("--typesafe-api-key is required with --jev-end-to-end", file=sys.stderr)
+        return 2
+    dimension = config.dense_dimension or 3072
+    try:
+        report = run_jev_end_to_end(
+            RetrievalConfig(
+                db_path=config.db_path,
+                dense_dimension=dimension,
+                write_batch_size=config.write_batch_size,
+            ),
+            review_path=config.jev_property_review,
+            taxonomy_path=config.property_taxonomy,
+            mapping_path=config.property_gold_mapping,
+            typesafe_api_key=config.typesafe_api_key,
+            typesafe_base_url=config.typesafe_base_url,
+            jev_model=config.jev_model,
+            jev_timeout_seconds=config.jev_timeout_seconds,
+            dense_model=config.dense_model,
+            openai_api_key=config.openai_api_key,
+            openai_base_url=config.openai_base_url,
+            local_k=config.jev_local_k,
+        )
+    except (ValueError, RuntimeError) as exc:
+        print(f"Jev end-to-end blocked: {exc}", file=sys.stderr)
+        return 2
+    if config.output_path is not None:
+        config.output_path.parent.mkdir(parents=True, exist_ok=True)
+        config.output_path.write_text(
+            json.dumps(report.payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    report_path = (
+        config.output_path.with_suffix(".md")
+        if config.output_path is not None
+        else E2E_ROOT / "eval" / "jev-end-to-end-v1.md"
+    )
+    write_e2e_report(report.payload, report_path)
+    if config.freeze_baseline:
+        try:
+            baseline = write_e2e_baseline(report.payload)
+        except FileExistsError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f"wrote {baseline}", file=sys.stderr)
+    print(json.dumps(_e2e_preview(report.payload), ensure_ascii=False, indent=2))
+    return 0
+
+
+def _e2e_preview(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "operation": payload.get("operation"),
+        "experiment": payload.get("experiment"),
+        "groups": payload.get("groups"),
+        "metrics": payload.get("metrics"),
+        "manifest": payload.get("manifest"),
+    }
+
+
+def _run_jev_local_abc(config: IngestConfig) -> int:
+    from overgraph_ingest.retrieval.jev_local_query_abc import (
+        ABC_BASELINE_PATH,
+        DEFAULT_EVIDENCE_QUERIES,
+        run_jev_local_query_abc,
+        write_abc_baseline,
+        write_abc_report,
+    )
+
+    if not config.typesafe_api_key:
+        print("--typesafe-api-key is required with --jev-local-abc", file=sys.stderr)
+        return 2
+    if not config.openai_api_key:
+        print("--openai-api-key is required with --jev-local-abc", file=sys.stderr)
+        return 2
+    dimension = config.dense_dimension or 3072
+    try:
+        report = run_jev_local_query_abc(
+            RetrievalConfig(
+                db_path=config.db_path,
+                dense_dimension=dimension,
+                write_batch_size=config.write_batch_size,
+            ),
+            baseline_path=config.jev_local_baseline,
+            evidence_queries_path=config.jev_evidence_queries or DEFAULT_EVIDENCE_QUERIES,
+            taxonomy_path=config.property_taxonomy,
+            typesafe_api_key=config.typesafe_api_key,
+            typesafe_base_url=config.typesafe_base_url,
+            jev_model=config.jev_model,
+            jev_timeout_seconds=config.jev_timeout_seconds,
+            dense_model=config.dense_model,
+            openai_api_key=config.openai_api_key,
+            openai_base_url=config.openai_base_url,
+            local_k=config.jev_local_k,
+        )
+    except (ValueError, RuntimeError) as exc:
+        print(f"Jev local A/B/C blocked: {exc}", file=sys.stderr)
+        return 2
+    if config.output_path is not None:
+        config.output_path.parent.mkdir(parents=True, exist_ok=True)
+        config.output_path.write_text(
+            json.dumps(report.payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    report_path = (
+        config.output_path.with_suffix(".md")
+        if config.output_path is not None
+        else ABC_BASELINE_PATH.parent.parent / "eval" / "jev-local-query-abc-v1.md"
+    )
+    write_abc_report(report.payload, report_path)
+    if config.freeze_baseline:
+        try:
+            baseline = write_abc_baseline(report.payload)
+        except FileExistsError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f"wrote {baseline}", file=sys.stderr)
+    print(json.dumps(report.payload["arms"], ensure_ascii=False, indent=2))
+    return 0
+
+
+def _run_jev_presentation(config: IngestConfig) -> int:
+    from overgraph_ingest.retrieval.jev_presentation_v1 import (
+        PRESENT_BASELINE_PATH,
+        DEFAULT_EVIDENCE_QUERIES,
+        run_jev_presentation_v1,
+        write_presentation_baseline,
+        write_presentation_report,
+    )
+
+    if not config.typesafe_api_key:
+        print("--typesafe-api-key is required with --jev-presentation", file=sys.stderr)
+        return 2
+    if not config.openai_api_key:
+        print("--openai-api-key is required with --jev-presentation", file=sys.stderr)
+        return 2
+    dimension = config.dense_dimension or 3072
+    try:
+        report = run_jev_presentation_v1(
+            RetrievalConfig(
+                db_path=config.db_path,
+                dense_dimension=dimension,
+                write_batch_size=config.write_batch_size,
+            ),
+            baseline_path=config.jev_local_baseline,
+            evidence_queries_path=config.jev_evidence_queries or DEFAULT_EVIDENCE_QUERIES,
+            taxonomy_path=config.property_taxonomy,
+            typesafe_api_key=config.typesafe_api_key,
+            typesafe_base_url=config.typesafe_base_url,
+            jev_model=config.jev_model,
+            jev_timeout_seconds=config.jev_timeout_seconds,
+            dense_model=config.dense_model,
+            openai_api_key=config.openai_api_key,
+            openai_base_url=config.openai_base_url,
+            local_k=config.jev_local_k,
+        )
+    except (ValueError, RuntimeError) as exc:
+        print(f"Jev presentation blocked: {exc}", file=sys.stderr)
+        return 2
+    if config.output_path is not None:
+        config.output_path.parent.mkdir(parents=True, exist_ok=True)
+        config.output_path.write_text(
+            json.dumps(report.payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    report_path = (
+        config.output_path.with_suffix(".md")
+        if config.output_path is not None
+        else PRESENT_BASELINE_PATH.parent.parent / "eval" / "jev-presentation-v1.md"
+    )
+    write_presentation_report(report.payload, report_path)
+    if config.freeze_baseline:
+        try:
+            baseline = write_presentation_baseline(report.payload)
+        except FileExistsError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f"wrote {baseline}", file=sys.stderr)
+    print(json.dumps(report.payload["arms"], ensure_ascii=False, indent=2))
+    return 0
+
+
+def _run_jev_validation(config: IngestConfig) -> int:
+    from overgraph_ingest.retrieval.jev_validation_v1 import (
+        VALIDATION_BASELINE_PATH,
+        run_jev_validation,
+        write_validation_baseline,
+        write_validation_report,
+    )
+
+    if not config.typesafe_api_key:
+        print("--typesafe-api-key is required with --jev-validation", file=sys.stderr)
+        return 2
+    if not config.openai_api_key:
+        print("--openai-api-key is required with --jev-validation", file=sys.stderr)
+        return 2
+    dimension = config.dense_dimension or 3072
+    try:
+        report = run_jev_validation(
+            RetrievalConfig(
+                db_path=config.db_path,
+                dense_dimension=dimension,
+                write_batch_size=config.write_batch_size,
+            ),
+            taxonomy_path=config.property_taxonomy,
+            mapping_path=config.property_gold_mapping,
+            typesafe_api_key=config.typesafe_api_key,
+            typesafe_base_url=config.typesafe_base_url,
+            jev_model=config.jev_model,
+            jev_timeout_seconds=config.jev_timeout_seconds,
+            dense_model=config.dense_model,
+            openai_api_key=config.openai_api_key,
+            openai_base_url=config.openai_base_url,
+            local_k=config.jev_local_k,
+        )
+    except (ValueError, RuntimeError) as exc:
+        print(f"Jev validation blocked: {exc}", file=sys.stderr)
+        return 2
+    if config.output_path is not None:
+        config.output_path.parent.mkdir(parents=True, exist_ok=True)
+        config.output_path.write_text(
+            json.dumps(report.payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    report_path = (
+        config.output_path.with_suffix(".md")
+        if config.output_path is not None
+        else VALIDATION_BASELINE_PATH.parent.parent / "eval" / "jev-validation-v1.md"
+    )
+    write_validation_report(report.payload, report_path)
+    if config.freeze_baseline:
+        try:
+            baseline = write_validation_baseline(report.payload)
+        except FileExistsError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f"wrote {baseline}", file=sys.stderr)
+    print(json.dumps(
+        {
+            "groups": report.payload["groups"],
+            "totals": report.payload["metrics"]["totals"],
+            "recall_loss": report.payload["metrics"]["recall_loss"],
+            "uncertain_share": report.payload["metrics"]["uncertain_share"],
+            "local_dense": report.payload["metrics"]["local_dense"],
+            "latency_ms": report.payload["metrics"]["latency_ms"],
+            "jev_calls": report.payload["metrics"]["jev_calls"],
+            "preliminary_agreement_30": report.payload["metrics"]["preliminary_agreement_30"],
+        },
+        ensure_ascii=False,
+        indent=2,
+    ))
+    return 0
+
+
+def _run_document_properties(config: IngestConfig) -> int:
+    from overgraph_ingest.retrieval.document_properties import (
+        ROOT as PROPERTIES_ROOT,
+    )
+    from overgraph_ingest.retrieval.document_properties import (
+        run_document_properties,
+        write_document_properties_baseline,
+        write_document_properties_report,
+    )
+
+    if config.property_track != "structure":
+        print("only --property-track structure is implemented", file=sys.stderr)
+        return 2
+    dimension = config.dense_dimension or 3072
+    try:
+        report = run_document_properties(
+            RetrievalConfig(
+                db_path=config.db_path,
+                dense_dimension=dimension,
+                write_batch_size=config.write_batch_size,
+            ),
+            taxonomy_path=config.property_taxonomy,
+            mapping_path=config.property_gold_mapping,
+            bm25_run_path=config.property_bm25_run,
+        )
+    except (ValueError, RuntimeError) as exc:
+        print(f"document properties blocked: {exc}", file=sys.stderr)
+        return 2
+    if config.output_path is not None:
+        config.output_path.parent.mkdir(parents=True, exist_ok=True)
+        config.output_path.write_text(
+            json.dumps(report.payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    report_path = (
+        config.output_path.with_suffix(".md")
+        if config.output_path is not None
+        else PROPERTIES_ROOT / "eval" / "document-properties-v1.md"
+    )
+    write_document_properties_report(report.payload, report_path)
+    if config.freeze_baseline:
+        try:
+            baseline = write_document_properties_baseline(report.payload)
+        except FileExistsError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f"wrote {baseline}", file=sys.stderr)
+    print(json.dumps(_document_properties_preview(report.payload), ensure_ascii=False, indent=2))
+    return 0
+
+
+def _document_properties_preview(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "operation": payload.get("operation"),
+        "experiment": payload.get("experiment"),
+        "track": payload.get("track"),
+        "taxonomy_hash": payload.get("taxonomy_hash"),
+        "mapping_hash": payload.get("mapping_hash"),
+        "macro": payload.get("macro"),
+        "manifest": payload.get("manifest"),
+    }
+
+
+def _run_discovery(config: IngestConfig) -> int:
+    from overgraph_ingest.retrieval.discovery import (
+        ROOT as DISCOVERY_ROOT,
+    )
+    from overgraph_ingest.retrieval.discovery import (
+        run_document_discovery,
+        write_discovery_baseline,
+        write_discovery_report,
+    )
+
+    dimension = config.dense_dimension or 3072
+    try:
+        report = run_document_discovery(
+            RetrievalConfig(
+                db_path=config.db_path,
+                dense_dimension=dimension,
+                write_batch_size=config.write_batch_size,
+                dense_model=config.dense_model,
+                openai_api_key=config.openai_api_key,
+                openai_base_url=config.openai_base_url,
+            )
+        )
+    except (ValueError, RuntimeError) as exc:
+        print(f"document discovery blocked: {exc}", file=sys.stderr)
+        return 2
+    if config.output_path is not None:
+        config.output_path.parent.mkdir(parents=True, exist_ok=True)
+        config.output_path.write_text(
+            json.dumps(report.payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    report_path = config.output_path.with_suffix(".md") if config.output_path is not None else DISCOVERY_ROOT / "eval" / "document-discovery-v1.md"
+    write_discovery_report(report.payload, report_path)
+    if config.freeze_baseline:
+        try:
+            baseline = write_discovery_baseline(report.payload)
+        except FileExistsError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f"wrote {baseline}", file=sys.stderr)
+    print(json.dumps(_discovery_preview(report.payload), ensure_ascii=False, indent=2))
+    return 0
+
+
+def _discovery_preview(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "operation": payload.get("operation"),
+        "experiment": payload.get("experiment"),
+        "hypothesis": payload.get("hypothesis"),
+        "equal_budget_docs": payload.get("equal_budget_docs"),
+        "macro": payload.get("macro"),
+        "manifest": payload.get("manifest"),
+    }
+
+
+def _run_bm25_compare(config: IngestConfig) -> int:
+    from overgraph_ingest.graph.writer import (
+        GraphWriter,
+        open_database,
+        resolve_dimension,
+    )
+    from overgraph_ingest.jev.candidates import load_graph_context
+    from overgraph_ingest.retrieval.bm25 import SV_PLAIN, SV_STEM
+    from overgraph_ingest.retrieval.bm25_answer import run_bm25_answer_test
+    from overgraph_ingest.retrieval.bm25_run import (
+        DEFAULT_GOLD_DIR,
+        DEFAULT_INDEX_DIR,
+        DEFAULT_OVERLAY,
+        GLOBAL_KS,
+        run_bm25_experiment,
+        run_paging_test,
+        write_bm25_baseline,
+        write_bm25_report,
+    )
+    from overgraph_ingest.retrieval.evidence_gold import load_question_gold
+    from overgraph_ingest.retrieval.index import load_published_units
+
+    analyzers = (
+        (SV_STEM, SV_PLAIN)
+        if config.bm25_analyzer == "both"
+        else (config.bm25_analyzer,)
+    )
+    global_ks = tuple(k for k in config.ks if k in GLOBAL_KS) or GLOBAL_KS
+    gold_dir = config.bm25_gold_dir or DEFAULT_GOLD_DIR
+    question_gold = config.bm25_question_gold
+    if question_gold is None and DEFAULT_OVERLAY.is_file():
+        question_gold = DEFAULT_OVERLAY
+    cells = (
+        load_question_gold(question_gold)
+        if config.bm25_scope in {"document", "both"} or config.bm25_answer_test
+        else []
+    )
+    dimension = resolve_dimension(config.db_path, config.dense_dimension)
+    payload: dict[str, object]
+    if config.bm25_candidates is not None and config.bm25_answer_test:
+        payload = json.loads(config.bm25_candidates.read_text(encoding="utf-8"))
+        db = open_database(config.db_path, dimension)
+        try:
+            context = load_graph_context(GraphWriter(db, batch_size=config.write_batch_size))
+        finally:
+            db.close()
+        units = context.units
+        structures = context.structures
+    else:
+        structures = None
+        if config.bm25_answer_test:
+            db = open_database(config.db_path, dimension)
+            try:
+                context = load_graph_context(
+                    GraphWriter(db, batch_size=config.write_batch_size)
+                )
+            finally:
+                db.close()
+            units = context.units
+            structures = context.structures
+        else:
+            db = open_database(config.db_path, dimension)
+            try:
+                units = load_published_units(
+                    GraphWriter(db, batch_size=config.write_batch_size)
+                )
+            finally:
+                db.close()
+        try:
+            payload = run_bm25_experiment(
+                RetrievalConfig(
+                    db_path=config.db_path,
+                    dense_dimension=dimension,
+                    write_batch_size=config.write_batch_size,
+                    dense_model=config.dense_model,
+                    openai_api_key=config.openai_api_key,
+                    openai_base_url=config.openai_base_url,
+                    fusion_mode=config.fusion_mode,
+                    ks=global_ks,
+                ),
+                gold_dir=gold_dir,
+                question_gold_path=question_gold,
+                scope=config.bm25_scope,
+                analyzers=analyzers,
+                index_dir=config.bm25_index_dir or DEFAULT_INDEX_DIR,
+                branch_depth=config.bm25_branch_depth,
+                global_ks=global_ks,
+                local_ks=config.bm25_local_ks,
+                repeats=config.bm25_repeats,
+                units=units,
+                cells=cells,
+            )
+        except (ValueError, RuntimeError) as exc:
+            print(f"BM25 measurement blocked: {exc}", file=sys.stderr)
+            return 2
+    if config.bm25_answer_test:
+        try:
+            answer = run_bm25_answer_test(
+                payload,
+                units=units,
+                cells=cells,
+                structures=structures,
+                typesafe_api_key=config.typesafe_api_key,
+                typesafe_base_url=config.typesafe_base_url,
+                jev_model=config.jev_model,
+                jev_timeout_seconds=config.jev_timeout_seconds,
+                profile=analyzers[0],
+            )
+        except (ValueError, RuntimeError) as exc:
+            answer = {
+                "operation": "bm25_answer_test",
+                "status": "blocked",
+                "measurement_status": "blocked",
+                "blocked_reason": str(exc),
+                "claim_scope": "improved_retrieval_only",
+            }
+        payload["answer_test"] = answer
+        payload["claim_scope"] = answer.get("claim_scope")
+    if config.bm25_paging:
+        payload["paging"] = run_paging_test(
+            payload,
+            page_size=config.bm25_page_size,
+            profile=analyzers[0],
+        )
+    if config.output_path is not None:
+        config.output_path.parent.mkdir(parents=True, exist_ok=True)
+        config.output_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    if config.freeze_baseline:
+        try:
+            baseline = write_bm25_baseline(payload)
+            report = write_bm25_report(payload)
+        except FileExistsError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f"wrote {baseline} and {report}", file=sys.stderr)
+    print(json.dumps(_bm25_preview(payload), ensure_ascii=False, indent=2))
+    answer_status = (payload.get("answer_test") or {}).get("status")
+    if payload.get("status") != "completed" or answer_status == "blocked":
+        return 2
+    return 0
+
+
+def _bm25_preview(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "operation": payload.get("operation"),
+        "experiment": payload.get("experiment"),
+        "status": payload.get("status"),
+        "claim_scope": payload.get("claim_scope"),
+        "default_retriever_unchanged": payload.get("default_retriever_unchanged"),
+        "production_changed": payload.get("production_changed"),
+        "verdict": payload.get("verdict"),
+        "summary": payload.get("summary"),
+        "answer_test": {
+            "status": (payload.get("answer_test") or {}).get("status")
+            if isinstance(payload.get("answer_test"), dict)
+            else None,
+            "blocked_reason": (payload.get("answer_test") or {}).get("blocked_reason")
+            if isinstance(payload.get("answer_test"), dict)
+            else None,
+        },
+        "paging": {
+            "status": (payload.get("paging") or {}).get("status")
+            if isinstance(payload.get("paging"), dict)
+            else None,
+            "page_size": (payload.get("paging") or {}).get("page_size")
+            if isinstance(payload.get("paging"), dict)
+            else None,
+        },
+        "manifest": payload.get("manifest"),
     }
 
 

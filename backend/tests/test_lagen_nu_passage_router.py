@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.config import settings
 from app.database.base import Base
-from app.database.models import Kund, TextUnitRecord
+from app.database.models import Kund
 from app.jev.system import JevClientError, JevSystemOneResult, JevUsage
 from app.services.knowledge.models import EmbeddedKnowledgeChunk, KnowledgeChunk
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore
@@ -33,7 +33,8 @@ from tests.test_lagen_nu_provider import (
     _hit,
 )
 from tests.test_research import _context, _need
-from tests.text_unit_fakes import text_unit_record
+from app.services.overgraph.model import TextUnitView
+from tests.text_unit_fakes import text_unit_view
 
 URI = "https://lagen.nu/dom/nja/2005s142"
 REASONING = (
@@ -62,8 +63,8 @@ def _unit(
     ordinal: int = 0,
     document_id: str = "d1",
     document_version_id: str = "v1",
-) -> TextUnitRecord:
-    return text_unit_record(
+) -> TextUnitView:
+    return text_unit_view(
         id=unit_id,
         document_version_id=document_version_id,
         document_id=document_id,
@@ -74,7 +75,7 @@ def _unit(
     )
 
 
-async def _store_for(units: list[TextUnitRecord]) -> MemoryKnowledgeVectorStore:
+async def _store_for(units: list[TextUnitView]) -> MemoryKnowledgeVectorStore:
     store = MemoryKnowledgeVectorStore()
     await store.upsert_chunks(
         [

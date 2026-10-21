@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.lagen_nu.text_unit_research import LagenNuResearchKnowledgeError
 
-from app.database.models import TextUnitRecord
+from app.services.knowledge.units import TextUnit
 from app.services.knowledge.claims import KnowledgeClaim, answer_research_need
 from app.services.knowledge.entities import KnowledgeEntity
 from app.services.knowledge.observations import KnowledgeObservation
@@ -63,7 +63,7 @@ class LegalWriteContext:
 def queue_legal_knowledge(
     queue: GraphWritebackQueue,
     result: LegalResearchResult,
-    units: Sequence[TextUnitRecord],
+    units: Sequence[TextUnit],
     context: LegalWriteContext,
 ) -> GroundedLegalKnowledge:
     extracted = ground_legal_extraction(
