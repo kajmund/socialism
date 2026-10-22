@@ -1,8 +1,9 @@
 # Durable background research execution
 
 Attempt research is accepted on the HTTP request and executed by an in-process
-worker that owns a database lease. The research engine itself is unchanged:
-`execute_attempt_research` remains the only loop implementation.
+worker that owns a database lease. `execute_attempt_research` remains the only
+entry point; its wave loop runs on SWE through
+`app/services/research/swe_bridge.py`. There is no fallback path.
 
 ## Claim / lease semantics
 
@@ -59,6 +60,9 @@ the request `AsyncSession` for the worker.
    `app/services/research_worker.py` (outside the LLM-free research package).
 5. Heartbeat until the engine returns, then release the lease.
 
+The wave loop itself runs in the SWE engine; the worker still owns the CAS
+claim, heartbeat and release. There is no second in-process loop.
+
 The reclaim loop only **schedules** tracked worker tasks. It does not
 await a reclaimed job inline, so scanning other expired claims continues.
 Shutdown stops accepting new work and cancels only the poll loop. In-flight
@@ -104,7 +108,8 @@ worker. Resume:
 - reuses `research_objective_snapshot` and `research_plan_snapshot`
 - does **not** run the initial `ResearchPlanner` again
 - reuses the attached EvidenceSet and existing runtime / need-execution rows
-- continues the loop from persisted `research_wave`
+- continues the loop from persisted `research_wave` through the SWE bridge;
+  the OverGraph run store is observability only, never the recovery mechanism
 
 Need rows still `running` are retrieved again; evidence item uniqueness
 prevents duplicate items. `CancelledError` and lease-lost fencing leave
