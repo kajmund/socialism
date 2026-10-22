@@ -14,6 +14,8 @@ from scripts.benchmark_research_swe_v2 import (
     DiagnosticsRecorder,
     Recorder,
     _classify_live_error,
+    _is_failed_sample,
+    _prepare_lexical_index,
     StageRecorder,
     _live_ranking,
     _requested_modes,
@@ -75,6 +77,43 @@ def test_requested_modes_accepts_comma_lists() -> None:
     assert _requested_modes("fake,parity") == {"fake", "parity"}
     assert _requested_modes("all") == {"fake", "parity", "live"}
     assert _requested_modes("parity") == {"parity"}
+
+
+def test_is_failed_sample_catches_child_error_rows() -> None:
+    assert _is_failed_sample({"error": "live child exit 1", "arm": "baseline"})
+    assert _is_failed_sample({"error_kind": "assessment_error", "status": "failed"})
+    assert _is_failed_sample({"status": "failed"})
+    assert not _is_failed_sample({"status": "ready", "error_kind": None})
+
+
+def test_prepare_lexical_index_builds_and_reconciles(tmp_path, monkeypatch) -> None:
+    from app.services import retrieval_index as retrieval
+    from app.services import tantivy_index as tantivy
+    from app.services.overgraph import catalogs
+
+    fake_index = object()
+    monkeypatch.setattr(retrieval, "get_index", lambda: None)
+    monkeypatch.setattr(
+        retrieval, "open_index",
+        lambda directory: (_ for _ in ()).throw(
+            retrieval.RetrievalIndexUnavailableError("missing")
+        ),
+    )
+    monkeypatch.setattr(
+        tantivy, "build_from_overgraph", lambda catalog, directory: fake_index
+    )
+    monkeypatch.setattr(tantivy, "read_watermark", lambda directory: 0)
+    monkeypatch.setattr(
+        tantivy, "reconcile", lambda catalog, index, watermark_ms: 123
+    )
+    monkeypatch.setattr(tantivy, "write_watermark", lambda directory, value: None)
+    monkeypatch.setattr(retrieval, "set_index", lambda *args, **kwargs: None)
+    monkeypatch.setattr(catalogs, "require_knowledge", lambda: object())
+
+    info = _prepare_lexical_index(tmp_path)
+    assert info["status"] == "ready"
+    assert info["source"] == "built"
+    assert info["watermark"] == 123
 
 
 def test_classify_live_error_surfaces_assessment_context_limit() -> None:

@@ -265,6 +265,7 @@ STAGE_LABELS: dict[str, str] = {
     "quality_persist": "Quality persist",
     "persist": "Wave persist",
     "freeze": "Freeze + answer capture",
+    "lexical_index": "Lexical index prepare",
 }
 SYNTHESIS_STAGE: dict[str, str] = {
     "stage": "synthesis",
@@ -1241,6 +1242,14 @@ def _live_prompt(*, question: str, needs: list[dict[str, Any]],
     )
 
 
+def _is_failed_sample(row: Mapping[str, Any]) -> bool:
+    return bool(
+        row.get("error")
+        or row.get("error_kind")
+        or row.get("status") == "failed"
+    )
+
+
 def _classify_live_error(exc: BaseException) -> dict[str, Any]:
     message = str(exc)
     kinds: list[str] = []
@@ -1347,6 +1356,48 @@ async def _live_execute(*, args: argparse.Namespace,
             await execute_attempt_research(session, **kwargs)
 
 
+def _prepare_lexical_index(index_dir: Path) -> dict[str, Any]:
+    """Build/open and reconcile the process-owned Tantivy index before a sample.
+
+    Mirrors tests/conftest.py::lexical_index_recovery, but with a shared index
+    directory so every live child sees the same derived index. The index is
+    process-owned, so this must run in the child that executes research.
+    """
+    from app.services import retrieval_index
+    from app.services.overgraph.catalogs import require_knowledge
+    from app.services.tantivy_index import (
+        build_from_overgraph, read_watermark, reconcile, write_watermark,
+    )
+
+    directory = Path(index_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    catalog = require_knowledge()
+    index = retrieval_index.get_index()
+    source = "already-open"
+    if index is None:
+        try:
+            index = retrieval_index.open_index(directory)
+            source = "opened"
+        except retrieval_index.RetrievalIndexUnavailableError:
+            try:
+                index = build_from_overgraph(catalog, directory)
+            except ValueError as exc:
+                if "empty graph" in str(exc):
+                    return {"status": "empty_graph", "index_dir": str(directory)}
+                raise
+            source = "built"
+    watermark = read_watermark(directory)
+    new_watermark = reconcile(catalog, index, watermark_ms=watermark)
+    write_watermark(directory, new_watermark)
+    retrieval_index.set_index(index, directory)
+    return {
+        "status": "ready",
+        "source": source,
+        "index_dir": str(directory),
+        "watermark": new_watermark,
+    }
+
+
 def _instrument_live_stages(stage: StageRecorder, components: Mapping[str, Any]) -> None:
     for key, name, stage_name in (
         ("research_planner", "plan_research", "planning"),
@@ -1383,6 +1434,9 @@ async def _live_measure(args: argparse.Namespace,
     recorded: dict[str, Any] = {}
     stage_recorder = StageRecorder()
     _instrument_live_stages(stage_recorder, components)
+    index_started = time.perf_counter()
+    index_info = _prepare_lexical_index(args.live_index_dir)
+    stage_recorder.add("lexical_index", time.perf_counter() - index_started)
     diagnostics = DiagnosticsRecorder()
     diagnostics.install()
     recorder.install()
@@ -1402,6 +1456,7 @@ async def _live_measure(args: argparse.Namespace,
         stage_recorder.restore()
         diagnostics_snapshot = diagnostics.snapshot()
         diagnostics.restore()
+    diagnostics_snapshot["index"] = index_info
     measure = LiveMeasure(
         wall_ms=wall_ms, recorder=recorder, recorded=recorded,
         stage_ms=stage_ms, llm_calls=llm_calls,
@@ -1432,6 +1487,7 @@ async def _live_measure(args: argparse.Namespace,
             "stage_ms": stage_ms,
             "mcp_diagnostics": diagnostics_snapshot.get("mcp", {}),
             "jev_diagnostics": diagnostics_snapshot.get("jev", {}),
+            "lexical_index": diagnostics_snapshot.get("index"),
             "synthesis": SYNTHESIS_STAGE,
             "judge": None,
             "errors": [str(exc)],
@@ -1509,6 +1565,7 @@ async def _live_payload(*, factory: async_sessionmaker[AsyncSession],
         "stage_ms": measure.stage_ms,
         "mcp_diagnostics": measure.diagnostics.get("mcp", {}),
         "jev_diagnostics": measure.diagnostics.get("jev", {}),
+        "lexical_index": measure.diagnostics.get("index"),
         "synthesis": SYNTHESIS_STAGE,
         "judge": judge,
         "errors": errors,
@@ -1666,6 +1723,8 @@ def live_parent(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
     root.mkdir(parents=True, exist_ok=True)
     overgraph_dir = root / "overgraph"
     overgraph_dir.mkdir(parents=True, exist_ok=True)
+    index_dir = Path(args.live_index_dir).expanduser().resolve() if args.live_index_dir else (root / "lexical-index").resolve()
+    index_dir.mkdir(parents=True, exist_ok=True)
     if args.live_db_path:
         db_path = Path(args.live_db_path).expanduser().resolve()
         if not db_path.exists():
@@ -1697,6 +1756,7 @@ def live_parent(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
                     "--db-path", str(db_path), "--overgraph-dir", str(overgraph_dir),
                     "--customer-id", str(args.customer_id),
                     "--live-questions", str(args.live_questions),
+                    "--live-index-dir", str(index_dir),
                 ]
                 completed = subprocess.run(
                     command, check=False, env=env, capture_output=True, text=True,
@@ -1716,19 +1776,21 @@ def live_parent(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
                     )
                     continue
                 sample = json.loads(sample_out.read_text(encoding="utf-8"))
+                if "error" in sample and "status" not in sample:
+                    sample.setdefault("status", "failed")
+                    sample.setdefault("error_kind", "child_error")
+                    sample.setdefault("error_type", "ChildProcessError")
                 sample["child_stderr_tail"] = stderr_tail
                 sample["child_stdout_tail"] = (completed.stdout or "")[-2000:]
                 samples.append(sample)
-    failed_samples = [
-        row for row in samples
-        if row.get("error_kind") or row.get("status") == "failed"
-    ]
+    failed_samples = [row for row in samples if _is_failed_sample(row)]
     payload = {
         "mode": "live-observational",
         "gate": False,
         "git_head": git_head(),
         "script_sha256": v2_sha256(),
         "db_path": str(db_path),
+        "index_dir": str(index_dir),
         "questions": args.live_questions,
         "repeats": args.live_repeats,
         "arms": list(args.arms),
@@ -1737,8 +1799,7 @@ def live_parent(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
         "failed_samples": failed_samples,
         "ranking": _live_ranking(
             [
-                row for row in samples
-                if not row.get("error_kind") and row.get("status") != "failed"
+                row for row in samples if not _is_failed_sample(row)
             ]
         ),
     }
@@ -2195,6 +2256,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--live-db-path", default="",
         help="diagnostic: use an existing DB at alembic head instead of a temp DB",
+    )
+    parser.add_argument(
+        "--live-index-dir", default="",
+        help="shared Tantivy index directory for live children "
+             "(default: <run>/live/lexical-index)",
     )
     parser.add_argument("--customer-id", type=int, default=CUSTOMER_ID)
     parser.add_argument("--fake-pass", action="store_true", help=argparse.SUPPRESS)
