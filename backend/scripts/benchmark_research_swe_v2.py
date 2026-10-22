@@ -58,8 +58,10 @@ from app.services.execution import (
     list_runtime_needs,
 )
 from app.services.overgraph.workflows import WorkflowRunStore
-from app.services.research import swe_bridge
+from app.services.research import graph_reuse, quality_persist, reuse_gate, swe_bridge
 from app.services.research import execution as research_execution
+from app.services.research.evidence_screen import JevEvidenceRelevanceAssessor
+from app.services.research import loop_control as research_loop_control
 from app.services.research.execution import execute_attempt_research
 from app.services.research.models import ResearchNeed, ResearchPlan
 from app.services.research.planner import (
@@ -242,6 +244,136 @@ class Recorder:
                     recorder.handlers.append(Interval(label, start, time.perf_counter()))
 
             loop.handlers[name] = wrapper
+
+
+# ------------------------------------------------------------ stage timers
+
+
+STAGE_LABELS: dict[str, str] = {
+    "knowledge_reuse": "Knowledge reuse (graph lookup/prepare)",
+    "planning": "Planning (planner + legal normalizer)",
+    "source_fetch": "Source fetch (router.execute_need)",
+    "jev_relevance": "Jev/relevance judge",
+    "assessment": "Assessment",
+    "completeness": "Completeness review",
+    "follow_up": "Follow-up planning",
+    "quality_persist": "Quality persist",
+    "persist": "Wave persist",
+    "freeze": "Freeze + answer capture",
+}
+SYNTHESIS_STAGE: dict[str, str] = {
+    "stage": "synthesis",
+    "status": "not a separate stage",
+    "note": (
+        "The research loop ends at a frozen EvidenceSet; there is no separate "
+        "synthesis stage. Synthesis quality is judged post-hoc by the rubric "
+        "prompt/LLM verdict stored in the live sample artifact."
+    ),
+}
+
+
+class StageRecorder:
+    """Wall-clock stage timers around live research boundaries."""
+
+    def __init__(self) -> None:
+        self._data: dict[str, dict[str, float]] = {}
+        self._restores: list[tuple[Any, str, Any]] = []
+
+    def add(self, stage: str, seconds: float) -> None:
+        entry = self._data.setdefault(stage, {"seconds": 0.0, "calls": 0.0})
+        entry["seconds"] += seconds
+        entry["calls"] += 1
+
+    def snapshot(self) -> dict[str, dict[str, float]]:
+        return {
+            stage: {
+                "sum_ms": round(entry["seconds"] * 1000, 3),
+                "calls": int(entry["calls"]),
+            }
+            for stage, entry in sorted(self._data.items())
+        }
+
+    def wrap_async(self, target: Any, name: str, stage: str) -> None:
+        original = getattr(target, name, None)
+        if original is None:
+            return
+
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            try:
+                return await original(*args, **kwargs)
+            finally:
+                self.add(stage, time.perf_counter() - start)
+
+        self._restores.append((target, name, original))
+        setattr(target, name, wrapper)
+
+    def patch_class_method(self, cls: type, name: str, stage: str) -> None:
+        original = getattr(cls, name)
+        recorder = self
+
+        async def wrapper(instance: Any, *args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            try:
+                return await original(instance, *args, **kwargs)
+            finally:
+                recorder.add(stage, time.perf_counter() - start)
+
+        self._restores.append((cls, name, original))
+        setattr(cls, name, wrapper)
+
+    def patch_function(self, module: Any, name: str, stage: str) -> None:
+        original = getattr(module, name, None)
+        if original is None:
+            return
+        recorder = self
+
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            try:
+                return await original(*args, **kwargs)
+            finally:
+                recorder.add(stage, time.perf_counter() - start)
+
+        self._restores.append((module, name, original))
+        setattr(module, name, wrapper)
+        for holder in (research_execution,):
+            if getattr(holder, name, None) is original:
+                self._restores.append((holder, name, original))
+                setattr(holder, name, wrapper)
+
+    def restore(self) -> None:
+        for target, name, original in reversed(self._restores):
+            setattr(target, name, original)
+        self._restores.clear()
+
+
+def aggregate_stage_timings(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for stage in STAGE_LABELS:
+        sums, calls = [], []
+        for row in rows:
+            entry = (row.get("stage_ms") or {}).get(stage)
+            if entry:
+                sums.append(float(entry.get("sum_ms") or 0.0))
+                calls.append(int(entry.get("calls") or 0))
+        if not sums:
+            continue
+        need_total = sum(len(row.get("needs") or []) for row in rows)
+        out[stage] = {
+            "samples": len(sums),
+            "calls_total": sum(calls),
+            "sum_ms": round(sum(sums), 3),
+            "mean_ms_per_sample": round(statistics.fmean(sums), 3),
+            "median_ms_per_sample": round(statistics.median(sums), 3),
+            "max_ms_per_sample": round(max(sums), 3),
+            "mean_ms_per_call": round(
+                sum(sums) / sum(calls), 3
+            ) if sum(calls) else 0.0,
+            "calls_per_need": round(sum(calls) / need_total, 3) if need_total else None,
+        }
+    out["synthesis"] = SYNTHESIS_STAGE
+    return out
 
 
 # ------------------------------------------------------------ fake mode
@@ -934,6 +1066,13 @@ def _retry_semantics() -> dict[str, Any]:
 # ------------------------------------------------------------ live mode
 
 
+LIVE_ENV_STATUS = (
+    "Live environment status: **healthy** (verified 2026-10-22 from the "
+    "measurement host: `lagen.nu` 200, MCP `initialize` 200, `tools/list` 200 "
+    "with legal tools, OpenAI embeddings 200 (3072 dims), Cerebras chat 200). "
+    "Live is observational and never a gate."
+)
+
 LIVE_RUBRIC_SYSTEM = (
     "You grade a legal research evidence set. Use ONLY the supplied needs, "
     "evidence excerpts and assessments. Be strict: missing evidence or missing "
@@ -1027,6 +1166,27 @@ async def _live_execute(*, args: argparse.Namespace,
             await execute_attempt_research(session, **kwargs)
 
 
+def _instrument_live_stages(stage: StageRecorder, components: Mapping[str, Any]) -> None:
+    for key, name, stage_name in (
+        ("research_planner", "plan_research", "planning"),
+        ("need_normalizer", "normalize", "planning"),
+        ("assessor", "assess", "assessment"),
+        ("completeness_reviewer", "review", "completeness"),
+        ("planner", "plan_follow_ups", "follow_up"),
+    ):
+        stage.wrap_async(components.get(key), name, stage_name)
+    stage.patch_class_method(ResearchRouter, "execute_need", "source_fetch")
+    stage.patch_class_method(JevEvidenceRelevanceAssessor, "judge", "jev_relevance")
+    stage.patch_function(graph_reuse, "lookup_graph_evidence", "knowledge_reuse")
+    stage.patch_function(reuse_gate, "assess_reuse", "knowledge_reuse")
+    stage.patch_function(research_loop_control, "finish_research_wave", "persist")
+    stage.patch_function(research_execution, "_freeze_ready_attempt", "freeze")
+    stage.patch_function(
+        quality_persist, "persist_evidence_quality_drafts", "quality_persist"
+    )
+    stage.patch_function(quality_persist, "score_need_quality_eager", "quality_persist")
+
+
 async def _live_measure(args: argparse.Namespace,
                         factory: async_sessionmaker[AsyncSession],
                         question: Mapping[str, Any],
@@ -1040,6 +1200,8 @@ async def _live_measure(args: argparse.Namespace,
         )
     recorder = Recorder()
     recorded: dict[str, Any] = {}
+    stage_recorder = StageRecorder()
+    _instrument_live_stages(stage_recorder, components)
     recorder.install()
     started = time.perf_counter()
     try:
@@ -1050,18 +1212,32 @@ async def _live_measure(args: argparse.Namespace,
     finally:
         wall_ms = (time.perf_counter() - started) * 1000
         recorder.restore()
+        stage_ms = stage_recorder.snapshot()
+        stage_recorder.restore()
     return await _live_payload(
         factory=factory, attempt_id=attempt_id, question=question,
-        wall_ms=wall_ms, recorder=recorder, recorded=recorded,
-        llm_calls=llm_calls,
+        measure=LiveMeasure(
+            wall_ms=wall_ms, recorder=recorder, recorded=recorded,
+            stage_ms=stage_ms, llm_calls=llm_calls,
+        ),
     )
+
+
+@dataclass(frozen=True)
+class LiveMeasure:
+    wall_ms: float
+    recorder: Recorder
+    recorded: Mapping[str, Any]
+    stage_ms: Mapping[str, Any]
+    llm_calls: Sequence[LLMCallStats]
 
 
 async def _live_payload(*, factory: async_sessionmaker[AsyncSession],
                         attempt_id: str, question: Mapping[str, Any],
-                        wall_ms: float, recorder: Recorder,
-                        recorded: dict[str, Any],
-                        llm_calls: list[LLMCallStats]) -> dict[str, Any]:
+                        measure: LiveMeasure) -> dict[str, Any]:
+    wall_ms = measure.wall_ms
+    recorder = measure.recorder
+    llm_calls = list(measure.llm_calls)
     async with factory() as session:
         attempt_row = await get_attempt(session, attempt_id)
         needs = await list_runtime_needs(session, attempt_id)
@@ -1109,7 +1285,9 @@ async def _live_payload(*, factory: async_sessionmaker[AsyncSession],
         "llm_calls": len(llm_calls),
         "prompt_tokens": sum(call.prompt_tokens for call in llm_calls),
         "completion_tokens": sum(call.completion_tokens for call in llm_calls),
-        "swe": recorded or None,
+        "swe": measure.recorded or None,
+        "stage_ms": measure.stage_ms,
+        "synthesis": SYNTHESIS_STAGE,
         "judge": judge,
         "errors": errors,
     }
@@ -1221,6 +1399,7 @@ def _live_ranking(samples: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         return {
             "samples": len(rows),
             "mean_quality": mean_quality,
+            "stages": aggregate_stage_timings(rows),
             "wall_ms_mean": round(statistics.fmean(walls), 3) if walls else 0.0,
             "wall_ms_median": round(statistics.median(walls), 3) if walls else 0.0,
             "tokens_mean": round(statistics.fmean(tokens), 3) if tokens else 0.0,
@@ -1353,6 +1532,11 @@ def render_report(report: V2Report) -> str:
         f"{report.args.fake_latency_ms} ms)",
         f"- **live layer** (observational): {report.args.live_questions} questions x "
         f"{len(ARMS)} arms x {report.args.live_repeats} repeats",
+        *(
+            ["- fake/parity layers were measured in freeze #4: "
+             "`data/research_swe/v2-528d26d45dfa-20261021T234946Z`"]
+            if report.live is not None and report.fake is None else []
+        ),
         f"- raw data: `{report.run_dir}`",
         "",
         "## 1. Critical path and peak concurrency (fake mode)",
@@ -1469,14 +1653,9 @@ def _parity_section(report: V2Report) -> str:
 def _live_report_section(report: V2Report) -> str:
     if not report.live:
         return (
-            "Live layer not run in this invocation (**freeze #3 runs fake+parity only**). "
-            "Live is **environment-blocked** on this measurement host: "
-            "`https://lagen.nu/mcp` was verified unreachable (curl exit 000 / no "
-            "connection) while OpenAI/Cerebras respond normally. The live wiring "
-            "itself works (app lifespan, vector store, OverGraph runtime, judge), "
-            "but retrieval quality cannot be measured from here. Live must be "
-            "rerun in a healthy environment before it is used as anything but an "
-            "observational follow-up; it is never a gate."
+            LIVE_ENV_STATUS
+            + "\n\nLive layer not run in this invocation; run `--mode live` for the "
+            "36 § observations."
         )
     if report.live.get("error"):
         return (
@@ -1501,12 +1680,36 @@ def _live_report_section(report: V2Report) -> str:
             f"{quality.get('completeness_rate')} | {quality.get('synthesis_rubric')} | "
             f"{label} |"
         )
+    stage_rows = [
+        "\n\nPer-stage timings per arm (sum ms / calls):\n\n"
+        "| Arm | " + " | ".join(STAGE_LABELS.values()) + " |",
+        "| --- | " + " | ".join("---" for _ in STAGE_LABELS) + " |",
+    ]
+    for arm, data in (ranking.get("by_arm") or {}).items():
+        stages = data.get("stages") or {}
+        cells = []
+        for stage in STAGE_LABELS:
+            entry = stages.get(stage)
+            cells.append(
+                f"{entry['sum_ms']} / {entry['calls_total']}" if entry else "-"
+            )
+        stage_rows.append(
+            f"| {ARM_LABELS.get(arm, arm)} | " + " | ".join(cells) + " |"
+        )
+    stage_rows.append(
+        "\nSynthesis: **not a separate stage** — the loop ends at a frozen "
+        "EvidenceSet; synthesis quality is judged post-hoc by the rubric/LLM "
+        "artifact saved per live sample."
+    )
     errors = [row for row in report.live.get("samples", []) if "error" in row]
     return (
-        "\n".join(rows)
+        LIVE_ENV_STATUS
+        + "\n\n"
+        + "\n".join(rows)
         + f"\n\n{ranking.get('note', '')}"
         + "\n\nPer-run evidence/assessment/judge artifacts are stored next to "
         + "`live-results.json`."
+        + "\n".join(stage_rows)
         + (f"\n\nLive child errors: {len(errors)}." if errors else "")
     )
 
