@@ -14,6 +14,28 @@ from app.services.research.sufficiency_experiment.golden import (
 _HIGH = 0.95
 _LOW = 0.05
 
+# Fixture-only score overrides keyed by evidence id. The scripted judge cannot
+# express high redundancy or a compatible pair otherwise. Not model quality.
+SCRIPTED_SCORE_OVERRIDES: dict[str, dict[str, float]] = {
+    "dup-contra": {"likely_duplicate_or_redundant": 0.89},
+    "period-old": {
+        "relevant_to_question": _HIGH,
+        "directly_supports_answer": _HIGH,
+    },
+    "period-new": {
+        "relevant_to_question": _HIGH,
+        "contradicts_current_evidence": _HIGH,
+    },
+    "entity-a": {
+        "relevant_to_question": _HIGH,
+        "directly_supports_answer": _HIGH,
+    },
+    "entity-b": {
+        "relevant_to_question": _HIGH,
+        "contradicts_current_evidence": _HIGH,
+    },
+}
+
 
 class ScriptedSufficiencyJev:
     """Closed NOUL judge used by CI. Scores are not model quality."""
@@ -53,12 +75,14 @@ def _noul(flag: bool) -> dict[str, float]:
 
 def _screen_answers(state: object) -> dict[str, object]:
     passage = ""
+    evidence_id = ""
     if isinstance(state, dict):
         passage = str(state.get("passage") or "")
+        evidence_id = str(state.get("evidence_id") or "")
     support = SUPPORT_PHRASE in passage
     contradict = CONTRADICTION_SIGNAL in passage
     relevant = support or contradict
-    return {
+    answers: dict[str, object] = {
         "relevant_to_question": _noul(relevant),
         "directly_supports_answer": _noul(support),
         "contradicts_current_evidence": _noul(contradict),
@@ -66,6 +90,9 @@ def _screen_answers(state: object) -> dict[str, object]:
         "likely_duplicate_or_redundant": _noul(False),
         "primary_or_high_authority_for_question": _noul(support),
     }
+    for key, value in SCRIPTED_SCORE_OVERRIDES.get(evidence_id, {}).items():
+        answers[key] = {"noul": value}
+    return answers
 
 
 def _route_answers(state: object) -> dict[str, object]:

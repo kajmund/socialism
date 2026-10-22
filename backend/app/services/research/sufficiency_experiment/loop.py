@@ -66,6 +66,7 @@ class SufficiencyLoop:
         config: ExperimentConfig,
         narrative: NarrativeFn | None = None,
         live_measurement: str = "not_run",
+        counterparts: Mapping[str, tuple[str, ...]] | None = None,
     ) -> None:
         self._plan = plan
         self._evidence = list(evidence)
@@ -73,6 +74,7 @@ class SufficiencyLoop:
         self._config = config
         self._narrative = narrative
         self._live_measurement = live_measurement
+        self._counterparts = counterparts or {}
         self._started = perf_counter()
         self._groups = group_evidence_for_review(evidence)
         self._passages: list[EvidencePassage] = []
@@ -141,7 +143,9 @@ class SufficiencyLoop:
         self._passages = segment_evidence(
             self._evidence, max_chars=self._config.max_passage_chars
         )
-        self._jobs = evaluation_jobs(self._plan.needs, self._passages)
+        self._jobs = evaluation_jobs(
+            self._plan.needs, self._passages, counterparts=self._counterparts
+        )
         self._judged_chars = concat_source_chars(self._passages)
         return {"done": False, "jobs": self._jobs}
 

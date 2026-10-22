@@ -75,6 +75,7 @@ def _evaluation(
         "chars": len(text),
         "error": row.error,
         "signal_present": carries_signal,
+        "counterpart_passage_ids": list(row.counterpart_passage_ids),
         "text": text if carries_signal else "",
         "relevant_to_question": scores.relevant_to_question,
         "directly_supports_answer": scores.directly_supports_answer,

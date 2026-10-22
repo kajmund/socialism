@@ -44,6 +44,24 @@ or `CEREBRAS_API_KEY` is missing. The script does not invent live scores.
 | `later_wave_contradiction` | Support then a later-wave contradiction | insufficient | uncertain |
 | `adversarial_empty` | Found item with empty excerpt | insufficient | insufficient |
 
+Conflict cases (A2/A3), reported separately from the four-case A0 benchmark:
+
+| id | Mechanism | Expected draft | Expected status |
+| -- | --------- | -------------- | --------------- |
+| `duplicate_contradiction` | Contradiction with duplicate score 0.89 | insufficient | uncertain |
+| `independent_contradiction` | Two independent sources, one contradicts | insufficient | uncertain |
+| `compatible_periods` | 3 months 2024 vs 6 months 2026, disjoint validity | sufficient | sufficient |
+| `compatible_entities` | Different contracts/entities with different values | sufficient | sufficient |
+| `unknown_counterpart` | One flagged passage, no counterpart | insufficient | uncertain |
+| `pair_over_budget` | A3 only: required pair does not fit the pair budget | insufficient | uncertain |
+
+`scripted_benchmark_cases()` stays the four-case A0 set. The conflict cases live
+in `conflict_benchmark_cases()` (five; `pair_over_budget` is A3-only) and in
+`all_golden_cases()`. Two fixture-only seams make them runnable through the
+whole SWE workflow: per-evidence score overrides in `scripted.py` (test double,
+not model quality) and the optional `counterparts` mapping passed from
+`run_experiment` to `evaluation_jobs`. Neither is imported by production.
+
 Contradiction is preserved and is not final insufficiency. The product
 draft is fail-closed (`sufficient` or `insufficient`).
 
