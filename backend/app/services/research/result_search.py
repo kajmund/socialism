@@ -114,7 +114,7 @@ def _question_seeds(catalog, keys: list[str], scope_key: str) -> list[str]:
 
 async def _seeds(session, need, scope, embeddings, *, vector) -> list[str]:
     catalog = require_knowledge()
-    index = require_current_index()
+    index = await asyncio.to_thread(require_current_index)
     customer_id = scope.scope.customer_id
     collected = await asyncio.to_thread(
         _graph_seeds, catalog, index, need.question, customer_id, vector=vector,

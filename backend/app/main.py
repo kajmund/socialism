@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -49,6 +50,7 @@ from app.database.session import engine
 from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
+from app.services import retrieval_index
 from app.services.expertgranskning.memory import close_default_expert_memory
 from app.services.graph_v2.worker import start_graph_owner, stop_graph_owner
 from app.services.overgraph.catalogs import catalog_root, open_runtime, set_runtime
@@ -78,6 +80,11 @@ def _require_chat_llm() -> None:
     raise RuntimeError(
         f"{settings.chat_llm_key_env_name} is required when LLM_PROVIDER={settings.llm_provider}"
     )
+
+
+async def _open_retrieval_index() -> None:
+    """Open/build/reconcile the derived lexical index without blocking the loop."""
+    await asyncio.to_thread(retrieval_index.ensure_current)
 
 
 @asynccontextmanager
@@ -117,6 +124,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
         memory_dimension=EMBEDDING_MODEL_DIMENSIONS[settings.mem0_embedding_model],
     )
     set_runtime(graph_runtime)
+    await _open_retrieval_index()
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None
     set_lagen_nu_selector_factory(LlmLagenNuSelector)
