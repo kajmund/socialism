@@ -164,18 +164,18 @@ def test_subword_matches_never_outrank_a_direct_compound_match(build):
     assert [hit.fact.id for hit in hits] == ["relevant"]
 
 
-def test_production_index_is_refused_when_missing_and_recovers_after_build(tmp_path, monkeypatch):
-    """Research must see a visible error, never a silent dense-only fallback."""
+def test_production_index_is_built_from_graph_when_missing(tmp_path, monkeypatch):
+    """Research builds the derived index from OverGraph; it never falls back to dense-only."""
     from app.services import retrieval_index
-    from app.services.overgraph.catalogs import require_knowledge
 
     _fact(fact_id="recover", text="Återhämtning av lexikalt index")
     monkeypatch.setattr(retrieval_index, "index_directory", lambda: tmp_path / "lexical")
     retrieval_index.set_index(None)
-    with pytest.raises(retrieval_index.RetrievalIndexUnavailableError, match="not open"):
-        retrieval_index.require_current_index()
 
-    built = build_from_overgraph(require_knowledge(), tmp_path / "lexical")
-    retrieval_index.set_index(built, tmp_path / "lexical")
+    built = retrieval_index.require_current_index()
+
+    assert built.search_fact_keys(
+        "index", tenant_ids=(f"customer:{CUSTOMER}",),
+    )
     assert retrieval_index.require_current_index() is built
     retrieval_index.set_index(None)

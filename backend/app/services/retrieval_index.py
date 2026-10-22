@@ -1,19 +1,29 @@
 """Process-owned Tantivy index used by research retrieval.
 
-The index is derived from OverGraph and may lag. Research must never silently fall back
-to dense-only, so a missing or lagging index raises a visible error; ``index_cli`` rebuilds
-or reconciles it from the graph.
+The index is derived from OverGraph and may lag. The lifespan opens, builds, or reconciles
+it from the graph; research must never silently fall back to dense-only.
 """
 
 from __future__ import annotations
 
+import logging
 import threading
 from pathlib import Path
 
 from app.config import settings
 from app.services.overgraph.catalogs import catalog_root, require_knowledge
 from app.services.overgraph.hybrid_retrieval import FactIndexStaleError, fact_index_lag
-from app.services.tantivy_index import INDEX_VERSION, TextUnitIndex, read_index_version
+from app.services.tantivy_index import (
+    INDEX_VERSION,
+    TextUnitIndex,
+    build_from_overgraph,
+    read_index_version,
+    read_watermark,
+    reconcile,
+    write_watermark,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class RetrievalIndexUnavailableError(RuntimeError):
@@ -56,17 +66,76 @@ def open_index(directory: Path | None = None) -> TextUnitIndex:
         ) from exc
 
 
-def require_current_index() -> TextUnitIndex:
-    """The open index, but only if it reflects the current graph revision."""
+def _reconcile_locked(catalog, index: TextUnitIndex, target: Path) -> None:
+    new_watermark = reconcile(
+        catalog, index, watermark_ms=read_watermark(target),
+    )
+    write_watermark(target, new_watermark)
+
+
+def _ensure_current_locked(catalog, target: Path) -> TextUnitIndex | None:
     index = _index
     if index is None:
-        raise RetrievalIndexUnavailableError(
-            "lexical index is not open; start it from the built index or rebuild it"
-        )
-    pending = fact_index_lag(require_knowledge(), _index_dir or index_directory())
-    if pending:
-        raise FactIndexStaleError(
-            f"lexical index is {pending} change(s) behind the graph; run "
-            "python -m app.services.knowledge.index_cli reconcile"
-        )
+        try:
+            index = open_index(target)
+        except RetrievalIndexUnavailableError:
+            try:
+                index = build_from_overgraph(catalog, target)
+            except ValueError as exc:
+                if "empty graph" in str(exc):
+                    logger.info(
+                        "lexical index deferred: graph is empty at %s", target,
+                    )
+                    return None
+                raise
+        logger.info("lexical index opened/built at %s", target)
+    _reconcile_locked(catalog, index, target)
     return index
+
+
+def ensure_current() -> TextUnitIndex | None:
+    """Open/build/reconcile the process index from OverGraph.
+
+    Returns None when the graph is empty and there is nothing to index yet.
+    A non-empty graph that cannot be indexed raises instead of being hidden.
+    """
+    target = _index_dir or index_directory()
+    catalog = require_knowledge()
+    with _lock:
+        index = _ensure_current_locked(catalog, target)
+        if index is not None:
+            _set_index_locked(index, target)
+        return index
+
+
+def _set_index_locked(index: TextUnitIndex, directory: Path) -> None:
+    global _index, _index_dir
+    _index = index
+    _index_dir = directory
+
+
+def require_current_index() -> TextUnitIndex:
+    """The open index, reconciled to the current graph revision when needed."""
+    target = _index_dir or index_directory()
+    catalog = require_knowledge()
+    with _lock:
+        index = _index
+        if index is None:
+            index = _ensure_current_locked(catalog, target)
+        else:
+            pending = fact_index_lag(catalog, target)
+            if pending:
+                _reconcile_locked(catalog, index, target)
+        if index is None:
+            raise RetrievalIndexUnavailableError(
+                "lexical index is unavailable and the graph is empty; ingest "
+                "documents before running research"
+            )
+        _set_index_locked(index, target)
+        pending = fact_index_lag(catalog, target)
+        if pending:
+            raise FactIndexStaleError(
+                f"lexical index is {pending} change(s) behind the graph; "
+                "reconcile it from OverGraph"
+            )
+        return index
