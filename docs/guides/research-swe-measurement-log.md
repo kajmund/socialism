@@ -125,3 +125,84 @@ Baslinjen för dagens loop mäts separat av
 - Paritet: alla scenarier lika
 - Live: ej körd — environment-blocked (lagen.nu/mcp onåbar från mäthosten; live-wiring verifierad men ingen retrieval)
 - v1-artefakten `a00ba565…` (n=8) är fortsatt cutover-bas.
+
+
+<!-- v2:caafc8706a75:v2-caafc8706a75-20261022T062521Z -->
+## Mätning v2 — kritisk väg, concurrency, paritet, live-kvalitet
+
+- Harness: `backend/scripts/benchmark_research_swe_v2.py` sha256 `caafc8706a753898d88391d18f6a966b4ca279709f28d4870a0c2432056b9373`
+- git HEAD: `e6a40a923efb2e9dfcaf3b78503cc70365321f1a`
+- Rådata: `/Users/erikfremred/socialism/data/research_swe/v2-caafc8706a75-20261022T062521Z`
+- Fake: 8 oberoende runs x 6 repeats x 2 frågor, needs=16, latens=40 ms
+- Live (observationslager): 2 frågor x 3 armar x 2 repeats
+- Paritet: se rapporten
+- Live: körd (observationslager, ej gate)
+- v1-artefakten `a00ba565…` (n=8) är fortsatt cutover-bas.
+
+
+<!-- v2-live-observation:caafc8706a75 -->
+### Live-observation (freeze #5, `caafc8706a75…`, commit `e6a40a92…`)
+
+- Körning: 2 frågor × 3 armar × 2 repeats = 12/12, exit 0, ~14 m 44 s; alla 12 attempts `ready`, evidence sets `frozen` (12 st `research_frozen_ready`).
+- **Evidens: 0 found totalt.** baseline 43 not_found/14 error; A 65/13; B 58/20. `lagen_nu`-excerpts: `resolve_no_document`, `search_no_hit`, `OperationalError: research source failed`; Supabase (`domain_knowledge`/`customer_knowledge`) gav inga träffar i temp-DB:n. Detta trots att endpoints är nåbara (healthy-verifiering) — retrieval gav alltså inga dokument för dessa 36 §-frågor.
+- Assessments: 33 insufficiencies, 0 sufficient; completeness: 0 pass; syntesrubrik/LLM-dom: 0/12 (domarna säger uttryckligen att evidens saknas). `needs_success_rate` i harnesset är en proxy (needs med id), inte lyckade needs — verkliga lyckade needs = 0.
+- Per-steg-tider (mätta): planning, source_fetch, assessment, follow_up, quality_persist, persist. **Inte exercerade/observerbara:** knowledge_reuse (0 anrop; tom Graph), jev_relevance (0; inga graph-kandidater), completeness (0 pass pga budget-stop), freeze (0 timer men `research_frozen_ready`=12 → ingår i persist/`finish_research_wave`), synthesis = not a separate stage.
+- Ranking: alla kvalitetsdimensioner 0 för alla armar → "comparable"; ingen arm får klassas bättre. A snabbast i medel (57,8 s vs baseline 66,6 s, B 83,8 s) men med samma noll-evidenS; B högst spridning (22,8–118,1 s) och flest tokens (226,7k).
+- Slutsats: mätningen är genomförd och instrumenteringen fungerar, men retrieval-kvaliteten kan inte utvärderas med denna körning; nästa steg är att felsöka varför lagen.nu/Supabase ger `resolve_no_document`/`search_no_hit` för 36 §-frågorna (query/tool-semantik eller provider-konfiguration), inte att köra fler jämförelser på noll-evidenS.
+
+
+<!-- v2:caafc8706a75:v2-caafc8706a75-20261022T064321Z -->
+## Mätning v2 — kritisk väg, concurrency, paritet, live-kvalitet
+
+- Harness: `backend/scripts/benchmark_research_swe_v2.py` sha256 `caafc8706a753898d88391d18f6a966b4ca279709f28d4870a0c2432056b9373`
+- git HEAD: `e6a40a923efb2e9dfcaf3b78503cc70365321f1a`
+- Rådata: `/Users/erikfremred/socialism/data/research_swe/v2-caafc8706a75-20261022T064321Z`
+- Fake: 8 oberoende runs x 6 repeats x 2 frågor, needs=16, latens=40 ms
+- Live (observationslager): 1 frågor x 3 armar x 1 repeats
+- Paritet: se rapporten
+- Live: körd (observationslager, ej gate)
+- v1-artefakten `a00ba565…` (n=8) är fortsatt cutover-bas.
+
+
+<!-- v2:ba48eb2a3a7b:v2-ba48eb2a3a7b-20261022T070513Z -->
+## Mätning v2 — kritisk väg, concurrency, paritet, live-kvalitet
+
+- Harness: `backend/scripts/benchmark_research_swe_v2.py` sha256 `ba48eb2a3a7bdc1755184f43412a8af9570d04a9ddbb5b9fe908e700c40efc63`
+- git HEAD: `c07fc348407c50e9fdf3aad3fcd50c5db08c6403`
+- Rådata: `/Users/erikfremred/socialism/data/research_swe/v2-ba48eb2a3a7b-20261022T070513Z`
+- Fake: 8 oberoende runs x 6 repeats x 2 frågor, needs=16, latens=40 ms
+- Live (observationslager): 1 frågor x 3 armar x 1 repeats
+- Paritet: se rapporten
+- Live: körd (observationslager, ej gate)
+- v1-artefakten `a00ba565…` (n=8) är fortsatt cutover-bas.
+
+
+<!-- v2-live-artifacts:12runs+diag:task13 -->
+## Mätning v2 — live-artefakt (12 runs), diagnostik och varför 0 found
+
+### Huvudartefakt: full live-körning (12 runs)
+
+- Katalog: `data/research_swe/v2-caafc8706a75-20261022T062521Z`; harness sha `caafc8706a753898d88391d18f6a966b4ca279709f28d4870a0c2432056b9373`; commit `e6a40a923efb2e9dfcaf3b78503cc70365321f1a`.
+- 2 frågor (`source_1`/`source_2`, 36 §) × 3 armar × 2 repeats = **12 produktionskörningar**, temp-SQLite på alembic head, **produktions-embeddings** (`graph_embedding_cache` 5 001 rader, `text-embedding-3-large`, 3072 dims).
+- 8 samtidiga needs; **44/213 evidence-items `OperationalError: database is locked`**; source_fetch ≈7–10 s/anrop; **0 found** i alla armar; alla 12 `ready` med frozen evidence sets.
+- Tabell (wall mean/median ms, tokens, LLM, evidence): baseline 66 629,6/71 862,9, 156 518, 26–46, 43 nf/14 err; A 57 753,5/63 332,3, 167 513, 28–54, 65 nf/13 err; B 83 775,1/97 130,4, 226 683, 26–67, 58 nf/20 err. Assessments: 0 sufficient; completeness 0 pass; syntesrubrik 0.
+- Per-steg (summa/calls): source_fetch dominerar (355 531/45; 413 262/57; 628 074/59); planning 13–15 s; follow-up 17–20 s; persist 18–21 s; assessment/quality_persist nära 0. Knowledge reuse/Jev/completeness/freeze gav 0 calls (tom Graph, inga graph-kandidater, budget-stop; freeze bekräftad av 12 `research_frozen_ready` inuti persist). Syntes = **not a separate stage**.
+- Ranking: alla armar lika (noll) kvalitet → **"comparable"; ingen kvalitetsranking görs**; A:s snabbare medelvärde är inte bättre kvalitet.
+
+### Diagnostikkörningar
+
+- **Diag #1** (3 samples, samma frysta harness): katalog `data/research_swe/v2-caafc8706a75-20261022T064321Z`, sha `caafc870…`, commit `e6a40a92…`. `--live-questions 1 --live-repeats 1 --arms baseline` gav 3 samples (fryst harness itererade då alla armar). 0 found; baseline 13 nf/10 err (wall 137,6 s, 347k tokens, 65 LLM), A 17/7 (91,3 s, 242k, 49), B 17/9 (116,3 s, 395k, 80); source_fetch 15 anrop/arm med 25,1/11,4/16,8 s per anrop; 26 `OperationalError: research source failed`-events. MCP-verktygsräknare fanns inte ännu i harnessen.
+- **Diag #2** (1 sample, concurrency=1): katalog `data/research_swe/v2-ba48eb2a3a7b-20261022T070513Z`, sha `ba48eb2a…`, commit `c07fc348…`; DB `backend/data/live_diag.sqlite` på head `192_drop_graph_tables`, kund 1, 195 prompt-fält; `RESEARCH_NEED_CONCURRENCY=1` + `RESEARCH_DOCUMENT_CONCURRENCY=1`. **OperationalError 0**; **29 MCP-anrop** (resolve 14, search 15, get_incoming 0, **get_document 0**); resolve-args = hela engelska frågor; search-queryer trunkerade engelska fragment; 16 needs/19 items: **found 0**, not_found 19, error 0 (resolve_no_document 8, irrelevant_relation 6, tom Supabase 4, search_no_hit 1); route/Jev nåddes aldrig (seed_ids/noul tomma); wall 38,9 s, 70 334 tokens, 29 LLM; source_fetch 22 594 ms/15 anrop (≈1,5 s/anrop), planning 3 862 ms, follow_up 11 888 ms, persist 12 177 ms. Child-stderr bara storage3-varning; inga exceptions.
+
+### Varför live mätte 0 found
+
+- `samples[].needs[].question` är **engelska redan i planner-outputen** i diag #2: N1–N5 och alla derived needs engelska, medan `research-main` (originalfrågan) är svensk. 5/6 initiala needs engelska.
+- `samples[].mcp_diagnostics.resolve_args[]`: **14/14 är exakt lika med `needs[].question`** — källsteget får färdiga engelska hel-frågor, inte `36 § avtalslagen`; `_resolution_query`/`_search_query` kan inte rädda formatet (sökning blir trunkerade fragment).
+- `research.planner.system` hämtas med `language="sv"`, men prompten saknar explicit språk-/citat-instruktion och det finns ingen deterministisk guard → **icke-deterministisk planner-output** (12-runs: svenska i 11/14 samples, engelska i 3; diag #1: svenska i alla; diag #2: engelska i 5/6 initiala + alla derived). `research-main` är svensk i samtliga.
+- SQLite-lock (44/213 OperationalError, 7–25 s/anrop) var mätmiljöns problem: med concurrency=1 blev OperationalError 0 och source_fetch ≈1,5 s/anrop — men 0 found kvarstår.
+
+### Slutsats
+
+- Live-kvalitetsmätningen är **blockerad av retrieval-frågeformatet (task-13)**, inte av SWE, Jev eller embeddings.
+- Fake/parity-lagren använder **fake embeddings (constant vector)** — deras kvalitet är **inte meningsfull**; endast gates/paritet är auktoritativa där.
+- Ingen kvalitetsranking görs; v1-artefakten `a00ba565…` är fortsatt cutover-bas. Full rapport: [research-swe-experiment-v2.md](research-swe-experiment-v2.md).
