@@ -8,10 +8,8 @@ from dataclasses import dataclass
 
 from collections.abc import Sequence
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models import KnowledgeClaimRecord, KnowledgeClaimTextUnit
 from app.services.knowledge.claims import (
     KnowledgeClaim,
     KnowledgeClaimError,
@@ -138,16 +136,3 @@ async def attach_supporting_text_units(
     await asyncio.to_thread(attach_claim_supports, claim_id, tuple(unit_ids))
 
 
-async def prune_unsupported_claims(session: AsyncSession) -> None:
-    supported = select(KnowledgeClaimTextUnit.claim_id).distinct()
-    rows = list(
-        (
-            await session.execute(
-                select(KnowledgeClaimRecord).where(KnowledgeClaimRecord.id.not_in(supported))
-            )
-        ).scalars().all()
-    )
-    for row in rows:
-        await session.delete(row)
-    if rows:
-        await session.flush()
