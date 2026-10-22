@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, fields, replace
+from dataclasses import dataclass, fields
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.models import ExecutionAttempt, ResearchAssessment
-from app.observability.context import bind_log_context
-from app.services.execution.models import INITIAL_RESEARCH_WAVE, ResearchStopReason
+from app.services.execution.models import ResearchStopReason
 from app.services.execution.service import (
     get_attempt,
     list_research_completeness_passes,
@@ -17,19 +16,16 @@ from app.services.execution.service import (
 )
 from app.services.research.assessment import ResearchAssessor
 from app.services.research.completeness import ResearchCompletenessReviewer
-from app.services.research.evidence_screen import bind_attempt_relevance
 from app.services.research.execution import (
     _assert_need_barrier,
     _assess_persisted_evidence,
     _freeze_ready_attempt,
-    pending_need_pairs,
     _persist_evidence_quality,
     _plan_and_persist_follow_ups,
     _plan_and_persist_global_needs,
     quality_descriptors,
     _raise_if_write_fenced,
     _review_and_persist_completeness,
-    _run_need_executions,
     runtime_plan,
 )
 from app.services.research.followup import (
@@ -47,7 +43,6 @@ from app.services.research.plan import research_plan_from_snapshot
 from app.services.research.progress import ProgressTracker, emit_capability_unavailable
 from app.services.research.provider import KnowledgeProviderDescriptor
 from app.services.research.quality import EvidenceRelevanceAssessor
-from app.services.research.quality_persist import EagerQualityBind
 from app.services.research.question_graph import QuestionEvidenceGraph
 from app.services.research.router import ResearchRouter
 
@@ -121,47 +116,6 @@ async def advance_research_wave(
     await session.commit()
     await progress.publish_committed()
     return follow_up_wave
-
-
-async def run_research_loop(**kwargs: object) -> None:
-    config = wave_config_from_kwargs(kwargs)
-    _, relevance_assessor = bind_attempt_relevance(config.assessor, config.relevance_assessor)
-    config = replace(config, relevance_assessor=relevance_assessor)
-    snapshot_plan = kwargs["snapshot_plan"]
-    start_wave = kwargs.get("start_wave")
-    wave = INITIAL_RESEARCH_WAVE if start_wave is None else int(start_wave)
-    while True:
-        bind_log_context(wave_number=wave)
-        async with config.factory() as wave_session:
-            pending = await pending_need_pairs(wave_session, config.attempt_id)
-            active_plan = await runtime_plan(wave_session, config.attempt_id)
-            if not active_plan.needs:
-                active_plan = snapshot_plan
-        if pending:
-            await _run_need_executions(
-                factory=config.factory,
-                pending=pending,
-                evidence_set_id=config.evidence_set_id,
-                plan=active_plan,
-                context=config.context,
-                router=config.router,
-                router_factory=config.router_factory,
-                question_graph=config.question_graph,
-                attempt_id=config.attempt_id,
-                concurrency=config.concurrency,
-                eager=EagerQualityBind(
-                    descriptors=quality_descriptors(
-                        config.router, config.provider_descriptors
-                    ),
-                    relevance_assessor=config.relevance_assessor,
-                    reuse_assessor=config.assessor,
-                ),
-            )
-        next_wave = await finish_research_wave(config, snapshot_plan=snapshot_plan, wave=wave)
-        if next_wave is None:
-            return
-        snapshot_plan = next_wave[1]
-        wave = next_wave[0]
 
 
 async def finish_research_wave(

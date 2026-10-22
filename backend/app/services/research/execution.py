@@ -399,59 +399,6 @@ async def execute_one_need(  # noqa: PLR0913
     )
 
 
-async def _run_need_executions(  # noqa: PLR0913
-    *,
-    factory: async_sessionmaker[AsyncSession],
-    pending: list[tuple[str, str]],
-    evidence_set_id: str,
-    plan: ResearchPlan,
-    context: ResearchContext,
-    router: ResearchRouter | None,
-    router_factory: ResearchRouterFactory | None,
-    question_graph: QuestionEvidenceGraph,
-    attempt_id: str,
-    concurrency: int,
-    eager: EagerQualityBind,
-) -> None:
-    if not pending:
-        return
-    needs_by_id = {need.id: need for need in plan.needs}
-    persist_lock = asyncio.Lock()
-    retrieve_slots = asyncio.Semaphore(concurrency)
-
-    async def worker(execution_id: str, need_id: str) -> None:
-        need = needs_by_id[need_id]
-        try:
-            await asyncio.wait_for(
-                execute_one_need(
-                    factory=factory,
-                    persist_lock=persist_lock,
-                    retrieve_slots=retrieve_slots,
-                    execution_id=execution_id,
-                    need=need,
-                    context=context,
-                    evidence_set_id=evidence_set_id,
-                    router=router,
-                    router_factory=router_factory,
-                    question_graph=question_graph,
-                    attempt_id=attempt_id,
-                    eager=eager,
-                ),
-                timeout=settings.research_need_timeout_seconds,
-            )
-        except TimeoutError:
-            await complete_timed_out_need(
-                factory,
-                persist_lock,
-                execution_id=execution_id,
-                need=need,
-                evidence_set_id=evidence_set_id,
-                attempt_id=attempt_id,
-            )
-
-    await asyncio.gather(*(worker(execution_id, need_id) for execution_id, need_id in pending))
-
-
 async def complete_timed_out_need(
     factory: async_sessionmaker[AsyncSession],
     persist_lock: asyncio.Lock,

@@ -1,10 +1,9 @@
 """Run the research wave loop on SWE.
 
-Cutover bridge. It does not reimplement research: every handler calls the same
-public wave primitives the phase-2 loop in `loop_control` calls, so a SWE run
-and `run_research_loop` share plan construction, need execution, evidence
-persistence, quality, assessment, follow-up/completeness planning, decision
-policy and freeze.
+Cutover bridge. It does not reimplement research: every handler calls the
+domain wave primitives, so a SWE run preserves the previous loop's plan
+construction, need execution, evidence persistence, quality, assessment,
+follow-up/completeness planning, decision policy and freeze.
 
 What SWE owns is the loop shape: a `map` schedules every pending need execution
 as a `research.execute_need` child, `research.finish_wave` runs the unchanged
@@ -12,12 +11,13 @@ wave body (barrier -> quality -> assessment -> decision -> follow-up planning),
 and an expression `decision` routes either back to `research.run_wave` or to the
 terminal `end`. The map has no wave-level cap because the phase-2 loop also
 starts one worker per pending need; provider retrieval is bounded inside the
-child handler by the attempt's `research_need_concurrency` semaphore, exactly
-like `_run_need_executions`. Variants differ only in that retrieval concurrency.
+child handler by the attempt's `research_need_concurrency` semaphore, like the
+deleted phase-2 fan-out shell did. Variants differ only in that retrieval
+concurrency.
 
 `run_research_loop_via_swe` is a drop-in for
-`app.services.research.execution._run_research_loop` (same ``**kwargs``), which
-is the seam the differential tests patch. The lease-lost event is passed as the
+`app.services.research.execution._run_research_loop` (same ``**kwargs``), the
+single seam `execute_attempt_research` calls; the wiring tests patch it. The lease-lost event is passed as the
 runner `cancel_event` (through `WorkflowResources`), so a lost research lease
 cancels in-flight handlers; a terminal `cancelled` run re-raises
 `asyncio.CancelledError` to match the pre-cutover write-fence semantics. The
@@ -245,7 +245,7 @@ def build_loop(
     concurrency: int,
     run_store: RunStore | None = None,
 ) -> tuple[SweResearchLoop, ResearchPlan]:
-    """Build a bridge loop from the same kwargs `run_research_loop` receives."""
+    """Build a bridge loop from the same kwargs the execution seam receives."""
     from app.services.research.loop_control import wave_config_from_kwargs
 
     config = wave_config_from_kwargs(dict(kwargs))
