@@ -20,11 +20,7 @@ from app.database.models import (
     KnowledgeClaimRecord,
     KnowledgeQuestionRow,
 )
-from app.services.knowledge.events import (
-    CLAIM_SUPERSEDED,
-    record_graph_event,
-    utc_now,
-)
+from app.services.knowledge.events import utc_now
 from app.services.knowledge.identity import knowledge_claim_identity
 from app.services.knowledge.scope import (
     SCOPE_CUSTOMER,
@@ -43,7 +39,7 @@ from app.services.overgraph.claim_answers import (
     claim_answer_edges,
     link_claim_answer,
 )
-from app.services.overgraph.legal_claims import mark_claim_superseded, supporting_text_units
+from app.services.overgraph.legal_claims import supporting_text_units
 from app.services.overgraph.research import load_text_units
 from app.services.overgraph.text_units import load_domain_text_unit
 
@@ -183,46 +179,15 @@ async def supersede_knowledge_claim(
     at: datetime | None = None,
     valid_to: datetime | None = None,
 ) -> object:
-    """Close valid/system time on a claim. History stays queryable."""
-    row = await session.get(KnowledgeClaimRecord, claim_id)
-    if row is None:
-        return await supersede_graph_claim(
-            session, claim_id, KnowledgeClaimError,
-            successor=successor, at=at, valid_to=valid_to,
-        )
-    if row.superseded_at is not None:
-        raise KnowledgeClaimError(f"claim {claim_id} is already superseded")
-    stamp = at or utc_now()
-    successor_id = None
-    if successor is not None:
-        stored = await persist_knowledge_claim(session, successor)
-        successor_id = stored.id
-        if successor_id == claim_id:
-            raise KnowledgeClaimError("a claim cannot supersede itself")
-    row.superseded_at = stamp
-    row.valid_to = valid_to or stamp
-    row.successor_id = successor_id
-    await session.flush()
-    # Supersession must be visible in the graph, not only in the SQL mirror.
-    await asyncio.to_thread(
-        mark_claim_superseded,
-        require_knowledge(),
-        claim_id,
-        superseded_at=stamp,
-        valid_to=valid_to or stamp,
-        successor_id=successor_id,
-    )
-    await record_graph_event(
+    """Close valid/system time on a graph claim. History stays queryable."""
+    return await supersede_graph_claim(
         session,
-        scope=scope_from_row(row),
-        event_type=CLAIM_SUPERSEDED,
-        node_kind="claim",
-        node_id=claim_id,
-        related_id=successor_id,
-        payload={"successor_id": successor_id} if successor_id else {},
-        created_at=stamp,
+        claim_id,
+        KnowledgeClaimError,
+        successor=successor,
+        at=at,
+        valid_to=valid_to,
     )
-    return row
 
 
 async def answer_research_need(
