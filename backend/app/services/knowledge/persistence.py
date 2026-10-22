@@ -13,10 +13,8 @@ from app.database.models import (
     CanonicalDocumentRecord,
     DocumentSectionRecord,
     DocumentVersionRecord,
-    KnowledgeClaimTextUnit,
 )
 from app.serializers import utcnow
-from app.services.knowledge.claim_store import prune_unsupported_claims
 from app.services.knowledge.scope import (
     KnowledgeTenantScope,
     persist_scope_fields,
@@ -27,11 +25,7 @@ from app.services.knowledge.scope import (
 from app.services.knowledge.units import DocumentSection, SegmentedDocument
 from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.legal_claims import unlink_document_versions
-from app.services.overgraph.text_units import (
-    delete_text_units_for_document,
-    text_unit_ids_for_document,
-    upsert_text_units,
-)
+from app.services.overgraph.text_units import delete_text_units_for_document, upsert_text_units
 
 
 @dataclass(frozen=True)
@@ -229,21 +223,6 @@ async def delete_canonical_document(session: AsyncSession, document_id: str) -> 
     if row is None:
         return
     catalog = require_knowledge()
-    unit_ids = await asyncio.to_thread(
-        text_unit_ids_for_document, catalog, document_id=document_id,
-    )
-    if unit_ids:
-        links = list(
-            (
-                await session.execute(
-                    select(KnowledgeClaimTextUnit).where(
-                        KnowledgeClaimTextUnit.text_unit_id.in_(unit_ids)
-                    )
-                )
-            ).scalars().all()
-        )
-        for link in links:
-            await session.delete(link)
     version_ids = list(
         (
             await session.execute(
@@ -260,4 +239,3 @@ async def delete_canonical_document(session: AsyncSession, document_id: str) -> 
     )
     await session.delete(row)
     await session.flush()
-    await prune_unsupported_claims(session)
