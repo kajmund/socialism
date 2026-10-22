@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass
 
 from collections.abc import Sequence
@@ -19,10 +20,10 @@ from app.services.knowledge.claims import (
 )
 from app.services.knowledge.events import CLAIM_ADDED, record_graph_event, utc_now
 from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.labels import CLAIM, scope_label
 from app.services.overgraph.legal_claims import claim_in_graph, claim_is_superseded
 from app.services.knowledge.graph_claim_mirror import attach_claim_supports, mirror_claim
 from app.services.knowledge.persistence_class import DOMAIN_KNOWLEDGE, classify_persistence
-from app.services.knowledge.scope import scope_from_row
 
 
 @dataclass(frozen=True)
@@ -71,23 +72,23 @@ async def persist_domain_claim(
     if claim.id != identity:
         raise KnowledgeClaimError("claim id does not match stable identity")
     await assert_claim_grounding_scope(session, claim)
-    # Legacy rows keep their id; they are materialised into the graph here.
-    legacy = await claim_by_identity(session, claim.scope.scope_key, identity)
-    if legacy is not None:
-        _reject_superseded_claim(legacy)
-        if scope_from_row(legacy) != claim.scope:
-            raise KnowledgeClaimError(
-                f"claim {legacy.id} already exists in a different knowledge scope"
-            )
-        key = legacy.id
-    else:
-        key = identity
+    # After migration 192 the graph is the only claim store; the legacy SQL
+    # table is gone (rows are retained as knowledge_claims_dropped only).
     catalog = require_knowledge()
+    existing = claim_in_graph(
+        catalog, scope_key=claim.scope.scope_key, identity=identity
+    )
+    if existing is not None:
+        key = identity
+        reused = True
+    else:
+        # Legacy backfill may have materialised this logical claim under its old
+        # SQL id. The graph is authoritative: recover that key without reading
+        # the dropped SQL table, and never mint a duplicate.
+        key = _graph_key_by_identity(catalog, claim) or identity
+        reused = key != identity
     if claim_is_superseded(catalog, key):
         raise KnowledgeClaimError(f"claim {key} is superseded")
-    reused = legacy is not None or (
-        claim_in_graph(catalog, scope_key=claim.scope.scope_key, identity=key) is not None
-    )
     await asyncio.to_thread(mirror_claim, claim, key=key)
     await asyncio.to_thread(attach_claim_supports, key, claim.supporting_text_unit_ids)
     if not reused:
@@ -104,6 +105,30 @@ async def persist_domain_claim(
     return PersistedClaim(id=key, identity_key=identity), reused
 
 
+def _graph_key_by_identity(catalog, claim: KnowledgeClaim) -> str | None:
+    """Find a graph claim materialised under a legacy key with the same identity."""
+    nodes, _ = catalog.query_nodes(
+        label_filter={
+            "labels": [CLAIM, scope_label(claim.scope.scope_key)],
+            "mode": "all",
+        },
+        limit=100_000,
+    )
+    for node in nodes:
+        props = node.props
+        if props.get("predicate") != claim.predicate:
+            continue
+        if props.get("scope_key") != claim.scope.scope_key:
+            continue
+        try:
+            value = json.loads(str(props.get("value_json") or ""))
+        except (TypeError, ValueError):
+            continue
+        if value == claim.value:
+            return node.key
+    return None
+
+
 async def attach_supporting_text_units(
     session: AsyncSession,
     claim_id: str,
@@ -111,28 +136,6 @@ async def attach_supporting_text_units(
 ) -> None:
     """Attach supporting TextUnits in the graph (idempotent)."""
     await asyncio.to_thread(attach_claim_supports, claim_id, tuple(unit_ids))
-
-
-async def claim_by_identity(
-    session: AsyncSession,
-    scope_key: str,
-    identity: str,
-) -> KnowledgeClaimRecord | None:
-    return (
-        await session.execute(
-            select(KnowledgeClaimRecord)
-            .where(
-                KnowledgeClaimRecord.identity_key == identity,
-                KnowledgeClaimRecord.scope_key == scope_key,
-            )
-            .order_by(KnowledgeClaimRecord.created_at, KnowledgeClaimRecord.id)
-        )
-    ).scalars().first()
-
-
-def _reject_superseded_claim(row: KnowledgeClaimRecord) -> None:
-    if row.superseded_at is not None:
-        raise KnowledgeClaimError(f"claim {row.id} is superseded")
 
 
 async def prune_unsupported_claims(session: AsyncSession) -> None:
