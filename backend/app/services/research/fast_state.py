@@ -8,6 +8,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+# execution.service imports followup, completeness and assessment. Starting
+# from any of those first raises a circular ImportError, so load it here.
+import app.services.execution.service  # noqa: F401
 from app.services.research.assessment import AssessableEvidence, review_excerpt
 from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.models import ResearchNeed, ResearchPlan
