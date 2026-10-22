@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from app.services.research.assessment import AssessableEvidence
@@ -24,6 +24,7 @@ class GoldenCase:
     signal: str
     plan: ResearchPlan
     evidence: tuple[AssessableEvidence, ...]
+    counterparts: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 def all_golden_cases() -> tuple[GoldenCase, ...]:
@@ -39,6 +40,12 @@ def all_golden_cases() -> tuple[GoldenCase, ...]:
         duplicate_sources(),
         later_wave_contradiction(),
         adversarial_empty(),
+        duplicate_contradiction(),
+        independent_contradiction(),
+        compatible_periods(),
+        compatible_entities(),
+        unknown_counterpart(),
+        pair_over_budget(),
     )
 
 
@@ -49,6 +56,17 @@ def scripted_benchmark_cases() -> tuple[GoldenCase, ...]:
         late_evidence(),
         large_567k(),
         short_sufficient(),
+    )
+
+
+def conflict_benchmark_cases() -> tuple[GoldenCase, ...]:
+    """A2/A3 conflict cases. `pair_over_budget` is A3-only, so it is excluded."""
+    return (
+        duplicate_contradiction(),
+        independent_contradiction(),
+        compatible_periods(),
+        compatible_entities(),
+        unknown_counterpart(),
     )
 
 
@@ -251,6 +269,142 @@ def adversarial_empty() -> GoldenCase:
         plan=_plan(),
         evidence=(_item("evidence-0", "", status="found"),),
     )
+
+
+def duplicate_contradiction() -> GoldenCase:
+    evidence = (
+        _item("dup-support", SUPPORT_PHRASE, status="found"),
+        _item(
+            "dup-contra",
+            f"{CONTRADICTION_SIGNAL} Avgörandet gäller ett annat avtal.",
+            status="found",
+        ),
+    )
+    return GoldenCase(
+        case_id="duplicate_contradiction",
+        expected="insufficient",
+        expected_status="uncertain",
+        signal=CONTRADICTION_SIGNAL,
+        plan=_plan(),
+        evidence=evidence,
+    )
+
+
+def independent_contradiction() -> GoldenCase:
+    evidence = (
+        _item("ind-support", SUPPORT_PHRASE, status="found"),
+        _item(
+            "ind-contra",
+            f"{CONTRADICTION_SIGNAL} Avgörandet gäller samma avtal.",
+            status="found",
+        ),
+    )
+    return GoldenCase(
+        case_id="independent_contradiction",
+        expected="insufficient",
+        expected_status="uncertain",
+        signal=CONTRADICTION_SIGNAL,
+        plan=_plan(),
+        evidence=evidence,
+    )
+
+
+def compatible_periods() -> GoldenCase:
+    evidence = (
+        _item(
+            "period-old",
+            "Uppsägningstiden är tre månader för avtalet.",
+            status="found",
+            provenance={
+                "valid_from": "2024-01-01",
+                "valid_to": "2024-12-31",
+                "entity_id": "avtal-period",
+            },
+        ),
+        _item(
+            "period-new",
+            "Uppsägningstiden är sex månader för avtalet.",
+            status="found",
+            provenance={
+                "valid_from": "2026-01-01",
+                "valid_to": "2026-12-31",
+                "entity_id": "avtal-period",
+            },
+        ),
+    )
+    return GoldenCase(
+        case_id="compatible_periods",
+        expected="sufficient",
+        expected_status="sufficient",
+        signal="",
+        plan=_plan(),
+        evidence=evidence,
+        counterparts={"period-new:p0": ("period-old:p0",)},
+    )
+
+
+def compatible_entities() -> GoldenCase:
+    evidence = (
+        _item(
+            "entity-a",
+            "Avtal A har tre månaders uppsägningstid.",
+            status="found",
+            provenance={"entity_id": "avtal-a"},
+        ),
+        _item(
+            "entity-b",
+            "Avtal B har sex månaders uppsägningstid.",
+            status="found",
+            provenance={"entity_id": "avtal-b"},
+        ),
+    )
+    return GoldenCase(
+        case_id="compatible_entities",
+        expected="sufficient",
+        expected_status="sufficient",
+        signal="",
+        plan=_plan(),
+        evidence=evidence,
+        counterparts={"entity-b:p0": ("entity-a:p0",)},
+    )
+
+
+def unknown_counterpart() -> GoldenCase:
+    return GoldenCase(
+        case_id="unknown_counterpart",
+        expected="insufficient",
+        expected_status="uncertain",
+        signal=CONTRADICTION_SIGNAL,
+        plan=_plan(),
+        evidence=(
+            _item(
+                "unknown-contra",
+                f"{CONTRADICTION_SIGNAL} Ingen motpart är identifierad.",
+                status="found",
+            ),
+        ),
+    )
+
+
+def pair_over_budget() -> GoldenCase:
+    """A3-only: a required pair that does not fit the pair context budget."""
+    filler = "underlag. " * 400
+    return GoldenCase(
+        case_id="pair_over_budget",
+        expected="insufficient",
+        expected_status="uncertain",
+        signal=CONTRADICTION_SIGNAL,
+        plan=_plan(),
+        evidence=(
+            _item("budget-left", f"{SUPPORT_PHRASE} {filler}", status="found"),
+            _item(
+                "budget-right",
+                f"{CONTRADICTION_SIGNAL} {filler}",
+                status="found",
+            ),
+        ),
+    )
+
 
 
 def _plan() -> ResearchPlan:

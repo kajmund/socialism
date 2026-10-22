@@ -175,6 +175,7 @@ async def _one(
         client=client,
         config=config,
         live_measurement=measurement,
+        counterparts=case.counterparts,
     )
     return CaseReport(
         case_id=case.case_id,

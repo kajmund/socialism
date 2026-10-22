@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from app.jev.system import JevSystemOne
 from app.services.research.assessment import AssessableEvidence, ResearchAssessmentDraft
@@ -20,6 +20,7 @@ async def run_experiment(
     config: ExperimentConfig | None = None,
     narrative: NarrativeFn | None = None,
     live_measurement: str = "not_run",
+    counterparts: Mapping[str, tuple[str, ...]] | None = None,
 ) -> ExperimentReport:
     loop = SufficiencyLoop(
         plan,
@@ -28,6 +29,7 @@ async def run_experiment(
         config=config or ExperimentConfig(),
         narrative=narrative,
         live_measurement=live_measurement,
+        counterparts=counterparts,
     )
     await loop.run()
     if loop.report is None:
