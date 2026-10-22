@@ -19,6 +19,7 @@ from app.database.models import (
     Kund,
 )
 from app.services.knowledge.audit import audit_knowledge_graph, cleanup_knowledge_graph
+from app.services.knowledge.backfill_claims import backfill_claims
 from app.services.knowledge.claim_rekey import backfill_source_independent_claims
 from app.services.knowledge.events import utc_now
 from app.services.knowledge.claims import (
@@ -677,11 +678,14 @@ async def test_backfill_then_research_does_not_mint_a_second_claim():
     _legacy_claim(session, claim_id="legacy-old-hash", unit_id="tu-hold")
     await session.flush()
     await backfill_source_independent_claims(session)
+    # SQL rekey alone is not a graph claim. Migration 192 makes OverGraph the
+    # authority, so the legacy row is materialised there under its SQL id before
+    # the SQL tables are dropped; persist must reuse that graph node.
+    await backfill_claims(session)
     claim = _domain_claim()
     result = await persist_extracted_knowledge(session, claims=[claim])
     assert result.stats.claims_accepted == 0
     assert result.stats.claims_reused == 1
-    # Legacy backfill merges rows in SQL; graph dedupe lands in parcel 6.
     assert await session.scalar(select(func.count()).select_from(KnowledgeClaimRecord)) == 1
     stored = await session.get(KnowledgeClaimRecord, "legacy-old-hash")
     assert stored is not None

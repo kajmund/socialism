@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass
 
 from collections.abc import Sequence
@@ -19,6 +20,7 @@ from app.services.knowledge.claims import (
 )
 from app.services.knowledge.events import CLAIM_ADDED, record_graph_event, utc_now
 from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.labels import CLAIM, scope_label
 from app.services.overgraph.legal_claims import claim_in_graph, claim_is_superseded
 from app.services.knowledge.graph_claim_mirror import attach_claim_supports, mirror_claim
 from app.services.knowledge.persistence_class import DOMAIN_KNOWLEDGE, classify_persistence
@@ -72,13 +74,21 @@ async def persist_domain_claim(
     await assert_claim_grounding_scope(session, claim)
     # After migration 192 the graph is the only claim store; the legacy SQL
     # table is gone (rows are retained as knowledge_claims_dropped only).
-    key = identity
     catalog = require_knowledge()
+    existing = claim_in_graph(
+        catalog, scope_key=claim.scope.scope_key, identity=identity
+    )
+    if existing is not None:
+        key = identity
+        reused = True
+    else:
+        # Legacy backfill may have materialised this logical claim under its old
+        # SQL id. The graph is authoritative: recover that key without reading
+        # the dropped SQL table, and never mint a duplicate.
+        key = _graph_key_by_identity(catalog, claim) or identity
+        reused = key != identity
     if claim_is_superseded(catalog, key):
         raise KnowledgeClaimError(f"claim {key} is superseded")
-    reused = (
-        claim_in_graph(catalog, scope_key=claim.scope.scope_key, identity=key) is not None
-    )
     await asyncio.to_thread(mirror_claim, claim, key=key)
     await asyncio.to_thread(attach_claim_supports, key, claim.supporting_text_unit_ids)
     if not reused:
@@ -93,6 +103,30 @@ async def persist_domain_claim(
             created_at=utc_now(),
         )
     return PersistedClaim(id=key, identity_key=identity), reused
+
+
+def _graph_key_by_identity(catalog, claim: KnowledgeClaim) -> str | None:
+    """Find a graph claim materialised under a legacy key with the same identity."""
+    nodes, _ = catalog.query_nodes(
+        label_filter={
+            "labels": [CLAIM, scope_label(claim.scope.scope_key)],
+            "mode": "all",
+        },
+        limit=100_000,
+    )
+    for node in nodes:
+        props = node.props
+        if props.get("predicate") != claim.predicate:
+            continue
+        if props.get("scope_key") != claim.scope.scope_key:
+            continue
+        try:
+            value = json.loads(str(props.get("value_json") or ""))
+        except (TypeError, ValueError):
+            continue
+        if value == claim.value:
+            return node.key
+    return None
 
 
 async def attach_supporting_text_units(
