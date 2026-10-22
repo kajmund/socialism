@@ -1,4 +1,4 @@
-"""Golden cases vs the PR #420 budgeted Cerebras baseline."""
+"""Golden cases vs the PR #420 budgeted Cerebras baseline. Scripted only."""
 
 from __future__ import annotations
 
@@ -8,10 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.services.research.assessment_input import ASSESSMENT_MAX_INPUT_CHARS
-from app.services.research.sufficiency_experiment.assessor import (
-    ExperimentResearchAssessor,
-    run_experiment,
-)
+from app.services.research.sufficiency_experiment.assessor import run_experiment
 from app.services.research.sufficiency_experiment.baseline import (
     PR420_INPUT_CHARS_AFTER,
     PR420_INPUT_CHARS_BEFORE,
@@ -20,9 +17,9 @@ from app.services.research.sufficiency_experiment.baseline import (
 from app.services.research.sufficiency_experiment.benchmark import run_benchmark
 from app.services.research.sufficiency_experiment.golden import (
     CONTRADICTION_SIGNAL,
-    all_golden_cases,
     large_567k,
     late_evidence,
+    scripted_benchmark_cases,
     tail_counterevidence,
 )
 from app.services.research.sufficiency_experiment.scripted import ScriptedSufficiencyJev
@@ -34,14 +31,16 @@ FIXTURE = (
     / "pr420_cerebras_baseline.json"
 )
 
-
 @pytest.mark.asyncio
 async def test_experiment_judges_complete_golden_cases() -> None:
     client = ScriptedSufficiencyJev()
-    assessor = ExperimentResearchAssessor(client=client)
-    for case in all_golden_cases():
-        draft = await assessor.assess(case.plan, case.evidence)
-        assert draft.result == case.expected, case.case_id
+    for case in scripted_benchmark_cases():
+        report = await run_experiment(
+            case.plan, case.evidence, client=client, live_measurement="scripted"
+        )
+        assert report.draft.result == case.expected, case.case_id
+        assert report.status == case.expected_status, case.case_id
+        assert report.live_measurement == "scripted"
 
 
 @pytest.mark.asyncio
@@ -50,16 +49,25 @@ async def test_tail_and_late_signals_are_visible_only_to_the_experiment() -> Non
         view = baseline_view(case.evidence)
         assert view.truncated or not view.contains(CONTRADICTION_SIGNAL)
         assert not view.contains(CONTRADICTION_SIGNAL)
-        report = await run_experiment(case.plan, case.evidence, client=ScriptedSufficiencyJev())
+        report = await run_experiment(
+            case.plan, case.evidence, client=ScriptedSufficiencyJev()
+        )
         assert report.coverage == 1.0
         assert report.draft.result == "insufficient"
+        assert report.status == "uncertain"
         assert any(CONTRADICTION_SIGNAL in item.text for item in report.passages)
 
 
 @pytest.mark.asyncio
-async def test_benchmark_beats_pr420_false_sufficient_rate() -> None:
-    report = await run_benchmark(all_golden_cases(), client=ScriptedSufficiencyJev())
+async def test_scripted_benchmark_is_labeled_scripted() -> None:
+    report = await run_benchmark(
+        scripted_benchmark_cases(),
+        client=ScriptedSufficiencyJev(),
+        measurement="scripted",
+    )
     summary = report.summary()
+    assert summary["measurement"] == "scripted"
+    assert "not live" in summary["note"]
     assert summary["accuracy"]["experiment"] == 1.0
     assert summary["false_sufficient_rate"]["experiment"] == 0.0
     assert summary["false_sufficient_rate"]["baseline"] > 0.0
@@ -73,6 +81,7 @@ async def test_benchmark_beats_pr420_false_sufficient_rate() -> None:
     assert large.baseline.input_chars <= ASSESSMENT_MAX_INPUT_CHARS
     assert large.experiment.coverage == 1.0
     assert large.baseline.false_sufficient
+    assert large.experiment.status == "uncertain"
 
 
 def test_late_evidence_is_omitted_by_the_pr420_budget() -> None:

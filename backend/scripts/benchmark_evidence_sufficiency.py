@@ -16,15 +16,27 @@ os.environ.setdefault("LOCAL_AUTH_JWT_SECRET", "offline-benchmark-not-used")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "offline-benchmark-not-used")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
-from app.services.research.sufficiency_experiment.benchmark import run_benchmark
-from app.services.research.sufficiency_experiment.golden import all_golden_cases
+from app.services.research.sufficiency_experiment.benchmark import (
+    live_measurement_status,
+    measure_live_models,
+    run_benchmark,
+)
+from app.services.research.sufficiency_experiment.golden import scripted_benchmark_cases
 from app.services.research.sufficiency_experiment.scripted import ScriptedSufficiencyJev
 
 
 def main() -> int:
-    report = asyncio.run(run_benchmark(all_golden_cases(), client=ScriptedSufficiencyJev()))
+    report = asyncio.run(
+        run_benchmark(scripted_benchmark_cases(), client=ScriptedSufficiencyJev())
+    )
+    live = asyncio.run(measure_live_models(scripted_benchmark_cases()))
     payload = {
         "summary": report.summary(),
+        "live": {
+            "status": live_measurement_status(),
+            "measurement": live.measurement,
+            "note": live.note,
+        },
         "cases": [
             {
                 "case_id": case.case_id,

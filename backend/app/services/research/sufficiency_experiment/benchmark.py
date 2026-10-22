@@ -1,4 +1,8 @@
-"""Compare the experiment to the PR #420 budgeted Cerebras baseline."""
+"""Compare the experiment to the PR #420 budgeted Cerebras baseline.
+
+Scripted scores are closed-judge unit metrics. Live Jev/Cerebras are a
+separate path and report `unavailable` when credentials are missing.
+"""
 
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ from app.services.research.sufficiency_experiment.types import ExperimentConfig,
 @dataclass(frozen=True)
 class PathMetrics:
     result: str
+    status: str
     accurate: bool
     false_sufficient: bool
     coverage: float
@@ -44,10 +49,14 @@ class CaseReport:
 @dataclass(frozen=True)
 class BenchmarkReport:
     cases: tuple[CaseReport, ...]
+    measurement: str
     pr420: dict[str, object] = field(default_factory=dict)
+    note: str = ""
 
     def summary(self) -> dict[str, object]:
         return {
+            "measurement": self.measurement,
+            "note": self.note,
             "accuracy": {
                 "baseline": _accuracy(self.cases, "baseline"),
                 "experiment": _accuracy(self.cases, "experiment"),
@@ -56,6 +65,7 @@ class BenchmarkReport:
                 "baseline": _false_sufficient(self.cases, "baseline"),
                 "experiment": _false_sufficient(self.cases, "experiment"),
             },
+            "confusion": _confusion(self.cases),
             "coverage": {
                 "baseline": _mean_coverage(self.cases, "baseline"),
                 "experiment": _mean_coverage(self.cases, "experiment"),
@@ -73,41 +83,84 @@ class BenchmarkReport:
         }
 
 
+def live_keys_configured() -> bool:
+    from app.config import settings
+
+    return bool(settings.typesafe_api_key.strip()) and bool(settings.cerebras_api_key.strip())
+
+
+def live_measurement_status() -> str:
+    return "available" if live_keys_configured() else "unavailable"
+
+
 async def run_benchmark(
     cases: Sequence[GoldenCase],
     *,
     client: JevSystemOne,
     config: ExperimentConfig | None = None,
+    measurement: str = "scripted",
 ) -> BenchmarkReport:
     settings = config or ExperimentConfig()
-    rows = [await _one(case, client, settings) for case in cases]
+    rows = [
+        await _one(case, client, settings, measurement=measurement) for case in cases
+    ]
     return BenchmarkReport(
         cases=tuple(rows),
-        pr420={
-            "model": PR420_MODEL,
-            "input_chars_before": PR420_INPUT_CHARS_BEFORE,
-            "input_chars_after": PR420_INPUT_CHARS_AFTER,
-            "output_cap_tokens": PR420_OUTPUT_CAP_TOKENS,
-        },
+        measurement=measurement,
+        note="scripted closed judge; not live Jev or Cerebras quality",
+        pr420=_pr420(),
     )
+
+
+async def measure_live_models(
+    cases: Sequence[GoldenCase],
+    *,
+    config: ExperimentConfig | None = None,
+) -> BenchmarkReport:
+    """Honest live path. Does not substitute scripted scores when keys are missing."""
+    if not live_keys_configured():
+        return BenchmarkReport(
+            cases=(),
+            measurement="unavailable",
+            note="TYPESAFE_API_KEY and/or CEREBRAS_API_KEY missing; no live scores invented",
+            pr420=_pr420(),
+        )
+    raise RuntimeError("live Jev/Cerebras measurement is not wired in this environment")
 
 
 async def _one(
     case: GoldenCase,
     client: JevSystemOne,
     config: ExperimentConfig,
+    *,
+    measurement: str,
 ) -> CaseReport:
     started = perf_counter()
     view = baseline_view(case.evidence)
     baseline_result = baseline_verdict(view, expected=case.expected, signal=case.signal)
     baseline_ms = (perf_counter() - started) * 1000
-    report = await run_experiment(case.plan, case.evidence, client=client, config=config)
+    report = await run_experiment(
+        case.plan,
+        case.evidence,
+        client=client,
+        config=config,
+        live_measurement=measurement,
+    )
     return CaseReport(
         case_id=case.case_id,
         expected=case.expected,
         baseline=_baseline_metrics(case, view, baseline_result, baseline_ms),
         experiment=_experiment_metrics(case, report),
     )
+
+
+def _pr420() -> dict[str, object]:
+    return {
+        "model": PR420_MODEL,
+        "input_chars_before": PR420_INPUT_CHARS_BEFORE,
+        "input_chars_after": PR420_INPUT_CHARS_AFTER,
+        "output_cap_tokens": PR420_OUTPUT_CAP_TOKENS,
+    }
 
 
 def _baseline_metrics(
@@ -118,6 +171,7 @@ def _baseline_metrics(
 ) -> PathMetrics:
     return PathMetrics(
         result=result,
+        status=result,
         accurate=result == case.expected,
         false_sufficient=result == "sufficient" and case.expected == "insufficient",
         coverage=view.coverage,
@@ -133,13 +187,14 @@ def _experiment_metrics(case: GoldenCase, report: ExperimentReport) -> PathMetri
     result = report.draft.result
     return PathMetrics(
         result=result,
+        status=report.status,
         accurate=result == case.expected,
         false_sufficient=result == "sufficient" and case.expected == "insufficient",
         coverage=report.coverage,
         latency_ms=report.latency_ms,
         jev_calls=report.jev_calls,
         llm_calls=report.llm_calls,
-        input_chars=sum(row.input_chars for row in report.evaluations),
+        input_chars=report.judged_chars,
         omitted_evidence=len(report.quality.omitted_evidence_ids),
     )
 
@@ -179,3 +234,23 @@ def _cost(cases: Sequence[CaseReport], path: str) -> dict[str, int]:
         "llm_calls": sum(_pick(case, path).llm_calls for case in cases),
         "input_chars": sum(_pick(case, path).input_chars for case in cases),
     }
+
+
+def _confusion(cases: Sequence[CaseReport]) -> dict[str, int]:
+    matrix = {
+        "true_sufficient": 0,
+        "false_sufficient": 0,
+        "true_insufficient": 0,
+        "false_insufficient": 0,
+    }
+    for case in cases:
+        predicted = case.experiment.result
+        if case.expected == "sufficient" and predicted == "sufficient":
+            matrix["true_sufficient"] += 1
+        elif case.expected == "insufficient" and predicted == "sufficient":
+            matrix["false_sufficient"] += 1
+        elif case.expected == "insufficient" and predicted == "insufficient":
+            matrix["true_insufficient"] += 1
+        else:
+            matrix["false_insufficient"] += 1
+    return matrix
