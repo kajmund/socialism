@@ -16,6 +16,7 @@ ObligationKind = Literal["relevance", "factual_support", "completeness"]
 ExperimentStatus = Literal["sufficient", "insufficient", "uncertain", "failed"]
 ConflictStatus = Literal["unresolved", "resolved", "not_applicable"]
 ClaimExtractionStatus = Literal["extracted", "uncertain", "unprocessed"]
+PairStrategy = Literal["deterministic", "embeddings", "hybrid"]
 ConflictReasonKind = Literal["temporal", "entity", "definition", "superseding"]
 RouteChoice = Literal["FINISH", "RUN_SUBWORKFLOW", "ESCALATE_NARRATIVE", "UNCERTAIN"]
 ROUTE_CHOICES: tuple[RouteChoice, ...] = (
@@ -51,6 +52,8 @@ class ExperimentConfig:
     max_claim_chars: int = 500
     min_claim_words: int = 4
     max_claims_per_need: int = 200
+    max_pairs_per_need: int = 40
+    embedding_neighbors: int = 3
 
 
 @dataclass(frozen=True)
@@ -155,6 +158,30 @@ class ClaimCandidate:
     valid_to: str | None = None
     definition_id: str | None = None
     content_hash: str = ""
+
+
+@dataclass(frozen=True)
+class PairCandidate:
+    pair_id: str
+    need_id: str
+    left_claim_id: str
+    right_claim_id: str
+    score: float
+    sources: tuple[str, ...]
+    features: tuple[tuple[str, float], ...] = ()
+
+
+@dataclass(frozen=True)
+class PairSelection:
+    strategy: PairStrategy
+    candidates: tuple[PairCandidate, ...]
+    selected: tuple[PairCandidate, ...]
+    budget: int
+    omitted_by_budget: int
+    input_claims: int
+    latency_ms: float
+    embedding_calls: int = 0
+    embedding_texts: int = 0
 
 
 @dataclass(frozen=True)
