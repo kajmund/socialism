@@ -39,6 +39,7 @@ from app.services.knowledge.scope import (
 )
 from app.services.knowledge.units import TextUnit
 from app.services.knowledge.vector_store import KnowledgeVectorStore
+from app.serializers import utcnow
 
 _MISSING_EMBEDDINGS = "missing ingest embeddings"
 
@@ -151,6 +152,20 @@ async def persist_extracted_source(
             resolved,
         )
 
+    if existing is not None:
+        current = await get_current_document_version(session, existing.id)
+        if current is not None and current.content_hash == identity.content_hash:
+            current_units = await asyncio.to_thread(
+                load_domain_text_units,
+                require_knowledge(),
+                document_version_id=current.id,
+            )
+            if not current_units:
+                # A stale SQL version without graph TextUnits cannot be reused.
+                # Supersede it so the normal persist path writes a fresh version
+                # with its TextUnits instead of raising.
+                current.superseded_at = utcnow()
+                await session.flush()
     written = await persist_segmented_document(
         session,
         scope=persist_scope,
