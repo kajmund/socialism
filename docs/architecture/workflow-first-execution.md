@@ -83,7 +83,7 @@ not personas and not research providers.
 | Layer | What exists today | What this policy uses |
 | ----- | ----------------- | --------------------- |
 | Rust SWE (`crates/swe-native`) | `task`, expression/`provider` `decision`, `fork`, `join`, `map`, `end`. Rejects `wait` and `subworkflow`. | Top-level sufficiency definition: programmatic gate → segment → evaluate → aggregate → quality → optional narrative. |
-| Jev (`app/jev/system.py`) | System One HTTP. Research screening, document-property verification, Auto routing. | Per-passage, per-need verdicts (`SUPPORTED` / `UNSUPPORTED` / `CONTRADICTS` / `UNDECIDED`). |
+| Jev (`app/jev/system.py`) | System One HTTP. Research screening, document-property verification, Auto routing. | Passage `EVIDENCE_SCREEN_QUESTIONS` + need `ASSESSMENT_QUESTIONS` / `classify_research_decision`. |
 | Subagents | Spec only: read-only workers after Jev says decomposable + parallelizable. | Not a general agent. Bounded narrative is one optional SWE task with allowlisted workflow tools. |
 
 SWE never calls Python while the machine lock is held. Handlers and Jev
@@ -116,21 +116,45 @@ handlers, or narrative completion. See the root AGENTS.md connection rule.
 Do not wire the experiment into `build_llm_research_assessor` unless a
 later change explicitly asks for that opt-in.
 
+## Invariants (evidence sufficiency)
+
+- A single supporting passage is never sufficient. Mandatory obligations
+  come from `ResearchNeed.source_types` / `capabilities`. Unknown
+  requirements ⇒ `UNCERTAIN`, never sufficient.
+- Relevance, factual support, and completeness are separate. Span
+  coverage is not semantic completeness.
+- Five items with one `independence_key` are one source.
+- A contradiction is preserved. It is not final insufficiency. Resolve
+  through a typed subworkflow or stay `UNCERTAIN`. No majority vote.
+- Jev routing uses `ASSESSMENT_QUESTIONS` + `classify_research_decision`,
+  then a deterministic validator chooses FINISH / RUN_SUBWORKFLOW /
+  ESCALATE_NARRATIVE / UNCERTAIN. Prefer subworkflow before narrative.
+- Missing evaluations, timeouts, errors, or exhausted budgets ⇒
+  `UNCERTAIN` or `FAILED`, never sufficient.
+- Execution is `WorkflowRunner.run`. Compiling SWD and then looping in
+  Python is forbidden.
+- The experiment is a `ResearchAssessor`. It does not replace
+  `loop_control` follow-up or completeness.
+
+## Anti-patterns
+
+- `if supporting: sufficient = True`
+- `if contradiction: insufficient = True`
+- `jev_requires_narrative = any(needs_narrative)`
+- Treating scripted Jev scores as live Cerebras/Jev quality
+- A second evidence or loop model
+
 ## Evidence sufficiency experiment (shape)
 
-Assess the **complete** frozen EvidenceSet:
+Assess the **complete** frozen EvidenceSet on SWE:
 
-1. Deterministic programmatic gate (reuse `can_assess_programmatically`).
-2. Semantic passage segmentation (reuse
-   `app.services.knowledge.splitting.split_structured`). Keep gaps and
-   tails. Coverage must be 100% of source characters.
-3. Parallel Jev evaluations, one job per `(need, passage)`.
-4. Deterministic per-need aggregation. `CONTRADICTS` wins.
-   `SUPPORTED` without contradiction is sufficient for that need.
-5. Quality gate. Narrative only if undecided verdicts could change the
-   outcome **and** coverage, omission, budget, and recursion checks pass.
-6. Bounded narrative, allowlisted workflows only, same
-   `ResearchAssessmentDraft` schema.
+1. Group with `group_evidence_for_review`.
+2. Segment every source character (no silent drop).
+3. `map` passage jobs; each child asks `EVIDENCE_SCREEN_QUESTIONS`.
+4. Aggregate obligations + `independence_key`.
+5. Jev `ASSESSMENT_QUESTIONS` → validate route.
+6. Optional `resolve_conflict` subworkflow, then re-aggregate.
+7. Emit `ResearchAssessmentDraft` through `sanitize_assessment_draft`.
 
 Do not silently truncate evidence. A character that was not placed in a
 passage is a defect.

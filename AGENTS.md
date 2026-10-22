@@ -17,13 +17,25 @@ This file is the source of truth for any coding agent (Claude Code, Cursor, Code
 
 **Socialism** — internal tool for political messaging simulation and due diligence against AI agent populations (personas grounded in local context). Swedish UI by default.
 
+## Reuse before new (mandatory for coding agents)
+
+**This is a permanent standard. Every spec, experiment, and implementation must follow it before adding abstractions.**
+
+1. Inventory existing code, tests, interfaces, workflows, and related patterns.
+2. Write a reuse-vs-new matrix (existing counterpart, reuse/extend/new, justification if new).
+3. Default to extending SWE, Jev, assessment, quality, and `loop_control`. New frameworks, wrappers, parallel runners, or duplicated domain models need an explicit documented reason.
+4. Prove the reused path with a real integration test that invokes the existing primitive.
+5. Keep mocked/scripted benchmarks separate from live model measurements. Do not present scripted scores as model quality.
+
+Full standard: [docs/architecture/reuse-before-new.md](docs/architecture/reuse-before-new.md). Example matrix: [docs/architecture/evidence-sufficiency-reuse-audit.md](docs/architecture/evidence-sufficiency-reuse-audit.md).
+
 ## Execution policy (workflow-first)
 
 **Deterministic first, Jev second, reusable typed subworkflows third, bounded narrative agent only when Jev says it is necessary and deterministic quality gates permit.** Agent tools are allowlisted typed workflows — not generic search or database tools. Strict prompts, schemas, provenance, budgets, and recursion limits. Do not silently truncate evidence.
 
 This is the execution policy for new orchestration. Today's production evidence-sufficiency assessor stays on the PR #420 budgeted Cerebras path. The complete-EvidenceSet assessor is an opt-in experiment.
 
-Full policy: [docs/architecture/workflow-first-execution.md](docs/architecture/workflow-first-execution.md). Experiment: [docs/guides/evidence-sufficiency-experiment.md](docs/guides/evidence-sufficiency-experiment.md).
+Full policy: [docs/architecture/workflow-first-execution.md](docs/architecture/workflow-first-execution.md). Reuse audit: [docs/architecture/evidence-sufficiency-reuse-audit.md](docs/architecture/evidence-sufficiency-reuse-audit.md). Experiment: [docs/guides/evidence-sufficiency-experiment.md](docs/guides/evidence-sufficiency-experiment.md).
 
 ## Stack
 
