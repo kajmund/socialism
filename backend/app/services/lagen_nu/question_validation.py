@@ -1,12 +1,12 @@
 """Legal ResearchNeed validation. Domain-owned; does not retrieve."""
 
 from __future__ import annotations
-
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Literal, Protocol
 
 from app.services.lagen_nu.followup_validation import measure_gap_stage, validate_followups
+from app.services.lagen_nu import query_normalisation as _query
 from app.services.research.followup import FollowUpNeedDraft, RuntimeResearchNeed
 from app.services.research.knowledge_question import research_question_key
 from app.services.research.models import ResearchNeed, ResearchPlan
@@ -15,13 +15,8 @@ from app.services.research.planner import (
     ResearchNeedDraft,
     assign_initial_need_id,
 )
-
 LEGAL_RESEARCH_SOURCE_TYPES: frozenset[str] = frozenset(
-    {
-        "swedish_law",
-        "swedish_case_law",
-        "swedish_preparatory_works",
-    }
+    ("swedish_law", "swedish_case_law", "swedish_preparatory_works")
 )
 
 LegalQuestionAction = Literal["keep", "rewrite", "split"]
@@ -410,7 +405,9 @@ class LegalResearchPlannerAdapter:
             objective=objective,
             available_source_types=available_source_types,
         )
-        return await self._normalizer.normalize_drafts(drafts)
+        return _query.anchor_research_drafts(
+            await self._normalizer.normalize_drafts(drafts), objective=objective.objective
+        )
 
 
 class LegalFollowUpPlannerAdapter:
@@ -437,7 +434,10 @@ class LegalFollowUpPlannerAdapter:
                 previous_needs=previous_needs,
                 available_source_types=available_source_types,
             )
-        return await self._normalizer.normalize_follow_up_drafts(drafts)
+        return _query.anchor_follow_up_drafts(
+            await self._normalizer.normalize_follow_up_drafts(drafts),
+            objective=_query.plan_objective(plan),
+        )
 
 
 def mixed_md_avtl_verdict() -> LegalQuestionVerdict:
