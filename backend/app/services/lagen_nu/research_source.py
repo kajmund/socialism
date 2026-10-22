@@ -49,6 +49,16 @@ from app.services.lagen_nu.mcp_client import (
     OfficialLagenNuMcpError,
 )
 from app.services.lagen_nu.models import LagenNuDocument, LagenNuSearchHit
+from app.services.lagen_nu.query_normalisation import (
+    _CASE_CITATION,
+    _PREPARATORY_CITATION,
+    _PROVISION_CITATION,
+    looks_like_citation,
+    normalise_citation_text as _normalise_citation_text,
+    provision_resolution_query as _provision_resolution_query,
+    resolution_query as _resolution_query,
+    select_lagen_nu_flow,
+)
 from app.services.lagen_nu.passage_router import (
     JevPassageRouter,
     LagenNuPassageRouter,
@@ -94,29 +104,6 @@ MAX_MCP_TOOL_CALLS = 12
 
 _HTML_TAG = re.compile(r"<[^>]+>")
 _TOKEN = re.compile(r"[0-9A-Za-zÅÄÖåäö]+")
-_CITATION_HINT = re.compile(
-    r"("
-    r"§|"
-    r"\bkap\.|"
-    r"\bSFS\b|"
-    r"\b\d{4}:\d+\b|"
-    r"\bprop\.\s*\d{4}/\d{2}:\d+|"
-    r"\bSOU\s+\d{4}:\d+|"
-    r"\bNJA\s+\d{4}|"
-    r"\bart(?:ikel|\.)?\s*\d+"
-    r")",
-    re.IGNORECASE,
-)
-_CASE_CITATION = re.compile(
-    r"\b(?:NJA|AD|MÖD|HFD|RÅ)\s+\d{4}(?:\s+(?:s\.\s*\d+|nr\s+\d+))?",
-    re.IGNORECASE,
-)
-_PREPARATORY_CITATION = re.compile(
-    r"\b(?:prop(?:osition)?\.?\s*\d{4}(?:/\d{2})?:\d+|SOU\s+\d{4}:\d+|"
-    r"bet(?:änkande)?\.?\s*\d{4}/\d{2}:[A-Za-z]+\d+)",
-    re.IGNORECASE,
-)
-_PROVISION_CITATION = re.compile(r"\b\d+\s*§")
 _COVER_PINPOINT = re.compile(
     r"huvudsaklig|innehållsförteckning|titelsida|omslag",
     re.IGNORECASE,
@@ -193,18 +180,10 @@ class _Candidate:
         return tuple(origins)
 
 
-def looks_like_citation(question: str) -> bool:
-    return _CITATION_HINT.search(question) is not None
-
-
-def looks_like_case_citation(question: str) -> bool:
-    return _CASE_CITATION.search(question) is not None
-
-
 def _unique_citations(pattern: re.Pattern[str], question: str) -> list[str]:
     seen: set[str] = set()
     ordered: list[str] = []
-    for match in pattern.finditer(question):
+    for match in pattern.finditer(_normalise_citation_text(question)):
         citation = " ".join(match.group(0).split())
         key = citation.casefold()
         if key in seen:
@@ -251,17 +230,6 @@ def _preparatory_citations(question: str) -> list[str]:
     return ordered
 
 
-def select_lagen_nu_flow(need: ResearchNeed) -> Literal["resolve", "search"]:
-    caps = {item.strip().lower() for item in need.capabilities if item.strip()}
-    if "resolve_citation" in caps or "resolve" in caps:
-        return "resolve"
-    if "search" in caps:
-        return "search"
-    if looks_like_citation(need.question):
-        return "resolve"
-    return "search"
-
-
 def _plain_text(value: str) -> str:
     return _HTML_TAG.sub("", value).replace("&#x2F;", "/").strip()
 
@@ -274,32 +242,8 @@ def _query_terms(value: str) -> frozenset[str]:
     )
 
 
-def _resolution_query(need: ResearchNeed, source_type: ResearchSourceType) -> str:
-    if source_type == "swedish_preparatory_works":
-        match = _PREPARATORY_CITATION.search(need.question)
-        if match is not None:
-            return match.group(0)
-    if source_type == "swedish_case_law":
-        match = _CASE_CITATION.search(need.question)
-        if match is not None:
-            return match.group(0)
-    provision = _provision_resolution_query(need.question)
-    if provision is not None:
-        return provision
-    return need.question
-
-
-def _provision_resolution_query(question: str) -> str | None:
-    provision = _PROVISION_CITATION.search(question)
-    if provision is None:
-        return None
-    law = re.search(r"\b[A-Za-zÅÄÖåäö]+lagen\b", question, re.IGNORECASE)
-    if law is None:
-        return provision.group(0)
-    return f"{provision.group(0)} {law.group(0)}"
-
-
 def _search_query(question: str, source_type: ResearchSourceType) -> str:
+    question = _normalise_citation_text(question)
     prefixes: list[str] = []
     for pattern in (_PREPARATORY_CITATION, _PROVISION_CITATION):
         match = pattern.search(question)
@@ -765,11 +709,14 @@ class LagenNuResearchSource:
                     origin="citation_graph",
                 )
         flow = select_lagen_nu_flow(need)
-        if flow == "resolve" and not named and not resolved_provision:
+        resolution_query = (
+            _resolution_query(need, self.source_type) if flow == "resolve" else None
+        )
+        if resolution_query is not None and not named and not resolved_provision:
             resolved = await budget.call(
                 "resolve_citation",
-                self._mcp().resolve_citation(_resolution_query(need, self.source_type)),
-                {"citation": _resolution_query(need, self.source_type)},
+                self._mcp().resolve_citation(resolution_query),
+                {"citation": resolution_query},
             )
             direct = _candidates(resolved.results, source=source, origin="resolve")
             if self.source_type == "swedish_law" and direct:
@@ -813,11 +760,16 @@ class LagenNuResearchSource:
                 direct.extend(_candidates(resolved.results, source=source, origin="resolve"))
             if direct:
                 return _merge_candidates(direct)
-        if looks_like_citation(need.question) and not named_cases:
+        resolution_query = (
+            _resolution_query(need, self.source_type)
+            if looks_like_citation(need.question) and not named_cases
+            else None
+        )
+        if resolution_query is not None:
             resolved = await budget.call(
                 "resolve_citation",
-                self._mcp().resolve_citation(_resolution_query(need, self.source_type)),
-                {"citation": _resolution_query(need, self.source_type)},
+                self._mcp().resolve_citation(resolution_query),
+                {"citation": resolution_query},
             )
             direct = _candidates(resolved.results, source=source, origin="resolve")
             target = _resolved_provision_target(resolved.results)
