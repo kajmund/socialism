@@ -112,3 +112,16 @@ uv run python scripts/benchmark_research_swe.py --render-run \
 Baslinjen för dagens loop mäts separat av
 [benchmark_research_loop.py](../../backend/scripts/benchmark_research_loop.py)
 (se [research-baseline-measurement.md](research-baseline-measurement.md)).
+
+
+<!-- v2:528d26d45dfa:v2-528d26d45dfa-20261021T234946Z -->
+## Mätning v2 — kritisk väg, concurrency, paritet, live-kvalitet
+
+- Harness: `backend/scripts/benchmark_research_swe_v2.py` sha256 `528d26d45dfa8ae874fe3ab8345c83c07463197ec3351a31f9aff1da32f24b90`
+- git HEAD: `175b2ffea3f829d27fc7dbecfef7e79a554962e3`
+- Rådata: `/Users/erikfremred/socialism/data/research_swe/v2-528d26d45dfa-20261021T234946Z`
+- Fake: 8 oberoende runs x 6 repeats x 2 frågor, needs=16, latens=40 ms
+- Live (observationslager): 2 frågor x 3 armar x 2 repeats
+- Paritet: alla scenarier lika
+- Live: ej körd — environment-blocked (lagen.nu/mcp onåbar från mäthosten; live-wiring verifierad men ingen retrieval)
+- v1-artefakten `a00ba565…` (n=8) är fortsatt cutover-bas.
