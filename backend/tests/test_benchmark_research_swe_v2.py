@@ -13,6 +13,7 @@ from scripts.benchmark_research_swe_v2 import (
     Interval,
     DiagnosticsRecorder,
     Recorder,
+    _classify_live_error,
     StageRecorder,
     _live_ranking,
     _requested_modes,
@@ -74,6 +75,22 @@ def test_requested_modes_accepts_comma_lists() -> None:
     assert _requested_modes("fake,parity") == {"fake", "parity"}
     assert _requested_modes("all") == {"fake", "parity", "live"}
     assert _requested_modes("parity") == {"parity"}
+
+
+def test_classify_live_error_surfaces_assessment_context_limit() -> None:
+    from app.services.research.execution import ResearchExecutionError
+
+    exc = ResearchExecutionError(
+        "SWE research loop ended in status=failed: "
+        "ResearchAssessmentError: Evidence sufficiency model context limit "
+        "exceeded (context_length_exceeded)"
+    )
+    fields = _classify_live_error(exc)
+    assert fields["error_kind"] == "context_length_exceeded"
+    assert fields["error_type"] == "ResearchExecutionError"
+    assert "assessment_error" in fields
+    assert fields["assessment_error"]["reason"] == "context_length_exceeded"
+    assert "context_length_exceeded" in fields["error_message"]
 
 
 def test_diagnostics_recorder_tracks_tools_args_and_operational_errors() -> None:

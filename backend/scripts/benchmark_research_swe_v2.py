@@ -42,7 +42,7 @@ from typing import Any
 from unittest import mock
 
 from sqlalchemy import select
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
@@ -1241,6 +1241,31 @@ def _live_prompt(*, question: str, needs: list[dict[str, Any]],
     )
 
 
+def _classify_live_error(exc: BaseException) -> dict[str, Any]:
+    message = str(exc)
+    kinds: list[str] = []
+    if "context_length_exceeded" in message or "context limit exceeded" in message:
+        kinds.append("context_length_exceeded")
+    if "ResearchAssessmentError" in message or "evidence sufficiency" in message.lower():
+        kinds.append("assessment_error")
+    if "ResearchExecutionError" in message:
+        kinds.append("research_execution_error")
+    fields: dict[str, Any] = {
+        "error_kind": kinds[0] if kinds else "live_error",
+        "error_type": type(exc).__name__,
+        "error_message": message,
+        "error_chain": kinds,
+    }
+    if "assessment_error" in kinds:
+        fields["assessment_error"] = {
+            "type": "ResearchAssessmentError",
+            "reason": "context_length_exceeded"
+            if "context_length_exceeded" in message else "assessment_failed",
+            "message": message,
+        }
+    return fields
+
+
 async def live_sample(args: argparse.Namespace) -> int:
     """Child process: one production attempt with app-lifespan wiring."""
     from app.main import create_app
@@ -1259,9 +1284,16 @@ async def live_sample(args: argparse.Namespace) -> int:
     }
     try:
         async with app.router.lifespan_context(app):
-            sample.update(
-                await _live_measure(args, factory, question, llm_calls)
-            )
+            try:
+                sample.update(
+                    await _live_measure(args, factory, question, llm_calls)
+                )
+            except research_execution.ResearchExecutionError as exc:
+                sample.update(_classify_live_error(exc))
+                sample.setdefault("stage_ms", {})
+                sample.setdefault("mcp_diagnostics", {})
+                sample.setdefault("jev_diagnostics", {})
+                sample.setdefault("status", "failed")
     finally:
         reset_usage_recorder(token)
         await engine.dispose()
@@ -1355,11 +1387,14 @@ async def _live_measure(args: argparse.Namespace,
     diagnostics.install()
     recorder.install()
     started = time.perf_counter()
+    error: dict[str, Any] | None = None
     try:
         await _live_execute(
             args=args, factory=factory, question=question, attempt_id=attempt_id,
             recorder=recorder, recorded=recorded, components=components,
         )
+    except research_execution.ResearchExecutionError as exc:
+        error = _classify_live_error(exc)
     finally:
         wall_ms = (time.perf_counter() - started) * 1000
         recorder.restore()
@@ -1367,14 +1402,41 @@ async def _live_measure(args: argparse.Namespace,
         stage_recorder.restore()
         diagnostics_snapshot = diagnostics.snapshot()
         diagnostics.restore()
-    return await _live_payload(
-        factory=factory, attempt_id=attempt_id, question=question,
-        measure=LiveMeasure(
-            wall_ms=wall_ms, recorder=recorder, recorded=recorded,
-            stage_ms=stage_ms, llm_calls=llm_calls,
-            diagnostics=diagnostics_snapshot,
-        ),
+    measure = LiveMeasure(
+        wall_ms=wall_ms, recorder=recorder, recorded=recorded,
+        stage_ms=stage_ms, llm_calls=llm_calls,
+        diagnostics=diagnostics_snapshot, error=error,
     )
+    try:
+        return await _live_payload(
+            factory=factory, attempt_id=attempt_id, question=question,
+            measure=measure,
+        )
+    except (SQLAlchemyError, KeyError, TypeError, ValueError, OSError) as exc:
+        # Diagnostics must survive even if the partial DB read fails.
+        return {
+            "wall_ms": round(wall_ms, 3),
+            "status": "failed",
+            "stop_reason": None,
+            "evidence_status": None,
+            "needs": [],
+            "evidence": [],
+            "assessments": [],
+            "completeness": [],
+            "need_metrics": interval_metrics(recorder.needs, wall_ms),
+            "handler_metrics": interval_metrics(recorder.handlers, wall_ms),
+            "llm_calls": len(llm_calls),
+            "prompt_tokens": sum(call.prompt_tokens for call in llm_calls),
+            "completion_tokens": sum(call.completion_tokens for call in llm_calls),
+            "swe": recorded or None,
+            "stage_ms": stage_ms,
+            "mcp_diagnostics": diagnostics_snapshot.get("mcp", {}),
+            "jev_diagnostics": diagnostics_snapshot.get("jev", {}),
+            "synthesis": SYNTHESIS_STAGE,
+            "judge": None,
+            "errors": [str(exc)],
+            **(error or {}),
+        }
 
 
 @dataclass(frozen=True)
@@ -1385,6 +1447,7 @@ class LiveMeasure:
     stage_ms: Mapping[str, Any]
     llm_calls: Sequence[LLMCallStats]
     diagnostics: Mapping[str, Any]
+    error: Mapping[str, Any] | None = None
 
 
 async def _live_payload(*, factory: async_sessionmaker[AsyncSession],
@@ -1428,6 +1491,8 @@ async def _live_payload(*, factory: async_sessionmaker[AsyncSession],
     return {
         "wall_ms": round(wall_ms, 3),
         "status": attempt_row.status,
+        "attempt_status": attempt_row.status,
+        **(dict(measure.error) if measure.error else {}),
         "stop_reason": attempt_row.research_stop_reason,
         "wave": attempt_row.research_wave,
         "needs": needs_payload,
@@ -1654,6 +1719,10 @@ def live_parent(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
                 sample["child_stderr_tail"] = stderr_tail
                 sample["child_stdout_tail"] = (completed.stdout or "")[-2000:]
                 samples.append(sample)
+    failed_samples = [
+        row for row in samples
+        if row.get("error_kind") or row.get("status") == "failed"
+    ]
     payload = {
         "mode": "live-observational",
         "gate": False,
@@ -1665,7 +1734,13 @@ def live_parent(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
         "arms": list(args.arms),
         "live_concurrency": args.live_concurrency,
         "samples": samples,
-        "ranking": _live_ranking([row for row in samples if "error" not in row]),
+        "failed_samples": failed_samples,
+        "ranking": _live_ranking(
+            [
+                row for row in samples
+                if not row.get("error_kind") and row.get("status") != "failed"
+            ]
+        ),
     }
     (root / "live-results.json").write_text(
         json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -1952,7 +2027,23 @@ def _live_report_section(report: V2Report) -> str:
         "EvidenceSet; synthesis quality is judged post-hoc by the rubric/LLM "
         "artifact saved per live sample."
     )
-    errors = [row for row in report.live.get("samples", []) if "error" in row]
+    errors = [
+        row for row in report.live.get("samples", [])
+        if "error" in row or row.get("error_kind")
+    ]
+    failed_lines = []
+    for row in report.live.get("failed_samples", []):
+        assessment = row.get("assessment_error") or {}
+        failed_lines.append(
+            f"- `{row.get('arm')}` {row.get('question_id', '')} repeat "
+            f"{row.get('repeat', '')}: **{row.get('error_kind', 'live_error')}** "
+            f"({row.get('error_type', '?')}) — "
+            f"{(row.get('error_message') or '')[:300]}"
+            + (
+                f" [assessment reason: {assessment.get('reason')}]"
+                if assessment else ""
+            )
+        )
     return (
         LIVE_ENV_STATUS
         + "\n\n"
@@ -1963,6 +2054,11 @@ def _live_report_section(report: V2Report) -> str:
         + "\n".join(stage_rows)
         + _mcp_section(report.live)
         + (f"\n\nLive child errors: {len(errors)}." if errors else "")
+        + (
+            "\n\nFailed live samples (partial metrics preserved):\n\n"
+            + "\n".join(failed_lines)
+            if failed_lines else ""
+        )
     )
 
 
