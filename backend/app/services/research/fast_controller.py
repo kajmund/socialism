@@ -32,6 +32,9 @@ from app.observability.research import (
     record_evidence_count,
     record_jev_call,
 )
+# execution.service imports followup, completeness and assessment. Starting
+# from any of those first raises a circular ImportError, so load it here.
+import app.services.execution.service  # noqa: F401
 from app.services.research.assessment import AssessableEvidence
 from app.services.research.fast_state import (
     CompactResearchState,
