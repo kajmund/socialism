@@ -89,6 +89,14 @@ resolver treats "redundant copy" as "conflict resolved". The `tail` case is
 decided by a 0.04 margin around the 0.6 duplicate threshold. This replay is a
 counterfactual over measured scores, not a second live run.
 
+**Fixed in A2.** `resolve_conflict` and the duplicate-based resolution path are
+removed. Conflict records now require a typed, verifiable reason, and
+redundancy never clears a conflict. The replay artifact
+`sufficiency-conflict-replay-v1.json` re-runs the same counterfactual through
+the A2 rules: `tail` (duplicate 0.61) and `late` (duplicate 0.89) stay
+unresolved and insufficient. See
+[evidence-sufficiency-experiment.md](evidence-sufficiency-experiment.md#conflict-records-a2).
+
 ### 3. The route's verdict does not decide the result
 
 `map_jev_outcome` (`route.py:29`) turns both `sufficient` and `insufficient`

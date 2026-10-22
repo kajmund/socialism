@@ -12,7 +12,6 @@ from app.services.research.fast_controller import (
 from app.services.research.sufficiency_experiment.types import (
     ExperimentConfig,
     NeedAggregation,
-    PassageEvaluation,
     QualityDecision,
     RouteChoice,
     RouteDecision,
@@ -171,33 +170,3 @@ def route_state(
         "reasons": list(quality.reasons),
     }
 
-
-def resolve_conflict(
-    aggregations: Sequence[NeedAggregation],
-    evaluations: Sequence[PassageEvaluation],
-    *,
-    config: ExperimentConfig,
-) -> tuple[str, ...]:
-    """Address a conflict only when every contradicting passage is a duplicate.
-
-    Does not drop evidence and does not majority-vote remaining contradictions.
-    """
-    duplicates = {
-        row.passage_id
-        for row in evaluations
-        if row.scores.likely_duplicate_or_redundant >= config.support_threshold
-    }
-    addressed: list[str] = []
-    for row in aggregations:
-        for obligation in row.unresolved_conflicts:
-            contradicting = next(
-                (
-                    state.contradicting_passage_ids
-                    for state in row.obligation_states
-                    if state.obligation_id == obligation
-                ),
-                (),
-            )
-            if contradicting and all(item in duplicates for item in contradicting):
-                addressed.append(obligation)
-    return tuple(addressed)

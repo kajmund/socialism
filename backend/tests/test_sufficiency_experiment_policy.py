@@ -52,7 +52,7 @@ def test_experiment_does_not_import_loop_control() -> None:
 def test_agent_tools_are_typed_workflows_only() -> None:
     assert "search" not in ALLOWED_WORKFLOWS
     assert "database" not in ALLOWED_WORKFLOWS
-    assert "resolve_conflict" in ALLOWED_WORKFLOWS
+    assert "resolve_conflict" not in ALLOWED_WORKFLOWS
 
 
 @pytest.mark.asyncio
@@ -90,7 +90,6 @@ def _aggregation(*, sufficient: bool = False, unknown: bool = False, conflicts: 
                 verified=sufficient,
                 independent_support=1 if sufficient else 0,
                 contradicting_passage_ids=("p1",) if conflicts else (),
-                addressed=False,
             ),
         ),
         supporting_evidence_ids=(),
@@ -114,12 +113,13 @@ def test_quality_gate_blocks_sufficient_on_incomplete_coverage() -> None:
     assert "evidence_omitted" in blocked.reasons
 
 
-def test_quality_gate_prefers_resolve_conflict_before_narrative() -> None:
+def test_quality_gate_escalates_unresolved_conflict_without_resolution_path() -> None:
     config = ExperimentConfig()
     decision = quality_gate(
-        [_aggregation(conflicts=("research_1:factual_support",))],
+        [_aggregation(conflicts=("research_1:p1",))],
         GateInputs(span_coverage=1.0),
         config,
     )
-    assert decision.applicable_subworkflows == ("resolve_conflict",)
-    assert decision.escalate_permitted is False
+    assert decision.applicable_subworkflows == ()
+    assert decision.escalate_permitted is True
+    assert "unresolved_conflicts" in decision.reasons

@@ -17,7 +17,6 @@ HANDLER_NAMES = frozenset(
         "sufficiency.evaluate_one",
         "sufficiency.aggregate",
         "sufficiency.route",
-        "sufficiency.resolve",
         "sufficiency.narrative",
         "sufficiency.emit",
     }
@@ -70,23 +69,7 @@ def _document(concurrency: int) -> dict[str, Any]:
                 "condition": {
                     "eq": [{"var": "$.route.result.finish"}, {"const": True}]
                 },
-                "routes": {"true": "emit", "false": "sub_gate"},
-            },
-            "sub_gate": {
-                "type": "decision",
-                "evaluator": "expression",
-                "condition": {
-                    "eq": [
-                        {"var": "$.route.result.run_subworkflow"},
-                        {"const": True},
-                    ]
-                },
-                "routes": {"true": "resolve", "false": "escalate_gate"},
-            },
-            "resolve": {
-                "type": "task",
-                "handler": "sufficiency.resolve",
-                "next": "aggregate",
+                "routes": {"true": "emit", "false": "escalate_gate"},
             },
             "escalate_gate": {
                 "type": "decision",

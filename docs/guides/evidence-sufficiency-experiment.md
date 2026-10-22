@@ -81,6 +81,41 @@ Findings and the three independent failure layers:
 Proposed comparison with a narrative pre-check:
 [evidence-sufficiency-narrative-precheck.md](../architecture/evidence-sufficiency-narrative-precheck.md).
 
+## Conflict records (A2)
+
+A2 separates redundancy from contradiction. A conflict record has one status:
+
+| Status | Meaning |
+| ------ | ------- |
+| `unresolved` | Possible or confirmed conflict that is not cleared |
+| `resolved` | Real conflict with an explicitly verified resolution |
+| `not_applicable` | The claims apply to different periods/entities/definitions and do not contradict |
+
+Only a typed, verifiable reason can clear a conflict. The rules read flat
+`provenance` keys on the evidence item: `valid_from`/`valid_to` (ISO-8601),
+`entity_id`, `definition_id`, and `superseded_by` (evidence id). Disjoint
+validity periods, distinct entities and distinct definitions give
+`not_applicable`; an explicit `superseded_by` gives `resolved`. A conflict with
+no identified counterpart is never resolved or shown inapplicable. A duplicate
+score, relevance score, source count, same-document relation or age alone never
+resolves anything, and `independence_key` remains the only basis for counting
+independent sources. Unresolved conflicts keep the need `uncertain` and block
+`sufficient`; there is no conflict-resolution subworkflow.
+
+Counterfactual replay on the frozen live trace forces the signal passages to a
+0.95 contradiction while keeping the measured duplicate scores. It proves the
+forced conflict survives a 0.89 duplicate score instead of being dismissed.
+Run from `backend/`:
+
+```bash
+uv run python scripts/replay_sufficiency_conflicts.py
+```
+
+Artifact: `tests/integration/baselines/sufficiency-conflict-replay-v1.json`.
+Two of the cases (`tail_counterevidence` 0.61, `late_evidence` 0.89 duplicate)
+now stay unresolved and `insufficient`. This is a replay over measured scores,
+not a new live run.
+
 ## Package
 
 `app.services.research.sufficiency_experiment` — not imported by
