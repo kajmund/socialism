@@ -165,6 +165,53 @@ candidates stay visible in the coverage counts; they are never treated as
 verified and they do not consume the comparison budget. No model call happens
 during extraction.
 
+## Pair candidates (A3)
+
+Candidate generation is measured separately from Jev judgement. Three
+strategies propose claim pairs and each reports recall **before** and **after**
+the per-need budget (`max_pairs_per_need=40`):
+
+- **Deterministic**: shared `entity_id`/`definition_id`, shared content tokens
+  weighted by rarity, and overlap with the need question. `canonical_key`
+  equality only down-weights a pair; it never excludes one. Temporal metadata is
+  a feature, not a filter.
+- **Embeddings**: top-`embedding_neighbors` cosine neighbours per claim.
+- **Hybrid**: union of both candidate sets. A pair found by both keeps both
+  sources and the combined score, so it can survive the budget.
+
+Frozen facit: `tests/integration/baselines/pair-gold-v1.json` with
+`candidate_pairs` (must be proposed) and `contradiction_pairs` (Jev facit).
+`unknown_counterpart` is a negative control and is excluded from recall
+aggregates.
+
+Run from `backend/` (add `--embeddings` for B/C):
+
+```bash
+uv run python scripts/measure_pair_recall.py --embeddings
+```
+
+Artifact: `tests/integration/baselines/pair-recall-v1.json`. Measured with
+`text-embedding-3-large`:
+
+| Case | A rank | A selected | B rank | B selected | C rank | C selected |
+| ---- | -----: | ---------: | -----: | ---------: | -----: | ---------: |
+| `duplicate_contradiction` | 1 | yes | 2 | yes | 1 | yes |
+| `independent_contradiction` | 1 | yes | 1 | yes | 1 | yes |
+| `compatible_periods` | 1 | yes | 1 | yes | 1 | yes |
+| `compatible_entities` | 1 | yes | 1 | yes | 1 | yes |
+| `tail_claim_contradiction` | 1 | yes | **340** | **no** | 1 | yes |
+
+Summary over the five positive cases: A recall 1.00/1.00, B 1.00/0.80, C
+1.00/1.00 (before/after budget). A selects 44 pairs with 0 embedding calls; B
+and C select 48 with 5 embedding calls. The tail case is the point: embeddings
+find the pair before the budget (recall 1.00) but rank it 340, so it is sorted
+out; the hybrid keeps it at rank 1. No Jev call is made — selected pairs are the
+Jev-call budget for the next step.
+
+The easy tail case shares attribute tokens by design. A harder semantic tail
+case (contradiction worded without token overlap) is deferred to the next
+benchmark version.
+
 ## Package
 
 `app.services.research.sufficiency_experiment` — not imported by

@@ -134,7 +134,7 @@ def test_benchmark_sets_stay_separate() -> None:
         "large_567k",
         "short_sufficient",
     ]
-    assert len(all_golden_cases()) == 17
+    assert len(all_golden_cases()) == 18
     ids = [case.case_id for case in all_golden_cases()]
     assert len(ids) == len(set(ids))
 

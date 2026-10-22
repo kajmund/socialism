@@ -46,6 +46,7 @@ def all_golden_cases() -> tuple[GoldenCase, ...]:
         compatible_entities(),
         unknown_counterpart(),
         pair_over_budget(),
+        tail_claim_contradiction(),
     )
 
 
@@ -383,6 +384,23 @@ def unknown_counterpart() -> GoldenCase:
                 status="found",
             ),
         ),
+    )
+
+
+def tail_claim_contradiction() -> GoldenCase:
+    """A contradiction last among 180 extracted candidates."""
+    fillers = [
+        f"Avtalet reglerar villkor nummer {index} för parterna i avtalet."
+        for index in range(1, 179)
+    ]
+    excerpt = " ".join([SUPPORT_PHRASE, *fillers, CONTRADICTION_SIGNAL])
+    return GoldenCase(
+        case_id="tail_claim_contradiction",
+        expected="insufficient",
+        expected_status="uncertain",
+        signal=CONTRADICTION_SIGNAL,
+        plan=_plan(),
+        evidence=(_item("tail-claims", excerpt, status="found"),),
     )
 
 
