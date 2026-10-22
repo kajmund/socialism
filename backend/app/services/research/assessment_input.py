@@ -1,12 +1,16 @@
 """Lossless source-text sharing and request-local references for the assessor."""
 
+import json
 import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
-from app.services.research.assessment import ResearchAssessmentDraft
+from app.services.research.assessment import ResearchAssessmentDraft, ResearchAssessmentError
+
+ASSESSMENT_MAX_INPUT_CHARS = 60_000
+ASSESSMENT_PASSAGE_CHARS = 1_500
 
 _MIN_SHARED_TEXT_LENGTH = 32
 _MIN_SOURCE_MATCH_LENGTH = 128
@@ -129,6 +133,7 @@ def _share_analysis(
 class AssessmentInput:
     payload: dict[str, object]
     evidence_ids: dict[str, str]
+    omitted_evidence_ids: tuple[str, ...] = ()
 
     def restore(self, draft: ResearchAssessmentDraft) -> ResearchAssessmentDraft:
         def canonical(refs: Sequence[str]) -> list[str]:
@@ -148,7 +153,7 @@ class AssessmentInput:
         )
 
 
-def encode_assessment_input(rows: Sequence[dict[str, Any]]) -> AssessmentInput:
+def _encode_rows(rows: Sequence[dict[str, Any]]) -> AssessmentInput:
     evidence_ids = {}
     texts = Counter(text for row in rows for text in _analysis_texts(row.get("legal_result")))
     excerpts = [row["excerpt"] for row in rows if row["excerpt"] is not None]
@@ -192,4 +197,104 @@ def encode_assessment_input(rows: Sequence[dict[str, Any]]) -> AssessmentInput:
             "legal_schemas": {ref: list(fields) for fields, ref in schemas.items()},
         },
         evidence_ids=evidence_ids,
+    )
+
+def _truncate_text(text: str) -> str:
+    if len(text) <= ASSESSMENT_PASSAGE_CHARS:
+        return text
+    return text[:ASSESSMENT_PASSAGE_CHARS] + "\n…[trunkerad]"
+
+
+def _truncate_values(value: Any) -> Any:
+    if isinstance(value, str):
+        return _truncate_text(value)
+    if isinstance(value, dict):
+        return {key: _truncate_values(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_truncate_values(item) for item in value]
+    return value
+
+
+def _truncate_row(row: Mapping[str, Any]) -> dict[str, Any]:
+    prepared = dict(row)
+    excerpt = prepared.get("excerpt")
+    if isinstance(excerpt, str):
+        prepared["excerpt"] = _truncate_text(excerpt)
+    for key in ("legal_result", "claims"):
+        if key in prepared:
+            prepared[key] = _truncate_values(prepared[key])
+    return prepared
+
+
+def encode_assessment_input(
+    rows: Sequence[dict[str, Any]], *, max_chars: int | None = None
+) -> AssessmentInput:
+    if max_chars is None:
+        return _encode_rows(rows)
+    if max_chars <= 0:
+        raise ValueError("max_chars must be positive")
+    full = [dict(row) for row in rows]
+    encoded_full = _encode_rows(full)
+    full_payload = {
+        **encoded_full.payload,
+        "omitted_evidence": [],
+        "budget": {
+            "max_chars": max_chars,
+            "included_evidence": len(full),
+            "omitted_evidence": 0,
+        },
+    }
+    if len(json.dumps(full_payload, ensure_ascii=False, separators=(",", ":"))) <= max_chars:
+        return AssessmentInput(
+            payload=full_payload,
+            evidence_ids=encoded_full.evidence_ids,
+        )
+    prepared = [_truncate_row(row) for row in rows]
+    if not prepared:
+        empty = _encode_rows([])
+        return AssessmentInput(
+            payload={**empty.payload, "omitted_evidence": [], "budget": {
+                "max_chars": max_chars, "included_evidence": 0, "omitted_evidence": 0,
+            }},
+            evidence_ids={},
+        )
+    priority = {
+        index: (0 if row.get("status") == "found" else 1, index)
+        for index, row in enumerate(prepared)
+    }
+    selected = list(range(len(prepared)))
+    omitted: list[dict[str, Any]] = []
+    omitted_ids: list[str] = []
+    while selected:
+        encoded = _encode_rows([prepared[index] for index in selected])
+        payload = {
+            **encoded.payload,
+            "omitted_evidence": [
+                {
+                    "evidence_id": row.get("evidence_id"),
+                    "research_need_id": row.get("research_need_id"),
+                    "status": row.get("status"),
+                    "reason": "assessment_char_budget",
+                }
+                for row in omitted
+            ],
+            "budget": {
+                "max_chars": max_chars,
+                "included_evidence": len(selected),
+                "omitted_evidence": len(omitted),
+            },
+        }
+        size = len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+        if size <= max_chars:
+            return AssessmentInput(
+                payload=payload,
+                evidence_ids=encoded.evidence_ids,
+                omitted_evidence_ids=tuple(omitted_ids),
+            )
+        drop = max(selected, key=lambda index: priority[index])
+        selected.remove(drop)
+        omitted.append(prepared[drop])
+        omitted_ids.append(str(prepared[drop].get("evidence_id") or ""))
+    raise ResearchAssessmentError(
+        "assessment evidence does not fit the model input budget"
     )
