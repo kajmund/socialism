@@ -6,6 +6,8 @@ Socialism is an internal tool for testing political messaging against AI agent p
 
 This document describes the current system: locally run FastAPI + React processes, Supabase Postgres for durable shared state, SQLite for isolated development and tests, optional OASIS multi-agent simulation, and hybrid HTML reports. The application is not deployed and no hosting provider has been selected.
 
+**Execution policy:** [workflow-first-execution.md](architecture/workflow-first-execution.md) — deterministic first, Jev second, reusable typed subworkflows third, bounded narrative agent last. Production evidence sufficiency is unchanged (PR #420). The complete-EvidenceSet assessor is opt-in.
+
 ## High-level view
 
 ```mermaid
