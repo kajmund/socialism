@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import (
     CanonicalDocumentRecord,
-    KnowledgeClaimRecord,
     KnowledgeEntityRecord,
     KnowledgeRelationshipRecord,
 )
@@ -361,7 +360,8 @@ async def _endpoint_scope(
             return scope_from_props(node.props)
         row = await session.get(KnowledgeEntityRecord, node_id)
     elif kind == "claim":
-        row = await session.get(KnowledgeClaimRecord, node_id)
+        node = require_knowledge().get_by_key(CLAIM, node_id)
+        return scope_from_props(node.props) if node is not None else None
     elif kind == "document":
         row = await session.get(CanonicalDocumentRecord, node_id)
     elif kind == "text_unit":
