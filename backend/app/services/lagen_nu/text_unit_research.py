@@ -79,9 +79,9 @@ async def current_lagen_nu_units(
         load_domain_text_units, require_knowledge(), document_version_id=version.id,
     )
     if not units:
-        raise LagenNuResearchKnowledgeError(
-            f"CanonicalDocument {row.id} has no current TextUnits"
-        )
+        # SQL metadata can survive an OverGraph reset; treat this as "not
+        # ingested" so the provider fetches and re-materialises TextUnits.
+        return None
     return units
 
 
