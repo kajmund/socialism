@@ -83,10 +83,10 @@ class QuestionRecordingSource(RecordingSource):
 
 
 class BoomLagenNuClient:
-    async def resolve_citation(self, citation: str, source: str | None = None):
+    async def resolve_citation(self, citation: str, **kwargs):
         raise AssertionError(f"must not retrieve: resolve_citation {citation}")
 
-    async def search(self, query: str, source: str | None = None, limit: int = 10):
+    async def search(self, query: str, **kwargs):
         raise AssertionError(f"must not retrieve: search {query}")
 
     async def get_document(self, uri: str, max_chars: int | None = None):
