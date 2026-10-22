@@ -17,6 +17,14 @@ This file is the source of truth for any coding agent (Claude Code, Cursor, Code
 
 **Socialism** — internal tool for political messaging simulation and due diligence against AI agent populations (personas grounded in local context). Swedish UI by default.
 
+## Execution policy (workflow-first)
+
+**Deterministic first, Jev second, reusable typed subworkflows third, bounded narrative agent only when Jev says it is necessary and deterministic quality gates permit.** Agent tools are allowlisted typed workflows — not generic search or database tools. Strict prompts, schemas, provenance, budgets, and recursion limits. Do not silently truncate evidence.
+
+This is the execution policy for new orchestration. Today's production evidence-sufficiency assessor stays on the PR #420 budgeted Cerebras path. The complete-EvidenceSet assessor is an opt-in experiment.
+
+Full policy: [docs/architecture/workflow-first-execution.md](docs/architecture/workflow-first-execution.md). Experiment: [docs/guides/evidence-sufficiency-experiment.md](docs/guides/evidence-sufficiency-experiment.md).
+
 ## Stack
 
 - **Backend:** Python + FastAPI
@@ -56,7 +64,7 @@ Keep audiences separate:
 
 | Location | Audience | Contents |
 | -------- | -------- | -------- |
-| `docs/` | Developers / agents shipping code | Setup, architecture, engineering notes |
+| `docs/` | Developers / agents shipping code | Setup, architecture, engineering notes. Execution policy: [docs/architecture/workflow-first-execution.md](docs/architecture/workflow-first-execution.md) |
 | `knowledge/manual/` | Operators using the Swedish UI | OKF how-to guides (`type: guide`) |
 
 Rules for agents:
