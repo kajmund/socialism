@@ -1,8 +1,13 @@
 # SWE research cutover — implementation plan
 
-**Status:** Plan for the phase-5 cutover, prepared for task-5.
+**Status:** **Executed** (2026-10-22). The two-step cutover is complete; this
+document is kept as the execution record.
+**Execution:** step 1 parity-PR [#412](https://github.com/kajmund/socialism/pull/412);
+measurement v2 [#413](https://github.com/kajmund/socialism/pull/413); step 2
+delete-PR [#414](https://github.com/kajmund/socialism/pull/414).
 **Base:** `feat/research-baseline-harness`, commit `a17fb55a` (#408 → #409 stacked).
-**Deliverable:** this document. No production code is changed by it.
+**Deliverable:** executed cutover record. No production code is changed by this
+document itself.
 **Prerequisites:** measurement gate (task-4) completed and the winning workflow
 recorded, #408/#409 merged, CI green.
 
@@ -304,7 +309,7 @@ Wiring test added in the parity-PR
 workflow; Lead has confirmed the cutover (Q4: measurement is the gate);
 #408/#409 merged; `swe_native` build job green.
 
-**Step 1 — parity PR** (stacked on #409, branch `feat/swe-research-cutover`):
+**Step 1 — parity PR** (done; [#412](https://github.com/kajmund/socialism/pull/412), branch `feat/swe-research-cutover`):
 1. mechanical seam renames (§3) + test import fix;
 2. bridge changes: public imports, `lease_lost` → `cancel_event`, cancelled →
    `CancelledError`, wave-number log context, optional `run_store`, unique run
@@ -314,7 +319,7 @@ workflow; Lead has confirmed the cutover (Q4: measurement is the gate);
    updates.
 Keep `loop_control.run_research_loop` present but unreachable.
 
-**Step 2 — delete PR** (stacked on step 1):
+**Step 2 — delete PR** (done; [#414](https://github.com/kajmund/socialism/pull/414)):
 1. delete `loop_control.run_research_loop` (§2.2) and unused imports;
 2. delete `execution._run_need_executions` (§2.1);
 3. delete `tests/test_research_swe/test_parity.py` (its baseline no longer

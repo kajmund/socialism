@@ -34,28 +34,32 @@ Do not reimplement these. SWE will call them as Python handlers / decision input
 
 `EvidenceScreenCache` keying (`model`, question-set version, content hash, normalized question) is the contract to reuse for exact Jev cache. It is in-process, FIFO cap 256, and need-scoped scores do not reuse plan-wide scores.
 
-## Move into SWE later (generic orchestration)
+## Moved into SWE (generic orchestration)
 
-These shapes become engine primitives. Domain callbacks stay in research.
+These shapes are engine primitives now. Domain callbacks stay in research.
 
 | Today | Engine shape |
 | --- | --- |
-| `_run_need_executions` / `_execute_one_need` | `map` / `task` with concurrency and timeout |
+| `execute_one_need` (per need; deleted `_run_need_executions` shell) | `map` / `task` with concurrency and timeout |
 | `_assert_need_barrier` | `join` (`mode: all`) |
-| `run_research_loop` / wave advance | `decision` routing back with `max_steps` / `max_depth` |
+| `finish_research_wave` / wave advance (deleted `run_research_loop`) | `decision` routing back with `max_steps` / `max_depth` |
 | `loop_decision.py` | Deterministic decision inputs, not a second loop runtime |
 | `_write_fence` + lease-lost cancel | cancellation + deadline |
 | `seed_need_executions` CAS claim | `pending → claimed/running` |
 | `ProgressTracker` | run-event observability |
 | `execute_research_question_dag` | generic wave executor |
 
-## Remove after a verified cutover
+## Removed after the verified cutover
 
-No long-lived dual runner. After differential tests pass, delete the orchestration that SWE replaced:
+The cutover is executed; there is no long-lived dual runner.
 
-- Wave/fan-out/join shell in `execution.py` / `loop_control.py` (keep domain helpers they call)
-- Duplicate in-process Jev cache if SWE L1/L2 is the single cache
-- Any leftover “if SWE unavailable, use the old loop” path — none should be added
+- [x] Wave/fan-out/join shell: `loop_control.run_research_loop` and
+  `execution._run_need_executions` deleted (delete-PR).
+- [x] Differential tests: `tests/test_research_swe/test_parity.py` deleted after
+  the parity gate; `test_wiring.py` and the research suites remain regression.
+- [x] No leftover “if SWE unavailable, use the old loop” path.
+- [ ] Duplicate in-process Jev cache: not applicable yet; research still uses
+  the domain Jev path and phase-4 provider decisions are not wired into it.
 
 Do **not** remove `ResearchRouter`, quality, completeness, question reuse, mem0, or the knowledge graph.
 
