@@ -47,6 +47,14 @@ def case_trace(
         "quality": asdict(report.quality),
         "route_state": route_state(report.aggregations, report.quality),
         "route": _route(report),
+        "claim_coverage": (
+            asdict(report.claim_coverage) if report.claim_coverage else None
+        ),
+        "claims_extracted": [
+            asdict(item)
+            for item in report.claims
+            if item.extraction_status == "extracted"
+        ],
         "draft": asdict(report.draft),
     }
 

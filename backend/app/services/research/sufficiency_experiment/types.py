@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 ObligationKind = Literal["relevance", "factual_support", "completeness"]
 ExperimentStatus = Literal["sufficient", "insufficient", "uncertain", "failed"]
 ConflictStatus = Literal["unresolved", "resolved", "not_applicable"]
+ClaimExtractionStatus = Literal["extracted", "uncertain", "unprocessed"]
 ConflictReasonKind = Literal["temporal", "entity", "definition", "superseding"]
 RouteChoice = Literal["FINISH", "RUN_SUBWORKFLOW", "ESCALATE_NARRATIVE", "UNCERTAIN"]
 ROUTE_CHOICES: tuple[RouteChoice, ...] = (
@@ -46,6 +47,10 @@ class ExperimentConfig:
     contradict_threshold: float = 0.6
     max_tool_calls: int = 8
     max_narrative_input_chars: int = 12_000
+    min_claim_chars: int = 20
+    max_claim_chars: int = 500
+    min_claim_words: int = 4
+    max_claims_per_need: int = 200
 
 
 @dataclass(frozen=True)
@@ -129,6 +134,42 @@ class ConflictRecord:
 
 
 @dataclass(frozen=True)
+class ClaimCandidate:
+    """One occurrence of candidate claim text. Not a verified fact."""
+
+    claim_id: str
+    evidence_id: str
+    source_id: str | None
+    passage_id: str
+    start: int
+    end: int
+    text: str
+    normalized_text: str
+    canonical_key: str
+    research_need_ids: tuple[str, ...]
+    extraction_method: str
+    extraction_status: ClaimExtractionStatus
+    uncertain_reason: str | None = None
+    entity_id: str | None = None
+    valid_from: str | None = None
+    valid_to: str | None = None
+    definition_id: str | None = None
+    content_hash: str = ""
+
+
+@dataclass(frozen=True)
+class ClaimCoverage:
+    candidates: int
+    extracted: int
+    uncertain: int
+    unprocessed: int
+    per_evidence: tuple[tuple[str, int], ...]
+    per_need: tuple[tuple[str, int], ...]
+    complete: bool
+    reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class NeedAggregation:
     research_need_id: str
     status: ExperimentStatus
@@ -150,6 +191,7 @@ class GateInputs:
     evaluation_errors: tuple[str, ...] = ()
     budget_exhausted: bool = False
     narrative_rounds: int = 0
+    claim_coverage_incomplete: bool = False
 
 
 @dataclass(frozen=True)
@@ -204,6 +246,8 @@ class ExperimentReport:
     source_chars: int = 0
     failure_mode: str | None = None
     live_measurement: str = "not_run"
+    claims: tuple[ClaimCandidate, ...] = ()
+    claim_coverage: ClaimCoverage | None = None
 
     @property
     def coverage(self) -> float:
