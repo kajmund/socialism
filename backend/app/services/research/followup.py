@@ -6,6 +6,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
 
+# Leaf models first: importing the execution package here would re-enter this
+# module through service.py before FollowUpNeedDraft exists.
 from app.services.execution.models import (
     INITIAL_RESEARCH_WAVE,
     RESEARCH_NEED_ORIGINS,
