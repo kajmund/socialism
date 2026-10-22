@@ -1,201 +1,134 @@
-# Research SWE experiment v2 — live quality, per-stage timings and diagnostics
+# Research SWE experiment v2 — live measurement (v5)
 
 **Observational instrumentation harness.** The v1 artifact
 (`benchmark_research_swe.py`, frozen sha `a00ba565…`, n=8) remains the cutover
-basis; v2 does not replace its gates. This document is a **hand-restored
-artifact** from the raw runs (the frozen harness overwrote the generated live
-section with diagnostic runs); it records the full 12-run live measurement as
-the main artifact and keeps the diagnostic runs as separate dated history.
+basis; v2 does not replace its gates. This document records the completed live
+measurement and the history of the measurement-infrastructure fixes that led to
+it.
 
 ## Metadata
 
-- Main live artifact: `data/research_swe/v2-caafc8706a75-20261022T062521Z`
-  - harness sha256: `caafc8706a753898d88391d18f6a966b4ca279709f28d4870a0c2432056b9373`
-  - git commit: `e6a40a923efb2e9dfcaf3b78503cc70365321f1a`
-- Frozen harness after diagnostics: sha256
-  `ba48eb2a3a7bdc1755184f43412a8af9570d04a9ddbb5b9fe908e700c40efc63`,
-  commit `c07fc348407c50e9fdf3aad3fcd50c5db08c6403`
-- Fake/parity layers were measured in freeze #4:
-  `data/research_swe/v2-528d26d45dfa-20261021T234946Z` (harness sha
-  `528d26d4…`, n=8 fake runs) — see section 1.
+- **Main live artifact**: `data/research_swe/v2-c39af043803c-20261022T100637Z`
+  - git HEAD: `fd70820194858dfead55c7c3983a30adf683b1ac`
+  - v2 harness sha256: `c39af043803c707c510ccf7eefcc5b2890ca594b3fc6e36c6f1069987ae6fe1c`
+  - test sha256: `f8cc8895f3b129d6c7c8e98d61d882de66789f84e0eaff8cbbf4ddcd32df0782`
+  - samples: 12 (2 questions × 3 arms × 2 repeats), **11 `ready` + 1 `failed`**
+  - fixture: `source_1`/`source_2` (36 § avtalslagen), `RESEARCH_NEED_CONCURRENCY=1`,
+    `RESEARCH_DOCUMENT_CONCURRENCY=1`
+  - DB: `backend/data/live_v5.sqlite` (fresh from empty → `alembic upgrade head`
+    = `192_drop_graph_tables`, customer 1, 195 prompt fields, 0 documents before
+    the run)
+  - OverGraph: `/tmp/live-v5-overgraph`; lexical index: `/tmp/live-v5-index`
+- **Fake/parity quality note**: fake and parity layers use **fake embeddings
+  (constant vector)** — quality is **not meaningful** there. Only legacy fake
+  guards/parity are authoritative in those layers.
 - v1 cutover artifact: `a00ba5659b204dd12c2c58b9c76d4a04630e4a4ae19aa9e4dad8e363b82fdd6f`
 
-**Fake/parity quality note:** fake and parity layers use **fake embeddings
-(constant vector)** — quality is **not meaningful** there. Only fake guards and
-behavioural parity are authoritative in those layers.
+## 1. Main result — per arm (successful samples)
 
-## 1. Fake and parity layers (reference, freeze #4)
+The failed sample (`swe_a` / `source_2` / repeat 0) is listed separately in
+section 2 and is excluded from these aggregates and from ranking.
 
-Critical-path/peak-concurrency instrumentation and behavioural parity were
-measured in freeze #4 (`v2-528d26d45dfa-20261021T234946Z`):
-fake layer = 8 independent runs × 6 repeats × 2 questions × 3 arms (16 needs,
-40 ms fake latency; 288 cold samples, 96/arm); provider peak concurrency 8 for
-baseline/A and 16 for B; fake guards passed; parity 6/6 scenarios equal,
-including `follow_up_wave`. Those are not re-listed here because the current
-artifacts are live-only.
+| Arm | n | Wall mean (ms) | Wall median (ms) | Wall min–max (ms) | Tokens mean | LLM calls | Evidence found | not_found | error | Needs | Assessments | Completeness | Synthesis rubric | get_document | Jev routes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | 4 | 166 731.9 | 172 788.7 | 109 878.6–211 471.6 | 501 902.0 | 62–96 | 185 | 77 | 7 | 56 | 11 insufficient | 0 pass | 0.125 | 25 | 82 |
+| A (concurrency 8) | 3 | 124 913.1 | 124 834.1 | 108 120.7–141 784.4 | 451 568.7 | 36–75 | 202 | 53 | 1 | 43 | 8 insufficient | 0 pass | 0.167 | 7 | 36 |
+| B (concurrency 16) | 4 | 146 908.2 | 153 974.0 | 78 186.1–201 498.6 | 673 950.8 | 61–120 | 390 | 73 | 9 | 62 | 10 insufficient | 0 pass | 0.146 | 3 | 79 |
 
-## 2. Live quality — main artifact (12 runs)
+Totals over the successful samples: **777 found**, 0 `OperationalError`, 0 index
+errors, 0 `assessment_error`. All successful attempts are `ready` with frozen
+evidence sets. Stop reasons: `max_iterations` 7, `max_needs` 4.
 
-**Environment:** healthy on the measurement host. `lagen.nu`/MCP reachable
-(`initialize`/`tools/list` 200), OpenAI embeddings 200 (3072 dims), Cerebras
-chat 200. Runs use **production embeddings** (`graph_embedding_cache` 5 001
-rows, `text-embedding-3-large`, 3072 dims). Jev thresholds are correct on the
-production embeddings; the failure is not embedding/Jev driven.
+MCP per successful arm: baseline resolve 71 / search 53 / get_incoming 53 /
+get_document 25; A 55 / 32 / 32 / 7; B 70 / 58 / 57 / 3. Jev-noul values:
+760 / 312 / 720.
 
-**Fixture:** 2 eval questions (`source_1`, `source_2`, 36 § avtalslagen) ×
-3 arms × 2 repeats = **12 production attempts**; temp SQLite DB on alembic
-head; `research_need_concurrency=8` (default); 44/213 evidence items carried
-`OperationalError: database is locked` (measured environment contention);
-source-fetch calls took ≈7–10 s each.
+## 2. Failed sample and sample-level notes
 
-| Arm | Samples | Wall mean (ms) | Wall median (ms) | Wall min–max (ms) | Tokens mean | LLM calls | Evidence | Needs | Assessments | Completeness | Synthesis rubric | Label |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| baseline | 4 | 66 629.6 | 71 862.9 | 43 663.1–79 129.4 | 156 518.5 | 26–46 | 43 not_found, 14 error, **0 found** | 49 | 10 insufficient, 0 sufficient | 0 pass | 0.0 | comparable |
-| A (concurrency 8) | 4 | 57 753.5 | 63 332.3 | 24 538.5–79 810.8 | 167 513.5 | 28–54 | 65 not_found, 13 error, **0 found** | 61 | 12 insufficient, 0 sufficient | 0 pass | 0.0 | comparable |
-| B (concurrency 16) | 4 | 83 775.1 | 97 130.4 | 22 771.6–118 068.1 | 226 682.5 | 26–67 | 58 not_found, 20 error, **0 found** | 63 | 11 insufficient, 0 sufficient | 0 pass | 0.0 | comparable |
+- `swe_a` / `source_2` / repeat 0: `status=failed`, attempt
+  `9f7bacb9d1f9482d877047d8fcad9db2`; **75 found**, 46 not_found, 2 error;
+  two assessments (both insufficient). It is recorded in `failed_samples` and
+  excluded from ranking; `wall_ms` 140 195.6 ms.
+- Failure surfaced as generic `ResearchExecutionError: Attempt … research
+  failed`; the underlying cause was not preserved by the production error path
+  (task-23). This is why the sample is not used for quality claims even though
+  most of its measurement data exists.
+- `lexical_index` per sample: 11× `ready` (`already-open`) and 1× `empty_graph`
+  on the first sample (deferred on an empty graph, expected). No index-related
+  failures.
+- Completeness is empty for every sample: `loop_decision.decide_after_assessment`
+  stops with `no_novel_followups` when the local assessment is `insufficient`
+  and follow-up budget is exhausted; the global completeness reviewer only runs
+  after `sufficient`. This is expected for this measurement — it does not
+  indicate a bug.
 
-All 12 attempts finished `ready` with frozen evidence sets. Stop reasons:
-`max_iterations` 10, `max_needs` 1, `no_novel_followups` 1.
+## 3. Per-stage timings per arm (sum ms / calls; median per sample in parentheses)
 
-**Per-stage timings (sum ms / calls across the arm's 4 samples).** Stage sums
-can exceed wall time under concurrency.
+Stage sums can exceed wall time under concurrency.
 
-| Arm | Planning | Source fetch | Assessment | Follow-up | Quality persist | Wave persist |
+| Arm | lexical_index | planning | source_fetch | assessment | follow_up | persist | quality_persist |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | 4 058.2 / 4 (1 154.0) | 3 870.3 / 1 | 496 963.4 / 51 (131 068.4) | 107 386.1 / 62 (28 033.8) | 46 128.4 / 10 (11 196.3) | 79 949.7 / 11 (20 631.0) | 3 909.9 / 52 (957.2) |
+| A | 3 158.3 / 3 (1 132.5) | — | 212 468.8 / 40 (64 666.0) | 106 120.5 / 45 (36 280.3) | 44 176.0 / 8 (13 762.5) | 78 337.3 / 8 (26 413.7) | 5 360.3 / 40 (1 715.0) |
+| B | 4 632.9 / 4 (1 162.1) | — | 577 750.7 / 56 (156 655.0) | 203 388.3 / 73 (49 684.3) | 61 771.2 / 10 (15 168.6) | 139 121.5 / 10 (35 136.8) | 14 221.9 / 58 (3 507.1) |
+
+Knowledge reuse, Jev/relevance and freeze did not produce stage timers in this
+run (empty graph-driven reuse was not exercised; freeze is folded into persist
+via `finish_research_wave`). `lexical_index` is the new harness stage: it
+opens/reconciles the shared Tantivy index before each sample; median ≈1.15 s
+per sample.
+
+## 4. Ranking (observational, not a gate)
+
+| Arm | Evidence coverage | Assessment sufficient | Completeness | Synthesis rubric | Mean wall (ms) | Label |
 | --- | --- | --- | --- | --- | --- | --- |
-| baseline | 15 290.2 / 4 | 355 531.4 / 45 | 0.52 / 14 | 17 165.7 / 7 | 610.4 / 45 | 18 086.7 / 10 |
-| A | 13 511.8 / 4 | 413 262.5 / 57 | 0.64 / 16 | 19 978.7 / 8 | 814.6 / 57 | 21 176.9 / 12 |
-| B | 13 079.8 / 4 | 628 073.5 / 59 | 0.68 / 15 | 17 800.0 / 7 | 808.5 / 59 | 18 964.9 / 11 |
+| baseline | 0.6903 | 0.0 | 0.0 | 0.125 | 166 731.9 | comparable |
+| A | 0.7948 | 0.0 | 0.0 | 0.1667 | 124 913.1 | comparable |
+| B | 0.8313 | 0.0 | 0.0 | 0.1458 | 146 908.2 | comparable |
 
-`source_fetch` dominates the real time; planning/follow-up/persist are tens of
-seconds in aggregate, assessment/quality persist are negligible. Knowledge
-reuse, Jev/relevance and completeness/freeze timers produced 0 calls in this
-run (empty graph in the temp DB, no graph candidates, budget-stop before a
-global completeness pass; `research_frozen_ready`=12 confirms freeze happened
-inside `finish_research_wave`/persist). Synthesis is **not a separate stage**
-(the loop ends at the frozen EvidenceSet; synthesis quality is judged
-post-hoc).
+- A is the fastest arm (124.9 s mean) and has somewhat higher evidence
+  coverage and synthesis rubric than baseline; B has the highest evidence
+  coverage but is slower and uses the most tokens.
+- **No arm has sufficient assessments or a completeness pass**, and the
+  synthesis rubric is low across the board (0.125–0.167 of 1.0). The arms are
+  therefore all labelled **"comparable"**: the data does not support a quality
+  winner, and the faster arm is **not** classified as better.
 
-**Quality conclusion:** every arm has **0 found evidence**, 0 sufficient
-assessments, no completeness pass, synthesis rubric 0 and LLM verdicts that say
-"no evidence". The arms are therefore all **"comparable"**; no quality ranking
-is made, and the faster mean wall time of A is not evidence of better quality.
+## 5. History — how the measurement got here
 
-Judge prompt/verdict and per-sample evidence are saved in
-`live/live-*.json` next to `live/live-results.json`.
+| Run | Catalog (`data/research_swe/`) | Harness sha | Commit | Result |
+| --- | --- | --- | --- | --- |
+| Pre-measurement 12 runs | `v2-caafc8706a75-20261022T062521Z` | `caafc870…` | `e6a40a92…` | 12 attempts ready; **0 found**; 44/213 evidence items `OperationalError: database is locked`; concurrency 8. |
+| Diagnostic #1 | `v2-caafc8706a75-20261022T064321Z` | `caafc870…` | `e6a40a92…` | 3 samples; 0 found; 26 `OperationalError` events; source_fetch 11–25 s/call. |
+| Diagnostic #2 | `v2-ba48eb2a3a7b-20261022T070513Z` | `ba48eb2a…` | `c07fc348…` | 1 sample, concurrency 1: **0 OperationalError**, 0 found; resolve-args were whole English questions. |
+| Acceptance (fresh DB) | `v2-ba48eb2a3a7b-20261022T090718Z` | `ba48eb2a…` | `f5a3b85c…` | 1 sample; **17 found**, 0 OperationalError; failed in assessment with context-limit error. |
+| Acceptance 2 (fresh DB) | `v2-ef9d502e05d1-20261022T093509Z` | `ef9d502e…` | `9ae2894f…` | 1 sample ready; **24 found**; 0 OperationalError; 16 Jev routes. |
+| v3 attempt (full) | `v2-ef9d502e05d1-20261022T093800Z` | `ef9d502e…` | `9ae2894f…` | 12 samples: 1 ready, 11 child failures (`lexical index is not open`). Aborted as a measurement. |
+| **v5 (main)** | **`v2-c39af043803c-20261022T100637Z`** | **`c39af043…`** | **`fd708201…`** | **12 samples: 11 ready + 1 failed**; 777 found; 0 OperationalError; 0 index errors; 0 assessment errors. |
 
-## 3. Diagnostic runs (live)
+The v4 setup was superseded by the production lexical-index lifecycle
+(`fd708201`, PR #421) before completion; it produced no reportable artifact.
+No live run was retried after v5.
 
-### (a) 12-run environment diagnosis (production embeddings, concurrency 8)
+## 6. What the live run now shows
 
-The main artifact above: 12 attempts, production embeddings, 8 concurrent
-needs, 44/213 evidence items with `OperationalError: database is locked`,
-source-fetch ≈7–10 s/call, 0 found. Catalog
-`v2-caafc8706a75-20261022T062521Z`, harness sha `caafc870…`, commit
-`e6a40a92…`. This established that the lock contention is a measurement-
-environment problem, not a code path.
+- **Retrieval works end-to-end.** 777 found evidence items across the 11
+  successful samples; resolve args are valid legal citations (e.g.
+  `36 § avtalslagen`, `prop. 1975/76:81`, `prop. 1994/95:17`, `bet. 2002/03:LU4`,
+  `SOU 1974:83`); `get_document` was executed (25/7/3 per arm) and Jev passage
+  routing ran (82/36/79 routes).
+- **Where the time goes:** `source_fetch` dominates (mean wall 124–167 s per
+  arm), with `assessment` (106–203 s aggregate), `persist` (78–139 s) and
+  `follow_up` (44–62 s) next; `lexical_index` is cheap (~1.15 s/sample),
+  planning and quality persist are small.
+- **What cannot be measured yet:** quality. There are **0 sufficient
+  assessments**, **0 completeness passes**, and the synthesis rubric is low
+  (0.125–0.167). The evidence coverage differences (0.69–0.83) are not enough
+  to call a winner. Quality measurement requires the assessment/completeness
+  path to become meaningful (task-23 will at least preserve future failure
+  causes; a clean v6 run is optional if cheap).
 
-### (b) Diagnostic run #1 (3 samples)
-
-Catalog `data/research_swe/v2-caafc8706a75-20261022T064321Z`, harness sha
-`caafc870…`, commit `e6a40a92…`. Command: `--mode live --live-questions 1
---live-repeats 1 --arms baseline` (frozen harness at the time still iterated
-all arms, so 3 samples: baseline/A/B × `source_1` × repeat 0).
-
-| Arm | Wall (ms) | Tokens | LLM calls | Evidence | Source fetch |
-| --- | --- | --- | --- | --- | --- |
-| baseline | 137 642.8 | 347 396 | 65 | 13 not_found, 10 error, 0 found | 15 calls, 25.1 s/call |
-| A | 91 265.4 | 241 797 | 49 | 17 not_found, 7 error, 0 found | 15 calls, 11.4 s/call |
-| B | 116 304.9 | 394 530 | 80 | 17 not_found, 9 error, 0 found | 15 calls, 16.8 s/call |
-
-Errors were `OperationalError: research source failed` (26 events across arms)
-and not_found categories `irrelevant_relation`/`resolve_no_document`. MCP tool
-counters were not yet added to the harness at this freeze, so per-tool counts
-are absent here. No route/Jev passage stage was reached.
-
-### (c) Diagnostic run #2 (1 sample, concurrency 1)
-
-Catalog `data/research_swe/v2-ba48eb2a3a7b-20261022T070513Z`, harness sha
-`ba48eb2a…`, commit `c07fc348…`. Command: `--mode live --live-questions 1
---live-repeats 1 --arms baseline --live-concurrency 1
---live-db-path data/live_diag.sqlite`; DB at alembic head
-`192_drop_graph_tables`, customer 1 (`devbrains`), module `dd`, 195 prompt
-fields; `RESEARCH_NEED_CONCURRENCY=1` and
-`RESEARCH_DOCUMENT_CONCURRENCY=1` for the live child.
-
-| Metric | Value |
-| --- | --- |
-| Attempts | 1 (baseline, `source_1`, repeat 0) |
-| **OperationalError** | **0** |
-| MCP calls | **29** total: resolve 14, search 15, get_incoming 0, **get_document 0** |
-| Resolve args | 14/14 = whole English need questions (e.g. "What is the exact wording of § 36 of the Swedish Contracts Act…") |
-| Search queries | truncated English fragments (e.g. `"What the exact wording Swedish Contracts"`, `"What the exact"`) |
-| Evidence | 16 needs, 19 evidence items: **found 0**, not_found 19, error 0 |
-| Failure categories | resolve_no_document 8, irrelevant_relation 6, empty Supabase 4, search_no_hit 1 |
-| Route/Jev | never reached: seed_ids/noul empty (no get_document) |
-| Wall / tokens / LLM | 38 922.7 ms / 70 334 / 29 |
-| Stages | planning 3 862.2 ms; source_fetch 22 594.0 ms / 15 calls (≈1.5 s/call); follow_up 11 888.4 ms; persist 12 176.8 ms; quality_persist 192.3 ms; assessment 0.33 ms |
-
-Child stderr contained only a `storage3` URL warning; no exceptions. The
-`mcp_diagnostics.failures` list is empty.
-
-**Lock vs retrieval:** the diagnostic reduces OperationalError **44 → 0** and
-source-fetch from **7–25 s to ≈1.5 s/call**, proving the contention was the
-SQLite temp environment. It does **not** recover evidence: 0 found remains,
-now attributable to question format (see below).
-
-## 4. Why live measured 0 found
-
-Language evidence from the raw artifacts (`samples[].needs[]`,
-`samples[].mcp_diagnostics`):
-
-1. **English is already in the planner output.** In diagnostic #2,
-   `needs[].question` is English for all initial needs `N1–N5` and all derived
-   needs (`N1a`, `N1b`, `N2a` … `N7`), while `research-main` (the original
-   question) is Swedish. 5/6 initial needs are English. The language switch
-   therefore happens **before** the source stage.
-2. **The source stage receives the need text unchanged.** In diagnostic #2,
-   **14/14** `resolve_args` are exactly equal to `needs[].question` — whole
-   English questions, not `"36 § avtalslagen"`. `resolve_no_document` follows
-   directly from that format.
-3. **Search is a downstream truncation, not the switch.** The source query
-   builder collapses the English questions to fragments
-   (`"What the exact wording Swedish Contracts"`, `"What the exact"`), so
-   `search_no_hit`/`irrelevant_relation` follow. It cannot rescue the already
-   English question format.
-4. **The planner prompt has no language/citation guard.**
-   `research.planner.system` is loaded with `language="sv"` via
-   `build_llm_research_planner`, but the prompt text only says to decompose the
-   objective into narrow needs; it has no explicit "answer in Swedish" or
-   legal-citation-format instruction, and there is no deterministic guard that
-   rejects non-Swedish or non-citation-formatted needs. The result is
-   **nondeterministic planner output**: 12-runs had Swedish needs in 11/14
-   samples and English in 3 (swe_a source_1 rep0, swe_b source_1 rep0,
-   swe_b source_2 rep0); diagnostic #1 had Swedish in all 3; diagnostic #2 had
-   English in 5/6 initial needs and all derived needs. `research-main` is
-   Swedish in every sample.
-5. **Consequence chain:** English planner needs → invalid resolve arguments
-   (`resolve_no_document`) and truncated search queries (`search_no_hit`) →
-   selection rejects candidates (`irrelevant_relation`) → 0 `get_document` →
-   no passage routing/Jev (`seed_ids`/`noul` empty) → no found evidence →
-   assessments insufficient, no completeness, synthesis rubric 0.
-
-## 5. Status and conclusion
-
-- Live quality measurement is **blocked by the retrieval question format
-  (task-13)**, not by SWE, Jev or embeddings. The planner/normalizer output
-  language is nondeterministic and there is no deterministic guard; the source
-  stage cannot repair an English whole question into a valid legal citation.
-- Live remains an observational layer: it never affects the exit code and no
-  quality ranking is performed. All arms have equal (zero) evidence quality, so
-  the faster arm is **not** classified as better.
-- Fake/parity layers use fake embeddings (constant vector); their quality is
-  not meaningful — only gates and behavioural parity are authoritative there.
-- Once task-13 fixes planner/normalizer language and citation format, a live
-  v3 run (`--live-concurrency 1`, prepared DB at head) can be evaluated with
-  the same harness; measurement must keep recording `needs[].question` per
-  need, which freeze #6 does.
-
-## 6. Scope limits
+## 7. Scope limits
 
 - Fake mode cannot exercise cancellation, lease-lost or crash/resume; those
   require the running worker/lease seam and are verified by the task-5 wiring
@@ -203,5 +136,7 @@ Language evidence from the raw artifacts (`samples[].needs[]`,
 - Retry: neither the phase-2 loop nor the SWE bridge retries. SWE rejects
   `retry` in preflight; timeout is the only time control and is the parity
   scope for timing-dependent behaviour.
-- Live quality is non-deterministic and depends on external legal retrieval;
-  it is a separate observational measurement, not a cutover gate.
+- Live quality is non-deterministic and depends on external legal retrieval; it
+  is a separate observational measurement, not a cutover gate.
+- Fake/parity layers use fake embeddings (constant vector); their quality is
+  not meaningful — only gates and parity are authoritative there.

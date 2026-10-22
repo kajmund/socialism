@@ -206,3 +206,48 @@ Baslinjen för dagens loop mäts separat av
 - Live-kvalitetsmätningen är **blockerad av retrieval-frågeformatet (task-13)**, inte av SWE, Jev eller embeddings.
 - Fake/parity-lagren använder **fake embeddings (constant vector)** — deras kvalitet är **inte meningsfull**; endast gates/paritet är auktoritativa där.
 - Ingen kvalitetsranking görs; v1-artefakten `a00ba565…` är fortsatt cutover-bas. Full rapport: [research-swe-experiment-v2.md](research-swe-experiment-v2.md).
+
+
+<!-- v2:c39af043803c:v2-c39af043803c-20261022T100637Z -->
+## Mätning v2 — kritisk väg, concurrency, paritet, live-kvalitet
+
+- Harness: `backend/scripts/benchmark_research_swe_v2.py` sha256 `c39af043803c707c510ccf7eefcc5b2890ca594b3fc6e36c6f1069987ae6fe1c`
+- git HEAD: `fd70820194858dfead55c7c3983a30adf683b1ac`
+- Rådata: `/Users/erikfremred/socialism/data/research_swe/v2-c39af043803c-20261022T100637Z`
+- Fake: 8 oberoende runs x 6 repeats x 2 frågor, needs=16, latens=40 ms
+- Live (observationslager): 2 frågor x 3 armar x 2 repeats
+- Paritet: se rapporten
+- Live: körd (observationslager, ej gate)
+- v1-artefakten `a00ba565…` (n=8) är fortsatt cutover-bas.
+
+
+<!-- live-v5:fd708201:c39af043 -->
+## Live-mätning v5 — huvudartefakt (11/12 ready)
+
+**Katalog**: `data/research_swe/v2-c39af043803c-20261022T100637Z/`
+**git HEAD**: `fd70820194858dfead55c7c3983a30adf683b1ac` (main, lexical-index-lifecycle)
+**Harness**: `backend/scripts/benchmark_research_swe_v2.py` sha256 `c39af043803c707c510ccf7eefcc5b2890ca594b3fc6e36c6f1069987ae6fe1c`; test sha `f8cc8895…`; v1 `a00ba565…` orörd.
+**Miljö**: `live_v5.sqlite` skapad från tom fil → `alembic upgrade head` = `192_drop_graph_tables`; kund 1 (Devbrains), 195 prompt-fält, 2 configurations; 0 dokument före körning. `OVERGRAPH_DIR=/tmp/live-v5-overgraph`; lexical index `/tmp/live-v5-index`; `RESEARCH_NEED_CONCURRENCY=1` + `RESEARCH_DOCUMENT_CONCURRENCY=1`; lifespan OK (vector store status ok, 3072 dims).
+
+**Utfall**: 2 frågor × 3 armar × 2 repeats = 12 samples, **11 `ready` + 1 `failed`**; exit 0 (live påverkar ej exit); 0 OperationalError; 0 index-fel; 0 assessment_error; lexical_index 11× `ready` (`already-open`) + 1× `empty_graph` (första samplet, deferred på tom graf). Totalt **777 found**, 0 `OperationalError`.
+
+**Per arm (endast ready-samples; failed separat)**
+| Arm | n | Wall mean/median/min–max (ms) | Tokens mean | LLM-anrop | Found / not_found / error | Needs | Assessments | Completeness | Syntesrubrik | get_document | Jev-routes |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| baseline | 4 | 166 731,9 / 172 788,7 / 109 878,6–211 471,6 | 501 902,0 | 62–96 | 185 / 77 / 7 | 56 | 11 insuff. | 0 | 0,125 | 25 | 82 |
+| A | 3 | 124 913,1 / 124 834,1 / 108 120,7–141 784,4 | 451 568,7 | 36–75 | 202 / 53 / 1 | 43 | 8 insuff. | 0 | 0,167 | 7 | 36 |
+| B | 4 | 146 908,2 / 153 974,0 / 78 186,1–201 498,6 | 673 950,8 | 61–120 | 390 / 73 / 9 | 62 | 10 insuff. | 0 | 0,146 | 3 | 79 |
+
+MCP totalt per arm (resolve/search/incoming/get_document): baseline 71/53/53/25; A 55/32/32/7; B 70/58/57/3. Jev-noul: 760/312/720. Stop reasons: `max_iterations` 7, `max_needs` 4.
+
+**Stage-tider (summa/calls; median per sample)**: lexical_index 4 058,2/4 (1 154,0) baseline, 3 158,3/3 (1 132,5) A, 4 632,9/4 (1 162,1) B; source_fetch dominerar (496 963,4/51; 212 468,8/40; 577 750,7/56); assessment 107 386,1/62; 106 120,5/45; 203 388,3/73; persist 79 949,7/11; 78 337,3/8; 139 121,5/10; follow_up 46 128,4/10; 44 176,0/8; 61 771,2/10; planning/quality_persist små. `lexical_index` ligger ~1,15 s/sample.
+
+**Ranking**: alla armar `comparable`; evidence coverage 0,6903 (baseline), 0,7948 (A), 0,8313 (B); assessments sufficient 0, completeness 0, syntesrubrik 0,125–0,167. Ingen kvalitetsvinnare; A snabbast men med samma svaga kvalitetsbild; en snabbare arm med lägre evidens skulle inte klassas bättre (regeln verifierad i harness).
+
+**Failed sample**: `swe_a` / `source_2` / repeat 0 (attempt `9f7bacb9d1f9482d877047d8fcad9db2`), wall 140 195,6 ms; 75 found/46 not_found/2 error; två assessments insufficient; `status=failed`, `error_kind=live_error`, `error_type=ResearchExecutionError`, generiskt meddelande "Attempt … research failed". Orsaken tappas i produktionsfelvägen (task-23); samplet ligger i `failed_samples` och exkluderas från ranking.
+
+**Artefakter**: `results.json` (git_head/script_sha, mode live), `live/live-results.json` (samples, failed_samples, ranking, index_dir), `live/live-*.json` (per sample: needs/evidence/assessments/completeness/stage_ms/mcp_diagnostics/jev_diagnostics/judge prompt+rubric), `live/live-*.stderr.log` (child-stderr). Rapport: [research-swe-experiment-v2.md](research-swe-experiment-v2.md).
+
+**Historik** (katalog/sha): 12-runs-förmätning `v2-caafc8706a75-20261022T062521Z` (`caafc870…`, `e6a40a92…`) 0 found + 44/213 OperationalError; diag #1 `v2-caafc8706a75-20261022T064321Z` (`caafc870…`, `e6a40a92…`); diag #2 `v2-ba48eb2a3a7b-20261022T070513Z` (`ba48eb2a…`, `c07fc348…`, concurrency=1); acceptans `v2-ba48eb2a3a7b-20261022T090718Z` (`ba48eb2a…`, `f5a3b85c…`, 17 found, assessment-kontextfel); acceptans 2 `v2-ef9d502e05d1-20261022T093509Z` (`ef9d502e…`, `9ae2894f…`, 24 found); v3-försök `v2-ef9d502e05d1-20261022T093800Z` (`ef9d502e…`, `9ae2894f…`, 1 ready/11 lexical-index-fel); **v5 huvudartefakt** `v2-c39af043803c-20261022T100637Z` (`c39af043…`, `fd708201…`).
+
+**Kvar**: kvalitet är ännu inte mätbar (0 sufficient, completeness tom, rubric låg); task-23 bör bevara underliggande felorsak; en sista ren mätning (v6) är valfri om billig. v1 `a00ba565…` är fortsatt cutover-bas.
