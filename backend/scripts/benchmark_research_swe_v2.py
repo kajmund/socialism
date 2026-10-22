@@ -42,6 +42,7 @@ from typing import Any
 from unittest import mock
 
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
@@ -58,6 +59,10 @@ from app.services.execution import (
     list_runtime_needs,
 )
 from app.services.overgraph.workflows import WorkflowRunStore
+from app.services.lagen_nu.mcp_client import OfficialLagenNuMcpClient
+from app.services.lagen_nu.research_source import LagenNuResearchSource
+from app.services.lagen_nu import passage_router as lagen_passage_router
+from app.services.lagen_nu.passage_router import JevPassageRouter
 from app.services.research import graph_reuse, quality_persist, reuse_gate, swe_bridge
 from app.services.research import execution as research_execution
 from app.services.research.evidence_screen import JevEvidenceRelevanceAssessor
@@ -374,6 +379,150 @@ def aggregate_stage_timings(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]
         }
     out["synthesis"] = SYNTHESIS_STAGE
     return out
+
+
+FAKE_EMBEDDINGS_NOTE = (
+    "Fake/parity modes use **fake embeddings (constant vector)** — quality is "
+    "not meaningful there. Only fake guards and behavioural parity are "
+    "authoritative in those layers."
+)
+
+
+class DiagnosticsRecorder:
+    """Read-only diagnostics around MCP tools and Jev passage routing."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+        self.failures: list[dict[str, Any]] = []
+        self.routes: list[dict[str, Any]] = []
+        self.noul: list[dict[str, Any]] = []
+        self._restores: list[tuple[Any, str, Any]] = []
+        self._op_errors = 0
+
+    def record_call(self, tool: str, arguments: Mapping[str, Any], ms: float) -> None:
+        self.calls.append(
+            {"tool": tool, "arguments": dict(arguments), "ms": round(ms, 3)}
+        )
+
+    def record_failure(
+        self, tool: str, arguments: Mapping[str, Any], exc: BaseException
+    ) -> None:
+        message = str(exc)
+        if isinstance(exc, OperationalError) or "database is locked" in message:
+            self._op_errors += 1
+        self.failures.append(
+            {
+                "tool": tool,
+                "arguments": dict(arguments),
+                "error_type": type(exc).__name__,
+                "error": message,
+            }
+        )
+
+    def snapshot(self) -> dict[str, Any]:
+        counts = Counter(call["tool"] for call in self.calls)
+        resolve_args = [
+            call["arguments"].get("citation")
+            for call in self.calls if call["tool"] == "resolve_citation"
+        ]
+        return {
+            "mcp": {
+                "calls_total": len(self.calls),
+                "calls_by_tool": dict(sorted(counts.items())),
+                "resolve_args": resolve_args,
+                "get_document_count": counts.get("get_document", 0),
+                "operational_errors": self._op_errors,
+                "failures": self.failures,
+                "calls": self.calls,
+            },
+            "jev": {
+                "routes": self.routes,
+                "noul": self.noul,
+                "seed_ids": [
+                    seed for route in self.routes for seed in route.get("seed_ids", [])
+                ],
+            },
+        }
+
+    def install(self) -> None:
+        original = OfficialLagenNuMcpClient.call_tool
+        recorder = self
+
+        async def call_tool(instance: Any, name: str, arguments: dict[str, Any]) -> Any:
+            start = time.perf_counter()
+            try:
+                return await original(instance, name, arguments)
+            except BaseException as exc:
+                recorder.record_failure(name, arguments, exc)
+                raise
+            finally:
+                recorder.record_call(name, arguments, (time.perf_counter() - start) * 1000)
+
+        self._restores.append((OfficialLagenNuMcpClient, "call_tool", original))
+        OfficialLagenNuMcpClient.call_tool = call_tool
+
+        original_route = JevPassageRouter.route
+
+        async def route(instance: Any, **kwargs: Any) -> Any:
+            result = await original_route(instance, **kwargs)
+            recorder.routes.append(
+                {
+                    "seed_ids": list(getattr(result, "candidate_ids", ())),
+                    "kept_ids": list(getattr(result, "kept_ids", ())),
+                    "jev_clipped": bool(getattr(result, "jev_clipped", False)),
+                }
+            )
+            return result
+
+        self._restores.append((JevPassageRouter, "route", original_route))
+        JevPassageRouter.route = route
+
+        original_execute = research_execution.execute_one_need
+
+        async def execute_one_need(**kwargs: Any) -> Any:
+            try:
+                return await original_execute(**kwargs)
+            except BaseException as exc:
+                recorder.record_failure(
+                    "execute_one_need",
+                    {"need": str(getattr(kwargs.get("need"), "id", "?"))},
+                    exc,
+                )
+                raise
+
+        self._restores.append(
+            (research_execution, "execute_one_need", original_execute)
+        )
+        research_execution.execute_one_need = execute_one_need
+
+        original_source = LagenNuResearchSource.research
+
+        async def source_research(instance: Any, need: Any, context: Any) -> Any:
+            try:
+                return await original_source(instance, need, context)
+            except BaseException as exc:
+                recorder.record_failure(
+                    "source.research", {"need": getattr(need, "id", "?")}, exc
+                )
+                raise
+
+        self._restores.append((LagenNuResearchSource, "research", original_source))
+        LagenNuResearchSource.research = source_research
+
+        original_noul = lagen_passage_router.parse_noul
+
+        def parse_noul(answers: Any, key: str) -> Any:
+            value = original_noul(answers, key)
+            recorder.noul.append({"key": key, "noul": value})
+            return value
+
+        self._restores.append((lagen_passage_router, "parse_noul", original_noul))
+        lagen_passage_router.parse_noul = parse_noul
+
+    def restore(self) -> None:
+        for target, name, original in reversed(self._restores):
+            setattr(target, name, original)
+        self._restores.clear()
 
 
 # ------------------------------------------------------------ fake mode
@@ -1202,6 +1351,8 @@ async def _live_measure(args: argparse.Namespace,
     recorded: dict[str, Any] = {}
     stage_recorder = StageRecorder()
     _instrument_live_stages(stage_recorder, components)
+    diagnostics = DiagnosticsRecorder()
+    diagnostics.install()
     recorder.install()
     started = time.perf_counter()
     try:
@@ -1214,11 +1365,14 @@ async def _live_measure(args: argparse.Namespace,
         recorder.restore()
         stage_ms = stage_recorder.snapshot()
         stage_recorder.restore()
+        diagnostics_snapshot = diagnostics.snapshot()
+        diagnostics.restore()
     return await _live_payload(
         factory=factory, attempt_id=attempt_id, question=question,
         measure=LiveMeasure(
             wall_ms=wall_ms, recorder=recorder, recorded=recorded,
             stage_ms=stage_ms, llm_calls=llm_calls,
+            diagnostics=diagnostics_snapshot,
         ),
     )
 
@@ -1230,6 +1384,7 @@ class LiveMeasure:
     recorded: Mapping[str, Any]
     stage_ms: Mapping[str, Any]
     llm_calls: Sequence[LLMCallStats]
+    diagnostics: Mapping[str, Any]
 
 
 async def _live_payload(*, factory: async_sessionmaker[AsyncSession],
@@ -1287,6 +1442,8 @@ async def _live_payload(*, factory: async_sessionmaker[AsyncSession],
         "completion_tokens": sum(call.completion_tokens for call in llm_calls),
         "swe": measure.recorded or None,
         "stage_ms": measure.stage_ms,
+        "mcp_diagnostics": measure.diagnostics.get("mcp", {}),
+        "jev_diagnostics": measure.diagnostics.get("jev", {}),
         "synthesis": SYNTHESIS_STAGE,
         "judge": judge,
         "errors": errors,
@@ -1442,9 +1599,15 @@ def _live_ranking(samples: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 def live_parent(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
     root = run_dir / "live"
     root.mkdir(parents=True, exist_ok=True)
-    db_path = root / "live.sqlite"
     overgraph_dir = root / "overgraph"
-    _prepare_live_db(db_path, overgraph_dir)
+    overgraph_dir.mkdir(parents=True, exist_ok=True)
+    if args.live_db_path:
+        db_path = Path(args.live_db_path).expanduser().resolve()
+        if not db_path.exists():
+            raise SystemExit(f"--live-db-path does not exist: {db_path}")
+    else:
+        db_path = root / "live.sqlite"
+        _prepare_live_db(db_path, overgraph_dir)
     samples: list[dict[str, Any]] = []
     env = os.environ.copy()
     env.update(
@@ -1455,8 +1618,11 @@ def live_parent(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
             "RESEARCH_WORKER_LOOP_ENABLED": "true",
         }
     )
+    if args.live_concurrency > 0:
+        env["RESEARCH_NEED_CONCURRENCY"] = str(args.live_concurrency)
+        env["RESEARCH_DOCUMENT_CONCURRENCY"] = str(args.live_concurrency)
     for question_index in range(args.live_questions):
-        for arm in ARMS:
+        for arm in args.arms:
             for repeat in range(args.live_repeats):
                 sample_out = root / f"live-{arm}-{question_index}-{repeat}.json"
                 command = [
@@ -1468,18 +1634,26 @@ def live_parent(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
                     "--live-questions", str(args.live_questions),
                 ]
                 completed = subprocess.run(
-                    command, check=False, env=env,
+                    command, check=False, env=env, capture_output=True, text=True,
                     timeout=args.live_timeout_seconds,
                 )
+                stderr_path = sample_out.with_suffix(".stderr.log")
+                stderr_path.write_text(completed.stderr or "", encoding="utf-8")
+                stderr_tail = (completed.stderr or "")[-4000:]
                 if completed.returncode != 0 or not sample_out.exists():
                     samples.append(
                         {
                             "arm": arm, "question_index": question_index,
-                            "repeat": repeat, "error": f"live child exit {completed.returncode}",
+                            "repeat": repeat,
+                            "error": f"live child exit {completed.returncode}",
+                            "child_stderr_tail": stderr_tail,
                         }
                     )
                     continue
-                samples.append(json.loads(sample_out.read_text(encoding="utf-8")))
+                sample = json.loads(sample_out.read_text(encoding="utf-8"))
+                sample["child_stderr_tail"] = stderr_tail
+                sample["child_stdout_tail"] = (completed.stdout or "")[-2000:]
+                samples.append(sample)
     payload = {
         "mode": "live-observational",
         "gate": False,
@@ -1488,6 +1662,8 @@ def live_parent(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
         "db_path": str(db_path),
         "questions": args.live_questions,
         "repeats": args.live_repeats,
+        "arms": list(args.arms),
+        "live_concurrency": args.live_concurrency,
         "samples": samples,
         "ranking": _live_ranking([row for row in samples if "error" not in row]),
     }
@@ -1538,6 +1714,12 @@ def render_report(report: V2Report) -> str:
             if report.live is not None and report.fake is None else []
         ),
         f"- raw data: `{report.run_dir}`",
+        *(
+            ["- fake/parity: **fake embeddings (constant vector)** — quality "
+             "not meaningful; gates/parity are the only authoritative checks "
+             "there."]
+            if report.fake is not None else []
+        ),
         "",
         "## 1. Critical path and peak concurrency (fake mode)",
         "",
@@ -1569,6 +1751,7 @@ def render_report(report: V2Report) -> str:
 def _fake_section(report: V2Report) -> str:
     if not report.dispersion:
         return "Not run."
+    note = FAKE_EMBEDDINGS_NOTE + "\n\n"
     rows = [
         "| Arm | Wall median (per-run medians) | Wall sd | Overhead median | "
         "Provider peak (max/median vs expected) | Busy-union median | "
@@ -1608,7 +1791,8 @@ def _fake_section(report: V2Report) -> str:
             + " |"
         )
     return (
-        "\n".join(rows)
+        note
+        + "\n".join(rows)
         + "\n\nPer-question wall medians (ms):\n\n"
         + "\n".join(question_lines)
         + "\n\nCritical path is the busy-union of need/handler intervals (actively "
@@ -1641,13 +1825,80 @@ def _parity_section(report: V2Report) -> str:
     )
     retry = report.parity["retry_semantics"]
     return (
-        "\n".join(rows)
+        FAKE_EMBEDDINGS_NOTE
+        + "\n\n"
+        + "\n".join(rows)
         + "\n\nNot testable in fake mode (task-5 wiring test):\n\n"
         + not_testable
         + "\n\nRetry semantics: "
         + f"SWE rejects retry = {retry['swe_rejects_retry']}; baseline has no "
         + "retry path; timeout is the only time control and the parity scope."
     )
+
+
+def _mcp_section(live: Mapping[str, Any]) -> str:
+    rows = [
+        "\n\nMCP diagnostics per arm (read-only child instrumentation):\n\n"
+        "| Arm | resolve | search | get_incoming | get_document | "
+        "OperationalError | resolve args (unique) | seed ids | Jev noul |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for arm, group in _live_arm_groups(live["samples"]).items():
+        calls = Counter()
+        resolve_args: list[str] = []
+        op_errors = 0
+        seeds: list[str] = []
+        noul: list[Any] = []
+        failures: list[dict[str, Any]] = []
+        for sample in group:
+            mcp = sample.get("mcp_diagnostics") or {}
+            jev = sample.get("jev_diagnostics") or {}
+            calls.update(mcp.get("calls_by_tool") or {})
+            resolve_args.extend(
+                str(value) for value in (mcp.get("resolve_args") or []) if value
+            )
+            op_errors += int(mcp.get("operational_errors") or 0)
+            seeds.extend(jev.get("seed_ids") or [])
+            noul.extend(row.get("noul") for row in (jev.get("noul") or []))
+            failures.extend(mcp.get("failures") or [])
+        unique_args = list(dict.fromkeys(resolve_args))
+        rows.append(
+            f"| {ARM_LABELS.get(arm, arm)} | {calls.get('resolve_citation', 0)} | "
+            f"{calls.get('search', 0)} | {calls.get('get_incoming_citations', 0)} | "
+            f"{calls.get('get_document', 0)} | {op_errors} | {len(unique_args)} | "
+            f"{len(seeds)} | {len(noul)} |"
+        )
+    detail = ""
+    first_failures = [
+        failure
+        for group in _live_arm_groups(live["samples"]).values()
+        for sample in group
+        for failure in ((sample.get("mcp_diagnostics") or {}).get("failures") or [])
+    ]
+    if first_failures:
+        detail = "\n\nFirst MCP failures (tool / error):\n\n" + "\n".join(
+            f"- `{row.get('tool')}`: `{row.get('error_type')}: {row.get('error')[:300]}`"
+            for row in first_failures[:5]
+        )
+    args = [
+        str(value)
+        for group in _live_arm_groups(live["samples"]).values()
+        for sample in group
+        for value in ((sample.get("mcp_diagnostics") or {}).get("resolve_args") or [])
+        if value
+    ]
+    if args:
+        detail += "\n\nResolve args (first 10): " + ", ".join(
+            f"`{value}`" for value in args[:10]
+        )
+    return "\n".join(rows) + detail
+
+
+def _live_arm_groups(samples: Sequence[Mapping[str, Any]]) -> dict[str, list[Mapping[str, Any]]]:
+    groups: dict[str, list[Mapping[str, Any]]] = {}
+    for sample in samples:
+        groups.setdefault(str(sample.get("arm")), []).append(sample)
+    return groups
 
 
 def _live_report_section(report: V2Report) -> str:
@@ -1710,6 +1961,7 @@ def _live_report_section(report: V2Report) -> str:
         + "\n\nPer-run evidence/assessment/judge artifacts are stored next to "
         + "`live-results.json`."
         + "\n".join(stage_rows)
+        + _mcp_section(report.live)
         + (f"\n\nLive child errors: {len(errors)}." if errors else "")
     )
 
@@ -1839,6 +2091,15 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--live-timeout-seconds", type=float, default=LIVE_TIMEOUT_SECONDS)
     parser.add_argument("--live-questions", type=int, default=DEFAULT_LIVE_QUESTIONS)
     parser.add_argument("--live-repeats", type=int, default=DEFAULT_LIVE_REPEATS)
+    parser.add_argument(
+        "--live-concurrency", type=int, default=0,
+        help="diagnostic isolation: sets RESEARCH_NEED_CONCURRENCY and "
+             "RESEARCH_DOCUMENT_CONCURRENCY for live children (0 = leave settings)",
+    )
+    parser.add_argument(
+        "--live-db-path", default="",
+        help="diagnostic: use an existing DB at alembic head instead of a temp DB",
+    )
     parser.add_argument("--customer-id", type=int, default=CUSTOMER_ID)
     parser.add_argument("--fake-pass", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--pass-out", default="", help=argparse.SUPPRESS)
