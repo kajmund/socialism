@@ -134,6 +134,37 @@ Two of the cases (`tail_counterevidence` 0.61, `late_evidence` 0.89 duplicate)
 now stay unresolved and `insufficient`. This is a replay over measured scores,
 not a new live run.
 
+## Claim candidates (A3)
+
+A3 starts with deterministic **claim candidates**, not extracted atomic facts.
+`claims.py` splits each judged passage on sentence boundaries (with a legal
+abbreviation guard, so `NJA 2005 s. 142.` is not split), and keeps the exact
+slice. A multi-clause sentence stays one candidate: the Jev pair comparison in
+the next step decides what it asserts. `extraction_method` is
+`deterministic_segment`.
+
+| Status | Meaning |
+| ------ | ------- |
+| `extracted` | Candidate that may be compared |
+| `uncertain` | Exact text identified, but not safe to compare (`too_short`, `question`, `too_long`, `citation_only`) |
+| `unprocessed` | Budget prevented processing |
+
+Invariants: `passage.text[start:end] == claim.text` for every candidate.
+`normalized_text`/`canonical_key` are for search and grouping only — they never
+replace the stored text, merge source occurrences or affect `independence_key`.
+`entity_id`, `valid_from`/`valid_to` and `definition_id` are copied only from
+verifiable provenance and are never guessed from the text.
+
+`ClaimCoverage` reports candidates, extracted/uncertain/unprocessed counts,
+candidates per evidence item (the TextUnit analogue in this experiment) and per
+need, plus whether coverage is complete. The caps are safety limits, not goals:
+`min_claim_chars`, `max_claim_chars`, `min_claim_words` and
+`max_claims_per_need`. Hitting the per-need cap marks coverage incomplete, adds
+`claim_coverage_incomplete` to the gate and blocks `sufficient`. Uncertain
+candidates stay visible in the coverage counts; they are never treated as
+verified and they do not consume the comparison budget. No model call happens
+during extraction.
+
 ## Package
 
 `app.services.research.sufficiency_experiment` — not imported by

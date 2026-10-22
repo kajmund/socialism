@@ -18,6 +18,9 @@ from app.services.research.assessment import (
 )
 from app.services.research.models import ResearchPlan
 from app.services.research.sufficiency_experiment.aggregate import aggregate_plan
+from app.services.research.sufficiency_experiment.claims import (
+    extract_claim_candidates,
+)
 from app.services.research.sufficiency_experiment.emit import draft_from_aggregations
 from app.services.research.sufficiency_experiment.jev_eval import (
     evaluate_job,
@@ -36,6 +39,8 @@ from app.services.research.sufficiency_experiment.route import (
 )
 from app.services.research.sufficiency_experiment.segment import segment_evidence
 from app.services.research.sufficiency_experiment.types import (
+    ClaimCandidate,
+    ClaimCoverage,
     EvidencePassage,
     ExperimentConfig,
     ExperimentReport,
@@ -81,6 +86,8 @@ class SufficiencyLoop:
         self._jobs: list[dict[str, object]] = []
         self._items = quality_inputs(evidence)
         self._evaluations: list[PassageEvaluation] = []
+        self._claims: tuple[ClaimCandidate, ...] = ()
+        self._claim_coverage: ClaimCoverage | None = None
         self._aggregations: tuple[NeedAggregation, ...] = ()
         self._quality: QualityDecision | None = None
         self._route: RouteDecision | None = None
@@ -143,6 +150,11 @@ class SufficiencyLoop:
         self._passages = segment_evidence(
             self._evidence, max_chars=self._config.max_passage_chars
         )
+        self._claims, self._claim_coverage = extract_claim_candidates(
+            self._passages,
+            {item.evidence_id: item for item in self._evidence},
+            config=self._config,
+        )
         self._jobs = evaluation_jobs(
             self._plan.needs, self._passages, counterparts=self._counterparts
         )
@@ -190,6 +202,9 @@ class SufficiencyLoop:
                 evaluation_errors=errors,
                 budget_exhausted=self._failure == "budget_exhausted",
                 narrative_rounds=self._narrative_rounds,
+                claim_coverage_incomplete=bool(
+                    self._claim_coverage and not self._claim_coverage.complete
+                ),
             ),
             self._config,
         )
@@ -303,4 +318,6 @@ class SufficiencyLoop:
             source_chars=self._source_chars,
             failure_mode=self._failure,
             live_measurement=self._live_measurement,
+            claims=self._claims,
+            claim_coverage=self._claim_coverage,
         )
