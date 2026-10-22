@@ -26,7 +26,11 @@ from app.services.research.assessment import (
     programmatic_assessment,
     sanitize_assessment_draft,
 )
-from app.services.research.assessment_input import compact_provenance, encode_assessment_input
+from app.services.research.assessment_input import (
+    ASSESSMENT_MAX_INPUT_CHARS,
+    compact_provenance,
+    encode_assessment_input,
+)
 from app.services.research.fast_gate import wrap_research_assessor
 from app.services.research.models import ResearchPlan
 from app.services.research.review_payload import compact_claims
@@ -239,8 +243,16 @@ class LlmResearchAssessor:
                 model_version=None,
             )
         review = encode_assessment_input(
-            [_evidence_payload(group) for group in group_evidence_for_review(evidence)]
+            [_evidence_payload(group) for group in group_evidence_for_review(evidence)],
+            max_chars=ASSESSMENT_MAX_INPUT_CHARS,
         )
+        if review.omitted_evidence_ids:
+            logger.info(
+                "research.assessment.input_truncated included=%s omitted=%s max_chars=%s",
+                len(review.evidence_ids),
+                len(review.omitted_evidence_ids),
+                ASSESSMENT_MAX_INPUT_CHARS,
+            )
         messages = [
             {"role": "system", "content": self._system_prompt},
             {
