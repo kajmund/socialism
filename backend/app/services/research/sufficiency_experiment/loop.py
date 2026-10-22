@@ -6,10 +6,6 @@ from collections.abc import Mapping, Sequence
 from time import perf_counter
 from typing import Any
 
-# Complete execution.service before Jev/evidence_screen imports. Those pull
-# followup via fast_controller; starting at followup while execution.__init__
-# is mid-import raises a circular ImportError (benchmark script).
-import app.services.execution.service as _execution_service  # noqa: F401
 
 from app.jev.system import JevSystemOne
 from app.services.research.assessment import (

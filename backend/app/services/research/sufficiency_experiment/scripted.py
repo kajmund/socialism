@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import app.services.execution.service as _execution_service  # noqa: F401
 
 from app.jev.system import JevSystemOneResult, JevUsage
 from app.services.research.evidence_screen import EVIDENCE_SCREEN_QUESTIONS
