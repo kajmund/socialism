@@ -7,11 +7,9 @@ import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
-from app.services.research.assessment import (
-    ResearchAssessmentDraft,
-    ResearchNeedAssessment,
-)
+from app.services.research.assessment import ResearchAssessmentDraft
 from app.services.research.models import ResearchPlan
+from app.services.research.sufficiency_experiment.emit import draft_from_aggregations
 from app.services.research.sufficiency_experiment.tools import (
     ALLOWED_WORKFLOWS,
     RecursionLimitError,
@@ -64,54 +62,21 @@ async def run_narrative(
     return draft, (event,)
 
 
-def draft_from_aggregations(
-    aggregations: Sequence[NeedAggregation],
-    *,
-    considered: Sequence[str],
-) -> ResearchAssessmentDraft:
-    rows = [
-        ResearchNeedAssessment(
-            research_need_id=item.research_need_id,
-            sufficient=item.sufficient,
-            supporting_evidence_ids=list(item.supporting_evidence_ids),
-            missing_or_weak=item.missing_or_weak,
-            contradictions=list(item.contradictions),
-        )
-        for item in aggregations
-    ]
-    sufficient = all(row.sufficient for row in rows) if rows else True
-    return ResearchAssessmentDraft(
-        result="sufficient" if sufficient else "insufficient",
-        rationale=(
-            "Every ResearchNeed has supporting Jev passages."
-            if sufficient
-            else "Deterministic aggregation of complete Jev passage verdicts."
-        ),
-        need_assessments=rows,
-        gaps=[
-            f"{row.research_need_id}: {row.missing_or_weak}"
-            for row in rows
-            if not row.sufficient and row.missing_or_weak
-        ],
-        contradictions=[item for row in rows for item in row.contradictions],
-        considered_evidence_ids=list(considered),
-        model_provider="jev",
-        model_name="sufficiency_experiment",
-        model_version="v1",
-    )
-
-
 def _row(item: NeedAggregation) -> dict[str, object]:
     return {
         "research_need_id": item.research_need_id,
+        "status": item.status,
         "sufficient": item.sufficient,
         "supporting_evidence_ids": list(item.supporting_evidence_ids),
         "contradictions": list(item.contradictions),
-        "undecided_passage_ids": list(item.undecided_passage_ids),
-        "needs_narrative": item.needs_narrative,
+        "unresolved_conflicts": list(item.unresolved_conflicts),
+        "unknown_requirements": item.unknown_requirements,
         "missing_or_weak": item.missing_or_weak,
     }
 
 
 def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+__all__ = ["NARRATIVE_SYSTEM_PROMPT", "NarrativeFn", "draft_from_aggregations", "run_narrative"]

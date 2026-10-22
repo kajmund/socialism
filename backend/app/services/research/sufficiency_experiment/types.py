@@ -1,25 +1,32 @@
-"""Typed records for the opt-in evidence-sufficiency experiment."""
+"""Thin experiment records. Product contracts stay in assessment/quality."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
-from typing import Literal
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Literal
 
 from app.services.research.assessment import ResearchAssessmentDraft
+from app.services.research.quality import EvidenceQualityDraft
 
-PassageVerdict = Literal["SUPPORTED", "UNSUPPORTED", "CONTRADICTS", "UNDECIDED"]
-PASSAGE_VERDICTS: tuple[PassageVerdict, ...] = (
-    "SUPPORTED",
-    "UNSUPPORTED",
-    "CONTRADICTS",
-    "UNDECIDED",
+if TYPE_CHECKING:
+    from app.services.research.evidence_screen import EvidenceJevScores
+
+ObligationKind = Literal["relevance", "factual_support", "completeness"]
+ExperimentStatus = Literal["sufficient", "insufficient", "uncertain", "failed"]
+RouteChoice = Literal["FINISH", "RUN_SUBWORKFLOW", "ESCALATE_NARRATIVE", "UNCERTAIN"]
+ROUTE_CHOICES: tuple[RouteChoice, ...] = (
+    "FINISH",
+    "RUN_SUBWORKFLOW",
+    "ESCALATE_NARRATIVE",
+    "UNCERTAIN",
 )
 
 MAX_PASSAGE_CHARS = 1_500
 MAX_NARRATIVE_DEPTH = 1
-MAX_TOOL_CALLS = 4
-MAX_NARRATIVE_INPUT_CHARS = 12_000
+MAX_STEPS = 2_000
+MAX_DEPTH = 6
+TIMEOUT_SECONDS = 1_800
 
 
 @dataclass(frozen=True)
@@ -29,8 +36,27 @@ class ExperimentConfig:
     jev_model: str = "jev-latest"
     max_passage_chars: int = MAX_PASSAGE_CHARS
     max_narrative_depth: int = MAX_NARRATIVE_DEPTH
-    max_tool_calls: int = MAX_TOOL_CALLS
-    max_narrative_input_chars: int = MAX_NARRATIVE_INPUT_CHARS
+    max_subworkflow_rounds: int = 2
+    max_jev_calls: int = 2_000
+    max_steps: int = MAX_STEPS
+    max_depth: int = MAX_DEPTH
+    timeout_seconds: int = TIMEOUT_SECONDS
+    support_threshold: float = 0.6
+    contradict_threshold: float = 0.6
+    max_tool_calls: int = 8
+    max_narrative_input_chars: int = 12_000
+
+
+@dataclass(frozen=True)
+class EvidenceObligation:
+    """Projected from ResearchNeed.source_types / capabilities. Not a product table."""
+
+    obligation_id: str
+    need_id: str
+    kind: ObligationKind
+    description: str
+    mandatory: bool = True
+    min_independent_sources: int = 1
 
 
 @dataclass(frozen=True)
@@ -46,43 +72,74 @@ class EvidencePassage:
 
 
 @dataclass(frozen=True)
-class EvaluationJob:
-    job_id: str
-    need_id: str
-    passage: EvidencePassage
-
-
-@dataclass(frozen=True)
 class PassageEvaluation:
     job_id: str
     need_id: str
     passage_id: str
     evidence_id: str
-    verdict: PassageVerdict
-    model: str
-    latency_ms: float
-    input_chars: int
-    request_hash: str
+    scores: EvidenceJevScores
+    independence_key: str
+    quality: EvidenceQualityDraft | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class ObligationState:
+    obligation_id: str
+    kind: ObligationKind
+    verified: bool
+    independent_support: int
+    contradicting_passage_ids: tuple[str, ...]
+    addressed: bool
 
 
 @dataclass(frozen=True)
 class NeedAggregation:
     research_need_id: str
+    status: ExperimentStatus
     sufficient: bool
+    obligation_states: tuple[ObligationState, ...]
     supporting_evidence_ids: tuple[str, ...]
     contradictions: tuple[str, ...]
-    undecided_passage_ids: tuple[str, ...]
+    unresolved_conflicts: tuple[str, ...]
     missing_or_weak: str
-    needs_narrative: bool
+    unknown_requirements: bool
+
+
+@dataclass(frozen=True)
+class GateInputs:
+    span_coverage: float
+    omitted_evidence_ids: tuple[str, ...] = ()
+    missing_evaluations: tuple[str, ...] = ()
+    evaluation_errors: tuple[str, ...] = ()
+    budget_exhausted: bool = False
+    narrative_rounds: int = 0
+    subworkflow_rounds: int = 0
 
 
 @dataclass(frozen=True)
 class QualityDecision:
-    escalate: bool
+    allows_sufficient: bool
+    escalate_permitted: bool
+    applicable_subworkflows: tuple[str, ...]
     reasons: tuple[str, ...]
-    coverage: float
+    span_coverage: float
+    semantic_complete: bool
     omitted_evidence_ids: tuple[str, ...]
-    recursion_depth: int
+    missing_evaluations: tuple[str, ...]
+    budget_exhausted: bool
+
+
+@dataclass(frozen=True)
+class RouteDecision:
+    choice: RouteChoice
+    rationale: str
+    evidence_ids: tuple[str, ...]
+    criteria: tuple[str, ...]
+    subworkflow: str | None
+    valid: bool
+    jev_outcome: str | None = None
+    rejection: str | None = None
 
 
 @dataclass(frozen=True)
@@ -96,16 +153,21 @@ class ProvenanceEvent:
 @dataclass(frozen=True)
 class ExperimentReport:
     draft: ResearchAssessmentDraft
+    status: ExperimentStatus
     passages: tuple[EvidencePassage, ...]
     evaluations: tuple[PassageEvaluation, ...]
     aggregations: tuple[NeedAggregation, ...]
     quality: QualityDecision
-    provenance: tuple[ProvenanceEvent, ...] = field(default_factory=tuple)
+    route: RouteDecision | None = None
+    swe_events: tuple[str, ...] = ()
+    swe_run_id: str = ""
     jev_calls: int = 0
     llm_calls: int = 0
     latency_ms: float = 0.0
     judged_chars: int = 0
     source_chars: int = 0
+    failure_mode: str | None = None
+    live_measurement: str = "not_run"
 
     @property
     def coverage(self) -> float:
@@ -120,13 +182,6 @@ def evidence_need_ids(item: object) -> tuple[str, ...]:
         return need_ids
     single = getattr(item, "research_need_id", None)
     return (single,) if single else ()
-
-
-def require_verdict(value: object) -> PassageVerdict:
-    text = str(value or "").strip()
-    if text not in PASSAGE_VERDICTS:
-        raise ValueError(f"unknown passage verdict: {value!r}")
-    return text  # type: ignore[return-value]
 
 
 def concat_source_chars(passages: Sequence[EvidencePassage]) -> int:
