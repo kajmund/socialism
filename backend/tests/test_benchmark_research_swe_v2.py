@@ -11,6 +11,7 @@ import pytest
 from scripts.benchmark_research_swe_v2 import (
     FakeSample,
     Interval,
+    DiagnosticsRecorder,
     Recorder,
     StageRecorder,
     _live_ranking,
@@ -73,6 +74,27 @@ def test_requested_modes_accepts_comma_lists() -> None:
     assert _requested_modes("fake,parity") == {"fake", "parity"}
     assert _requested_modes("all") == {"fake", "parity", "live"}
     assert _requested_modes("parity") == {"parity"}
+
+
+def test_diagnostics_recorder_tracks_tools_args_and_operational_errors() -> None:
+    from sqlalchemy.exc import OperationalError
+
+    recorder = DiagnosticsRecorder()
+    recorder.record_call("resolve_citation", {"citation": "36 § avtalslagen"}, 12.5)
+    recorder.record_call("get_document", {"uri": "sfs/1915:218"}, 8.0)
+    recorder.record_failure(
+        "get_document", {"uri": "sfs/1915:218"},
+        OperationalError("SELECT", {}, Exception("database is locked")),
+    )
+    recorder.record_call("get_document", {"uri": "sfs/1915:218"}, 8.0)
+    snapshot = recorder.snapshot()
+    mcp = snapshot["mcp"]
+    assert mcp["calls_total"] == 3
+    assert mcp["calls_by_tool"] == {"get_document": 2, "resolve_citation": 1}
+    assert mcp["resolve_args"] == ["36 § avtalslagen"]
+    assert mcp["get_document_count"] == 2  # call counter includes the failed attempt
+    assert mcp["operational_errors"] == 1
+    assert snapshot["jev"]["seed_ids"] == []
 
 
 def test_stage_recorder_accumulates_and_snapshots() -> None:
