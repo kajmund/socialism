@@ -32,7 +32,6 @@ from app.services.research.sufficiency_experiment.obligations import present_sou
 from app.services.research.sufficiency_experiment.quality import quality_gate
 from app.services.research.sufficiency_experiment.route import (
     decide_route,
-    resolve_conflict,
     route_state,
 )
 from app.services.research.sufficiency_experiment.segment import segment_evidence
@@ -83,8 +82,6 @@ class SufficiencyLoop:
         self._aggregations: tuple[NeedAggregation, ...] = ()
         self._quality: QualityDecision | None = None
         self._route: RouteDecision | None = None
-        self._addressed: list[str] = []
-        self._subworkflow_rounds = 0
         self._narrative_rounds = 0
         self._draft: ResearchAssessmentDraft | None = None
         self._status: ExperimentStatus = "failed"
@@ -99,7 +96,6 @@ class SufficiencyLoop:
             "sufficiency.evaluate_one": self._evaluate_one,
             "sufficiency.aggregate": self._aggregate,
             "sufficiency.route": self._decide_route,
-            "sufficiency.resolve": self._resolve,
             "sufficiency.narrative": self._run_narrative,
             "sufficiency.emit": self._emit,
         }
@@ -173,7 +169,7 @@ class SufficiencyLoop:
             self._plan,
             self._evaluations,
             config=self._config,
-            addressed_conflicts=self._addressed,
+            evidence_by_id={item.evidence_id: item for item in self._evidence},
             source_types_by_id=present,
         )
         self._aggregations = tuple(rows)
@@ -190,7 +186,6 @@ class SufficiencyLoop:
                 evaluation_errors=errors,
                 budget_exhausted=self._failure == "budget_exhausted",
                 narrative_rounds=self._narrative_rounds,
-                subworkflow_rounds=self._subworkflow_rounds,
             ),
             self._config,
         )
@@ -215,14 +210,6 @@ class SufficiencyLoop:
             "run_subworkflow": self._route.choice == "RUN_SUBWORKFLOW",
             "escalate": self._route.choice == "ESCALATE_NARRATIVE",
         }
-
-    async def _resolve(self, _payload: Mapping[str, Any]) -> dict[str, Any]:
-        newly = resolve_conflict(
-            self._aggregations, self._evaluations, config=self._config
-        )
-        self._addressed.extend(item for item in newly if item not in self._addressed)
-        self._subworkflow_rounds += 1
-        return {"addressed": list(newly), "round": self._subworkflow_rounds}
 
     async def _run_narrative(self, _payload: Mapping[str, Any]) -> dict[str, Any]:
         if self._narrative is None:

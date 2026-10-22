@@ -40,17 +40,8 @@ def quality_gate(
         for row in aggregations
     )
     allows = not reasons and semantic
-    applicable: list[str] = []
-    if inputs.missing_evaluations:
-        applicable.append("evaluate_passages")
-    if (
-        any(row.unresolved_conflicts for row in aggregations)
-        and inputs.subworkflow_rounds < config.max_subworkflow_rounds
-    ):
-        applicable.append("resolve_conflict")
     escalate = (
         not allows
-        and not applicable
         and not inputs.budget_exhausted
         and inputs.span_coverage == 1.0
         and not inputs.omitted_evidence_ids
@@ -61,7 +52,7 @@ def quality_gate(
     return QualityDecision(
         allows_sufficient=allows,
         escalate_permitted=escalate,
-        applicable_subworkflows=tuple(applicable),
+        applicable_subworkflows=(),
         reasons=tuple(reasons),
         span_coverage=inputs.span_coverage,
         semantic_complete=semantic,

@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 ObligationKind = Literal["relevance", "factual_support", "completeness"]
 ExperimentStatus = Literal["sufficient", "insufficient", "uncertain", "failed"]
+ConflictStatus = Literal["unresolved", "resolved", "not_applicable"]
+ConflictReasonKind = Literal["temporal", "entity", "definition", "superseding"]
 RouteChoice = Literal["FINISH", "RUN_SUBWORKFLOW", "ESCALATE_NARRATIVE", "UNCERTAIN"]
 ROUTE_CHOICES: tuple[RouteChoice, ...] = (
     "FINISH",
@@ -36,7 +38,6 @@ class ExperimentConfig:
     jev_model: str = "jev-latest"
     max_passage_chars: int = MAX_PASSAGE_CHARS
     max_narrative_depth: int = MAX_NARRATIVE_DEPTH
-    max_subworkflow_rounds: int = 2
     max_jev_calls: int = 2_000
     max_steps: int = MAX_STEPS
     max_depth: int = MAX_DEPTH
@@ -81,6 +82,7 @@ class PassageEvaluation:
     independence_key: str
     quality: EvidenceQualityDraft | None = None
     error: str | None = None
+    counterpart_passage_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -90,7 +92,40 @@ class ObligationState:
     verified: bool
     independent_support: int
     contradicting_passage_ids: tuple[str, ...]
-    addressed: bool
+
+
+@dataclass(frozen=True)
+class ConflictSide:
+    """One identified side of a conflict. A missing side is never invented."""
+
+    evidence_id: str
+    passage_id: str | None = None
+    claim_id: str | None = None
+    source_id: str | None = None
+
+
+@dataclass(frozen=True)
+class ConflictResolution:
+    """A motivated resolution. Redundancy and counts are not reasons."""
+
+    kind: ConflictReasonKind
+    rule_id: str
+    evidence_ids: tuple[str, ...]
+    detail: str
+
+
+@dataclass(frozen=True)
+class ConflictRecord:
+    conflict_id: str
+    need_id: str
+    status: ConflictStatus
+    sides: tuple[ConflictSide, ...]
+    resolution: ConflictResolution | None = None
+    flagged_by: str = "jev_passage_screen"
+
+    @property
+    def has_unknown_counterpart(self) -> bool:
+        return len(self.sides) < 2
 
 
 @dataclass(frozen=True)
@@ -104,6 +139,7 @@ class NeedAggregation:
     unresolved_conflicts: tuple[str, ...]
     missing_or_weak: str
     unknown_requirements: bool
+    conflicts: tuple[ConflictRecord, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -114,7 +150,6 @@ class GateInputs:
     evaluation_errors: tuple[str, ...] = ()
     budget_exhausted: bool = False
     narrative_rounds: int = 0
-    subworkflow_rounds: int = 0
 
 
 @dataclass(frozen=True)

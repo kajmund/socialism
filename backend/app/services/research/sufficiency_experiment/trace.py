@@ -100,7 +100,6 @@ def _config(config: ExperimentConfig) -> dict[str, object]:
         "max_passage_chars": config.max_passage_chars,
         "max_jev_calls": config.max_jev_calls,
         "max_narrative_depth": config.max_narrative_depth,
-        "max_subworkflow_rounds": config.max_subworkflow_rounds,
         "max_narrative_input_chars": config.max_narrative_input_chars,
     }
 
