@@ -12,10 +12,12 @@ from scripts.benchmark_research_swe_v2 import (
     FakeSample,
     Interval,
     Recorder,
+    StageRecorder,
     _live_ranking,
     _requested_modes,
     _run_scenario_arm,
     _scenarios,
+    aggregate_stage_timings,
     dispersion,
     interval_metrics,
 )
@@ -71,6 +73,26 @@ def test_requested_modes_accepts_comma_lists() -> None:
     assert _requested_modes("fake,parity") == {"fake", "parity"}
     assert _requested_modes("all") == {"fake", "parity", "live"}
     assert _requested_modes("parity") == {"parity"}
+
+
+def test_stage_recorder_accumulates_and_snapshots() -> None:
+    recorder = StageRecorder()
+    recorder.add("source_fetch", 0.01)
+    recorder.add("source_fetch", 0.02)
+    snapshot = recorder.snapshot()
+    assert snapshot["source_fetch"]["calls"] == 2
+    assert snapshot["source_fetch"]["sum_ms"] == pytest.approx(30.0, abs=1.0)
+
+
+def test_aggregate_stage_timings_per_arm_and_synthesis_status() -> None:
+    rows = [
+        {"stage_ms": {"source_fetch": {"sum_ms": 100.0, "calls": 4}}},
+        {"stage_ms": {"source_fetch": {"sum_ms": 200.0, "calls": 8}}},
+    ]
+    agg = aggregate_stage_timings(rows)
+    assert agg["source_fetch"]["calls_total"] == 12
+    assert agg["source_fetch"]["mean_ms_per_sample"] == 150.0
+    assert agg["synthesis"]["status"] == "not a separate stage"
 
 
 def test_scenarios_expose_fresh_fixture_factories() -> None:
