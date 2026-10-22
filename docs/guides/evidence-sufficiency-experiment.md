@@ -64,6 +64,23 @@ Published PR #420 measurement (not re-run here): **567 673 → 56 443**
 characters on Cerebras `gpt-oss-120b` with an 8 192-token output cap.
 See `tests/fixtures/sufficiency_experiment/pr420_cerebras_baseline.json`.
 
+## Contradiction trace
+
+The live metrics say *that* the two traps fail, not *where*. The opt-in trace
+(`include_trace=True` on `run_benchmark` / `measure_live_models`) keeps every
+judged passage with its NOUL scores, the Jev route answers, the route state, the
+obligation states and the gate reasons. Run it from `backend/`:
+
+```bash
+uv run python scripts/trace_evidence_sufficiency.py \
+  --out tests/integration/baselines/sufficiency-contradiction-trace-v1.json
+```
+
+Findings and the three independent failure layers:
+[evidence-sufficiency-contradiction-trace.md](evidence-sufficiency-contradiction-trace.md).
+Proposed comparison with a narrative pre-check:
+[evidence-sufficiency-narrative-precheck.md](../architecture/evidence-sufficiency-narrative-precheck.md).
+
 ## Package
 
 `app.services.research.sufficiency_experiment` — not imported by

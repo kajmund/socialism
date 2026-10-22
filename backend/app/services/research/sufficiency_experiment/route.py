@@ -48,6 +48,7 @@ def validate_route(
     *,
     evidence_ids: Sequence[str],
     jev_outcome: str | None,
+    jev_answers: Sequence[tuple[str, float]] = (),
 ) -> RouteDecision:
     rejection = None
     if choice == "FINISH" and quality.allows_sufficient is False and jev_outcome == "sufficient":
@@ -77,6 +78,7 @@ def validate_route(
         valid=valid,
         jev_outcome=jev_outcome,
         rejection=rejection,
+        jev_answers=tuple(jev_answers),
     )
 
 
@@ -117,7 +119,21 @@ async def decide_route(
     proposed = map_jev_outcome(outcome, quality, aggregations)
     cited = [item for row in aggregations for item in row.supporting_evidence_ids]
     cited.extend(item for row in aggregations for item in row.contradictions)
-    return validate_route(proposed, quality, evidence_ids=cited, jev_outcome=outcome)
+    answers = (
+        ("answerable_now", answerable),
+        ("material_gap", gap),
+        ("contradiction", contradiction),
+        ("follow_up_change", follow_up),
+        ("additional_source", additional),
+        ("confidence", confidence),
+    )
+    return validate_route(
+        proposed,
+        quality,
+        evidence_ids=cited,
+        jev_outcome=outcome,
+        jev_answers=answers,
+    )
 
 
 def route_state(

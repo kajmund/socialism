@@ -140,6 +140,7 @@ class RouteDecision:
     valid: bool
     jev_outcome: str | None = None
     rejection: str | None = None
+    jev_answers: tuple[tuple[str, float], ...] = ()
 
 
 @dataclass(frozen=True)
