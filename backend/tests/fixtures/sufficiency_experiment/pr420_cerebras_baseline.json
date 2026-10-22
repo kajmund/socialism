@@ -1,0 +1,10 @@
+{
+  "pr": 420,
+  "commit": "d04071847cadd9452416f4b0ad91af2c401730eb",
+  "model": "cerebras gpt-oss-120b",
+  "case": "33-item large-excerpt",
+  "input_chars_before": 567673,
+  "input_chars_after": 56443,
+  "output_cap_tokens": 8192,
+  "note": "Published measurement from PR #420. Experiment coverage must not treat this window as the complete EvidenceSet."
+}
