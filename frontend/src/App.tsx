@@ -23,6 +23,7 @@ import { ToolsShell } from "@/components/layout/ToolsShell"
 import { AnchorSetEditorPage } from "@/pages/AnchorSetEditorPage"
 import { AnchorSetsPage } from "@/pages/AnchorSetsPage"
 import { ConfigureRunPage } from "@/pages/ConfigureRunPage"
+import { ClauseSsrQueuePage } from "@/pages/ClauseSsrQueuePage"
 import { ConfigurationEditorPage } from "@/pages/ConfigurationEditorPage"
 import { ConfigurationsPage } from "@/pages/ConfigurationsPage"
 import { DashboardPage } from "@/pages/DashboardPage"
@@ -150,6 +151,7 @@ export default function App() {
               <Route path="anchor-sets" element={<AnchorSetsPage />} />
               <Route path="anchor-sets/new" element={<AnchorSetEditorPage />} />
               <Route path="anchor-sets/:id/edit" element={<AnchorSetEditorPage />} />
+              <Route path="clause-ssr" element={<ClauseSsrQueuePage />} />
               <Route path="playground" element={<PlaygroundPage />} />
               <Route path="cache" element={<EmbeddingCachePage />} />
               <Route path="memory" element={<ExpertMemoryPage />} />
