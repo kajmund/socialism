@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import (
     CanonicalDocumentRecord,
-    KnowledgeEntityRecord,
     KnowledgeRelationshipRecord,
 )
 from app.services.knowledge.claims import SUPPORTED_BY
@@ -354,12 +353,9 @@ async def _endpoint_scope(
     node_id: str,
 ) -> KnowledgeTenantScope | None:
     if kind == "entity":
-
         node = entity_in_graph_scoped(node_id)
-        if node is not None:
-            return scope_from_props(node.props)
-        row = await session.get(KnowledgeEntityRecord, node_id)
-    elif kind == "claim":
+        return scope_from_props(node.props) if node is not None else None
+    if kind == "claim":
         node = require_knowledge().get_by_key(CLAIM, node_id)
         return scope_from_props(node.props) if node is not None else None
     elif kind == "document":

@@ -100,6 +100,21 @@ async def test_endpoint_scope_for_claim_reads_the_graph(
 
 
 @pytest.mark.asyncio
+async def test_missing_entity_endpoint_scope_does_not_read_dropped_sql(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _migrated_head_db(tmp_path, monkeypatch)
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db}")
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    try:
+        async with factory() as session:
+            scope = await _endpoint_scope(session, "entity", "missing-entity-id")
+            assert scope is None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_supersede_claim_reads_the_graph(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
