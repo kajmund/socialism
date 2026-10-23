@@ -1,0 +1,634 @@
+{
+  "measurement": "facit_v2_d_evaluation",
+  "recorded_at": "2026-10-23T19:56:47.208856+00:00",
+  "facit": "tests/integration/baselines/golden-facit-v2.json",
+  "facit_version": "v2",
+  "note": "New D run against v2. Historical B4c v1 numbers are preserved and not rewritten.",
+  "cases": [
+    "short_sufficient",
+    "no_support",
+    "tail_counterevidence",
+    "late_evidence",
+    "multi_obligation",
+    "missing_source_type",
+    "unknown_requirements",
+    "duplicate_sources",
+    "later_wave_contradiction",
+    "adversarial_empty",
+    "duplicate_contradiction",
+    "independent_contradiction",
+    "unknown_counterpart",
+    "pair_over_budget",
+    "tail_claim_contradiction",
+    "candidate_miss_synonyms",
+    "synonym_contradiction_semester",
+    "synonym_contradiction_notice",
+    "notice_compatible_periods",
+    "notice_compatible_entities"
+  ],
+  "reps": 2,
+  "correct": 40,
+  "runs": 40,
+  "false_sufficient": 0,
+  "false_insufficient": 0,
+  "rows": [
+    {
+      "case_id": "short_sufficient",
+      "rep": 0,
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "status": "sufficient",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUFFICIENT"
+      ]
+    },
+    {
+      "case_id": "no_support",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "tail_counterevidence",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "late_evidence",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": false,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "COVERAGE_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "multi_obligation",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "missing_source_type",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "unknown_requirements",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "duplicate_sources",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "later_wave_contradiction",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "adversarial_empty",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": false,
+      "diagnostics": [
+        "COVERAGE_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "duplicate_contradiction",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "independent_contradiction",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "pair_over_budget",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": false,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "COVERAGE_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "candidate_miss_synonyms",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "synonym_contradiction_semester",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "synonym_contradiction_notice",
+      "rep": 0,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "notice_compatible_periods",
+      "rep": 0,
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "status": "sufficient",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUFFICIENT"
+      ]
+    },
+    {
+      "case_id": "notice_compatible_entities",
+      "rep": 0,
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "status": "sufficient",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUFFICIENT"
+      ]
+    },
+    {
+      "case_id": "short_sufficient",
+      "rep": 1,
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "status": "sufficient",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUFFICIENT"
+      ]
+    },
+    {
+      "case_id": "no_support",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "tail_counterevidence",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "late_evidence",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": false,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "COVERAGE_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "multi_obligation",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "missing_source_type",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "unknown_requirements",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "duplicate_sources",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "later_wave_contradiction",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "adversarial_empty",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": false,
+      "diagnostics": [
+        "COVERAGE_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "duplicate_contradiction",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "independent_contradiction",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUPPORT_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "pair_over_budget",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": false,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "COVERAGE_INCOMPLETE",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "candidate_miss_synonyms",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "synonym_contradiction_semester",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "synonym_contradiction_notice",
+      "rep": 1,
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "CONTRADICTION_FOUND",
+        "TECHNICAL_FAILURE"
+      ]
+    },
+    {
+      "case_id": "notice_compatible_periods",
+      "rep": 1,
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "status": "sufficient",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUFFICIENT"
+      ]
+    },
+    {
+      "case_id": "notice_compatible_entities",
+      "rep": 1,
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "status": "sufficient",
+      "correct": true,
+      "false_sufficient": false,
+      "false_insufficient": false,
+      "coverage_complete": true,
+      "diagnostics": [
+        "SUFFICIENT"
+      ]
+    }
+  ]
+}
