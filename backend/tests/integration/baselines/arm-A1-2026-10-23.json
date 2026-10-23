@@ -1,0 +1,723 @@
+{
+  "arm": "A1",
+  "protocol": "measurement-protocol-v1.json",
+  "rows": [
+    {
+      "case_id": "tail_counterevidence",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 0,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 55,
+      "matched_calls": 55,
+      "live_calls": 0,
+      "input_chars": 80122,
+      "pair_calls": 0,
+      "latency_ms": 131.08349998947233,
+      "jev_latency_ms": 15336.057213658933,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    },
+    {
+      "case_id": "late_evidence",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 0,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 589,
+      "matched_calls": 589,
+      "live_calls": 0,
+      "input_chars": 836514,
+      "pair_calls": 0,
+      "latency_ms": 2929.830457956996,
+      "jev_latency_ms": 303178.7695803214,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    },
+    {
+      "case_id": "large_567k",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "verdict_reason": "gate_obligations_unverified",
+      "route_choice": "ESCALATE_NARRATIVE",
+      "route_final_outcome": "uncertain",
+      "route_valid": true,
+      "gate_allows_sufficient": false,
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [
+        "narrative_unbound"
+      ],
+      "coverage_gate_complete": true,
+      "jev_calls": 397,
+      "matched_calls": 393,
+      "live_calls": 4,
+      "input_chars": 561346,
+      "pair_calls": 0,
+      "latency_ms": 1607.6094589661807,
+      "jev_latency_ms": 191070.7318385248,
+      "verdict_reasons": [
+        "gate_obligations_unverified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "gate_obligations_unverified"
+    },
+    {
+      "case_id": "short_sufficient",
+      "expected": "sufficient",
+      "arm": "A1",
+      "rep": 0,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 2,
+      "matched_calls": 2,
+      "live_calls": 0,
+      "input_chars": 62,
+      "pair_calls": 0,
+      "latency_ms": 2.4674999876879156,
+      "jev_latency_ms": 206.62337500834838,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    },
+    {
+      "case_id": "duplicate_contradiction",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 0,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 3,
+      "matched_calls": 3,
+      "live_calls": 0,
+      "input_chars": 155,
+      "pair_calls": 0,
+      "latency_ms": 2.787749981507659,
+      "jev_latency_ms": 501.2217920157127,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    },
+    {
+      "case_id": "independent_contradiction",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 0,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 3,
+      "matched_calls": 3,
+      "live_calls": 0,
+      "input_chars": 151,
+      "pair_calls": 0,
+      "latency_ms": 2.7565000345930457,
+      "jev_latency_ms": 420.70000001695007,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    },
+    {
+      "case_id": "compatible_periods",
+      "expected": "sufficient",
+      "arm": "A1",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "verdict_reason": "gate_obligations_unverified",
+      "route_choice": "ESCALATE_NARRATIVE",
+      "route_final_outcome": "uncertain",
+      "route_valid": true,
+      "gate_allows_sufficient": false,
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [
+        "narrative_unbound"
+      ],
+      "coverage_gate_complete": true,
+      "jev_calls": 3,
+      "matched_calls": 3,
+      "live_calls": 0,
+      "input_chars": 88,
+      "pair_calls": 0,
+      "latency_ms": 2.976874995511025,
+      "jev_latency_ms": 472.4930829834193,
+      "verdict_reasons": [
+        "gate_obligations_unverified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "gate_obligations_unverified"
+    },
+    {
+      "case_id": "compatible_entities",
+      "expected": "sufficient",
+      "arm": "A1",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "verdict_reason": "gate_obligations_unverified",
+      "route_choice": "ESCALATE_NARRATIVE",
+      "route_final_outcome": "uncertain",
+      "route_valid": true,
+      "gate_allows_sufficient": false,
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [
+        "narrative_unbound"
+      ],
+      "coverage_gate_complete": true,
+      "jev_calls": 3,
+      "matched_calls": 2,
+      "live_calls": 1,
+      "input_chars": 80,
+      "pair_calls": 0,
+      "latency_ms": 214.64445895981044,
+      "jev_latency_ms": 540.1389159960672,
+      "verdict_reasons": [
+        "gate_obligations_unverified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "gate_obligations_unverified"
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "verdict_reason": "gate_obligations_unverified",
+      "route_choice": "ESCALATE_NARRATIVE",
+      "route_final_outcome": "uncertain",
+      "route_valid": true,
+      "gate_allows_sufficient": false,
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [
+        "narrative_unbound"
+      ],
+      "coverage_gate_complete": true,
+      "jev_calls": 2,
+      "matched_calls": 2,
+      "live_calls": 0,
+      "input_chars": 89,
+      "pair_calls": 0,
+      "latency_ms": 3.967125026974827,
+      "jev_latency_ms": 190.4532920452766,
+      "verdict_reasons": [
+        "gate_obligations_unverified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "gate_obligations_unverified"
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 0,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 9,
+      "matched_calls": 8,
+      "live_calls": 1,
+      "input_chars": 10693,
+      "pair_calls": 0,
+      "latency_ms": 276.1117910267785,
+      "jev_latency_ms": 2250.0603329390287,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    },
+    {
+      "case_id": "tail_counterevidence",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 1,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 55,
+      "matched_calls": 0,
+      "live_calls": 0,
+      "input_chars": 80122,
+      "pair_calls": 0,
+      "latency_ms": 2427.0078749977984,
+      "jev_latency_ms": 15410.815375915263,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    },
+    {
+      "case_id": "late_evidence",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "verdict_reason": "technical_failure",
+      "route_choice": "FINISH",
+      "route_final_outcome": "uncertain",
+      "route_valid": true,
+      "gate_allows_sufficient": false,
+      "quality_reasons": [
+        "evaluation_errors"
+      ],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": true,
+      "failure_reasons": [
+        "research_1:evidence-40:p11",
+        "research_1:evidence-41:p6"
+      ],
+      "coverage_gate_complete": true,
+      "jev_calls": 589,
+      "matched_calls": 0,
+      "live_calls": 0,
+      "input_chars": 836514,
+      "pair_calls": 0,
+      "latency_ms": 39950.607332983054,
+      "jev_latency_ms": 293463.7127787573,
+      "verdict_reasons": [
+        "technical_failure"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "technical_failure"
+    },
+    {
+      "case_id": "large_567k",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "verdict_reason": "gate_obligations_unverified",
+      "route_choice": "ESCALATE_NARRATIVE",
+      "route_final_outcome": "uncertain",
+      "route_valid": true,
+      "gate_allows_sufficient": false,
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [
+        "narrative_unbound"
+      ],
+      "coverage_gate_complete": true,
+      "jev_calls": 397,
+      "matched_calls": 0,
+      "live_calls": 0,
+      "input_chars": 561346,
+      "pair_calls": 0,
+      "latency_ms": 26513.716249959543,
+      "jev_latency_ms": 202297.10084508406,
+      "verdict_reasons": [
+        "gate_obligations_unverified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "gate_obligations_unverified"
+    },
+    {
+      "case_id": "short_sufficient",
+      "expected": "sufficient",
+      "arm": "A1",
+      "rep": 1,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 2,
+      "matched_calls": 0,
+      "live_calls": 0,
+      "input_chars": 62,
+      "pair_calls": 0,
+      "latency_ms": 437.90708301821724,
+      "jev_latency_ms": 214.28637503413484,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    },
+    {
+      "case_id": "duplicate_contradiction",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 1,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 3,
+      "matched_calls": 0,
+      "live_calls": 0,
+      "input_chars": 155,
+      "pair_calls": 0,
+      "latency_ms": 512.4602920259349,
+      "jev_latency_ms": 496.8836250482127,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    },
+    {
+      "case_id": "independent_contradiction",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 1,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 3,
+      "matched_calls": 0,
+      "live_calls": 0,
+      "input_chars": 151,
+      "pair_calls": 0,
+      "latency_ms": 487.7674159943126,
+      "jev_latency_ms": 478.85500005213544,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    },
+    {
+      "case_id": "compatible_periods",
+      "expected": "sufficient",
+      "arm": "A1",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "verdict_reason": "gate_obligations_unverified",
+      "route_choice": "ESCALATE_NARRATIVE",
+      "route_final_outcome": "uncertain",
+      "route_valid": true,
+      "gate_allows_sufficient": false,
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [
+        "narrative_unbound"
+      ],
+      "coverage_gate_complete": true,
+      "jev_calls": 3,
+      "matched_calls": 0,
+      "live_calls": 0,
+      "input_chars": 88,
+      "pair_calls": 0,
+      "latency_ms": 483.61925000790507,
+      "jev_latency_ms": 512.1227909694426,
+      "verdict_reasons": [
+        "gate_obligations_unverified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "gate_obligations_unverified"
+    },
+    {
+      "case_id": "compatible_entities",
+      "expected": "sufficient",
+      "arm": "A1",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "verdict_reason": "gate_obligations_unverified",
+      "route_choice": "ESCALATE_NARRATIVE",
+      "route_final_outcome": "uncertain",
+      "route_valid": true,
+      "gate_allows_sufficient": false,
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [
+        "narrative_unbound"
+      ],
+      "coverage_gate_complete": true,
+      "jev_calls": 3,
+      "matched_calls": 0,
+      "live_calls": 0,
+      "input_chars": 80,
+      "pair_calls": 0,
+      "latency_ms": 449.23091697273776,
+      "jev_latency_ms": 435.2466659620404,
+      "verdict_reasons": [
+        "gate_obligations_unverified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "gate_obligations_unverified"
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "verdict_reason": "gate_obligations_unverified",
+      "route_choice": "ESCALATE_NARRATIVE",
+      "route_final_outcome": "uncertain",
+      "route_valid": true,
+      "gate_allows_sufficient": false,
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [
+        "narrative_unbound"
+      ],
+      "coverage_gate_complete": true,
+      "jev_calls": 2,
+      "matched_calls": 0,
+      "live_calls": 0,
+      "input_chars": 89,
+      "pair_calls": 0,
+      "latency_ms": 550.3034999710508,
+      "jev_latency_ms": 319.83945798128843,
+      "verdict_reasons": [
+        "gate_obligations_unverified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "gate_obligations_unverified"
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "expected": "insufficient",
+      "arm": "A1",
+      "rep": 1,
+      "draft": "sufficient",
+      "status": "sufficient",
+      "verdict_reason": "sufficient_verified",
+      "route_choice": "FINISH",
+      "route_final_outcome": "sufficient",
+      "route_valid": true,
+      "gate_allows_sufficient": true,
+      "quality_reasons": [],
+      "unresolved_conflicts": [],
+      "pair_conflicts": [],
+      "technical_failure": false,
+      "failure_reasons": [],
+      "coverage_gate_complete": true,
+      "jev_calls": 9,
+      "matched_calls": 0,
+      "live_calls": 0,
+      "input_chars": 10693,
+      "pair_calls": 0,
+      "latency_ms": 591.6030840016901,
+      "jev_latency_ms": 2248.5176660120487,
+      "verdict_reasons": [
+        "sufficient_verified"
+      ],
+      "contradiction_detected": false,
+      "primary_reason": "sufficient_verified"
+    }
+  ],
+  "summary": {
+    "semantic": {
+      "population": "clean",
+      "clean_runs": 19,
+      "excluded_runs": 1,
+      "accuracy": 0.315789,
+      "false_sufficient": 0.692308,
+      "false_insufficient": 0.666667,
+      "confusion": {
+        "false_sufficient": 9,
+        "true_insufficient": 4,
+        "true_sufficient": 2,
+        "false_insufficient": 4
+      },
+      "true_positive_conflicts": 0,
+      "false_contradictions": 0
+    },
+    "operational": {
+      "population": "all_live",
+      "runs": 20,
+      "raw_accuracy": 0.35,
+      "operational_success": 0.3,
+      "technical_failure_rate": 0.05,
+      "failure_reasons": {
+        "research_1:evidence-40:p11": 1,
+        "research_1:evidence-41:p6": 1
+      },
+      "sufficient_on_failed_call": 0,
+      "verdict_stability": {
+        "unstable_cases": [
+          "late_evidence"
+        ],
+        "unstable_explained_by_failure": [
+          "late_evidence"
+        ],
+        "unstable_unexplained": []
+      }
+    },
+    "cost": {
+      "jev_calls": 2132,
+      "jev_input_chars": 2978600,
+      "embedding_calls": 0,
+      "llm_calls": 0,
+      "latency_ms": 77578.458,
+      "jev_latency_ms": 1030044.63,
+      "detected_contradictions": 0,
+      "cost_per_detected_contradiction": null,
+      "cost_per_correct_decision": 355.333333
+    },
+    "pairing": {
+      "matched": 1060,
+      "live": 6,
+      "missing_entry_class": "reproducibility_error"
+    }
+  },
+  "pairing": {
+    "matched": 1060,
+    "live": 6,
+    "missing_entry_class": "reproducibility_error"
+  }
+}
