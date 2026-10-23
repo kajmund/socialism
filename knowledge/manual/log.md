@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-10-23
+
+* **Verktyg**: Ny flik **Klausulankare** där administratörer svarar Ja/Nej på klausuler. Svaren sparas. Ett Ja blir inte automatiskt ett aktivt ankare.
+
 ## 2026-10-20
 
 * **SME / live voice**: Korta bekräftelser som *mm*, *ja* och *precis* avbryter inte experten. *Stopp*, *nej* och *vänta* tystar uppläsningen direkt. Webbläsarens ekoreducering måste vara på.
