@@ -139,7 +139,7 @@ app-max-lines = 500
 tests-max-lines = 1000
 
 [tool.socialism.maintainability.module-baseline]
-"app/api/anchor_sets.py" = 637
+"app/api/anchor_sets.py" = 631
 "app/api/dd.py" = 502
 "app/api/execution.py" = 1347
 "app/api/personas.py" = 1126
@@ -379,7 +379,9 @@ tests-max-lines = 1000
 "app/services/research/execution.py:PLR0913" = 6
 "app/services/research/execution.py:PLR0915" = 1
 "app/services/research/fast_controller.py:BLE001" = 2
+"app/services/research/fast_controller.py:F401" = 1
 "app/services/research/fast_controller.py:PLR0913" = 1
+"app/services/research/fast_state.py:F401" = 1
 "app/services/research/fast_state.py:PLR0913" = 1
 "app/services/research/followup.py:PLR0913" = 1
 "app/services/research/models.py:PLR0913" = 1
@@ -458,8 +460,6 @@ tests-max-lines = 1000
 "tests/test_lagen_nu_provider.py:PLR0917" = 1
 "tests/test_llm_selection.py:PLR0913" = 1
 "tests/test_module_registry.py:PLR0915" = 1
-"app/services/research/fast_controller.py:F401" = 1
-"app/services/research/fast_state.py:F401" = 1
 "tests/test_oasis_tool_trace.py:F401" = 1
 "tests/test_panel_live.py:PLR0911" = 1
 "tests/test_panel_session.py:C901" = 1
