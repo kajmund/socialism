@@ -10,14 +10,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.database.base import Base
-from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund, SsrAnchorSet, UserAccount
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, Kund, UserAccount
 from app.database.tabular_review import TabularReviewCell
 from app.services.knowledge.units import hash_text
 from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.text_units import load_domain_text_units
 from app.services.overgraph.write import upsert_text_unit
-from app.services.ssr import set_embedder
 from app.services.ssr.similarity import cosine_similarity
+from app.services.clause_ssr.anchors import promote_anchor
+from app.services.clause_ssr.classifications import upsert_classification
+from app.services.clause_ssr.select import build_anchor_set
+from app.services.clause_ssr.types import EmbeddingSpec
+from app.services.clause_ssr.verifications import record_decision
+from app.services.knowledge.scope import customer_scope
 from app.services.tabular_review.run import fill_review
 from app.services.tabular_review.store import add_column, create_review, set_documents
 from app.services.tabular_review.types import ColumnSpec
@@ -47,6 +52,32 @@ class _ProbingEmbedder:
         await _probe(self.factory)
         await asyncio.sleep(0.05)
         return [list(_vec(1.0)) for _ in texts]
+
+
+_SET_ID = ""
+
+
+def _seed_clause_set() -> str:
+    scope = customer_scope(CUSTOMER_ID)
+    catalog = require_knowledge()
+    classification = upsert_classification(
+        catalog,
+        scope=scope,
+        slug="uppsagning",
+        question="Är det här en uppsägningsklausul?",
+        category="uppsagning",
+    )
+    verification = record_decision(
+        catalog,
+        scope=scope,
+        classification_id=classification.id,
+        unit_id="unit-1",
+        reviewer_id="admin-1",
+        answer="yes",
+    )
+    embedding = EmbeddingSpec(model="test", revision="v1", dimension=RESEARCH_TEST_DIM)
+    promote_anchor(catalog, verification.id, scope=scope, embedding=embedding)
+    return build_anchor_set(catalog, scope=scope, category="uppsagning", embedding=embedding).id
 
 
 @pytest.fixture
@@ -87,18 +118,6 @@ async def review_db(tmp_path):
                 extra={},
             )
         )
-        session.add(
-            SsrAnchorSet(
-                id=9,
-                name="clause",
-                kind="clause",
-                locale="sv",
-                version="v1",
-                labels=["uppsagning"],
-                statements=["tre månaders uppsägningstid"],
-                status="published",
-            )
-        )
         await session.commit()
     view = text_unit_view(
         text="Avtalet kan sägas upp med tre månaders uppsägningstid.",
@@ -110,6 +129,8 @@ async def review_db(tmp_path):
         page_start=2,
     )
     upsert_text_unit(require_knowledge(), replace(text_unit_write(view), embedding=_vec(1.0)))
+    global _SET_ID
+    _SET_ID = _seed_clause_set()
     try:
         yield factory
     finally:
@@ -131,7 +152,7 @@ async def _prepare_review(factory) -> int:
             ColumnSpec(
                 column_id=None,
                 title="Uppsägning",
-                anchor_set_id=9,
+                anchor_set_id=_SET_ID,
                 label="uppsagning",
             ),
         )
@@ -145,21 +166,14 @@ async def test_fill_reuses_overgraph_units_and_releases_connection(review_db):
     assert [unit.id for unit in units] == ["unit-1"]
     assert cosine_similarity([1.0, 0.0, 0.0], [1.0, 0.0, 0.0]) == 1.0
 
-    embedder = _ProbingEmbedder(factory)
-    set_embedder(embedder)
-    try:
-        review_id = await _prepare_review(factory)
-        await fill_review(
-            factory,
-            review_id,
-            catalog=require_knowledge(),
-            embeddings_by_document={"doc-1": {"unit-1": list(_vec(1.0))}},
-            customer_id=CUSTOMER_ID,
-        )
-    finally:
-        set_embedder(None)
-
-    assert embedder.calls >= 1
+    review_id = await _prepare_review(factory)
+    await fill_review(
+        factory,
+        review_id,
+        catalog=require_knowledge(),
+        embeddings_by_document={"doc-1": {"unit-1": list(_vec(1.0))}},
+        customer_id=CUSTOMER_ID,
+    )
     async with factory() as session:
         cells = list((await session.execute(select(TabularReviewCell))).scalars().all())
         assert len(cells) == 1
@@ -179,26 +193,8 @@ async def test_fill_fails_when_any_unit_lacks_embedding(review_db):
         page_start=3,
     )
     upsert_text_unit(require_knowledge(), replace(text_unit_write(extra), embedding=_vec(0.0, 1.0)))
-    set_embedder(_ProbingEmbedder(factory))
-    try:
-        review_id = await _prepare_review(factory)
-        with pytest.raises(RuntimeError, match="unit-2"):
-            await fill_review(
-                factory,
-                review_id,
-                catalog=require_knowledge(),
-                embeddings_by_document={"doc-1": {"unit-1": list(_vec(1.0))}},
-                customer_id=CUSTOMER_ID,
-            )
-    finally:
-        set_embedder(None)
-
-
-async def test_fill_resets_unlocked_verdict_when_result_changes(review_db):
-    factory = review_db
-    set_embedder(_ProbingEmbedder(factory))
-    try:
-        review_id = await _prepare_review(factory)
+    review_id = await _prepare_review(factory)
+    with pytest.raises(RuntimeError, match="unit-2"):
         await fill_review(
             factory,
             review_id,
@@ -206,45 +202,54 @@ async def test_fill_resets_unlocked_verdict_when_result_changes(review_db):
             embeddings_by_document={"doc-1": {"unit-1": list(_vec(1.0))}},
             customer_id=CUSTOMER_ID,
         )
-        async with factory() as session:
-            cell = (await session.execute(select(TabularReviewCell))).scalar_one()
-            cell.review_state = "approved"
-            await session.commit()
-        stale = text_unit_view(
-            text="Detta avtal handlar om samråd och leverans.",
-            id="unit-1",
-            document_id="doc-1",
-            document_version_id="ver-1",
-            customer_id=CUSTOMER_ID,
-            locator="§12",
-            page_start=2,
-        )
-        extra = text_unit_view(
-            text="Avtalet kan sägas upp med tre månaders uppsägningstid.",
-            id="unit-2",
-            document_id="doc-1",
-            document_version_id="ver-1",
-            customer_id=CUSTOMER_ID,
-            locator="§14",
-            page_start=4,
-        )
-        upsert_text_unit(require_knowledge(), replace(text_unit_write(stale), embedding=_vec(0.0, 1.0)))
-        upsert_text_unit(require_knowledge(), replace(text_unit_write(extra), embedding=_vec(1.0)))
-        await fill_review(
-            factory,
-            review_id,
-            catalog=require_knowledge(),
-            embeddings_by_document={
-                "doc-1": {
-                    "unit-1": list(_vec(0.0, 1.0)),
-                    "unit-2": list(_vec(1.0)),
-                }
-            },
-            customer_id=CUSTOMER_ID,
-        )
-    finally:
-        set_embedder(None)
 
+
+async def test_fill_resets_unlocked_verdict_when_result_changes(review_db):
+    factory = review_db
+    review_id = await _prepare_review(factory)
+    await fill_review(
+        factory,
+        review_id,
+        catalog=require_knowledge(),
+        embeddings_by_document={"doc-1": {"unit-1": list(_vec(1.0))}},
+        customer_id=CUSTOMER_ID,
+    )
+    async with factory() as session:
+        cell = (await session.execute(select(TabularReviewCell))).scalar_one()
+        cell.review_state = "approved"
+        await session.commit()
+    stale = text_unit_view(
+        text="Detta avtal handlar om samråd och leverans.",
+        id="unit-1",
+        document_id="doc-1",
+        document_version_id="ver-1",
+        customer_id=CUSTOMER_ID,
+        locator="§12",
+        page_start=2,
+    )
+    extra = text_unit_view(
+        text="Avtalet kan sägas upp med tre månaders uppsägningstid.",
+        id="unit-2",
+        document_id="doc-1",
+        document_version_id="ver-1",
+        customer_id=CUSTOMER_ID,
+        locator="§14",
+        page_start=4,
+    )
+    upsert_text_unit(require_knowledge(), replace(text_unit_write(stale), embedding=_vec(0.0, 1.0)))
+    upsert_text_unit(require_knowledge(), replace(text_unit_write(extra), embedding=_vec(1.0)))
+    await fill_review(
+        factory,
+        review_id,
+        catalog=require_knowledge(),
+        embeddings_by_document={
+            "doc-1": {
+                "unit-1": list(_vec(0.0, 1.0)),
+                "unit-2": list(_vec(1.0)),
+            }
+        },
+        customer_id=CUSTOMER_ID,
+    )
     async with factory() as session:
         cell = (await session.execute(select(TabularReviewCell))).scalar_one()
         assert cell.text_unit_id == "unit-2"

@@ -89,11 +89,7 @@ class TabularReviewColumn(Base):
         index=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    anchor_set_id: Mapped[int] = mapped_column(
-        ForeignKey("ssr_anchor_sets.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
+    anchor_set_id: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     label: Mapped[str] = mapped_column(String(64), nullable=False)
     polarity: Mapped[str] = mapped_column(String(16), nullable=False, default="positive")
     allow_abstain: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -273,10 +269,7 @@ class TabularReviewVerificationLabel(Base):
         nullable=False,
         index=True,
     )
-    anchor_set_id: Mapped[int] = mapped_column(
-        ForeignKey("ssr_anchor_sets.id", ondelete="RESTRICT"),
-        nullable=False,
-    )
+    anchor_set_id: Mapped[str] = mapped_column(String(200), nullable=False)
     label: Mapped[str] = mapped_column(String(64), nullable=False)
     text_unit_id: Mapped[str] = mapped_column(String(64), nullable=False)
     verdict: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -299,7 +292,7 @@ class TabularReviewScoreCache(Base):
     cache_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     text_unit_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    anchor_set_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    anchor_set_id: Mapped[str] = mapped_column(String(200), nullable=False)
     anchor_set_version: Mapped[str] = mapped_column(String(16), nullable=False)
     pool_revision: Mapped[int] = mapped_column(Integer, nullable=False)
     embedding_model: Mapped[str] = mapped_column(String(128), nullable=False)

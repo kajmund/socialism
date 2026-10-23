@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, SsrAnchorSet
+from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord
 from app.database.tabular_review import (
     TabularReview,
     TabularReviewCandidate,
@@ -122,16 +122,6 @@ async def update_review(
 
 
 async def add_column(session: AsyncSession, review: TabularReview, spec: ColumnSpec) -> TabularReviewColumn:
-    anchor = await session.get(SsrAnchorSet, spec.anchor_set_id)
-    if anchor is None:
-        raise TabularReviewError("anchor_set_not_found")
-    if anchor.kind != "clause":
-        raise TabularReviewError("anchor_set_not_clause")
-    if anchor.status != "published":
-        raise TabularReviewError("anchor_set_not_published")
-    labels = [str(item) for item in (anchor.labels or [])]
-    if spec.label not in labels:
-        raise TabularReviewError("label_not_in_anchor_set")
     current = await _columns_for_review(session, review.id)
     order = spec.sort_order if spec.sort_order else len(current)
     column = TabularReviewColumn(

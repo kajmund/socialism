@@ -10,7 +10,8 @@ Policy: [reuse-before-new.md](reuse-before-new.md).
 | --------- | ---- | ---- |
 | Cosine similarity | `app/services/ssr/similarity.py` | Raw score, not a PMF |
 | SSR embedding cache | `app/services/ssr/embeddings.py` | `(model, text)` disk/memory cache |
-| Anchor library | `ssr_anchor_sets` + `/anchor-sets` | Labels, statements, pool examples |
+| Clause anchor library | `clause_ssr` Overgraph sets (`/clause-ssr`) | Verified anchors, vectors, versions, active sets |
+| Report tone/style anchors | `ssr_anchor_sets` + `/anchor-sets` | Report SSR only; not clause storage |
 | TextUnits | `app/services/overgraph/text_units.py` | Authoritative passages |
 | Document grouping | `app/services/document_find/group.py` | `dedupe_document_ids` |
 | Current version | `get_current_document_version` | One agreement snapshot per row |
@@ -23,12 +24,12 @@ Policy: [reuse-before-new.md](reuse-before-new.md).
 | New unit | Existing counterpart | Decision | Justification if new | Integration test |
 | -------- | -------------------- | -------- | -------------------- | ---------------- |
 | Cell ranking | `cosine_similarity` | **Reuse** | No softmax, no probability | `test_ranking_is_deterministic_and_uses_cosine` |
-| Anchor statements | `SsrAnchorSet` + pool | **Extend** (`kind=clause`) | Tone/style stay unchanged; clause sets are example passages | `test_publish_clause_set_skips_calibration` |
+| Clause columns | `clause_ssr` active anchor sets | **Reuse** | Published Overgraph sets; no SQL clause kind | `test_create_run_lock_approve_and_missed_hit` |
 | TextUnits | `load_domain_text_units` | **Reuse** | OverGraph remains the store | `test_fill_reuses_overgraph_units_and_releases_connection` |
 | Document set | `dedupe_document_ids` + `CanonicalDocument` | **Reuse** | One row per logical agreement | API create/run |
 | Score cache | SSR text cache + new key table | **New table** | Key is TextUnit + AnchorSet version + model, not just text | ranking + fill tests |
 | Review object | none | **New** | Persistent named review is not a run, report, or Q&A node | `test_create_run_lock_approve_and_missed_hit` |
-| Verification label | `ssr_anchor_pool_items` | **New, do not write pool** | Approve/reject must not activate SSR anchors | same; pool unchanged |
+| Verification label | `clause_ssr` verifications | **Separate** | Tabular approve/reject is a review label; it must not activate clause anchors | `test_revoked_anchor_preserves_locked_history_and_blocks_new_match` |
 | Table UI | `WorkspaceComparison` / `DocumentBatchTable` | **New page, same chrome** | No shared comparison extract yet; PDF viewer reused | frontend unit + API |
 | Virtual rows | none | **New 20-line helper** | No virtualizer dependency | `virtualRows.test.ts` |
 | Jev / SWE / retrieval | research stack | **Do not touch** | Spec forbids production changes | no imports from those packages |

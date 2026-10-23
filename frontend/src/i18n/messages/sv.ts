@@ -3466,7 +3466,7 @@ export const sv = {
     editor: {
       newTitle: "Ny Tabular Review",
       editTitle: "Tabular Review",
-      intro: "Ett avtal per rad. Kolumner är SSR-kategorier. Tabellen fylls utan Jev eller LLM.",
+      intro: "Ett avtal per rad. Kolumner är aktiva klausulankarset från Overgraph. Tabellen fylls utan Jev eller LLM.",
       loadError: "Kunde inte hämta reviewn",
       name: "Namn",
       threshold: "Scoregräns",
@@ -3524,6 +3524,7 @@ export const sv = {
       verification_label: "Verifiering",
       update: "Uppdatering",
     },
+  },
   clauseSsr: {
     kicker: "Verktyg",
     title: "Klausulankare",

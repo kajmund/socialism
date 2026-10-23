@@ -45,7 +45,7 @@ export type TabularReviewCell = {
 export type TabularReviewColumn = {
   id: number
   title: string
-  anchor_set_id: number
+  anchor_set_id: string
   label: string
   polarity: CellPolarity
   allow_abstain: boolean
@@ -97,15 +97,16 @@ export type TabularReviewDocument = {
 }
 
 export type TabularReviewClauseAnchor = {
-  id: number
+  id: string
   name: string
+  category: string
   labels: string[]
   version: string
 }
 
 export type TabularReviewColumnWrite = {
   title: string
-  anchor_set_id: number
+  anchor_set_id: string
   label: string
   polarity?: CellPolarity
   allow_abstain?: boolean

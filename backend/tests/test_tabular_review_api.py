@@ -7,12 +7,18 @@ from dataclasses import replace
 import pytest
 from sqlalchemy import select
 
-from app.database.models import CanonicalDocumentRecord, Kund, SsrAnchorPoolItem, SsrAnchorSet
+from app.database.models import CanonicalDocumentRecord, Kund, SsrAnchorSet
 from app.database.tabular_review import TabularReviewVerificationLabel
 from app.services.knowledge.units import hash_text
 from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.write import upsert_text_unit
 from app.services.ssr import set_embedder
+from app.services.clause_ssr.anchors import promote_anchor
+from app.services.clause_ssr.classifications import upsert_classification
+from app.services.clause_ssr.select import build_anchor_set
+from app.services.clause_ssr.types import EmbeddingSpec
+from app.services.clause_ssr.verifications import record_decision, revoke_verification
+from app.services.knowledge.scope import customer_scope
 from tests.conftest import RESEARCH_TEST_DIM, TEST_CUSTOMER_ID
 from tests.text_unit_fakes import text_unit_view, text_unit_write
 
@@ -40,30 +46,27 @@ async def _enable_module(factory) -> None:
         await session.commit()
 
 
-async def _clause_set(factory, *, label="uppsagning") -> int:
-    async with factory() as session:
-        row = SsrAnchorSet(
-            name="avtal-klausuler",
-            kind="clause",
-            locale="sv",
-            version="v1",
-            labels=[label],
-            statements=["Avtalet kan sägas upp med tre månaders uppsägningstid."],
-            status="published",
-        )
-        session.add(row)
-        await session.flush()
-        session.add(
-            SsrAnchorPoolItem(
-                anchor_set_id=row.id,
-                label=label,
-                text="Uppsägningstiden är tre månader.",
-                source_type="user",
-                source_ref={},
-            )
-        )
-        await session.commit()
-        return row.id
+async def _clause_set(factory, *, label="uppsagning") -> str:
+    catalog = require_knowledge()
+    scope = customer_scope(TEST_CUSTOMER_ID)
+    classification = upsert_classification(
+        catalog,
+        scope=scope,
+        slug=label,
+        question=f"Är det här en {label}-klausul?",
+        category=label,
+    )
+    verification = record_decision(
+        catalog,
+        scope=scope,
+        classification_id=classification.id,
+        unit_id="unit-hit-doc",
+        reviewer_id="admin-1",
+        answer="yes",
+    )
+    embedding = EmbeddingSpec(model="test", revision="v1", dimension=RESEARCH_TEST_DIM)
+    promote_anchor(catalog, verification.id, scope=scope, embedding=embedding)
+    return build_anchor_set(catalog, scope=scope, category=label, embedding=embedding).id
 
 
 async def _document(factory, *, doc_id="doc-1", title="Hyresavtal", text="Avtalet kan sägas upp med tre månaders uppsägningstid.", vector=_vec(1.0)):
@@ -130,7 +133,6 @@ async def test_module_is_opt_in(client_db):
 async def test_create_run_lock_approve_and_missed_hit(client_db, review_embedder):
     client, factory = client_db
     await _enable_module(factory)
-    anchor_id = await _clause_set(factory)
     await _document(factory, doc_id="hit-doc", title="Avtal A")
     await _document(
         factory,
@@ -139,6 +141,7 @@ async def test_create_run_lock_approve_and_missed_hit(client_db, review_embedder
         text="Detta avtal handlar om samråd och leverans.",
         vector=_vec(0.0, 1.0),
     )
+    anchor_id = await _clause_set(factory)
 
     created = await client.post(
         "/tabular-reviews",
@@ -186,8 +189,6 @@ async def test_create_run_lock_approve_and_missed_hit(client_db, review_embedder
     async with factory() as session:
         labels = list((await session.execute(select(TabularReviewVerificationLabel))).scalars().all())
         assert len(labels) == 1
-        pools = list((await session.execute(select(SsrAnchorPoolItem))).scalars().all())
-        assert all(item.source_type == "user" for item in pools)
 
     note = await client.post(
         f"/tabular-reviews/{review_id}/cells/{hit['id']}/note",
@@ -216,45 +217,83 @@ async def test_user_without_module_is_denied(user_client):
 async def test_module_user_lists_clause_anchors_without_admin_api(client_db, user_token):
     client, factory = client_db
     await _enable_module(factory)
+    await _document(factory, doc_id="hit-doc", title="Avtal A")
     await _clause_set(factory)
     client.headers["Authorization"] = f"Bearer {user_token}"
-    admin_only = await client.get("/anchor-sets?kind=clause")
+    admin_only = await client.get("/anchor-sets")
     assert admin_only.status_code == 403
     listed = await client.get("/tabular-reviews/clause-anchors")
     assert listed.status_code == 200, listed.text
     assert listed.json()[0]["labels"] == ["uppsagning"]
 
 
-async def test_blank_clause_rows_are_rejected(client):
-    created = await client.post(
-        "/anchor-sets",
-        json={
-            "name": "blank-clause",
-            "kind": "clause",
-            "locale": "sv",
-            "version": "v1",
-            "labels": [""],
-            "statements": [""],
-        },
+
+
+async def test_revoked_anchor_preserves_locked_history_and_blocks_new_match(
+    client_db, review_embedder
+):
+    client, factory = client_db
+    await _enable_module(factory)
+    await _document(factory, doc_id="doc-a", title="Avtal A")
+    await _document(factory, doc_id="doc-b", title="Avtal B")
+    catalog = require_knowledge()
+    scope = customer_scope(TEST_CUSTOMER_ID)
+    classification = upsert_classification(
+        catalog,
+        scope=scope,
+        slug="uppsagning",
+        question="Är det här en uppsägningsklausul?",
+        category="uppsagning",
     )
-    assert created.status_code == 400
-    assert "non-empty" in created.json()["detail"]
+    verification = record_decision(
+        catalog,
+        scope=scope,
+        classification_id=classification.id,
+        unit_id="unit-doc-a",
+        reviewer_id="admin-1",
+        answer="yes",
+    )
+    embedding = EmbeddingSpec(model="test", revision="v1", dimension=RESEARCH_TEST_DIM)
+    promote_anchor(catalog, verification.id, scope=scope, embedding=embedding)
+    set_id = build_anchor_set(
+        catalog, scope=scope, category="uppsagning", embedding=embedding
+    ).id
 
-
-async def test_publish_clause_set_skips_calibration(client):
     created = await client.post(
-        "/anchor-sets",
+        "/tabular-reviews",
         json={
-            "name": "clause-v1",
-            "kind": "clause",
-            "locale": "sv",
-            "version": "v1",
-            "labels": ["pris"],
-            "statements": ["Hyra betalas månadsvis i förskott."],
+            "name": "Revocation",
+            "document_ids": ["doc-a", "doc-b"],
+            "columns": [
+                {"title": "Uppsägning", "anchor_set_id": set_id, "label": "uppsagning"}
+            ],
         },
     )
     assert created.status_code == 201, created.text
-    published = await client.post(f"/anchor-sets/{created.json()['id']}/publish")
-    assert published.status_code == 200, published.text
-    assert published.json()["status"] == "published"
-    assert published.json()["kind"] == "clause"
+    review_id = created.json()["id"]
+    ran = await client.post(f"/tabular-reviews/{review_id}/run")
+    assert ran.status_code == 200, ran.text
+    cells = [cell for row in ran.json()["rows"] for cell in row["cells"]]
+    assert len(cells) == 2
+    hit = next(cell for cell in cells if cell["status"] == "hit")
+    await client.post(f"/tabular-reviews/{review_id}/cells/{hit['id']}/lock")
+    await client.post(f"/tabular-reviews/{review_id}/cells/{hit['id']}/approve")
+
+    revoke_verification(catalog, verification.id, scope=scope)
+    rerun = await client.post(f"/tabular-reviews/{review_id}/run")
+    assert rerun.status_code == 200, rerun.text
+    rerun_cells = [cell for row in rerun.json()["rows"] for cell in row["cells"]]
+    locked = next(cell for cell in rerun_cells if cell["id"] == hit["id"])
+    assert locked["locked"] is True
+    assert locked["review_state"] == "approved"
+    assert locked["exact_text"] == hit["exact_text"]
+    unlocked = [cell for cell in rerun_cells if cell["id"] != hit["id"]]
+    assert all(cell["status"] == "no_hit" for cell in unlocked)
+
+    async with factory() as session:
+        clause_rows = list(
+            (
+                await session.execute(select(SsrAnchorSet).where(SsrAnchorSet.kind == "clause"))
+            ).scalars().all()
+        )
+        assert clause_rows == []

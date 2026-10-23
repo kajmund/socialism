@@ -12,7 +12,7 @@ from app.services.tabular_review.types import CellPolarity
 class ScoreCacheIdentity:
     text_unit_id: str
     content_hash: str
-    anchor_set_id: int
+    anchor_set_id: str
     anchor_set_version: str
     pool_revision: int
     embedding_model: str
