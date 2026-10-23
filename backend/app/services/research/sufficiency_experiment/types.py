@@ -72,6 +72,8 @@ class ExperimentConfig:
     pair_judgement: bool = True
     pair_jev_concurrency: int = 8
     pair_jev_timeout_seconds: float = 5.0
+    gap_review_enabled: bool = False
+    max_gap_input_chars: int = 12_000
     max_pair_state_chars: int = 6_000
     max_pair_jev_calls: int = 200
 
@@ -249,6 +251,20 @@ class CoverageReport:
 
 
 @dataclass(frozen=True)
+class NarrativeGapReport:
+    needs_more_evidence: bool
+    missing_evidence: tuple[str, ...]
+    questions: tuple[str, ...]
+    suggested_workflows: tuple[str, ...]
+    cited_claim_ids: tuple[str, ...]
+    rationale: str
+    latency_ms: float = 0.0
+    input_chars: int = 0
+    model: str | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True)
 class PairCoverage:
     total: int
     judged: int
@@ -355,6 +371,7 @@ class ExperimentReport:
     pairs: tuple[PairEvaluation, ...] = ()
     pair_coverage: PairCoverage | None = None
     coverage_report: CoverageReport | None = None
+    gap_review: NarrativeGapReport | None = None
 
     @property
     def coverage(self) -> float:

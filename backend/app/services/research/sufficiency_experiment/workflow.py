@@ -19,6 +19,7 @@ HANDLER_NAMES = frozenset(
         "sufficiency.prepare_pairs",
         "sufficiency.evaluate_pair",
         "sufficiency.aggregate_pairs",
+        "sufficiency.gap_review",
         "sufficiency.route",
         "sufficiency.narrative",
         "sufficiency.emit",
@@ -77,6 +78,11 @@ def _document(concurrency: int, pair_concurrency: int) -> dict[str, Any]:
             "aggregate_pairs": {
                 "type": "task",
                 "handler": "sufficiency.aggregate_pairs",
+                "next": "gap_review",
+            },
+            "gap_review": {
+                "type": "task",
+                "handler": "sufficiency.gap_review",
                 "next": "route",
             },
             "route": {

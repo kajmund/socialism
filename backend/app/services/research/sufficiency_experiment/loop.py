@@ -31,6 +31,11 @@ from app.services.research.sufficiency_experiment.jev_eval import (
     evaluation_jobs,
     quality_inputs,
 )
+from app.services.research.sufficiency_experiment.narrative_gap import (
+    NarrativeGapFn,
+    build_gap_payload,
+    run_gap_review,
+)
 from app.services.research.sufficiency_experiment.narrative import (
     NarrativeFn,
     run_narrative,
@@ -59,6 +64,7 @@ from app.services.research.sufficiency_experiment.types import (
     ExperimentStatus,
     GateInputs,
     NeedAggregation,
+    NarrativeGapReport,
     PairCandidate,
     PairCoverage,
     PairEvaluation,
@@ -114,6 +120,8 @@ class SufficiencyLoop:
         self._pair_selection: PairSelection | None = None
         self._pair_facit: PairFacit | None = None
         self._coverage_report: CoverageReport | None = None
+        self._gap_reviewer: NarrativeGapFn | None = None
+        self._gap_review: NarrativeGapReport | None = None
         self._aggregations: tuple[NeedAggregation, ...] = ()
         self._quality: QualityDecision | None = None
         self._route: RouteDecision | None = None
@@ -136,6 +144,7 @@ class SufficiencyLoop:
             "sufficiency.prepare_pairs": self._prepare_pairs,
             "sufficiency.evaluate_pair": self._evaluate_pair,
             "sufficiency.aggregate_pairs": self._aggregate_pairs,
+            "sufficiency.gap_review": self._run_gap_review,
             "sufficiency.route": self._decide_route,
             "sufficiency.narrative": self._run_narrative,
             "sufficiency.emit": self._emit,
@@ -146,6 +155,9 @@ class SufficiencyLoop:
 
     def bind_pair_facit(self, facit: PairFacit | None) -> None:
         self._pair_facit = facit
+
+    def bind_gap_reviewer(self, reviewer: NarrativeGapFn | None) -> None:
+        self._gap_reviewer = reviewer
 
     async def run(self, *, run_id: str | None = None) -> RunResult:
         runner = WorkflowRunner(
@@ -345,6 +357,26 @@ class SufficiencyLoop:
             "allows_sufficient": self._quality.allows_sufficient,
         }
 
+    async def _run_gap_review(self, _payload: Mapping[str, Any]) -> dict[str, Any]:
+        if not self._config.gap_review_enabled or self._gap_reviewer is None:
+            return {"ran": False}
+        payload = build_gap_payload(
+            self._plan,
+            self._aggregations,
+            claims=self._claims,
+            selection=self._pair_selection,
+            coverage=self._coverage_report,
+            max_chars=self._config.max_gap_input_chars,
+        )
+        self._gap_review = await run_gap_review(
+            payload, completer=self._gap_reviewer, config=self._config
+        )
+        self._llm_calls += 1
+        return {
+            "ran": True,
+            "needs_more_evidence": self._gap_review.needs_more_evidence,
+        }
+
     async def _decide_route(self, _payload: Mapping[str, Any]) -> dict[str, Any]:
         quality = self._require_quality()
         self._route = await decide_route(
@@ -465,4 +497,5 @@ class SufficiencyLoop:
             pairs=tuple(self._pair_evaluations),
             pair_coverage=self._pair_coverage,
             coverage_report=self._coverage_report,
+            gap_review=self._gap_review,
         )
