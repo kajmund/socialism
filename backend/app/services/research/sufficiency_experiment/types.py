@@ -30,6 +30,7 @@ CoverageControl = Literal[
 ]
 ConflictReasonKind = Literal["temporal", "entity", "definition", "superseding"]
 RouteChoice = Literal["FINISH", "RUN_SUBWORKFLOW", "ESCALATE_NARRATIVE", "UNCERTAIN"]
+RouteOutcome = Literal["sufficient", "insufficient", "uncertain"]
 ROUTE_CHOICES: tuple[RouteChoice, ...] = (
     "FINISH",
     "RUN_SUBWORKFLOW",
@@ -66,6 +67,9 @@ class ExperimentConfig:
     max_pairs_per_need: int = 40
     embedding_neighbors: int = 3
     pair_strategy: PairStrategy = "deterministic"
+    route_authority: bool = True
+    legacy_duplicate_resolution: bool = False
+    pair_judgement: bool = True
     pair_jev_concurrency: int = 8
     pair_jev_timeout_seconds: float = 5.0
     max_pair_state_chars: int = 6_000
@@ -317,6 +321,7 @@ class RouteDecision:
     jev_outcome: str | None = None
     rejection: str | None = None
     jev_answers: tuple[tuple[str, float], ...] = ()
+    final_outcome: RouteOutcome | None = None
 
 
 @dataclass(frozen=True)

@@ -51,6 +51,12 @@ def build_conflicts(
         for row in rows
         if row.scores.contradicts_current_evidence >= config.contradict_threshold
     ]
+    if config.legacy_duplicate_resolution:
+        flagged = [
+            row
+            for row in flagged
+            if row.scores.likely_duplicate_or_redundant < config.support_threshold
+        ]
     indexed = {row.passage_id: row for row in rows}
     records: list[ConflictRecord] = []
     seen: set[str] = set()

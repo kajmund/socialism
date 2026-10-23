@@ -1,0 +1,150 @@
+{
+  "measurement": "scripted_a0_vs_a1",
+  "note": "Scripted route answers, no live model; measures the A1 authority change only.",
+  "config": {
+    "A0": {
+      "jev_concurrency": 8,
+      "jev_timeout_seconds": 5.0,
+      "jev_model": "jev-latest",
+      "max_passage_chars": 1500,
+      "max_narrative_depth": 1,
+      "max_jev_calls": 2000,
+      "max_steps": 2000,
+      "max_depth": 6,
+      "timeout_seconds": 1800,
+      "support_threshold": 0.6,
+      "contradict_threshold": 0.6,
+      "max_tool_calls": 8,
+      "max_narrative_input_chars": 12000,
+      "min_claim_chars": 20,
+      "max_claim_chars": 500,
+      "min_claim_words": 4,
+      "max_claims_per_need": 200,
+      "max_pairs_per_need": 40,
+      "embedding_neighbors": 3,
+      "pair_strategy": "deterministic",
+      "route_authority": false,
+      "legacy_duplicate_resolution": true,
+      "pair_judgement": false,
+      "pair_jev_concurrency": 8,
+      "pair_jev_timeout_seconds": 5.0,
+      "max_pair_state_chars": 6000,
+      "max_pair_jev_calls": 200
+    },
+    "A1": {
+      "jev_concurrency": 8,
+      "jev_timeout_seconds": 5.0,
+      "jev_model": "jev-latest",
+      "max_passage_chars": 1500,
+      "max_narrative_depth": 1,
+      "max_jev_calls": 2000,
+      "max_steps": 2000,
+      "max_depth": 6,
+      "timeout_seconds": 1800,
+      "support_threshold": 0.6,
+      "contradict_threshold": 0.6,
+      "max_tool_calls": 8,
+      "max_narrative_input_chars": 12000,
+      "min_claim_chars": 20,
+      "max_claim_chars": 500,
+      "min_claim_words": 4,
+      "max_claims_per_need": 200,
+      "max_pairs_per_need": 40,
+      "embedding_neighbors": 3,
+      "pair_strategy": "deterministic",
+      "route_authority": true,
+      "legacy_duplicate_resolution": true,
+      "pair_judgement": false,
+      "pair_jev_concurrency": 8,
+      "pair_jev_timeout_seconds": 5.0,
+      "max_pair_state_chars": 6000,
+      "max_pair_jev_calls": 200
+    }
+  },
+  "rows": [
+    {
+      "scenario": "route_uncertain",
+      "arm": "A0",
+      "route_answers": {
+        "answerable_now": 0.85,
+        "material_gap": 0.05
+      },
+      "draft": "sufficient",
+      "status": "sufficient",
+      "route_choice": "FINISH",
+      "final_outcome": "uncertain",
+      "route_valid": true,
+      "rejection": null
+    },
+    {
+      "scenario": "route_uncertain",
+      "arm": "A1",
+      "route_answers": {
+        "answerable_now": 0.85,
+        "material_gap": 0.05
+      },
+      "draft": "insufficient",
+      "status": "uncertain",
+      "route_choice": "FINISH",
+      "final_outcome": "uncertain",
+      "route_valid": true,
+      "rejection": null
+    },
+    {
+      "scenario": "route_insufficient",
+      "arm": "A0",
+      "route_answers": {
+        "answerable_now": 0.05,
+        "material_gap": 0.95
+      },
+      "draft": "sufficient",
+      "status": "sufficient",
+      "route_choice": "FINISH",
+      "final_outcome": "insufficient",
+      "route_valid": true,
+      "rejection": null
+    },
+    {
+      "scenario": "route_insufficient",
+      "arm": "A1",
+      "route_answers": {
+        "answerable_now": 0.05,
+        "material_gap": 0.95
+      },
+      "draft": "insufficient",
+      "status": "insufficient",
+      "route_choice": "FINISH",
+      "final_outcome": "insufficient",
+      "route_valid": true,
+      "rejection": null
+    },
+    {
+      "scenario": "route_sufficient",
+      "arm": "A0",
+      "route_answers": {
+        "answerable_now": 0.95,
+        "material_gap": 0.05
+      },
+      "draft": "sufficient",
+      "status": "sufficient",
+      "route_choice": "FINISH",
+      "final_outcome": "sufficient",
+      "route_valid": true,
+      "rejection": null
+    },
+    {
+      "scenario": "route_sufficient",
+      "arm": "A1",
+      "route_answers": {
+        "answerable_now": 0.95,
+        "material_gap": 0.05
+      },
+      "draft": "sufficient",
+      "status": "sufficient",
+      "route_choice": "FINISH",
+      "final_outcome": "sufficient",
+      "route_valid": true,
+      "rejection": null
+    }
+  ]
+}
