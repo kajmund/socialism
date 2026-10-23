@@ -373,6 +373,20 @@ class ProvenanceEvent:
 
 
 @dataclass(frozen=True)
+class StopShadow:
+    condition: str
+    would_stop: bool
+    conflict_id: str | None
+    pair_verdict: str | None
+    remaining_pair_calls: int
+    estimated_calls_saved: int
+    estimated_latency_saved_ms: float
+    coverage_complete: bool
+    blocking: bool
+    risk: str | None
+
+
+@dataclass(frozen=True)
 class DecisionDiagnostics:
     reasons: tuple[DecisionReason, ...]
     unique_conflicts: tuple[str, ...] = ()
@@ -409,6 +423,18 @@ class ExperimentReport:
         if self.source_chars <= 0:
             return 1.0
         return self.judged_chars / self.source_chars
+
+    @property
+    def stop_shadow(self) -> StopShadow:
+        from app.services.research.sufficiency_experiment.stop_conditions import (
+            shadow_stop,
+        )
+
+        return shadow_stop(
+            pairs=self.pairs,
+            aggregations=self.aggregations,
+            coverage=self.coverage_report,
+        )
 
     @property
     def decision_diagnostics(self) -> DecisionDiagnostics:
