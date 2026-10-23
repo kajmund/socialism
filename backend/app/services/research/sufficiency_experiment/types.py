@@ -76,6 +76,7 @@ class ExperimentConfig:
     embedding_neighbors: int = 3
     pair_strategy: PairStrategy = "deterministic"
     pair_ordering: str = "current"
+    stop_mode: str = "exhaustive"
     route_authority: bool = True
     legacy_duplicate_resolution: bool = False
     pair_judgement: bool = True
@@ -373,6 +374,14 @@ class ProvenanceEvent:
 
 
 @dataclass(frozen=True)
+class StopOutcome:
+    goal: str
+    result: str
+    investigation_status: str
+    evidence_status: str
+
+
+@dataclass(frozen=True)
 class StopShadow:
     condition: str
     would_stop: bool
@@ -416,6 +425,7 @@ class ExperimentReport:
     pair_coverage: PairCoverage | None = None
     coverage_report: CoverageReport | None = None
     pair_selection: PairSelection | None = None
+    stop_mode: str = "exhaustive"
     gap_review: NarrativeGapReport | None = None
 
     @property
@@ -423,6 +433,14 @@ class ExperimentReport:
         if self.source_chars <= 0:
             return 1.0
         return self.judged_chars / self.source_chars
+
+    @property
+    def stop_outcome(self) -> StopOutcome:
+        from app.services.research.sufficiency_experiment.stop_conditions import (
+            stop_outcome,
+        )
+
+        return stop_outcome(self)
 
     @property
     def stop_shadow(self) -> StopShadow:

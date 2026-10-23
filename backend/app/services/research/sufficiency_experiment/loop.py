@@ -41,12 +41,13 @@ from app.services.research.sufficiency_experiment.narrative import (
 )
 from app.services.research.sufficiency_experiment.obligations import present_source_types
 from app.services.research.sufficiency_experiment.pair_eval import (
-    evaluate_pair,
     merge_pair_conflicts,
     pair_coverage,
 )
+from app.services.research.sufficiency_experiment.pair_execution import evaluate_pair_step
 from app.services.research.sufficiency_experiment.pairs import select_ordered_pairs
 from app.services.research.sufficiency_experiment.quality import quality_gate
+from app.services.research.sufficiency_experiment.report_builder import build_experiment_report
 from app.services.research.sufficiency_experiment.route import (
     decide_route,
     route_state,
@@ -116,6 +117,12 @@ class SufficiencyLoop:
         self._pair_coverage: PairCoverage | None = None
         self._pair_selection: PairSelection | None = None
         self._pair_facit: PairFacit | None = None
+        self._stop_requested = False
+        self._pair_calls_started = 0
+        self._pair_calls_skipped = 0
+        self._pair_in_flight = 0
+        self._pair_in_flight_at_stop = 0
+        self._stop_conflict_id: str | None = None
         self._coverage_report: CoverageReport | None = None
         self._gap_reviewer: NarrativeGapFn | None = None
         self._gap_review: NarrativeGapReport | None = None
@@ -298,18 +305,7 @@ class SufficiencyLoop:
 
     async def _evaluate_pair(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         pair = self._pair_candidates[str(payload["item"]["pair_id"])]
-        row = await evaluate_pair(
-            pair,
-            claims=self._claims_by_id,
-            passages=self._passages_by_id,
-            evidence_by_id=self._evidence_by_id(),
-            client=self._client,
-            config=self._config,
-        )
-        if row.error not in {"pair_state_budget", "pair_call_budget"}:
-            self._jev_calls += 1
-        self._pair_evaluations.append(row)
-        return {"pair_id": row.pair_id, "status": row.status, "verdict": row.verdict}
+        return await evaluate_pair_step(self, pair)
 
     async def _aggregate_pairs(self, _payload: Mapping[str, Any]) -> dict[str, Any]:
         if not self._config.pair_judgement:
@@ -467,34 +463,4 @@ class SufficiencyLoop:
             reasons=(self._failure or "swe_failed",),
         )
     def _build_report(self, run_id: str, events: tuple[str, ...]) -> ExperimentReport:
-        draft = self._draft or self._fail_closed_draft()
-        quality = self._quality or quality_gate(
-            self._aggregations,
-            GateInputs(span_coverage=0.0, budget_exhausted=True),
-            self._config,
-        )
-        return ExperimentReport(
-            draft=sanitize_assessment_draft(draft, plan=self._plan, evidence=self._evidence),
-            status=self._status,
-            passages=tuple(self._passages),
-            evaluations=tuple(self._evaluations),
-            aggregations=self._aggregations,
-            quality=quality,
-            route=self._route,
-            swe_events=events,
-            swe_run_id=run_id,
-            jev_calls=self._jev_calls,
-            llm_calls=self._llm_calls,
-            latency_ms=(perf_counter() - self._started) * 1000,
-            judged_chars=self._judged_chars,
-            source_chars=self._source_chars,
-            failure_mode=self._failure,
-            live_measurement=self._live_measurement,
-            claims=self._claims,
-            claim_coverage=self._claim_coverage,
-            pairs=tuple(self._pair_evaluations),
-            pair_coverage=self._pair_coverage,
-            coverage_report=self._coverage_report,
-            pair_selection=self._pair_selection,
-            gap_review=self._gap_review,
-        )
+        return build_experiment_report(self, run_id=run_id, events=events)

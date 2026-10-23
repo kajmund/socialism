@@ -354,6 +354,38 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## Early stop: exhaustive vs existential (2026-10-23)
+
+Two execution modes under the D configuration, two live reps:
+
+- **Exhaustive** evaluates every selected pair inside the 40-pair budget.
+- **Existential** stops after the first `CONTRADICTS` pair with verified
+  relevance; the outcome is recorded as `EXISTS_BLOCKING_CONFLICT` /
+  `CONFLICT_FOUND` / investigation `PARTIAL`, and the underlying evidence status
+  is not changed to `SUFFICIENT`.
+
+Artifact: `tests/integration/baselines/early-stop-v1.json`.
+
+| Measure | Exhaustive | Existential |
+| --- | ---: | ---: |
+| Runs / correct | 16 / 16 | 16 / 16 |
+| False-sufficient | 0 | 0 |
+| Jev calls | 1 516 | 1 397 |
+| Wall time | 125.3 s | 116.9 s |
+| Evaluated pairs | 180 | 61 |
+| Skipped pair calls | 0 | 119 |
+| In-flight calls at stop | 0 | 34 |
+| Partial runs | 0 | 4 |
+| Invalid/irrelevant stops | 0 | 0 |
+| Sufficient presented as partial | 0 | 0 |
+
+Actual avoided Jev calls: **119** (7.8 %), actual wall-time saving **8.4 s**
+(6.7 %). Another 34 calls were already in flight when the conflict was found and
+were completed, not counted as saved. No stop used a conflict that later
+resolved or was irrelevant, and no partial investigation was presented as full
+conflict mapping. Production execution is unchanged; no generic predicate
+framework was introduced.
+
 ## Stop-condition shadow (2026-10-23)
 
 `ExperimentReport.stop_shadow` computes a hypothetical `conflict_confirmed`
