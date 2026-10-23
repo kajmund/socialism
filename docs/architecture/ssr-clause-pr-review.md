@@ -87,6 +87,23 @@ anchor-set/verification model and add an Overgraph index sync. That is a larger,
 dual-write design; the current evidence favors #428's single Overgraph clause
 store.
 
+## Blocking finding in #428: verification revocation does not cascade
+
+Code review of the three requested properties:
+
+| Property | Verdict |
+| --- | --- |
+| Verification and activation are separate | Pass. A YES creates a verification; `promote_anchor` creates a draft anchor; `build_anchor_set` is the explicit activation step. A YES alone is not an active anchor (`test_yes_is_not_an_active_anchor`). |
+| Negative anchors are category-specific | Pass by design: anchors carry the verification `category`; sets are built per category; matching groups members by category and only applies negatives within that category. No explicit cross-category negative test exists — add one. |
+| Revocation takes effect immediately | **Fail.** `revoke_verification` only writes the verification status `revoked`; it does not revoke anchors derived from that verification. `record_decision` with a changed answer archives the old revision but also leaves old promoted anchors untouched. An active anchor set can therefore keep scoring a revoked or superseded verification. `revoke_source_unit` happens to revoke anchors first, but normal undo/answer-change does not. |
+
+This violates the requirement that a recalled anchor cannot keep influencing
+matching through an older published set. The match path itself reads current
+Overgraph state (no application cache), so fixing the anchor status is
+sufficient: `revoke_verification` and answer changes must revoke every anchor
+whose `verification_id` matches, and tests must cover undo and yes→no with a
+promoted anchor + active set.
+
 ## Pre-merge checklist
 
 - [ ] Run backend tests for `test_clause_ssr_*` and tabular review on the
@@ -95,6 +112,10 @@ store.
 - [ ] Confirm research/SWE imports do not include `clause_ssr`.
 - [ ] Confirm matching uses stored vectors only and fails loud on missing/wrong
       model version; scores labelled cosine, not probability.
+- [ ] Fix the revocation cascade in #428 (verification revoke and answer change
+      revoke derived anchors; active sets can no longer return them).
+- [ ] Add a cross-category negative-anchor test (NO for termination must not
+      suppress pricing).
 - [ ] Confirm only verified, explicitly promoted, active anchors match.
 - [ ] Confirm Tabular Review has no independent clause-anchor source after the
       rework.
