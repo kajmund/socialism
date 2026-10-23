@@ -65,6 +65,29 @@ not model quality) and the optional `counterparts` mapping passed from
 Contradiction is preserved and is not final insufficiency. The product
 draft is fail-closed (`sufficient` or `insufficient`).
 
+## A0 freeze (2026-10-23)
+
+The A0 baseline is frozen from the original PR #422/#426 path at commit
+`b55eae13`. No assessment rule was changed for the freeze.
+
+- Artifacts: `tests/integration/baselines/sufficiency-a0-freeze-v1.json`
+  (metadata, hashes, variance) plus the two raw repetitions
+  `sufficiency-a0-freeze-rep1-raw.json` and `-rep2-raw.json`.
+- Requested model `jev-latest`, resolved `jev-1.14.0` in both repetitions.
+- Two independent live repetitions, 1 043 Jev attempts each:
+
+| Rep | Accuracy | False-sufficient | Late evidence | Client errors |
+| --- | -------: | ---------------: | ------------- | ------------: |
+| 1 | 0.75 | 0.33 | insufficient (one failed evaluation) | 2 |
+| 2 | 0.50 | 0.67 | sufficient | 2 |
+
+Two transient `JevClientError` calls per repetition are enough to move the
+verdict when they land on `late_evidence`; in rep 1 one failed evaluation
+became `evaluation_errors` and blocked `sufficient`. A0 is therefore a range,
+not a point, and arm comparisons use this frozen pair of runs rather than a
+single number. The A1 arm additionally needs the route-authority contract
+implemented before A0/A1/A2/A3 can be compared fairly.
+
 ## Metrics
 
 Scripted and live reports are labeled separately.

@@ -1,0 +1,288 @@
+{
+  "freeze": "A0",
+  "description": "Original PR #422/#426 live path at b55eae13. No assessment rule was changed for the freeze. Two independent live repetitions.",
+  "commit": "b55eae136532540d1272f9ab7d86c331be541080",
+  "commit_short": "b55eae13",
+  "frozen_at": "2026-10-23T06:10:02.796454+00:00",
+  "requested_model": "jev-1.13.0",
+  "research_jev_model": "",
+  "resolved_models": [
+    "jev-1.14.0"
+  ],
+  "config": {
+    "jev_concurrency": 8,
+    "jev_timeout_seconds": 5.0,
+    "jev_model": "jev-latest",
+    "max_passage_chars": 1500,
+    "max_narrative_depth": 1,
+    "max_subworkflow_rounds": 2,
+    "max_jev_calls": 2000,
+    "max_steps": 2000,
+    "max_depth": 6,
+    "timeout_seconds": 1800,
+    "support_threshold": 0.6,
+    "contradict_threshold": 0.6,
+    "max_tool_calls": 8,
+    "max_narrative_input_chars": 12000
+  },
+  "settings": {
+    "jev_model": "jev-1.13.0",
+    "research_jev_model": "",
+    "typesafe_base_url": "https://api.typesafe.ai",
+    "jev_timeout_seconds": 3.0,
+    "research_jev_timeout_seconds": 5.0,
+    "llm_provider": "cerebras"
+  },
+  "raw_files": {
+    "rep1": {
+      "path": "backend/tests/integration/baselines/sufficiency-a0-freeze-rep1-raw.json",
+      "sha256": "581c65ec59503c54d9860aa2655d3ef13c8faf7e8f6f81c22d5e2165bd81f48c",
+      "recorded_at": "2026-10-23T06:10:02.796454+00:00",
+      "summary": {
+        "measurement": "live",
+        "note": "A0 freeze: original PR #422/#426 path, unchanged rules.",
+        "accuracy": {
+          "baseline": 0.25,
+          "experiment": 0.75
+        },
+        "false_sufficient_rate": {
+          "baseline": 1.0,
+          "experiment": 0.3333333333333333
+        },
+        "confusion": {
+          "true_sufficient": 1,
+          "false_sufficient": 1,
+          "true_insufficient": 2,
+          "false_insufficient": 0
+        },
+        "coverage": {
+          "baseline": 0.299418252369135,
+          "experiment": 1.0
+        },
+        "latency_ms": {
+          "baseline": 3.395625259145163,
+          "experiment": 18153.417843743227
+        },
+        "cost": {
+          "baseline": {
+            "jev_calls": 0,
+            "llm_calls": 4,
+            "input_chars": 119240
+          },
+          "experiment": {
+            "jev_calls": 1043,
+            "llm_calls": 0,
+            "input_chars": 1478044
+          }
+        },
+        "pr420_cerebras_baseline": {
+          "model": "cerebras gpt-oss-120b",
+          "input_chars_before": 567673,
+          "input_chars_after": 56443,
+          "output_cap_tokens": 8192
+        },
+        "cases": [
+          "tail_counterevidence",
+          "late_evidence",
+          "large_567k",
+          "short_sufficient"
+        ]
+      },
+      "verdicts": {
+        "tail_counterevidence": {
+          "draft": "sufficient",
+          "status": "sufficient",
+          "jev_calls": 55
+        },
+        "late_evidence": {
+          "draft": "insufficient",
+          "status": "insufficient",
+          "jev_calls": 589
+        },
+        "large_567k": {
+          "draft": "insufficient",
+          "status": "insufficient",
+          "jev_calls": 397
+        },
+        "short_sufficient": {
+          "draft": "sufficient",
+          "status": "sufficient",
+          "jev_calls": 2
+        }
+      },
+      "errors": {
+        "tail_counterevidence": {
+          "client_errors": [],
+          "evaluation_errors": [],
+          "quality_reasons": []
+        },
+        "late_evidence": {
+          "client_errors": [
+            "JevClientError"
+          ],
+          "evaluation_errors": [
+            "research_1:evidence-21:p11"
+          ],
+          "quality_reasons": [
+            "evaluation_errors"
+          ]
+        },
+        "large_567k": {
+          "client_errors": [
+            "JevClientError"
+          ],
+          "evaluation_errors": [
+            "research_1:evidence-20:p0"
+          ],
+          "quality_reasons": [
+            "evaluation_errors",
+            "obligations_unverified"
+          ]
+        },
+        "short_sufficient": {
+          "client_errors": [],
+          "evaluation_errors": [],
+          "quality_reasons": []
+        }
+      },
+      "totals": {
+        "jev_calls": 1043,
+        "llm_calls": 0,
+        "attempts": 1043,
+        "client_calls": 1041,
+        "client_errors": 2,
+        "latency_ms": 72613.671
+      }
+    },
+    "rep2": {
+      "path": "backend/tests/integration/baselines/sufficiency-a0-freeze-rep2-raw.json",
+      "sha256": "42c114bb5bc076d1d18ce8f99424f1382dd49d45a41a8619bb8f39822b0d6e6e",
+      "recorded_at": "2026-10-23T06:11:27.389436+00:00",
+      "summary": {
+        "measurement": "live",
+        "note": "A0 freeze: original PR #422/#426 path, unchanged rules.",
+        "accuracy": {
+          "baseline": 0.25,
+          "experiment": 0.5
+        },
+        "false_sufficient_rate": {
+          "baseline": 1.0,
+          "experiment": 0.6666666666666666
+        },
+        "confusion": {
+          "true_sufficient": 1,
+          "false_sufficient": 2,
+          "true_insufficient": 1,
+          "false_insufficient": 0
+        },
+        "coverage": {
+          "baseline": 0.299418252369135,
+          "experiment": 1.0
+        },
+        "latency_ms": {
+          "baseline": 3.630625273217447,
+          "experiment": 17794.26514575607
+        },
+        "cost": {
+          "baseline": {
+            "jev_calls": 0,
+            "llm_calls": 4,
+            "input_chars": 119240
+          },
+          "experiment": {
+            "jev_calls": 1043,
+            "llm_calls": 0,
+            "input_chars": 1478044
+          }
+        },
+        "pr420_cerebras_baseline": {
+          "model": "cerebras gpt-oss-120b",
+          "input_chars_before": 567673,
+          "input_chars_after": 56443,
+          "output_cap_tokens": 8192
+        },
+        "cases": [
+          "tail_counterevidence",
+          "late_evidence",
+          "large_567k",
+          "short_sufficient"
+        ]
+      },
+      "verdicts": {
+        "tail_counterevidence": {
+          "draft": "sufficient",
+          "status": "sufficient",
+          "jev_calls": 55
+        },
+        "late_evidence": {
+          "draft": "sufficient",
+          "status": "sufficient",
+          "jev_calls": 589
+        },
+        "large_567k": {
+          "draft": "insufficient",
+          "status": "insufficient",
+          "jev_calls": 397
+        },
+        "short_sufficient": {
+          "draft": "sufficient",
+          "status": "sufficient",
+          "jev_calls": 2
+        }
+      },
+      "errors": {
+        "tail_counterevidence": {
+          "client_errors": [],
+          "evaluation_errors": [],
+          "quality_reasons": []
+        },
+        "late_evidence": {
+          "client_errors": [],
+          "evaluation_errors": [],
+          "quality_reasons": []
+        },
+        "large_567k": {
+          "client_errors": [
+            "JevClientError",
+            "JevClientError"
+          ],
+          "evaluation_errors": [
+            "research_1:evidence-3:p10",
+            "research_1:evidence-4:p2"
+          ],
+          "quality_reasons": [
+            "evaluation_errors",
+            "obligations_unverified"
+          ]
+        },
+        "short_sufficient": {
+          "client_errors": [],
+          "evaluation_errors": [],
+          "quality_reasons": []
+        }
+      },
+      "totals": {
+        "jev_calls": 1043,
+        "llm_calls": 0,
+        "attempts": 1043,
+        "client_calls": 1041,
+        "client_errors": 2,
+        "latency_ms": 71177.061
+      }
+    }
+  },
+  "variance": {
+    "accuracy": [
+      0.75,
+      0.5
+    ],
+    "false_sufficient_rate": [
+      0.3333333333333333,
+      0.6666666666666666
+    ],
+    "verdict_differences": [
+      "late_evidence"
+    ],
+    "note": "Both reps made 1043 Jev attempts and saw 2 transient JevClientError calls. In rep1 one failed evaluation landed in late_evidence, whose quality then blocked sufficient; in rep2 both failures landed in large_567k, which was already insufficient. A0 verdicts are therefore a range, not a point."
+  }
+}
