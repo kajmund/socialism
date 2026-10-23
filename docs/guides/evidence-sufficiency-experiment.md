@@ -354,6 +354,38 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## B0 narrative gap review (shadow, 2026-10-23)
+
+B0 instruments a bounded narrative gap review next to the unchanged A3 arm. It
+receives needs, aggregation status, selected/omitted pair counts, the five
+coverage levels and a bounded sample of extracted claims with an explicit
+`omitted_claim_count`; it may only report missing evidence, open questions and
+allowlisted workflow suggestions. It has **no decision authority**:
+`gap_review` is recorded on the report and never read by route, gate or emit.
+The prompt is experiment-only (`narrative_gap.py`) and not production-wired.
+
+Artifact: `tests/integration/baselines/b0-gap-review-v1.json` (one live run,
+`gpt-oss-120b`). Ten cases, ten LLM calls, ~3 300 input characters per call,
+~0.7 s mean gap-review latency.
+
+| Metric | Result |
+| ------ | ------ |
+| Expected-gap true positives | 1 / 1 (`late_evidence`) |
+| Expected-gap false negatives | 0 |
+| False positives | 9 / 9 |
+| Cases flagged | 10 / 10 |
+| Gap errors / invalid workflows | 0 |
+
+The review flagged every case, including `short_sufficient`, so with the
+current broad schema it is over-eager and has no usable precision. That is a
+B0 instrumentation result, not evidence for or against Variant B. B1 must
+tighten the gap facit and the report contract before the precheck is compared
+with A3.
+
+Three metrics stay separate in the B artifact: `contradiction_detection`,
+`evidence_coverage` and `decision_correctness`; a coverage-negative decision is
+not evidence that Jev misunderstood the material.
+
 ## Coverage (five levels)
 
 Coverage is reported per level with an explicit control. The levels are never
