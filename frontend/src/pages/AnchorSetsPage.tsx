@@ -26,7 +26,18 @@ import { ApiError } from "@/lib/api"
 type Translate = ReturnType<typeof useLocale>["t"]
 
 function kindLabel(kind: AnchorKind, t: Translate): string {
-  return kind === "tone" ? t("anchorSets.kindTone") : t("anchorSets.kindStyle")
+  switch (kind) {
+    case "tone":
+      return t("anchorSets.kindTone")
+    case "style":
+      return t("anchorSets.kindStyle")
+    case "clause":
+      return t("anchorSets.kindClause")
+    default: {
+      const _exhaustive: never = kind
+      return _exhaustive
+    }
+  }
 }
 
 function statusLabel(status: SsrAnchorSet["status"], t: Translate): string {
@@ -558,6 +569,7 @@ export function AnchorSetsPage() {
             <option value="">{t("anchorSets.list.allKinds")}</option>
             <option value="tone">{t("anchorSets.kindTone")}</option>
             <option value="style">{t("anchorSets.kindStyle")}</option>
+            <option value="clause">{t("anchorSets.kindClause")}</option>
           </select>
           <select
             className="dsel"

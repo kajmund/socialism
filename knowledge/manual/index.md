@@ -108,6 +108,10 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 * [Använda rättsunderlag](anvanda-rattsunderlag.md) — Spara utkast, sök källor och läs PM:et
 
+# Tabular Review
+
+* [Använda Tabular Review](tabular-review.md) — Jämför avtal mot SSR-kategorier och granska klausuler i originalet
+
 # Rapporter
 
 * [Hantera rapporter](hantera-rapporter.md) — Lista och öppna beställda rapporter

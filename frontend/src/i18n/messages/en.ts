@@ -377,6 +377,7 @@ export const en: LocalizedTree<SvMessages> = {
     users: "Users",
     expertgranskning: "Expert review",
     rattsunderlag: "Legal brief",
+    tabularReview: "Tabular Review",
     activeJobs: "{count} active jobs",
   },
   bolag: {
@@ -401,6 +402,9 @@ export const en: LocalizedTree<SvMessages> = {
     },
     rattsunderlag: {
       name: "Legal brief",
+    },
+    tabularReview: {
+      name: "Tabular Review",
     },
   },
   expertPanels: {
@@ -3142,6 +3146,7 @@ export const en: LocalizedTree<SvMessages> = {
   anchorSets: {
     kindTone: "Tone",
     kindStyle: "Style",
+    kindClause: "Clause",
     statusPublished: "Published",
     statusDraft: "Draft",
     list: {
@@ -3195,6 +3200,8 @@ export const en: LocalizedTree<SvMessages> = {
       tabCalibration: "Calibration",
       tabTest: "Test",
       poolCount: "{count} in pool",
+      addClauseRow: "Add clause category",
+      clauseRowsRequired: "Every clause row needs a category and example text.",
     },
     flagged: {
       intro:
@@ -3444,6 +3451,78 @@ export const en: LocalizedTree<SvMessages> = {
         research_frozen_ready: "Evidence frozen",
         research_failed: "Research failed",
       },
+    },
+  },
+  tabularReview: {
+    list: {
+      title: "Tabular Review",
+      intro: "Review contracts against SSR categories. Each cell shows a verbatim clause and similarity, not probability.",
+      new: "New review",
+      loading: "Loading reviews…",
+      loadError: "Could not load reviews",
+      empty: "No reviews yet. Create one and choose contracts.",
+      meta: "{documents} contracts · {columns} columns · {updated}",
+    },
+    editor: {
+      newTitle: "New Tabular Review",
+      editTitle: "Tabular Review",
+      intro: "One contract per row. Columns are active Overgraph clause anchor sets. The table is filled without Jev or an LLM.",
+      loadError: "Could not load the review",
+      name: "Name",
+      threshold: "Score threshold",
+      search: "Filter contracts",
+      statusFilter: "Filter status",
+      allStatuses: "All statuses",
+      documents: "Document selection",
+      noDocuments: "No indexed contracts yet.",
+      chooseLabel: "Choose category",
+      columnTitle: "Column title",
+      addColumn: "Add column",
+      removeColumn: "Remove {title}",
+      run: "Fill table",
+      running: "Filling table…",
+      runError: "Could not fill the table",
+      hint: "Save the review, choose contracts, then fill the table.",
+    },
+    table: {
+      document: "Contract",
+      sortByTitle: "Sort by contract name",
+      sortBySimilarity: "Sort by similarity in {title}",
+    },
+    status: {
+      hit: "Hit",
+      noHit: "No hit",
+      unknown: "Unknown",
+      negativeHit: "Negative hit",
+    },
+    cell: {
+      similarity: "Similarity {score}",
+    },
+    actions: {
+      approve: "Approve match",
+      reject: "Reject match",
+      flag: "Flag",
+      unflag: "Remove flag",
+      lock: "Lock",
+      unlock: "Unlock",
+      note: "Note",
+      saveNote: "Save note",
+    },
+    review: {
+      moreCandidates: "More candidates",
+      missingPdf: "No PDF is available for this contract.",
+      pageFallback: "Showing page {page}. Exact highlight is missing.",
+      clauseFallback: "Jumping to clause {clause}. Exact position is missing.",
+      history: "Change history",
+      historyEmpty: "No actions yet.",
+    },
+    historyAction: {
+      locked: "Lock",
+      flagged: "Flag",
+      review_state: "Review",
+      note: "Note",
+      verification_label: "Verification",
+      update: "Update",
     },
   },
   clauseSsr: {
