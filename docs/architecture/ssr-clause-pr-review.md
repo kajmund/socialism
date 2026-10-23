@@ -87,7 +87,16 @@ anchor-set/verification model and add an Overgraph index sync. That is a larger,
 dual-write design; the current evidence favors #428's single Overgraph clause
 store.
 
-## Blocking finding in #428: verification revocation does not cascade
+## Resolved: blockering i #428 åtgärdad
+
+Fixen ligger i PR #428 head `ca68ad0d` och PR:en är mergad som `77b8ded8`.
+`revoke_verification` och answer-change återkallar nu alla beroende ankare;
+publicerade set och match filtrerar mot aktuell verifieringsstatus; promotion
+gör en ny kontroll efter skrivning; och tester täcker undo, yes→no/unsure,
+explicit revoke, aktivt set, andra kategorier och read-guard. Ingen cache finns i
+matchvägen, så nästa matchning ser återkallelsen direkt.
+
+## Ursprungligt blockerande fynd i #428: verification revocation does not cascade
 
 Code review of the three requested properties:
 
