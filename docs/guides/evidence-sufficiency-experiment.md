@@ -354,6 +354,29 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## Versioned facit v2 and QA (2026-10-23)
+
+Golden facit is now versioned and validated independently of the tested Jev
+judgement (`golden-facit-v2.json`). Each case records the plan question,
+expected decision, evidence with status/provenance, expected relevance,
+expected semantic relations, rationale and review metadata. Status is `valid`,
+`invalid` or `diagnostic`; invalid cases require a reason and diagnostic cases
+are excluded from accuracy.
+
+The deterministic QA (`facit_qa.py`) rejects a valid sufficient case when its
+relevant evidence has no lexical relation to the plan question, rejects
+Jev-derived review and missing rationales, and warns about pending independent
+review. The old `compatible_periods`/`compatible_entities` fixtures are marked
+**invalid** for the 36 § plan question (off-topic evidence); the on-topic notice
+replacements are valid but carry a pending-independent-review warning.
+`large_567k` is diagnostic. Old artifacts and B4c numbers are untouched.
+
+A new D run against v2 (`facit-v2-d-evaluation.json`, 20 valid cases, two reps)
+is **40/40 correct, zero false-sufficient, zero false-insufficient**. This is a
+measurement on a small, well-known test material; it is not evidence of general
+decision quality. New unseen questions and contracts are required before any
+production claim.
+
 ## Early stop: exhaustive vs existential (2026-10-23)
 
 Two execution modes under the D configuration, two live reps:
