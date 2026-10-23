@@ -1,0 +1,162 @@
+{
+  "measurement": "b4c_wrong_decisions",
+  "note": "Decision diagnostics on the four false-insufficient compatible decisions.",
+  "rows": [
+    {
+      "case_id": "compatible_periods",
+      "rep": 0,
+      "expected": "sufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "coverage_complete": true,
+      "diagnostics": {
+        "reasons": [
+          "SUPPORT_INCOMPLETE"
+        ],
+        "unique_conflicts": []
+      },
+      "pair_verdicts": [
+        "SCOPE_DIFFERENCE"
+      ],
+      "obligation_states": [
+        {
+          "kind": "relevance",
+          "verified": false,
+          "independent_support": 0
+        },
+        {
+          "kind": "factual_support",
+          "verified": false,
+          "independent_support": 0
+        },
+        {
+          "kind": "completeness",
+          "verified": true,
+          "independent_support": 0
+        }
+      ],
+      "supporting_evidence_ids": [],
+      "unresolved_conflicts": []
+    },
+    {
+      "case_id": "compatible_periods",
+      "rep": 1,
+      "expected": "sufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "coverage_complete": true,
+      "diagnostics": {
+        "reasons": [
+          "SUPPORT_INCOMPLETE"
+        ],
+        "unique_conflicts": []
+      },
+      "pair_verdicts": [
+        "SCOPE_DIFFERENCE"
+      ],
+      "obligation_states": [
+        {
+          "kind": "relevance",
+          "verified": false,
+          "independent_support": 0
+        },
+        {
+          "kind": "factual_support",
+          "verified": false,
+          "independent_support": 0
+        },
+        {
+          "kind": "completeness",
+          "verified": true,
+          "independent_support": 0
+        }
+      ],
+      "supporting_evidence_ids": [],
+      "unresolved_conflicts": []
+    },
+    {
+      "case_id": "compatible_entities",
+      "rep": 0,
+      "expected": "sufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "coverage_complete": true,
+      "diagnostics": {
+        "reasons": [
+          "SUPPORT_INCOMPLETE"
+        ],
+        "unique_conflicts": []
+      },
+      "pair_verdicts": [
+        "SCOPE_DIFFERENCE"
+      ],
+      "obligation_states": [
+        {
+          "kind": "relevance",
+          "verified": false,
+          "independent_support": 0
+        },
+        {
+          "kind": "factual_support",
+          "verified": false,
+          "independent_support": 0
+        },
+        {
+          "kind": "completeness",
+          "verified": true,
+          "independent_support": 0
+        }
+      ],
+      "supporting_evidence_ids": [],
+      "unresolved_conflicts": []
+    },
+    {
+      "case_id": "compatible_entities",
+      "rep": 1,
+      "expected": "sufficient",
+      "draft": "insufficient",
+      "status": "uncertain",
+      "quality_reasons": [
+        "obligations_unverified"
+      ],
+      "coverage_complete": true,
+      "diagnostics": {
+        "reasons": [
+          "SUPPORT_INCOMPLETE"
+        ],
+        "unique_conflicts": []
+      },
+      "pair_verdicts": [
+        "SCOPE_DIFFERENCE"
+      ],
+      "obligation_states": [
+        {
+          "kind": "relevance",
+          "verified": false,
+          "independent_support": 0
+        },
+        {
+          "kind": "factual_support",
+          "verified": false,
+          "independent_support": 0
+        },
+        {
+          "kind": "completeness",
+          "verified": true,
+          "independent_support": 0
+        }
+      ],
+      "supporting_evidence_ids": [],
+      "unresolved_conflicts": []
+    }
+  ]
+}

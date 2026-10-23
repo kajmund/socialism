@@ -20,6 +20,13 @@ PairStrategy = Literal["deterministic", "embeddings", "hybrid"]
 PairVerdict = Literal["CONTRADICTS", "COMPATIBLE", "SCOPE_DIFFERENCE", "INSUFFICIENT"]
 PairEvaluationStatus = Literal["judged", "uncertain", "unevaluated"]
 CoverageStatus = Literal["complete", "incomplete", "not_measured", "not_applicable"]
+DecisionReason = Literal[
+    "CONTRADICTION_FOUND",
+    "COVERAGE_INCOMPLETE",
+    "SUPPORT_INCOMPLETE",
+    "TECHNICAL_FAILURE",
+    "SUFFICIENT",
+]
 GapVerdict = Literal["VERIFIED_GAP", "SUSPECTED_GAP", "NO_GAP_FOUND", "UNDETERMINED"]
 CoverageControl = Literal[
     "provided_evidenceset",
@@ -366,6 +373,12 @@ class ProvenanceEvent:
 
 
 @dataclass(frozen=True)
+class DecisionDiagnostics:
+    reasons: tuple[DecisionReason, ...]
+    unique_conflicts: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class ExperimentReport:
     draft: ResearchAssessmentDraft
     status: ExperimentStatus
@@ -396,6 +409,14 @@ class ExperimentReport:
         if self.source_chars <= 0:
             return 1.0
         return self.judged_chars / self.source_chars
+
+    @property
+    def decision_diagnostics(self) -> DecisionDiagnostics:
+        from app.services.research.sufficiency_experiment.diagnostics import (
+            decision_diagnostics_from_report,
+        )
+
+        return decision_diagnostics_from_report(self)
 
 
 def evidence_need_ids(item: object) -> tuple[str, ...]:

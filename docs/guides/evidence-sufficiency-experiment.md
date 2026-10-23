@@ -354,6 +354,37 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## Decision diagnostics and the four remaining errors (2026-10-23)
+
+Reports now expose additive `decision_diagnostics.reasons` without changing the
+final contract or status semantics: `CONTRADICTION_FOUND`,
+`COVERAGE_INCOMPLETE`, `SUPPORT_INCOMPLETE`, `TECHNICAL_FAILURE` and
+`SUFFICIENT`, plus unique unresolved conflict ids. Reasons can overlap; a
+coverage-negative decision is not reported as a Jev misunderstanding.
+
+Re-running the four wrong B4c decisions (compatible periods/entities, two reps
+each) gives the same diagnostic in all four:
+
+| Field | Value |
+| --- | --- |
+| draft / status | insufficient / uncertain |
+| reasons | `SUPPORT_INCOMPLETE` |
+| quality reasons | `obligations_unverified` |
+| relevance / factual_support | unverified, independent support 0 |
+| pair verdict | SCOPE_DIFFERENCE (correct; no conflict) |
+| coverage | complete |
+| unique conflicts | none |
+
+The remaining four errors are therefore **support-verification/aggregation**
+errors, not conflict detection or coverage errors: the pairwise semantic
+judgement correctly reports a scope difference, but the relevance and factual
+support obligations never verify, so the compatible cases fail closed. The
+`narrative_unbound` status is deliberately not counted as a technical failure.
+
+Next: investigate the support obligations for these cases (ticket 28). The
+separate stop-condition question — verified conflict versus full conflict
+mapping — stays out of the decision semantics until that is measured.
+
 ## B4c factorial: generation × ranking (2026-10-23)
 
 Four live arms, two repetitions each, same A3 contract and 40-pair budget:
