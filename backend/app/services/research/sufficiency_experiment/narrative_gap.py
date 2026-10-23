@@ -92,11 +92,19 @@ def build_gap_payload(
             "passage_id": claim.passage_id,
             "text": claim.text,
         }
+        included_ids = [str(item["claim_id"]) for item in included] + [claim.claim_id]
         candidate = {
             **base,
             "claims": [*included, row],
             "omitted_claim_ids": omitted_sample,
             "omitted_claim_count": omitted_count,
+            "available_anchors": _available_anchors(
+                claims,
+                selection,
+                aggregations,
+                coverage,
+                claim_ids=set(included_ids) | set(omitted_sample),
+            ),
         }
         if len(_encoded(candidate)) > max_chars:
             note_omitted(claim.claim_id)
@@ -108,6 +116,14 @@ def build_gap_payload(
             "claims": included,
             "omitted_claim_ids": omitted_sample,
             "omitted_claim_count": omitted_count,
+            "available_anchors": _available_anchors(
+                claims,
+                selection,
+                aggregations,
+                coverage,
+                claim_ids=set(str(item["claim_id"]) for item in included)
+                | set(omitted_sample),
+            ),
         }
         if len(_encoded(candidate)) <= max_chars:
             break
@@ -117,6 +133,14 @@ def build_gap_payload(
         "claims": included,
         "omitted_claim_ids": omitted_sample,
         "omitted_claim_count": omitted_count,
+        "available_anchors": _available_anchors(
+            claims,
+            selection,
+            aggregations,
+            coverage,
+            claim_ids=set(str(item["claim_id"]) for item in included)
+            | set(omitted_sample),
+        ),
     }
     if len(_encoded(payload)) > max_chars:
         raise ValueError("gap review payload exceeds max_gap_input_chars")
@@ -161,6 +185,52 @@ async def run_gap_review(
         gaps=tuple(report.gaps),
         validation_error=report.validation_error,
     )
+
+
+def _available_anchors(
+    claims: tuple[ClaimCandidate, ...],
+    selection: PairSelection | None,
+    aggregations: tuple[NeedAggregation, ...],
+    coverage: CoverageReport | None,
+    *,
+    claim_ids: set[str],
+) -> list[dict[str, str]]:
+    anchors: list[dict[str, str]] = []
+    for claim in claims:
+        if claim.extraction_status != "extracted" or claim.claim_id not in claim_ids:
+            continue
+        need_id = claim.research_need_ids[0] if claim.research_need_ids else ""
+        anchors.append(
+            {"id": f"claim:{claim.claim_id}", "kind": "claim", "need_id": need_id}
+        )
+    if selection is not None:
+        for pair in selection.selected:
+            anchors.append(
+                {
+                    "id": f"pair:{pair.pair_id}",
+                    "kind": "pair",
+                    "need_id": pair.need_id,
+                }
+            )
+    for row in aggregations:
+        anchors.append(
+            {
+                "id": f"aggregation:{row.research_need_id}",
+                "kind": "aggregation",
+                "need_id": row.research_need_id,
+            }
+        )
+    if coverage is not None:
+        for level in coverage.levels:
+            for reason in level.reasons:
+                anchors.append(
+                    {
+                        "id": f"coverage:{reason}",
+                        "kind": "coverage",
+                        "need_id": "",
+                    }
+                )
+    return anchors
 
 
 def _coverage_payload(coverage: CoverageReport) -> dict[str, object]:

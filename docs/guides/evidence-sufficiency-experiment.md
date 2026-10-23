@@ -354,6 +354,43 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## B1b hardened gap contract (shadow, 2026-10-23)
+
+B1b is the single pre-registered hardening attempt. The reviewer must choose
+anchors from a closed `available_anchors` set (claims in the bounded payload,
+selected pairs, coverage reasons, aggregation ids); a real anchor that belongs
+to another need no longer supports a gap. Five synthetic cases add two
+semantic-gap positives and three clean negatives; they run with scripted Jev so
+the only live model is the reviewer. Artifact:
+`tests/integration/baselines/b1b-gap-hardening-v1.json`.
+
+Twelve cases are classified (four positives, eight negatives); four neutral
+cases (`tail_counterevidence`, `large_567k`, `unknown_counterpart`,
+`tail_claim_contradiction`) are explicitly excluded from precision/recall.
+
+| Detector | TP | FP | FN | TN | Precision | Recall |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Narrative B1b | 4 | 6 | 0 | 2 | 0.40 | 1.00 |
+| Deterministic metadata | 4 | 5 | 0 | 3 | 0.44 | 1.00 |
+
+| Pre-registered measure | Result |
+| --- | ---: |
+| Valid report rate | 0.917 |
+| Unsupported anchor rate | 0.125 |
+| False workflow proposal rate | 0.875 |
+| Incremental gap yield | 0 |
+| Marginal cost per useful gap | undefined (no incremental gap) |
+| LLM / Jev cost | 16 calls, ~46 000 chars, 10.0 s gap latency, 1 170 A3 Jev calls |
+
+Decision: **END_NARRATIVE_BRANCH**. The narrative detector matches the
+deterministic recall but has more false positives, proposes workflows on 7/8
+negative cases, still produces unsupported anchors, and finds **no** gap the
+free deterministic baseline misses. The synthetic clean cases were also
+flagged by both detectors because their evidence state stayed
+obligation-incomplete, so they do not isolate a coverage-complete semantic gap;
+the live pre-registered set is what drives the rejection. B2 is abandoned and
+B3 (adaptive pair selection) is the next SWE experiment.
+
 ## B1 falsifiable gap hypotheses (shadow, 2026-10-23)
 
 B1 replaces the broad B0 report with four outcomes: `VERIFIED_GAP`,

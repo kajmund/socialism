@@ -118,7 +118,7 @@ async def test_payload_reports_omitted_claims_explicitly() -> None:
         claims=claims,
         selection=None,
         coverage=None,
-        max_chars=2_000,
+        max_chars=6_000,
     )
     assert payload["omitted_claim_count"] > 0
     assert len(payload["claims"]) + payload["omitted_claim_count"] == len(claims)

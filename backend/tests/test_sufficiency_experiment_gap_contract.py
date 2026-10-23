@@ -157,3 +157,27 @@ def test_deterministic_detector_does_not_call_unresolved_conflict_a_gap() -> Non
         ),
     )
     assert deterministic_gap_hypotheses(case.plan, aggregations, None, None) == ()
+
+
+def test_real_anchor_for_wrong_need_is_rejected() -> None:
+    validation = validate_gap_report(
+        _report("VERIFIED_GAP", (_gap(),)),
+        need_ids=("research_1", "research_2"),
+        claim_ids=("c1",),
+        pair_ids=(),
+        coverage_reasons=(),
+        available_anchors={"claim:c1": "research_2"},
+    )
+    assert validation.verdict == "UNDETERMINED"
+
+
+def test_constructed_anchor_not_offered_is_rejected() -> None:
+    validation = validate_gap_report(
+        _report("VERIFIED_GAP", (_gap(anchors=("claim:c2",)),)),
+        need_ids=("research_1",),
+        claim_ids=("c1", "c2"),
+        pair_ids=(),
+        coverage_reasons=(),
+        available_anchors={"claim:c1": "research_1"},
+    )
+    assert validation.verdict == "UNDETERMINED"

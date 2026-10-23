@@ -467,7 +467,6 @@ class SufficiencyLoop:
             considered=[item.evidence_id for item in self._evidence],
             reasons=(self._failure or "swe_failed",),
         )
-
     def _build_report(self, run_id: str, events: tuple[str, ...]) -> ExperimentReport:
         draft = self._draft or self._fail_closed_draft()
         quality = self._quality or quality_gate(
