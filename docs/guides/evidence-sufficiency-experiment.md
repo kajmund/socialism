@@ -354,6 +354,36 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## B3 pair prioritisation (selection-only, 2026-10-23)
+
+B3 asks whether SWE can choose which fact pairs Jev compares before spending
+calls, while keeping the A3 decision contract and the 40-pair budget. The
+interface is a pure ranking over the existing candidate universe:
+`prioritize_pairs(candidates, claims, ordering=...)`. A later SSR scorer can be
+added as another ordering without changing SWE execution.
+
+Arms: **A** current order, **B** deterministic metadata priority (entity,
+definition, question overlap, source independence, polarity/value difference,
+canonical down-weight) and **C** metadata plus existing embeddings (proxy, not
+SSR). Selection makes no model call; Jev still judges.
+
+Artifact: `tests/integration/baselines/b3-selection-v1.json` (no Jev calls).
+Recall@Budget on the three pair-gold positive cases:
+
+| Arm | @1 | @5 | @10 | @20 | @40 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Current (A) | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| Metadata (B) | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| Embeddings proxy (C) | 0.67 | 0.67 | 0.67 | 0.67 | 1.00 |
+
+The known contradictions in pair-gold are already rank 1 under the current
+order, so the curve hits its ceiling and cannot show an improvement; the
+embedding proxy only pushes `tail_claim_contradiction` down to rank 31. This does
+**not** prove that current ordering is optimal for the real gap: `late_evidence`
+and `large_567k` have no frozen pair facit. B3b must add verified low-rank
+contradiction pairs (especially late/large) and then measure decision quality
+and coverage separately before any ordering change. The current order stays.
+
 ## B1b hardened gap contract (shadow, 2026-10-23)
 
 B1b is the single pre-registered hardening attempt. The reviewer must choose

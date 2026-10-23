@@ -1,0 +1,417 @@
+{
+  "measurement": "b3_pair_prioritisation",
+  "note": "Recall@Budget is measured on known pair-gold contradictions. No Jev call; final decision quality and coverage are separate measurements.",
+  "config": {
+    "jev_concurrency": 8,
+    "jev_timeout_seconds": 5.0,
+    "jev_model": "jev-latest",
+    "max_passage_chars": 1500,
+    "max_narrative_depth": 1,
+    "max_jev_calls": 2000,
+    "max_steps": 2000,
+    "max_depth": 6,
+    "timeout_seconds": 1800,
+    "support_threshold": 0.6,
+    "contradict_threshold": 0.6,
+    "max_tool_calls": 8,
+    "max_narrative_input_chars": 12000,
+    "min_claim_chars": 20,
+    "max_claim_chars": 500,
+    "min_claim_words": 4,
+    "max_claims_per_need": 200,
+    "max_pairs_per_need": 40,
+    "embedding_neighbors": 3,
+    "pair_strategy": "deterministic",
+    "route_authority": true,
+    "legacy_duplicate_resolution": false,
+    "pair_judgement": true,
+    "pair_jev_concurrency": 8,
+    "pair_jev_timeout_seconds": 5.0,
+    "gap_review_enabled": false,
+    "max_gap_input_chars": 12000,
+    "max_pair_state_chars": 6000,
+    "max_pair_jev_calls": 200
+  },
+  "arms": [
+    "current",
+    "metadata",
+    "embedding"
+  ],
+  "budgets": [
+    1,
+    5,
+    10,
+    20,
+    40
+  ],
+  "positive_cases": [
+    "duplicate_contradiction",
+    "independent_contradiction",
+    "tail_claim_contradiction"
+  ],
+  "recall_at_budget": {
+    "current": {
+      "1": 1.0,
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0,
+      "40": 1.0
+    },
+    "metadata": {
+      "1": 1.0,
+      "5": 1.0,
+      "10": 1.0,
+      "20": 1.0,
+      "40": 1.0
+    },
+    "embedding": {
+      "1": 0.667,
+      "5": 0.667,
+      "10": 0.667,
+      "20": 0.667,
+      "40": 1.0
+    }
+  },
+  "embedding_model": "text-embedding-3-large",
+  "rows": [
+    {
+      "case_id": "duplicate_contradiction",
+      "facit_pairs": [
+        [
+          "dup-contra:p0:c0",
+          "dup-support:p0:c0"
+        ]
+      ],
+      "arms": {
+        "current": {
+          "known_contradiction_ranks": {
+            "['dup-contra:p0:c0', 'dup-support:p0:c0']": 1
+          },
+          "recall_at": {
+            "1": 1.0,
+            "5": 1.0,
+            "10": 1.0,
+            "20": 1.0,
+            "40": 1.0
+          },
+          "best_rank": 1,
+          "budget_needed": 1,
+          "negative_control_rank": null,
+          "candidates": 1,
+          "facit_available": true
+        },
+        "metadata": {
+          "known_contradiction_ranks": {
+            "['dup-contra:p0:c0', 'dup-support:p0:c0']": 1
+          },
+          "recall_at": {
+            "1": 1.0,
+            "5": 1.0,
+            "10": 1.0,
+            "20": 1.0,
+            "40": 1.0
+          },
+          "best_rank": 1,
+          "budget_needed": 1,
+          "negative_control_rank": null,
+          "candidates": 1,
+          "facit_available": true
+        },
+        "embedding": {
+          "known_contradiction_ranks": {
+            "['dup-contra:p0:c0', 'dup-support:p0:c0']": 1
+          },
+          "recall_at": {
+            "1": 1.0,
+            "5": 1.0,
+            "10": 1.0,
+            "20": 1.0,
+            "40": 1.0
+          },
+          "best_rank": 1,
+          "budget_needed": 1,
+          "negative_control_rank": null,
+          "candidates": 1,
+          "facit_available": true
+        }
+      }
+    },
+    {
+      "case_id": "independent_contradiction",
+      "facit_pairs": [
+        [
+          "ind-contra:p0:c0",
+          "ind-support:p0:c0"
+        ]
+      ],
+      "arms": {
+        "current": {
+          "known_contradiction_ranks": {
+            "['ind-contra:p0:c0', 'ind-support:p0:c0']": 1
+          },
+          "recall_at": {
+            "1": 1.0,
+            "5": 1.0,
+            "10": 1.0,
+            "20": 1.0,
+            "40": 1.0
+          },
+          "best_rank": 1,
+          "budget_needed": 1,
+          "negative_control_rank": null,
+          "candidates": 1,
+          "facit_available": true
+        },
+        "metadata": {
+          "known_contradiction_ranks": {
+            "['ind-contra:p0:c0', 'ind-support:p0:c0']": 1
+          },
+          "recall_at": {
+            "1": 1.0,
+            "5": 1.0,
+            "10": 1.0,
+            "20": 1.0,
+            "40": 1.0
+          },
+          "best_rank": 1,
+          "budget_needed": 1,
+          "negative_control_rank": null,
+          "candidates": 1,
+          "facit_available": true
+        },
+        "embedding": {
+          "known_contradiction_ranks": {
+            "['ind-contra:p0:c0', 'ind-support:p0:c0']": 1
+          },
+          "recall_at": {
+            "1": 1.0,
+            "5": 1.0,
+            "10": 1.0,
+            "20": 1.0,
+            "40": 1.0
+          },
+          "best_rank": 1,
+          "budget_needed": 1,
+          "negative_control_rank": null,
+          "candidates": 1,
+          "facit_available": true
+        }
+      }
+    },
+    {
+      "case_id": "compatible_periods",
+      "facit_pairs": [],
+      "arms": {
+        "current": {
+          "known_contradiction_ranks": {},
+          "recall_at": {
+            "1": 0.0,
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.0
+          },
+          "best_rank": null,
+          "budget_needed": null,
+          "negative_control_rank": 1,
+          "candidates": 1,
+          "facit_available": false
+        },
+        "metadata": {
+          "known_contradiction_ranks": {},
+          "recall_at": {
+            "1": 0.0,
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.0
+          },
+          "best_rank": null,
+          "budget_needed": null,
+          "negative_control_rank": 1,
+          "candidates": 1,
+          "facit_available": false
+        },
+        "embedding": {
+          "known_contradiction_ranks": {},
+          "recall_at": {
+            "1": 0.0,
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.0
+          },
+          "best_rank": null,
+          "budget_needed": null,
+          "negative_control_rank": 1,
+          "candidates": 1,
+          "facit_available": false
+        }
+      }
+    },
+    {
+      "case_id": "compatible_entities",
+      "facit_pairs": [],
+      "arms": {
+        "current": {
+          "known_contradiction_ranks": {},
+          "recall_at": {
+            "1": 0.0,
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.0
+          },
+          "best_rank": null,
+          "budget_needed": null,
+          "negative_control_rank": 1,
+          "candidates": 1,
+          "facit_available": false
+        },
+        "metadata": {
+          "known_contradiction_ranks": {},
+          "recall_at": {
+            "1": 0.0,
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.0
+          },
+          "best_rank": null,
+          "budget_needed": null,
+          "negative_control_rank": 1,
+          "candidates": 1,
+          "facit_available": false
+        },
+        "embedding": {
+          "known_contradiction_ranks": {},
+          "recall_at": {
+            "1": 0.0,
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.0
+          },
+          "best_rank": null,
+          "budget_needed": null,
+          "negative_control_rank": 1,
+          "candidates": 1,
+          "facit_available": false
+        }
+      }
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "facit_pairs": [
+        [
+          "tail-claims:p0:c0",
+          "tail-claims:p7:c4"
+        ]
+      ],
+      "arms": {
+        "current": {
+          "known_contradiction_ranks": {
+            "['tail-claims:p0:c0', 'tail-claims:p7:c4']": 1
+          },
+          "recall_at": {
+            "1": 1.0,
+            "5": 1.0,
+            "10": 1.0,
+            "20": 1.0,
+            "40": 1.0
+          },
+          "best_rank": 1,
+          "budget_needed": 1,
+          "negative_control_rank": null,
+          "candidates": 15757,
+          "facit_available": true
+        },
+        "metadata": {
+          "known_contradiction_ranks": {
+            "['tail-claims:p0:c0', 'tail-claims:p7:c4']": 1
+          },
+          "recall_at": {
+            "1": 1.0,
+            "5": 1.0,
+            "10": 1.0,
+            "20": 1.0,
+            "40": 1.0
+          },
+          "best_rank": 1,
+          "budget_needed": 1,
+          "negative_control_rank": null,
+          "candidates": 15757,
+          "facit_available": true
+        },
+        "embedding": {
+          "known_contradiction_ranks": {
+            "['tail-claims:p0:c0', 'tail-claims:p7:c4']": 31
+          },
+          "recall_at": {
+            "1": 0.0,
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 1.0
+          },
+          "best_rank": 31,
+          "budget_needed": 40,
+          "negative_control_rank": null,
+          "candidates": 15757,
+          "facit_available": true
+        }
+      }
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "facit_pairs": [],
+      "arms": {
+        "current": {
+          "known_contradiction_ranks": {},
+          "recall_at": {
+            "1": 0.0,
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.0
+          },
+          "best_rank": null,
+          "budget_needed": null,
+          "negative_control_rank": null,
+          "candidates": 0,
+          "facit_available": false
+        },
+        "metadata": {
+          "known_contradiction_ranks": {},
+          "recall_at": {
+            "1": 0.0,
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.0
+          },
+          "best_rank": null,
+          "budget_needed": null,
+          "negative_control_rank": null,
+          "candidates": 0,
+          "facit_available": false
+        },
+        "embedding": {
+          "known_contradiction_ranks": {},
+          "recall_at": {
+            "1": 0.0,
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.0
+          },
+          "best_rank": null,
+          "budget_needed": null,
+          "negative_control_rank": null,
+          "candidates": 0,
+          "facit_available": false
+        }
+      }
+    }
+  ]
+}
