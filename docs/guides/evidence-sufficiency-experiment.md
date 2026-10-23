@@ -354,6 +354,44 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## B3c full live arms (2026-10-23)
+
+A (current order) and B (metadata order) ran as full live arms, two repetitions
+each, with the A3 contract and 40-pair budget unchanged. Artifact:
+`tests/integration/baselines/b3c-live-arms-v1.json`.
+
+| Measure | A current | B metadata |
+| --- | ---: | ---: |
+| Correct / 22 | 16 | 16 |
+| False-sufficient | 2 | 2 |
+| False-insufficient | 4 | 4 |
+| Coverage complete | 18 | 18 |
+| False conflicts | 0 | 0 |
+| Jev calls | 2 308 | 2 308 |
+| Wall latency | 159 s | 159 s |
+
+Information value per Jev call (separate measurement):
+
+| Outcome | A | B |
+| --- | ---: | ---: |
+| New relevant contradiction | 4 | **44** |
+| New verified compatibility | 81 | 41 |
+| Repeated known relation | 85 | 85 |
+| Wrong semantic verdict | 0 | 0 |
+
+`late_evidence` was already `insufficient` in both arms, but for different
+reasons: A fails closed on incomplete coverage without finding the pair; B
+finds 40 contradictions, including the known late pair. The final verdict does
+not change because coverage was already blocking. Metadata ordering also makes
+`duplicate_contradiction` return CONTRADICTS in both repetitions (the earlier
+SCOPE_DIFFERENCE was transient).
+
+The pre-registered non-inferiority criteria all pass, but the stronger
+requirement — better final decision quality — is **not** demonstrated. B shifts
+calls from compatibility to contradiction detection at the same cost and with
+no decision regression; that is useful evidence for a later detection metric,
+not a reason to switch the production order. The current order stays.
+
 ## B3b staged diagnosis (2026-10-23)
 
 B3b separates three failure stages instead of reporting one recall number:
