@@ -17,7 +17,7 @@ from app.services.ssr.anchors import (
     AnchorSet,
 )
 
-AnchorKind = Literal["tone", "style"]
+AnchorKind = Literal["tone", "style", "clause"]
 AnchorLocale = Literal["sv", "en"]
 AnchorStatus = Literal["draft", "published"]
 
@@ -286,6 +286,8 @@ def validate_anchor_payload(
         raise ValueError("tone anchor sets must have exactly 5 labels")
     if kind == "style" and len(labels) != 6:
         raise ValueError("style anchor sets must have exactly 6 labels")
+    if kind == "clause" and len(labels) < 1:
+        raise ValueError("clause anchor sets must have at least 1 label")
     if locale not in ("sv", "en"):
         raise ValueError("locale must be sv or en")
 

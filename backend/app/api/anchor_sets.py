@@ -286,24 +286,18 @@ async def publish_anchor_set(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    acknowledge = bool(body.acknowledge_warnings) if body is not None else False
-    temperature = await _active_ssr_temperature(session)
-    try:
-        await assert_publish_allowed(
-            session,
-            row,
-            temperature=temperature,
-            acknowledge_warnings=acknowledge,
+    if row.kind != "clause":
+        acknowledge = bool(body.acknowledge_warnings) if body is not None else False
+        temperature = await _active_ssr_temperature(session)
+        try:
+            await assert_publish_allowed(
+                session, row, temperature=temperature, acknowledge_warnings=acknowledge
+            )
+        except PublishGateError as exc:
+            raise _publish_gate_http(exc) from exc
+        await finalize_publish_calibration(
+            session, row, temperature=temperature, acknowledge_warnings=acknowledge
         )
-    except PublishGateError as exc:
-        raise _publish_gate_http(exc) from exc
-
-    await finalize_publish_calibration(
-        session,
-        row,
-        temperature=temperature,
-        acknowledge_warnings=acknowledge,
-    )
     row.status = "published"
     row.updated_at = utcnow()
     await session.commit()
