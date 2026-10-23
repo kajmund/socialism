@@ -17,6 +17,8 @@ ExperimentStatus = Literal["sufficient", "insufficient", "uncertain", "failed"]
 ConflictStatus = Literal["unresolved", "resolved", "not_applicable"]
 ClaimExtractionStatus = Literal["extracted", "uncertain", "unprocessed"]
 PairStrategy = Literal["deterministic", "embeddings", "hybrid"]
+PairVerdict = Literal["CONTRADICTS", "COMPATIBLE", "SCOPE_DIFFERENCE", "INSUFFICIENT"]
+PairEvaluationStatus = Literal["judged", "uncertain", "unevaluated"]
 ConflictReasonKind = Literal["temporal", "entity", "definition", "superseding"]
 RouteChoice = Literal["FINISH", "RUN_SUBWORKFLOW", "ESCALATE_NARRATIVE", "UNCERTAIN"]
 ROUTE_CHOICES: tuple[RouteChoice, ...] = (
@@ -54,6 +56,11 @@ class ExperimentConfig:
     max_claims_per_need: int = 200
     max_pairs_per_need: int = 40
     embedding_neighbors: int = 3
+    pair_strategy: PairStrategy = "deterministic"
+    pair_jev_concurrency: int = 8
+    pair_jev_timeout_seconds: float = 5.0
+    max_pair_state_chars: int = 6_000
+    max_pair_jev_calls: int = 200
 
 
 @dataclass(frozen=True)
@@ -185,6 +192,31 @@ class PairSelection:
 
 
 @dataclass(frozen=True)
+class PairEvaluation:
+    pair_id: str
+    need_id: str
+    left_claim_id: str
+    right_claim_id: str
+    verdict: PairVerdict | None
+    status: PairEvaluationStatus
+    sources: tuple[str, ...]
+    state_chars: int
+    latency_ms: float
+    error: str | None = None
+    model: str | None = None
+
+
+@dataclass(frozen=True)
+class PairCoverage:
+    total: int
+    judged: int
+    uncertain: int
+    unevaluated: int
+    complete: bool
+    reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ClaimCoverage:
     candidates: int
     extracted: int
@@ -219,6 +251,7 @@ class GateInputs:
     budget_exhausted: bool = False
     narrative_rounds: int = 0
     claim_coverage_incomplete: bool = False
+    pair_coverage_incomplete: bool = False
 
 
 @dataclass(frozen=True)
@@ -275,6 +308,8 @@ class ExperimentReport:
     live_measurement: str = "not_run"
     claims: tuple[ClaimCandidate, ...] = ()
     claim_coverage: ClaimCoverage | None = None
+    pairs: tuple[PairEvaluation, ...] = ()
+    pair_coverage: PairCoverage | None = None
 
     @property
     def coverage(self) -> float:

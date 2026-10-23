@@ -30,6 +30,8 @@ def quality_gate(
         reasons.append("budget_exhausted")
     if inputs.claim_coverage_incomplete:
         reasons.append("claim_coverage_incomplete")
+    if inputs.pair_coverage_incomplete:
+        reasons.append("pair_coverage_incomplete")
     if any(row.unknown_requirements for row in aggregations):
         reasons.append("unknown_requirements")
     if any(row.unresolved_conflicts for row in aggregations):
