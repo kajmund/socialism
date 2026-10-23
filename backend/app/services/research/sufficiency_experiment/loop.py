@@ -46,6 +46,7 @@ from app.services.research.sufficiency_experiment.quality import quality_gate
 from app.services.research.sufficiency_experiment.route import (
     decide_route,
     route_state,
+    status_from_route,
 )
 from app.services.research.sufficiency_experiment.segment import segment_evidence
 from app.services.research.sufficiency_experiment.types import (
@@ -260,7 +261,7 @@ class SufficiencyLoop:
         }
 
     async def _prepare_pairs(self, _payload: Mapping[str, Any]) -> dict[str, Any]:
-        if not self._claims:
+        if not self._config.pair_judgement or not self._claims:
             self._pair_coverage = pair_coverage(())
             return {"jobs": []}
         selection = await select_pairs(
@@ -300,6 +301,9 @@ class SufficiencyLoop:
         return {"pair_id": row.pair_id, "status": row.status, "verdict": row.verdict}
 
     async def _aggregate_pairs(self, _payload: Mapping[str, Any]) -> dict[str, Any]:
+        if not self._config.pair_judgement:
+            self._pair_selection = None
+            self._pair_evaluations = []
         coverage = pair_coverage(self._pair_evaluations)
         self._pair_coverage = coverage
         self._aggregations = tuple(
@@ -379,7 +383,14 @@ class SufficiencyLoop:
     async def _emit(self, _payload: Mapping[str, Any]) -> dict[str, Any]:
         if self._draft is None:
             if self._failure != "narrative_unbound":
-                self._status = self._emit_status()
+                if self._config.route_authority:
+                    self._status, reason = status_from_route(
+                        self._route, self._quality, self._aggregations
+                    )
+                    if reason:
+                        self._failure = self._failure or reason
+                else:
+                    self._status = self._emit_status()
             self._draft = draft_from_aggregations(
                 self._aggregations,
                 status=self._status,

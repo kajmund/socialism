@@ -288,6 +288,26 @@ summed Jev latency exceeds wall time because calls run concurrently
 Default `pair_strategy` is `deterministic`; embeddings and hybrid need an
 injected embedding provider. No live model is used in CI.
 
+## Route authority (A1)
+
+A1 makes the route outcome count. `sufficient` now requires the deterministic
+gate to allow it **and** an explicit `final_outcome=sufficient` on the route.
+The four authority signals are `answerable_now`, `material_gap`,
+`contradiction` and `confidence` (min Noul confidence over all five answers).
+`follow_up_change` and `additional_source` steer further research but never
+veto a sufficient verdict, and they cannot override an unmet gate requirement.
+
+Statuses: quality PASS + route sufficient → sufficient; PASS + insufficient →
+insufficient; PASS + uncertain → uncertain with an insufficient draft; a FINISH
+without an outcome or a rejected sufficient finish fails closed; the
+programmatic path is exempt. `status_from_route` owns the mapping.
+
+Arm toggles are experiment-only: `route_authority` (A1),
+`legacy_duplicate_resolution` (A0 behaviour) and `pair_judgement` (A3). The
+scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
+three route scenarios with and without the authority switch; no live model is
+used.
+
 ## Coverage (five levels)
 
 Coverage is reported per level with an explicit control. The levels are never

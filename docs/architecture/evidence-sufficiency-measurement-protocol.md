@@ -45,6 +45,19 @@ calls without a matching entry run live and are labelled in the arm artifact.
 Two independent live repetitions per arm remain mandatory for operational
 quality; the paired reference never replaces them.
 
+## What each comparison shows
+
+| Comparison | Paired? | What it actually shows |
+| ---------- | ------- | ---------------------- |
+| A0 vs A1 | yes, same Jev answers | effect of the decision-logic change only |
+| A1 vs A2 | where call signatures match | effect of safer conflict handling |
+| A2 vs A3 | no; new fact-pair calls | effect of the whole fact-pair method, including new model calls |
+
+A3 asks different questions and sends different context, so it cannot always
+reuse the A0/A1 cassette. A missing cassette entry is a **reproducibility
+error**, not a model error, and must be reported as such. The arm order is
+fixed by the pre-registration: `A0, A2, A3, A1`.
+
 ## Coverage
 
 Two distinct coverage types, reported separately and never collapsed:

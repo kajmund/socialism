@@ -34,7 +34,12 @@
       "pair_strategy": "deterministic"
     }
   },
-  "arm_order": ["A0", "A2", "A3", "A1"],
+  "arm_order": [
+    "A0",
+    "A2",
+    "A3",
+    "A1"
+  ],
   "variant_b": {
     "included": false,
     "condition": "after the A3 decision"
@@ -53,7 +58,9 @@
       "compatible_entities",
       "unknown_counterpart"
     ],
-    "tail_claims": ["tail_claim_contradiction"]
+    "tail_claims": [
+      "tail_claim_contradiction"
+    ]
   },
   "runs": {
     "paired_reference": "same evidence, questions and call order per arm, replayed from a Jev cassette",
@@ -61,10 +68,15 @@
     "live_rule": "independent live runs for operational stability; never replaces the paired reference"
   },
   "cassette": {
-    "key": ["questions_sha256", "state_sha256", "model"],
+    "key": [
+      "questions_sha256",
+      "state_sha256",
+      "model"
+    ],
     "order": "strict per arm",
     "missing_entry": "error",
-    "new_calls": "A2/A3 calls without a matching entry run live and are labelled"
+    "new_calls": "A2/A3 calls without a matching entry run live and are labelled",
+    "missing_entry_class": "reproducibility_error"
   },
   "semantic_quality": {
     "population": "clean runs only",
@@ -178,5 +190,20 @@
     "document": "docs/architecture/evidence-sufficiency-measurement-protocol.md",
     "arm_run_pattern": "backend/tests/integration/baselines/arm-<arm>-<date>.json",
     "cassette_pattern": "backend/tests/integration/baselines/jev-cassette-<hash>.json"
+  },
+  "comparison_matrix": {
+    "A0_vs_A1": {
+      "paired": true,
+      "shows": "effect of decision-logic change only"
+    },
+    "A1_vs_A2": {
+      "paired": "where call signatures match",
+      "shows": "effect of safer conflict handling"
+    },
+    "A2_vs_A3": {
+      "paired": false,
+      "shows": "effect of the whole fact-pair method, including new model calls"
+    },
+    "missing_cassette_entry": "reproducibility_error, never a model error"
   }
 }
