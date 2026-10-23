@@ -2,6 +2,7 @@
 
 ## 2026-10-23
 
+* **Tabular Review**: Ny guide för den opt-in-tabell där avtal jämförs mot klausulankare. Cellen visar ordagrann klausul och similarity. Ingen träff betyder inte att klausulen saknas.
 * **Verktyg**: Ny flik **Klausulankare** där administratörer svarar Ja/Nej på klausuler. Svaren sparas. Ett Ja blir inte automatiskt ett aktivt ankare.
 
 ## 2026-10-20

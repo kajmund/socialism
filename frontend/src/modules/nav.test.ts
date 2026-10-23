@@ -9,6 +9,13 @@ describe("buildSidebarNav", () => {
     expect(item?.to).toBe("/expertgranskning")
   })
 
+  it("shows tabular review when granted by the profile", () => {
+    const sections = buildSidebarNav({ moduleIds: ["tabular_review"], showTools: false })
+    expect(sections.map((section) => section.id)).toContain("tabular_review")
+    const item = sections.find((section) => section.id === "tabular_review")?.items[0]
+    expect(item?.to).toBe("/tabular-review")
+  })
+
   it("shows rattsunderlag when granted by the profile", () => {
     const sections = buildSidebarNav({ moduleIds: ["rattsunderlag"], showTools: false })
     expect(sections.map((section) => section.id)).toContain("rattsunderlag")
