@@ -125,6 +125,15 @@ export function AnchorSetEditorPage() {
   }, [isEdit, numericId, t])
 
   useEffect(() => {
+    if (kind === "clause") {
+      setVocabLabels([])
+      setVocabLoading(false)
+      if (!isEdit) {
+        setLabels([""])
+        setStatements([""])
+      }
+      return
+    }
     let cancelled = false
     setVocabLoading(true)
     getLabelVocabulary(kind, locale)
@@ -458,6 +467,7 @@ export function AnchorSetEditorPage() {
                   >
                     <option value="tone">{t("anchorSets.kindTone")}</option>
                     <option value="style">{t("anchorSets.kindStyle")}</option>
+                    <option value="clause">{t("anchorSets.kindClause")}</option>
                   </select>
                 </label>
                 <label className="block space-y-1">
@@ -497,22 +507,35 @@ export function AnchorSetEditorPage() {
                         <span className="text-xs text-muted-foreground">
                           {t("anchorSets.editor.labelField")}
                         </span>
-                        <select
-                          className="dsel w-full"
-                          value={label}
-                          disabled={readOnly || vocabLoading || options.length === 0}
-                          onChange={(e) => {
-                            const next = [...labels]
-                            next[idx] = e.target.value
-                            setLabels(next)
-                          }}
-                        >
-                          {options.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
+                        {kind === "clause" ? (
+                          <input
+                            className="dsearch w-full"
+                            value={label}
+                            disabled={readOnly}
+                            onChange={(e) => {
+                              const next = [...labels]
+                              next[idx] = e.target.value
+                              setLabels(next)
+                            }}
+                          />
+                        ) : (
+                          <select
+                            className="dsel w-full"
+                            value={label}
+                            disabled={readOnly || vocabLoading || options.length === 0}
+                            onChange={(e) => {
+                              const next = [...labels]
+                              next[idx] = e.target.value
+                              setLabels(next)
+                            }}
+                          >
+                            {options.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </label>
                       <label className="block space-y-1">
                         <span className="text-xs text-muted-foreground">
@@ -543,6 +566,17 @@ export function AnchorSetEditorPage() {
                     </div>
                   )
                 })}
+                {kind === "clause" && !readOnly ? (
+                  <AdminButton
+                    type="button"
+                    onClick={() => {
+                      setLabels([...labels, ""])
+                      setStatements([...statements, ""])
+                    }}
+                  >
+                    {t("anchorSets.editor.addClauseRow")}
+                  </AdminButton>
+                ) : null}
               </div>
 
               {!readOnly ? (

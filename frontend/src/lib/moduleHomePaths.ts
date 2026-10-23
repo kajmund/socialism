@@ -7,6 +7,7 @@ const MODULE_HOME_PATHS: Record<string, string> = {
   politik: "/",
   expertgranskning: "/expertgranskning",
   rattsunderlag: "/rattsunderlag",
+  tabular_review: "/tabular-review",
 }
 
 const HOME_MODULE_PRIORITY = ["politik", "dd"] as const
