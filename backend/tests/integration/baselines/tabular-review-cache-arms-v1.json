@@ -1,0 +1,103 @@
+{
+  "kind": "cache_arms",
+  "not_quality_measurement": true,
+  "note": "Synthetic provisional anchors; result parity against A. D is exploratory.",
+  "contracts": 35,
+  "text_units": 2377,
+  "columns": 4,
+  "repeats": 2,
+  "timings": {
+    "A": {
+      "cold": {
+        "median": 8.261,
+        "p95": 28.375
+      },
+      "warm": {
+        "median": 0.793,
+        "p95": 0.886
+      },
+      "add": {
+        "median": 4.798,
+        "p95": 5.498
+      }
+    },
+    "B": {
+      "cold": {
+        "median": 4.728,
+        "p95": 4.933
+      },
+      "warm": {
+        "median": 0.015,
+        "p95": 0.018
+      },
+      "add": {
+        "median": 1.209,
+        "p95": 1.246
+      }
+    },
+    "C": {
+      "cold": {
+        "median": 1.082,
+        "p95": 1.203
+      },
+      "warm": {
+        "median": 0.014,
+        "p95": 0.014
+      },
+      "add": {
+        "median": 0.324,
+        "p95": 0.329
+      }
+    },
+    "D": {
+      "cold": {
+        "median": 1.063,
+        "p95": 1.153
+      },
+      "warm": {
+        "median": 1.189,
+        "p95": 1.294
+      },
+      "add": {
+        "median": 0.326,
+        "p95": 0.353
+      }
+    }
+  },
+  "score_cache_rows": {
+    "A": 9508,
+    "B": 0,
+    "C": 0,
+    "D": 0
+  },
+  "result_cells": {
+    "A": 140,
+    "B": 140,
+    "C": 140,
+    "D": 140
+  },
+  "result_candidates": {
+    "A": 700,
+    "B": 700,
+    "C": 700,
+    "D": 700
+  },
+  "top5_parity": {
+    "A": {
+      "identical_top5_cells": 140,
+      "cells": 140
+    },
+    "B": {
+      "identical_top5_cells": 140,
+      "cells": 140
+    },
+    "C": {
+      "identical_top5_cells": 140,
+      "cells": 140
+    },
+    "D": {
+      "identical_top5_cells": 140,
+      "cells": 140
+    }
+  }
+}
