@@ -121,3 +121,51 @@ def candidate_miss_synonyms() -> GoldenCase:
             "Tamdjur tillåts i grönområdet enligt kommunen.",
         ),
     )
+
+
+def synonym_contradiction_semester() -> GoldenCase:
+    return _case(
+        "synonym_contradiction_semester",
+        "insufficient",
+        "Hur många semesterdagar har anställda rätt till?",
+        (
+            "Anställda har rätt till 25 semesterdagar enligt lagen.",
+            "Semesterledigheten begränsas till 20 dagar enligt avtalet.",
+        ),
+    )
+
+
+def synonym_contradiction_notice() -> GoldenCase:
+    return _case(
+        "synonym_contradiction_notice",
+        "insufficient",
+        "Vilken uppsägningstid gäller?",
+        (
+            "Avtalet kan sägas upp med tre månaders varsel.",
+            "Uppsägningstiden är sex månader för parterna.",
+        ),
+    )
+
+
+def synonym_compatible_scope() -> GoldenCase:
+    return _case(
+        "synonym_compatible_scope",
+        "sufficient",
+        "Vilka regler gäller?",
+        (
+            "Reglerna gäller från 2024 enligt beslutet.",
+            "Reglerna gäller från 2025 enligt det nya beslutet.",
+        ),
+    )
+
+
+def synonym_compatible_entity() -> GoldenCase:
+    return _case(
+        "synonym_compatible_entity",
+        "sufficient",
+        "Får djur vistas i parken?",
+        (
+            "Hundar får vistas i parken enligt ordningsstadgan.",
+            "Katter får vistas i parken enligt ordningsstadgan.",
+        ),
+    )

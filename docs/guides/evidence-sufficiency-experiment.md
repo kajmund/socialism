@@ -354,6 +354,28 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## B4 candidate generation for low-overlap contradictions (2026-10-23)
+
+B4 isolates candidate generation from ranking: same claims, no budget, no Jev.
+Deterministic candidates are compared with embeddings and the hybrid union on
+low-overlap contradictions and compatible controls. Artifact:
+`tests/integration/baselines/b4-candidate-recall-v1.json`.
+
+| Strategy | Contradiction Candidate Recall | Compatible recall | Mean candidates | Embedding calls / texts |
+| --- | ---: | ---: | ---: | ---: |
+| Deterministic | 0.25 | 1.00 | 196.3 | 0 / 0 |
+| Embeddings | 0.75 | 1.00 | 19.5 | 6 / 59 |
+| Hybrid | **1.00** | 1.00 | 196.8 | 6 / 59 |
+
+The deterministic generator misses all three synthetic low-overlap
+contradictions (`candidate_miss_synonyms`, semester, notice) while the hybrid
+union recovers them in the same candidate volume; embeddings alone miss
+`late_evidence`. This is a candidate-generation improvement, not a decision
+improvement: B3b showed Jev can still misjudge those pairs, and no Jev call is
+made here. B4b must run the full arm with hybrid candidate generation and
+measure final decision quality, false-sufficient, coverage and Jev cost before
+any adoption. The metadata ranking stays a frozen comparison arm.
+
 ## B3c full live arms (2026-10-23)
 
 A (current order) and B (metadata order) ran as full live arms, two repetitions
