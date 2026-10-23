@@ -354,6 +354,49 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## B3b staged diagnosis (2026-10-23)
+
+B3b separates three failure stages instead of reporting one recall number:
+candidate recall (does the pair exist before budget/ranking?), Recall@Budget
+(does it fit the first 40?) and decision correctness (does Jev judge the known
+pair correctly, independent of selection?). Artifact:
+`tests/integration/baselines/b3b-stages-v1.json`.
+
+| Case | Category | Candidate recall | Rank A/B/C | Jev on facit | Attribution |
+| --- | --- | --- | --- | --- | --- |
+| duplicate_contradiction | clear | yes | 1 / 1 / 1 | SCOPE_DIFFERENCE (wrong) | jev_wrong_verdict |
+| independent_contradiction | clear | yes | 1 / 1 / 1 | CONTRADICTS | none |
+| tail_claim_contradiction | clear | yes | 1 / 1 / 30 | CONTRADICTS | none |
+| late_evidence | subtle | yes | **1129 / 1 / 1134** | CONTRADICTS | ranking_beyond_budget |
+| large_567k | subtle | no facit pair | — | not evaluated | facit_unavailable |
+| compatible_periods | compatible | yes | 1 / 1 / 1 | SCOPE_DIFFERENCE (correct) | none |
+| compatible_entities | compatible | yes | 1 / 1 / 1 | SCOPE_DIFFERENCE (correct) | none |
+| candidate_miss_synonyms | candidate miss | **no** | — | SCOPE_DIFFERENCE (wrong) | candidate_miss |
+
+Recall@Budget over the five contradiction cases with a facit:
+
+| Arm | @1 | @5 | @10 | @20 | @40 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Current (A) | 0.60 | 0.60 | 0.60 | 0.60 | 0.60 |
+| Metadata (B) | **0.80** | **0.80** | **0.80** | **0.80** | **0.80** |
+| Embeddings proxy (C) | 0.40 | 0.40 | 0.40 | 0.40 | 0.60 |
+
+Jev decision accuracy on the evaluated facit pairs: 0.714 (5/7).
+
+**Diagnosis:** `late_evidence` is a **ranking** failure: the pair is generated
+but sits at rank 1 129; metadata priority lifts it to rank 1, giving +0.20
+Recall@Budget at every budget. `candidate_miss_synonyms` is a **candidate
+generation** failure, and Jev also misjudges it, so generation and decision are
+both open. `large_567k` has no frozen facit pair, so its stage cannot be
+attributed. `duplicate_contradiction` has rank 1 but Jev returned
+SCOPE_DIFFERENCE on the direct facit evaluation, so decision correctness needs
+live repetition. Embeddings are not dominant: the embedding proxy is worse than
+metadata and pushes `tail_claim_contradiction` to rank 30.
+
+No ordering is adopted yet: B3c must run the full live arm with metadata order
+and measure final decision quality, coverage and false-sufficient, not just
+Recall@Budget.
+
 ## B3 pair prioritisation (selection-only, 2026-10-23)
 
 B3 asks whether SWE can choose which fact pairs Jev compares before spending
