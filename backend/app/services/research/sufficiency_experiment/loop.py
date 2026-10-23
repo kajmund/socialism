@@ -79,7 +79,6 @@ from app.services.research.sufficiency_experiment.workflow import (
 )
 from app.swe.runtime import RunResult, WorkflowResources, WorkflowRunner
 from app.swe.runtime_dispatch import Handler
-
 class SufficiencyLoop:
     """One SWE run that judges a complete EvidenceSet."""
 
@@ -496,5 +495,6 @@ class SufficiencyLoop:
             pairs=tuple(self._pair_evaluations),
             pair_coverage=self._pair_coverage,
             coverage_report=self._coverage_report,
+            pair_selection=self._pair_selection,
             gap_review=self._gap_review,
         )

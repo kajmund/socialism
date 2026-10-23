@@ -386,6 +386,7 @@ class ExperimentReport:
     pairs: tuple[PairEvaluation, ...] = ()
     pair_coverage: PairCoverage | None = None
     coverage_report: CoverageReport | None = None
+    pair_selection: PairSelection | None = None
     gap_review: NarrativeGapReport | None = None
 
     @property

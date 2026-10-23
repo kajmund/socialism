@@ -354,6 +354,38 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## B4b full live arms: deterministic vs hybrid generation (2026-10-23)
+
+A deterministic candidate generation and B hybrid (deterministic ∪ embeddings)
+ran as full live arms with unchanged ranking, Jev logic and 40-pair budget, two
+repetitions each. Artifact: `tests/integration/baselines/b4b-live-arms-v1.json`.
+
+| Measure | A deterministic | B hybrid |
+| --- | ---: | ---: |
+| Correct / 26 | 16 | **22** |
+| False-sufficient | 6 | **0** |
+| Coverage complete | 22 | 22 |
+| Candidate Recall (known pairs) | 8 | **14** |
+| Recall@40 | 6 | **12** |
+| Unique conflicts | 4 | 9 |
+| Useful facit pairs selected | 3 | 6 |
+| Jev calls | 2 320 | 2 336 (+0.7%) |
+| Latency | 161 s | 185 s |
+| Embedding calls / texts | 0 / 0 | 24 / 500 |
+
+The three synthetic low-overlap contradictions are the direct conversion of
+candidate recall into decisions: A returns `sufficient` in all six
+case-repetitions; B returns `insufficient` in all six, with both Candidate Recall
+and Recall@40 true. `late_evidence` remains `insufficient` in both arms and the
+known pair still misses the top 40, so ranking remains the late bottleneck.
+Hybrid does **not** fix the compatible-case false-insufficient results.
+
+The pre-registered adoption rule fails only on `jev_calls_not_higher` (2 336 vs
+2 320, +0.7%). The artifact therefore says `KEEP_DETERMINISTIC`, even though
+hybrid removes six false-sufficient verdicts at essentially the same cost. This
+needs an explicit adoption decision rather than a silent criterion change;
+ticket 25 records that decision. No production order is changed here.
+
 ## B4 candidate generation for low-overlap contradictions (2026-10-23)
 
 B4 isolates candidate generation from ranking: same claims, no budget, no Jev.
