@@ -54,7 +54,7 @@ class CellDecision:
 class ColumnSpec:
     column_id: int | None
     title: str
-    anchor_set_id: int
+    anchor_set_id: str
     label: str
     polarity: CellPolarity = "positive"
     allow_abstain: bool = False

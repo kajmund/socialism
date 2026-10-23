@@ -16,7 +16,7 @@ LabelVerdict = Literal["match", "not_match"]
 
 class TabularReviewColumnWrite(BaseModel):
     title: str = Field(min_length=1, max_length=255)
-    anchor_set_id: int
+    anchor_set_id: str
     label: str = Field(min_length=1, max_length=64)
     polarity: CellPolarity = "positive"
     allow_abstain: bool = False
@@ -42,7 +42,7 @@ class TabularReviewUpdate(BaseModel):
 class TabularReviewColumnOut(BaseModel):
     id: int
     title: str
-    anchor_set_id: int
+    anchor_set_id: str
     label: str
     polarity: CellPolarity
     allow_abstain: bool
@@ -134,7 +134,7 @@ class TabularReviewEventOut(BaseModel):
 class TabularReviewLabelOut(BaseModel):
     id: int
     label: str
-    anchor_set_id: int
+    anchor_set_id: str
     text_unit_id: str
     verdict: LabelVerdict
     activated_as_ssr_anchor: bool

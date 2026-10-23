@@ -9,7 +9,7 @@ This is not Legora and does not copy their visual language.
 ## What v1 does
 
 - Persistent review: name, document set, columns, sort/filter, threshold, cell reviews.
-- Columns reference the SSR anchor library (`kind=clause`) plus polarity.
+- Columns reference an active OverGraph clause anchor set from `clause_ssr` plus polarity. No SQL clause-anchor table is used.
 - Ranking is deterministic: `(-similarity, text_unit_id)`.
 - Below the threshold the cell is **Ingen träff**. That is not “clause missing”
   and not negative evidence.
@@ -18,7 +18,7 @@ This is not Legora and does not copy their visual language.
 - Review Mode reuses `PdfKnowledgeViewer`. Fallback is page or clause locator.
   Positions are never invented.
 - Approve / reject writes a human verification label for exact category +
-  TextUnit. It does **not** append `ssr_anchor_pool_items`.
+  TextUnit. It does not create or modify clause anchors; those stay in the Overgraph `clause_ssr` library.
 - Locked cells are skipped on rerun.
 - Cache key: TextUnit + content hash + AnchorSet id/version/pool revision +
   embedding model + label + polarity.

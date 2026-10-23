@@ -3466,7 +3466,7 @@ export const en: LocalizedTree<SvMessages> = {
     editor: {
       newTitle: "New Tabular Review",
       editTitle: "Tabular Review",
-      intro: "One contract per row. Columns are SSR categories. The table is filled without Jev or an LLM.",
+      intro: "One contract per row. Columns are active Overgraph clause anchor sets. The table is filled without Jev or an LLM.",
       loadError: "Could not load the review",
       name: "Name",
       threshold: "Score threshold",
@@ -3524,6 +3524,7 @@ export const en: LocalizedTree<SvMessages> = {
       verification_label: "Verification",
       update: "Update",
     },
+  },
   clauseSsr: {
     kicker: "Tools",
     title: "Clause anchors",

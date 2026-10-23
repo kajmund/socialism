@@ -705,7 +705,7 @@ ConfigurationLanguage = Literal["sv", "en", "nb"]
 # Default matches playground calibration default (sharper than Softmax T=1.0).
 DEFAULT_SSR_TEMPERATURE = 0.1
 
-AnchorKind = Literal["tone", "style", "clause"]
+AnchorKind = Literal["tone", "style"]
 AnchorLocale = Literal["sv", "en"]
 AnchorStatus = Literal["draft", "published"]
 

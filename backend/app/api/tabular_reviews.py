@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,7 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.auth.dependencies import get_current_user
-from app.database.models import SsrAnchorSet, UserAccount
+from app.database.models import UserAccount
+from app.services.clause_ssr.select import get_anchor_set, list_anchor_sets
 from app.database.session import get_session
 from app.database.tabular_review import TabularReview, TabularReviewCell, TabularReviewVerificationLabel
 from app.schemas.tabular_review import (
@@ -66,6 +68,15 @@ async def _gated_review(session: AsyncSession, user: UserAccount, review_id: int
     return kund, review
 
 
+async def _validate_clause_column(anchor_set_id: str, label: str) -> None:
+    catalog = require_knowledge()
+    anchor_set = await asyncio.to_thread(get_anchor_set, catalog, anchor_set_id)
+    if anchor_set.status != "active":
+        raise HTTPException(status_code=400, detail="anchor_set_not_active")
+    if anchor_set.category != label:
+        raise HTTPException(status_code=400, detail="label_not_in_anchor_set")
+
+
 @router.get("/documents")
 async def list_documents(
     user: UserAccount = Depends(get_current_user),
@@ -80,19 +91,18 @@ async def list_clause_anchors(
     user: UserAccount = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[dict]:
-    await require_tabular_review_kund(session, user)
-    stmt = (
-        select(SsrAnchorSet)
-        .where(SsrAnchorSet.kind == "clause", SsrAnchorSet.status == "published")
-        .order_by(SsrAnchorSet.name.asc(), SsrAnchorSet.id.asc())
+    kund = await require_tabular_review_kund(session, user)
+    catalog = require_knowledge()
+    rows = await asyncio.to_thread(
+        list_anchor_sets, catalog, customer_id=kund.id, active_only=True
     )
-    rows = (await session.execute(stmt)).scalars().all()
     return [
         {
             "id": row.id,
-            "name": row.name,
-            "labels": [str(item) for item in (row.labels or [])],
-            "version": row.version,
+            "name": row.category,
+            "category": row.category,
+            "labels": [row.category],
+            "version": str(row.version),
         }
         for row in rows
     ]
@@ -126,6 +136,7 @@ async def create_tabular_review(
         if body.document_ids:
             await set_documents(session, review, body.document_ids)
         for index, column in enumerate(body.columns):
+            await _validate_clause_column(column.anchor_set_id, column.label)
             await add_column(
                 session,
                 review,
