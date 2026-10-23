@@ -13,6 +13,7 @@ import { AuthSplash, RequireAuth } from "@/auth/RequireAuth"
 import { RequireBolag } from "@/auth/RequireBolag"
 import { RequireExpertgranskning } from "@/auth/RequireExpertgranskning"
 import { RequireRattsunderlag } from "@/auth/RequireRattsunderlag"
+import { RequireTabularReview } from "@/auth/RequireTabularReview"
 import { RequireOsUser } from "@/auth/RequireOsUser"
 import { homePathForUser } from "@/lib/auth"
 import { isSameOriginFrame } from "@/lib/frame"
@@ -62,6 +63,8 @@ import { PopulationDetailPage } from "@/pages/PopulationDetailPage"
 import { PopulationsPage } from "@/pages/PopulationsPage"
 import { RattsunderlagPage } from "@/pages/RattsunderlagPage"
 import { RattsunderlagRunPage } from "@/pages/RattsunderlagRunPage"
+import { TabularReviewPage } from "@/pages/TabularReviewPage"
+import { TabularReviewsPage } from "@/pages/TabularReviewsPage"
 import { ResearchMonitorPage } from "@/pages/ResearchMonitorPage"
 import { ReportPage } from "@/pages/ReportPage"
 import { BolagReportsPage, ReportsPage } from "@/pages/ReportsPage"
@@ -198,6 +201,12 @@ export default function App() {
             <Route path="/rattsunderlag" element={<RattsunderlagPage />} />
             <Route path="/rattsunderlag/new" element={<RattsunderlagRunPage />} />
             <Route path="/rattsunderlag/:id" element={<RattsunderlagRunPage />} />
+          </Route>
+
+          <Route element={<RequireTabularReview />}>
+            <Route path="/tabular-review" element={<TabularReviewsPage />} />
+            <Route path="/tabular-review/new" element={<TabularReviewPage />} />
+            <Route path="/tabular-review/:id" element={<TabularReviewPage />} />
           </Route>
 
           <Route path="/execution/runs/:runId" element={<ExecutionRunPage />} />

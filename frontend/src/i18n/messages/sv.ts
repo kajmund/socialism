@@ -375,6 +375,7 @@ export const sv = {
     users: "Användare",
     expertgranskning: "Expertgranskning",
     rattsunderlag: "Rättsunderlag",
+    tabularReview: "Tabular Review",
     activeJobs: "{count} aktiva jobb",
   },
   bolag: {
@@ -399,6 +400,9 @@ export const sv = {
     },
     rattsunderlag: {
       name: "Rättsunderlag",
+    },
+    tabularReview: {
+      name: "Tabular Review",
     },
   },
   expertPanels: {
@@ -3141,6 +3145,7 @@ export const sv = {
   anchorSets: {
     kindTone: "Ton",
     kindStyle: "Stil",
+    kindClause: "Klausul",
     statusPublished: "Publicerad",
     statusDraft: "Utkast",
     list: {
@@ -3194,6 +3199,7 @@ export const sv = {
       tabCalibration: "Kalibrering",
       tabTest: "Test",
       poolCount: "{count} i poolen",
+      addClauseRow: "Lägg till klausulkategori",
     },
     flagged: {
       intro:
@@ -3443,6 +3449,78 @@ export const sv = {
         research_frozen_ready: "Evidens fryst",
         research_failed: "Research misslyckades",
       },
+    },
+  },
+  tabularReview: {
+    list: {
+      title: "Tabular Review",
+      intro: "Granska avtal mot SSR-kategorier. Varje cell visar en ordagrann klausul och similarity, inte sannolikhet.",
+      new: "Ny review",
+      loading: "Hämtar reviews…",
+      loadError: "Kunde inte hämta reviews",
+      empty: "Inga reviews ännu. Skapa en och välj avtal.",
+      meta: "{documents} avtal · {columns} kolumner · {updated}",
+    },
+    editor: {
+      newTitle: "Ny Tabular Review",
+      editTitle: "Tabular Review",
+      intro: "Ett avtal per rad. Kolumner är SSR-kategorier. Tabellen fylls utan Jev eller LLM.",
+      loadError: "Kunde inte hämta reviewn",
+      name: "Namn",
+      threshold: "Scoregräns",
+      search: "Filtrera avtal",
+      statusFilter: "Filtrera status",
+      allStatuses: "Alla statusar",
+      documents: "Dokumenturval",
+      noDocuments: "Inga indexerade avtal ännu.",
+      chooseLabel: "Välj kategori",
+      columnTitle: "Kolumnnamn",
+      addColumn: "Lägg till kolumn",
+      removeColumn: "Ta bort {title}",
+      run: "Fyll tabellen",
+      running: "Fyller tabellen…",
+      runError: "Kunde inte fylla tabellen",
+      hint: "Spara reviewn, välj avtal och fyll tabellen.",
+    },
+    table: {
+      document: "Avtal",
+      sortByTitle: "Sortera efter avtalsnamn",
+      sortBySimilarity: "Sortera efter similarity i {title}",
+    },
+    status: {
+      hit: "Träff",
+      noHit: "Ingen träff",
+      unknown: "Osäker",
+      negativeHit: "Negativ träff",
+    },
+    cell: {
+      similarity: "Similarity {score}",
+    },
+    actions: {
+      approve: "Godkänn match",
+      reject: "Avvisa match",
+      flag: "Flagga",
+      unflag: "Ta bort flagga",
+      lock: "Lås",
+      unlock: "Lås upp",
+      note: "Anteckning",
+      saveNote: "Spara anteckning",
+    },
+    review: {
+      moreCandidates: "Fler kandidater",
+      missingPdf: "Ingen PDF att öppna för det här avtalet.",
+      pageFallback: "Markerar sida {page}. Exakt ruta saknas.",
+      clauseFallback: "Hoppar till klausul {clause}. Exakt position saknas.",
+      history: "Ändringshistorik",
+      historyEmpty: "Inga åtgärder ännu.",
+    },
+    historyAction: {
+      locked: "Lås",
+      flagged: "Flagga",
+      review_state: "Granskning",
+      note: "Anteckning",
+      verification_label: "Verifiering",
+      update: "Uppdatering",
     },
   },
 } as const satisfies MessageTree
