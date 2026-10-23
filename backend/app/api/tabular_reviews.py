@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.auth.dependencies import get_current_user
-from app.database.models import UserAccount
+from app.database.models import SsrAnchorSet, UserAccount
 from app.database.session import get_session
 from app.database.tabular_review import TabularReview, TabularReviewCell, TabularReviewVerificationLabel
 from app.schemas.tabular_review import (
@@ -73,6 +73,29 @@ async def list_documents(
 ) -> list[dict]:
     kund = await require_tabular_review_kund(session, user)
     return await list_customer_documents(session, customer_id=kund.id)
+
+
+@router.get("/clause-anchors")
+async def list_clause_anchors(
+    user: UserAccount = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict]:
+    await require_tabular_review_kund(session, user)
+    stmt = (
+        select(SsrAnchorSet)
+        .where(SsrAnchorSet.kind == "clause", SsrAnchorSet.status == "published")
+        .order_by(SsrAnchorSet.name.asc(), SsrAnchorSet.id.asc())
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    return [
+        {
+            "id": row.id,
+            "name": row.name,
+            "labels": [str(item) for item in (row.labels or [])],
+            "version": row.version,
+        }
+        for row in rows
+    ]
 
 
 @router.get("")

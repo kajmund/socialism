@@ -280,6 +280,8 @@ def validate_anchor_payload(
 ) -> None:
     if not labels or not statements:
         raise ValueError("labels and statements must be non-empty")
+    if any(not str(item).strip() for item in (*labels, *statements)):
+        raise ValueError("labels and statements must be non-empty")
     if len(labels) != len(statements):
         raise ValueError("labels and statements must have the same length")
     if kind == "tone" and len(labels) != 5:

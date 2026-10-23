@@ -125,6 +125,10 @@ async def add_column(session: AsyncSession, review: TabularReview, spec: ColumnS
     anchor = await session.get(SsrAnchorSet, spec.anchor_set_id)
     if anchor is None:
         raise TabularReviewError("anchor_set_not_found")
+    if anchor.kind != "clause":
+        raise TabularReviewError("anchor_set_not_clause")
+    if anchor.status != "published":
+        raise TabularReviewError("anchor_set_not_published")
     labels = [str(item) for item in (anchor.labels or [])]
     if spec.label not in labels:
         raise TabularReviewError("label_not_in_anchor_set")
@@ -323,13 +327,23 @@ async def persist_decision(
     if cell is not None and cell.locked:
         return cell
     selected = decision.selected
+    new_unit_id = selected.text_unit_id if selected else None
     if cell is None:
         cell = TabularReviewCell(review_id=review.id, row_id=row.id, column_id=column.id)
         session.add(cell)
         await session.flush()
+    elif cell.review_state != "pending" and cell.text_unit_id != new_unit_id:
+        cell.review_state = "pending"
+        await record_event(
+            session,
+            cell,
+            actor_user_id="system",
+            action="review_state",
+            payload={"review_state": "pending", "reason": "result_changed"},
+        )
     cell.status = decision.status
     cell.similarity = selected.similarity if selected else None
-    cell.text_unit_id = selected.text_unit_id if selected else None
+    cell.text_unit_id = new_unit_id
     cell.exact_text = selected.exact_text if selected else None
     cell.source_json = locator_payload(selected.source) if selected else {}
     cell.computed_at = utcnow()

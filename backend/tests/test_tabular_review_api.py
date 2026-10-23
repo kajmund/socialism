@@ -213,6 +213,34 @@ async def test_user_without_module_is_denied(user_client):
     assert res.status_code == 403
 
 
+async def test_module_user_lists_clause_anchors_without_admin_api(client_db, user_token):
+    client, factory = client_db
+    await _enable_module(factory)
+    await _clause_set(factory)
+    client.headers["Authorization"] = f"Bearer {user_token}"
+    admin_only = await client.get("/anchor-sets?kind=clause")
+    assert admin_only.status_code == 403
+    listed = await client.get("/tabular-reviews/clause-anchors")
+    assert listed.status_code == 200, listed.text
+    assert listed.json()[0]["labels"] == ["uppsagning"]
+
+
+async def test_blank_clause_rows_are_rejected(client):
+    created = await client.post(
+        "/anchor-sets",
+        json={
+            "name": "blank-clause",
+            "kind": "clause",
+            "locale": "sv",
+            "version": "v1",
+            "labels": [""],
+            "statements": [""],
+        },
+    )
+    assert created.status_code == 400
+    assert "non-empty" in created.json()["detail"]
+
+
 async def test_publish_clause_set_skips_calibration(client):
     created = await client.post(
         "/anchor-sets",

@@ -96,6 +96,13 @@ export type TabularReviewDocument = {
   mime_type: string
 }
 
+export type TabularReviewClauseAnchor = {
+  id: number
+  name: string
+  labels: string[]
+  version: string
+}
+
 export type TabularReviewColumnWrite = {
   title: string
   anchor_set_id: number
@@ -162,6 +169,10 @@ export function runTabularReview(id: number): Promise<TabularReview> {
 
 export function listTabularReviewDocuments(): Promise<TabularReviewDocument[]> {
   return api.get<TabularReviewDocument[]>("/tabular-reviews/documents")
+}
+
+export function listTabularReviewClauseAnchors(): Promise<TabularReviewClauseAnchor[]> {
+  return api.get<TabularReviewClauseAnchor[]>("/tabular-reviews/clause-anchors")
 }
 
 export function approveTabularReviewCell(id: number, cellId: number): Promise<TabularReviewCell> {
