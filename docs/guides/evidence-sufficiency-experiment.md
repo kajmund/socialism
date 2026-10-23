@@ -354,6 +354,37 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## B4c factorial: generation × ranking (2026-10-23)
+
+Four live arms, two repetitions each, same A3 contract and 40-pair budget:
+
+| Arm | Generation | Ranking | Correct / 26 | False-suff | Candidate Recall | Recall@40 | Unique conflicts | Jev calls | Wall |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A | deterministic | current | 16 | 6 | 8 | 6 | 5 | 2 320 | 160.6 s |
+| B | hybrid | current | 22 | 0 | 14 | 12 | 9 | 2 336 | 185.7 s |
+| C | deterministic | metadata | 16 | 6 | 8 | 8 | 44 | 2 320 | 161.7 s |
+| D | hybrid | metadata | **22** | **0** | **14** | **14** | **49** | 2 336 | 184.5 s |
+
+D is the reference for SSR: it ties the best decision quality and false-sufficient
+count, and has the highest Recall@40 — hybrid supplies the low-overlap pairs and
+metadata ranking lifts `late_evidence` inside the top 40. `late_evidence` still
+ends `insufficient`, but now the known pair is selected in both repetitions.
+Compatible false-insufficient is unchanged in every arm.
+
+Timing split (sums across two reps):
+
+| Arm | Embedding | Generation | Prioritisation | Jev execution | Wall |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| A | 0 | 239 ms | 0 | 1 103 547 ms | 160.6 s |
+| B | 24 709 ms | 276 ms | 0 | 1 106 317 ms | 185.7 s |
+| C | 0 | 257 ms | 297 ms | 1 133 817 ms | 161.7 s |
+| D | 23 551 ms | 200 ms | 289 ms | 1 097 845 ms | 184.5 s |
+
+The +15 % wall time is embedding computation (~24 s for 500 texts in B/D), not
+generation or metadata ranking; both are sub-second. Reusing existing Overgraph
+embeddings removes most of that cost. Jev execution dominates the wall time in
+all arms.
+
 ## B4b full live arms: deterministic vs hybrid generation (2026-10-23)
 
 A deterministic candidate generation and B hybrid (deterministic ∪ embeddings)

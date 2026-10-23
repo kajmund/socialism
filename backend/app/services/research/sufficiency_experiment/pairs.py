@@ -56,10 +56,13 @@ async def select_pairs(
     if strategy in {"deterministic", "hybrid"}:
         deterministic = _deterministic(usable, questions)
     embedded: list[PairCandidate] = []
+    embedding_ms = 0.0
     if strategy in {"embeddings", "hybrid"}:
         if embedding_provider is None:
             raise ValueError(f"strategy {strategy!r} requires an embedding provider")
+        embedding_started = perf_counter()
         embedded, embedding_texts = await _embedded(usable, embedding_provider, config)
+        embedding_ms = (perf_counter() - embedding_started) * 1000
         embedding_calls = 1
     candidates = _combine(strategy, deterministic, embedded)
     selected = _apply_budget(candidates, config)
@@ -73,6 +76,7 @@ async def select_pairs(
         latency_ms=(perf_counter() - started) * 1000,
         embedding_calls=embedding_calls,
         embedding_texts=embedding_texts,
+        embedding_ms=embedding_ms,
     )
 
 
@@ -294,9 +298,11 @@ async def select_ordered_pairs(
     )
     if ordering == "current":
         return selection
+    started = perf_counter()
     ranked = await prioritize_pairs(
         selection.candidates, claims_by_id, ordering=ordering
     )
+    prioritization_ms = (perf_counter() - started) * 1000
     per_need: dict[str, list[PairCandidate]] = {}
     for pair in ranked:
         per_need.setdefault(pair.need_id, []).append(pair)
@@ -315,4 +321,6 @@ async def select_ordered_pairs(
         latency_ms=selection.latency_ms,
         embedding_calls=selection.embedding_calls,
         embedding_texts=selection.embedding_texts,
+        embedding_ms=selection.embedding_ms,
+        prioritization_ms=prioritization_ms,
     )
