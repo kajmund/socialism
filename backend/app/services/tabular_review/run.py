@@ -155,6 +155,14 @@ def _decision_from_cache(
                 source=source_locator(unit),
             )
         )
+    if not anchors.vectors:
+        return CellDecision(
+            status="no_hit",
+            selected=None,
+            candidates=(),
+            threshold=threshold,
+            no_hit_reason="no_active_anchors",
+        )
     ranked = rank_candidates(scored, limit=DEFAULT_CANDIDATE_LIMIT)
     return decide_cell(
         ranked,
