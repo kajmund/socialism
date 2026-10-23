@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -292,20 +293,32 @@ async def fill_review(
     catalog: Catalog,
     embeddings_by_document: UnitEmbeddings,
     customer_id: int,
+    timings: dict[str, float] | None = None,
 ) -> ReviewInputs:
     """Score with the SQL connection released during embedding and ranking."""
+    profile: dict[str, float] = {}
+    phase_started = time.perf_counter()
+
+    def mark(name: str) -> None:
+        nonlocal phase_started
+        profile[name] = round(time.perf_counter() - phase_started, 4)
+        phase_started = time.perf_counter()
+
     async with factory() as session:
         review = await get_review(session, review_id)
         if review is None or review.customer_id != customer_id:
             raise ValueError("review_not_found")
         inputs = await load_inputs(session, review, embedding_model=settings.embedding_model)
         await session.commit()
+    mark("load_inputs")
 
     anchors = load_anchor_vectors(catalog, inputs.columns)
+    mark("load_anchors")
     units_by_document = {
         document.document_id: load_document_units(catalog, document)
         for document in inputs.documents
     }
+    mark("load_units")
     cache_keys = [
         key
         for document in inputs.documents
@@ -318,9 +331,11 @@ async def fill_review(
             embedding_model=inputs.embedding_model,
         )
     ]
+    mark("cache_keys")
     async with factory() as session:
         cache = await cached_scores(session, cache_keys)
         await session.commit()
+    mark("cache_lookup")
 
     missing = unscored_unit_ids(
         inputs,
@@ -331,6 +346,7 @@ async def fill_review(
     )
     if missing:
         raise RuntimeError(f"text unit embeddings missing: {', '.join(missing)}")
+    mark("missing_check")
 
     decisions = score_inputs(
         inputs,
@@ -339,6 +355,7 @@ async def fill_review(
         anchors=anchors,
         cache=cache,
     )
+    mark("score")
     fresh = new_cache_rows(
         inputs,
         units_by_document=units_by_document,
@@ -346,6 +363,7 @@ async def fill_review(
         anchors=anchors,
         existing=cache,
     )
+    mark("cache_rows")
 
     async with factory() as session:
         review = await get_review(session, review_id)
@@ -367,4 +385,8 @@ async def fill_review(
         review.computed_at = utcnow()
         review.updated_at = utcnow()
         await session.commit()
+    mark("persist")
+    profile["total"] = round(sum(profile.values()), 4)
+    if timings is not None:
+        timings.update(profile)
     return inputs

@@ -145,7 +145,15 @@ def _seed_anchors(catalog, rows, units_by_document) -> dict[str, str]:
     return set_ids
 
 
-async def _first_row_seconds(factory, catalog, *, units_by_document, embeddings_by_document, set_ids) -> float:
+async def _first_row_seconds(
+    factory,
+    catalog,
+    *,
+    units_by_document,
+    embeddings_by_document,
+    set_ids,
+    timings: dict[str, float],
+) -> float:
     first_contract = next(iter(units_by_document))
     async with factory() as session:
         review = await create_review(
@@ -164,6 +172,7 @@ async def _first_row_seconds(factory, catalog, *, units_by_document, embeddings_
     await fill_review(
         factory, review_id, catalog=catalog,
         embeddings_by_document=embeddings_by_document, customer_id=CUSTOMER_ID,
+        timings=timings,
     )
     return time.perf_counter() - started
 
@@ -201,16 +210,20 @@ async def _run() -> dict:
                 ))
             await session.commit()
             review_id = review.id
+        cold_timings: dict[str, float] = {}
         cold_started = time.perf_counter()
         await fill_review(
             factory, review_id, catalog=knowledge,
             embeddings_by_document=embeddings_by_document, customer_id=CUSTOMER_ID,
+            timings=cold_timings,
         )
         cold_seconds = time.perf_counter() - cold_started
+        warm_timings: dict[str, float] = {}
         warm_started = time.perf_counter()
         await fill_review(
             factory, review_id, catalog=knowledge,
             embeddings_by_document=embeddings_by_document, customer_id=CUSTOMER_ID,
+            timings=warm_timings,
         )
         warm_seconds = time.perf_counter() - warm_started
         async with factory() as session:
@@ -220,20 +233,24 @@ async def _run() -> dict:
                 label=CATEGORIES[3], sort_order=3,
             ))
             await session.commit()
+        add_timings: dict[str, float] = {}
         add_started = time.perf_counter()
         await fill_review(
             factory, review_id, catalog=knowledge,
             embeddings_by_document=embeddings_by_document, customer_id=CUSTOMER_ID,
+            timings=add_timings,
         )
         add_seconds = time.perf_counter() - add_started
         async with factory() as session:
             cache_count = len((await session.execute(select(TabularReviewScoreCache))).scalars().all())
+        first_timings: dict[str, float] = {}
         first_row_seconds = await _first_row_seconds(
             factory,
             knowledge,
             units_by_document=units_by_document,
             embeddings_by_document=embeddings_by_document,
             set_ids=set_ids,
+            timings=first_timings,
         )
         return {
             "kind": "real_synthetic_corpus",
@@ -247,6 +264,10 @@ async def _run() -> dict:
             "add_column_fill_seconds": round(add_seconds, 3),
             "first_row_proxy_seconds": round(first_row_seconds, 3),
             "first_row_proxy_note": "one contract x four columns, backend fill; not UI paint time",
+            "cold_profile": cold_timings,
+            "warm_profile": warm_timings,
+            "add_column_profile": add_timings,
+            "first_row_profile": first_timings,
             "cache_rows": cache_count,
             "embedding_model": settings.embedding_model,
         }
