@@ -108,3 +108,16 @@ def clean_scope_difference() -> GoldenCase:
             "Reglerna ändrades till klockan 01:00 under 2025.",
         ),
     )
+
+
+def candidate_miss_synonyms() -> GoldenCase:
+    """No shared content tokens: candidate generation should miss this pair."""
+    return _case(
+        "candidate_miss_synonyms",
+        "insufficient",
+        "Får hundar vistas i parken?",
+        (
+            "Hundar får vistas i stadsparken enligt ordningsstadgan.",
+            "Tamdjur tillåts i grönområdet enligt kommunen.",
+        ),
+    )
