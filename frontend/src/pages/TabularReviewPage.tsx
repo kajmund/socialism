@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { listAnchorSets, type SsrAnchorSet } from "@/api/anchorSets"
 import {
   addTabularReviewColumn,
   approveTabularReviewCell,
@@ -8,6 +7,7 @@ import {
   deleteTabularReviewColumn,
   flagTabularReviewCell,
   getTabularReview,
+  listTabularReviewClauseAnchors,
   listTabularReviewDocuments,
   lockTabularReviewCell,
   noteTabularReviewCell,
@@ -16,6 +16,7 @@ import {
   updateTabularReview,
   type TabularReview,
   type TabularReviewCell,
+  type TabularReviewClauseAnchor,
   type TabularReviewDocument,
   type TabularReviewRow,
 } from "@/api/tabularReviews"
@@ -51,7 +52,7 @@ export function TabularReviewPage() {
   const [review, setReview] = useState<TabularReview | null>(null)
   const [documents, setDocuments] = useState<TabularReviewDocument[]>([])
   const [selectedDocs, setSelectedDocs] = useState<string[]>([])
-  const [sets, setSets] = useState<SsrAnchorSet[]>([])
+  const [sets, setSets] = useState<TabularReviewClauseAnchor[]>([])
   const [newSetId, setNewSetId] = useState("")
   const [newLabel, setNewLabel] = useState("")
   const [newTitle, setNewTitle] = useState("")
@@ -59,13 +60,12 @@ export function TabularReviewPage() {
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState<{ row: TabularReviewRow; cell: TabularReviewCell } | null>(null)
 
-  const clauseSets = useMemo(() => sets.filter((item) => item.kind === "clause"), [sets])
-  const selectedSet = clauseSets.find((item) => String(item.id) === newSetId)
+  const selectedSet = sets.find((item) => String(item.id) === newSetId)
   const openColumn = review && open ? review.columns.find((column) => column.id === open.cell.column_id) : null
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([listTabularReviewDocuments(), listAnchorSets({ kind: "clause" })])
+    Promise.all([listTabularReviewDocuments(), listTabularReviewClauseAnchors()])
       .then(([docs, anchors]) => {
         if (cancelled) return
         setDocuments(docs)
@@ -291,7 +291,7 @@ export function TabularReviewPage() {
           {review ? (
             <div className="flex flex-wrap items-end gap-2">
               <select className="dsel" value={newSetId} onChange={(event) => setNewSetId(event.target.value)}>
-                {clauseSets.map((item) => (
+                {sets.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
                   </option>

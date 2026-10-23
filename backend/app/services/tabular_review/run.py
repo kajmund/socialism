@@ -242,6 +242,41 @@ def score_inputs(
     return results
 
 
+def unscored_unit_ids(
+    inputs: ReviewInputs,
+    *,
+    units_by_document: Mapping[str, Sequence[TextUnit]],
+    embeddings_by_document: UnitEmbeddings,
+    anchors: Mapping[int, AnchorVectors],
+    cache: Mapping[str, float],
+) -> list[str]:
+    """Units that have neither an embedding nor a cache hit for every column."""
+    columns = [spec for spec in inputs.columns if spec.column_id is not None]
+    if not columns:
+        return []
+    missing: list[str] = []
+    for document in inputs.documents:
+        embeddings = embeddings_by_document.get(document.document_id, {})
+        for unit in units_by_document.get(document.document_id, ()):
+            if unit.id in embeddings:
+                continue
+            cached = all(
+                score_cache_key(
+                    _identity(
+                        unit,
+                        spec,
+                        anchors[spec.column_id],
+                        embedding_model=inputs.embedding_model,
+                    )
+                )
+                in cache
+                for spec in columns
+            )
+            if not cached:
+                missing.append(f"{document.document_id}:{unit.id}")
+    return missing
+
+
 def new_cache_rows(
     inputs: ReviewInputs,
     *,
@@ -320,11 +355,15 @@ async def fill_review(
         cache = await cached_scores(session, cache_keys)
         await session.commit()
 
-    for document in inputs.documents:
-        units = units_by_document[document.document_id]
-        embeddings = embeddings_by_document.get(document.document_id, {})
-        if units and not embeddings:
-            raise RuntimeError(f"text unit embeddings missing for {document.document_id}")
+    missing = unscored_unit_ids(
+        inputs,
+        units_by_document=units_by_document,
+        embeddings_by_document=embeddings_by_document,
+        anchors=anchors,
+        cache=cache,
+    )
+    if missing:
+        raise RuntimeError(f"text unit embeddings missing: {', '.join(missing)}")
 
     embedded = await embed_anchor_sets(anchors)
     decisions = score_inputs(

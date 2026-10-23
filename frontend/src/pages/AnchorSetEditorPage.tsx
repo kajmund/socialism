@@ -31,6 +31,12 @@ function emptyStatements(count: number): string[] {
   return Array.from({ length: count }, () => "")
 }
 
+function clausePairsComplete(kind: AnchorKind, labels: string[], statements: string[]): boolean {
+  if (kind !== "clause") return true
+  if (labels.length === 0 || labels.length !== statements.length) return false
+  return labels.every((item) => item.trim().length > 0) && statements.every((item) => item.trim().length > 0)
+}
+
 function labelSelectOptions(current: string, vocabLabels: string[]): string[] {
   if (!current || vocabLabels.includes(current)) return vocabLabels
   return [current, ...vocabLabels]
@@ -371,6 +377,7 @@ export function AnchorSetEditorPage() {
   }
 
   const readOnly = status === "published"
+  const clauseReady = clausePairsComplete(kind, labels, statements)
 
   const tabEntries: { id: EditorTab; labelKey: MessageKey }[] = [
     { id: "anchors", labelKey: "anchorSets.editor.tabAnchors" },
@@ -580,9 +587,14 @@ export function AnchorSetEditorPage() {
               </div>
 
               {!readOnly ? (
-                <AdminButton type="submit" variant="primary" disabled={saving}>
-                  {saving ? t("common.saving") : t("common.save")}
-                </AdminButton>
+                <div className="space-y-2">
+                  {!clauseReady ? (
+                    <p className="text-sm text-muted-foreground">{t("anchorSets.editor.clauseRowsRequired")}</p>
+                  ) : null}
+                  <AdminButton type="submit" variant="primary" disabled={saving || !clauseReady}>
+                    {saving ? t("common.saving") : t("common.save")}
+                  </AdminButton>
+                </div>
               ) : (
                 <p className="text-sm text-muted-foreground">{t("anchorSets.editor.publishedHint")}</p>
               )}

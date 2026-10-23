@@ -116,6 +116,29 @@ async def review_db(tmp_path):
         await engine.dispose()
 
 
+async def _prepare_review(factory) -> int:
+    async with factory() as session:
+        review = await create_review(
+            session,
+            customer_id=CUSTOMER_ID,
+            created_by_user_id="user-1",
+            name="Review",
+        )
+        await set_documents(session, review, ["doc-1"])
+        await add_column(
+            session,
+            review,
+            ColumnSpec(
+                column_id=None,
+                title="Uppsägning",
+                anchor_set_id=9,
+                label="uppsagning",
+            ),
+        )
+        await session.commit()
+        return review.id
+
+
 async def test_fill_reuses_overgraph_units_and_releases_connection(review_db):
     factory = review_db
     units = load_domain_text_units(require_knowledge(), document_version_id="ver-1")
@@ -125,27 +148,7 @@ async def test_fill_reuses_overgraph_units_and_releases_connection(review_db):
     embedder = _ProbingEmbedder(factory)
     set_embedder(embedder)
     try:
-        async with factory() as session:
-            review = await create_review(
-                session,
-                customer_id=CUSTOMER_ID,
-                created_by_user_id="user-1",
-                name="Review",
-            )
-            await set_documents(session, review, ["doc-1"])
-            await add_column(
-                session,
-                review,
-                ColumnSpec(
-                    column_id=None,
-                    title="Uppsägning",
-                    anchor_set_id=9,
-                    label="uppsagning",
-                ),
-            )
-            await session.commit()
-            review_id = review.id
-
+        review_id = await _prepare_review(factory)
         await fill_review(
             factory,
             review_id,
@@ -162,3 +165,87 @@ async def test_fill_reuses_overgraph_units_and_releases_connection(review_db):
         assert len(cells) == 1
         assert cells[0].status == "hit"
         assert cells[0].text_unit_id == "unit-1"
+
+
+async def test_fill_fails_when_any_unit_lacks_embedding(review_db):
+    factory = review_db
+    extra = text_unit_view(
+        text="En annan klausul om samråd.",
+        id="unit-2",
+        document_id="doc-1",
+        document_version_id="ver-1",
+        customer_id=CUSTOMER_ID,
+        locator="§13",
+        page_start=3,
+    )
+    upsert_text_unit(require_knowledge(), replace(text_unit_write(extra), embedding=_vec(0.0, 1.0)))
+    set_embedder(_ProbingEmbedder(factory))
+    try:
+        review_id = await _prepare_review(factory)
+        with pytest.raises(RuntimeError, match="unit-2"):
+            await fill_review(
+                factory,
+                review_id,
+                catalog=require_knowledge(),
+                embeddings_by_document={"doc-1": {"unit-1": list(_vec(1.0))}},
+                customer_id=CUSTOMER_ID,
+            )
+    finally:
+        set_embedder(None)
+
+
+async def test_fill_resets_unlocked_verdict_when_result_changes(review_db):
+    factory = review_db
+    set_embedder(_ProbingEmbedder(factory))
+    try:
+        review_id = await _prepare_review(factory)
+        await fill_review(
+            factory,
+            review_id,
+            catalog=require_knowledge(),
+            embeddings_by_document={"doc-1": {"unit-1": list(_vec(1.0))}},
+            customer_id=CUSTOMER_ID,
+        )
+        async with factory() as session:
+            cell = (await session.execute(select(TabularReviewCell))).scalar_one()
+            cell.review_state = "approved"
+            await session.commit()
+        stale = text_unit_view(
+            text="Detta avtal handlar om samråd och leverans.",
+            id="unit-1",
+            document_id="doc-1",
+            document_version_id="ver-1",
+            customer_id=CUSTOMER_ID,
+            locator="§12",
+            page_start=2,
+        )
+        extra = text_unit_view(
+            text="Avtalet kan sägas upp med tre månaders uppsägningstid.",
+            id="unit-2",
+            document_id="doc-1",
+            document_version_id="ver-1",
+            customer_id=CUSTOMER_ID,
+            locator="§14",
+            page_start=4,
+        )
+        upsert_text_unit(require_knowledge(), replace(text_unit_write(stale), embedding=_vec(0.0, 1.0)))
+        upsert_text_unit(require_knowledge(), replace(text_unit_write(extra), embedding=_vec(1.0)))
+        await fill_review(
+            factory,
+            review_id,
+            catalog=require_knowledge(),
+            embeddings_by_document={
+                "doc-1": {
+                    "unit-1": list(_vec(0.0, 1.0)),
+                    "unit-2": list(_vec(1.0)),
+                }
+            },
+            customer_id=CUSTOMER_ID,
+        )
+    finally:
+        set_embedder(None)
+
+    async with factory() as session:
+        cell = (await session.execute(select(TabularReviewCell))).scalar_one()
+        assert cell.text_unit_id == "unit-2"
+        assert cell.review_state == "pending"

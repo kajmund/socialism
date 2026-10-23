@@ -3200,6 +3200,7 @@ export const en: LocalizedTree<SvMessages> = {
       tabTest: "Test",
       poolCount: "{count} in pool",
       addClauseRow: "Add clause category",
+      clauseRowsRequired: "Every clause row needs a category and example text.",
     },
     flagged: {
       intro:

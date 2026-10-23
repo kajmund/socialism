@@ -3200,6 +3200,7 @@ export const sv = {
       tabTest: "Test",
       poolCount: "{count} i poolen",
       addClauseRow: "Lägg till klausulkategori",
+      clauseRowsRequired: "Varje klausulrad måste ha kategori och exempeltext.",
     },
     flagged: {
       intro:
