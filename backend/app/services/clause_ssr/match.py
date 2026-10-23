@@ -8,7 +8,7 @@ from app.services.overgraph.isolation import assert_visible
 from app.services.overgraph.labels import TEXT_UNIT
 from app.services.ssr.similarity import cosine_similarity
 
-from app.services.clause_ssr.anchors import list_anchors
+from app.services.clause_ssr.anchors import anchor_is_matchable, list_anchors
 from app.services.clause_ssr.graph import prop_str, require_node
 from app.services.clause_ssr.select import list_anchor_sets
 from app.services.clause_ssr.types import (
@@ -99,6 +99,8 @@ def _active_members(
         if anchor.id not in allowed or anchor.vector is None:
             continue
         if not _same_embedding(anchor.embedding, embedding):
+            continue
+        if not anchor_is_matchable(catalog, anchor):
             continue
         members.append(anchor)
     return members

@@ -7,7 +7,11 @@ from app.services.overgraph.catalogs import Catalog
 from app.services.overgraph.model import GraphRecord
 from app.services.ssr.similarity import cosine_similarity
 
-from app.services.clause_ssr.anchors import list_anchors
+from app.services.clause_ssr.anchors import (
+    anchor_is_matchable,
+    get_anchor,
+    list_anchors,
+)
 from app.services.clause_ssr.graph import (
     find_by_prop,
     link,
@@ -42,6 +46,7 @@ def build_anchor_set(
         if item.scope_key == scope.scope_key
         and item.category == category
         and item.vector is not None
+        and anchor_is_matchable(catalog, item)
         and _same_embedding(item.embedding, embedding)
         and item.source_unit_id not in holdout_ids
         and item.content_hash not in holdout_ids
@@ -175,7 +180,15 @@ def _from_row(catalog: Catalog, row: GraphRecord) -> AnchorSet:
             row.engine_id, direction="incoming", edge_label_filter=[MEMBER_OF],
         ):
             node = catalog.get(engine_id)
-            if node is not None:
+            if node is None:
+                continue
+            try:
+                anchor = get_anchor(catalog, node.key)
+            except KeyError:
+                continue
+            if anchor.status in {"draft", "active"} and anchor_is_matchable(
+                catalog, anchor
+            ):
                 member_ids.append(node.key)
     holdout = tuple(part for part in prop_str(row, "holdout_ids").split(",") if part)
     return AnchorSet(
