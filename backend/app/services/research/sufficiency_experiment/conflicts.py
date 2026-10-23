@@ -61,7 +61,7 @@ def build_conflicts(
             continue
         for counterpart_id in row.counterpart_passage_ids:
             second = _counterpart_side(counterpart_id, indexed, evidence_by_id)
-            resolution = _resolution(first, second, evidence_by_id)
+            resolution = metadata_resolution(first, second, evidence_by_id)
             _append(records, seen, _record(need_id, (first, second), resolution))
     return tuple(records)
 
@@ -122,7 +122,7 @@ def _counterpart_side(
     return _side(row.evidence_id, passage_id, evidence_by_id)
 
 
-def _resolution(
+def metadata_resolution(
     first: ConflictSide,
     second: ConflictSide,
     evidence_by_id: Mapping[str, AssessableEvidence],

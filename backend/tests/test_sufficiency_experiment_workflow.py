@@ -17,6 +17,10 @@ def test_sufficiency_workflow_compiles() -> None:
     assert nodes["evaluate_one"]["handler"] == "sufficiency.evaluate_one"
     assert nodes["finish_gate"]["evaluator"] == "expression"
     assert nodes["finish_gate"]["routes"]["true"] == "emit"
+    assert nodes["aggregate"]["next"] == "prepare_pairs"
+    assert nodes["pair_jobs"]["type"] == "map"
+    assert nodes["pair_jobs"]["child"] == "evaluate_pair"
+    assert nodes["aggregate_pairs"]["next"] == "route"
     assert nodes["finish_gate"]["routes"]["false"] == "escalate_gate"
     assert "sub_gate" not in nodes
     assert "resolve" not in nodes
@@ -24,6 +28,9 @@ def test_sufficiency_workflow_compiles() -> None:
         "sufficiency.prepare",
         "sufficiency.evaluate_one",
         "sufficiency.aggregate",
+        "sufficiency.prepare_pairs",
+        "sufficiency.evaluate_pair",
+        "sufficiency.aggregate_pairs",
         "sufficiency.route",
         "sufficiency.narrative",
         "sufficiency.emit",

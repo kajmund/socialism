@@ -16,6 +16,7 @@ from app.services.research.assessment import (
     programmatic_assessment,
     sanitize_assessment_draft,
 )
+from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.research.models import ResearchPlan
 from app.services.research.sufficiency_experiment.aggregate import aggregate_plan
 from app.services.research.sufficiency_experiment.claims import (
@@ -32,6 +33,12 @@ from app.services.research.sufficiency_experiment.narrative import (
     run_narrative,
 )
 from app.services.research.sufficiency_experiment.obligations import present_source_types
+from app.services.research.sufficiency_experiment.pair_eval import (
+    evaluate_pair,
+    merge_pair_conflicts,
+    pair_coverage,
+)
+from app.services.research.sufficiency_experiment.pairs import select_pairs
 from app.services.research.sufficiency_experiment.quality import quality_gate
 from app.services.research.sufficiency_experiment.route import (
     decide_route,
@@ -47,6 +54,9 @@ from app.services.research.sufficiency_experiment.types import (
     ExperimentStatus,
     GateInputs,
     NeedAggregation,
+    PairCandidate,
+    PairCoverage,
+    PairEvaluation,
     PassageEvaluation,
     QualityDecision,
     RouteDecision,
@@ -80,6 +90,7 @@ class SufficiencyLoop:
         self._narrative = narrative
         self._live_measurement = live_measurement
         self._counterparts = counterparts or {}
+        self._embedding_provider: EmbeddingProvider | None = None
         self._started = perf_counter()
         self._groups = group_evidence_for_review(evidence)
         self._passages: list[EvidencePassage] = []
@@ -87,7 +98,12 @@ class SufficiencyLoop:
         self._items = quality_inputs(evidence)
         self._evaluations: list[PassageEvaluation] = []
         self._claims: tuple[ClaimCandidate, ...] = ()
+        self._claims_by_id: dict[str, ClaimCandidate] = {}
+        self._passages_by_id: dict[str, EvidencePassage] = {}
         self._claim_coverage: ClaimCoverage | None = None
+        self._pair_candidates: dict[str, PairCandidate] = {}
+        self._pair_evaluations: list[PairEvaluation] = []
+        self._pair_coverage: PairCoverage | None = None
         self._aggregations: tuple[NeedAggregation, ...] = ()
         self._quality: QualityDecision | None = None
         self._route: RouteDecision | None = None
@@ -99,19 +115,30 @@ class SufficiencyLoop:
         self._llm_calls = 0
         self._source_chars = sum(len(item.excerpt or "") for item in evidence)
         self._judged_chars = 0
+        self._coverage = 0.0
+        self._missing: tuple[str, ...] = ()
+        self._evaluation_errors: tuple[str, ...] = ()
         self.report: ExperimentReport | None = None
         self.handlers: dict[str, Handler] = {
             "sufficiency.prepare": self._prepare,
             "sufficiency.evaluate_one": self._evaluate_one,
             "sufficiency.aggregate": self._aggregate,
+            "sufficiency.prepare_pairs": self._prepare_pairs,
+            "sufficiency.evaluate_pair": self._evaluate_pair,
+            "sufficiency.aggregate_pairs": self._aggregate_pairs,
             "sufficiency.route": self._decide_route,
             "sufficiency.narrative": self._run_narrative,
             "sufficiency.emit": self._emit,
         }
 
+    def bind_embedding_provider(self, provider: EmbeddingProvider | None) -> None:
+        self._embedding_provider = provider
+
     async def run(self, *, run_id: str | None = None) -> RunResult:
         runner = WorkflowRunner(
-            compile_sufficiency_workflow(self._config.jev_concurrency),
+            compile_sufficiency_workflow(
+                self._config.jev_concurrency, self._config.pair_jev_concurrency
+            ),
             self.handlers,
             resources=WorkflowResources(),
             concurrency=self._config.jev_concurrency,
@@ -152,9 +179,13 @@ class SufficiencyLoop:
         )
         self._claims, self._claim_coverage = extract_claim_candidates(
             self._passages,
-            {item.evidence_id: item for item in self._evidence},
+            self._evidence_by_id(),
             config=self._config,
         )
+        self._claims_by_id = {claim.claim_id: claim for claim in self._claims}
+        self._passages_by_id = {
+            passage.passage_id: passage for passage in self._passages
+        }
         self._jobs = evaluation_jobs(
             self._plan.needs, self._passages, counterparts=self._counterparts
         )
@@ -185,7 +216,7 @@ class SufficiencyLoop:
             self._plan,
             self._evaluations,
             config=self._config,
-            evidence_by_id={item.evidence_id: item for item in self._evidence},
+            evidence_by_id=self._evidence_by_id(),
             source_types_by_id=present,
         )
         self._aggregations = tuple(rows)
@@ -194,6 +225,9 @@ class SufficiencyLoop:
         missing = tuple(sorted(required - seen))
         errors = tuple(row.job_id for row in self._evaluations if row.error)
         coverage = 1.0 if self._source_chars == 0 else self._judged_chars / self._source_chars
+        self._coverage = coverage
+        self._missing = missing
+        self._evaluation_errors = errors
         self._quality = quality_gate(
             self._aggregations,
             GateInputs(
@@ -210,6 +244,77 @@ class SufficiencyLoop:
         )
         return {
             "need_count": len(self._aggregations),
+            "allows_sufficient": self._quality.allows_sufficient,
+        }
+
+    async def _prepare_pairs(self, _payload: Mapping[str, Any]) -> dict[str, Any]:
+        if not self._claims:
+            self._pair_coverage = pair_coverage(())
+            return {"jobs": []}
+        selection = await select_pairs(
+            self._claims,
+            self._plan.needs,
+            strategy=self._config.pair_strategy,
+            config=self._config,
+            embedding_provider=self._embedding_provider,
+        )
+        self._pair_candidates = {
+            pair.pair_id: pair for pair in selection.selected
+        }
+        return {
+            "jobs": [
+                {"pair_id": pair.pair_id, "need_id": pair.need_id}
+                for pair in selection.selected
+            ],
+            "candidate_pairs": len(selection.candidates),
+            "selected_pairs": len(selection.selected),
+            "omitted_by_budget": selection.omitted_by_budget,
+        }
+
+    async def _evaluate_pair(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        pair = self._pair_candidates[str(payload["item"]["pair_id"])]
+        row = await evaluate_pair(
+            pair,
+            claims=self._claims_by_id,
+            passages=self._passages_by_id,
+            evidence_by_id=self._evidence_by_id(),
+            client=self._client,
+            config=self._config,
+        )
+        if row.error not in {"pair_state_budget", "pair_call_budget"}:
+            self._jev_calls += 1
+        self._pair_evaluations.append(row)
+        return {"pair_id": row.pair_id, "status": row.status, "verdict": row.verdict}
+
+    async def _aggregate_pairs(self, _payload: Mapping[str, Any]) -> dict[str, Any]:
+        coverage = pair_coverage(self._pair_evaluations)
+        self._pair_coverage = coverage
+        self._aggregations = tuple(
+            merge_pair_conflicts(
+                self._aggregations,
+                self._pair_evaluations,
+                claims=self._claims_by_id,
+                evidence_by_id=self._evidence_by_id(),
+            )
+        )
+        self._quality = quality_gate(
+            self._aggregations,
+            GateInputs(
+                span_coverage=self._coverage,
+                missing_evaluations=self._missing,
+                evaluation_errors=self._evaluation_errors,
+                budget_exhausted=self._failure == "budget_exhausted",
+                narrative_rounds=self._narrative_rounds,
+                claim_coverage_incomplete=bool(
+                    self._claim_coverage and not self._claim_coverage.complete
+                ),
+                pair_coverage_incomplete=not coverage.complete,
+            ),
+            self._config,
+        )
+        return {
+            "judged_pairs": coverage.judged,
+            "unevaluated_pairs": coverage.unevaluated,
             "allows_sufficient": self._quality.allows_sufficient,
         }
 
@@ -281,6 +386,9 @@ class SufficiencyLoop:
             return "uncertain"
         return "insufficient"
 
+    def _evidence_by_id(self) -> dict[str, AssessableEvidence]:
+        return {item.evidence_id: item for item in self._evidence}
+
     def _require_quality(self) -> QualityDecision:
         if self._quality is None:
             raise RuntimeError("route ran before aggregate")
@@ -320,4 +428,6 @@ class SufficiencyLoop:
             live_measurement=self._live_measurement,
             claims=self._claims,
             claim_coverage=self._claim_coverage,
+            pairs=tuple(self._pair_evaluations),
+            pair_coverage=self._pair_coverage,
         )

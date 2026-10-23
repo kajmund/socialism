@@ -6,6 +6,9 @@ from __future__ import annotations
 from app.jev.system import JevSystemOneResult, JevUsage
 from app.services.research.evidence_screen import EVIDENCE_SCREEN_QUESTIONS
 from app.services.research.fast_controller import ASSESSMENT_QUESTIONS
+from app.services.research.sufficiency_experiment.pair_eval import (
+    PAIR_CONFLICT_QUESTIONS,
+)
 from app.services.research.sufficiency_experiment.golden import (
     CONTRADICTION_SIGNAL,
     SUPPORT_PHRASE,
@@ -50,7 +53,9 @@ class ScriptedSufficiencyJev:
         model: str,
         timeout_seconds: float,
     ) -> JevSystemOneResult:
-        if set(EVIDENCE_SCREEN_QUESTIONS).issubset(questions):
+        if set(questions) == set(PAIR_CONFLICT_QUESTIONS):
+            answers = _pair_answers(state)
+        elif set(EVIDENCE_SCREEN_QUESTIONS).issubset(questions):
             answers = _screen_answers(state)
         elif set(ASSESSMENT_QUESTIONS).issubset(questions):
             answers = _route_answers(state)
@@ -71,6 +76,22 @@ class ScriptedSufficiencyJev:
 
 def _noul(flag: bool) -> dict[str, float]:
     return {"noul": _HIGH if flag else _LOW}
+
+
+def _pair_answers(state: object) -> dict[str, object]:
+    payload = state if isinstance(state, dict) else {}
+    left = payload.get("left") or {}
+    right = payload.get("right") or {}
+    texts = (
+        f"{left.get('claim', '')} {right.get('claim', '')}".lower()
+    )
+    if "motbevis" in texts and "tillämpar" in texts:
+        choice = "CONTRADICTS"
+    elif "uppsägningstid" in texts:
+        choice = "SCOPE_DIFFERENCE"
+    else:
+        choice = "COMPATIBLE"
+    return {"relation": {"choice": choice}}
 
 
 def _screen_answers(state: object) -> dict[str, object]:

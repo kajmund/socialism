@@ -212,6 +212,59 @@ The easy tail case shares attribute tokens by design. A harder semantic tail
 case (contradiction worded without token overlap) is deferred to the next
 benchmark version.
 
+## Pair judgement (A3)
+
+Jev detects possible contradictions; A2 decides whether a detected conflict is
+material and resolvable; SWE refuses `sufficient` while a required pair is
+uncertain or unevaluated. Pair evaluation runs as `prepare_pairs → pair_jobs
+(map) → aggregate_pairs` in the main workflow.
+
+Protocol (`pair_eval.py`): one `relation` choice with `CONTRADICTS`,
+`COMPATIBLE`, `SCOPE_DIFFERENCE` and `INSUFFICIENT`. Each call receives both
+claims, their full passages and provenance metadata, capped at
+`max_pair_state_chars=6000`; an over-budget pair is skipped, never clipped.
+Concurrency 8, timeout 5 s, and `max_pair_jev_calls` bound the run.
+
+| Outcome | Result |
+| ------- | ------ |
+| `CONTRADICTS` | conflict record; A2 metadata may still make it `not_applicable`/`resolved`, otherwise `unresolved` |
+| `SCOPE_DIFFERENCE` with verifiable metadata | `not_applicable` |
+| `SCOPE_DIFFERENCE` without verifiable metadata | `unresolved` |
+| `INSUFFICIENT` | `uncertain`, counted separately from technical failures |
+| `COMPATIBLE` | no conflict record |
+| timeout / invalid answer / budget | `unevaluated`, coverage incomplete, fail-closed |
+
+Run from `backend/`:
+
+```bash
+uv run python scripts/measure_pair_judgement.py --reps 2 --workflow-timing
+```
+
+Artifact: `tests/integration/baselines/pair-judgement-v1.json`. Live results
+with resolved model `jev-1.14.0`, two repetitions, all three pair strategies:
+
+| Strategy | Mean recall | Mean precision | False contradictions | Calls | Unevaluated |
+| -------- | ----------: | -------------: | -------------------: | ----: | ----------: |
+| deterministic | 1.00 | 1.00 | 0 | 88 | 1 (timeout) |
+| embeddings | 0.67 | 0.50 | 4 | 96 | 0 |
+| hybrid | 1.00 | 0.67 | 4 | 96 | 0 |
+
+The compatible cases were judged `SCOPE_DIFFERENCE` and resolved by A2 metadata,
+so they produced no false contradictions. The deterministic and hybrid strategies
+found the tail contradiction; embeddings-only missed it on judgement. The
+embeddings strategies also paired the extra `Avgörandet gäller ett annat avtal.`
+claim with the support claim and Jev called it `CONTRADICTS`, which is the
+precision cost visible above. One deterministic pair timed out; it is reported
+as `unevaluated` and blocks `sufficient` instead of disappearing.
+
+Wall time is Jev-bound. The deterministic end-to-end timing shows ~650–750 ms
+for four-call cases and 2 345 ms for the 49-call tail case at concurrency 8;
+summed Jev latency exceeds wall time because calls run concurrently
+(`workflow_timing` in the artifact).
+
+Default `pair_strategy` is `deterministic`; embeddings and hybrid need an
+injected embedding provider. No live model is used in CI.
+
 ## Package
 
 `app.services.research.sufficiency_experiment` — not imported by

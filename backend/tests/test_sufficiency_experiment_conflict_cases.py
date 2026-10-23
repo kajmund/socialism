@@ -41,11 +41,11 @@ def _conflicts(report: Any) -> list[Any]:
 
 async def test_conflict_matrix_through_the_workflow() -> None:
     expectations = {
-        "duplicate_contradiction": ("insufficient", "uncertain", "unresolved"),
-        "independent_contradiction": ("insufficient", "uncertain", "unresolved"),
-        "compatible_periods": ("sufficient", "sufficient", "not_applicable"),
-        "compatible_entities": ("sufficient", "sufficient", "not_applicable"),
-        "unknown_counterpart": ("insufficient", "uncertain", "unresolved"),
+        "duplicate_contradiction": ("insufficient", "uncertain", {"unresolved"}),
+        "independent_contradiction": ("insufficient", "uncertain", {"unresolved"}),
+        "compatible_periods": ("sufficient", "sufficient", {"not_applicable"}),
+        "compatible_entities": ("sufficient", "sufficient", {"not_applicable"}),
+        "unknown_counterpart": ("insufficient", "uncertain", {"unresolved"}),
     }
     cases = {case.case_id: case for case in conflict_benchmark_cases()}
     assert set(cases) == set(expectations)
@@ -53,9 +53,9 @@ async def test_conflict_matrix_through_the_workflow() -> None:
         report = await _run(cases[case_id])
         assert report.draft.result == result, case_id
         assert report.status == status, case_id
-        assert [conflict.status for conflict in _conflicts(report)] == [
-            conflict_status
-        ], case_id
+        assert {
+            conflict.status for conflict in _conflicts(report)
+        } == conflict_status, case_id
 
 
 async def test_period_resolution_needs_verifiable_metadata() -> None:
