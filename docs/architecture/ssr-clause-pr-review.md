@@ -1,13 +1,14 @@
 # Architecture review: PR #428 and PR #429
 
 Reviewed 2026-10-23 against ticket 34 and the one-shared-SSR principle.
+Updated after the Tabular Review integration: both PRs are now merged.
 
 ## Verified PR status
 
 | PR | Branch | State | CI |
 | --- | --- | --- | --- |
-| #428 | `cursor/ssr-clause-anchor-library-2366` | OPEN, MERGEABLE | green (12 checks) |
-| #429 | `cursor/tabular-review-ssr-6c10` | OPEN, MERGEABLE | green (12 checks) |
+| #428 | `cursor/ssr-clause-anchor-library-2366` | MERGED (`77b8ded8`) | green (12 checks) |
+| #429 | `cursor/tabular-review-ssr-6c10` | MERGED (`0a3848e0`) | green (12 checks) |
 
 Both branches were fetched as `review/pr-428` and `review/pr-429`; neither is
 merged. GitHub search alone was not sufficient; `gh pr view` gave the verifiable
@@ -130,3 +131,21 @@ promoted anchor + active set.
       rework.
 - [ ] Rebase #429 on #428 and resolve shared `App.tsx` / i18n / nav / docs
       conflicts.
+
+
+## Resolution: Tabular Review now consumes clause_ssr
+
+PR #429 was reworked before merge:
+
+- SQL `AnchorKind` is back to `tone|style`; no clause-kind SQL anchor rows,
+  queries or foreign keys remain.
+- Tabular Review columns reference active Overgraph `clause_ssr` anchor sets;
+  fill reads their stored verified vectors and membership.
+- Revocation changes the membership revision used in the score cache key, so a
+  revoked anchor cannot keep producing cached matches; active-set members and
+  match candidates are guarded by clause_ssr validity.
+- End-to-end regression covers verified anchor -> Tabular Review cell ->
+  lock/approve -> revoke: locked history is preserved, unlocked cells become
+  no-hit, and no SQL clause anchor rows exist.
+- Both PRs merged with green CI. Next: measure Tabular Review on the real 200
+  contracts, then ticket 38 (SSR vs D).
