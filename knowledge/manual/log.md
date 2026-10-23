@@ -1,5 +1,9 @@
 # Manual update log
 
+## 2026-10-23
+
+* **Tabular Review**: Ny guide för den opt-in-tabell där avtal jämförs mot klausulankare. Cellen visar ordagrann klausul och similarity. Ingen träff betyder inte att klausulen saknas.
+
 ## 2026-10-20
 
 * **SME / live voice**: Korta bekräftelser som *mm*, *ja* och *precis* avbryter inte experten. *Stopp*, *nej* och *vänta* tystar uppläsningen direkt. Webbläsarens ekoreducering måste vara på.
