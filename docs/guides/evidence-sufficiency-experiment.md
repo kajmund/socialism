@@ -288,6 +288,52 @@ summed Jev latency exceeds wall time because calls run concurrently
 Default `pair_strategy` is `deterministic`; embeddings and hybrid need an
 injected embedding provider. No live model is used in CI.
 
+## First arm comparison (2026-10-23)
+
+Pre-registered run per [measurement-protocol-v1.json](../../backend/tests/integration/baselines/measurement-protocol-v1.json):
+10 cases, two repetitions per arm, arm order `A0 → A2 → A3 → A1`.
+
+| Arm | Clean accuracy | False-sufficient | False-insufficient | Jev calls | Detected contradictions |
+| --- | -------------: | ---------------: | -----------------: | --------: | ----------------------: |
+| A0 | 0.24 | 0.82 | 0.67 | 2 132 | 0 |
+| A1 | 0.32 | 0.69 | 0.67 | 2 132 | 0 |
+| A2 | 0.26 | 0.77 | 0.67 | 2 132 | 0 |
+| A3 | 0.73 | 0.00 | 0.67 | 2 302 | 6 |
+
+Per-trap rep 0:
+
+| Case | A0 | A1 | A2 | A3 |
+| --- | --- | --- | --- | --- |
+| `tail_counterevidence` | sufficient | sufficient | sufficient | insufficient, contradiction detected |
+| `late_evidence` | technical failure | sufficient | sufficient | insufficient, coverage only |
+| `duplicate_contradiction` | sufficient | sufficient | sufficient | insufficient, contradiction detected |
+| `independent_contradiction` | sufficient | sufficient | sufficient | insufficient, contradiction detected |
+
+The answer to the key question: **A3 solves `tail_counterevidence` through real
+pair detection**, and the same for duplicate/independent. **`late_evidence` is
+not solved by detection**: no pair conflict was found; it is blocked by
+incomplete pair coverage (40-pair budget) and fails closed. That is a
+coverage/cost result, not evidence understanding. A3 also turns all rep-0
+false-sufficient verdicts into insufficient for +170 Jev calls versus A0 across
+both reps (2 302 vs 2 132), with `cost_per_detected_contradiction` 384 calls.
+
+A1's route authority did not change the live traps: the four authority signals
+were strong, so the route outcome was `sufficient`; the scripted A0-vs-A1
+artifact shows the contract working where the route is actually uncertain.
+A2 alone changes nothing without detection.
+
+Pairing: A0 was recorded first. A1 matched 1 060 calls and needed 6 live calls
+(reproducibility gaps from the A0 recording, classified as
+`reproducibility_error`, not a model error); A2 had the same 6 gaps; A3 had 1 056
+matched plus 95 live calls (44 fact-pair calls, new route calls, and the A0
+recording gaps). Artifacts: `arm-comparison-v1.json`, `arm-<arm>-2026-10-23.json`
+and `jev-cassette-a0-2026-10-23.json`.
+
+Confidence caveat: A1's `confidence` is still the minimum over all five Noul
+answers, so `follow_up_change`/`additional_source` can indirectly affect a
+sufficient decision through confidence. That indirect path is not displayed in
+the arm artifacts yet and should be added to diagnostics in the final plan.
+
 ## Route authority (A1)
 
 A1 makes the route outcome count. `sufficient` now requires the deterministic
