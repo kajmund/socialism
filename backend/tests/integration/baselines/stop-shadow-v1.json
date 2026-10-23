@@ -1,0 +1,548 @@
+{
+  "measurement": "stop_shadow",
+  "note": "Shadow only: potential conflict-confirmed stops; execution and final verdicts unchanged.",
+  "rows": [
+    {
+      "case_id": "tail_counterevidence",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 56,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:evidence-0:p0:c0|evidence-0:p53:c57"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "evidence-0:p0:c0|evidence-0:p53:c57",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 0,
+        "estimated_calls_saved": 1,
+        "estimated_latency_saved_ms": 0,
+        "coverage_complete": true,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "tail_counterevidence",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 56,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:evidence-0:p0:c0|evidence-0:p53:c57"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "evidence-0:p0:c0|evidence-0:p53:c57",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 0,
+        "estimated_calls_saved": 1,
+        "estimated_latency_saved_ms": 0,
+        "coverage_complete": true,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "late_evidence",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 629,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "COVERAGE_INCOMPLETE",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:evidence-11:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-15:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-12:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-16:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-14:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-13:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-0:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-10:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-17:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-18:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-23:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-22:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-1:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-21:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-19:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-20:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-24:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-30:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-28:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-26:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-29:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-2:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-25:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-27:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-31:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-32:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-34:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-35:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-38:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-37:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-36:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-33:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-40:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-42:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-39:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-45:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-43:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-3:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-41:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-44:p0:c0|evidence-48:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "evidence-11:p0:c0|evidence-48:p0:c0",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 39,
+        "estimated_calls_saved": 40,
+        "estimated_latency_saved_ms": 11344.75054196082,
+        "coverage_complete": false,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "late_evidence",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 629,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "COVERAGE_INCOMPLETE",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:evidence-11:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-10:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-0:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-15:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-13:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-16:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-12:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-14:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-18:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-17:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-19:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-1:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-23:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-20:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-21:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-22:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-25:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-24:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-26:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-28:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-2:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-30:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-27:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-29:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-31:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-33:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-34:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-32:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-38:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-37:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-36:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-35:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-39:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-40:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-3:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-44:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-42:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-45:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-43:p0:c0|evidence-48:p0:c0",
+          "research_1:evidence-41:p0:c0|evidence-48:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "evidence-11:p0:c0|evidence-48:p0:c0",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 39,
+        "estimated_calls_saved": 40,
+        "estimated_latency_saved_ms": 11443.790292949416,
+        "coverage_complete": false,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "duplicate_contradiction",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 6,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:dup-contra:p0:c0|dup-support:p0:c0",
+          "research_1:dup-contra:p0:c1|dup-support:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "dup-contra:p0:c0|dup-support:p0:c0",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 1,
+        "estimated_calls_saved": 2,
+        "estimated_latency_saved_ms": 244.39549999078736,
+        "coverage_complete": true,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "duplicate_contradiction",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 6,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:dup-contra:p0:c0|dup-support:p0:c0",
+          "research_1:dup-contra:p0:c1|dup-support:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "dup-contra:p0:c0|dup-support:p0:c0",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 1,
+        "estimated_calls_saved": 2,
+        "estimated_latency_saved_ms": 303.9339159731753,
+        "coverage_complete": true,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "independent_contradiction",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 6,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:ind-contra:p0:c1|ind-support:p0:c0",
+          "research_1:ind-contra:p0:c0|ind-support:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "ind-contra:p0:c1|ind-support:p0:c0",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 1,
+        "estimated_calls_saved": 2,
+        "estimated_latency_saved_ms": 277.7394579607062,
+        "coverage_complete": true,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "independent_contradiction",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 6,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:ind-contra:p0:c0|ind-support:p0:c0",
+          "research_1:ind-contra:p0:c1|ind-support:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "ind-contra:p0:c0|ind-support:p0:c0",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 2,
+        "estimated_calls_saved": 3,
+        "estimated_latency_saved_ms": 457.91379193542525,
+        "coverage_complete": true,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 49,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "COVERAGE_INCOMPLETE",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:tail-claims:p0:c0|tail-claims:p7:c4"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "tail-claims:p0:c0|tail-claims:p7:c4",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 35,
+        "estimated_calls_saved": 36,
+        "estimated_latency_saved_ms": 10308.986084186472,
+        "coverage_complete": false,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 49,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "COVERAGE_INCOMPLETE",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:tail-claims:p0:c0|tail-claims:p7:c4"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "tail-claims:p0:c0|tail-claims:p7:c4",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 35,
+        "estimated_calls_saved": 36,
+        "estimated_latency_saved_ms": 10188.663501176052,
+        "coverage_complete": false,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "candidate_miss_synonyms",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 4,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:candidate_miss_synonyms-0:p0:c0|candidate_miss_synonyms-1:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": false,
+        "conflict_id": null,
+        "pair_verdict": null,
+        "remaining_pair_calls": 0,
+        "estimated_calls_saved": 0,
+        "estimated_latency_saved_ms": 0.0,
+        "coverage_complete": true,
+        "blocking": false,
+        "risk": "no_conflict_pair"
+      }
+    },
+    {
+      "case_id": "candidate_miss_synonyms",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 4,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:candidate_miss_synonyms-0:p0:c0|candidate_miss_synonyms-1:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": false,
+        "conflict_id": null,
+        "pair_verdict": null,
+        "remaining_pair_calls": 0,
+        "estimated_calls_saved": 0,
+        "estimated_latency_saved_ms": 0.0,
+        "coverage_complete": true,
+        "blocking": false,
+        "risk": "no_conflict_pair"
+      }
+    },
+    {
+      "case_id": "synonym_contradiction_semester",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 4,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:synonym_contradiction_semester-0:p0:c0|synonym_contradiction_semester-1:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": false,
+        "conflict_id": null,
+        "pair_verdict": null,
+        "remaining_pair_calls": 0,
+        "estimated_calls_saved": 0,
+        "estimated_latency_saved_ms": 0.0,
+        "coverage_complete": true,
+        "blocking": false,
+        "risk": "no_conflict_pair"
+      }
+    },
+    {
+      "case_id": "synonym_contradiction_semester",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 4,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:synonym_contradiction_semester-0:p0:c0|synonym_contradiction_semester-1:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": false,
+        "conflict_id": null,
+        "pair_verdict": null,
+        "remaining_pair_calls": 0,
+        "estimated_calls_saved": 0,
+        "estimated_latency_saved_ms": 0.0,
+        "coverage_complete": true,
+        "blocking": false,
+        "risk": "no_conflict_pair"
+      }
+    },
+    {
+      "case_id": "synonym_contradiction_notice",
+      "rep": 0,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 4,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:synonym_contradiction_notice-0:p0:c0|synonym_contradiction_notice-1:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "synonym_contradiction_notice-0:p0:c0|synonym_contradiction_notice-1:p0:c0",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 0,
+        "estimated_calls_saved": 1,
+        "estimated_latency_saved_ms": 0,
+        "coverage_complete": true,
+        "blocking": true,
+        "risk": null
+      }
+    },
+    {
+      "case_id": "synonym_contradiction_notice",
+      "rep": 1,
+      "draft": "insufficient",
+      "status": "uncertain",
+      "jev_calls": 4,
+      "diagnostics": {
+        "reasons": [
+          "CONTRADICTION_FOUND",
+          "TECHNICAL_FAILURE"
+        ],
+        "unique_conflicts": [
+          "research_1:synonym_contradiction_notice-0:p0:c0|synonym_contradiction_notice-1:p0:c0"
+        ]
+      },
+      "stop": {
+        "condition": "conflict_confirmed",
+        "would_stop": true,
+        "conflict_id": "synonym_contradiction_notice-0:p0:c0|synonym_contradiction_notice-1:p0:c0",
+        "pair_verdict": "CONTRADICTS",
+        "remaining_pair_calls": 0,
+        "estimated_calls_saved": 1,
+        "estimated_latency_saved_ms": 0,
+        "coverage_complete": true,
+        "blocking": true,
+        "risk": null
+      }
+    }
+  ],
+  "summary": {
+    "cases": 16,
+    "would_stop": 12,
+    "estimated_calls_saved": 165,
+    "estimated_latency_saved_ms": 44570.2,
+    "coverage_incomplete_at_stop": 4,
+    "stops_with_coverage_complete": 8
+  }
+}

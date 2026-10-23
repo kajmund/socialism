@@ -354,6 +354,33 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## Stop-condition shadow (2026-10-23)
+
+`ExperimentReport.stop_shadow` computes a hypothetical `conflict_confirmed`
+stop without changing execution: the first pair verdict `CONTRADICTS` whose
+claim pair is an unresolved conflict and whose need has verified relevance.
+It records remaining pair calls, estimated calls/latency saved, whether coverage
+was complete at that point, and a risk flag. Artifact:
+`tests/integration/baselines/stop-shadow-v1.json` (8 cases, two live reps, D
+configuration).
+
+| Measure | Result |
+| --- | ---: |
+| Potential stops | 12 / 16 case-runs |
+| Estimated Jev calls saved | 165 |
+| Estimated pair latency saved | 44.6 s |
+| Stops with complete coverage | 8 |
+| Stops with incomplete coverage | 4 (`late_evidence`, `tail_claim_contradiction`) |
+
+The conflict pair was identical in both repetitions for every stopped case, and
+no stop relied on a conflict that later resolved. For the "is the evidence
+conflicted?" objective the four incomplete-coverage stops are acceptable and
+should be labelled incomplete; for "map all conflicts" they must continue. The
+execution path and final verdicts are unchanged in this step.
+
+The next step is an explicit early-stop experiment arm (ticket 30), not a
+production change.
+
 ## Decision diagnostics and the four remaining errors (2026-10-23)
 
 Reports now expose additive `decision_diagnostics.reasons` without changing the
