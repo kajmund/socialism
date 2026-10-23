@@ -206,6 +206,8 @@ class PairSelection:
     latency_ms: float
     embedding_calls: int = 0
     embedding_texts: int = 0
+    embedding_ms: float = 0.0
+    prioritization_ms: float = 0.0
 
 
 @dataclass(frozen=True)
