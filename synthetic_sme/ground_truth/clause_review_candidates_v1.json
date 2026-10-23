@@ -1,0 +1,4355 @@
+{
+  "version": "v1-candidates",
+  "not_facit": true,
+  "description": "Human-review candidates. Generator metadata is only a selection hint; no entry is verified.",
+  "categories": [
+    "termination_notice",
+    "automatic_renewal",
+    "price",
+    "liability_limitation"
+  ],
+  "contracts": 35,
+  "cards": 140,
+  "rows": [
+    {
+      "case_id": "CTR-2023-002:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-002",
+      "kind": "PROJEKTAVTAL",
+      "title": "SE-Billing – ny faktureringsplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-002_SE-Billing-ny-faktureringsplattform.docx",
+      "document_title": "CTR-2023-002_SE-Billing-ny-faktureringsplattform",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 60,
+        "text": "7. Avtalstid och uppsägning",
+        "locator": "stycke 61"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-002:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-002",
+      "kind": "PROJEKTAVTAL",
+      "title": "SE-Billing – ny faktureringsplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-002_SE-Billing-ny-faktureringsplattform.docx",
+      "document_title": "CTR-2023-002_SE-Billing-ny-faktureringsplattform",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-002:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-002",
+      "kind": "PROJEKTAVTAL",
+      "title": "SE-Billing – ny faktureringsplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-002_SE-Billing-ny-faktureringsplattform.docx",
+      "document_title": "CTR-2023-002_SE-Billing-ny-faktureringsplattform",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-002:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-002",
+      "kind": "PROJEKTAVTAL",
+      "title": "SE-Billing – ny faktureringsplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-002_SE-Billing-ny-faktureringsplattform.docx",
+      "document_title": "CTR-2023-002_SE-Billing-ny-faktureringsplattform",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Obegränsat vid grov vårdslöshet/uppsåt, i övrigt tak 50 % av kontraktsvärde."
+      },
+      "candidate": {
+        "paragraph_index": 66,
+        "text": "9. Ansvarsbegränsning",
+        "locator": "stycke 67"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-004:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-004",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Tilläggsavtal SE-Billing (slutleverans)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-004_Tilläggsavtal-SE-Billing-slutleverans.docx",
+      "document_title": "CTR-2026-004_Tilläggsavtal-SE-Billing-slutleverans",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 6,
+        "text": "Avser: Uppdragsbekräftelse – Tilläggsavtal SE-Billing (slutleverans)",
+        "locator": "stycke 7"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-004:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-004",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Tilläggsavtal SE-Billing (slutleverans)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-004_Tilläggsavtal-SE-Billing-slutleverans.docx",
+      "document_title": "CTR-2026-004_Tilläggsavtal-SE-Billing-slutleverans",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 6,
+        "text": "Avser: Uppdragsbekräftelse – Tilläggsavtal SE-Billing (slutleverans)",
+        "locator": "stycke 7"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-004:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-004",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Tilläggsavtal SE-Billing (slutleverans)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-004_Tilläggsavtal-SE-Billing-slutleverans.docx",
+      "document_title": "CTR-2026-004_Tilläggsavtal-SE-Billing-slutleverans",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 14,
+        "text": "Pris och betalning",
+        "locator": "stycke 15"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-004:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-004",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Tilläggsavtal SE-Billing (slutleverans)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-004_Tilläggsavtal-SE-Billing-slutleverans.docx",
+      "document_title": "CTR-2026-004_Tilläggsavtal-SE-Billing-slutleverans",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 6,
+        "text": "Avser: Uppdragsbekräftelse – Tilläggsavtal SE-Billing (slutleverans)",
+        "locator": "stycke 7"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-002:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-002",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal konsulttjänster SEAB (förlängning)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-002_Ramavtal-konsulttjänster-SEAB-förlängning.docx",
+      "document_title": "CTR-2026-002_Ramavtal-konsulttjänster-SEAB-förlängning",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 23,
+        "text": "4. Avtalstid och uppsägning",
+        "locator": "stycke 24"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-002:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-002",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal konsulttjänster SEAB (förlängning)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-002_Ramavtal-konsulttjänster-SEAB-förlängning.docx",
+      "document_title": "CTR-2026-002_Ramavtal-konsulttjänster-SEAB-förlängning",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 25,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 26"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-002:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-002",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal konsulttjänster SEAB (förlängning)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-002_Ramavtal-konsulttjänster-SEAB-förlängning.docx",
+      "document_title": "CTR-2026-002_Ramavtal-konsulttjänster-SEAB-förlängning",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-002:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-002",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal konsulttjänster SEAB (förlängning)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-002_Ramavtal-konsulttjänster-SEAB-förlängning.docx",
+      "document_title": "CTR-2026-002_Ramavtal-konsulttjänster-SEAB-förlängning",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 2 ggr årsarvode."
+      },
+      "candidate": {
+        "paragraph_index": 32,
+        "text": "6. Ansvarsbegränsning",
+        "locator": "stycke 33"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-022:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-022",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal konsulttjänster SEAB (ursprungligt)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-022_Ramavtal-konsulttjänster-SEAB-ursprungligt.docx",
+      "document_title": "CTR-2023-022_Ramavtal-konsulttjänster-SEAB-ursprungligt",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 23,
+        "text": "4. Avtalstid och uppsägning",
+        "locator": "stycke 24"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-022:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-022",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal konsulttjänster SEAB (ursprungligt)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-022_Ramavtal-konsulttjänster-SEAB-ursprungligt.docx",
+      "document_title": "CTR-2023-022_Ramavtal-konsulttjänster-SEAB-ursprungligt",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 25,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 26"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-022:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-022",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal konsulttjänster SEAB (ursprungligt)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-022_Ramavtal-konsulttjänster-SEAB-ursprungligt.docx",
+      "document_title": "CTR-2023-022_Ramavtal-konsulttjänster-SEAB-ursprungligt",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-022:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-022",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal konsulttjänster SEAB (ursprungligt)",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-022_Ramavtal-konsulttjänster-SEAB-ursprungligt.docx",
+      "document_title": "CTR-2023-022_Ramavtal-konsulttjänster-SEAB-ursprungligt",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 2 ggr årsarvode."
+      },
+      "candidate": {
+        "paragraph_index": 30,
+        "text": "6. Ansvarsbegränsning",
+        "locator": "stycke 31"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-010:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-010",
+      "kind": "PROJEKTAVTAL",
+      "title": "SE-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-010_SE-Förvaltning.docx",
+      "document_title": "CTR-2024-010_SE-Förvaltning",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-010:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-010",
+      "kind": "PROJEKTAVTAL",
+      "title": "SE-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-010_SE-Förvaltning.docx",
+      "document_title": "CTR-2024-010_SE-Förvaltning",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 31,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 32"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-010:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-010",
+      "kind": "PROJEKTAVTAL",
+      "title": "SE-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-010_SE-Förvaltning.docx",
+      "document_title": "CTR-2024-010_SE-Förvaltning",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "ABONNEMANG"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-010:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-010",
+      "kind": "PROJEKTAVTAL",
+      "title": "SE-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-010_SE-Förvaltning.docx",
+      "document_title": "CTR-2024-010_SE-Förvaltning",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 12 månaders avgift."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2022-007:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2022-007",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal IT-tjänster Gråvikens kommun",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2022-007_Ramavtal-IT-tjänster-Gråvikens-kommun.docx",
+      "document_title": "CTR-2022-007_Ramavtal-IT-tjänster-Gråvikens-kommun",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 6
+      },
+      "candidate": {
+        "paragraph_index": 22,
+        "text": "4. Avtalstid och uppsägning",
+        "locator": "stycke 23"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2022-007:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2022-007",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal IT-tjänster Gråvikens kommun",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2022-007_Ramavtal-IT-tjänster-Gråvikens-kommun.docx",
+      "document_title": "CTR-2022-007_Ramavtal-IT-tjänster-Gråvikens-kommun",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 24,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 6 månader före utgången.",
+        "locator": "stycke 25"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2022-007:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2022-007",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal IT-tjänster Gråvikens kommun",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2022-007_Ramavtal-IT-tjänster-Gråvikens-kommun.docx",
+      "document_title": "CTR-2022-007_Ramavtal-IT-tjänster-Gråvikens-kommun",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "INDEXTIM"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2022-007:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2022-007",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal IT-tjänster Gråvikens kommun",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2022-007_Ramavtal-IT-tjänster-Gråvikens-kommun.docx",
+      "document_title": "CTR-2022-007_Ramavtal-IT-tjänster-Gråvikens-kommun",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 20 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 32,
+        "text": "6. Ansvarsbegränsning",
+        "locator": "stycke 33"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-021:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-021",
+      "kind": "PROJEKTAVTAL",
+      "title": "FS-Intranät",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-021_FS-Intranät.docx",
+      "document_title": "CTR-2024-021_FS-Intranät",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 45,
+        "text": "7. Avtalstid och uppsägning",
+        "locator": "stycke 46"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-021:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-021",
+      "kind": "PROJEKTAVTAL",
+      "title": "FS-Intranät",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-021_FS-Intranät.docx",
+      "document_title": "CTR-2024-021_FS-Intranät",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-021:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-021",
+      "kind": "PROJEKTAVTAL",
+      "title": "FS-Intranät",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-021_FS-Intranät.docx",
+      "document_title": "CTR-2024-021_FS-Intranät",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-021:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-021",
+      "kind": "PROJEKTAVTAL",
+      "title": "FS-Intranät",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-021_FS-Intranät.docx",
+      "document_title": "CTR-2024-021_FS-Intranät",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 100 % av avtalsvärdet."
+      },
+      "candidate": {
+        "paragraph_index": 51,
+        "text": "9. Ansvarsbegränsning",
+        "locator": "stycke 52"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-014:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-014",
+      "kind": "PROJEKTAVTAL",
+      "title": "FS-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-014_FS-Förvaltning.docx",
+      "document_title": "CTR-2025-014_FS-Förvaltning",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-014:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-014",
+      "kind": "PROJEKTAVTAL",
+      "title": "FS-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-014_FS-Förvaltning.docx",
+      "document_title": "CTR-2025-014_FS-Förvaltning",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 31,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 32"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-014:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-014",
+      "kind": "PROJEKTAVTAL",
+      "title": "FS-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-014_FS-Förvaltning.docx",
+      "document_title": "CTR-2025-014_FS-Förvaltning",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "ABONNEMANG"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-014:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-014",
+      "kind": "PROJEKTAVTAL",
+      "title": "FS-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-014_FS-Förvaltning.docx",
+      "document_title": "CTR-2025-014_FS-Förvaltning",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 12 månaders avgift."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-014:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-014",
+      "kind": "PROJEKTAVTAL",
+      "title": "KL-Vårdportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-014_KL-Vårdportal.docx",
+      "document_title": "CTR-2024-014_KL-Vårdportal",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 31,
+        "text": "6. Avtalstid och uppsägning",
+        "locator": "stycke 32"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-014:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-014",
+      "kind": "PROJEKTAVTAL",
+      "title": "KL-Vårdportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-014_KL-Vårdportal.docx",
+      "document_title": "CTR-2024-014_KL-Vårdportal",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-014:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-014",
+      "kind": "PROJEKTAVTAL",
+      "title": "KL-Vårdportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-014_KL-Vårdportal.docx",
+      "document_title": "CTR-2024-014_KL-Vårdportal",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-014:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-014",
+      "kind": "PROJEKTAVTAL",
+      "title": "KL-Vårdportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-014_KL-Vårdportal.docx",
+      "document_title": "CTR-2024-014_KL-Vårdportal",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 15 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 37,
+        "text": "8. Ansvarsbegränsning",
+        "locator": "stycke 38"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-015:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-015",
+      "kind": "PROJEKTAVTAL",
+      "title": "KF-Biljettsystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-015_KF-Biljettsystem.docx",
+      "document_title": "CTR-2023-015_KF-Biljettsystem",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-015:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-015",
+      "kind": "PROJEKTAVTAL",
+      "title": "KF-Biljettsystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-015_KF-Biljettsystem.docx",
+      "document_title": "CTR-2023-015_KF-Biljettsystem",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 33,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 34"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-015:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-015",
+      "kind": "PROJEKTAVTAL",
+      "title": "KF-Biljettsystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-015_KF-Biljettsystem.docx",
+      "document_title": "CTR-2023-015_KF-Biljettsystem",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "INDEXTIM"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-015:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-015",
+      "kind": "PROJEKTAVTAL",
+      "title": "KF-Biljettsystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-015_KF-Biljettsystem.docx",
+      "document_title": "CTR-2023-015_KF-Biljettsystem",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "24 månaders funktionsgaranti (ovanligt långtgående)."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-011:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-011",
+      "kind": "PROJEKTAVTAL",
+      "title": "TS-Produktionsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-011_TS-Produktionsportal.docx",
+      "document_title": "CTR-2025-011_TS-Produktionsportal",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 48,
+        "text": "7. Avtalstid och uppsägning",
+        "locator": "stycke 49"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-011:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-011",
+      "kind": "PROJEKTAVTAL",
+      "title": "TS-Produktionsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-011_TS-Produktionsportal.docx",
+      "document_title": "CTR-2025-011_TS-Produktionsportal",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-011:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-011",
+      "kind": "PROJEKTAVTAL",
+      "title": "TS-Produktionsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-011_TS-Produktionsportal.docx",
+      "document_title": "CTR-2025-011_TS-Produktionsportal",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-011:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-011",
+      "kind": "PROJEKTAVTAL",
+      "title": "TS-Produktionsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-011_TS-Produktionsportal.docx",
+      "document_title": "CTR-2025-011_TS-Produktionsportal",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 100 % av avtalsvärdet. Vite vid försening: 1 % av avtalsvärdet per påbörjad vecka, max 10 %."
+      },
+      "candidate": {
+        "paragraph_index": 54,
+        "text": "9. Ansvarsbegränsning",
+        "locator": "stycke 55"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-018:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-018",
+      "kind": "PROJEKTAVTAL",
+      "title": "BV-Journalsystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-018_BV-Journalsystem.docx",
+      "document_title": "CTR-2023-018_BV-Journalsystem",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-018:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-018",
+      "kind": "PROJEKTAVTAL",
+      "title": "BV-Journalsystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-018_BV-Journalsystem.docx",
+      "document_title": "CTR-2023-018_BV-Journalsystem",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 34,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 35"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-018:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-018",
+      "kind": "PROJEKTAVTAL",
+      "title": "BV-Journalsystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-018_BV-Journalsystem.docx",
+      "document_title": "CTR-2023-018_BV-Journalsystem",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "INDEXTIM"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-018:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-018",
+      "kind": "PROJEKTAVTAL",
+      "title": "BV-Journalsystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-018_BV-Journalsystem.docx",
+      "document_title": "CTR-2023-018_BV-Journalsystem",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-030:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-030",
+      "kind": "PROJEKTAVTAL",
+      "title": "MM-Underhållssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-030_MM-Underhållssystem.docx",
+      "document_title": "CTR-2024-030_MM-Underhållssystem",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 30,
+        "text": "6. Avtalstid och uppsägning",
+        "locator": "stycke 31"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-030:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-030",
+      "kind": "PROJEKTAVTAL",
+      "title": "MM-Underhållssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-030_MM-Underhållssystem.docx",
+      "document_title": "CTR-2024-030_MM-Underhållssystem",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-030:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-030",
+      "kind": "PROJEKTAVTAL",
+      "title": "MM-Underhållssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-030_MM-Underhållssystem.docx",
+      "document_title": "CTR-2024-030_MM-Underhållssystem",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-030:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-030",
+      "kind": "PROJEKTAVTAL",
+      "title": "MM-Underhållssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-030_MM-Underhållssystem.docx",
+      "document_title": "CTR-2024-030_MM-Underhållssystem",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 37,
+        "text": "8. Ansvarsbegränsning",
+        "locator": "stycke 38"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-016:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-016",
+      "kind": "PROJEKTAVTAL",
+      "title": "ÖH-Webbplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-016_ÖH-Webbplattform.docx",
+      "document_title": "CTR-2024-016_ÖH-Webbplattform",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 45,
+        "text": "7. Avtalstid och uppsägning",
+        "locator": "stycke 46"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-016:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-016",
+      "kind": "PROJEKTAVTAL",
+      "title": "ÖH-Webbplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-016_ÖH-Webbplattform.docx",
+      "document_title": "CTR-2024-016_ÖH-Webbplattform",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-016:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-016",
+      "kind": "PROJEKTAVTAL",
+      "title": "ÖH-Webbplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-016_ÖH-Webbplattform.docx",
+      "document_title": "CTR-2024-016_ÖH-Webbplattform",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-016:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-016",
+      "kind": "PROJEKTAVTAL",
+      "title": "ÖH-Webbplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-016_ÖH-Webbplattform.docx",
+      "document_title": "CTR-2024-016_ÖH-Webbplattform",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "OBEGRÄNSAT ansvar (avvikelse från vår standardmall – risk)."
+      },
+      "candidate": {
+        "paragraph_index": 51,
+        "text": "9. Ansvarsbegränsning",
+        "locator": "stycke 52"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-031:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-031",
+      "kind": "PROJEKTAVTAL",
+      "title": "SB-E-handel",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-031_SB-E-handel.docx",
+      "document_title": "CTR-2024-031_SB-E-handel",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 1
+      },
+      "candidate": {
+        "paragraph_index": 31,
+        "text": "6. Avtalstid och uppsägning",
+        "locator": "stycke 32"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-031:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-031",
+      "kind": "PROJEKTAVTAL",
+      "title": "SB-E-handel",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-031_SB-E-handel.docx",
+      "document_title": "CTR-2024-031_SB-E-handel",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-031:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-031",
+      "kind": "PROJEKTAVTAL",
+      "title": "SB-E-handel",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-031_SB-E-handel.docx",
+      "document_title": "CTR-2024-031_SB-E-handel",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-031:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-031",
+      "kind": "PROJEKTAVTAL",
+      "title": "SB-E-handel",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-031_SB-E-handel.docx",
+      "document_title": "CTR-2024-031_SB-E-handel",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 38,
+        "text": "8. Ansvarsbegränsning",
+        "locator": "stycke 39"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-021:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-021",
+      "kind": "PROJEKTAVTAL",
+      "title": "NH-Logistikportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-021_NH-Logistikportal.docx",
+      "document_title": "CTR-2023-021_NH-Logistikportal",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-021:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-021",
+      "kind": "PROJEKTAVTAL",
+      "title": "NH-Logistikportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-021_NH-Logistikportal.docx",
+      "document_title": "CTR-2023-021_NH-Logistikportal",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 16,
+        "text": "Timpris: 1 120,00 kr per timme (exkl. moms).",
+        "locator": "stycke 17"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-021:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-021",
+      "kind": "PROJEKTAVTAL",
+      "title": "NH-Logistikportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-021_NH-Logistikportal.docx",
+      "document_title": "CTR-2023-021_NH-Logistikportal",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-021:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-021",
+      "kind": "PROJEKTAVTAL",
+      "title": "NH-Logistikportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-021_NH-Logistikportal.docx",
+      "document_title": "CTR-2023-021_NH-Logistikportal",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 15 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-020:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-020",
+      "kind": "PROJEKTAVTAL",
+      "title": "NH-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-020_NH-Förvaltning.docx",
+      "document_title": "CTR-2025-020_NH-Förvaltning",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 30,
+        "text": "6. Avtalstid och uppsägning",
+        "locator": "stycke 31"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-020:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-020",
+      "kind": "PROJEKTAVTAL",
+      "title": "NH-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-020_NH-Förvaltning.docx",
+      "document_title": "CTR-2025-020_NH-Förvaltning",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 32,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 33"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-020:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-020",
+      "kind": "PROJEKTAVTAL",
+      "title": "NH-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-020_NH-Förvaltning.docx",
+      "document_title": "CTR-2025-020_NH-Förvaltning",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "ABONNEMANG"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-020:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-020",
+      "kind": "PROJEKTAVTAL",
+      "title": "NH-Förvaltning",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-020_NH-Förvaltning.docx",
+      "document_title": "CTR-2025-020_NH-Förvaltning",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 12 månaders avgift."
+      },
+      "candidate": {
+        "paragraph_index": 37,
+        "text": "8. Ansvarsbegränsning",
+        "locator": "stycke 38"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-002:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-002",
+      "kind": "PROJEKTAVTAL",
+      "title": "ÅB-Bostadsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-002_ÅB-Bostadsportal.docx",
+      "document_title": "CTR-2025-002_ÅB-Bostadsportal",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 48,
+        "text": "7. Avtalstid och uppsägning",
+        "locator": "stycke 49"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-002:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-002",
+      "kind": "PROJEKTAVTAL",
+      "title": "ÅB-Bostadsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-002_ÅB-Bostadsportal.docx",
+      "document_title": "CTR-2025-002_ÅB-Bostadsportal",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-002:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-002",
+      "kind": "PROJEKTAVTAL",
+      "title": "ÅB-Bostadsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-002_ÅB-Bostadsportal.docx",
+      "document_title": "CTR-2025-002_ÅB-Bostadsportal",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-002:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-002",
+      "kind": "PROJEKTAVTAL",
+      "title": "ÅB-Bostadsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-002_ÅB-Bostadsportal.docx",
+      "document_title": "CTR-2025-002_ÅB-Bostadsportal",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 100 % av avtalsvärdet."
+      },
+      "candidate": {
+        "paragraph_index": 54,
+        "text": "9. Ansvarsbegränsning",
+        "locator": "stycke 55"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-026:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-026",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal GM-Bergdatasystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-026_Ramavtal-GM-Bergdatasystem.docx",
+      "document_title": "CTR-2023-026_Ramavtal-GM-Bergdatasystem",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 23,
+        "text": "4. Avtalstid och uppsägning",
+        "locator": "stycke 24"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-026:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-026",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal GM-Bergdatasystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-026_Ramavtal-GM-Bergdatasystem.docx",
+      "document_title": "CTR-2023-026_Ramavtal-GM-Bergdatasystem",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 25,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 26"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-026:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-026",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal GM-Bergdatasystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-026_Ramavtal-GM-Bergdatasystem.docx",
+      "document_title": "CTR-2023-026_Ramavtal-GM-Bergdatasystem",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2023-026:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2023-026",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal GM-Bergdatasystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2023-026_Ramavtal-GM-Bergdatasystem.docx",
+      "document_title": "CTR-2023-026_Ramavtal-GM-Bergdatasystem",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 2 ggr årsarvode."
+      },
+      "candidate": {
+        "paragraph_index": 30,
+        "text": "6. Ansvarsbegränsning",
+        "locator": "stycke 31"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-006:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-006",
+      "kind": "PROJEKTAVTAL",
+      "title": "SV-Molnmigrering",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-006_SV-Molnmigrering.docx",
+      "document_title": "CTR-2025-006_SV-Molnmigrering",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-006:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-006",
+      "kind": "PROJEKTAVTAL",
+      "title": "SV-Molnmigrering",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-006_SV-Molnmigrering.docx",
+      "document_title": "CTR-2025-006_SV-Molnmigrering",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 16,
+        "text": "Fast pris för uppdraget: 2 400 000,00 kr (exkl. moms).",
+        "locator": "stycke 17"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-006:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-006",
+      "kind": "PROJEKTAVTAL",
+      "title": "SV-Molnmigrering",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-006_SV-Molnmigrering.docx",
+      "document_title": "CTR-2025-006_SV-Molnmigrering",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-006:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-006",
+      "kind": "PROJEKTAVTAL",
+      "title": "SV-Molnmigrering",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-006_SV-Molnmigrering.docx",
+      "document_title": "CTR-2025-006_SV-Molnmigrering",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 100 % av avtalsvärdet."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-007:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-007",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal PF-Kundportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-007_Ramavtal-PF-Kundportal.docx",
+      "document_title": "CTR-2025-007_Ramavtal-PF-Kundportal",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 6
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-007:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-007",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal PF-Kundportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-007_Ramavtal-PF-Kundportal.docx",
+      "document_title": "CTR-2025-007_Ramavtal-PF-Kundportal",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 31,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 6 månader före utgången.",
+        "locator": "stycke 32"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-007:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-007",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal PF-Kundportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-007_Ramavtal-PF-Kundportal.docx",
+      "document_title": "CTR-2025-007_Ramavtal-PF-Kundportal",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-007:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-007",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal PF-Kundportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-007_Ramavtal-PF-Kundportal.docx",
+      "document_title": "CTR-2025-007_Ramavtal-PF-Kundportal",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 25 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2022-028:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2022-028",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal KP-Fastighetssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2022-028_Ramavtal-KP-Fastighetssystem.docx",
+      "document_title": "CTR-2022-028_Ramavtal-KP-Fastighetssystem",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 6
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2022-028:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2022-028",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal KP-Fastighetssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2022-028_Ramavtal-KP-Fastighetssystem.docx",
+      "document_title": "CTR-2022-028_Ramavtal-KP-Fastighetssystem",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 30,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 6 månader före utgången.",
+        "locator": "stycke 31"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2022-028:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2022-028",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal KP-Fastighetssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2022-028_Ramavtal-KP-Fastighetssystem.docx",
+      "document_title": "CTR-2022-028_Ramavtal-KP-Fastighetssystem",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2022-028:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2022-028",
+      "kind": "RAMAVTAL",
+      "title": "Ramavtal KP-Fastighetssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2022-028_Ramavtal-KP-Fastighetssystem.docx",
+      "document_title": "CTR-2022-028_Ramavtal-KP-Fastighetssystem",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 2 ggr årsarvode."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-009:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-009",
+      "kind": "PROJEKTAVTAL",
+      "title": "LL-Spårbarhet",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-009_LL-Spårbarhet.docx",
+      "document_title": "CTR-2025-009_LL-Spårbarhet",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 45,
+        "text": "7. Avtalstid och uppsägning",
+        "locator": "stycke 46"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-009:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-009",
+      "kind": "PROJEKTAVTAL",
+      "title": "LL-Spårbarhet",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-009_LL-Spårbarhet.docx",
+      "document_title": "CTR-2025-009_LL-Spårbarhet",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-009:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-009",
+      "kind": "PROJEKTAVTAL",
+      "title": "LL-Spårbarhet",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-009_LL-Spårbarhet.docx",
+      "document_title": "CTR-2025-009_LL-Spårbarhet",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-009:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-009",
+      "kind": "PROJEKTAVTAL",
+      "title": "LL-Spårbarhet",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-009_LL-Spårbarhet.docx",
+      "document_title": "CTR-2025-009_LL-Spårbarhet",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 100 % av avtalsvärdet."
+      },
+      "candidate": {
+        "paragraph_index": 51,
+        "text": "9. Ansvarsbegränsning",
+        "locator": "stycke 52"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-008:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-008",
+      "kind": "PROJEKTAVTAL",
+      "title": "SM-Bokningssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-008_SM-Bokningssystem.docx",
+      "document_title": "CTR-2025-008_SM-Bokningssystem",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 31,
+        "text": "6. Avtalstid och uppsägning",
+        "locator": "stycke 32"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-008:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-008",
+      "kind": "PROJEKTAVTAL",
+      "title": "SM-Bokningssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-008_SM-Bokningssystem.docx",
+      "document_title": "CTR-2025-008_SM-Bokningssystem",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-008:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-008",
+      "kind": "PROJEKTAVTAL",
+      "title": "SM-Bokningssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-008_SM-Bokningssystem.docx",
+      "document_title": "CTR-2025-008_SM-Bokningssystem",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-008:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-008",
+      "kind": "PROJEKTAVTAL",
+      "title": "SM-Bokningssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-008_SM-Bokningssystem.docx",
+      "document_title": "CTR-2025-008_SM-Bokningssystem",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 37,
+        "text": "8. Ansvarsbegränsning",
+        "locator": "stycke 38"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-013:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-013",
+      "kind": "PROJEKTAVTAL",
+      "title": "NE-Projektportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-013_NE-Projektportal.docx",
+      "document_title": "CTR-2025-013_NE-Projektportal",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 31,
+        "text": "6. Avtalstid och uppsägning",
+        "locator": "stycke 32"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-013:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-013",
+      "kind": "PROJEKTAVTAL",
+      "title": "NE-Projektportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-013_NE-Projektportal.docx",
+      "document_title": "CTR-2025-013_NE-Projektportal",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 33,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 34"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-013:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-013",
+      "kind": "PROJEKTAVTAL",
+      "title": "NE-Projektportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-013_NE-Projektportal.docx",
+      "document_title": "CTR-2025-013_NE-Projektportal",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-013:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-013",
+      "kind": "PROJEKTAVTAL",
+      "title": "NE-Projektportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-013_NE-Projektportal.docx",
+      "document_title": "CTR-2025-013_NE-Projektportal",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 38,
+        "text": "8. Ansvarsbegränsning",
+        "locator": "stycke 39"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-019:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-019",
+      "kind": "PROJEKTAVTAL",
+      "title": "TR-Skogsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-019_TR-Skogsportal.docx",
+      "document_title": "CTR-2025-019_TR-Skogsportal",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 45,
+        "text": "7. Avtalstid och uppsägning",
+        "locator": "stycke 46"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-019:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-019",
+      "kind": "PROJEKTAVTAL",
+      "title": "TR-Skogsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-019_TR-Skogsportal.docx",
+      "document_title": "CTR-2025-019_TR-Skogsportal",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-019:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-019",
+      "kind": "PROJEKTAVTAL",
+      "title": "TR-Skogsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-019_TR-Skogsportal.docx",
+      "document_title": "CTR-2025-019_TR-Skogsportal",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-019:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-019",
+      "kind": "PROJEKTAVTAL",
+      "title": "TR-Skogsportal",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-019_TR-Skogsportal.docx",
+      "document_title": "CTR-2025-019_TR-Skogsportal",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 100 % av avtalsvärdet."
+      },
+      "candidate": {
+        "paragraph_index": 51,
+        "text": "9. Ansvarsbegränsning",
+        "locator": "stycke 52"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-032:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-032",
+      "kind": "PROJEKTAVTAL",
+      "title": "AR-Beställningsapp",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-032_AR-Beställningsapp.docx",
+      "document_title": "CTR-2024-032_AR-Beställningsapp",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 31,
+        "text": "6. Avtalstid och uppsägning",
+        "locator": "stycke 32"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-032:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-032",
+      "kind": "PROJEKTAVTAL",
+      "title": "AR-Beställningsapp",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-032_AR-Beställningsapp.docx",
+      "document_title": "CTR-2024-032_AR-Beställningsapp",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 1,
+        "text": "Kajplatsen 4, 115 27 Stockholm | Tel 08-555 014 27 | info@nordvikendigital.se",
+        "locator": "stycke 2"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-032:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-032",
+      "kind": "PROJEKTAVTAL",
+      "title": "AR-Beställningsapp",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-032_AR-Beställningsapp.docx",
+      "document_title": "CTR-2024-032_AR-Beställningsapp",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2024-032:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2024-032",
+      "kind": "PROJEKTAVTAL",
+      "title": "AR-Beställningsapp",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2024-032_AR-Beställningsapp.docx",
+      "document_title": "CTR-2024-032_AR-Beställningsapp",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 37,
+        "text": "8. Ansvarsbegränsning",
+        "locator": "stycke 38"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-016:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-016",
+      "kind": "PROJEKTAVTAL",
+      "title": "LM-Lärplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-016_LM-Lärplattform.docx",
+      "document_title": "CTR-2025-016_LM-Lärplattform",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-016:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-016",
+      "kind": "PROJEKTAVTAL",
+      "title": "LM-Lärplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-016_LM-Lärplattform.docx",
+      "document_title": "CTR-2025-016_LM-Lärplattform",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 16,
+        "text": "Fast pris för uppdraget: 1 600 000,00 kr (exkl. moms).",
+        "locator": "stycke 17"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-016:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-016",
+      "kind": "PROJEKTAVTAL",
+      "title": "LM-Lärplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-016_LM-Lärplattform.docx",
+      "document_title": "CTR-2025-016_LM-Lärplattform",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-016:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-016",
+      "kind": "PROJEKTAVTAL",
+      "title": "LM-Lärplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-016_LM-Lärplattform.docx",
+      "document_title": "CTR-2025-016_LM-Lärplattform",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 100 % av avtalsvärdet."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-004:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-004",
+      "kind": "PROJEKTAVTAL",
+      "title": "FK-Miljödata",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-004_FK-Miljödata.docx",
+      "document_title": "CTR-2025-004_FK-Miljödata",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-004:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-004",
+      "kind": "PROJEKTAVTAL",
+      "title": "FK-Miljödata",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-004_FK-Miljödata.docx",
+      "document_title": "CTR-2025-004_FK-Miljödata",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 16,
+        "text": "Timpris: 1 110,00 kr per timme (exkl. moms).",
+        "locator": "stycke 17"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-004:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-004",
+      "kind": "PROJEKTAVTAL",
+      "title": "FK-Miljödata",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-004_FK-Miljödata.docx",
+      "document_title": "CTR-2025-004_FK-Miljödata",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-004:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-004",
+      "kind": "PROJEKTAVTAL",
+      "title": "FK-Miljödata",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-004_FK-Miljödata.docx",
+      "document_title": "CTR-2025-004_FK-Miljödata",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-022:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-022",
+      "kind": "PROJEKTAVTAL",
+      "title": "FP-Bokningsplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-022_FP-Bokningsplattform.docx",
+      "document_title": "CTR-2025-022_FP-Bokningsplattform",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-022:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-022",
+      "kind": "PROJEKTAVTAL",
+      "title": "FP-Bokningsplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-022_FP-Bokningsplattform.docx",
+      "document_title": "CTR-2025-022_FP-Bokningsplattform",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 30,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 31"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-022:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-022",
+      "kind": "PROJEKTAVTAL",
+      "title": "FP-Bokningsplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-022_FP-Bokningsplattform.docx",
+      "document_title": "CTR-2025-022_FP-Bokningsplattform",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-022:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-022",
+      "kind": "PROJEKTAVTAL",
+      "title": "FP-Bokningsplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-022_FP-Bokningsplattform.docx",
+      "document_title": "CTR-2025-022_FP-Bokningsplattform",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-001:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-001",
+      "kind": "PROJEKTAVTAL",
+      "title": "SU-Produktionssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-001_SU-Produktionssystem.docx",
+      "document_title": "CTR-2026-001_SU-Produktionssystem",
+      "category": "termination_notice",
+      "split": "test",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 11,
+        "text": "Uppsägningstid",
+        "locator": "stycke 12"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-001:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-001",
+      "kind": "PROJEKTAVTAL",
+      "title": "SU-Produktionssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-001_SU-Produktionssystem.docx",
+      "document_title": "CTR-2026-001_SU-Produktionssystem",
+      "category": "automatic_renewal",
+      "split": "test",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": false,
+        "value": null
+      },
+      "candidate": {
+        "paragraph_index": 16,
+        "text": "Fast pris för uppdraget: 1 950 000,00 kr (exkl. moms).",
+        "locator": "stycke 17"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-001:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-001",
+      "kind": "PROJEKTAVTAL",
+      "title": "SU-Produktionssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-001_SU-Produktionssystem.docx",
+      "document_title": "CTR-2026-001_SU-Produktionssystem",
+      "category": "price",
+      "split": "test",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "FAST"
+      },
+      "candidate": {
+        "paragraph_index": 15,
+        "text": "Pris",
+        "locator": "stycke 16"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2026-001:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2026-001",
+      "kind": "PROJEKTAVTAL",
+      "title": "SU-Produktionssystem",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2026-001_SU-Produktionssystem.docx",
+      "document_title": "CTR-2026-001_SU-Produktionssystem",
+      "category": "liability_limitation",
+      "split": "test",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 100 % av avtalsvärdet. Vite 1 %/vecka, max 10 %. Källkodsdepå hos tredje part krävs."
+      },
+      "candidate": {
+        "paragraph_index": 17,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 18"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-015:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-015",
+      "kind": "PROJEKTAVTAL",
+      "title": "KS-Skolplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-015_KS-Skolplattform.docx",
+      "document_title": "CTR-2025-015_KS-Skolplattform",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 31,
+        "text": "6. Avtalstid och uppsägning",
+        "locator": "stycke 32"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-015:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-015",
+      "kind": "PROJEKTAVTAL",
+      "title": "KS-Skolplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-015_KS-Skolplattform.docx",
+      "document_title": "CTR-2025-015_KS-Skolplattform",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 33,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 34"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-015:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-015",
+      "kind": "PROJEKTAVTAL",
+      "title": "KS-Skolplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-015_KS-Skolplattform.docx",
+      "document_title": "CTR-2025-015_KS-Skolplattform",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Pris",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-2025-015:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-2025-015",
+      "kind": "PROJEKTAVTAL",
+      "title": "KS-Skolplattform",
+      "source_path": "synthetic_sme/contracts/customers/CTR-2025-015_KS-Skolplattform.docx",
+      "document_title": "CTR-2025-015_KS-Skolplattform",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 38,
+        "text": "8. Ansvarsbegränsning",
+        "locator": "stycke 39"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-051:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-051",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-026",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-051_Löpande-konsultstöd-CUS-026.docx",
+      "document_title": "CTR-SM-051_Löpande-konsultstöd-CUS-026",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 6,
+        "text": "Avser: Uppdragsbekräftelse – Löpande konsultstöd CUS-026",
+        "locator": "stycke 7"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-051:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-051",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-026",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-051_Löpande-konsultstöd-CUS-026.docx",
+      "document_title": "CTR-SM-051_Löpande-konsultstöd-CUS-026",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-051:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-051",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-026",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-051_Löpande-konsultstöd-CUS-026.docx",
+      "document_title": "CTR-SM-051_Löpande-konsultstöd-CUS-026",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 14,
+        "text": "Pris och betalning",
+        "locator": "stycke 15"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-051:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-051",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-026",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-051_Löpande-konsultstöd-CUS-026.docx",
+      "document_title": "CTR-SM-051_Löpande-konsultstöd-CUS-026",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 27,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 28"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-052:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-052",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-027",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-052_Löpande-konsultstöd-CUS-027.docx",
+      "document_title": "CTR-SM-052_Löpande-konsultstöd-CUS-027",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 6,
+        "text": "Avser: Uppdragsbekräftelse – Löpande konsultstöd CUS-027",
+        "locator": "stycke 7"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-052:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-052",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-027",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-052_Löpande-konsultstöd-CUS-027.docx",
+      "document_title": "CTR-SM-052_Löpande-konsultstöd-CUS-027",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-052:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-052",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-027",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-052_Löpande-konsultstöd-CUS-027.docx",
+      "document_title": "CTR-SM-052_Löpande-konsultstöd-CUS-027",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 14,
+        "text": "Pris och betalning",
+        "locator": "stycke 15"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-052:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-052",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-027",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-052_Löpande-konsultstöd-CUS-027.docx",
+      "document_title": "CTR-SM-052_Löpande-konsultstöd-CUS-027",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 27,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 28"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-053:termination_notice",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-053",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-029",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-053_Löpande-konsultstöd-CUS-029.docx",
+      "document_title": "CTR-SM-053_Löpande-konsultstöd-CUS-029",
+      "category": "termination_notice",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "notice_months",
+        "present": true,
+        "value": 3
+      },
+      "candidate": {
+        "paragraph_index": 6,
+        "text": "Avser: Uppdragsbekräftelse – Löpande konsultstöd CUS-029",
+        "locator": "stycke 7"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-053:automatic_renewal",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-053",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-029",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-053_Löpande-konsultstöd-CUS-029.docx",
+      "document_title": "CTR-SM-053_Löpande-konsultstöd-CUS-029",
+      "category": "automatic_renewal",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "auto_renew_months",
+        "present": true,
+        "value": 12
+      },
+      "candidate": {
+        "paragraph_index": 13,
+        "text": "Avtalet förlängs automatiskt med 12 månader om det inte sägs upp senast 3 månader före utgången.",
+        "locator": "stycke 14"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-053:price",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-053",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-029",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-053_Löpande-konsultstöd-CUS-029.docx",
+      "document_title": "CTR-SM-053_Löpande-konsultstöd-CUS-029",
+      "category": "price",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "pricing_model",
+        "present": true,
+        "value": "TIMPRIS"
+      },
+      "candidate": {
+        "paragraph_index": 14,
+        "text": "Pris och betalning",
+        "locator": "stycke 15"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    },
+    {
+      "case_id": "CTR-SM-053:liability_limitation",
+      "facit_version": "v1-candidates",
+      "not_facit": true,
+      "review_status": "pending_human_review",
+      "contract_id": "CTR-SM-053",
+      "kind": "UPPDRAGSBEKR",
+      "title": "Löpande konsultstöd CUS-029",
+      "source_path": "synthetic_sme/contracts/customers/CTR-SM-053_Löpande-konsultstöd-CUS-029.docx",
+      "document_title": "CTR-SM-053_Löpande-konsultstöd-CUS-029",
+      "category": "liability_limitation",
+      "split": "anchor",
+      "generator_hint": {
+        "field": "liability_cap",
+        "present": true,
+        "value": "Tak 10 prisbasbelopp."
+      },
+      "candidate": {
+        "paragraph_index": 27,
+        "text": "Ansvarsbegränsning",
+        "locator": "stycke 28"
+      },
+      "review": {
+        "verifier": null,
+        "reviewed_at": null,
+        "method": null,
+        "verdict": null,
+        "clause_text": null,
+        "note": ""
+      }
+    }
+  ]
+}

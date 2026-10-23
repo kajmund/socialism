@@ -1,0 +1,15 @@
+{
+  "kind": "real_synthetic_corpus",
+  "not_quality_measurement": true,
+  "note": "Synthetic provisional anchors; no human facit; no Jev. UI/first-row streaming not measured.",
+  "contracts": 35,
+  "text_units": 2377,
+  "ingest_seconds": 9.236,
+  "cold_fill_seconds": 11.453,
+  "warm_fill_seconds": 0.64,
+  "add_column_fill_seconds": 4.912,
+  "first_row_proxy_seconds": 0.039,
+  "first_row_proxy_note": "one contract x four columns, backend fill; not UI paint time",
+  "cache_rows": 9508,
+  "embedding_model": "text-embedding-3-large"
+}
