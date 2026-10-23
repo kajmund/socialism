@@ -1,0 +1,643 @@
+{
+  "measurement": "b1_gap_hypotheses",
+  "note": "Shadow only; A3 verdicts are unchanged. Narrative is compared with a deterministic coverage-metadata gap detector.",
+  "recorded_at": "2026-10-23T07:40:23.963137+00:00",
+  "llm_model": "gpt-oss-120b",
+  "config": {
+    "jev_concurrency": 8,
+    "jev_timeout_seconds": 5.0,
+    "jev_model": "jev-latest",
+    "max_passage_chars": 1500,
+    "max_narrative_depth": 1,
+    "max_jev_calls": 2000,
+    "max_steps": 2000,
+    "max_depth": 6,
+    "timeout_seconds": 1800,
+    "support_threshold": 0.6,
+    "contradict_threshold": 0.6,
+    "max_tool_calls": 8,
+    "max_narrative_input_chars": 12000,
+    "min_claim_chars": 20,
+    "max_claim_chars": 500,
+    "min_claim_words": 4,
+    "max_claims_per_need": 200,
+    "max_pairs_per_need": 40,
+    "embedding_neighbors": 3,
+    "pair_strategy": "deterministic",
+    "route_authority": true,
+    "legacy_duplicate_resolution": false,
+    "pair_judgement": true,
+    "pair_jev_concurrency": 8,
+    "pair_jev_timeout_seconds": 5.0,
+    "gap_review_enabled": true,
+    "max_gap_input_chars": 12000,
+    "max_pair_state_chars": 6000,
+    "max_pair_jev_calls": 200
+  },
+  "case_set": [
+    "late_evidence",
+    "missing_source_type",
+    "short_sufficient",
+    "compatible_periods",
+    "compatible_entities",
+    "duplicate_contradiction",
+    "independent_contradiction",
+    "tail_counterevidence",
+    "large_567k",
+    "unknown_counterpart",
+    "tail_claim_contradiction"
+  ],
+  "facit": {
+    "positive": [
+      "late_evidence",
+      "missing_source_type"
+    ],
+    "negative": [
+      "compatible_entities",
+      "compatible_periods",
+      "duplicate_contradiction",
+      "independent_contradiction",
+      "short_sufficient"
+    ]
+  },
+  "scores": {
+    "narrative": {
+      "true_positive": 2,
+      "false_positive": 4,
+      "false_negative": 0,
+      "true_negative": 1
+    },
+    "deterministic": {
+      "true_positive": 2,
+      "false_positive": 2,
+      "false_negative": 0,
+      "true_negative": 3
+    }
+  },
+  "cost": {
+    "llm_calls": 11,
+    "gap_latency_ms": 7948.2,
+    "gap_input_chars": 34435,
+    "a3_jev_calls": 1153,
+    "deterministic_llm_calls": 0
+  },
+  "acceptance": {
+    "late_evidence_identified": true,
+    "short_sufficient_not_verified_gap": true,
+    "all_verified_gaps_have_valid_anchors": false,
+    "suspected_gap_has_no_execution_path": true,
+    "a3_verdict_unaffected": true
+  },
+  "rows": [
+    {
+      "case_id": "late_evidence",
+      "expected": "insufficient",
+      "facit": "positive",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "a3_jev_calls": 629,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": false,
+      "narrative": {
+        "raw_verdict": "SUSPECTED_GAP",
+        "validated_verdict": "SUSPECTED_GAP",
+        "errors": [],
+        "verified_gap_ids": [],
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "gap_1",
+            "need_id": "research_1",
+            "missing": "conflict evidence for the large set of omitted claim‑pairs (budget‑omitted candidates)",
+            "observations": [
+              "coverage level \"conflict_candidate\" is reported as incomplete",
+              "reason listed is \"pair_budget_omitted\"",
+              "selected pairs list contains only a tiny fraction of the 1176 candidate pairs, with 1136 omitted by budget"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "coverage:pair_budget_omitted"
+            ]
+          }
+        ],
+        "latency_ms": 829.9581250175834,
+        "input_chars": 11197,
+        "rationale": "The metadata indicates that the conflict‑candidate stage is incomplete because many candidate pairs were omitted due to budget constraints. This suggests a concrete evidence gap: the system has not evaluated or recorded conflicts for the majority of claim pairs, which could affect the completeness of the answer to the research need. No direct evidence anchors are available for these omitted pairs, so the gap is suspected rather than verified."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:uncompared_pairs",
+            "need_id": "research_1",
+            "missing": "candidate fact pairs were omitted by the pair budget",
+            "observations": [
+              "pair_budget_omitted"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "coverage:pair_budget_omitted"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "missing_source_type",
+      "expected": "insufficient",
+      "facit": "positive",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "a3_jev_calls": 2,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "verified_gap_ids": [
+          "gap-001"
+        ],
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "gap-001",
+            "need_id": "research_1",
+            "missing": "Additional verified decisions that have applied §36 avtalslagen, to satisfy the mandatory completeness obligation for source type \"swedish_law\"",
+            "observations": [
+              "Aggregation reports \"Mandatory obligations lack verified support: research_1:completeness:swedish_law\"",
+              "Only a single claim (evidence-0:p0:c0) is present for the need, which is insufficient to demonstrate completeness across the domain",
+              "Coverage status marks all processing levels as complete, yet the aggregation flags insufficiency, indicating a concrete evidence gap"
+            ],
+            "suggested_workflow": "aggregate_need",
+            "anchors": [
+              "claim:evidence-0:p0:c0"
+            ]
+          }
+        ],
+        "latency_ms": 610.6455419794656,
+        "input_chars": 1129,
+        "rationale": "The supplied metadata explicitly flags a missing or weak mandatory obligation for completeness of Swedish law sources related to research_1. The presence of only one claim does not fulfil the requirement to demonstrate that all relevant decisions applying §36 avtalslagen have been captured. This concrete shortfall is supported by the aggregation entry, therefore a VERIFIED_GAP is reported."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:completeness:swedish_law",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "short_sufficient",
+      "expected": "sufficient",
+      "facit": "negative",
+      "a3_draft": "sufficient",
+      "a3_status": "sufficient",
+      "a3_jev_calls": 2,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "narrative": {
+        "raw_verdict": "NO_GAP_FOUND",
+        "validated_verdict": "NO_GAP_FOUND",
+        "errors": [],
+        "verified_gap_ids": [],
+        "gap_count": 0,
+        "gaps": [],
+        "latency_ms": 541.5429159766063,
+        "input_chars": 1050,
+        "rationale": "The provided aggregations indicate no missing or weak evidence for need research_1 and the status is marked sufficient. Coverage reports that ingestion, passage, and claim levels are complete, and there are no unresolved conflicts or unknown requirements. Hence no concrete evidence gap can be identified from the supplied material."
+      },
+      "deterministic": {
+        "verdict": "NO_GAP_FOUND",
+        "gap_count": 0,
+        "gaps": []
+      }
+    },
+    {
+      "case_id": "compatible_periods",
+      "expected": "sufficient",
+      "facit": "negative",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "a3_jev_calls": 4,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "verified_gap_ids": [
+          "gap_001"
+        ],
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "gap_001",
+            "need_id": "research_1",
+            "missing": "Verified relevance and factual support for the mandatory obligations of need research_1 (the question about §36 avtalslagen) are absent",
+            "observations": [
+              "Aggregation entry reports “Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support”",
+              "No claim directly addresses the relevance or factual basis of the need research_1",
+              "The only available claims concern termination periods and do not substantiate the legal question posed"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "pair:period-new:p0:c0|period-old:p0:c0"
+            ]
+          }
+        ],
+        "latency_ms": 699.1731250309385,
+        "input_chars": 1310,
+        "rationale": "The supplied metadata explicitly flags missing relevance and factual support for the need research_1, and the available claims do not address that need. The selected claim pair provides a concrete anchor confirming that the current evidence set is unrelated to the need, satisfying the verification requirement for a gap."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "compatible_entities",
+      "expected": "sufficient",
+      "facit": "negative",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "a3_jev_calls": 4,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "verified_gap_ids": [
+          "gap-001"
+        ],
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "gap-001",
+            "need_id": "research_1",
+            "missing": "Verified relevance and factual‑support evidence for need research_1 (i.e., evidence that the identified passages/claims are actually pertinent to the legal question and that they substantiate the answer)",
+            "observations": [
+              "Aggregation entry reports a missing_or_weak condition: “Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support”",
+              "The supplied claims (entity‑a:p0:c0 and entity‑b:p0:c0) concern termination periods of contracts and do not demonstrably answer the need “Vilka avgöranden har tillämpat 36 § avtalslagen?”"
+            ],
+            "suggested_workflow": "aggregate_need",
+            "anchors": [
+              "claim:entity-a:p0:c0",
+              "pair:entity-a:p0:c0|entity-b:p0:c0"
+            ]
+          }
+        ],
+        "latency_ms": 904.7785000293516,
+        "input_chars": 1286,
+        "rationale": "The metadata explicitly marks the need research_1 as “insufficient” because the mandatory obligations of relevance and factual support are missing. The current evidence set contains only contractual termination‑period claims, which are unrelated to the legal research question. This concrete deficiency is anchored by the aggregation record and by the existing claim and pair identifiers, therefore a VERIFIED_GAP is appropriate."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "duplicate_contradiction",
+      "expected": "insufficient",
+      "facit": "negative",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "a3_jev_calls": 4,
+      "contradiction_detected": true,
+      "evidence_coverage_complete": true,
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "verified_gap_ids": [
+          "gap_1"
+        ],
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "gap_1",
+            "need_id": "research_1",
+            "missing": "Resolution of contradictory evidence (dup-contra vs dup-support) for the question “Vilka avgöranden har tillämpat 36 § avtalslagen?”",
+            "observations": [
+              "Aggregation entry reports \"missing_or_weak\": Material contradictions are unresolved and not shown inapplicable.",
+              "The unresolved_conflicts list contains the pair \"research_1:dup-contra:p0:c0|dup-support:p0:c0\" indicating a direct conflict between two claims.",
+              "No workflow step appears to have been applied to adjudicate this conflict despite the allowlist containing relevant workflows."
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "claim:dup-contra:p0:c0",
+              "claim:dup-support:p0:c0",
+              "pair:dup-contra:p0:c0|dup-support:p0:c0"
+            ]
+          }
+        ],
+        "latency_ms": 608.8749169721268,
+        "input_chars": 1503,
+        "rationale": "The supplied aggregation metadata explicitly flags an unresolved contradiction between two claims related to need research_1. This concrete gap is supported by the metadata (unresolved_conflicts entry) and anchored by the involved claim identifiers and the conflicting pair identifier. A suitable workflow from the allowlist (evaluate_passages) can be invoked to resolve the contradiction."
+      },
+      "deterministic": {
+        "verdict": "NO_GAP_FOUND",
+        "gap_count": 0,
+        "gaps": []
+      }
+    },
+    {
+      "case_id": "independent_contradiction",
+      "expected": "insufficient",
+      "facit": "negative",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "a3_jev_calls": 4,
+      "contradiction_detected": true,
+      "evidence_coverage_complete": true,
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "verified_gap_ids": [
+          "gap_1"
+        ],
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "gap_1",
+            "need_id": "research_1",
+            "missing": "Resolution of contradictory claims about the applicability of §36 avtalslagen",
+            "observations": [
+              "Aggregation reports \"Material contradictions are unresolved and not shown inapplicable\"",
+              "Unresolved conflict entry lists pair \"research_1:ind-contra:p0:c0|ind-support:p0:c0\"",
+              "Both claims are present but no evaluation indicating which is correct"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "claim:ind-support:p0:c0",
+              "claim:ind-contra:p0:c0",
+              "pair:ind-contra:p0:c0|ind-support:p0:c0"
+            ]
+          }
+        ],
+        "latency_ms": 588.0213750060648,
+        "input_chars": 1499,
+        "rationale": "The supplied aggregation explicitly marks a contradiction between two claims as unresolved, indicating a concrete evidence gap. The presence of the conflicting pair without any resolution or applicability assessment constitutes a verifiable gap, anchored by the two claim identifiers and their pair reference."
+      },
+      "deterministic": {
+        "verdict": "NO_GAP_FOUND",
+        "gap_count": 0,
+        "gaps": []
+      }
+    },
+    {
+      "case_id": "tail_counterevidence",
+      "expected": "insufficient",
+      "facit": "neutral",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "a3_jev_calls": 56,
+      "contradiction_detected": true,
+      "evidence_coverage_complete": true,
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "verified_gap_ids": [
+          "gap_001"
+        ],
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "gap_001",
+            "need_id": "research_1",
+            "missing": "Resolution of the contradictory claims about whether NJA 2005 s. 142 applies §36 avtalslagen",
+            "observations": [
+              "The aggregation reports a missing_or_weak material contradiction that is unresolved",
+              "Unresolved_conflicts list contains the pair evidence-0:p0:c0|evidence-0:p53:c57",
+              "Both claims are present but no evidence or reasoning shows why one is applicable and the other is not"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "claim:evidence-0:p0:c0",
+              "claim:evidence-0:p53:c57",
+              "pair:evidence-0:p0:c0|evidence-0:p53:c57"
+            ]
+          }
+        ],
+        "latency_ms": 713.1499160313979,
+        "input_chars": 1365,
+        "rationale": "The provided material includes two opposing claims regarding the applicability of §36 avtalslagen, but the current workflow status shows no resolution or justification. This concrete contradiction constitutes a verified evidence gap that must be addressed, and the pair claim provides a valid anchor for the gap."
+      },
+      "deterministic": {
+        "verdict": "NO_GAP_FOUND",
+        "gap_count": 0,
+        "gaps": []
+      }
+    },
+    {
+      "case_id": "large_567k",
+      "expected": "insufficient",
+      "facit": "neutral",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "a3_jev_calls": 397,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "UNDETERMINED",
+        "errors": [
+          "invalid anchor on gap_001",
+          "VERIFIED_GAP without valid anchor: gap_001"
+        ],
+        "verified_gap_ids": [],
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "gap_001",
+            "need_id": "research_1",
+            "missing": "Verified relevance and factual support for the need",
+            "observations": [
+              "Aggregation reports missing_or_weak: Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "coverage:missing_or_weak"
+            ]
+          }
+        ],
+        "latency_ms": 989.4413329893723,
+        "input_chars": 979,
+        "rationale": "The aggregation for need research_1 explicitly flags mandatory obligations (relevance, factual_support) as lacking verified evidence. No claim or pair objects are present that could serve as evidence anchors, so the gap is concrete and supported by the supplied metadata."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "expected": "insufficient",
+      "facit": "neutral",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "a3_jev_calls": 2,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "UNDETERMINED",
+        "errors": [
+          "invalid anchor on gap_1",
+          "VERIFIED_GAP without valid anchor: gap_1"
+        ],
+        "verified_gap_ids": [],
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "gap_1",
+            "need_id": "research_1",
+            "missing": "Verified factual support (evidence of judgments that have applied §36 avtalslagen) for the need’s answer",
+            "observations": [
+              "The aggregation reports “Mandatory obligations lack verified support: research_1:factual_support”, indicating insufficient evidence for the need",
+              "The two supplied claims (unknown-contra:p0:c0 and unknown-contra:p0:c1) do not provide any passages or citations of judgments applying §36 avtalslagen"
+            ],
+            "suggested_workflow": "aggregate_need",
+            "anchors": [
+              "coverage:missing_factual_support"
+            ]
+          }
+        ],
+        "latency_ms": 836.9518750114366,
+        "input_chars": 1279,
+        "rationale": "The supplied metadata explicitly flags a lack of verified factual support for need research_1, and the available claims do not address the queried legal applications. This concrete deficiency is confirmed by the aggregation entry, justifying a VERIFIED_GAP verdict."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "expected": "insufficient",
+      "facit": "neutral",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "a3_jev_calls": 49,
+      "contradiction_detected": true,
+      "evidence_coverage_complete": false,
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "verified_gap_ids": [
+          "gap_001"
+        ],
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "gap_001",
+            "need_id": "research_1",
+            "missing": "Complete evaluation of conflict‑candidate pairs (the conflict_candidate level is marked incomplete because many candidate pairs were omitted by budget).",
+            "observations": [
+              "Unresolved conflicts are listed in the aggregation (research_1:tail-claims:p0:c0|tail-claims:p7:c4 and research_1:tail-claims:p1:c11|tail-claims:p7:c4).",
+              "The coverage report marks the conflict_candidate level as \"incomplete\" with reason \"pair_budget_omitted\".",
+              "A large number of candidate pairs (15 717) were omitted by budget, leaving the conflict detection incomplete."
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "coverage:pair_budget_omitted"
+            ]
+          }
+        ],
+        "latency_ms": 625.6562090129592,
+        "input_chars": 11838,
+        "rationale": "The material explicitly indicates that the conflict‑candidate stage is incomplete due to budget‑driven omission of many pair candidates, and concrete contradictions remain unresolved. This constitutes a verifiable evidence gap that can be addressed by running the \"evaluate_passages\" workflow to generate the missing pair evaluations."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gap_count": 1,
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:uncompared_pairs",
+            "need_id": "research_1",
+            "missing": "candidate fact pairs were omitted by the pair budget",
+            "observations": [
+              "pair_budget_omitted"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "coverage:pair_budget_omitted"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

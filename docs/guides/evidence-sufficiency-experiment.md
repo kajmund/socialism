@@ -354,6 +354,46 @@ scripted A0-vs-A1 artifact `sufficiency-a1-route-authority-v1.json` records the
 three route scenarios with and without the authority switch; no live model is
 used.
 
+## B1 falsifiable gap hypotheses (shadow, 2026-10-23)
+
+B1 replaces the broad B0 report with four outcomes: `VERIFIED_GAP`,
+`SUSPECTED_GAP`, `NO_GAP_FOUND` and `UNDETERMINED`. Every gap names a `need`,
+what is missing, motivating observations, an allowlisted workflow and
+machine-checkable anchors (`claim:`, `pair:`, `coverage:`, `aggregation:`). The
+deterministic validator (`gap_contract.validate_gap_report`) rejects unknown
+needs/workflows/anchors and downgrades a broken `VERIFIED_GAP` to
+`UNDETERMINED`. A `NO_GAP_FOUND` never claims completeness, and a
+`SUSPECTED_GAP` has no execution path.
+
+Artifact: `tests/integration/baselines/b1-gap-hypotheses-v1.json` (one live
+run, `gpt-oss-120b`, 11 cases, 11 LLM calls, ~34 400 input characters, ~7.9 s
+gap latency, 1 153 A3 Jev calls). Facit: two positives (`late_evidence`,
+`missing_source_type`), five negatives (`short_sufficient`,
+`compatible_periods`, `compatible_entities`, `duplicate_contradiction`,
+`independent_contradiction`); four neutral cases are reported but excluded.
+
+| Detector | TP | FP | FN | TN | Precision | Recall |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Narrative B1 | 2 | 4 | 0 | 1 | 0.33 | 1.00 |
+| Deterministic metadata | 2 | 2 | 0 | 3 | 0.50 | 1.00 |
+
+Acceptance:
+
+| Criterion | Result |
+| --- | --- |
+| `late_evidence` identified | true (SUSPECTED_GAP) |
+| `short_sufficient` not VERIFIED_GAP | true (NO_GAP_FOUND) |
+| Every VERIFIED_GAP has valid anchors | **false** (2 of 10 invalid: invented `coverage:` anchors) |
+| SUSPECTED_GAP triggers no execution | true (no path) |
+| A3 verdict unchanged | true |
+
+The narrative detector matches the deterministic baseline on recall but is
+worse on precision, and the zero-LLM deterministic detector is better. B1 also
+flagged `duplicate_contradiction`/`independent_contradiction` as gaps even
+though the contradiction was already found. Before B2 the anchor discipline and
+negative gap cases must be hardened, and the narrative must beat the
+deterministic baseline rather than repeat its metadata.
+
 ## B0 narrative gap review (shadow, 2026-10-23)
 
 B0 instruments a bounded narrative gap review next to the unchanged A3 arm. It
