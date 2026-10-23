@@ -16,6 +16,9 @@ from time import perf_counter
 
 from app.services.knowledge.embeddings import EmbeddingProvider
 from app.services.research.models import ResearchNeed
+from app.services.research.sufficiency_experiment.prioritization import (
+    prioritize_pairs,
+)
 from app.services.research.sufficiency_experiment.types import (
     ClaimCandidate,
     ExperimentConfig,
@@ -269,3 +272,47 @@ def _cosine(left: Sequence[float], right: Sequence[float]) -> float:
     if left_norm == 0.0 or right_norm == 0.0:
         return 0.0
     return dot / (left_norm * right_norm)
+
+
+async def select_ordered_pairs(
+    claims: Sequence[ClaimCandidate],
+    needs: Sequence[ResearchNeed],
+    claims_by_id: Mapping[str, ClaimCandidate],
+    *,
+    strategy: PairStrategy,
+    ordering: str,
+    config: ExperimentConfig,
+    embedding_provider: EmbeddingProvider | None = None,
+) -> PairSelection:
+    """Select candidates, optionally re-rank them, then apply the same budget."""
+    selection = await select_pairs(
+        claims,
+        needs,
+        strategy=strategy,
+        config=config,
+        embedding_provider=embedding_provider,
+    )
+    if ordering == "current":
+        return selection
+    ranked = await prioritize_pairs(
+        selection.candidates, claims_by_id, ordering=ordering
+    )
+    per_need: dict[str, list[PairCandidate]] = {}
+    for pair in ranked:
+        per_need.setdefault(pair.need_id, []).append(pair)
+    selected = tuple(
+        pair
+        for rows in per_need.values()
+        for pair in rows[: config.max_pairs_per_need]
+    )
+    return PairSelection(
+        strategy=selection.strategy,
+        candidates=selection.candidates,
+        selected=selected,
+        budget=selection.budget,
+        omitted_by_budget=len(selection.candidates) - len(selected),
+        input_claims=selection.input_claims,
+        latency_ms=selection.latency_ms,
+        embedding_calls=selection.embedding_calls,
+        embedding_texts=selection.embedding_texts,
+    )

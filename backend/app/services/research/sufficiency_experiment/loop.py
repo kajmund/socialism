@@ -6,7 +6,6 @@ from collections.abc import Mapping, Sequence
 from time import perf_counter
 from typing import Any
 
-
 from app.jev.system import JevSystemOne
 from app.services.research.assessment import (
     AssessableEvidence,
@@ -46,7 +45,7 @@ from app.services.research.sufficiency_experiment.pair_eval import (
     merge_pair_conflicts,
     pair_coverage,
 )
-from app.services.research.sufficiency_experiment.pairs import select_pairs
+from app.services.research.sufficiency_experiment.pairs import select_ordered_pairs
 from app.services.research.sufficiency_experiment.quality import quality_gate
 from app.services.research.sufficiency_experiment.route import (
     decide_route,
@@ -80,7 +79,6 @@ from app.services.research.sufficiency_experiment.workflow import (
 )
 from app.swe.runtime import RunResult, WorkflowResources, WorkflowRunner
 from app.swe.runtime_dispatch import Handler
-
 
 class SufficiencyLoop:
     """One SWE run that judges a complete EvidenceSet."""
@@ -276,10 +274,12 @@ class SufficiencyLoop:
         if not self._config.pair_judgement or not self._claims:
             self._pair_coverage = pair_coverage(())
             return {"jobs": []}
-        selection = await select_pairs(
+        selection = await select_ordered_pairs(
             self._claims,
             self._plan.needs,
+            self._claims_by_id,
             strategy=self._config.pair_strategy,
+            ordering=self._config.pair_ordering,
             config=self._config,
             embedding_provider=self._embedding_provider,
         )

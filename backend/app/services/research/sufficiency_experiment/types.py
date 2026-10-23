@@ -68,6 +68,7 @@ class ExperimentConfig:
     max_pairs_per_need: int = 40
     embedding_neighbors: int = 3
     pair_strategy: PairStrategy = "deterministic"
+    pair_ordering: str = "current"
     route_authority: bool = True
     legacy_duplicate_resolution: bool = False
     pair_judgement: bool = True
