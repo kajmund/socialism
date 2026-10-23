@@ -13,7 +13,14 @@ from app.services.research.models import ResearchNeed, ResearchPlan
 from app.services.research.sufficiency_experiment.golden import GoldenCase
 
 
-def _case(case_id: str, expected: str, question: str, excerpts: tuple[str, ...]) -> GoldenCase:
+def _case(
+    case_id: str,
+    expected: str,
+    question: str,
+    excerpts: tuple[str, ...],
+    *,
+    provenance: tuple[dict[str, object], ...] | None = None,
+) -> GoldenCase:
     plan = ResearchPlan(
         needs=[
             ResearchNeed(
@@ -37,7 +44,7 @@ def _case(case_id: str, expected: str, question: str, excerpts: tuple[str, ...])
             source_url=None,
             provider="golden",
             score=1.0,
-            provenance={},
+            provenance=(provenance[index] if provenance else {}),
             retrieved_at=datetime(2026, 4, 1, tzinfo=UTC),
             content_hash=f"{case_id}-hash-{index}",
         )
@@ -167,5 +174,37 @@ def synonym_compatible_entity() -> GoldenCase:
         (
             "Hundar får vistas i parken enligt ordningsstadgan.",
             "Katter får vistas i parken enligt ordningsstadgan.",
+        ),
+    )
+
+
+def notice_compatible_periods() -> GoldenCase:
+    return _case(
+        "notice_compatible_periods",
+        "sufficient",
+        "Vilken uppsägningstid gäller?",
+        (
+            "Uppsägningstiden är tre månader för avtalet.",
+            "Uppsägningstiden är sex månader för avtalet.",
+        ),
+        provenance=(
+            {"valid_from": "2024-01-01", "valid_to": "2024-12-31", "entity_id": "avtal-period"},
+            {"valid_from": "2026-01-01", "valid_to": "2026-12-31", "entity_id": "avtal-period"},
+        ),
+    )
+
+
+def notice_compatible_entities() -> GoldenCase:
+    return _case(
+        "notice_compatible_entities",
+        "sufficient",
+        "Vilken uppsägningstid gäller?",
+        (
+            "Avtal A har tre månaders uppsägningstid.",
+            "Avtal B har sex månaders uppsägningstid.",
+        ),
+        provenance=(
+            {"entity_id": "avtal-a"},
+            {"entity_id": "avtal-b"},
         ),
     )
