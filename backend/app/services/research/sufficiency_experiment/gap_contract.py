@@ -53,6 +53,7 @@ def validate_gap_report(
     pair_ids: Sequence[str],
     coverage_reasons: Sequence[str],
     aggregation_ids: Sequence[str] = (),
+    available_anchors: dict[str, str] | None = None,
 ) -> GapValidation:
     known_need = set(need_ids)
     known_claim = set(claim_ids)
@@ -75,6 +76,8 @@ def validate_gap_report(
             coverage_reasons=known_reason,
             aggregation_ids=known_aggregation,
         )
+        if available_anchors is not None:
+            anchors_ok = _offered_anchors_ok(gap, available_anchors)
         if not anchors_ok:
             errors.append(f"invalid anchor on {gap.gap_id}")
         if report.verdict == "VERIFIED_GAP" and not anchors_ok:
@@ -143,6 +146,19 @@ def _coverage_reason(coverage: CoverageReport | None) -> str:
         return "not_measured"
     reasons = [reason for level in coverage.levels for reason in level.reasons]
     return reasons[0] if reasons else "none"
+
+
+def _offered_anchors_ok(
+    gap: GapHypothesis, available_anchors: dict[str, str]
+) -> bool:
+    if not gap.anchors:
+        return False
+    needs = []
+    for anchor in gap.anchors:
+        if anchor not in available_anchors:
+            return False
+        needs.append(available_anchors[anchor])
+    return any(need in {"", gap.need_id} for need in needs)
 
 
 def _anchors_valid(
