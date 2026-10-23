@@ -6,8 +6,10 @@ from collections.abc import Sequence
 
 from app.services.research.sufficiency_experiment.types import (
     CoverageReport,
+    ExperimentReport,
     NeedAggregation,
     PairEvaluation,
+    StopOutcome,
     StopShadow,
 )
 
@@ -60,4 +62,20 @@ def shadow_stop(
         coverage_complete=bool(coverage and coverage.gate_complete),
         blocking=False,
         risk="no_conflict_pair",
+    )
+
+
+def stop_outcome(report: ExperimentReport) -> StopOutcome:
+    existential = report.stop_mode == "existential"
+    skipped = sum(
+        1
+        for pair in report.pairs
+        if pair.status == "unevaluated" and pair.error == "stop_condition_met"
+    )
+    conflict = any(pair.verdict == "CONTRADICTS" for pair in report.pairs)
+    return StopOutcome(
+        goal="EXISTS_BLOCKING_CONFLICT" if existential else "EXHAUSTIVE",
+        result="CONFLICT_FOUND" if conflict else "NONE",
+        investigation_status="PARTIAL" if existential and skipped else "COMPLETE",
+        evidence_status="VERIFIED" if report.status == "sufficient" else "UNVERIFIED",
     )
