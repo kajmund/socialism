@@ -118,7 +118,9 @@ def dump_facit(cases: Sequence[FacitCase], path: Path, *, version: str) -> None:
     )
 
 
-def validate_facit(cases: Sequence[FacitCase]) -> FacitValidation:
+def validate_facit(
+    cases: Sequence[FacitCase], *, policy: str = "v2"
+) -> FacitValidation:
     errors: list[str] = []
     warnings: list[str] = []
     seen: set[str] = set()
@@ -126,12 +128,12 @@ def validate_facit(cases: Sequence[FacitCase]) -> FacitValidation:
         if case.case_id in seen:
             errors.append(f"duplicate case: {case.case_id}")
         seen.add(case.case_id)
-        _validate_case(case, errors, warnings)
+        _validate_case(case, errors, warnings, policy=policy)
     return FacitValidation(tuple(errors), tuple(warnings))
 
 
 def _validate_case(
-    case: FacitCase, errors: list[str], warnings: list[str]
+    case: FacitCase, errors: list[str], warnings: list[str], *, policy: str
 ) -> None:
     if case.status == "invalid" and not case.invalidation_reason:
         errors.append(f"invalid case lacks reason: {case.case_id}")
@@ -147,21 +149,39 @@ def _validate_case(
                 f"relation cites unknown evidence: {case.case_id} {sorted(unknown)}"
             )
     if case.expected_decision == "sufficient" and case.status == "valid":
-        _validate_sufficient(case, errors)
+        _validate_sufficient(case, errors, warnings, policy=policy)
     if case.review.independent_review_required:
         warnings.append(f"independent review pending: {case.case_id}")
     if case.status == "diagnostic":
         warnings.append(f"diagnostic case excluded from accuracy: {case.case_id}")
 
 
-def _validate_sufficient(case: FacitCase, errors: list[str]) -> None:
+def _validate_sufficient(
+    case: FacitCase,
+    errors: list[str],
+    warnings: list[str],
+    *,
+    policy: str,
+) -> None:
     relevant = [item for item in case.evidence if item.expected_relevance]
     if not relevant:
         errors.append(f"sufficient case has no relevant evidence: {case.case_id}")
     elif not any(
         lexical_related(case.plan_question, item.excerpt) for item in relevant
     ):
-        errors.append(f"sufficient case evidence is off-topic: {case.case_id}")
+        if policy == "v2":
+            errors.append(f"sufficient case evidence is off-topic: {case.case_id}")
+        elif all(item.provenance for item in relevant) and any(
+            relation.relation in {"supportive", "compatible_scope", "compatible_entity"}
+            for relation in case.relations
+        ):
+            warnings.append(
+                f"low lexical relation, independent review required: {case.case_id}"
+            )
+        else:
+            errors.append(
+                f"sufficient case evidence is off-topic and unverified: {case.case_id}"
+            )
     if not any(
         relation.relation in {"supportive", "compatible_scope", "compatible_entity"}
         for relation in case.relations

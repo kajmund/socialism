@@ -377,6 +377,16 @@ measurement on a small, well-known test material; it is not evidence of general
 decision quality. New unseen questions and contracts are required before any
 production claim.
 
+### v2b: low lexical relation is a review signal
+
+`validate_facit(policy="v2b")` keeps v2 history unchanged but changes the
+off-topic rule: a valid sufficient case with low lexical relation and verified
+provenance plus a supportive/compatible relation gets
+`independent_review_required` as a warning instead of automatic invalidity. A
+case without provenance stays invalid. This avoids filtering out genuinely
+relevant low-overlap material while keeping independent review mandatory.
+Artifact: `facit-qa-v2b.json`.
+
 ## Early stop: exhaustive vs existential (2026-10-23)
 
 Two execution modes under the D configuration, two live reps:
