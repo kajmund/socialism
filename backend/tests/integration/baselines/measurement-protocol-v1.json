@@ -1,0 +1,182 @@
+{
+  "protocol": "evidence-sufficiency-arm-comparison",
+  "version": 1,
+  "locked_at": "2026-10-23",
+  "status": "pre_registered",
+  "principle": "A technical failure must never count as successful contradiction detection.",
+  "frozen_a0": {
+    "artifact": "backend/tests/integration/baselines/sufficiency-a0-freeze-v1.json",
+    "raw": [
+      "backend/tests/integration/baselines/sufficiency-a0-freeze-rep1-raw.json",
+      "backend/tests/integration/baselines/sufficiency-a0-freeze-rep2-raw.json"
+    ],
+    "commit": "b55eae13",
+    "untouched": true,
+    "role": "historical baseline and operational reference; not the paired A0 reference"
+  },
+  "arms": {
+    "A0": {
+      "description": "PR #422/#426 behaviour",
+      "prerequisite": null,
+      "paired_reference": "new run under this protocol, frozen artifact untouched"
+    },
+    "A1": {
+      "description": "route authority",
+      "prerequisite": "ticket-13 implementation and tests"
+    },
+    "A2": {
+      "description": "typed conflict records, no duplicate-based resolution",
+      "prerequisite": null
+    },
+    "A3": {
+      "description": "A2 plus Jev fact-pair judgement",
+      "prerequisite": null,
+      "pair_strategy": "deterministic"
+    }
+  },
+  "arm_order": ["A0", "A2", "A3", "A1"],
+  "variant_b": {
+    "included": false,
+    "condition": "after the A3 decision"
+  },
+  "case_set": {
+    "a0": [
+      "tail_counterevidence",
+      "late_evidence",
+      "large_567k",
+      "short_sufficient"
+    ],
+    "conflict": [
+      "duplicate_contradiction",
+      "independent_contradiction",
+      "compatible_periods",
+      "compatible_entities",
+      "unknown_counterpart"
+    ],
+    "tail_claims": ["tail_claim_contradiction"]
+  },
+  "runs": {
+    "paired_reference": "same evidence, questions and call order per arm, replayed from a Jev cassette",
+    "live_repetitions": 2,
+    "live_rule": "independent live runs for operational stability; never replaces the paired reference"
+  },
+  "cassette": {
+    "key": ["questions_sha256", "state_sha256", "model"],
+    "order": "strict per arm",
+    "missing_entry": "error",
+    "new_calls": "A2/A3 calls without a matching entry run live and are labelled"
+  },
+  "semantic_quality": {
+    "population": "clean runs only",
+    "clean": "every required model judgement for that decision completed; no timeout, invalid answer or budget omission affected it",
+    "excluded": "technical failures are excluded from numerator and denominator and reported separately",
+    "metrics": [
+      "accuracy",
+      "false_sufficient",
+      "false_insufficient",
+      "confusion",
+      "true_positive_conflicts",
+      "false_contradictions"
+    ]
+  },
+  "operational_quality": {
+    "population": "all independent live repetitions",
+    "metrics": [
+      "raw_accuracy",
+      "operational_success (correct and no technical failure)",
+      "technical_failure_rate",
+      "sufficient_on_failed_call",
+      "verdict_stability_across_reps"
+    ],
+    "rule": "no sufficient verdict may depend on a failed call"
+  },
+  "coverage": {
+    "execute_vs_semantic": {
+      "execution": "all selected work handled; deterministic process control",
+      "semantic": "evidence that relevant contradictions were not missed; requires a facit or a verifiable strategy",
+      "without_facit": "semantic coverage is not_measured, never complete"
+    },
+    "pair_states": [
+      "not_selected: candidate ranking excluded the pair",
+      "budget_omitted: selected as candidate but did not fit the budget",
+      "unevaluated: selected for Jev but could not be judged"
+    ],
+    "budget": {
+      "max_pairs_per_need": 40,
+      "raise_for_green_numbers": false,
+      "note": "prove candidate filtering keeps decisive contradictions before raising the budget"
+    }
+  },
+  "cost": {
+    "report": [
+      "jev_calls",
+      "jev_input_chars",
+      "embedding_calls",
+      "llm_calls",
+      "latency_ms",
+      "jev_latency_ms",
+      "cost_per_detected_contradiction",
+      "cost_per_correct_decision"
+    ],
+    "hard_cap": null,
+    "rule": "cost is reported next to quality; no arm may win on quality alone without its cost"
+  },
+  "pass_fail": {
+    "semantic": [
+      {
+        "id": "a1_route_uncertain_never_sufficient",
+        "arm": "A1",
+        "assert": "quality PASS + route final_outcome uncertain is never sufficient"
+      },
+      {
+        "id": "a2_duplicate_never_resolves",
+        "arm": "A2",
+        "assert": "a forced 0.95 contradiction stays unresolved at duplicate 0.89"
+      },
+      {
+        "id": "a3_traps_not_sufficient",
+        "arm": "A3",
+        "assert": "tail_counterevidence, late_evidence and independent_contradiction are not sufficient in clean runs"
+      },
+      {
+        "id": "a3_controls_unchanged",
+        "arm": "A3",
+        "assert": "short_sufficient stays sufficient; compatible_periods/compatible_entities are not false contradictions"
+      },
+      {
+        "id": "a3_false_sufficient_not_worse_than_a0",
+        "arm": "A3",
+        "assert": "clean false-sufficient rate <= clean A0 reference"
+      },
+      {
+        "id": "a3_budget_unchanged",
+        "arm": "A3",
+        "assert": "max_pairs_per_need stays 40"
+      }
+    ],
+    "operational": [
+      {
+        "id": "no_silent_success_on_failure",
+        "assert": "sufficient_on_failed_call == 0 for every arm"
+      },
+      {
+        "id": "failures_visible",
+        "assert": "technical_failure_rate is reported and every failed call is traceable"
+      },
+      {
+        "id": "verdict_stability",
+        "assert": "a verdict difference across live reps is explained by a recorded technical failure"
+      },
+      {
+        "id": "no_hidden_fallback",
+        "assert": "no alternate model, retry policy or degraded mode appears in an arm"
+      }
+    ]
+  },
+  "artifacts": {
+    "protocol": "backend/tests/integration/baselines/measurement-protocol-v1.json",
+    "document": "docs/architecture/evidence-sufficiency-measurement-protocol.md",
+    "arm_run_pattern": "backend/tests/integration/baselines/arm-<arm>-<date>.json",
+    "cassette_pattern": "backend/tests/integration/baselines/jev-cassette-<hash>.json"
+  }
+}
