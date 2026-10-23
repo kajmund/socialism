@@ -70,6 +70,7 @@ def record_decision(
         if current.status == "active" and current.answer == answer:
             return current
         if current.status == "active":
+            _revoke_derived_anchors(catalog, current.id, scope)
             _archive_revision(catalog, current, scope)
         revision = current.revision + 1
     payload = VerificationWrite(
@@ -118,7 +119,17 @@ def revoke_verification(
         status="revoked",
         decided_at_ms=current.decided_at_ms,
     )
-    return _from_row(_write_verification(catalog, payload, scope))
+    revoked = _from_row(_write_verification(catalog, payload, scope))
+    _revoke_derived_anchors(catalog, revoked.id, scope)
+    return revoked
+
+
+def _revoke_derived_anchors(
+    catalog: Catalog, verification_id: str, scope: KnowledgeTenantScope,
+) -> None:
+    from app.services.clause_ssr.anchors import revoke_anchors_for_verification
+
+    revoke_anchors_for_verification(catalog, verification_id, scope=scope)
 
 
 def get_verification(catalog: Catalog, verification_id: str) -> Verification:

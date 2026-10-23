@@ -53,6 +53,9 @@ def promote_anchor(
     if existing is not None:
         current = _from_row(existing)
         if current.status not in {"revoked", "source_revoked"}:
+            if not _verification_is_valid(get_verification(catalog, verification.id), polarity):
+                revoke_anchor(catalog, current.id, scope=scope, status="revoked")
+                raise ValueError("verification is no longer active")
             return current
     unit = require_node(catalog, TEXT_UNIT, verification.source_unit_id)
     vector = _unit_vector(unit, embedding)
@@ -76,6 +79,10 @@ def promote_anchor(
         row = require_node(catalog, ANCHOR, key)
     link(catalog, row, require_node(catalog, VERIFICATION, verification.id), label=DERIVED_FROM)
     link(catalog, row, unit, label=REPRESENTS)
+    fresh = get_verification(catalog, verification.id)
+    if not _verification_is_valid(fresh, polarity):
+        revoke_anchor(catalog, row.key, scope=scope, status="revoked")
+        raise ValueError("verification is no longer active")
     return _from_row(row)
 
 
@@ -226,4 +233,42 @@ def _from_row(row: GraphRecord) -> Anchor:
             "reviewer_id": prop_str(row, "reviewer_id"),
             "question": prop_str(row, "question"),
         },
+    )
+
+
+def anchor_is_matchable(catalog: Catalog, anchor: Anchor) -> bool:
+    """Read-side guard: never match an anchor whose verification is invalid."""
+    try:
+        verification = get_verification(catalog, anchor.verification_id)
+    except KeyError:
+        return False
+    return verification.status == "active" and _verification_is_valid(
+        verification, anchor.polarity
+    )
+
+
+def revoke_anchors_for_verification(
+    catalog: Catalog,
+    verification_id: str,
+    *,
+    scope: KnowledgeTenantScope,
+) -> int:
+    """Cheap cascade: revoke derived anchors without rebuilding anchor sets."""
+    changed = 0
+    for row in find_by_prop(catalog, ANCHOR, "verification_id", verification_id):
+        item = _from_row(row)
+        if item.scope_key != scope.scope_key:
+            continue
+        if item.status in {"revoked", "source_revoked"}:
+            continue
+        revoke_anchor(catalog, item.id, scope=scope, status="revoked")
+        changed += 1
+    return changed
+
+
+def _verification_is_valid(verification: Verification, polarity: Polarity) -> bool:
+    return (
+        verification.status == "active"
+        and verification.answer in LABEL_ANSWERS
+        and verification.polarity == polarity
     )
