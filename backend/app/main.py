@@ -8,6 +8,7 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.api import (
     catalog,
+    clause_ssr,
     configurations,
     embeddings,
     execution,
@@ -188,6 +189,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(voice_workspaces.router)
     app.include_router(document_ingest_batches.router)
     app.include_router(document_properties.router)
+    app.include_router(clause_ssr.router)
     app.include_router(voice_workspace_inbox.router)
     app.include_router(workspace_exports.router)
     app.include_router(workspace_conversations.router)
