@@ -1,0 +1,198 @@
+{
+  "measurement": "support_on_topic",
+  "note": "Same compatible pair logic but the plan question now matches the evidence topic.",
+  "rows": [
+    {
+      "case_id": "notice_compatible_periods",
+      "rep": 0,
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "status": "sufficient",
+      "diagnostics": {
+        "reasons": [
+          "SUFFICIENT"
+        ],
+        "unique_conflicts": []
+      },
+      "quality_reasons": [],
+      "screening": [
+        {
+          "evidence_id": "notice_compatible_periods-0",
+          "relevance": 0.98,
+          "support": 0.98,
+          "contradiction": 0.06
+        },
+        {
+          "evidence_id": "notice_compatible_periods-1",
+          "relevance": 0.98,
+          "support": 0.97,
+          "contradiction": 0.06
+        }
+      ],
+      "obligations": [
+        {
+          "kind": "relevance",
+          "verified": true,
+          "independent_support": 2
+        },
+        {
+          "kind": "factual_support",
+          "verified": true,
+          "independent_support": 2
+        },
+        {
+          "kind": "completeness",
+          "verified": true,
+          "independent_support": 2
+        }
+      ],
+      "pair_verdicts": [
+        "SCOPE_DIFFERENCE"
+      ]
+    },
+    {
+      "case_id": "notice_compatible_periods",
+      "rep": 1,
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "status": "sufficient",
+      "diagnostics": {
+        "reasons": [
+          "SUFFICIENT"
+        ],
+        "unique_conflicts": []
+      },
+      "quality_reasons": [],
+      "screening": [
+        {
+          "evidence_id": "notice_compatible_periods-1",
+          "relevance": 0.98,
+          "support": 0.97,
+          "contradiction": 0.06
+        },
+        {
+          "evidence_id": "notice_compatible_periods-0",
+          "relevance": 0.99,
+          "support": 0.97,
+          "contradiction": 0.06
+        }
+      ],
+      "obligations": [
+        {
+          "kind": "relevance",
+          "verified": true,
+          "independent_support": 2
+        },
+        {
+          "kind": "factual_support",
+          "verified": true,
+          "independent_support": 2
+        },
+        {
+          "kind": "completeness",
+          "verified": true,
+          "independent_support": 2
+        }
+      ],
+      "pair_verdicts": [
+        "SCOPE_DIFFERENCE"
+      ]
+    },
+    {
+      "case_id": "notice_compatible_entities",
+      "rep": 0,
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "status": "sufficient",
+      "diagnostics": {
+        "reasons": [
+          "SUFFICIENT"
+        ],
+        "unique_conflicts": []
+      },
+      "quality_reasons": [],
+      "screening": [
+        {
+          "evidence_id": "notice_compatible_entities-1",
+          "relevance": 0.95,
+          "support": 0.84,
+          "contradiction": 0.07
+        },
+        {
+          "evidence_id": "notice_compatible_entities-0",
+          "relevance": 0.96,
+          "support": 0.91,
+          "contradiction": 0.06
+        }
+      ],
+      "obligations": [
+        {
+          "kind": "relevance",
+          "verified": true,
+          "independent_support": 2
+        },
+        {
+          "kind": "factual_support",
+          "verified": true,
+          "independent_support": 2
+        },
+        {
+          "kind": "completeness",
+          "verified": true,
+          "independent_support": 2
+        }
+      ],
+      "pair_verdicts": [
+        "SCOPE_DIFFERENCE"
+      ]
+    },
+    {
+      "case_id": "notice_compatible_entities",
+      "rep": 1,
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "status": "sufficient",
+      "diagnostics": {
+        "reasons": [
+          "SUFFICIENT"
+        ],
+        "unique_conflicts": []
+      },
+      "quality_reasons": [],
+      "screening": [
+        {
+          "evidence_id": "notice_compatible_entities-1",
+          "relevance": 0.95,
+          "support": 0.81,
+          "contradiction": 0.07
+        },
+        {
+          "evidence_id": "notice_compatible_entities-0",
+          "relevance": 0.97,
+          "support": 0.93,
+          "contradiction": 0.06
+        }
+      ],
+      "obligations": [
+        {
+          "kind": "relevance",
+          "verified": true,
+          "independent_support": 2
+        },
+        {
+          "kind": "factual_support",
+          "verified": true,
+          "independent_support": 2
+        },
+        {
+          "kind": "completeness",
+          "verified": true,
+          "independent_support": 2
+        }
+      ],
+      "pair_verdicts": [
+        "SCOPE_DIFFERENCE"
+      ]
+    }
+  ]
+}

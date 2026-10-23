@@ -381,9 +381,24 @@ judgement correctly reports a scope difference, but the relevance and factual
 support obligations never verify, so the compatible cases fail closed. The
 `narrative_unbound` status is deliberately not counted as a technical failure.
 
-Next: investigate the support obligations for these cases (ticket 28). The
-separate stop-condition question — verified conflict versus full conflict
-mapping — stays out of the decision semantics until that is measured.
+### Ticket 28 root cause: the four fixtures were off-topic
+
+Tracing the stages showed no support-transfer or aggregation bug. The original
+compatible fixtures use the plan question "Vilka avgöranden har tillämpat 36 §
+avtalslagen?" while their evidence is about `uppsägningstid`. Screening runs on
+both passages and returns relevance 0.07–0.11 and support 0.05–0.10, so the
+obligations correctly stay unverified. `SCOPE_DIFFERENCE` only says the two
+passages do not contradict each other in the compared context; it does not prove
+relevance or factual support. The four `insufficient` decisions were correct for
+that plan.
+
+Rebuilding the same compatible pairs with the on-topic question "Vilken
+uppsägningstid gäller?" and period/entity provenance gives `sufficient` in all
+four live repetitions with `SUFFICIENT`, verified relevance/factual support and
+no unresolved conflict. No support-engine code or threshold was changed; the
+old fixtures are treated as invalid facit for this question, and the on-topic
+fixtures are kept separately (`support-on-topic-v1.json`). The separate
+stop-condition question remains for ticket 29.
 
 ## B4c factorial: generation × ranking (2026-10-23)
 
