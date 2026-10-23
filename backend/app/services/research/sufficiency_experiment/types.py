@@ -20,6 +20,7 @@ PairStrategy = Literal["deterministic", "embeddings", "hybrid"]
 PairVerdict = Literal["CONTRADICTS", "COMPATIBLE", "SCOPE_DIFFERENCE", "INSUFFICIENT"]
 PairEvaluationStatus = Literal["judged", "uncertain", "unevaluated"]
 CoverageStatus = Literal["complete", "incomplete", "not_measured", "not_applicable"]
+GapVerdict = Literal["VERIFIED_GAP", "SUSPECTED_GAP", "NO_GAP_FOUND", "UNDETERMINED"]
 CoverageControl = Literal[
     "provided_evidenceset",
     "character_cover",
@@ -251,6 +252,16 @@ class CoverageReport:
 
 
 @dataclass(frozen=True)
+class GapHypothesis:
+    gap_id: str
+    need_id: str
+    missing: str
+    observations: tuple[str, ...]
+    suggested_workflow: str
+    anchors: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class NarrativeGapReport:
     needs_more_evidence: bool
     missing_evidence: tuple[str, ...]
@@ -262,6 +273,9 @@ class NarrativeGapReport:
     input_chars: int = 0
     model: str | None = None
     error: str | None = None
+    verdict: GapVerdict | None = None
+    gaps: tuple[GapHypothesis, ...] = ()
+    validation_error: str | None = None
 
 
 @dataclass(frozen=True)

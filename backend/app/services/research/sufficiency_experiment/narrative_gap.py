@@ -157,6 +157,9 @@ async def run_gap_review(
         latency_ms=(perf_counter() - started) * 1000,
         input_chars=len(encoded),
         model=report.model,
+        verdict=report.verdict,
+        gaps=tuple(report.gaps),
+        validation_error=report.validation_error,
     )
 
 
