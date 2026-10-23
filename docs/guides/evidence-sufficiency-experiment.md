@@ -265,6 +265,35 @@ summed Jev latency exceeds wall time because calls run concurrently
 Default `pair_strategy` is `deterministic`; embeddings and hybrid need an
 injected embedding provider. No live model is used in CI.
 
+## Coverage (five levels)
+
+Coverage is reported per level with an explicit control. The levels are never
+collapsed into one percentage: 100 % passage coverage can still miss a
+contradiction that candidate generation never proposed.
+
+| Level | Question | Control | `complete` requires |
+| ----- | -------- | ------- | ------------------- |
+| `ingestion` | Was the whole source material ingested? | provided EvidenceSet | no `found` item with an empty excerpt (upstream ingestion marked `not_measured`) |
+| `passage` | Were all relevant passages judged? | character cover | judged chars == source chars |
+| `claim` | Were all claim candidates handled? | candidate status | no `unprocessed`; `uncertain` is reported separately |
+| `conflict_candidate` | Were mandatory fact pairs proposed and judged? | process (+ facit) | no omitted-by-budget and no unevaluated; with a bound facit also no missing facit pair |
+| `narrative` | How much did the narrative model review? | none yet | `not_applicable` before Variant B |
+
+Process levels gate `sufficient`. The conflict level has a process control and,
+when a benchmark facit is bound (`bind_pair_facit`, experiment-only), a facit
+control as well: a pair that was never generated is invisible to a job counter
+and can only fail the facit control. Without a facit the level reports
+`not_measured` and only the process control gates. Narrative is
+`not_applicable` until Variant B.
+
+The pair-judgement workflow timing in `pair-judgement-v1.json` shows the
+distinction: on `tail_claim_contradiction` the facit pair was judged, but
+15 717 candidate pairs were omitted by the 40-pair budget, so the conflict
+level is `incomplete` (`pair_budget_omitted`) and `coverage_incomplete` blocks
+`sufficient`. On the small cases the conflict level is `complete` with facit.
+This is deliberately fail-closed: a large underlag cannot claim coverage merely
+because every generated job finished.
+
 ## Package
 
 `app.services.research.sufficiency_experiment` — not imported by

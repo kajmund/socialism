@@ -22,6 +22,9 @@ from app.services.research.sufficiency_experiment.aggregate import aggregate_pla
 from app.services.research.sufficiency_experiment.claims import (
     extract_claim_candidates,
 )
+from app.services.research.sufficiency_experiment.coverage import (
+    build_coverage_report,
+)
 from app.services.research.sufficiency_experiment.emit import draft_from_aggregations
 from app.services.research.sufficiency_experiment.jev_eval import (
     evaluate_job,
@@ -48,6 +51,7 @@ from app.services.research.sufficiency_experiment.segment import segment_evidenc
 from app.services.research.sufficiency_experiment.types import (
     ClaimCandidate,
     ClaimCoverage,
+    CoverageReport,
     EvidencePassage,
     ExperimentConfig,
     ExperimentReport,
@@ -57,6 +61,8 @@ from app.services.research.sufficiency_experiment.types import (
     PairCandidate,
     PairCoverage,
     PairEvaluation,
+    PairFacit,
+    PairSelection,
     PassageEvaluation,
     QualityDecision,
     RouteDecision,
@@ -104,6 +110,9 @@ class SufficiencyLoop:
         self._pair_candidates: dict[str, PairCandidate] = {}
         self._pair_evaluations: list[PairEvaluation] = []
         self._pair_coverage: PairCoverage | None = None
+        self._pair_selection: PairSelection | None = None
+        self._pair_facit: PairFacit | None = None
+        self._coverage_report: CoverageReport | None = None
         self._aggregations: tuple[NeedAggregation, ...] = ()
         self._quality: QualityDecision | None = None
         self._route: RouteDecision | None = None
@@ -133,6 +142,9 @@ class SufficiencyLoop:
 
     def bind_embedding_provider(self, provider: EmbeddingProvider | None) -> None:
         self._embedding_provider = provider
+
+    def bind_pair_facit(self, facit: PairFacit | None) -> None:
+        self._pair_facit = facit
 
     async def run(self, *, run_id: str | None = None) -> RunResult:
         runner = WorkflowRunner(
@@ -258,6 +270,7 @@ class SufficiencyLoop:
             config=self._config,
             embedding_provider=self._embedding_provider,
         )
+        self._pair_selection = selection
         self._pair_candidates = {
             pair.pair_id: pair for pair in selection.selected
         }
@@ -297,6 +310,15 @@ class SufficiencyLoop:
                 evidence_by_id=self._evidence_by_id(),
             )
         )
+        self._coverage_report = build_coverage_report(
+            evidence=self._evidence,
+            source_chars=self._source_chars,
+            judged_chars=self._judged_chars,
+            claim_coverage=self._claim_coverage,
+            pair_selection=self._pair_selection,
+            pair_evaluations=self._pair_evaluations,
+            pair_facit=self._pair_facit,
+        )
         self._quality = quality_gate(
             self._aggregations,
             GateInputs(
@@ -309,6 +331,7 @@ class SufficiencyLoop:
                     self._claim_coverage and not self._claim_coverage.complete
                 ),
                 pair_coverage_incomplete=not coverage.complete,
+                coverage_incomplete=not self._coverage_report.gate_complete,
             ),
             self._config,
         )
@@ -430,4 +453,5 @@ class SufficiencyLoop:
             claim_coverage=self._claim_coverage,
             pairs=tuple(self._pair_evaluations),
             pair_coverage=self._pair_coverage,
+            coverage_report=self._coverage_report,
         )

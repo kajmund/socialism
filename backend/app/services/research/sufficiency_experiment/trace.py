@@ -50,6 +50,9 @@ def case_trace(
         "claim_coverage": (
             asdict(report.claim_coverage) if report.claim_coverage else None
         ),
+        "coverage_report": (
+            asdict(report.coverage_report) if report.coverage_report else None
+        ),
         "claims_extracted": [
             asdict(item)
             for item in report.claims

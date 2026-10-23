@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from time import perf_counter
 
@@ -35,6 +35,7 @@ from app.services.research.sufficiency_experiment.segment import segment_evidenc
 from app.services.research.sufficiency_experiment.types import (
     ExperimentConfig,
     PairEvaluation,
+    PairFacit,
 )
 
 DEFAULT_GOLD = Path("tests/integration/baselines/pair-gold-v1.json")
@@ -206,6 +207,16 @@ async def _workflow_timing(
     for entry in gold["cases"]:
         case = cases[entry["case_id"]]
         loop = SufficiencyLoop(case.plan, case.evidence, client=client, config=loop_config)
+        loop.bind_pair_facit(
+            PairFacit(
+                candidate_pairs=tuple(
+                    "|".join(sorted(pair)) for pair in entry["candidate_pairs"]
+                ),
+                contradiction_pairs=tuple(
+                    "|".join(sorted(pair)) for pair in entry["contradiction_pairs"]
+                ),
+            )
+        )
         await loop.run()
         report = loop.report
         if report is None:
@@ -222,6 +233,15 @@ async def _workflow_timing(
                 "jev_calls": report.jev_calls,
                 "passage_calls": len(report.evaluations),
                 "pair_calls": len(report.pairs),
+                "draft_result": report.draft.result,
+                "coverage_gate_complete": (
+                    report.coverage_report.gate_complete
+                    if report.coverage_report
+                    else None
+                ),
+                "coverage": (
+                    asdict(report.coverage_report) if report.coverage_report else None
+                ),
             }
         )
     return rows

@@ -16,10 +16,10 @@
       "mean_precision": 1.0,
       "false_contradictions": 0,
       "uncertain": 0,
-      "unevaluated": 1,
+      "unevaluated": 0,
       "calls": 88,
-      "jev_latency_ms": 33999.485,
-      "mean_total_ms": 1072.7721,
+      "jev_latency_ms": 29892.51,
+      "mean_total_ms": 653.1567,
       "embedding_calls": 0
     },
     "embeddings": {
@@ -30,8 +30,8 @@
       "uncertain": 0,
       "unevaluated": 0,
       "calls": 96,
-      "jev_latency_ms": 27072.172,
-      "mean_total_ms": 2386.053,
+      "jev_latency_ms": 27675.642,
+      "mean_total_ms": 2200.1698,
       "embedding_calls": 10
     },
     "hybrid": {
@@ -42,65 +42,805 @@
       "uncertain": 0,
       "unevaluated": 0,
       "calls": 96,
-      "jev_latency_ms": 26670.323,
-      "mean_total_ms": 1999.9235,
+      "jev_latency_ms": 28971.924,
+      "mean_total_ms": 2022.4554,
       "embedding_calls": 10
     }
   },
   "workflow_timing": [
     {
       "case_id": "duplicate_contradiction",
-      "total_ms": 748.342,
-      "jev_latency_ms": 739.069,
-      "orchestration_ms": 9.273,
+      "total_ms": 739.482,
+      "jev_latency_ms": 695.013,
+      "orchestration_ms": 44.469,
       "jev_calls": 4,
       "passage_calls": 2,
-      "pair_calls": 1
+      "pair_calls": 1,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": true,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                2
+              ],
+              [
+                "found_with_excerpt",
+                2
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                155
+              ],
+              [
+                "judged_chars",
+                155
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                3
+              ],
+              [
+                "extracted",
+                3
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "complete",
+            "control": "process_and_facit",
+            "counts": [
+              [
+                "selected",
+                1
+              ],
+              [
+                "judged",
+                1
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                0
+              ],
+              [
+                "facit_expected",
+                1
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
     },
     {
       "case_id": "independent_contradiction",
-      "total_ms": 649.204,
-      "jev_latency_ms": 667.959,
+      "total_ms": 723.477,
+      "jev_latency_ms": 779.443,
       "orchestration_ms": 0.0,
       "jev_calls": 4,
       "passage_calls": 2,
-      "pair_calls": 1
+      "pair_calls": 1,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": true,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                2
+              ],
+              [
+                "found_with_excerpt",
+                2
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                151
+              ],
+              [
+                "judged_chars",
+                151
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                3
+              ],
+              [
+                "extracted",
+                3
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "complete",
+            "control": "process_and_facit",
+            "counts": [
+              [
+                "selected",
+                1
+              ],
+              [
+                "judged",
+                1
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                0
+              ],
+              [
+                "facit_expected",
+                1
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
     },
     {
       "case_id": "compatible_periods",
-      "total_ms": 703.425,
-      "jev_latency_ms": 701.778,
-      "orchestration_ms": 1.646,
+      "total_ms": 795.072,
+      "jev_latency_ms": 783.616,
+      "orchestration_ms": 11.456,
       "jev_calls": 4,
       "passage_calls": 2,
-      "pair_calls": 1
+      "pair_calls": 1,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": true,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                2
+              ],
+              [
+                "found_with_excerpt",
+                2
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                88
+              ],
+              [
+                "judged_chars",
+                88
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                2
+              ],
+              [
+                "extracted",
+                2
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "complete",
+            "control": "process_and_facit",
+            "counts": [
+              [
+                "selected",
+                1
+              ],
+              [
+                "judged",
+                1
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                0
+              ],
+              [
+                "facit_expected",
+                1
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
     },
     {
       "case_id": "compatible_entities",
-      "total_ms": 718.789,
-      "jev_latency_ms": 678.64,
-      "orchestration_ms": 40.148,
+      "total_ms": 681.15,
+      "jev_latency_ms": 667.081,
+      "orchestration_ms": 14.068,
       "jev_calls": 4,
       "passage_calls": 2,
-      "pair_calls": 1
+      "pair_calls": 1,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": true,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                2
+              ],
+              [
+                "found_with_excerpt",
+                2
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                80
+              ],
+              [
+                "judged_chars",
+                80
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                2
+              ],
+              [
+                "extracted",
+                2
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "complete",
+            "control": "process_and_facit",
+            "counts": [
+              [
+                "selected",
+                1
+              ],
+              [
+                "judged",
+                1
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                0
+              ],
+              [
+                "facit_expected",
+                1
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
     },
     {
       "case_id": "tail_claim_contradiction",
-      "total_ms": 2344.936,
-      "jev_latency_ms": 14122.947,
+      "total_ms": 2296.221,
+      "jev_latency_ms": 14023.006,
       "orchestration_ms": 0.0,
       "jev_calls": 49,
       "passage_calls": 8,
-      "pair_calls": 40
+      "pair_calls": 40,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": false,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                1
+              ],
+              [
+                "found_with_excerpt",
+                1
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                10693
+              ],
+              [
+                "judged_chars",
+                10693
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                180
+              ],
+              [
+                "extracted",
+                180
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "incomplete",
+            "control": "process_and_facit",
+            "counts": [
+              [
+                "selected",
+                40
+              ],
+              [
+                "judged",
+                40
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                15717
+              ],
+              [
+                "facit_expected",
+                1
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [
+              "pair_budget_omitted"
+            ],
+            "note": "",
+            "gate_complete": false
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
     },
     {
       "case_id": "unknown_counterpart",
-      "total_ms": 416.568,
-      "jev_latency_ms": 202.312,
-      "orchestration_ms": 214.256,
+      "total_ms": 457.905,
+      "jev_latency_ms": 203.924,
+      "orchestration_ms": 253.982,
       "jev_calls": 2,
       "passage_calls": 1,
-      "pair_calls": 0
+      "pair_calls": 0,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": true,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                1
+              ],
+              [
+                "found_with_excerpt",
+                1
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                89
+              ],
+              [
+                "judged_chars",
+                89
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                2
+              ],
+              [
+                "extracted",
+                2
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "not_applicable",
+            "control": "process",
+            "counts": [
+              [
+                "selected",
+                0
+              ],
+              [
+                "judged",
+                0
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                0
+              ],
+              [
+                "facit_expected",
+                0
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "No claim pair exists for this EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
     }
   ],
   "cases": [
@@ -111,9 +851,9 @@
         {
           "rep": 0,
           "strategy": "deterministic",
-          "selection_ms": 0.14,
-          "evaluation_ms": 278.201,
-          "total_ms": 278.341,
+          "selection_ms": 0.119,
+          "evaluation_ms": 318.858,
+          "total_ms": 318.977,
           "selected_pairs": 1,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -148,7 +888,7 @@
             "recall": 1.0,
             "precision": 1.0,
             "calls": 1,
-            "jev_latency_ms": 278.031,
+            "jev_latency_ms": 318.718,
             "max_state_chars": 793,
             "models": [
               "jev-1.14.0"
@@ -158,9 +898,9 @@
         {
           "rep": 0,
           "strategy": "embeddings",
-          "selection_ms": 2176.444,
-          "evaluation_ms": 242.242,
-          "total_ms": 2418.686,
+          "selection_ms": 708.597,
+          "evaluation_ms": 256.806,
+          "total_ms": 965.404,
           "selected_pairs": 3,
           "embedding_calls": 1,
           "embedding_texts": 3,
@@ -198,7 +938,7 @@
             "recall": 1.0,
             "precision": 0.5,
             "calls": 3,
-            "jev_latency_ms": 656.073,
+            "jev_latency_ms": 673.518,
             "max_state_chars": 793,
             "models": [
               "jev-1.14.0"
@@ -208,9 +948,9 @@
         {
           "rep": 0,
           "strategy": "hybrid",
-          "selection_ms": 2.14,
-          "evaluation_ms": 284.279,
-          "total_ms": 286.419,
+          "selection_ms": 1.602,
+          "evaluation_ms": 271.802,
+          "total_ms": 273.404,
           "selected_pairs": 3,
           "embedding_calls": 1,
           "embedding_texts": 3,
@@ -248,7 +988,7 @@
             "recall": 1.0,
             "precision": 0.5,
             "calls": 3,
-            "jev_latency_ms": 770.431,
+            "jev_latency_ms": 742.596,
             "max_state_chars": 793,
             "models": [
               "jev-1.14.0"
@@ -258,9 +998,9 @@
         {
           "rep": 1,
           "strategy": "deterministic",
-          "selection_ms": 0.078,
-          "evaluation_ms": 229.114,
-          "total_ms": 229.192,
+          "selection_ms": 0.06,
+          "evaluation_ms": 226.694,
+          "total_ms": 226.754,
           "selected_pairs": 1,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -295,7 +1035,7 @@
             "recall": 1.0,
             "precision": 1.0,
             "calls": 1,
-            "jev_latency_ms": 228.965,
+            "jev_latency_ms": 226.577,
             "max_state_chars": 793,
             "models": [
               "jev-1.14.0"
@@ -305,9 +1045,9 @@
         {
           "rep": 1,
           "strategy": "embeddings",
-          "selection_ms": 1.464,
-          "evaluation_ms": 300.035,
-          "total_ms": 301.499,
+          "selection_ms": 1.448,
+          "evaluation_ms": 302.638,
+          "total_ms": 304.086,
           "selected_pairs": 3,
           "embedding_calls": 1,
           "embedding_texts": 3,
@@ -345,7 +1085,7 @@
             "recall": 1.0,
             "precision": 0.5,
             "calls": 3,
-            "jev_latency_ms": 795.737,
+            "jev_latency_ms": 717.218,
             "max_state_chars": 793,
             "models": [
               "jev-1.14.0"
@@ -355,9 +1095,9 @@
         {
           "rep": 1,
           "strategy": "hybrid",
-          "selection_ms": 1.445,
-          "evaluation_ms": 262.085,
-          "total_ms": 263.53,
+          "selection_ms": 3.4,
+          "evaluation_ms": 315.496,
+          "total_ms": 318.896,
           "selected_pairs": 3,
           "embedding_calls": 1,
           "embedding_texts": 3,
@@ -395,7 +1135,7 @@
             "recall": 1.0,
             "precision": 0.5,
             "calls": 3,
-            "jev_latency_ms": 702.501,
+            "jev_latency_ms": 801.65,
             "max_state_chars": 793,
             "models": [
               "jev-1.14.0"
@@ -411,9 +1151,9 @@
         {
           "rep": 0,
           "strategy": "deterministic",
-          "selection_ms": 0.059,
-          "evaluation_ms": 220.444,
-          "total_ms": 220.503,
+          "selection_ms": 0.064,
+          "evaluation_ms": 228.942,
+          "total_ms": 229.007,
           "selected_pairs": 1,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -448,7 +1188,7 @@
             "recall": 1.0,
             "precision": 1.0,
             "calls": 1,
-            "jev_latency_ms": 220.313,
+            "jev_latency_ms": 228.797,
             "max_state_chars": 789,
             "models": [
               "jev-1.14.0"
@@ -458,9 +1198,9 @@
         {
           "rep": 0,
           "strategy": "embeddings",
-          "selection_ms": 287.429,
-          "evaluation_ms": 282.279,
-          "total_ms": 569.708,
+          "selection_ms": 379.055,
+          "evaluation_ms": 322.477,
+          "total_ms": 701.532,
           "selected_pairs": 3,
           "embedding_calls": 1,
           "embedding_texts": 3,
@@ -498,7 +1238,7 @@
             "recall": 1.0,
             "precision": 0.5,
             "calls": 3,
-            "jev_latency_ms": 749.103,
+            "jev_latency_ms": 798.031,
             "max_state_chars": 789,
             "models": [
               "jev-1.14.0"
@@ -508,9 +1248,9 @@
         {
           "rep": 0,
           "strategy": "hybrid",
-          "selection_ms": 2.942,
-          "evaluation_ms": 265.272,
-          "total_ms": 268.213,
+          "selection_ms": 1.514,
+          "evaluation_ms": 271.232,
+          "total_ms": 272.746,
           "selected_pairs": 3,
           "embedding_calls": 1,
           "embedding_texts": 3,
@@ -548,7 +1288,7 @@
             "recall": 1.0,
             "precision": 0.5,
             "calls": 3,
-            "jev_latency_ms": 716.21,
+            "jev_latency_ms": 736.254,
             "max_state_chars": 789,
             "models": [
               "jev-1.14.0"
@@ -558,9 +1298,9 @@
         {
           "rep": 1,
           "strategy": "deterministic",
-          "selection_ms": 0.241,
-          "evaluation_ms": 203.04,
-          "total_ms": 203.281,
+          "selection_ms": 0.058,
+          "evaluation_ms": 197.337,
+          "total_ms": 197.395,
           "selected_pairs": 1,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -595,7 +1335,7 @@
             "recall": 1.0,
             "precision": 1.0,
             "calls": 1,
-            "jev_latency_ms": 202.865,
+            "jev_latency_ms": 197.224,
             "max_state_chars": 789,
             "models": [
               "jev-1.14.0"
@@ -605,9 +1345,9 @@
         {
           "rep": 1,
           "strategy": "embeddings",
-          "selection_ms": 1.43,
-          "evaluation_ms": 257.759,
-          "total_ms": 259.19,
+          "selection_ms": 1.399,
+          "evaluation_ms": 270.442,
+          "total_ms": 271.842,
           "selected_pairs": 3,
           "embedding_calls": 1,
           "embedding_texts": 3,
@@ -645,7 +1385,7 @@
             "recall": 1.0,
             "precision": 0.5,
             "calls": 3,
-            "jev_latency_ms": 684.161,
+            "jev_latency_ms": 716.578,
             "max_state_chars": 789,
             "models": [
               "jev-1.14.0"
@@ -655,9 +1395,9 @@
         {
           "rep": 1,
           "strategy": "hybrid",
-          "selection_ms": 1.471,
-          "evaluation_ms": 279.342,
-          "total_ms": 280.813,
+          "selection_ms": 1.432,
+          "evaluation_ms": 303.471,
+          "total_ms": 304.903,
           "selected_pairs": 3,
           "embedding_calls": 1,
           "embedding_texts": 3,
@@ -695,7 +1435,7 @@
             "recall": 1.0,
             "precision": 0.5,
             "calls": 3,
-            "jev_latency_ms": 752.463,
+            "jev_latency_ms": 796.608,
             "max_state_chars": 789,
             "models": [
               "jev-1.14.0"
@@ -711,9 +1451,9 @@
         {
           "rep": 0,
           "strategy": "deterministic",
-          "selection_ms": 0.067,
-          "evaluation_ms": 242.977,
-          "total_ms": 243.044,
+          "selection_ms": 0.044,
+          "evaluation_ms": 234.621,
+          "total_ms": 234.665,
           "selected_pairs": 1,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -744,7 +1484,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 242.842,
+            "jev_latency_ms": 234.517,
             "max_state_chars": 742,
             "models": [
               "jev-1.14.0"
@@ -754,9 +1494,9 @@
         {
           "rep": 0,
           "strategy": "embeddings",
-          "selection_ms": 741.836,
-          "evaluation_ms": 200.027,
-          "total_ms": 941.863,
+          "selection_ms": 266.068,
+          "evaluation_ms": 203.715,
+          "total_ms": 469.783,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -787,7 +1527,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 199.849,
+            "jev_latency_ms": 203.595,
             "max_state_chars": 742,
             "models": [
               "jev-1.14.0"
@@ -797,9 +1537,9 @@
         {
           "rep": 0,
           "strategy": "hybrid",
-          "selection_ms": 0.545,
-          "evaluation_ms": 217.761,
-          "total_ms": 218.306,
+          "selection_ms": 0.589,
+          "evaluation_ms": 197.288,
+          "total_ms": 197.877,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -830,7 +1570,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 216.889,
+            "jev_latency_ms": 197.099,
             "max_state_chars": 742,
             "models": [
               "jev-1.14.0"
@@ -840,9 +1580,9 @@
         {
           "rep": 1,
           "strategy": "deterministic",
-          "selection_ms": 0.118,
-          "evaluation_ms": 204.162,
-          "total_ms": 204.281,
+          "selection_ms": 0.058,
+          "evaluation_ms": 232.365,
+          "total_ms": 232.423,
           "selected_pairs": 1,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -873,7 +1613,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 203.813,
+            "jev_latency_ms": 232.242,
             "max_state_chars": 742,
             "models": [
               "jev-1.14.0"
@@ -883,9 +1623,9 @@
         {
           "rep": 1,
           "strategy": "embeddings",
-          "selection_ms": 0.564,
-          "evaluation_ms": 209.013,
-          "total_ms": 209.577,
+          "selection_ms": 0.641,
+          "evaluation_ms": 201.924,
+          "total_ms": 202.565,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -916,7 +1656,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 208.886,
+            "jev_latency_ms": 201.634,
             "max_state_chars": 742,
             "models": [
               "jev-1.14.0"
@@ -926,9 +1666,9 @@
         {
           "rep": 1,
           "strategy": "hybrid",
-          "selection_ms": 0.638,
-          "evaluation_ms": 218.349,
-          "total_ms": 218.987,
+          "selection_ms": 0.645,
+          "evaluation_ms": 229.956,
+          "total_ms": 230.6,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -959,7 +1699,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 218.177,
+            "jev_latency_ms": 229.802,
             "max_state_chars": 742,
             "models": [
               "jev-1.14.0"
@@ -975,9 +1715,9 @@
         {
           "rep": 0,
           "strategy": "deterministic",
-          "selection_ms": 0.045,
-          "evaluation_ms": 216.553,
-          "total_ms": 216.598,
+          "selection_ms": 0.042,
+          "evaluation_ms": 234.769,
+          "total_ms": 234.811,
           "selected_pairs": 1,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -1008,7 +1748,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 216.424,
+            "jev_latency_ms": 234.669,
             "max_state_chars": 668,
             "models": [
               "jev-1.14.0"
@@ -1018,9 +1758,9 @@
         {
           "rep": 0,
           "strategy": "embeddings",
-          "selection_ms": 272.894,
-          "evaluation_ms": 192.03,
-          "total_ms": 464.924,
+          "selection_ms": 232.788,
+          "evaluation_ms": 205.367,
+          "total_ms": 438.156,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -1051,7 +1791,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 191.896,
+            "jev_latency_ms": 205.229,
             "max_state_chars": 668,
             "models": [
               "jev-1.14.0"
@@ -1061,9 +1801,9 @@
         {
           "rep": 0,
           "strategy": "hybrid",
-          "selection_ms": 0.547,
-          "evaluation_ms": 221.545,
-          "total_ms": 222.092,
+          "selection_ms": 0.532,
+          "evaluation_ms": 241.755,
+          "total_ms": 242.287,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -1094,7 +1834,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 221.419,
+            "jev_latency_ms": 241.617,
             "max_state_chars": 668,
             "models": [
               "jev-1.14.0"
@@ -1104,9 +1844,9 @@
         {
           "rep": 1,
           "strategy": "deterministic",
-          "selection_ms": 0.051,
-          "evaluation_ms": 235.302,
-          "total_ms": 235.353,
+          "selection_ms": 0.06,
+          "evaluation_ms": 207.133,
+          "total_ms": 207.193,
           "selected_pairs": 1,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -1137,7 +1877,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 235.189,
+            "jev_latency_ms": 206.986,
             "max_state_chars": 668,
             "models": [
               "jev-1.14.0"
@@ -1147,9 +1887,9 @@
         {
           "rep": 1,
           "strategy": "embeddings",
-          "selection_ms": 0.514,
-          "evaluation_ms": 227.081,
-          "total_ms": 227.595,
+          "selection_ms": 0.579,
+          "evaluation_ms": 202.395,
+          "total_ms": 202.974,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -1180,7 +1920,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 226.961,
+            "jev_latency_ms": 202.26,
             "max_state_chars": 668,
             "models": [
               "jev-1.14.0"
@@ -1190,9 +1930,9 @@
         {
           "rep": 1,
           "strategy": "hybrid",
-          "selection_ms": 0.543,
-          "evaluation_ms": 205.554,
-          "total_ms": 206.097,
+          "selection_ms": 0.551,
+          "evaluation_ms": 222.987,
+          "total_ms": 223.539,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -1223,7 +1963,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 205.435,
+            "jev_latency_ms": 222.824,
             "max_state_chars": 668,
             "models": [
               "jev-1.14.0"
@@ -1239,18 +1979,18 @@
         {
           "rep": 0,
           "strategy": "deterministic",
-          "selection_ms": 151.002,
-          "evaluation_ms": 6407.346,
-          "total_ms": 6558.349,
+          "selection_ms": 151.677,
+          "evaluation_ms": 1639.933,
+          "total_ms": 1791.609,
           "selected_pairs": 40,
           "embedding_calls": 0,
           "embedding_texts": 0,
           "coverage": {
             "total": 40,
-            "judged": 39,
+            "judged": 40,
             "uncertain": 0,
-            "unevaluated": 1,
-            "complete": false
+            "unevaluated": 0,
+            "complete": true
           },
           "metrics": {
             "facit_candidate_pairs": [
@@ -1259,15 +1999,13 @@
             "facit_contradiction_pairs": [
               "tail-claims:p0:c0|tail-claims:p7:c4"
             ],
-            "judged": 39,
+            "judged": 40,
             "uncertain": 0,
-            "unevaluated": 1,
-            "unevaluated_reasons": [
-              "timeout"
-            ],
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
             "verdicts": {
               "CONTRADICTS": 1,
-              "COMPATIBLE": 38,
+              "COMPATIBLE": 39,
               "SCOPE_DIFFERENCE": 0,
               "INSUFFICIENT": 0
             },
@@ -1278,7 +2016,7 @@
             "recall": 1.0,
             "precision": 1.0,
             "calls": 40,
-            "jev_latency_ms": 16776.6,
+            "jev_latency_ms": 11676.188,
             "max_state_chars": 3614,
             "models": [
               "jev-1.14.0"
@@ -1288,9 +2026,9 @@
         {
           "rep": 0,
           "strategy": "embeddings",
-          "selection_ms": 7937.911,
-          "evaluation_ms": 1644.209,
-          "total_ms": 9582.12,
+          "selection_ms": 7943.018,
+          "evaluation_ms": 1637.595,
+          "total_ms": 9580.613,
           "selected_pairs": 40,
           "embedding_calls": 1,
           "embedding_texts": 180,
@@ -1323,7 +2061,7 @@
             "recall": 0.0,
             "precision": null,
             "calls": 40,
-            "jev_latency_ms": 11879.885,
+            "jev_latency_ms": 12110.462,
             "max_state_chars": 3642,
             "models": [
               "jev-1.14.0"
@@ -1333,9 +2071,9 @@
         {
           "rep": 0,
           "strategy": "hybrid",
-          "selection_ms": 7441.903,
-          "evaluation_ms": 1529.149,
-          "total_ms": 8971.051,
+          "selection_ms": 7358.702,
+          "evaluation_ms": 1737.95,
+          "total_ms": 9096.652,
           "selected_pairs": 40,
           "embedding_calls": 1,
           "embedding_texts": 180,
@@ -1370,7 +2108,7 @@
             "recall": 1.0,
             "precision": 1.0,
             "calls": 40,
-            "jev_latency_ms": 11056.418,
+            "jev_latency_ms": 12753.477,
             "max_state_chars": 3642,
             "models": [
               "jev-1.14.0"
@@ -1380,9 +2118,9 @@
         {
           "rep": 1,
           "strategy": "deterministic",
-          "selection_ms": 80.933,
-          "evaluation_ms": 2257.845,
-          "total_ms": 2338.779,
+          "selection_ms": 89.266,
+          "evaluation_ms": 2769.467,
+          "total_ms": 2858.733,
           "selected_pairs": 40,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -1417,7 +2155,7 @@
             "recall": 1.0,
             "precision": 1.0,
             "calls": 40,
-            "jev_latency_ms": 15394.443,
+            "jev_latency_ms": 16336.592,
             "max_state_chars": 3614,
             "models": [
               "jev-1.14.0"
@@ -1427,9 +2165,9 @@
         {
           "rep": 1,
           "strategy": "embeddings",
-          "selection_ms": 7331.847,
-          "evaluation_ms": 1553.521,
-          "total_ms": 8885.368,
+          "selection_ms": 7266.028,
+          "evaluation_ms": 1598.715,
+          "total_ms": 8864.743,
           "selected_pairs": 40,
           "embedding_calls": 1,
           "embedding_texts": 180,
@@ -1462,7 +2200,7 @@
             "recall": 0.0,
             "precision": null,
             "calls": 40,
-            "jev_latency_ms": 11479.621,
+            "jev_latency_ms": 11847.117,
             "max_state_chars": 3642,
             "models": [
               "jev-1.14.0"
@@ -1472,9 +2210,9 @@
         {
           "rep": 1,
           "strategy": "hybrid",
-          "selection_ms": 7456.384,
-          "evaluation_ms": 1607.344,
-          "total_ms": 9063.727,
+          "selection_ms": 7382.669,
+          "evaluation_ms": 1680.981,
+          "total_ms": 9063.65,
           "selected_pairs": 40,
           "embedding_calls": 1,
           "embedding_texts": 180,
@@ -1509,7 +2247,7 @@
             "recall": 1.0,
             "precision": 1.0,
             "calls": 40,
-            "jev_latency_ms": 11810.38,
+            "jev_latency_ms": 12249.997,
             "max_state_chars": 3642,
             "models": [
               "jev-1.14.0"
@@ -1525,9 +2263,9 @@
         {
           "rep": 0,
           "strategy": "deterministic",
-          "selection_ms": 2.395,
-          "evaluation_ms": 0.034,
-          "total_ms": 2.429,
+          "selection_ms": 2.572,
+          "evaluation_ms": 0.032,
+          "total_ms": 2.603,
           "selected_pairs": 0,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -1564,9 +2302,9 @@
         {
           "rep": 0,
           "strategy": "embeddings",
-          "selection_ms": 239.812,
-          "evaluation_ms": 238.31,
-          "total_ms": 478.121,
+          "selection_ms": 243.585,
+          "evaluation_ms": 244.131,
+          "total_ms": 487.716,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -1595,7 +2333,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 238.198,
+            "jev_latency_ms": 243.918,
             "max_state_chars": 812,
             "models": [
               "jev-1.14.0"
@@ -1605,9 +2343,9 @@
         {
           "rep": 0,
           "strategy": "hybrid",
-          "selection_ms": 0.542,
-          "evaluation_ms": 186.779,
-          "total_ms": 187.321,
+          "selection_ms": 0.545,
+          "evaluation_ms": 239.648,
+          "total_ms": 240.193,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -1636,7 +2374,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 186.363,
+            "jev_latency_ms": 239.522,
             "max_state_chars": 812,
             "models": [
               "jev-1.14.0"
@@ -1646,9 +2384,9 @@
         {
           "rep": 1,
           "strategy": "deterministic",
-          "selection_ms": 1.6,
-          "evaluation_ms": 0.018,
-          "total_ms": 1.618,
+          "selection_ms": 0.042,
+          "evaluation_ms": 0.009,
+          "total_ms": 0.051,
           "selected_pairs": 0,
           "embedding_calls": 0,
           "embedding_texts": 0,
@@ -1685,9 +2423,9 @@
         {
           "rep": 1,
           "strategy": "embeddings",
-          "selection_ms": 0.618,
-          "evaluation_ms": 216.974,
-          "total_ms": 217.592,
+          "selection_ms": 0.512,
+          "evaluation_ms": 253.293,
+          "total_ms": 253.805,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -1716,7 +2454,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 216.772,
+            "jev_latency_ms": 253.17,
             "max_state_chars": 812,
             "models": [
               "jev-1.14.0"
@@ -1726,9 +2464,9 @@
         {
           "rep": 1,
           "strategy": "hybrid",
-          "selection_ms": 0.576,
-          "evaluation_ms": 250.794,
-          "total_ms": 251.371,
+          "selection_ms": 0.608,
+          "evaluation_ms": 212.232,
+          "total_ms": 212.84,
           "selected_pairs": 1,
           "embedding_calls": 1,
           "embedding_texts": 2,
@@ -1757,7 +2495,7 @@
             "recall": null,
             "precision": null,
             "calls": 1,
-            "jev_latency_ms": 250.633,
+            "jev_latency_ms": 212.108,
             "max_state_chars": 812,
             "models": [
               "jev-1.14.0"

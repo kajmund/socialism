@@ -19,6 +19,15 @@ ClaimExtractionStatus = Literal["extracted", "uncertain", "unprocessed"]
 PairStrategy = Literal["deterministic", "embeddings", "hybrid"]
 PairVerdict = Literal["CONTRADICTS", "COMPATIBLE", "SCOPE_DIFFERENCE", "INSUFFICIENT"]
 PairEvaluationStatus = Literal["judged", "uncertain", "unevaluated"]
+CoverageStatus = Literal["complete", "incomplete", "not_measured", "not_applicable"]
+CoverageControl = Literal[
+    "provided_evidenceset",
+    "character_cover",
+    "candidate_status",
+    "process",
+    "process_and_facit",
+    "none",
+]
 ConflictReasonKind = Literal["temporal", "entity", "definition", "superseding"]
 RouteChoice = Literal["FINISH", "RUN_SUBWORKFLOW", "ESCALATE_NARRATIVE", "UNCERTAIN"]
 ROUTE_CHOICES: tuple[RouteChoice, ...] = (
@@ -207,6 +216,35 @@ class PairEvaluation:
 
 
 @dataclass(frozen=True)
+class PairFacit:
+    candidate_pairs: tuple[str, ...] = ()
+    contradiction_pairs: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class CoverageLevel:
+    level: str
+    status: CoverageStatus
+    control: CoverageControl
+    counts: tuple[tuple[str, int], ...] = ()
+    reasons: tuple[str, ...] = ()
+    note: str = ""
+    gate_complete: bool = True
+
+
+@dataclass(frozen=True)
+class CoverageReport:
+    levels: tuple[CoverageLevel, ...]
+
+    @property
+    def gate_complete(self) -> bool:
+        return all(level.gate_complete for level in self.levels)
+
+    def level(self, name: str) -> CoverageLevel | None:
+        return next((level for level in self.levels if level.level == name), None)
+
+
+@dataclass(frozen=True)
 class PairCoverage:
     total: int
     judged: int
@@ -252,6 +290,7 @@ class GateInputs:
     narrative_rounds: int = 0
     claim_coverage_incomplete: bool = False
     pair_coverage_incomplete: bool = False
+    coverage_incomplete: bool = False
 
 
 @dataclass(frozen=True)
@@ -310,6 +349,7 @@ class ExperimentReport:
     claim_coverage: ClaimCoverage | None = None
     pairs: tuple[PairEvaluation, ...] = ()
     pair_coverage: PairCoverage | None = None
+    coverage_report: CoverageReport | None = None
 
     @property
     def coverage(self) -> float:
