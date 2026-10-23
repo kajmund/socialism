@@ -1,0 +1,15 @@
+{
+  "version": "v2b",
+  "facit": "tests/integration/baselines/golden-facit-v2.json",
+  "cases": 25,
+  "valid": 22,
+  "invalid": 2,
+  "diagnostic": 1,
+  "policy": "v2b",
+  "errors": [],
+  "warnings": [
+    "diagnostic case excluded from accuracy: large_567k",
+    "independent review pending: notice_compatible_periods",
+    "independent review pending: notice_compatible_entities"
+  ]
+}

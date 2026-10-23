@@ -11,14 +11,28 @@ from app.services.research.sufficiency_experiment.facit_qa import (
 )
 
 
-def _case(case_id: str, question: str, excerpt: str, *, decision: str = "sufficient") -> FacitCase:
+def _case(
+    case_id: str,
+    question: str,
+    excerpt: str,
+    *,
+    decision: str = "sufficient",
+    provenance: dict[str, object] | None = None,
+) -> FacitCase:
     return FacitCase(
         case_id=case_id,
         version="v2",
         status="valid",
         plan_question=question,
         expected_decision=decision,
-        evidence=(FacitEvidence(evidence_id="e1", excerpt=excerpt, status="found"),),
+        evidence=(
+            FacitEvidence(
+                evidence_id="e1",
+                excerpt=excerpt,
+                status="found",
+                provenance=provenance or {},
+            ),
+        ),
         relations=(FacitRelation(evidence_ids=("e1",), relation="supportive"),),
         rationale="test",
         review=FacitReview(method="deterministic", reviewed_by="agent"),
@@ -61,3 +75,25 @@ def test_jev_based_review_is_rejected() -> None:
     )
     validation = validate_facit((case,))
     assert any("reuse Jev" in error for error in validation.errors)
+
+
+def test_v2b_low_lexical_with_provenance_warns() -> None:
+    case = _case(
+        "low-lexical",
+        "Vilka avgöranden har tillämpat 36 § avtalslagen?",
+        "Uppsägningstiden är tre månader för avtalet.",
+        provenance={"entity_id": "avtal-a"},
+    )
+    validation = validate_facit((case,), policy="v2b")
+    assert not validation.errors
+    assert any("independent review required" in warning for warning in validation.warnings)
+
+
+def test_v2b_low_lexical_without_provenance_is_still_invalid() -> None:
+    case = _case(
+        "low-lexical-no-provenance",
+        "Vilka avgöranden har tillämpat 36 § avtalslagen?",
+        "Uppsägningstiden är tre månader för avtalet.",
+    )
+    validation = validate_facit((case,), policy="v2b")
+    assert any("off-topic" in error for error in validation.errors)

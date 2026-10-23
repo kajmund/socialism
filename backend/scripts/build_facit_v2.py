@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 from app.services.research.sufficiency_experiment.facit_qa import (
@@ -113,18 +114,21 @@ def main() -> int:
         for case_id in SPECS
         if case_id in cases
     )
-    validation = validate_facit(facit)
+    policy = "v2b" if "--policy-v2b" in sys.argv else "v2"
+    qa_path = QA.with_name("facit-qa-v2b.json") if policy == "v2b" else QA
+    validation = validate_facit(facit, policy=policy)
     dump_facit(facit, OUT, version="v2")
-    QA.write_text(
+    qa_path.write_text(
         json.dumps(
             {
-                "version": "v2",
+                "version": "v2b" if policy == "v2b" else "v2",
                 "facit": str(OUT),
                 "cases": len(facit),
                 "valid": sum(case.status == "valid" for case in facit),
                 "invalid": sum(case.status == "invalid" for case in facit),
                 "diagnostic": sum(case.status == "diagnostic" for case in facit),
-                "errors": list(validation.errors),
+                "policy": policy,
+            "errors": list(validation.errors),
                 "warnings": list(validation.warnings),
             },
             ensure_ascii=False,
@@ -133,7 +137,7 @@ def main() -> int:
         encoding="utf-8",
     )
     print(json.dumps({"errors": validation.errors, "warnings": validation.warnings}, indent=2))
-    print(f"wrote {OUT} and {QA}")
+    print(f"wrote {OUT} and {qa_path}")
     return 1 if validation.errors else 0
 
 
