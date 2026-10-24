@@ -208,6 +208,13 @@ def _entity_key(catalog: Catalog, proposed: NodeInput, key: str | None) -> str:
 
 
 def persist_research_fact(catalog: Catalog, proposed: ResearchFactWrite) -> GraphFactView:
+    """Legacy direct write; live research paths go through the owner.
+
+    Production answer publication uses ``owner_facts.publish_answer_via_owner``
+    and decomposition uses ``write_fact_via_owner``. This helper has no app
+    caller and only remains for older engine tests until ticket 51 removes the
+    direct write surface.
+    """
     source_key = _entity_key(catalog, proposed.source, proposed.source_key)
     target_key = _entity_key(catalog, proposed.target, proposed.target_key)
     upsert_text_unit(catalog, proposed.unit)
