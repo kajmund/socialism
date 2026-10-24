@@ -360,6 +360,21 @@ async def api_build_set(body: BuildSetWrite) -> dict:
     return set_json(item)
 
 
+@router.post("/anchors/mark-stale")
+async def api_mark_stale(customer_id: int | None = Query(default=None)) -> dict:
+    scope = _scope(customer_id)
+    try:
+        repository = ClauseRepository(get_owner_runtime().require_client())
+        changed = await repository.mark_stale_embeddings(
+            scope=scope, expected=catalog_embedding(_catalog()),
+        )
+    except OwnerUnavailable as exc:
+        raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
+    except (PermissionError, KeyError, ValueError) as exc:
+        raise _http(exc) from exc
+    return {"changed": changed}
+
+
 @router.get("/anchor-sets")
 async def api_list_sets(customer_id: int | None = Query(default=None)) -> dict:
     catalog = _catalog()
