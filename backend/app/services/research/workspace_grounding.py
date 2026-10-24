@@ -69,8 +69,15 @@ async def basis_workspace_allowed(
                 ids = [*ids, metadata["text_unit_id"]]
             if not ids:
                 return False
-            catalog = knowledge_catalog()
-            units = await catalog.run(load_text_units, catalog, list(set(ids)))
+            from app.services.overgraph.owner_runtime import get_owner_runtime
+            from app.services.overgraph.research_owner import load_text_units_via_owner
+
+            client = get_owner_runtime().client
+            if client is not None:
+                units = await load_text_units_via_owner(client, list(set(ids)))
+            else:
+                catalog = knowledge_catalog()
+                units = await catalog.run(load_text_units, catalog, list(set(ids)))
             if any(unit is None or unit.document_version_id != version_id for unit in units):
                 return False
             if not await passages_allowed(session, units, context):

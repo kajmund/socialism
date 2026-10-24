@@ -1,0 +1,67 @@
+# Owner graph reuse and hybrid retrieval
+
+Status: implemented and verified in PR #432. The owner executes the existing
+vector/hybrid search; the backend only hydrates the bounded candidate list and
+applies the unchanged research filters/ranking.
+
+## Migration
+
+- `lookup_candidates` (used by graph reuse and shared graph) branches to owner
+  reads when an owner is configured:
+  - `graph_has_supported_facts` reads the scope index marker through the owner;
+  - `question_facts` resolves the question through the owner and reads
+    `DEPENDS_ON` neighbours;
+  - `search_research_facts` calls the owner `hybrid_search` operation;
+  - `neighbourhood_facts` reads seed entities and their `SUBJECT`/`OBJECT`
+    neighbours through the owner;
+  - merging/`setdefault` order is unchanged.
+- `grounded_fact_evidence` loads supporting TextUnits through the owner, and
+  `passages_allowed` resolves basis TextUnit ids through the owner.
+- The owner `hybrid_search` operation runs the same per-kind scoped top-k merge
+  as `retrieval.hybrid_search` and returns only the top `limit` hits. The full
+  corpus is never transported. The implementation lives in the owner process so
+  a read request does not import the research package (avoiding an owner
+  process import cycle); a parity test keeps the two rankings identical.
+
+## Quality
+
+`backend/tests/test_owner_retrieval_parity.py` seeds identical direct and owner
+catalogs, then compares every fact id and score for four golden vector queries.
+Owner and direct results are identical, so recall/NDCG cannot regress through
+the transport change.
+
+`backend/scripts/benchmark_owner_retrieval.py` on a synthetic golden corpus
+(1 000 facts, 10 groups, 10 relevant per group):
+
+| Metric | Owner | Local catalog |
+| --- | ---: | ---: |
+| Recall@20 | 1.0 | 1.0 |
+| Recall@50 | 1.0 | 1.0 |
+| NDCG@20 | 1.0 | 1.0 |
+| p50 latency | 0.81 ms | 0.40 ms |
+| p95 latency | 1.00 ms | 0.68 ms |
+| Owner read ops per query | 2 | — |
+| Owner socket bytes per query | 7.9 KB | — |
+
+Under eight tight retrieval loops, a mutation's p50 went from 1.36 ms to
+2.89 ms and p95 from 5.19 ms to 137.7 ms. That is real owner-event-loop
+contention and is the next scaling question for many parallel SWE workflows;
+it is not hidden by the benchmark.
+
+The two-backend harness now also proves cross-process retrieval: A writes a fact
+through the production owner writer, B runs `lookup_candidates` through its
+owner path and finds it, with zero local knowledge-catalog opens.
+
+## Scope limits / remaining
+
+- **Tantivy result search is not migrated.** `hybrid_fact_hits` (RRF of Tantivy
+  lexical and dense OverGraph hits) and `find_completed_research` still use a
+  local catalog; owner mode fails those paths closed. Tantivy is still a derived
+  index, not a new authoritative source.
+- `document_find` hybrid search and other direct `retrieval.hybrid_search`
+  callers are not migrated.
+- The scope-index marker (`research-index:*`) is still written by the legacy
+  direct/legal publish paths. Owner-written facts that should enable graph reuse
+  must mark that index atomically in the owner write path (a separate
+  write-path slice).
+- No retrieval algorithm, scoring, filter or ranking constant was changed.

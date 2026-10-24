@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.services.overgraph.catalogs import Catalog
+from app.services.overgraph.labels import FACT, TEXT_UNIT, visible_scope_keys
 
 
 def node_payload(row: Any, *, include_vectors: bool) -> dict[str, Any]:
@@ -125,8 +126,50 @@ def _neighbors_handler(
     return _neighbors(payload, catalog)
 
 
+def _hybrid_search(
+    payload: dict[str, Any], catalog: Catalog, catalog_id: str,
+) -> dict[str, Any]:
+    """Same per-kind scoped top-k merge as retrieval.hybrid_search.
+
+    Kept local to the owner so a read request does not import the research
+    package (that would create an import cycle in the standalone owner process).
+    Ranking parity is covered by test_owner_retrieval_parity.
+    """
+    customer_id = payload.get("customer_id")
+    visible = set(visible_scope_keys(customer_id))
+    limit = max(1, min(int(payload.get("limit", 20)), 200))
+    sparse_query = payload.get("sparse_query")
+    mode = "hybrid" if sparse_query is not None else "dense"
+    merged: dict[str, dict[str, Any]] = {}
+    for kind in (FACT, TEXT_UNIT):
+        for engine_id, score in catalog.scoped_type_search(
+            kind=kind, customer_id=customer_id, k=limit,
+            dense_query=list(payload["dense_query"]), mode=mode,
+            sparse_query=sparse_query,
+        ):
+            row = catalog.get(engine_id)
+            if row is None or str(row.props.get("scope_key") or "") not in visible:
+                continue
+            hit_kind = "fact" if FACT in row.labels else "text_unit"
+            previous = merged.get(row.key)
+            if previous is None or score > previous["score"]:
+                merged[row.key] = {
+                    "key": row.key,
+                    "kind": hit_kind,
+                    "score": float(score),
+                    "scope_key": str(row.props.get("scope_key") or ""),
+                    "text": str(row.props.get("fact_text") or row.props.get("text") or ""),
+                    "props": dict(row.props),
+                    "hop": 0,
+                    "id": row.engine_id,
+                }
+    rows = sorted(merged.values(), key=lambda item: item["score"], reverse=True)[:limit]
+    return {"ok": True, "hits": rows, "catalog_id": catalog_id}
+
+
 READ_HANDLERS = {
     "list_nodes": _list_nodes,
+    "hybrid_search": _hybrid_search,
     "read": _read_handler,
     "query_nodes": _query_nodes,
     "count_nodes": _count_nodes,

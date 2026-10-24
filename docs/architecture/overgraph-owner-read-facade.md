@@ -3,7 +3,8 @@
 Status: first vertical slice and Phase A1 answer reuse implemented and verified
 (PR #432). Companion to
 [overgraph-owner-multiprocess-hardening.md](overgraph-owner-multiprocess-hardening.md)
-and [overgraph-owner-answer-reuse.md](overgraph-owner-answer-reuse.md).
+and [overgraph-owner-answer-reuse.md](overgraph-owner-answer-reuse.md); retrieval
+details in [overgraph-owner-retrieval.md](overgraph-owner-retrieval.md).
 
 ## Goal and model
 
@@ -84,7 +85,8 @@ read path, so both this test and the two-backend harness fail on it.
 | document deletion TextUnit/evidence resolution | read-after-write | **migrated** |
 | research fact writer endpoint/provenance reads | read-after-write | **migrated** (owner key reads) |
 | research answer reuse (`answer_facts`, `current_fact`, `entity_attributes`) | authoritative | **migrated** (Phase A1) |
-| research graph reuse / candidate retrieval / hybrid search | bounded retrieval | **not migrated** |
+| research graph reuse / candidate retrieval / hybrid search (`lookup_candidates`) | bounded owner vector search | **migrated** |
+| Tantivy RRF result search (`hybrid_fact_hits`) / document_find | bounded retrieval + derived index | **not migrated** |
 | Tantivy index build/reconcile | snapshot/index build | **not migrated**; owner mode disables it |
 | clause SSR queue/match/classifications/anchor reads | authoritative | **not migrated**; write paths already owner |
 | Tabular Review snapshots/search | bounded retrieval | **not migrated** |
@@ -128,10 +130,10 @@ loop. Large result sets remain the client's explicit choice.
 
 ## Remaining work / blockers
 
-1. Migrate the remaining Phase A retrieval reads (graph reuse, candidate
-   retrieval, hybrid/vector search). Known-answer reuse is already migrated; it
-   performs four bounded owner reads and carries 3.2/8.5/62 KB for 1/10/100
-   evidence items (see the answer-reuse note).
+1. Migrate the remaining retrieval reads: Tantivy RRF result search
+   (`hybrid_fact_hits`/`find_completed_research`) and document_find. The core
+   graph reuse/hybrid candidate path is migrated with exact ranking parity (see
+   the retrieval note).
 2. Decide and implement Tantivy consistency (bounded paging vs bounded change
    feed) after measuring both.
 3. Migrate Phase C clause/Tabular reads and Phase D document QA/legal/memory.

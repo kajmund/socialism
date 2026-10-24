@@ -167,6 +167,58 @@ async def _test_publish_answer(request: Request) -> dict:
     return {"fact_id": fact_id}
 
 
+@app.post("/__owner_test__/seed-retrieval")
+async def _test_seed_retrieval(request: Request) -> dict:
+    from app.database.knowledge_scope import customer_scope
+    from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
+    from app.services.overgraph.labels import ENTITY, scope_label
+    from app.services.overgraph.owner_facts import write_fact_via_owner
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+    from app.services.overgraph.research import INDEX_PREFIX
+    from app.services.overgraph.write import entity_key
+
+    body = await request.json()
+    scope = customer_scope(1)
+    source = NodeInput(node_type="legal.source", name="Källa", scope=scope)
+    target = NodeInput(node_type="legal.issue", name="Fråga", scope=scope)
+    client = get_owner_runtime().require_client()
+    result = await write_fact_via_owner(
+        client,
+        FactInput(
+            source_id=entity_key(source),
+            target_id=entity_key(target),
+            scope=scope,
+            predicate="legal.rule",
+            fact_text=str(body["text"]),
+            sources=(SourceRef("episode", str(body["key"])),),
+            embedding=tuple(float(value) for value in body["vector"]),
+            occurrence_key=str(body["key"]),
+        ),
+        entities=(source, target),
+    )
+    await client.mutate(f"test-index-{body['key']}", {"upsert_nodes": [{
+        "labels": [ENTITY, scope_label(scope.scope_key)],
+        "key": f"{INDEX_PREFIX}{scope.scope_key}",
+        "props": {
+            "scope_key": scope.scope_key, "node_type": "research.index",
+            "name": "index", "has_text_unit_facts": 1,
+        },
+    }]}, kind="batch")
+    return {"fact_id": result["key"]}
+
+
+@app.post("/__owner_test__/lookup-candidates")
+async def _test_lookup_candidates(request: Request) -> dict:
+    from app.services.overgraph.research import lookup_candidates
+
+    body = await request.json()
+    hits = await lookup_candidates(
+        customer_id=1, question_id=None,
+        dense_query=[float(value) for value in body["vector"]], bound=10,
+    )
+    return {"facts": [{"id": hit.fact.id, "score": hit.score} for hit in hits]}
+
+
 @app.post("/__owner_test__/lookup-answers")
 async def _test_lookup_answers(request: Request) -> dict:
     from app.database.session import SessionLocal

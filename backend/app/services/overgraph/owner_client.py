@@ -142,6 +142,21 @@ class OwnerClient:
             "read_revision": response.get("read_revision"),
         }
 
+    async def hybrid_search(
+        self, *, customer_id: int | None, dense_query: list[float],
+        limit: int = 20, sparse_query: list[list[float]] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Dense/hybrid search executed by the owner; bounded candidate list."""
+        if self.catalog_id is None:
+            health = await self._request({"type": "health"})
+            self.catalog_id = health.get("catalog_id")
+        response = _require_ok(await self._request({
+            "type": "hybrid_search", "catalog_id": self.catalog_id,
+            "customer_id": customer_id, "dense_query": dense_query,
+            "sparse_query": sparse_query, "limit": limit,
+        }))
+        return list(response.get("hits") or [])
+
     async def count_nodes(self, label: str) -> int:
         if self.catalog_id is None:
             health = await self._request({"type": "health"})

@@ -20,6 +20,7 @@ from app.services.overgraph.labels import (
     visible_scope_keys,
 )
 from app.services.overgraph.model import GraphFactView, TextUnitWrite
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.answers import QUESTION_NS, QUESTION_TYPE, find_question
 from app.services.overgraph.views import (
     fact_view,
@@ -386,6 +387,14 @@ async def lookup_candidates(
     dense_query: list[float],
     bound: int,
 ) -> list[ResearchFactHit]:
+    client = get_owner_runtime().client
+    if client is not None:
+        from app.services.overgraph.research_owner import collect_research_hits_via_owner
+
+        return await collect_research_hits_via_owner(
+            client, customer_id=customer_id, question_id=question_id,
+            dense_query=dense_query, bound=bound,
+        )
     catalog = require_knowledge()
 
     def work() -> list[ResearchFactHit]:
@@ -401,5 +410,10 @@ async def lookup_candidates(
 
 
 async def graph_has_supported_facts(customer_id: int | None) -> bool:
+    client = get_owner_runtime().client
+    if client is not None:
+        from app.services.overgraph.research_owner import has_supported_facts_via_owner
+
+        return await has_supported_facts_via_owner(client, customer_id)
     catalog = require_knowledge()
     return await catalog.run(has_supported_facts, catalog, customer_id)
