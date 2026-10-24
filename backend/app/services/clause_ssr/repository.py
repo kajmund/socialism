@@ -468,3 +468,78 @@ class ClauseRepository:
                 continue
             return props
         raise RuntimeError("clause promotion precondition conflict")
+
+    async def build_anchor_set(
+        self,
+        *,
+        scope: KnowledgeTenantScope,
+        category: str,
+        embedding: Any,
+        holdout_ids: tuple[str, ...] = (),
+        max_per_polarity: int = 12,
+    ) -> dict[str, Any]:
+        from app.services.clause_ssr.select import _diverse_pick
+        from app.services.clause_ssr.types import Anchor, EmbeddingSpec
+
+        for _attempt in range(3):
+            candidates, pool_revision = await self.list_anchor_candidates(scope=scope, category=category)
+            verification_ids = [c["props"]["verification_id"] for c in candidates if c["props"].get("verification_id")]
+            verifications = await self.client.read([
+                {"label": VERIFICATION, "key": key} for key in verification_ids
+            ]) if verification_ids else {"values": {}}
+            anchors: list[Anchor] = []
+            for row in candidates:
+                props = row["props"]
+                vector = row.get("dense_vector")
+                if vector is None or len(vector) != int(getattr(embedding, "dimension", 0)):
+                    continue
+                if (props.get("embedding_model"), props.get("embedding_revision"), int(props.get("embedding_dimension") or 0)) != (embedding.model, embedding.revision, embedding.dimension):
+                    continue
+                verification = verifications.get("values", {}).get(f"{VERIFICATION}:{props.get('verification_id')}")
+                if not verification or verification.get("status") != "active" or verification.get("answer") not in LABEL_ANSWERS:
+                    continue
+                if props.get("source_unit_id") in holdout_ids or props.get("content_hash") in holdout_ids:
+                    continue
+                anchors.append(Anchor(
+                    id=row["key"], verification_id=str(props.get("verification_id") or ""),
+                    source_unit_id=str(props.get("source_unit_id") or ""),
+                    classification_id=str(props.get("classification_id") or ""),
+                    category=str(props.get("category") or ""), polarity=str(props.get("polarity") or "positive"),
+                    content_hash=str(props.get("content_hash") or ""), status=str(props.get("status") or "draft"),
+                    embedding=EmbeddingSpec(model=str(props.get("embedding_model") or ""), revision=str(props.get("embedding_revision") or ""), dimension=int(props.get("embedding_dimension") or 0)),
+                    vector=tuple(vector), scope_key=scope.scope_key,
+                    provenance={"reviewer_id": str(props.get("reviewer_id") or ""), "question": str(props.get("question") or "")},
+                ))
+            selected = _diverse_pick(anchors, max_per_polarity)
+            existing_sets = await self.client.list_nodes(
+                "SsrClauseAnchorSet", props={"category": category, "scope_key": scope.scope_key},
+            )
+            version = max([int((row["props"] or {}).get("version") or 0) for row in existing_sets] or [0]) + 1
+            set_id = f"{scope.scope_key}:aset:{category}:v{version}"
+            set_props = {
+                "id": set_id, "scope_key": scope.scope_key, "version": version,
+                "category": category, "status": "active",
+                "selection_method": "deterministic_diversity",
+                "embedding_model": embedding.model, "embedding_revision": embedding.revision,
+                "embedding_dimension": embedding.dimension,
+                "holdout_ids": ",".join(holdout_ids), "created_at_ms": now_ms(),
+            }
+            nodes = [{"labels": ["SsrClauseAnchorSet", scope_label(scope.scope_key)], "key": set_id, "props": set_props}]
+            for row in existing_sets:
+                if row["props"].get("status") == "active":
+                    nodes.append({"labels": ["SsrClauseAnchorSet", scope_label(scope.scope_key)], "key": row["key"], "props": {**row["props"], "status": "superseded"}})
+            edges = [{"from": {"label": ANCHOR, "key": anchor.id}, "to": {"label": "SsrClauseAnchorSet", "key": set_id}, "label": "ssr.MEMBER_OF"} for anchor in selected]
+            pool_key = self._pool_key(scope, category)
+            pool = await self._read("SsrAnchorPool", pool_key)
+            expected = {
+                "expected_absent": [{"label": "SsrClauseAnchorSet", "key": set_id}],
+                "expected_nodes": [{"label": "SsrAnchorPool", "key": pool_key, "props": {"revision": (pool or {}).get("revision")}}],
+            }
+            result = await self._apply(
+                f"anchor-set:{set_id}:{pool_revision}",
+                {**expected, "upsert_nodes": nodes, "upsert_edges": edges},
+            )
+            if result.get("error") == "precondition_failed":
+                continue
+            return {**set_props, "member_ids": [anchor.id for anchor in selected]}
+        raise RuntimeError("anchor set precondition conflict")
