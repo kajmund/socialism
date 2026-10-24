@@ -72,3 +72,21 @@ async def test_write_text_units_via_owner_is_idempotent(owner):
     assert first["ok"] is True
     assert second["duplicate"] is True
     assert owner.catalog.get_by_key("TextUnit", "unit-0") is not None
+
+
+async def test_delete_then_reingest_with_new_operation_id(owner):
+    from app.services.knowledge.scope import customer_scope
+    from app.services.overgraph.owner import OwnerClient
+    from app.services.overgraph.owner_writer import build_text_unit_batch, delete_text_units_via_owner, mutation_id_for
+
+    client = OwnerClient(owner.socket_path, catalog_id=owner.catalog_id)
+    units = [_unit(0)]
+    batch = build_text_unit_batch(units, scope=customer_scope(1), embeddings=[None])
+    first_id = mutation_id_for(batch, catalog_id=owner.catalog_id, scope_key=customer_scope(1).scope_key)
+    assert (await client.mutate(first_id, batch, kind="batch"))["ok"] is True
+    deleted = await delete_text_units_via_owner(client, units, mutation_id="delete-operation-1")
+    assert deleted["ok"] is True
+    assert owner.catalog.get_by_key("TextUnit", "unit-0") is None
+    # Same content is a new logical write, so it must not reuse the original id.
+    assert (await client.mutate("reingest-operation-2", batch, kind="batch"))["ok"] is True
+    assert owner.catalog.get_by_key("TextUnit", "unit-0") is not None

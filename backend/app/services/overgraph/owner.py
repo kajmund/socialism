@@ -217,6 +217,8 @@ class OvergraphOwner:
             return self._apply_conditional(request, payload_hash)
         if request.kind == "batch":
             return self._apply_batch(request, payload_hash)
+        if request.kind == "embedding":
+            return self._apply_embeddings(request, payload_hash)
         patch = dict(request.patch)
         nodes = list(patch.get("upsert_nodes", ()))
         nodes.append(self._receipt_node(request.mutation_id, payload_hash))
@@ -297,7 +299,7 @@ class OvergraphOwner:
             return False
         return True
 
-    def _apply_batch(  # noqa: C901, PLR0912
+    def _apply_batch(  # noqa: C901, PLR0912, PLR0915
         self, request: MutationRequest, payload_hash: str,
     ) -> dict[str, Any]:
         """Batch upsert with no-op detection and optional one generation bump."""
@@ -305,6 +307,7 @@ class OvergraphOwner:
         expected = dict(request.patch.get("expected") or {})
         nodes = list(request.patch.get("upsert_nodes", ()))
         edges = list(request.patch.get("upsert_edges", ()))
+        deletes = list(request.patch.get("delete_nodes", ()))
         for attempt in range(3):
             txn = self.catalog.begin_write_txn()
             committed = False
@@ -331,6 +334,11 @@ class OvergraphOwner:
                         dense_vector=node.get("dense_vector"),
                     )
                     changed += 1
+                for item in deletes:
+                    current = txn.get_node_by_key(str(item["label"]), str(item["key"]))
+                    if current is not None:
+                        txn.delete_node({"id": current["id"]})
+                        changed += 1
                 for edge in edges:
                     from_row = txn.get_node_by_key(str(edge["from"]["label"]), str(edge["from"]["key"]))
                     to_row = txn.get_node_by_key(str(edge["to"]["label"]), str(edge["to"]["key"]))
@@ -365,6 +373,43 @@ class OvergraphOwner:
                     "previous_generation": previous_generation,
                     "generation": generation_props.get(str(generation["prop"])) if generation else None,
                 }
+            except OverGraphError as exc:
+                if "conflict" not in str(exc).lower():
+                    raise
+                self.metrics.conflicts += 1
+                if attempt == 2:
+                    raise
+            finally:
+                if not committed:
+                    txn.rollback()
+        raise RuntimeError("unreachable")
+
+    def _apply_embeddings(self, request: MutationRequest, payload_hash: str) -> dict[str, Any]:
+        """Update dense vectors only when the TextUnit content is unchanged."""
+        updates = list(request.patch.get("embedding_updates", ()))
+        for attempt in range(3):
+            txn = self.catalog.begin_write_txn()
+            committed = False
+            try:
+                for update in updates:
+                    row = txn.get_node_by_key(str(update["label"]), str(update["key"]))
+                    if row is None:
+                        return {"ok": False, "error": "text_unit_not_found", "mutation_id": request.mutation_id}
+                    if str(row["props"].get("content_hash", "")) != str(update["content_hash"]):
+                        return {"ok": False, "error": "stale_embedding", "mutation_id": request.mutation_id}
+                    txn.upsert_node(
+                        list(row["labels"]), str(update["key"]),
+                        props=dict(row["props"]),
+                        dense_vector=list(update["vector"]),
+                    )
+                txn.upsert_node(
+                    [RECEIPT_LABEL, "overgraph-owner"], request.mutation_id,
+                    props={"mutation_id": request.mutation_id, "payload_hash": payload_hash},
+                )
+                txn.commit()
+                committed = True
+                self.metrics.applied += 1
+                return {"ok": True, "duplicate": False, "mutation_id": request.mutation_id}
             except OverGraphError as exc:
                 if "conflict" not in str(exc).lower():
                     raise

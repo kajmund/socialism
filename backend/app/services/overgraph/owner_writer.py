@@ -118,6 +118,34 @@ def mutation_id_for(
     return "text-units:" + hashlib.sha256(canonical.encode()).hexdigest()
 
 
+async def write_text_unit_embeddings_via_owner(
+    client: OwnerClient,
+    units: Sequence[TextUnit],
+    vectors: Sequence[Sequence[float]],
+    *,
+    mutation_id: str | None = None,
+) -> dict[str, object]:
+    updates = [
+        {
+            "label": TEXT_UNIT,
+            "key": unit.id,
+            "content_hash": unit.content_hash,
+            "vector": list(vector),
+        }
+        for unit, vector in zip(units, vectors, strict=True)
+    ]
+    batch = {"embedding_updates": updates}
+    if mutation_id is None:
+        import hashlib
+
+        canonical = json.dumps(
+            {"operation": "embed-text-units", "catalog_id": client.catalog_id, "updates": updates},
+            sort_keys=True, separators=(",", ":"), default=str,
+        )
+        mutation_id = "embeddings:" + hashlib.sha256(canonical.encode()).hexdigest()
+    return await client.mutate(mutation_id, batch, kind="embedding")
+
+
 async def write_text_units_via_owner(
     client: OwnerClient,
     units: Sequence[TextUnit],
@@ -140,3 +168,19 @@ async def write_text_units_via_owner(
         batch,
         kind="batch",
     )
+
+
+async def delete_text_units_via_owner(
+    client: OwnerClient,
+    units: Sequence[TextUnit],
+    *,
+    mutation_id: str,
+) -> dict[str, object]:
+    """Delete TextUnit nodes with an explicit new logical-operation id."""
+    payload = {
+        "delete_nodes": [
+            {"label": TEXT_UNIT, "key": unit.id}
+            for unit in units
+        ]
+    }
+    return await client.mutate(mutation_id, payload, kind="batch")
