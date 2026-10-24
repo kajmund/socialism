@@ -168,3 +168,24 @@ async def test_batch_1000_text_units_is_one_generation(owner):
     assert result["changed"] == 1000
     assert result["generation"] == 1
     assert int(instance.catalog.get_by_key("Generation", "scope").props["generation"]) == 1
+
+
+async def test_batch_with_dense_vectors_changes_only_one_node(owner):
+    instance, client = owner
+    await client.mutate("seed-gen", {"upsert_nodes": [{"labels": ["Generation"], "key": "scope", "props": {"generation": 0}}]})
+    nodes = [
+        {
+            "labels": ["TextUnit", "scope"], "key": f"vec-{index}",
+            "props": {"text": str(index), "content_hash": str(index)},
+            "dense_vector": [float(index), 0.0, 0.0, 0.0],
+        }
+        for index in range(1000)
+    ]
+    first = await client.mutate("vec-batch-1", _batch_patch(nodes), kind="batch")
+    assert first["changed"] == 1000
+    assert first["generation"] == 1
+    changed = [dict(node) for node in nodes]
+    changed[500]["dense_vector"] = [999.0, 1.0, 0.0, 0.0]
+    second = await client.mutate("vec-batch-2", _batch_patch(changed), kind="batch")
+    assert second["changed"] == 1
+    assert second["generation"] == 2
