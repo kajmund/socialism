@@ -115,20 +115,19 @@ edges without an explicit `valid_from`, and the direction of the symmetric
 
 ## Remaining risks
 
-- **Durability**: the direct answer writer called `catalog.sync()`; the owner has
-  no sync RPC, so durability relies on `WriteTxn` commit semantics. Process
-  restart is covered; power-loss durability of the last committed batch is not
-  explicitly asserted. Adding a sync message would be a new owner-protocol
-  surface and was deliberately not done here.
-- **Connection rule**: `publish_answer` awaits the local owner while its
-  `AsyncSession` is open, the same pattern the already-migrated TextUnit ingest
-  and embedding paths use. The owner is a local database process, not a remote
-  service, but the SQL session is held across the socket round-trip.
-- **Cross-process read visibility**: tests run a real owner socket but hand it the
-  same in-process `Catalog`, so a write is immediately visible to the test
-  reader. Production readers still open the catalog in the backend process; two
-  real FastAPI processes against one owner remain part of ticket 51 before any
-  answer-reuse cache depends on it.
+- **Durability**: the owner now fsyncs before acknowledging a mutation
+  (`sync_on_commit`, `--no-sync` opt-out). Process-crash recovery after an ack is
+  tested; power-loss durability is vendor-documented only. See
+  [overgraph-owner-multiprocess-hardening.md](overgraph-owner-multiprocess-hardening.md).
+- **Connection rule**: `publish_answer` still awaits the local owner while its
+  `AsyncSession` is open (measured in the hardening note); the freeze caller
+  chooses the transaction boundary, so the safe fix is a caller-level commit
+  before publication, tracked in
+  [overgraph-owner-multiprocess-hardening.md](overgraph-owner-multiprocess-hardening.md).
+- **Cross-process read visibility**: a backend-local catalog is a stale snapshot
+  of an owner-written catalog. Ingest/embedding readbacks now go through the
+  owner; other local reads remain open and are the main blocker before
+  `write_paths_ready=true` (see the hardening note).
 - **Still direct**: legal writeback/claims/evidence (`graph_v2/legal_writeback.py`,
   `overgraph/legal_claims.py`, `claims.py`, `claim_answers.py`), memory, document
   QA and the dead `persist_research_fact` helper. Ticket 51 continues with those.
