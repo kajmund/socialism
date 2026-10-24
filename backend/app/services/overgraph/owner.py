@@ -8,59 +8,44 @@ response cannot apply the mutation twice.
 
 from __future__ import annotations
 
-import argparse
 import asyncio
 import fcntl
-import hashlib
 import json
+import time
 import os
-import secrets
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from overgraph import OverGraphError
 
 from app.services.overgraph.catalogs import open_catalog
+from app.services.overgraph.owner_client import (
+    IdempotencyConflict,
+    MutationRequest,
+    OwnerAlreadyActive,
+    OwnerClient,
+    OwnerMetrics,
+    OwnerProtocolError,
+    OwnerQueueFull,
+    OwnerUnavailable,
+    _record_sample,
+    load_catalog_id,
+    payload_hash as compute_payload_hash,
+)
+
+__all__ = [
+    "IdempotencyConflict",
+    "MutationRequest",
+    "OvergraphOwner",
+    "OwnerAlreadyActive",
+    "OwnerClient",
+    "OwnerMetrics",
+    "OwnerProtocolError",
+    "OwnerQueueFull",
+    "OwnerUnavailable",
+]
 
 RECEIPT_LABEL = "MutationReceipt"
-
-
-class OwnerQueueFull(RuntimeError):
-    pass
-
-
-class OwnerAlreadyActive(RuntimeError):
-    """Another process already owns this catalog."""
-
-
-class IdempotencyConflict(RuntimeError):
-    """A mutation id was reused with a different payload."""
-
-
-class OwnerUnavailable(RuntimeError):
-    """The owner is not reachable; retry the same mutation id."""
-
-
-class OwnerProtocolError(RuntimeError):
-    """The owner returned an error that must not be retried blindly."""
-
-
-@dataclass
-class MutationRequest:
-    mutation_id: str
-    patch: dict[str, Any]
-    kind: str = "patch"
-
-
-@dataclass
-class OwnerMetrics:
-    applied: int = 0
-    duplicates: int = 0
-    rejected: int = 0
-    conflicts: int = 0
-    queue_high_water: int = 0
-    wait_seconds: list[float] = field(default_factory=list)
 
 
 class OvergraphOwner:
@@ -73,9 +58,10 @@ class OvergraphOwner:
         max_queue: int = 256,
         catalog_id: str | None = None,
         catalog: Any | None = None,
+        sync_on_commit: bool = True,
     ) -> None:
         path.mkdir(parents=True, exist_ok=True)
-        self.catalog_id = catalog_id or self._load_catalog_id(path)
+        self.catalog_id = catalog_id or load_catalog_id(path)
         self._lock_fd = os.open(path / ".owner.lock", os.O_CREAT | os.O_RDWR, 0o644)
         try:
             fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -87,6 +73,7 @@ class OvergraphOwner:
         self.catalog = open_catalog(path, kind="knowledge", dimension=dimension) if catalog is None else catalog
         self.socket_path = socket_path
         self.max_queue = max_queue
+        self.sync_on_commit = sync_on_commit
         self.queue: asyncio.Queue[tuple[MutationRequest, asyncio.Future[dict[str, Any]]]] = asyncio.Queue(
             maxsize=max_queue
         )
@@ -94,24 +81,6 @@ class OvergraphOwner:
         self._worker: asyncio.Task[None] | None = None
         self._server: asyncio.AbstractServer | None = None
         self._closed = False
-
-    @staticmethod
-    def _load_catalog_id(path: Path) -> str:
-        identity_file = path.parent / f".{path.name}.overgraph-owner-id"
-        try:
-            existing = identity_file.read_text(encoding="utf-8").strip()
-            if existing:
-                return existing
-        except FileNotFoundError:
-            pass
-        identity = secrets.token_hex(16)
-        fd = os.open(identity_file, os.O_CREAT | os.O_RDWR, 0o644)
-        try:
-            os.write(fd, identity.encode())
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-        return identity
 
     async def start(self) -> None:
         self.socket_path.parent.mkdir(parents=True, exist_ok=True)
@@ -194,7 +163,10 @@ class OvergraphOwner:
                 return
             if payload.get("type") == "health":
                 writer.write((json.dumps({
-                    "ok": True, "catalog_id": self.catalog_id, "metrics": self.metrics.__dict__,
+                    "ok": True,
+                    "catalog_id": self.catalog_id,
+                    "sync_on_commit": self.sync_on_commit,
+                    "metrics": self.metrics.__dict__,
                 }) + "\n").encode())
                 await writer.drain()
                 return
@@ -229,10 +201,27 @@ class OvergraphOwner:
     async def _run_worker(self) -> None:
         while not self._closed:
             request, future = await self.queue.get()
+            _record_sample(self.metrics.queue_wait_seconds, request.enqueued_at)
             try:
                 if future.cancelled():
                     continue
                 result = await asyncio.to_thread(self._apply, request)
+                if result.get("ok") and self.sync_on_commit:
+                    # An ack must mean durable: group_commit only fsyncs on its
+                    # ~50 ms timer, so a small commit is still in a userspace
+                    # buffer when the mutation returns. Duplicates sync too: the
+                    # original sync may have failed after its commit.
+                    try:
+                        started = time.perf_counter()
+                        await asyncio.to_thread(self.catalog.sync)
+                        _record_sample(self.metrics.sync_seconds, started)
+                    except (OverGraphError, OSError) as exc:  # persisted, unacked
+                        self.metrics.rejected += 1
+                        result = {
+                            "ok": False,
+                            "error": f"durability_sync_failed: {type(exc).__name__}",
+                            "mutation_id": request.mutation_id,
+                        }
                 future.set_result(result)
             except Exception as exc:  # noqa: BLE001 - surfaced to client
                 if not future.done():
@@ -241,7 +230,7 @@ class OvergraphOwner:
                 self.queue.task_done()
 
     def _apply(self, request: MutationRequest) -> dict[str, Any]:
-        payload_hash = self._payload_hash(request)
+        payload_hash = compute_payload_hash(request)
         receipt = self.catalog.get_by_key(RECEIPT_LABEL, request.mutation_id)
         if receipt is not None:
             previous = str(receipt.props.get("payload_hash", ""))
@@ -260,7 +249,9 @@ class OvergraphOwner:
         nodes = list(patch.get("upsert_nodes", ()))
         nodes.append(self._receipt_node(request.mutation_id, payload_hash))
         patch["upsert_nodes"] = nodes
+        started = time.perf_counter()
         self.catalog.graph_patch(**patch)
+        _record_sample(self.metrics.commit_seconds, started)
         self.metrics.applied += 1
         return {"ok": True, "duplicate": False, "mutation_id": request.mutation_id}
 
@@ -307,7 +298,9 @@ class OvergraphOwner:
                     [RECEIPT_LABEL, "overgraph-owner"], request.mutation_id,
                     props={"mutation_id": request.mutation_id, "payload_hash": payload_hash},
                 )
+                started = time.perf_counter()
                 txn.commit()
+                _record_sample(self.metrics.commit_seconds, started)
                 committed = True
                 self.metrics.applied += 1
                 return {
@@ -415,7 +408,9 @@ class OvergraphOwner:
                     [RECEIPT_LABEL, "overgraph-owner"], request.mutation_id,
                     props={"mutation_id": request.mutation_id, "payload_hash": payload_hash},
                 )
+                started = time.perf_counter()
                 txn.commit()
+                _record_sample(self.metrics.commit_seconds, started)
                 committed = True
                 self.metrics.applied += 1
                 return {
@@ -457,7 +452,9 @@ class OvergraphOwner:
                     [RECEIPT_LABEL, "overgraph-owner"], request.mutation_id,
                     props={"mutation_id": request.mutation_id, "payload_hash": payload_hash},
                 )
+                started = time.perf_counter()
                 txn.commit()
+                _record_sample(self.metrics.commit_seconds, started)
                 committed = True
                 self.metrics.applied += 1
                 return {"ok": True, "duplicate": False, "mutation_id": request.mutation_id}
@@ -472,124 +469,8 @@ class OvergraphOwner:
                     txn.rollback()
         raise RuntimeError("unreachable")
 
-    @staticmethod
-    def _payload_hash(request: MutationRequest) -> str:
-        canonical = json.dumps(
-            {"kind": request.kind, "patch": request.patch},
-            sort_keys=True, separators=(",", ":"), default=str,
-        )
-        return hashlib.sha256(canonical.encode()).hexdigest()
-
-
-class OwnerClient:
-    def __init__(self, socket_path: Path, *, catalog_id: str | None = None, timeout: float = 30.0) -> None:
-        self.socket_path = socket_path
-        self.catalog_id = catalog_id
-        self.timeout = timeout
-
-    async def _request(self, payload: dict[str, Any]) -> dict[str, Any]:
-        try:
-            reader, writer = await asyncio.open_unix_connection(
-                str(self.socket_path), limit=16 * 1024 * 1024
-            )
-        except (FileNotFoundError, ConnectionRefusedError, OSError) as exc:
-            raise OwnerUnavailable(str(exc)) from exc
-        try:
-            writer.write((json.dumps(payload) + "\n").encode())
-            await writer.drain()
-            line = await asyncio.wait_for(reader.readline(), timeout=self.timeout)
-            if not line:
-                raise OwnerUnavailable("owner closed the connection")
-            return json.loads(line)
-        except asyncio.TimeoutError as exc:
-            raise OwnerUnavailable("owner response timed out") from exc
-        finally:
-            writer.close()
-            await writer.wait_closed()
-
-    async def health(self) -> dict[str, Any]:
-        response = await self._request({"type": "health"})
-        if self.catalog_id is not None and response.get("catalog_id") != self.catalog_id:
-            raise OwnerProtocolError("catalog_mismatch")
-        return response
-
-    async def list_nodes(
-        self, label: str, *, props: dict[str, Any] | None = None, include_vectors: bool = False,
-        limit: int = 500,
-    ) -> list[dict[str, Any]]:
-        if self.catalog_id is None:
-            health = await self._request({"type": "health"})
-            self.catalog_id = health.get("catalog_id")
-        response = await self._request({
-            "type": "list_nodes", "catalog_id": self.catalog_id, "label": label,
-            "props": props or {}, "include_vectors": include_vectors, "limit": limit,
-        })
-        return list(response.get("nodes") or [])
-
-    async def read(self, keys: list[dict[str, str]], *, include_vectors: bool = False) -> dict[str, Any]:
-        if self.catalog_id is None:
-            health = await self._request({"type": "health"})
-            self.catalog_id = health.get("catalog_id")
-        return await self._request({
-            "type": "read", "keys": keys, "catalog_id": self.catalog_id,
-            "include_vectors": include_vectors,
-        })
-
-    async def mutate(self, mutation_id: str, patch: dict[str, Any], *, kind: str = "patch") -> dict[str, Any]:
-        if self.catalog_id is None:
-            health = await self._request({"type": "health"})
-            self.catalog_id = health.get("catalog_id")
-        response = await self._request({
-            "mutation_id": mutation_id,
-            "kind": kind,
-            "patch": patch,
-            "catalog_id": self.catalog_id,
-        })
-        if response.get("error") == "catalog_mismatch":
-            raise OwnerProtocolError("catalog_mismatch")
-        return response
-
-    async def mutate_with_retry(
-        self,
-        mutation_id: str,
-        patch: dict[str, Any],
-        *,
-        kind: str = "patch",
-        attempts: int = 5,
-        delay: float = 0.1,
-    ) -> dict[str, Any]:
-        """Retry only transport failures; the id and payload stay identical."""
-        for attempt in range(attempts):
-            try:
-                return await self.mutate(mutation_id, patch, kind=kind)
-            except OwnerUnavailable:
-                if attempt == attempts - 1:
-                    raise
-                await asyncio.sleep(delay)
-        raise RuntimeError("unreachable")
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("path", type=Path)
-    parser.add_argument("--socket", type=Path, required=True)
-    parser.add_argument("--dimension", type=int, default=3072)
-    parser.add_argument("--max-queue", type=int, default=256)
-    args = parser.parse_args()
-
-    async def run() -> None:
-        owner = OvergraphOwner(args.path, dimension=args.dimension, socket_path=args.socket, max_queue=args.max_queue)
-        await owner.start()
-        print(json.dumps({"ready": True, "socket": str(args.socket)}), flush=True)
-        try:
-            while True:
-                await asyncio.sleep(3600)
-        finally:
-            await owner.close()
-
-    asyncio.run(run())
-    return 0
-
 
 if __name__ == "__main__":
+    from app.services.overgraph.owner_cli import main
+
     raise SystemExit(main())
