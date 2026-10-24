@@ -139,6 +139,75 @@ if _guard_file:
     ):
         setattr(Catalog, _method, _guard(_method))
 
+from fastapi import Request  # noqa: E402
+
+
+@app.post("/__owner_test__/publish-answer")
+async def _test_publish_answer(request: Request) -> dict:
+    from app.database.knowledge_scope import customer_scope
+    from app.services.overgraph.owner_facts import publish_answer_via_owner
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+    from app.services.overgraph.publish import AnswerPublish
+
+    body = await request.json()
+    published = AnswerPublish(
+        question_id=str(body["question_id"]),
+        question_text=str(body["question_text"]),
+        scope=customer_scope(int(body["customer_id"])),
+        identity=str(body["identity"]),
+        evidence_set_id=str(body["evidence_set_id"]),
+        attributes=dict(body["attributes"]),
+        basis=list(body["basis"]),
+        assessment=dict(body.get("assessment") or {"sufficient": True}),
+        dependency_ids=(),
+    )
+    fact_id = await publish_answer_via_owner(
+        get_owner_runtime().require_client(), published,
+    )
+    return {"fact_id": fact_id}
+
+
+@app.post("/__owner_test__/lookup-answers")
+async def _test_lookup_answers(request: Request) -> dict:
+    from app.database.session import SessionLocal
+    from app.services.knowledge.models import KnowledgeScope
+    from app.services.research.answer_graph import lookup_answers
+    from app.services.research.models import ResearchContext, ResearchNeed
+
+    body = await request.json()
+    need = ResearchNeed(
+        id=str(body["need_id"]),
+        question=str(body["question"]),
+        why_needed="test reuse",
+        source_types=["document"],
+        knowledge_question_id=str(body["question_id"]),
+    )
+    context = ResearchContext(
+        scope=KnowledgeScope(
+            customer_id=int(body["customer_id"]), module=body.get("module"),
+        ),
+        limit=10,
+    )
+    async with SessionLocal() as session:
+        found = await lookup_answers(session, need=need, context=context, now=now())
+    return {
+        "evidence": [
+            {
+                "evidence_id": item.evidence_id,
+                "source_id": item.source_id,
+                "metadata": dict(item.metadata),
+            }
+            for item in found
+        ]
+    }
+
+
+def now():
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC)
+
+
 import uvicorn  # noqa: E402
 
 if __name__ == "__main__":

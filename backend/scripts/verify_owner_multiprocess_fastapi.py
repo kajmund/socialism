@@ -476,6 +476,53 @@ def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
             }
         ingest_seconds = round(time.perf_counter() - started, 3)
 
+        # A publishes a frozen answer through the production owner writer; B
+        # must find and reuse it via its owner-backed authoritative lookup.
+        published = _http(
+            "POST", f"http://127.0.0.1:{port_a}/__owner_test__/publish-answer",
+            body=json.dumps({
+                "question_id": "question-reuse-cross-process",
+                "question_text": "Vad gäller uppsägningstiden?",
+                "customer_id": 1,
+                "identity": "answer-reuse-cross-process",
+                "evidence_set_id": "evidence-set-reuse-cross-process",
+                "attributes": {
+                    "knowledge_module": "dd", "knowledge_case_id": None,
+                    "workspace_id": None, "document_version_ids": [],
+                    "answer_status": "sufficient",
+                },
+                "basis": [{
+                    "evidence_id": "evidence-reuse-cross-process",
+                    "research_need_id": "need-reuse-cross-process",
+                    "source_type": "document", "status": "found",
+                    "title": "Uppsägningstid", "excerpt": "Nio månader",
+                    "locator": "sida 1", "source_id": "doc-reuse-cross-process",
+                    "source_url": None, "provider": "uploaded_file", "score": 1.0,
+                    "retrieved_at": time.strftime(
+                        "%Y-%m-%dT%H:%M:%S+00:00", time.gmtime(),
+                    ),
+                    "metadata": {"reuse": {"evidence_ref": "doc-reuse:1"}},
+                }],
+            }).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        assert published[0] == 200, published
+        reused = _http(
+            "POST", f"http://127.0.0.1:{port_b}/__owner_test__/lookup-answers",
+            body=json.dumps({
+                "need_id": "need-reuse-cross-process",
+                "question": "Vad gäller uppsägningstiden?",
+                "question_id": "question-reuse-cross-process",
+                "customer_id": 1, "module": "dd",
+            }).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        assert reused[0] == 200, reused
+        evidence = reused[1]["evidence"]
+        assert len(evidence) == 1, evidence
+        assert evidence[0]["source_id"] == "doc-reuse-cross-process"
+        assert evidence[0]["metadata"]["answer_fact_id"] == published[1]["fact_id"]
+
         # Real owner-backed knowledge writes from both API processes: clause
         # decisions on different units through the same owner.
         me = _http("GET", f"http://127.0.0.1:{port_a}/me", token=token)[1]
@@ -590,6 +637,10 @@ def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
             "dispatch_seconds": dispatch_seconds,
             "ingest_seconds": ingest_seconds,
             "documents": results,
+            "answer_reuse": {
+                "fact_id": published[1]["fact_id"],
+                "evidence_count": len(evidence),
+            },
             "clause_decisions": len(decisions),
             "graph_after_owner_stop": snapshot,
             "direct_write_attempts": 0,

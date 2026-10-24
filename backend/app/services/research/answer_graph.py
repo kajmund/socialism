@@ -22,6 +22,11 @@ from app.services.overgraph.answers import (
     current_fact,
     entity_attributes,
 )
+from app.services.overgraph.answers_owner import (
+    answer_facts_via_owner,
+    current_facts_via_owner,
+    entity_attributes_via_owner,
+)
 from app.services.research.graph_grounding import (
     fact_is_current,
     current_interval,
@@ -107,10 +112,9 @@ async def lookup_answers(
     if not need.knowledge_question_id:
         return []
     scopes = ("shared", f"customer:{context.scope.customer_id}")
-    catalog = require_knowledge()
-    facts = await catalog.run(
-        _answer_candidates, catalog, need.knowledge_question_id,
-        context.scope.customer_id, now,
+    client = get_owner_runtime().client
+    facts = await _answer_candidates_for(
+        client, need.knowledge_question_id, context.scope.customer_id, now,
     )
     evidence = []
     seen = set()
@@ -119,7 +123,7 @@ async def lookup_answers(
             continue
         if not fact_is_current(fact, now) or not _context_matches(fact, context):
             continue
-        target = await catalog.run(entity_attributes, catalog, fact.target_id)
+        target = await _answer_target_for(client, fact.target_id)
         if target is None or target.node_type != ANSWER_TYPE:
             continue
         if target.scope_key != fact.scope_key:
@@ -127,7 +131,9 @@ async def lookup_answers(
         basis = BASIS.validate_python(target.attributes.get("basis"))
         if not await basis_workspace_allowed(session, basis, context):
             continue
-        if not await _current_basis(session, basis, fact.scope_key, now):
+        if not await _current_basis(
+            session, basis, fact.scope_key, now, client=client,
+        ):
             continue
         for item in basis:
             ref = str(item.metadata.get("reuse", {}).get("evidence_ref") or item.evidence_id)
@@ -140,6 +146,22 @@ async def lookup_answers(
     return evidence
 
 
+async def _answer_candidates_for(client, question_id, customer_id, now):
+    if client is not None:
+        return await answer_facts_via_owner(
+            client, question_id, customer_id, now=now,
+        )
+    catalog = require_knowledge()
+    return await catalog.run(_answer_candidates, catalog, question_id, customer_id, now)
+
+
+async def _answer_target_for(client, target_id):
+    if client is not None:
+        return await entity_attributes_via_owner(client, target_id)
+    catalog = require_knowledge()
+    return await catalog.run(entity_attributes, catalog, target_id)
+
+
 def _context_matches(fact, context: ResearchContext) -> bool:
     return manifest_matches(fact, context) and fact.attributes.get("knowledge_module") == context.scope.module and (
         fact.attributes.get("knowledge_case_id") == context.scope.case_id
@@ -150,7 +172,7 @@ def _answer_candidates(catalog, question_id, customer_id, now):
     return answer_facts(catalog, question_id, customer_id, now=now)
 
 
-async def _current_basis(session, basis, scope_key, now) -> bool:
+async def _current_basis(session, basis, scope_key, now, *, client=None) -> bool:
     max_age = settings.research_knowledge_freshness_max_age_seconds
     for item in basis:
         stamp = (
@@ -169,10 +191,16 @@ async def _current_basis(session, basis, scope_key, now) -> bool:
         for item in basis
         if item.metadata.get("document_version_id")
     )
-    catalog = require_knowledge()
-    for fact_id in fact_ids:
-        if not await catalog.run(current_fact, catalog, fact_id, scope_key, now):
+    if client is not None:
+        if not await current_facts_via_owner(
+            client, sorted(fact_ids), scope_key, now,
+        ):
             return False
+    else:
+        catalog = require_knowledge()
+        for fact_id in fact_ids:
+            if not await catalog.run(current_fact, catalog, fact_id, scope_key, now):
+                return False
     versions = (await session.execute(select(
         DocumentVersionRecord.id, DocumentVersionRecord.scope_key, DocumentVersionRecord.superseded_at,
         DocumentVersionRecord.valid_from, DocumentVersionRecord.valid_to,

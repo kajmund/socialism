@@ -48,13 +48,15 @@ def _list_nodes(payload: dict[str, Any], catalog: Catalog, catalog_id: str) -> d
 def _read(payload: dict[str, Any], catalog: Catalog) -> dict[str, Any]:
     values: dict[str, Any] = {}
     vectors: dict[str, Any] = {}
+    ids: dict[str, Any] = {}
     for item in payload.get("keys", []):
         row = catalog.get_by_key(str(item["label"]), str(item["key"]))
         name = f"{item['label']}:{item['key']}"
         values[name] = None if row is None else dict(row.props)
+        ids[name] = None if row is None else row.engine_id
         if payload.get("include_vectors") and row is not None and row.dense_vector is not None:
             vectors[name] = list(row.dense_vector)
-    result: dict[str, Any] = {"ok": True, "values": values}
+    result: dict[str, Any] = {"ok": True, "values": values, "ids": ids}
     if payload.get("include_vectors"):
         result["vectors"] = vectors
     return result
