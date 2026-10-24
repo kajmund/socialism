@@ -264,6 +264,7 @@ def _start_backend(
     del sync_on_commit  # owner-side setting; kept for call-site clarity
     env = _base_env(root, owner_id=owner_id)
     env["OWNER_TEST_GUARD_FILE"] = str(guard)
+    env["OWNER_TEST_NO_LOCAL_KNOWLEDGE"] = "1"
     process = Process(
         f"backend-{port}",
         [sys.executable, str(LAUNCHER), str(port)],
@@ -309,6 +310,24 @@ def _wait_job(port: int, token: str, job_id: str, *, timeout: float = 120) -> di
             return dict(payload)
         time.sleep(0.2)
     raise TimeoutError(f"job {job_id} did not finish")
+
+
+def _owner_query(
+    port: int, token: str, label: str, *, props: dict[str, str] | None = None,
+    include_vectors: bool = False, limit: int = 100,
+) -> dict[str, Any]:
+    status, payload = _http(
+        "POST", f"http://127.0.0.1:{port}/overgraph/knowledge/query",
+        token=token,
+        body=json.dumps({
+            "label": label, "props": props or {}, "include_vectors": include_vectors,
+            "limit": limit,
+        }).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    assert status == 200, (status, payload)
+    assert payload.get("access") == "owner", payload
+    return dict(payload)
 
 
 def _owner_status(port: int) -> dict[str, Any]:
@@ -435,6 +454,18 @@ def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
             rows = _wait_owner_vectors(root / "owner.sock", version_id, chunks)
             assert len(rows) == chunks, (filename, len(rows), chunks)
             assert {row["props"]["document_version_id"] for row in rows} == {version_id}
+            # Backend B must read A's committed units through the owner API,
+            # without ever opening the knowledge catalog itself.
+            read_back = _owner_query(
+                port_b, token, "TextUnit",
+                props={"document_version_id": version_id},
+                include_vectors=True, limit=100,
+            )
+            assert len(read_back["nodes"]) == chunks, read_back
+            for node in read_back["nodes"]:
+                assert node["props"]["document_version_id"] == version_id
+                assert node["props"]["text"]
+                assert len(node["dense_vector"]) == DIMENSION
             results[filename] = {
                 "port": port,
                 "document_id": payload["document_id"],
@@ -495,6 +526,49 @@ def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
 
         assert _owner_count("SsrVerification") == 4
         assert _owner_count("SsrReviewSession") == 4
+
+        # Update and revoke are visible to the other backend through the owner.
+        updated = _http(
+            "POST", f"http://127.0.0.1:{port_a}/clause-ssr/decisions", token=token,
+            body=json.dumps({
+                "classification_id": seeded["classification_id"],
+                "unit_id": seeded["unit_ids"][0], "answer": "no",
+                "document_id": f"clause-doc-{seeded['unit_ids'][0]}",
+            }).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        assert updated[0] == 200, updated
+        verification_read = _owner_query(
+            port_b, token, "SsrVerification",
+            props={"source_unit_id": seeded["unit_ids"][0]}, limit=10,
+        )["nodes"]
+        assert [node["props"]["answer"] for node in verification_read] == ["no"]
+        undo = _http(
+            "POST", f"http://127.0.0.1:{port_a}/clause-ssr/decisions/undo", token=token,
+            body=json.dumps({
+                "classification_id": seeded["classification_id"],
+                "document_id": f"clause-doc-{seeded['unit_ids'][0]}",
+            }).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        assert undo[0] == 200, undo
+        revoked = _owner_query(
+            port_b, token, "SsrVerification",
+            props={"source_unit_id": seeded["unit_ids"][0]}, limit=10,
+        )["nodes"]
+        assert [node["props"]["status"] for node in revoked] == ["revoked"]
+
+        # Owner restart keeps the same data readable from both backends.
+        first_version = next(iter(results.values()))["document_version_id"]
+        owner.stop()
+        owner = None
+        owner = _start_owner(root)
+        assert _owner_status(port_b)["status"] == "ready"
+        restarted = _owner_query(
+            port_b, token, "TextUnit",
+            props={"document_version_id": first_version}, include_vectors=True,
+        )
+        assert len(restarted["nodes"]) >= 1
 
         assert not _guard_lines(guard_a), _guard_lines(guard_a)
         assert not _guard_lines(guard_b), _guard_lines(guard_b)
