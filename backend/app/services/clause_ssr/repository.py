@@ -45,6 +45,19 @@ class ClauseRepository:
     async def _apply(self, mutation_id: str, patch: dict[str, Any]) -> dict[str, Any]:
         return await self.client.mutate(mutation_id, patch, kind="batch")
 
+    async def list_anchor_candidates(
+        self, *, scope: KnowledgeTenantScope, category: str,
+    ) -> list[dict[str, Any]]:
+        rows = await self.client.list_nodes(
+            ANCHOR,
+            props={"category": category, "scope_key": scope.scope_key},
+            include_vectors=True,
+        )
+        return [
+            row for row in rows
+            if row["props"].get("status") in {"draft", "active"}
+        ]
+
     async def get_or_create_session(
         self,
         *,
