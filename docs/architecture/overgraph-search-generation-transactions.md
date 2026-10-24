@@ -76,3 +76,38 @@ scope-wide invalidation is unnecessarily broad before changing the key.
 6. Generation read benchmark, including parallel workers.
 7. Linearization point documented: the WriteTxn commit that contains both the
    data change and the generation bump.
+
+## Multiprocess probe (2026-10-24)
+
+A two-process probe was run against the same local Overgraph catalog:
+
+- Two processes opened the same catalog and, when staggered, both wrote
+  different nodes; both nodes were readable afterwards.
+- Concurrent generation read-modify-write: both processes read generation 0,
+  both attempted to write 1; the final value was 1 (one update lost) and one
+  process hit an I/O error while closing.
+
+This is **not** evidence of safe multiprocess writes. It confirms the documented
+model: single writer, optimistic conflict detection only inside the supported
+writer, and no cross-process host lock.
+
+### Consequence
+
+- Do not enable generation-based invalidation while multiple backend processes
+  can write the same Overgraph catalog.
+- Prefer one dedicated writer/owner per catalog; route graph mutations through
+  it. Readers may remain parallel only after visibility semantics are verified.
+- Within the writer process, native `WriteTxn` conflict retry handles concurrent
+  tasks.
+- One atomic batch (many TextUnits) gets **one** generation bump, not one bump
+  per unit.
+- No distributed lock is introduced until a single-writer arrangement is proven
+  insufficient.
+
+### Required tests before use
+
+1. In-process concurrent writers: first commit wins, second retries, both data
+   changes visible, generation increases twice.
+2. Abort after data mutation before commit: neither data nor generation visible.
+3. Multiprocess: supported configuration documented, or all mutations routed to
+   one writer and both processes verified through it.
