@@ -543,3 +543,48 @@ class ClauseRepository:
                 continue
             return {**set_props, "member_ids": [anchor.id for anchor in selected]}
         raise RuntimeError("anchor set precondition conflict")
+
+    async def mark_stale_embeddings(self, *, scope: KnowledgeTenantScope, expected: Any) -> int:
+        for _attempt in range(3):
+            rows = await self.client.list_nodes(
+                ANCHOR, props={"scope_key": scope.scope_key}, include_vectors=True,
+            )
+            nodes: list[dict[str, Any]] = []
+            edges: list[dict[str, Any]] = []
+            expected_nodes: list[dict[str, Any]] = []
+            expected_absent: list[dict[str, Any]] = []
+            pools: dict[str, dict[str, Any]] = {}
+            for row in rows:
+                props = row["props"]
+                if props.get("status") not in {"draft", "active"}:
+                    continue
+                if (
+                    props.get("embedding_model"), props.get("embedding_revision"),
+                    int(props.get("embedding_dimension") or 0),
+                ) == (expected.model, expected.revision, expected.dimension):
+                    continue
+                nodes.append({
+                    "labels": [ANCHOR, scope_label(scope.scope_key)],
+                    "key": row["key"], "props": {**props, "status": "stale_embedding"},
+                })
+                expected_nodes.append({
+                    "label": ANCHOR, "key": row["key"],
+                    "props": {"status": props.get("status")},
+                })
+                category = str(props.get("category") or "")
+                if category and category not in pools:
+                    pool_node, pool_expected = await self._pool_bump(scope, category)
+                    pools[category] = pool_node
+                    nodes.append(pool_node)
+                    expected_nodes.extend(pool_expected.get("expected_nodes", []))
+                    expected_absent.extend(pool_expected.get("expected_absent", []))
+            if not nodes:
+                return 0
+            result = await self._apply(
+                f"stale-embeddings:{scope.scope_key}:{now_ms()}",
+                {"expected_nodes": expected_nodes, "expected_absent": expected_absent, "upsert_nodes": nodes, "upsert_edges": edges},
+            )
+            if result.get("error") == "precondition_failed":
+                continue
+            return len([node for node in nodes if node["labels"][0] == ANCHOR])
+        raise RuntimeError("stale embedding mutation precondition conflict")
