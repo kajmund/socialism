@@ -171,16 +171,37 @@ async def api_queue(
     user: UserAccount = Depends(require_admin),
 ) -> dict:
     catalog = _catalog()
+    scope = _scope(customer_id)
     try:
+        repository = ClauseRepository(get_owner_runtime().require_client())
+        session_props = await repository.get_or_create_session(
+            scope=scope, reviewer_id=user.id,
+            classification_id=classification_id, document_id=document_id,
+        )
+        session = ReviewSession(
+            id=str(session_props.get("id") or ""), reviewer_id=user.id,
+            classification_id=classification_id,
+            document_id=str(session_props.get("document_id") or "") or None,
+            last_unit_id=str(session_props.get("last_unit_id") or "") or None,
+            last_verification_id=str(session_props.get("last_verification_id") or "") or None,
+            decided_yes=int(session_props.get("decided_yes") or 0),
+            decided_no=int(session_props.get("decided_no") or 0),
+            skipped=int(session_props.get("skipped") or 0),
+            unsure=int(session_props.get("unsure") or 0),
+            scope_key=scope.scope_key,
+        )
         page = await asyncio.to_thread(
             next_queue,
             catalog,
-            scope=_scope(customer_id),
+            scope=scope,
             classification_id=classification_id,
             reviewer_id=user.id,
             document_id=document_id,
             limit=limit,
+            session=session,
         )
+    except OwnerUnavailable as exc:
+        raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
     except (PermissionError, KeyError, ValueError) as exc:
         raise _http(exc) from exc
     return queue_json(page)
