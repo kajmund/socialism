@@ -155,3 +155,16 @@ async def test_committed_mutation_without_response_is_a_receipt(owner):
     retry = await client.mutate("crash-after-commit", request.patch)
     assert retry["duplicate"] is True
     assert instance.catalog.get_by_key("Probe", "committed-before-crash") is not None
+
+
+async def test_batch_1000_text_units_is_one_generation(owner):
+    instance, client = owner
+    await client.mutate("seed-gen", {"upsert_nodes": [{"labels": ["Generation"], "key": "scope", "props": {"generation": 0}}]})
+    nodes = [
+        {"labels": ["TextUnit", "scope"], "key": f"bulk-{index}", "props": {"text": str(index), "content_hash": str(index)}}
+        for index in range(1000)
+    ]
+    result = await client.mutate("bulk-1000", _batch_patch(nodes), kind="batch")
+    assert result["changed"] == 1000
+    assert result["generation"] == 1
+    assert int(instance.catalog.get_by_key("Generation", "scope").props["generation"]) == 1

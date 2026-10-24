@@ -79,7 +79,7 @@ class OvergraphOwner:
         self.socket_path.parent.mkdir(parents=True, exist_ok=True)
         self.socket_path.unlink(missing_ok=True)
         self._worker = asyncio.create_task(self._run_worker())
-        self._server = await asyncio.start_unix_server(self._handle, path=str(self.socket_path))
+        self._server = await asyncio.start_unix_server(self._handle, path=str(self.socket_path), limit=16 * 1024 * 1024)
 
     async def close(self) -> None:
         self._closed = True
