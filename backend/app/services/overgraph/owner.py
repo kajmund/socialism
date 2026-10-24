@@ -19,6 +19,7 @@ from typing import Any
 from overgraph import OverGraphError
 
 from app.services.overgraph.catalogs import open_catalog
+from app.services.overgraph.owner_reads import handle_read
 from app.services.overgraph.owner_client import (
     IdempotencyConflict,
     MutationRequest,
@@ -78,6 +79,7 @@ class OvergraphOwner:
             maxsize=max_queue
         )
         self.metrics = OwnerMetrics()
+        self.read_revision = 0
         self._worker: asyncio.Task[None] | None = None
         self._server: asyncio.AbstractServer | None = None
         self._closed = False
@@ -121,7 +123,7 @@ class OvergraphOwner:
         fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
         os.close(self._lock_fd)
 
-    async def _handle(  # noqa: C901, PLR0911, PLR0912, PLR0915
+    async def _handle(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
     ) -> None:
         try:
@@ -129,51 +131,16 @@ class OvergraphOwner:
             if not line:
                 return
             payload = json.loads(line)
-            if payload.get("type") == "list_nodes":
-                if payload.get("catalog_id") != self.catalog_id:
-                    writer.write((json.dumps({"ok": False, "error": "catalog_mismatch"}) + "\n").encode())
-                    await writer.drain()
-                    return
-                label = str(payload["label"])
-                filters = dict(payload.get("props") or {})
-                rows: list[dict[str, Any]] = []
-                after: int | None = None
-                while len(rows) < int(payload.get("limit", 500)):
-                    page, after = self.catalog.query_nodes(
-                        label_filter={"labels": [label], "mode": "all"},
-                        limit=500,
-                        after=after,
-                    )
-                    for row in page:
-                        props = dict(row.props)
-                        if any(props.get(name) != value for name, value in filters.items()):
-                            continue
-                        item = {"key": row.key, "props": props}
-                        if payload.get("include_vectors") and row.dense_vector is not None:
-                            item["dense_vector"] = list(row.dense_vector)
-                        rows.append(item)
-                    if after is None or not page:
-                        break
-                writer.write((json.dumps({"ok": True, "nodes": rows}) + "\n").encode())
-                await writer.drain()
-                return
-            if payload.get("type") == "read":
-                if payload.get("catalog_id") != self.catalog_id:
-                    writer.write((json.dumps({"ok": False, "error": "catalog_mismatch"}) + "\n").encode())
-                    await writer.drain()
-                    return
-                values = {}
-                vectors = {}
-                for item in payload.get("keys", []):
-                    row = self.catalog.get_by_key(str(item["label"]), str(item["key"]))
-                    name = f"{item['label']}:{item['key']}"
-                    values[name] = None if row is None else dict(row.props)
-                    if payload.get("include_vectors") and row is not None and row.dense_vector is not None:
-                        vectors[name] = list(row.dense_vector)
-                result = {"ok": True, "values": values}
-                if payload.get("include_vectors"):
-                    result["vectors"] = vectors
-                writer.write((json.dumps(result) + "\n").encode())
+            started = time.perf_counter()
+            read_response = handle_read(payload, self.catalog, self.catalog_id)
+            if read_response is not None:
+                read_response.setdefault("read_revision", self.read_revision)
+                encoded = (json.dumps(read_response) + "\n").encode()
+                self.metrics.read_ops += 1
+                self.metrics.read_objects += len(read_response.get("nodes") or read_response.get("values") or {})
+                self.metrics.read_bytes += len(encoded)
+                _record_sample(self.metrics.read_seconds, started)
+                writer.write(encoded)
                 await writer.drain()
                 return
             if payload.get("type") == "health":
@@ -181,6 +148,7 @@ class OvergraphOwner:
                     "ok": True,
                     "catalog_id": self.catalog_id,
                     "sync_on_commit": self.sync_on_commit,
+                    "read_revision": self.read_revision,
                     "metrics": self.metrics.__dict__,
                 }) + "\n").encode())
                 await writer.drain()
@@ -241,6 +209,8 @@ class OvergraphOwner:
                             "error": f"durability_sync_failed: {type(exc).__name__}",
                             "mutation_id": request.mutation_id,
                         }
+                if result.get("ok") and not result.get("duplicate"):
+                    self.read_revision += 1
                 future.set_result(result)
             except Exception as exc:  # noqa: BLE001 - surfaced to client
                 if not future.done():

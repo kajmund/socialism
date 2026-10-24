@@ -72,6 +72,10 @@ class OwnerMetrics:
     queue_wait_seconds: list[float] = field(default_factory=list)
     commit_seconds: list[float] = field(default_factory=list)
     sync_seconds: list[float] = field(default_factory=list)
+    read_ops: int = 0
+    read_objects: int = 0
+    read_bytes: int = 0
+    read_seconds: list[float] = field(default_factory=list)
 
 
 class OwnerClient:
@@ -116,6 +120,58 @@ class OwnerClient:
         response = _require_ok(await self._request({
             "type": "list_nodes", "catalog_id": self.catalog_id, "label": label,
             "props": props or {}, "include_vectors": include_vectors, "limit": limit,
+        }))
+        return list(response.get("nodes") or [])
+
+    async def query_nodes(
+        self, label: str, *, props: dict[str, Any] | None = None,
+        include_vectors: bool = False, limit: int = 100, after: int | None = None,
+    ) -> dict[str, Any]:
+        """Bounded label query with stable node-id pagination."""
+        if self.catalog_id is None:
+            health = await self._request({"type": "health"})
+            self.catalog_id = health.get("catalog_id")
+        response = _require_ok(await self._request({
+            "type": "query_nodes", "catalog_id": self.catalog_id, "label": label,
+            "props": props or {}, "include_vectors": include_vectors,
+            "limit": limit, "after": after,
+        }))
+        return {
+            "nodes": list(response.get("nodes") or []),
+            "next_cursor": response.get("next_cursor"),
+            "read_revision": response.get("read_revision"),
+        }
+
+    async def count_nodes(self, label: str) -> int:
+        if self.catalog_id is None:
+            health = await self._request({"type": "health"})
+            self.catalog_id = health.get("catalog_id")
+        response = _require_ok(await self._request({
+            "type": "count_nodes", "catalog_id": self.catalog_id, "label": label,
+        }))
+        return int(response.get("count") or 0)
+
+    async def node(self, node_id: int, *, edge_limit: int = 40) -> dict[str, Any] | None:
+        if self.catalog_id is None:
+            health = await self._request({"type": "health"})
+            self.catalog_id = health.get("catalog_id")
+        response = _require_ok(await self._request({
+            "type": "node", "catalog_id": self.catalog_id,
+            "node_id": node_id, "edge_limit": edge_limit,
+        }))
+        return response.get("node")
+
+    async def neighbors(
+        self, node_id: int, *, direction: str = "outgoing",
+        labels: list[str] | None = None, limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        if self.catalog_id is None:
+            health = await self._request({"type": "health"})
+            self.catalog_id = health.get("catalog_id")
+        response = _require_ok(await self._request({
+            "type": "neighbors", "catalog_id": self.catalog_id,
+            "node_id": node_id, "direction": direction,
+            "labels": labels or [], "limit": limit,
         }))
         return list(response.get("nodes") or [])
 
