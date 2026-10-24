@@ -31,6 +31,8 @@ from app.services.knowledge.persistence import (
 )
 from app.services.knowledge.provider import KnowledgeVectorStoreError
 from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.owner_writer import write_text_unit_embeddings_via_owner
 from app.services.overgraph.text_units import load_domain_text_units
 from app.services.knowledge.scope import (
     KnowledgeTenantScope,
@@ -380,3 +382,6 @@ async def _embed_and_upsert(
             for chunk, vector in zip(chunks, vectors, strict=True)
         ],
     )
+    # The authoritative TextUnit vector also goes through the single writer.
+    owner = get_owner_runtime().require_client()
+    await write_text_unit_embeddings_via_owner(owner, list(units), list(vectors))
