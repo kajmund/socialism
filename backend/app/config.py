@@ -132,6 +132,10 @@ class Settings(LiveSpeechSettings, BaseSettings):
     image_cache_dir: str = "data/image_cache"
     # Embedded OverGraph catalogs (knowledge 3072, memory 1536).
     overgraph_dir: str = "data/overgraph"
+    # External single-writer owner socket. Empty leaves graph writes unavailable
+    # rather than falling back to a direct catalog writer.
+    overgraph_owner_socket: str = ""
+    overgraph_owner_catalog_id: str = ""
     # Persistent expert memory history in the configured Supabase Postgres database.
     mem0_collection_name: str = "expert_memories"
     mem0_embedding_model: str = "text-embedding-3-small"

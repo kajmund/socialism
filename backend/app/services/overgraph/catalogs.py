@@ -138,6 +138,16 @@ class Catalog:
             result = self._db.batch_upsert_nodes(list(nodes))
         return [_engine_id(item) for item in result]
 
+    def begin_write_txn(self) -> Any:
+        """Open a native OverGraph write transaction.
+
+        The caller owns serialization; the owner process uses this only from its
+        single mutation worker. Reads and writes inside the transaction are
+        invisible until commit and are rolled back on failure.
+        """
+        with self._lock:
+            return self._db.begin_write_txn()
+
     def upsert_edge(
         self,
         source: int,

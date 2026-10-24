@@ -26,11 +26,14 @@ from app.services.knowledge.scope import (
 )
 from app.services.knowledge.units import DocumentSection, SegmentedDocument
 from app.services.overgraph.catalogs import require_knowledge
-from app.services.overgraph.legal_claims import unlink_document_versions
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.legal_claims import evidence_for_version
+from app.services.overgraph.owner_writer import (
+    delete_document_graph_via_owner,
+    write_text_units_via_owner,
+)
 from app.services.overgraph.text_units import (
-    delete_text_units_for_document,
     text_unit_ids_for_document,
-    upsert_text_units,
 )
 
 
@@ -186,12 +189,14 @@ async def persist_segmented_document(
     session.add(version_row)
     await session.flush()
     await _insert_sections(session, version_row, segmented.sections, resolved)
-    # TextUnits are authoritative in OverGraph (no SQL mirror).
-    await asyncio.to_thread(
-        upsert_text_units,
-        require_knowledge(),
+    # TextUnits are authoritative in OverGraph and now go through its single
+    # writer. Missing owner is a hard failure; there is no direct fallback.
+    client = get_owner_runtime().require_client()
+    await write_text_units_via_owner(
+        client,
         segmented.text_units,
         scope=resolved,
+        embeddings=[None for _ in segmented.text_units],
         section_titles={section.id: section.title or "" for section in segmented.sections},
         section_ordinals={section.id: section.ordinal for section in segmented.sections},
     )
@@ -253,10 +258,15 @@ async def delete_canonical_document(session: AsyncSession, document_id: str) -> 
             )
         ).scalars().all()
     )
-    if version_ids:
-        await asyncio.to_thread(unlink_document_versions, catalog, version_ids)
-    await asyncio.to_thread(
-        delete_text_units_for_document, catalog, document_id=document_id,
+    client = get_owner_runtime().require_client()
+    evidence_keys = [
+        row.key for version_id in version_ids for row in evidence_for_version(catalog, version_id)
+    ]
+    await delete_document_graph_via_owner(
+        client,
+        unit_ids=unit_ids,
+        evidence_keys=evidence_keys,
+        mutation_id=f"delete-document-graph:{document_id}",
     )
     await session.delete(row)
     await session.flush()

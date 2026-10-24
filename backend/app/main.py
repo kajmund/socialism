@@ -55,6 +55,7 @@ from app.services import retrieval_index
 from app.services.expertgranskning.memory import close_default_expert_memory
 from app.services.graph_v2.worker import start_graph_owner, stop_graph_owner
 from app.services.overgraph.catalogs import catalog_root, open_runtime, set_runtime
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
 from app.services.knowledge.vector_store import SupabaseVectorBucketStore
 from app.services.kund_store import ensure_default_kunder
@@ -125,6 +126,12 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
         memory_dimension=EMBEDDING_MODEL_DIMENSIONS[settings.mem0_embedding_model],
     )
     set_runtime(graph_runtime)
+    owner_runtime = get_owner_runtime()
+    await owner_runtime.connect(
+        settings.overgraph_owner_socket,
+        catalog_id=settings.overgraph_owner_catalog_id or None,
+    )
+    _app.state.overgraph_owner = owner_runtime.status
     await _open_retrieval_index()
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None
@@ -154,6 +161,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
         if vector_runtime is not None:
             await vector_runtime.close()
         try:
+            await owner_runtime.close()
             close_default_expert_memory()
         finally:
             set_runtime(None)
