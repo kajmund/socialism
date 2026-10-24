@@ -154,3 +154,49 @@ async def test_stale_embedding_marks_anchor_and_bumps_pool(repo):
     assert await repository.mark_stale_embeddings(
         scope=scope, expected=EmbeddingSpec(model="new", revision="v2", dimension=4),
     ) == 0
+
+
+async def test_stale_member_is_excluded_from_new_matching(repo):
+    from app.services.clause_ssr.match import match_query
+    from app.services.clause_ssr.types import EmbeddingSpec
+    from app.services.overgraph.labels import scope_label
+    owner, repository, scope = repo
+    await repository.client.mutate("vector-seed", {"upsert_nodes": [
+        {"labels": ["TextUnit", scope_label(scope.scope_key)], "key": "unit-v", "props": {"document_id": "doc-1", "content_hash": "hv", "text": "uppsägning", "scope_key": scope.scope_key}, "dense_vector": [1.0, 0.0, 0.0, 0.0]},
+        {"labels": ["SsrClassification", scope_label(scope.scope_key)], "key": "cls-v", "props": {"slug": "uppsagning", "version": 1, "question": "Uppsägning?", "category": "termination", "level": "clause", "active": True, "scope_key": scope.scope_key}},
+    ]}, kind="batch")
+    spec = EmbeddingSpec(model="test", revision="v1", dimension=4)
+    await repository.record_decision(scope=scope, classification_id="cls-v", unit_id="unit-v", reviewer_id="admin-1", answer="yes")
+    verification_id = verification_key(scope.scope_key, "cls-v", "unit-v", "admin-1")
+    await repository.promote_anchor(scope=scope, verification_id=verification_id, embedding=spec)
+    set_props = await repository.build_anchor_set(scope=scope, category="termination", embedding=spec)
+    assert set_props["member_ids"]
+    await repository.mark_stale_embeddings(scope=scope, expected=EmbeddingSpec(model="other", revision="v2", dimension=4))
+    try:
+        match_query(owner.catalog, scope=scope, embedding=spec, vector=[1.0, 0.0, 0.0, 0.0])
+    except ValueError as exc:
+        assert "no active anchor set" in str(exc) or "anchor" in str(exc)
+    else:
+        raise AssertionError("stale anchor must not match")
+
+
+async def test_concurrent_revoke_and_stale_never_reactivates_anchor(repo):
+    import asyncio
+    from app.services.clause_ssr.types import EmbeddingSpec
+    from app.services.overgraph.labels import scope_label
+    owner, repository, scope = repo
+    await repository.client.mutate("vector-seed-2", {"upsert_nodes": [
+        {"labels": ["TextUnit", scope_label(scope.scope_key)], "key": "unit-w", "props": {"document_id": "doc-1", "content_hash": "hw", "text": "uppsägning", "scope_key": scope.scope_key}, "dense_vector": [1.0, 0.0, 0.0, 0.0]},
+        {"labels": ["SsrClassification", scope_label(scope.scope_key)], "key": "cls-w", "props": {"slug": "uppsagning", "version": 1, "question": "Uppsägning?", "category": "termination", "level": "clause", "active": True, "scope_key": scope.scope_key}},
+    ]}, kind="batch")
+    spec = EmbeddingSpec(model="test", revision="v1", dimension=4)
+    await repository.record_decision(scope=scope, classification_id="cls-w", unit_id="unit-w", reviewer_id="admin-1", answer="yes")
+    verification_id = verification_key(scope.scope_key, "cls-w", "unit-w", "admin-1")
+    await repository.promote_anchor(scope=scope, verification_id=verification_id, embedding=spec)
+    await asyncio.gather(
+        repository.revoke_verification(scope=scope, verification_id=verification_id),
+        repository.mark_stale_embeddings(scope=scope, expected=EmbeddingSpec(model="other", revision="v2", dimension=4)),
+        return_exceptions=True,
+    )
+    anchor = owner.catalog.get_by_key("SsrClauseAnchor", anchor_key(scope.scope_key, verification_id))
+    assert anchor is None or anchor.props["status"] not in {"draft", "active"}
