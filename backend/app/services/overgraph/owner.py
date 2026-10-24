@@ -1,0 +1,190 @@
+"""Single-writer Overgraph catalog owner.
+
+Only the owner process opens the catalog for writes. Clients submit bounded,
+idempotent mutation batches over a Unix socket. The idempotency receipt and the
+data mutation are written in one Catalog.graph_patch, so a retry after a lost
+response cannot apply the mutation twice.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from app.services.overgraph.catalogs import open_catalog
+
+RECEIPT_LABEL = "MutationReceipt"
+
+
+class OwnerQueueFull(RuntimeError):
+    pass
+
+
+@dataclass
+class MutationRequest:
+    mutation_id: str
+    patch: dict[str, Any]
+
+
+@dataclass
+class OwnerMetrics:
+    applied: int = 0
+    duplicates: int = 0
+    rejected: int = 0
+    queue_high_water: int = 0
+    wait_seconds: list[float] = field(default_factory=list)
+
+
+class OvergraphOwner:
+    def __init__(self, path: Path, *, dimension: int, socket_path: Path, max_queue: int = 256) -> None:
+        self.catalog = open_catalog(path, kind="knowledge", dimension=dimension)
+        self.socket_path = socket_path
+        self.max_queue = max_queue
+        self.queue: asyncio.Queue[tuple[MutationRequest, asyncio.Future[dict[str, Any]]]] = asyncio.Queue(
+            maxsize=max_queue
+        )
+        self.metrics = OwnerMetrics()
+        self._worker: asyncio.Task[None] | None = None
+        self._server: asyncio.AbstractServer | None = None
+        self._closed = False
+
+    async def start(self) -> None:
+        self.socket_path.parent.mkdir(parents=True, exist_ok=True)
+        self.socket_path.unlink(missing_ok=True)
+        self._worker = asyncio.create_task(self._run_worker())
+        self._server = await asyncio.start_unix_server(self._handle, path=str(self.socket_path))
+
+    async def close(self) -> None:
+        self._closed = True
+        if self._server is not None:
+            self._server.close()
+            await self._server.wait_closed()
+        if self._worker is not None:
+            await self.queue.join()
+            self._worker.cancel()
+            try:
+                await self._worker
+            except asyncio.CancelledError:
+                pass
+        self.catalog.close()
+        self.socket_path.unlink(missing_ok=True)
+
+    async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        try:
+            line = await reader.readline()
+            if not line:
+                return
+            payload = json.loads(line)
+            if payload.get("type") == "health":
+                writer.write((json.dumps({"ok": True, "metrics": self.metrics.__dict__}) + "\n").encode())
+                await writer.drain()
+                return
+            request = MutationRequest(mutation_id=str(payload["mutation_id"]), patch=dict(payload["patch"]))
+            future: asyncio.Future[dict[str, Any]] = asyncio.get_running_loop().create_future()
+            try:
+                self.queue.put_nowait((request, future))
+            except asyncio.QueueFull:
+                self.metrics.rejected += 1
+                writer.write((json.dumps({"ok": False, "error": "queue_full"}) + "\n").encode())
+                await writer.drain()
+                return
+            self.metrics.queue_high_water = max(self.metrics.queue_high_water, self.queue.qsize())
+            try:
+                response = await future
+            except Exception as exc:  # noqa: BLE001 - surfaced to the client
+                response = {"ok": False, "error": str(exc)}
+            writer.write((json.dumps(response) + "\n").encode())
+            await writer.drain()
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    async def _run_worker(self) -> None:
+        while not self._closed:
+            request, future = await self.queue.get()
+            try:
+                if future.cancelled():
+                    continue
+                result = await asyncio.to_thread(self._apply, request)
+                future.set_result(result)
+            except Exception as exc:  # noqa: BLE001 - surfaced to client
+                if not future.done():
+                    future.set_exception(exc)
+            finally:
+                self.queue.task_done()
+
+    def _apply(self, request: MutationRequest) -> dict[str, Any]:
+        receipt = self.catalog.get_by_key(RECEIPT_LABEL, request.mutation_id)
+        if receipt is not None:
+            self.metrics.duplicates += 1
+            return {"ok": True, "duplicate": True, "mutation_id": request.mutation_id}
+        patch = dict(request.patch)
+        nodes = list(patch.get("upsert_nodes", ()))
+        nodes.append(
+            {
+                "labels": [RECEIPT_LABEL, "overgraph-owner"],
+                "key": request.mutation_id,
+                "props": {"mutation_id": request.mutation_id},
+            }
+        )
+        patch["upsert_nodes"] = nodes
+        self.catalog.graph_patch(**patch)
+        self.metrics.applied += 1
+        return {"ok": True, "duplicate": False, "mutation_id": request.mutation_id}
+
+
+class OwnerClient:
+    def __init__(self, socket_path: Path, *, timeout: float = 30.0) -> None:
+        self.socket_path = socket_path
+        self.timeout = timeout
+
+    async def mutate(self, mutation_id: str, patch: dict[str, Any]) -> dict[str, Any]:
+        reader, writer = await asyncio.open_unix_connection(str(self.socket_path), limit=16 * 1024 * 1024)
+        try:
+            writer.write((json.dumps({"mutation_id": mutation_id, "patch": patch}) + "\n").encode())
+            await writer.drain()
+            line = await asyncio.wait_for(reader.readline(), timeout=self.timeout)
+            return json.loads(line)
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    async def health(self) -> dict[str, Any]:
+        reader, writer = await asyncio.open_unix_connection(str(self.socket_path))
+        try:
+            writer.write(b'{"type":"health"}\n')
+            await writer.drain()
+            return json.loads(await reader.readline())
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("path", type=Path)
+    parser.add_argument("--socket", type=Path, required=True)
+    parser.add_argument("--dimension", type=int, default=3072)
+    parser.add_argument("--max-queue", type=int, default=256)
+    args = parser.parse_args()
+
+    async def run() -> None:
+        owner = OvergraphOwner(args.path, dimension=args.dimension, socket_path=args.socket, max_queue=args.max_queue)
+        await owner.start()
+        print(json.dumps({"ready": True, "socket": str(args.socket)}), flush=True)
+        try:
+            while True:
+                await asyncio.sleep(3600)
+        finally:
+            await owner.close()
+
+    asyncio.run(run())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
