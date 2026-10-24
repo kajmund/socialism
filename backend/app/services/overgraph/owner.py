@@ -14,6 +14,7 @@ import fcntl
 import hashlib
 import json
 import os
+import secrets
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -73,7 +74,7 @@ class OvergraphOwner:
         catalog_id: str | None = None,
     ) -> None:
         path.mkdir(parents=True, exist_ok=True)
-        self.catalog_id = catalog_id or hashlib.sha256(str(path.resolve()).encode()).hexdigest()[:24]
+        self.catalog_id = catalog_id or self._load_catalog_id(path)
         self._lock_fd = os.open(path / ".owner.lock", os.O_CREAT | os.O_RDWR, 0o644)
         try:
             fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -91,6 +92,24 @@ class OvergraphOwner:
         self._worker: asyncio.Task[None] | None = None
         self._server: asyncio.AbstractServer | None = None
         self._closed = False
+
+    @staticmethod
+    def _load_catalog_id(path: Path) -> str:
+        identity_file = path.parent / f".{path.name}.overgraph-owner-id"
+        try:
+            existing = identity_file.read_text(encoding="utf-8").strip()
+            if existing:
+                return existing
+        except FileNotFoundError:
+            pass
+        identity = secrets.token_hex(16)
+        fd = os.open(identity_file, os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            os.write(fd, identity.encode())
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        return identity
 
     async def start(self) -> None:
         self.socket_path.parent.mkdir(parents=True, exist_ok=True)
@@ -121,6 +140,18 @@ class OvergraphOwner:
             if not line:
                 return
             payload = json.loads(line)
+            if payload.get("type") == "read":
+                if payload.get("catalog_id") != self.catalog_id:
+                    writer.write((json.dumps({"ok": False, "error": "catalog_mismatch"}) + "\n").encode())
+                    await writer.drain()
+                    return
+                values = {}
+                for item in payload.get("keys", []):
+                    row = self.catalog.get_by_key(str(item["label"]), str(item["key"]))
+                    values[f"{item['label']}:{item['key']}"] = None if row is None else dict(row.props)
+                writer.write((json.dumps({"ok": True, "values": values}) + "\n").encode())
+                await writer.drain()
+                return
             if payload.get("type") == "health":
                 writer.write((json.dumps({
                     "ok": True, "catalog_id": self.catalog_id, "metrics": self.metrics.__dict__,
@@ -366,6 +397,12 @@ class OwnerClient:
         if self.catalog_id is not None and response.get("catalog_id") != self.catalog_id:
             raise OwnerProtocolError("catalog_mismatch")
         return response
+
+    async def read(self, keys: list[dict[str, str]]) -> dict[str, Any]:
+        if self.catalog_id is None:
+            health = await self._request({"type": "health"})
+            self.catalog_id = health.get("catalog_id")
+        return await self._request({"type": "read", "keys": keys, "catalog_id": self.catalog_id})
 
     async def mutate(self, mutation_id: str, patch: dict[str, Any], *, kind: str = "patch") -> dict[str, Any]:
         if self.catalog_id is None:
