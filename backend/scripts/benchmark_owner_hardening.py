@@ -223,6 +223,38 @@ async def _concurrent_fact_writes(root: Path) -> dict[str, Any]:
         _stop(owner)
 
 
+async def _durability_measure(root: Path, *, sync: bool, mutations: int = 30) -> dict[str, Any]:
+    owner = _spawn_owner(root, sync=sync)
+    await _wait_owner(root)
+    try:
+        client = OwnerClient(root / "owner.sock")
+        for index in range(mutations):
+            result = await client.mutate(
+                f"durability-{index}",
+                {"upsert_nodes": [{
+                    "labels": ["DurabilityTrial", "owner-test"],
+                    "key": f"trial-{index}",
+                    "props": {"value": index},
+                }]},
+                kind="batch",
+            )
+            if not result.get("ok"):
+                raise RuntimeError(result)
+        owner.kill()  # SIGKILL right after the last ack
+        owner.wait(timeout=10)
+        owner = _spawn_owner(root, sync=sync)
+        await _wait_owner(root)
+        rows = await OwnerClient(root / "owner.sock").list_nodes("DurabilityTrial")
+        return {
+            "sync_on_commit": sync,
+            "acked": mutations,
+            "recovered": len(rows),
+            "lost": mutations - len(rows),
+        }
+    finally:
+        _stop(owner)
+
+
 async def _restart_measure(root: Path) -> dict[str, Any]:
     owner = _spawn_owner(root, sync=True)
     await _wait_owner(root)
@@ -259,12 +291,20 @@ def main() -> int:
         concurrent = await _concurrent_writes(base / "concurrent")
         facts = await _concurrent_fact_writes(base / "facts")
         restart = await _restart_measure(base / "restart")
+        durability_sync = await _durability_measure(base / "durability-sync", sync=True)
+        durability_nosync = await _durability_measure(
+            base / "durability-nosync", sync=False,
+        )
         return {
             "durable_mode": sync,
             "no_sync_mode": nosync,
             "concurrent_text_units": concurrent,
             "concurrent_facts": facts,
             "restart": restart,
+            "durability": {
+                "sync": durability_sync,
+                "no_sync": durability_nosync,
+            },
         }
 
     report = asyncio.run(run())

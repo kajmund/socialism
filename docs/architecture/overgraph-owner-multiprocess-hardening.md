@@ -36,6 +36,7 @@ Result on the current branch (repeatable):
 | Owner stops mid-work | health `unavailable`, ingest fails loudly, no fallback; restart → ready → ingest succeeds |
 | Two owners on one catalog | second process exits non-zero (`already owned`) |
 | Acked mutation, owner SIGKILL immediately after ack | recovered after restart (`sync_on_commit=True`) |
+| Facts/evidence through a backend HTTP API | not exercised end-to-end (no deterministic LLM-free fact endpoint); covered by owner unit/differential tests |
 | Same id+payload replay after restart | `duplicate: true`, one node |
 | Owner read after write | current |
 | Backend-local catalog read after owner write | **stale snapshot** (see below) |
@@ -59,6 +60,9 @@ Consequences and fixes in this change:
   deployment.
 - `canonical_ingest.persist_extracted_source` reuse probe uses the same owner
   read; otherwise a healthy current version looked empty and was superseded.
+- Document deletion now resolves TextUnit ids and evidence-link keys through the
+  owner before the atomic delete; the local snapshot used to produce an empty
+  delete set and could orphan the whole document graph.
 - `owner_client.list_nodes`/`read` now fail loudly on `ok:false` instead of
   returning an empty list.
 
@@ -79,7 +83,7 @@ Measured on OverGraph 0.17.0 (`wal_sync_mode="group_commit"`), macOS/APFS:
 | Atomic `WriteTxn.commit` / `graph_patch` | one WAL batch + memtable together; rollback/conflict tested |
 | Visible in owner after commit | yes (memtable first) |
 | Recovered after owner restart | only after WAL reached the file: timer ~50 ms, `sync()`, `flush()` or `close()` |
-| Acked mutation survives SIGKILL | with `sync_on_commit=True`: 30/30; without: 27/30 |
+| Acked mutation survives SIGKILL | with `sync_on_commit=True`: 30/30; without: 29/30 in the committed benchmark run (varies with the 50 ms timer/8 KiB WAL buffering) |
 | Payload size effect | WAL is userspace-buffered (~8 KiB); small commits can be lost before the timer |
 | Power-loss durability | **not proven here**; only vendor fsync contract (macOS `fsync` is not `F_FULLFSYNC`) |
 
@@ -133,6 +137,9 @@ no production caller passes `contradiction_key` today.
 Measured (SQLite file engine, explicit pool, same technique as
 `tests/test_research_connection_release.py`):
 
+These numbers came from an ad-hoc one-connection-pool probe during the
+investigation; they are not produced by a committed script yet. A reproducible
+probe belongs with the Phase D fix.
 - `publish_answer`: 2 owner RPCs per publication; `pool.checkedout()==1` during
   every RPC; RPC p50 0.78 ms / p95 1.16 ms; publish p50 2.34 ms.
 - `persist_decomposition`: 2 RPCs, p50 1.24 ms; connection checked out
@@ -155,19 +162,22 @@ has the same pre-existing pattern around the TextUnit owner write.
 
 | Metric | Durable mode | No-sync mode |
 | --- | ---: | ---: |
-| RPC p50/p95, 1 node | 5.1 / 6.5 ms | 0.40 / 0.60 ms |
-| RPC p50/p95, 100 nodes | 7.4 / 8.1 ms | 2.6 / 2.9 ms |
-| RPC p50/p95, 1000 nodes | 26.9 / 30.5 ms | 22.4 / 26.2 ms |
-| Queue wait p50/p95 | 0.03 / 0.15 ms | 0.03 / 0.15 ms |
-| Commit p50/p95 | 0.86 / 9.2 ms | 0.79 / 9.5 ms |
-| Sync p50/p95 | 4.65 / 6.15 ms | — |
-| 16 clients × 25 TextUnit mutations | 202 mutations/s, p95 89 ms | not run |
-| 16 concurrent fact writes | 93 ms total, p50 56 ms | not run |
-| Restart → ready / first write | 0.505 s / 7.1 ms | — |
+| RPC p50/p95, 1 node | 5.4 / 6.7 ms | 0.59 / 1.29 ms |
+| RPC p50/p95, 100 nodes | 7.9 / 8.4 ms | 2.8 / 5.3 ms |
+| RPC p50/p95, 1000 nodes | 29.5 / 35.8 ms | 23.9 / 27.5 ms |
+| Queue wait p50/p95 | 0.04 / 0.16 ms | 0.04 / 0.18 ms |
+| Commit p50/p95 | 0.85 / 10.3 ms | 0.82 / 10.0 ms |
+| Sync p50/p95 | 4.84 / 5.81 ms | — |
+| 16 clients × 25 synthetic TextUnit mutations | 165 mutations/s, p95 111 ms | not run |
+| 16 concurrent synthetic fact writes | 88 ms total, p50 49 ms | not run |
+| Restart → ready / first write | 0.596 s / 6.7 ms | — |
+| Durability SIGKILL, 30 acked mutations | 30/30 recovered | 29/30 recovered |
 
-Real application flow: the two-backend harness performed one document ingest per
-backend concurrently in 0.205 s wall (including job dispatch), with both
-vectors and provenance present in the owner-backed graph.
+The batch/concurrency rows above are synthetic owner-client calls, not the
+application's TextUnit writer or a research freeze. The real application flow is
+measured separately by the harness: one document ingest per backend concurrently,
+end-to-end through job completion and owner-visible vectors, took 0.485 s wall
+(0.241 s to accept both uploads).
 
 ## Remaining risks / before merge
 
