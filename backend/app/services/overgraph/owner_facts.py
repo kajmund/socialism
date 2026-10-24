@@ -163,9 +163,10 @@ def _fact_edges(
             "valid_from": valid_from,
         })
     if contradiction_exists and contradiction_key is not None:
+        left, right = sorted((key, contradiction_key))
         edges.append({
-            "from": {"label": FACT, "key": key},
-            "to": {"label": FACT, "key": contradiction_key},
+            "from": {"label": FACT, "key": left},
+            "to": {"label": FACT, "key": right},
             "label": CONTRADICTS,
         })
     return edges
