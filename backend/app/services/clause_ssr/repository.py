@@ -45,18 +45,32 @@ class ClauseRepository:
     async def _apply(self, mutation_id: str, patch: dict[str, Any]) -> dict[str, Any]:
         return await self.client.mutate(mutation_id, patch, kind="batch")
 
+    @staticmethod
+    def _pool_key(scope: KnowledgeTenantScope, category: str) -> str:
+        return f"anchor-pool:{scope.scope_key}:{category}"
+
+    async def _pool_revision(self, scope: KnowledgeTenantScope, category: str) -> int:
+        row = await self._read("SsrAnchorPool", self._pool_key(scope, category))
+        return int((row or {}).get("revision") or 0)
+
     async def list_anchor_candidates(
         self, *, scope: KnowledgeTenantScope, category: str,
-    ) -> list[dict[str, Any]]:
-        rows = await self.client.list_nodes(
-            ANCHOR,
-            props={"category": category, "scope_key": scope.scope_key},
-            include_vectors=True,
-        )
-        return [
-            row for row in rows
-            if row["props"].get("status") in {"draft", "active"}
-        ]
+    ) -> tuple[list[dict[str, Any]], int]:
+        for _attempt in range(3):
+            before = await self._pool_revision(scope, category)
+            rows = await self.client.list_nodes(
+                ANCHOR,
+                props={"category": category, "scope_key": scope.scope_key},
+                include_vectors=True,
+            )
+            after = await self._pool_revision(scope, category)
+            if before != after:
+                continue
+            return [
+                row for row in rows
+                if row["props"].get("status") in {"draft", "active"}
+            ], after
+        raise RuntimeError("anchor candidate snapshot changed during listing")
 
     async def get_or_create_session(
         self,
