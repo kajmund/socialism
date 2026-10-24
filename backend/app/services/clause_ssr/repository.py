@@ -336,3 +336,79 @@ class ClauseRepository:
                 continue
             return session_props, unit_id
         raise RuntimeError("clause undo precondition conflict")
+
+    async def promote_anchor(
+        self,
+        *,
+        scope: KnowledgeTenantScope,
+        verification_id: str,
+        embedding: Any,
+    ) -> dict[str, Any]:
+        anchor_id = anchor_key(scope.scope_key, verification_id)
+        for _attempt in range(3):
+            verification = await self._read(VERIFICATION, verification_id)
+            if verification is None:
+                raise KeyError(f"unknown verification {verification_id}")
+            if verification.get("status") != "active" or verification.get("answer") not in LABEL_ANSWERS:
+                raise ValueError("only active yes/no verifications can become anchors")
+            polarity = str(verification.get("polarity") or "")
+            if polarity not in {"positive", "negative"}:
+                raise ValueError("skip/unsure cannot become anchors")
+            existing = await self._read(ANCHOR, anchor_id)
+            if existing is not None and existing.get("status") not in {"revoked", "source_revoked"}:
+                return existing
+            unit = await self._read("TextUnit", str(verification.get("source_unit_id") or ""))
+            if unit is None:
+                raise KeyError("verification source unit is missing")
+            read = await self.client.read(
+                [{"label": "TextUnit", "key": str(unit.get("id") or verification.get("source_unit_id"))}],
+                include_vectors=True,
+            )
+            key_name = f"TextUnit:{verification.get('source_unit_id')}"
+            vector = (read.get("vectors") or {}).get(key_name)
+            if vector is not None and len(vector) != int(getattr(embedding, "dimension", len(vector))):
+                vector = None
+            status = "draft" if vector is not None else "stale_embedding"
+            props = {
+                "id": anchor_id,
+                "scope_key": scope.scope_key,
+                "verification_id": verification_id,
+                "source_unit_id": str(verification.get("source_unit_id") or ""),
+                "classification_id": str(verification.get("classification_id") or ""),
+                "category": str(verification.get("category") or ""),
+                "polarity": polarity,
+                "content_hash": str(verification.get("content_hash") or ""),
+                "status": status,
+                "embedding_model": str(getattr(embedding, "model", "")),
+                "embedding_revision": str(getattr(embedding, "revision", "")),
+                "embedding_dimension": int(getattr(embedding, "dimension", 0)),
+                "reviewer_id": str(verification.get("reviewer_id") or ""),
+                "question": str(verification.get("question") or ""),
+            }
+            patch = {
+                "expected_nodes": [{
+                    "label": VERIFICATION, "key": verification_id,
+                    "props": {"revision": int(verification.get("revision") or 1), "status": "active"},
+                }],
+                "upsert_nodes": [{
+                    "labels": [ANCHOR, scope_label(scope.scope_key)],
+                    "key": anchor_id, "props": props,
+                    "dense_vector": vector,
+                }],
+                "upsert_edges": [
+                    {"from": {"label": ANCHOR, "key": anchor_id}, "to": {"label": VERIFICATION, "key": verification_id}, "label": "ssr.DERIVED_FROM"},
+                    {"from": {"label": ANCHOR, "key": anchor_id}, "to": {"label": "TextUnit", "key": props["source_unit_id"]}, "label": "ssr.REPRESENTS"},
+                ],
+            }
+            if existing is None:
+                patch["expected_absent"] = [{"label": ANCHOR, "key": anchor_id}]
+            else:
+                patch["expected_nodes"].append({
+                    "label": ANCHOR, "key": anchor_id,
+                    "props": {"status": existing.get("status")},
+                })
+            result = await self._apply(f"promote:{anchor_id}:{verification.get('revision')}", patch)
+            if result.get("error") == "precondition_failed":
+                continue
+            return props
+        raise RuntimeError("clause promotion precondition conflict")
