@@ -86,6 +86,8 @@ def _fake_from_settings(cls, *, client=None):
 OpenAIEmbeddingProvider.from_settings = classmethod(_fake_from_settings)
 
 from app.main import app  # noqa: E402
+import app.main as app_module  # noqa: E402
+import app.services.overgraph.catalogs as catalogs_module  # noqa: E402
 from app.services.knowledge.vector_store import MemoryKnowledgeVectorStore  # noqa: E402
 from app.services.overgraph.catalogs import Catalog  # noqa: E402
 from app.services.research.composition import (  # noqa: E402
@@ -97,6 +99,30 @@ set_knowledge_vector_store_factory(lambda: _store)
 
 _guard_file = os.environ.get("OWNER_TEST_GUARD_FILE", "").strip()
 if _guard_file:
+
+    def _record(message: str) -> None:
+        Path(_guard_file).open("a", encoding="utf-8").write(f"{os.getpid()} {message}\n")
+
+    _real_open_catalog = catalogs_module.open_catalog
+
+    def _guarded_open_catalog(path, *, kind, dimension):
+        if os.environ.get("OWNER_TEST_NO_LOCAL_KNOWLEDGE") == "1" and kind == "knowledge":
+            _record(f"LOCAL_KNOWLEDGE_OPEN {path}")
+        return _real_open_catalog(path, kind=kind, dimension=dimension)
+
+    catalogs_module.open_catalog = _guarded_open_catalog
+    _real_open_runtime = catalogs_module.open_runtime
+
+    def _guarded_open_runtime(root, *, knowledge_dimension, memory_dimension):
+        if os.environ.get("OWNER_TEST_NO_LOCAL_KNOWLEDGE") == "1":
+            _record(f"LOCAL_KNOWLEDGE_RUNTIME_OPEN {root}")
+        return _real_open_runtime(
+            root, knowledge_dimension=knowledge_dimension,
+            memory_dimension=memory_dimension,
+        )
+
+    catalogs_module.open_runtime = _guarded_open_runtime
+    app_module.open_runtime = _guarded_open_runtime
 
     def _guard(method: str):
         def fail(*_args, **_kwargs):

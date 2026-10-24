@@ -1,7 +1,8 @@
 # Owner multiprocess hardening: real backends, restart, durability
 
 Status: verification + hardening note (PR #432). Companion to
-[overgraph-research-fact-writer.md](overgraph-research-fact-writer.md).
+[overgraph-research-fact-writer.md](overgraph-research-fact-writer.md) and
+[overgraph-owner-read-facade.md](overgraph-owner-read-facade.md).
 
 ## What was verified against the real stack
 
