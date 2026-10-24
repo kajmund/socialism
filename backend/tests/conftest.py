@@ -53,6 +53,8 @@ from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis
 from app.services.prompt_fields_store import clear_prompt_cache
 from app.services.ssr import clear_embedding_cache, set_embedder
+from app.services.overgraph.owner import OwnerClient, OvergraphOwner
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.catalogs import (
     OverGraphRuntime,
     get_runtime,
@@ -137,6 +139,30 @@ def research_overgraph(tmp_path):
     finally:
         if get_runtime() is runtime:
             set_runtime(None)
+
+
+@pytest.fixture(autouse=True)
+async def owner_writer_runtime(research_overgraph):
+    """Tests use the same catalog through a real in-process owner socket."""
+    root = Path(tempfile.mkdtemp(prefix="ogo-"))
+    socket_path = root / "owner.sock"
+    owner = OvergraphOwner(
+        root / "owner-catalog",
+        dimension=RESEARCH_TEST_DIM,
+        socket_path=socket_path,
+        catalog=research_overgraph,
+    )
+    await owner.start()
+    runtime = get_owner_runtime()
+    previous_client, previous_status = runtime.client, runtime.status
+    runtime.client = OwnerClient(socket_path, catalog_id=owner.catalog_id)
+    runtime.status = {"status": "ready", "catalog_id": owner.catalog_id, "write_paths_ready": True}
+    try:
+        yield
+    finally:
+        runtime.client = previous_client
+        runtime.status = previous_status
+        await owner.close()
 
 
 class NoopExpertMemory:

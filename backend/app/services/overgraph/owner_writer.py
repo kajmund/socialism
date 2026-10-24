@@ -106,10 +106,15 @@ def build_text_unit_batch(
     return {"upsert_nodes": nodes, "upsert_edges": edges}
 
 
-def mutation_id_for(batch: Mapping[str, object]) -> str:
+def mutation_id_for(
+    batch: Mapping[str, object], *, catalog_id: str | None = None, scope_key: str | None = None,
+) -> str:
     import hashlib
 
-    canonical = json.dumps(batch, sort_keys=True, separators=(",", ":"), default=str)
+    canonical = json.dumps(
+        {"operation": "upsert-text-units", "catalog_id": catalog_id, "scope_key": scope_key, "batch": batch},
+        sort_keys=True, separators=(",", ":"), default=str,
+    )
     return "text-units:" + hashlib.sha256(canonical.encode()).hexdigest()
 
 
@@ -121,6 +126,7 @@ async def write_text_units_via_owner(
     embeddings: Sequence[Sequence[float] | None],
     section_titles: Mapping[str, str] | None = None,
     section_ordinals: Mapping[str, int] | None = None,
+    mutation_id: str | None = None,
 ) -> dict[str, object]:
     batch = build_text_unit_batch(
         units,
@@ -129,4 +135,8 @@ async def write_text_units_via_owner(
         section_titles=section_titles,
         section_ordinals=section_ordinals,
     )
-    return await client.mutate(mutation_id_for(batch), batch, kind="batch")
+    return await client.mutate(
+        mutation_id or mutation_id_for(batch, catalog_id=client.catalog_id, scope_key=scope.scope_key),
+        batch,
+        kind="batch",
+    )

@@ -72,6 +72,7 @@ class OvergraphOwner:
         socket_path: Path,
         max_queue: int = 256,
         catalog_id: str | None = None,
+        catalog: Any | None = None,
     ) -> None:
         path.mkdir(parents=True, exist_ok=True)
         self.catalog_id = catalog_id or self._load_catalog_id(path)
@@ -82,7 +83,8 @@ class OvergraphOwner:
             os.close(self._lock_fd)
             raise OwnerAlreadyActive(f"catalog is already owned: {path}") from exc
         self._catalog_path = path
-        self.catalog = open_catalog(path, kind="knowledge", dimension=dimension)
+        self._owns_catalog = catalog is None
+        self.catalog = open_catalog(path, kind="knowledge", dimension=dimension) if catalog is None else catalog
         self.socket_path = socket_path
         self.max_queue = max_queue
         self.queue: asyncio.Queue[tuple[MutationRequest, asyncio.Future[dict[str, Any]]]] = asyncio.Queue(
@@ -129,7 +131,8 @@ class OvergraphOwner:
                 await self._worker
             except asyncio.CancelledError:
                 pass
-        self.catalog.close()
+        if self._owns_catalog:
+            self.catalog.close()
         self.socket_path.unlink(missing_ok=True)
         fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
         os.close(self._lock_fd)
