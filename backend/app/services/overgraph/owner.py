@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import fcntl
+import hashlib
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -22,6 +25,14 @@ RECEIPT_LABEL = "MutationReceipt"
 
 class OwnerQueueFull(RuntimeError):
     pass
+
+
+class OwnerAlreadyActive(RuntimeError):
+    """Another process already owns this catalog."""
+
+
+class IdempotencyConflict(RuntimeError):
+    """A mutation id was reused with a different payload."""
 
 
 @dataclass
@@ -41,6 +52,14 @@ class OwnerMetrics:
 
 class OvergraphOwner:
     def __init__(self, path: Path, *, dimension: int, socket_path: Path, max_queue: int = 256) -> None:
+        path.mkdir(parents=True, exist_ok=True)
+        self._lock_fd = os.open(path / ".owner.lock", os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            os.close(self._lock_fd)
+            raise OwnerAlreadyActive(f"catalog is already owned: {path}") from exc
+        self._catalog_path = path
         self.catalog = open_catalog(path, kind="knowledge", dimension=dimension)
         self.socket_path = socket_path
         self.max_queue = max_queue
@@ -72,6 +91,8 @@ class OvergraphOwner:
                 pass
         self.catalog.close()
         self.socket_path.unlink(missing_ok=True)
+        fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+        os.close(self._lock_fd)
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
@@ -117,9 +138,19 @@ class OvergraphOwner:
             finally:
                 self.queue.task_done()
 
+    @staticmethod
+    def _payload_hash(patch: dict[str, Any]) -> str:
+        canonical = json.dumps(patch, sort_keys=True, separators=(",", ":"), default=str)
+        return hashlib.sha256(canonical.encode()).hexdigest()
+
     def _apply(self, request: MutationRequest) -> dict[str, Any]:
+        payload_hash = self._payload_hash(request.patch)
         receipt = self.catalog.get_by_key(RECEIPT_LABEL, request.mutation_id)
         if receipt is not None:
+            previous = str(receipt.props.get("payload_hash", ""))
+            if previous != payload_hash:
+                self.metrics.rejected += 1
+                return {"ok": False, "error": "idempotency_conflict", "mutation_id": request.mutation_id}
             self.metrics.duplicates += 1
             return {"ok": True, "duplicate": True, "mutation_id": request.mutation_id}
         patch = dict(request.patch)
@@ -128,7 +159,7 @@ class OvergraphOwner:
             {
                 "labels": [RECEIPT_LABEL, "overgraph-owner"],
                 "key": request.mutation_id,
-                "props": {"mutation_id": request.mutation_id},
+                "props": {"mutation_id": request.mutation_id, "payload_hash": payload_hash},
             }
         )
         patch["upsert_nodes"] = nodes

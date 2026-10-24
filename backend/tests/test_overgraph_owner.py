@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.overgraph.owner import OvergraphOwner, OwnerClient
+from app.services.overgraph.owner import OwnerAlreadyActive, OvergraphOwner, OwnerClient
 
 
 @pytest.fixture
@@ -39,10 +39,31 @@ async def test_concurrent_clients_both_commit(owner):
 
 async def test_duplicate_mutation_id_is_not_reapplied(owner):
     instance, client = owner
-    assert (await client.mutate("same-id", {"upsert_nodes": [_node("first")]}))["duplicate"] is False
-    assert (await client.mutate("same-id", {"upsert_nodes": [_node("second")]}))["duplicate"] is True
+    first = {"upsert_nodes": [_node("first")]}
+    assert (await client.mutate("same-id", first))["duplicate"] is False
+    assert (await client.mutate("same-id", first))["duplicate"] is True
+    conflict = await client.mutate("same-id", {"upsert_nodes": [_node("second")]})
+    assert conflict == {"ok": False, "error": "idempotency_conflict", "mutation_id": "same-id"}
     assert instance.catalog.get_by_key("Probe", "first") is not None
     assert instance.catalog.get_by_key("Probe", "second") is None
+
+
+async def test_second_owner_refuses_same_catalog(tmp_path: Path):
+    socket_path = tmp_path / "owner.sock"
+    first = OvergraphOwner(tmp_path / "catalog", dimension=4, socket_path=socket_path)
+    try:
+        with pytest.raises(OwnerAlreadyActive):
+            OvergraphOwner(tmp_path / "catalog", dimension=4, socket_path=socket_path)
+    finally:
+        await first.close()
+
+
+async def test_stale_socket_is_replaced_only_after_lock(owner):
+    instance, _client = owner
+    assert instance.socket_path.exists()
+    # A stale socket path does not grant ownership; a second owner still fails.
+    with pytest.raises(OwnerAlreadyActive):
+        OvergraphOwner(instance._catalog_path, dimension=4, socket_path=instance.socket_path)
 
 
 async def test_receipt_survives_owner_restart():
@@ -51,14 +72,17 @@ async def test_receipt_survives_owner_restart():
     first = OvergraphOwner(root / "catalog", dimension=4, socket_path=socket_path)
     await first.start()
     client = OwnerClient(socket_path)
-    await client.mutate("persisted", {"upsert_nodes": [_node("before-restart")]})
+    persisted = {"upsert_nodes": [_node("before-restart")]}
+    await client.mutate("persisted", persisted)
     await first.close()
 
     second = OvergraphOwner(root / "catalog", dimension=4, socket_path=socket_path)
     await second.start()
     try:
-        duplicate = await client.mutate("persisted", {"upsert_nodes": [_node("after-restart")]})
+        duplicate = await client.mutate("persisted", persisted)
         assert duplicate["duplicate"] is True
+        conflict = await client.mutate("persisted", {"upsert_nodes": [_node("after-restart")]})
+        assert conflict["error"] == "idempotency_conflict"
         assert second.catalog.get_by_key("Probe", "after-restart") is None
     finally:
         await second.close()
