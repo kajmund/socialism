@@ -523,6 +523,30 @@ def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
         assert evidence[0]["source_id"] == "doc-reuse-cross-process"
         assert evidence[0]["metadata"]["answer_fact_id"] == published[1]["fact_id"]
 
+        # Cross-process hybrid/vector retrieval: A writes a fact through the
+        # owner; B runs the existing candidate retrieval through its owner path.
+        vector = [0.0] * DIMENSION
+        vector[0] = 1.0
+        seeded_fact = _http(
+            "POST", f"http://127.0.0.1:{port_a}/__owner_test__/seed-retrieval",
+            body=json.dumps({
+                "key": "cross-process-retrieval",
+                "text": "Uppsägningstid nio månader",
+                "vector": vector,
+            }).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        assert seeded_fact[0] == 200, seeded_fact
+        candidates = _http(
+            "POST", f"http://127.0.0.1:{port_b}/__owner_test__/lookup-candidates",
+            body=json.dumps({"vector": vector}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        assert candidates[0] == 200, candidates
+        assert seeded_fact[1]["fact_id"] in {
+            row["id"] for row in candidates[1]["facts"]
+        }, candidates[1]
+
         # Real owner-backed knowledge writes from both API processes: clause
         # decisions on different units through the same owner.
         me = _http("GET", f"http://127.0.0.1:{port_a}/me", token=token)[1]
@@ -640,6 +664,10 @@ def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
             "answer_reuse": {
                 "fact_id": published[1]["fact_id"],
                 "evidence_count": len(evidence),
+            },
+            "retrieval": {
+                "fact_id": seeded_fact[1]["fact_id"],
+                "candidates": len(candidates[1]["facts"]),
             },
             "clause_decisions": len(decisions),
             "graph_after_owner_stop": snapshot,
