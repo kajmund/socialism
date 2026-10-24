@@ -37,6 +37,14 @@ class IdempotencyConflict(RuntimeError):
     """A mutation id was reused with a different payload."""
 
 
+class OwnerUnavailable(RuntimeError):
+    """The owner is not reachable; retry the same mutation id."""
+
+
+class OwnerProtocolError(RuntimeError):
+    """The owner returned an error that must not be retried blindly."""
+
+
 @dataclass
 class MutationRequest:
     mutation_id: str
@@ -55,8 +63,17 @@ class OwnerMetrics:
 
 
 class OvergraphOwner:
-    def __init__(self, path: Path, *, dimension: int, socket_path: Path, max_queue: int = 256) -> None:
+    def __init__(
+        self,
+        path: Path,
+        *,
+        dimension: int,
+        socket_path: Path,
+        max_queue: int = 256,
+        catalog_id: str | None = None,
+    ) -> None:
         path.mkdir(parents=True, exist_ok=True)
+        self.catalog_id = catalog_id or hashlib.sha256(str(path.resolve()).encode()).hexdigest()[:24]
         self._lock_fd = os.open(path / ".owner.lock", os.O_CREAT | os.O_RDWR, 0o644)
         try:
             fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -105,7 +122,13 @@ class OvergraphOwner:
                 return
             payload = json.loads(line)
             if payload.get("type") == "health":
-                writer.write((json.dumps({"ok": True, "metrics": self.metrics.__dict__}) + "\n").encode())
+                writer.write((json.dumps({
+                    "ok": True, "catalog_id": self.catalog_id, "metrics": self.metrics.__dict__,
+                }) + "\n").encode())
+                await writer.drain()
+                return
+            if payload.get("catalog_id") != self.catalog_id:
+                writer.write((json.dumps({"ok": False, "error": "catalog_mismatch"}) + "\n").encode())
                 await writer.drain()
                 return
             request = MutationRequest(
@@ -313,30 +336,69 @@ class OvergraphOwner:
 
 
 class OwnerClient:
-    def __init__(self, socket_path: Path, *, timeout: float = 30.0) -> None:
+    def __init__(self, socket_path: Path, *, catalog_id: str | None = None, timeout: float = 30.0) -> None:
         self.socket_path = socket_path
+        self.catalog_id = catalog_id
         self.timeout = timeout
 
-    async def mutate(self, mutation_id: str, patch: dict[str, Any], *, kind: str = "patch") -> dict[str, Any]:
-        reader, writer = await asyncio.open_unix_connection(str(self.socket_path), limit=16 * 1024 * 1024)
+    async def _request(self, payload: dict[str, Any]) -> dict[str, Any]:
         try:
-            writer.write((json.dumps({"mutation_id": mutation_id, "kind": kind, "patch": patch}) + "\n").encode())
+            reader, writer = await asyncio.open_unix_connection(
+                str(self.socket_path), limit=16 * 1024 * 1024
+            )
+        except (FileNotFoundError, ConnectionRefusedError, OSError) as exc:
+            raise OwnerUnavailable(str(exc)) from exc
+        try:
+            writer.write((json.dumps(payload) + "\n").encode())
             await writer.drain()
             line = await asyncio.wait_for(reader.readline(), timeout=self.timeout)
+            if not line:
+                raise OwnerUnavailable("owner closed the connection")
             return json.loads(line)
+        except asyncio.TimeoutError as exc:
+            raise OwnerUnavailable("owner response timed out") from exc
         finally:
             writer.close()
             await writer.wait_closed()
 
     async def health(self) -> dict[str, Any]:
-        reader, writer = await asyncio.open_unix_connection(str(self.socket_path))
-        try:
-            writer.write(b'{"type":"health"}\n')
-            await writer.drain()
-            return json.loads(await reader.readline())
-        finally:
-            writer.close()
-            await writer.wait_closed()
+        response = await self._request({"type": "health"})
+        if self.catalog_id is not None and response.get("catalog_id") != self.catalog_id:
+            raise OwnerProtocolError("catalog_mismatch")
+        return response
+
+    async def mutate(self, mutation_id: str, patch: dict[str, Any], *, kind: str = "patch") -> dict[str, Any]:
+        if self.catalog_id is None:
+            health = await self._request({"type": "health"})
+            self.catalog_id = health.get("catalog_id")
+        response = await self._request({
+            "mutation_id": mutation_id,
+            "kind": kind,
+            "patch": patch,
+            "catalog_id": self.catalog_id,
+        })
+        if response.get("error") == "catalog_mismatch":
+            raise OwnerProtocolError("catalog_mismatch")
+        return response
+
+    async def mutate_with_retry(
+        self,
+        mutation_id: str,
+        patch: dict[str, Any],
+        *,
+        kind: str = "patch",
+        attempts: int = 5,
+        delay: float = 0.1,
+    ) -> dict[str, Any]:
+        """Retry only transport failures; the id and payload stay identical."""
+        for attempt in range(attempts):
+            try:
+                return await self.mutate(mutation_id, patch, kind=kind)
+            except OwnerUnavailable:
+                if attempt == attempts - 1:
+                    raise
+                await asyncio.sleep(delay)
+        raise RuntimeError("unreachable")
 
 
 def main() -> int:

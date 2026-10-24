@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.overgraph.owner import OwnerAlreadyActive, OvergraphOwner, OwnerClient
+from app.services.overgraph.owner import OwnerAlreadyActive, OwnerClient, OwnerProtocolError, OvergraphOwner
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ async def owner():
     instance = OvergraphOwner(root / "catalog", dimension=4, socket_path=socket_path)
     await instance.start()
     try:
-        yield instance, OwnerClient(socket_path)
+        yield instance, OwnerClient(socket_path, catalog_id=instance.catalog_id)
     finally:
         await instance.close()
 
@@ -71,7 +71,7 @@ async def test_receipt_survives_owner_restart():
     socket_path = root / "owner.sock"
     first = OvergraphOwner(root / "catalog", dimension=4, socket_path=socket_path)
     await first.start()
-    client = OwnerClient(socket_path)
+    client = OwnerClient(socket_path, catalog_id=first.catalog_id)
     persisted = {"upsert_nodes": [_node("before-restart")]}
     await client.mutate("persisted", persisted)
     await first.close()
@@ -189,3 +189,29 @@ async def test_batch_with_dense_vectors_changes_only_one_node(owner):
     second = await client.mutate("vec-batch-2", _batch_patch(changed), kind="batch")
     assert second["changed"] == 1
     assert second["generation"] == 2
+
+
+async def test_client_rejects_wrong_catalog_identity(owner):
+    instance, _client = owner
+    wrong = OwnerClient(instance.socket_path, catalog_id="wrong-catalog")
+    with pytest.raises(OwnerProtocolError, match="catalog_mismatch"):
+        await wrong.mutate("m", {"upsert_nodes": [_node("wrong")]})
+
+
+async def test_client_retries_transport_until_owner_starts():
+    root = Path(tempfile.mkdtemp(prefix="ogo-"))
+    socket_path = root / "owner.sock"
+    client = OwnerClient(socket_path, catalog_id=None)
+    async def start_later():
+        await asyncio.sleep(0.05)
+        instance = OvergraphOwner(root / "catalog", dimension=4, socket_path=socket_path)
+        await instance.start()
+        return instance
+    task = asyncio.create_task(start_later())
+    response = await client.mutate_with_retry("late-owner", {"upsert_nodes": [_node("late")]}, attempts=5, delay=0.1)
+    instance = await task
+    try:
+        assert response["ok"] is True
+        assert instance.catalog.get_by_key("Probe", "late") is not None
+    finally:
+        await instance.close()
