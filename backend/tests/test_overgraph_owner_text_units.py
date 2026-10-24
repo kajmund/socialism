@@ -8,7 +8,11 @@ import pytest
 from app.services.knowledge.scope import customer_scope
 from app.services.knowledge.units import TextUnit, hash_text
 from app.services.overgraph.owner import OvergraphOwner
-from app.services.overgraph.owner_writer import build_text_unit_batch, write_text_units_via_owner
+from app.services.overgraph.owner_writer import (
+    build_text_unit_batch,
+    load_text_units_via_owner,
+    write_text_units_via_owner,
+)
 
 
 def _unit(index: int) -> TextUnit:
@@ -90,3 +94,18 @@ async def test_delete_then_reingest_with_new_operation_id(owner):
     # Same content is a new logical write, so it must not reuse the original id.
     assert (await client.mutate("reingest-operation-2", batch, kind="batch"))["ok"] is True
     assert owner.catalog.get_by_key("TextUnit", "unit-0") is not None
+
+
+async def test_load_text_units_via_owner_reads_post_write_units(owner):
+    from app.services.overgraph.owner import OwnerClient
+
+    client = OwnerClient(owner.socket_path, catalog_id=owner.catalog_id)
+    units = [_unit(1), _unit(0)]
+    await write_text_units_via_owner(
+        client, units, scope=customer_scope(1), embeddings=[[0.1, 0.2, 0.3, 0.4]] * 2,
+    )
+    loaded = await load_text_units_via_owner(client, document_version_id="ver-1")
+    assert [unit.id for unit in loaded] == ["unit-0", "unit-1"]
+    assert loaded[0].locator == "stycke 1"
+    assert loaded[0].page_start == 3
+    assert owner.catalog.count_nodes_by_labels(["TextUnit"]) == 2
