@@ -94,7 +94,22 @@ class OvergraphOwner:
             self._server.close()
             await self._server.wait_closed()
         if self._worker is not None:
+            # Let in-flight handlers observe _closed and reject new submits,
+            # then fail anything still queued so queue.join() cannot hang. The
+            # worker itself keeps draining until cancelled.
+            await asyncio.sleep(0)
+            while not self.queue.empty():
+                _request, future = self.queue.get_nowait()
+                if not future.done():
+                    future.set_exception(OwnerUnavailable("owner is shutting down"))
+                self.queue.task_done()
             await self.queue.join()
+            await asyncio.sleep(0)
+            while not self.queue.empty():
+                _request, future = self.queue.get_nowait()
+                if not future.done():
+                    future.set_exception(OwnerUnavailable("owner is shutting down"))
+                self.queue.task_done()
             self._worker.cancel()
             try:
                 await self._worker
@@ -174,6 +189,10 @@ class OvergraphOwner:
                 writer.write((json.dumps({"ok": False, "error": "catalog_mismatch"}) + "\n").encode())
                 await writer.drain()
                 return
+            if self._closed:
+                writer.write((json.dumps({"ok": False, "error": "owner_closed"}) + "\n").encode())
+                await writer.drain()
+                return
             request = MutationRequest(
                 mutation_id=str(payload["mutation_id"]),
                 patch=dict(payload.get("patch") or {}),
@@ -199,7 +218,7 @@ class OvergraphOwner:
             await writer.wait_closed()
 
     async def _run_worker(self) -> None:
-        while not self._closed:
+        while True:
             request, future = await self.queue.get()
             _record_sample(self.metrics.queue_wait_seconds, request.enqueued_at)
             try:

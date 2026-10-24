@@ -166,3 +166,38 @@ def test_owner_cli_health_reports_sync_mode(sync):
         assert health["sync_on_commit"] is sync
     finally:
         _stop(owner)
+
+
+async def test_close_does_not_hang_with_queued_mutations():
+    root = Path(tempfile.mkdtemp(prefix="ogo-close-"))
+    catalog = open_catalog(root / "catalog", kind="knowledge", dimension=4)
+    owner = OvergraphOwner(
+        root / "catalog", dimension=4, socket_path=root / "owner.sock",
+        catalog=catalog, sync_on_commit=False,
+    )
+    await owner.start()
+    real_apply = owner._apply
+
+    def slow_apply(request):
+        time.sleep(0.2)
+        return real_apply(request)
+
+    owner._apply = slow_apply  # type: ignore[method-assign]
+    client = OwnerClient(root / "owner.sock", catalog_id=owner.catalog_id)
+    tasks = [
+        asyncio.create_task(client.mutate(f"queued-{index}", {"upsert_nodes": [{
+            "labels": ["QueuedProbe", "owner-test"],
+            "key": f"queued-{index}",
+            "props": {"value": index},
+        }]}, kind="batch"))
+        for index in range(5)
+    ]
+    await asyncio.sleep(0.05)
+    await asyncio.wait_for(owner.close(), timeout=5)
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    assert len(results) == 5
+    assert all(
+        isinstance(result, BaseException) or result.get("ok") is True
+        for result in results
+    )
+    catalog.close()
