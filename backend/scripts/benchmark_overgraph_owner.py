@@ -69,7 +69,12 @@ def _stats(values: list[float]) -> dict:
 async def run() -> dict:
     root = Path(tempfile.mkdtemp(prefix="owner-bench-"))
     socket_path = root / "owner.sock"
-    owner = OvergraphOwner(root / "owner-catalog", dimension=4, socket_path=socket_path)
+    # This benchmark isolates RPC/batch overhead; durability fsync is measured
+    # separately in benchmark_owner_hardening.py.
+    owner = OvergraphOwner(
+        root / "owner-catalog", dimension=4, socket_path=socket_path,
+        sync_on_commit=False,
+    )
     await owner.start()
     try:
         await OwnerClient(socket_path).mutate("seed-gen", {
