@@ -308,10 +308,24 @@ class OvergraphOwner:
         nodes = list(request.patch.get("upsert_nodes", ()))
         edges = list(request.patch.get("upsert_edges", ()))
         deletes = list(request.patch.get("delete_nodes", ()))
+        expected_nodes = list(request.patch.get("expected_nodes", ()))
+        expected_absent = list(request.patch.get("expected_absent", ()))
         for attempt in range(3):
             txn = self.catalog.begin_write_txn()
             committed = False
             try:
+                for absent in expected_absent:
+                    if txn.get_node_by_key(str(absent["label"]), str(absent["key"])) is not None:
+                        return {"ok": False, "error": "precondition_failed", "mutation_id": request.mutation_id}
+                for expected_node in expected_nodes:
+                    current = txn.get_node_by_key(
+                        str(expected_node["label"]), str(expected_node["key"]),
+                    )
+                    if current is None or any(
+                        dict(current.get("props") or {}).get(name) != value
+                        for name, value in dict(expected_node.get("props") or {}).items()
+                    ):
+                        return {"ok": False, "error": "precondition_failed", "mutation_id": request.mutation_id}
                 previous_generation = None
                 generation_node = None
                 generation_props: dict[str, Any] = {}
