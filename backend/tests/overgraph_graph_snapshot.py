@@ -1,8 +1,8 @@
 """Semantic Overgraph snapshot shared by direct-vs-owner differential tests.
 
 Owner receipts and wall-clock stamps carry no fact semantics, so they are the
-only things normalized. ``CONTRADICTS`` is a symmetric relation; its direction
-is therefore compared as an unordered pair.
+only things normalized. Fact-Fact ``CONTRADICTS`` is undirected but both writers
+use one canonical key-sorted orientation, so the snapshot compares it directed.
 """
 
 from __future__ import annotations
@@ -67,12 +67,8 @@ def graph_snapshot(catalog: Catalog) -> dict[str, Any]:
                 edge = catalog.get_edge_by_triple(engine_id, neighbor, label)
                 if edge is None:
                     continue
-                endpoints: Any = (
-                    frozenset((source_key, target_key))
-                    if label == "CONTRADICTS" else (source_key, target_key)
-                )
                 edges.add((
-                    endpoints,
+                    (source_key, target_key),
                     label,
                     _props(edge.props, VOLATILE_EDGE_PROPS),
                     _edge_time(edge.valid_from, now_ms),
