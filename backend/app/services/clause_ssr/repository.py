@@ -13,6 +13,7 @@ from app.services.clause_ssr.keys import (
     anchor_key,
     review_key,
     revision_key,
+    session_key,
     verification_key,
 )
 from app.services.clause_ssr.labels import (
@@ -20,6 +21,8 @@ from app.services.clause_ssr.labels import (
     ANSWERS as ANSWERS_EDGE,
     ANCHOR,
     CLASSIFICATION,
+    FOR,
+    REVIEW_SESSION,
     SUPERSEDES,
     VERIFICATION,
     VERIFICATION_REVISION,
@@ -42,7 +45,7 @@ class ClauseRepository:
     async def _apply(self, mutation_id: str, patch: dict[str, Any]) -> dict[str, Any]:
         return await self.client.mutate(mutation_id, patch, kind="batch")
 
-    async def record_decision(
+    async def record_decision(  # noqa: C901, PLR0912
         self,
         *,
         scope: KnowledgeTenantScope,
@@ -50,10 +53,12 @@ class ClauseRepository:
         unit_id: str,
         reviewer_id: str,
         answer: DecisionAnswer,
+        document_id: str | None = None,
     ) -> dict[str, Any]:
         if answer not in ANSWERS:
             raise ValueError(f"unknown decision answer: {answer}")
         key = verification_key(scope.scope_key, classification_id, unit_id, reviewer_id)
+        session_id = session_key(scope.scope_key, reviewer_id, classification_id, document_id)
         for _attempt in range(3):
             classification = await self._read(CLASSIFICATION, classification_id)
             unit = await self._read("TextUnit", unit_id)
@@ -62,9 +67,12 @@ class ClauseRepository:
             if unit is None:
                 raise KeyError(f"unknown TextUnit {unit_id}")
             existing = await self._read(VERIFICATION, key)
+            session = await self._read(REVIEW_SESSION, session_id)
+            if existing is not None and existing.get("status") == "active" and existing.get("answer") == answer:
+                return {"verification": dict(existing), "session": session or {}, "duplicate": True}
             revision = int((existing or {}).get("revision") or 0) + 1
-            status = "active"
             props = {
+                "id": key,
                 "scope_key": scope.scope_key,
                 "source_unit_id": unit_id,
                 "source_document_id": str(unit.get("document_id") or ""),
@@ -79,17 +87,15 @@ class ClauseRepository:
                 "decided_at_ms": now_ms(),
                 "source": "admin_queue",
                 "revision": revision,
-                "status": status,
+                "status": "active",
                 "review_key": review_key(classification_id, reviewer_id),
                 "labeled": answer in LABEL_ANSWERS,
             }
-            nodes: list[dict[str, Any]] = [
-                {
-                    "labels": [VERIFICATION, scope_label(scope.scope_key)],
-                    "key": key,
-                    "props": props,
-                }
-            ]
+            nodes: list[dict[str, Any]] = [{
+                "labels": [VERIFICATION, scope_label(scope.scope_key)],
+                "key": key,
+                "props": props,
+            }]
             edges: list[dict[str, Any]] = [
                 {"from": {"label": VERIFICATION, "key": key}, "to": {"label": CLASSIFICATION, "key": classification_id}, "label": ABOUT},
                 {"from": {"label": VERIFICATION, "key": key}, "to": {"label": "TextUnit", "key": unit_id}, "label": ANSWERS_EDGE},
@@ -97,8 +103,6 @@ class ClauseRepository:
             expected: dict[str, Any] = {"expected_absent": [{"label": VERIFICATION, "key": key}]}
             if existing is not None:
                 expected = {"expected_nodes": [{"label": VERIFICATION, "key": key, "props": {"revision": int(existing.get("revision") or 1), "status": str(existing.get("status") or "active")}}]}
-                if existing.get("status") == "active" and existing.get("answer") == answer:
-                    return existing
                 if existing.get("status") == "active":
                     nodes.append({
                         "labels": [VERIFICATION_REVISION, scope_label(scope.scope_key)],
@@ -113,10 +117,46 @@ class ClauseRepository:
             anchor = await self._read(ANCHOR, anchor_key(scope.scope_key, key))
             if anchor is not None and anchor.get("status") in {"draft", "active"}:
                 nodes.append({"labels": [ANCHOR, scope_label(scope.scope_key)], "key": anchor_key(scope.scope_key, key), "props": {**anchor, "status": "revoked"}})
+
+            counts = {
+                "yes": int((session or {}).get("decided_yes") or 0),
+                "no": int((session or {}).get("decided_no") or 0),
+                "skip": int((session or {}).get("skipped") or 0),
+                "unsure": int((session or {}).get("unsure") or 0),
+            }
+            if existing is not None and existing.get("status") == "active":
+                old_answer = str(existing.get("answer") or "")
+                if old_answer in counts:
+                    counts[old_answer] = max(0, counts[old_answer] - 1)
+            if answer in counts:
+                counts[answer] += 1
+            session_props = {
+                "id": session_id,
+                "scope_key": scope.scope_key,
+                "reviewer_id": reviewer_id,
+                "classification_id": classification_id,
+                "document_id": document_id or "",
+                "last_unit_id": unit_id,
+                "last_verification_id": key,
+                "decided_yes": counts["yes"],
+                "decided_no": counts["no"],
+                "skipped": counts["skip"],
+                "unsure": counts["unsure"],
+                "session_version": int((session or {}).get("session_version") or 0) + 1,
+            }
+            nodes.append({"labels": [REVIEW_SESSION, scope_label(scope.scope_key)], "key": session_id, "props": session_props})
+            edges.append({"from": {"label": REVIEW_SESSION, "key": session_id}, "to": {"label": CLASSIFICATION, "key": classification_id}, "label": FOR})
+            if session is None:
+                expected["expected_absent"].append({"label": REVIEW_SESSION, "key": session_id})
+            else:
+                expected.setdefault("expected_nodes", []).append({
+                    "label": REVIEW_SESSION, "key": session_id,
+                    "props": {"session_version": int(session.get("session_version") or 0)},
+                })
             result = await self._apply(f"decision:{key}:{revision}", {**expected, "upsert_nodes": nodes, "upsert_edges": edges})
             if result.get("error") == "precondition_failed":
                 continue
-            return {"verification": props, "result": result}
+            return {"verification": props, "session": session_props, "result": result}
         raise RuntimeError("clause decision precondition conflict")
 
     async def revoke_verification(
