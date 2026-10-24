@@ -167,7 +167,6 @@ tests-max-lines = 1000
 "app/services/lagen_nu/research_source.py" = 1243
 "app/services/llm_runtime_settings.py" = 1037
 "app/services/oasis_run.py" = 929
-"app/services/overgraph/owner.py" = 595
 "app/services/panel/engine.py" = 635
 "app/services/panel/research.py" = 720
 "app/services/panel/structured_scoring.py" = 594

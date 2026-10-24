@@ -2,6 +2,8 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
+from app.services.overgraph.owner_runtime import get_owner_runtime
+
 router = APIRouter(tags=["health"])
 
 
@@ -12,7 +14,10 @@ async def health() -> dict[str, str]:
 
 @router.get("/health/overgraph-owner")
 async def overgraph_owner_health(request: Request) -> dict[str, Any]:
-    return dict(getattr(request.app.state, "overgraph_owner", {"status": "not_started"}))
+    """Live readiness: catches an owner that started after the backend or died."""
+    status = await get_owner_runtime().refresh()
+    request.app.state.overgraph_owner = status
+    return status
 
 
 @router.get("/health/research-vector")
