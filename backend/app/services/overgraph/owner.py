@@ -294,11 +294,14 @@ class OvergraphOwner:
             return False
         return True
 
-    def _apply_batch(self, request: MutationRequest, payload_hash: str) -> dict[str, Any]:
+    def _apply_batch(  # noqa: C901, PLR0912
+        self, request: MutationRequest, payload_hash: str,
+    ) -> dict[str, Any]:
         """Batch upsert with no-op detection and optional one generation bump."""
         generation = dict(request.patch.get("generation") or {})
         expected = dict(request.patch.get("expected") or {})
         nodes = list(request.patch.get("upsert_nodes", ()))
+        edges = list(request.patch.get("upsert_edges", ()))
         for attempt in range(3):
             txn = self.catalog.begin_write_txn()
             committed = False
@@ -325,6 +328,19 @@ class OvergraphOwner:
                         dense_vector=node.get("dense_vector"),
                     )
                     changed += 1
+                for edge in edges:
+                    from_row = txn.get_node_by_key(str(edge["from"]["label"]), str(edge["from"]["key"]))
+                    to_row = txn.get_node_by_key(str(edge["to"]["label"]), str(edge["to"]["key"]))
+                    if from_row is None or to_row is None:
+                        raise OwnerProtocolError("edge endpoint missing")
+                    txn.upsert_edge(
+                        {"labels": [from_row["labels"][0]], "key": from_row["key"]},
+                        {"labels": [to_row["labels"][0]], "key": to_row["key"]},
+                        str(edge["label"]),
+                        props=dict(edge.get("props") or {}),
+                        valid_from=edge.get("valid_from"),
+                        valid_to=edge.get("valid_to"),
+                    )
                 if changed and generation:
                     prop = str(generation["prop"])
                     generation_props[prop] = int(generation_props.get(prop) or 0) + 1
