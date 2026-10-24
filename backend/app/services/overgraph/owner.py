@@ -158,6 +158,8 @@ class OvergraphOwner:
             return {"ok": True, "duplicate": True, "mutation_id": request.mutation_id}
         if request.kind == "conditional":
             return self._apply_conditional(request, payload_hash)
+        if request.kind == "batch":
+            return self._apply_batch(request, payload_hash)
         patch = dict(request.patch)
         nodes = list(patch.get("upsert_nodes", ()))
         nodes.append(self._receipt_node(request.mutation_id, payload_hash))
@@ -185,11 +187,9 @@ class OvergraphOwner:
             try:
                 current = txn.get_node_by_key(str(read["label"]), str(read["key"]))
                 if current is None:
-                    txn.rollback()
                     return {"ok": False, "error": "read_not_found", "mutation_id": request.mutation_id}
                 props = dict(current.get("props") or {})
                 if expected and any(props.get(name) != value for name, value in expected.items()):
-                    txn.rollback()
                     return {"ok": False, "error": "precondition_failed", "mutation_id": request.mutation_id}
                 response_props = {name: props.get(name) for name in request.patch.get("result_props", ())}
                 for increment in increments:
@@ -217,6 +217,80 @@ class OvergraphOwner:
                 return {
                     "ok": True, "duplicate": False, "mutation_id": request.mutation_id,
                     "props": response_props,
+                }
+            except OverGraphError as exc:
+                if "conflict" not in str(exc).lower():
+                    raise
+                self.metrics.conflicts += 1
+                if attempt == 2:
+                    raise
+            finally:
+                if not committed:
+                    txn.rollback()
+        raise RuntimeError("unreachable")
+
+    @staticmethod
+    def _same_node(current: Any, node: dict[str, Any]) -> bool:
+        if current is None:
+            return False
+        if dict(current.get("props") or {}) != dict(node.get("props") or {}):
+            return False
+        expected_vector = node.get("dense_vector")
+        if expected_vector is not None and list(current.get("dense_vector") or []) != list(expected_vector):
+            return False
+        return True
+
+    def _apply_batch(self, request: MutationRequest, payload_hash: str) -> dict[str, Any]:
+        """Batch upsert with no-op detection and optional one generation bump."""
+        generation = dict(request.patch.get("generation") or {})
+        expected = dict(request.patch.get("expected") or {})
+        nodes = list(request.patch.get("upsert_nodes", ()))
+        for attempt in range(3):
+            txn = self.catalog.begin_write_txn()
+            committed = False
+            try:
+                previous_generation = None
+                generation_node = None
+                generation_props: dict[str, Any] = {}
+                if generation:
+                    generation_node = txn.get_node_by_key(str(generation["label"]), str(generation["key"]))
+                    if generation_node is None:
+                        return {"ok": False, "error": "generation_not_found", "mutation_id": request.mutation_id}
+                    generation_props = dict(generation_node.get("props") or {})
+                    if expected and any(generation_props.get(name) != value for name, value in expected.items()):
+                        return {"ok": False, "error": "precondition_failed", "mutation_id": request.mutation_id}
+                    previous_generation = generation_props.get(str(generation["prop"]))
+                changed = 0
+                for node in nodes:
+                    current = txn.get_node_by_key(str(node["labels"][0]), str(node["key"]))
+                    if self._same_node(current, node):
+                        continue
+                    txn.upsert_node(
+                        list(node["labels"]), str(node["key"]),
+                        props=dict(node.get("props") or {}),
+                        dense_vector=node.get("dense_vector"),
+                    )
+                    changed += 1
+                if changed and generation:
+                    prop = str(generation["prop"])
+                    generation_props[prop] = int(generation_props.get(prop) or 0) + 1
+                    txn.upsert_node(
+                        list(generation.get("labels") or [generation["label"]]),
+                        str(generation["key"]),
+                        props=generation_props,
+                    )
+                txn.upsert_node(
+                    [RECEIPT_LABEL, "overgraph-owner"], request.mutation_id,
+                    props={"mutation_id": request.mutation_id, "payload_hash": payload_hash},
+                )
+                txn.commit()
+                committed = True
+                self.metrics.applied += 1
+                return {
+                    "ok": True, "duplicate": False, "mutation_id": request.mutation_id,
+                    "changed": changed,
+                    "previous_generation": previous_generation,
+                    "generation": generation_props.get(str(generation["prop"])) if generation else None,
                 }
             except OverGraphError as exc:
                 if "conflict" not in str(exc).lower():

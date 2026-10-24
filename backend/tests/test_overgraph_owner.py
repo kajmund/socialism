@@ -101,3 +101,57 @@ async def test_conditional_write_txn_increments(owner):
     receipt = instance.catalog.get_by_key("Generation", "scope")
     assert receipt is not None
     assert int(receipt.props["generation"]) == 3
+
+
+def _batch_patch(nodes, *, expected=None):
+    payload = {
+        "generation": {"label": "Generation", "key": "scope", "prop": "generation"},
+        "upsert_nodes": nodes,
+    }
+    if expected is not None:
+        payload["expected"] = expected
+    return payload
+
+
+async def test_batch_noop_does_not_bump_generation(owner):
+    instance, client = owner
+    seeded = await client.mutate("seed-gen", {"upsert_nodes": [{"labels": ["Generation"], "key": "scope", "props": {"generation": 0}}]})
+    assert seeded["ok"] is True
+    nodes = [
+        {"labels": ["TextUnit", "scope"], "key": "u1", "props": {"text": "a", "content_hash": "h1"}},
+        {"labels": ["TextUnit", "scope"], "key": "u2", "props": {"text": "b", "content_hash": "h2"}},
+    ]
+    first = await client.mutate("batch-1", _batch_patch(nodes), kind="batch")
+    assert first["changed"] == 2
+    assert first["previous_generation"] == 0
+    assert first["generation"] == 1
+    same = await client.mutate("batch-2", _batch_patch(nodes), kind="batch")
+    assert same["changed"] == 0
+    assert same["generation"] == 1
+    assert int(instance.catalog.get_by_key("Generation", "scope").props["generation"]) == 1
+
+
+async def test_batch_precondition_is_not_retried(owner):
+    instance, client = owner
+    await client.mutate("seed-gen", {"upsert_nodes": [{"labels": ["Generation"], "key": "scope", "props": {"generation": 2}}]})
+    response = await client.mutate(
+        "batch-precondition",
+        _batch_patch([{"labels": ["TextUnit"], "key": "u3", "props": {"text": "c"}}], expected={"generation": 1}),
+        kind="batch",
+    )
+    assert response["error"] == "precondition_failed"
+    assert instance.catalog.get_by_key("TextUnit", "u3") is None
+
+
+async def test_committed_mutation_without_response_is_a_receipt(owner):
+    instance, client = owner
+    request = __import__("app.services.overgraph.owner", fromlist=["MutationRequest"]).MutationRequest(
+        mutation_id="crash-after-commit",
+        patch={"upsert_nodes": [_node("committed-before-crash")]},
+    )
+    result = instance._apply(request)
+    assert result["ok"] is True
+    # Simulate the client retrying after a crash/restart: same id and payload.
+    retry = await client.mutate("crash-after-commit", request.patch)
+    assert retry["duplicate"] is True
+    assert instance.catalog.get_by_key("Probe", "committed-before-crash") is not None
