@@ -11,17 +11,21 @@ from app.services.overgraph.labels import (
     CONTRADICTS, CONTEXT, ENTITY, FACT, OBJECT, SUBJECT, SUPPORTS, scope_label,
 )
 from app.services.overgraph.owner import OwnerClient
-from app.services.overgraph.write import _merged_fact_props, fact_key
+from app.services.overgraph.write import _merged_fact_props, fact_key_from_anchor
 
 
-async def write_fact_via_owner(
+async def write_fact_via_owner(  # noqa: C901, PLR0912
     client: OwnerClient,
     proposed: FactInput,
     *,
     contradiction_key: str | None = None,
     mutation_id: str | None = None,
 ) -> dict[str, Any]:
-    key = fact_key(proposed)
+    unit_refs = sorted({ref.ref for ref in proposed.sources if ref.kind == "text_unit"})
+    unit = await client.read([{"label": "TextUnit", "key": unit_refs[0]}]) if unit_refs else {"values": {}}
+    unit_props = unit["values"].get(f"TextUnit:{unit_refs[0]}") if unit_refs else None
+    anchor = ((str(unit_props.get("document_version_id") or "") or None), unit_refs[0]) if unit_refs else None
+    key = fact_key_from_anchor(proposed, anchor)
     for _attempt in range(3):
         endpoint_keys = [proposed.source_id, proposed.target_id]
         if proposed.context_id:
@@ -69,6 +73,11 @@ async def write_fact_via_owner(
         if contradiction_key:
             edges.append({"from": {"label": FACT, "key": key}, "to": {"label": FACT, "key": contradiction_key}, "label": CONTRADICTS})
         expected: dict[str, Any] = ({"expected_absent": [{"label": FACT, "key": key}]} if existing is None else {"expected_nodes": [{"label": FACT, "key": key, "props": {"source_refs_json": existing.get("source_refs_json", "[]"), "status": existing.get("status")}}]})
+        if unit_refs and unit_props is not None:
+            expected.setdefault("expected_nodes", []).append({
+                "label": "TextUnit", "key": unit_refs[0],
+                "props": {"document_version_id": unit_props.get("document_version_id")},
+            })
         operation_id = mutation_id or "fact:" + hashlib.sha256(
             json.dumps({"key": key, "refs": recorded}, sort_keys=True).encode()
         ).hexdigest()

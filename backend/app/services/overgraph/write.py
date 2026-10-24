@@ -221,6 +221,13 @@ def fact_key(proposed: FactInput, catalog: Catalog | None = None) -> str:
     the deterministic assertion contract and is marked accordingly.
     """
     anchor = source_anchor(proposed, catalog)
+    return fact_key_from_anchor(proposed, anchor)
+
+
+def fact_key_from_anchor(
+    proposed: FactInput, anchor: tuple[str | None, str] | None,
+) -> str:
+    """Shared fact identity; callers with a resolved source anchor use this."""
     if anchor is None:
         return fact_identity(
             scope_key=proposed.scope.scope_key, source_id=proposed.source_id,
