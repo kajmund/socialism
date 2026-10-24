@@ -133,3 +133,24 @@ async def test_concurrent_promotion_and_revoke_never_leaves_active_anchor(repo):
         assert anchor.props["status"] != "active"
     verification = owner.catalog.get_by_key("SsrVerification", key)
     assert verification.props["answer"] == "no"
+
+
+async def test_stale_embedding_marks_anchor_and_bumps_pool(repo):
+    from app.services.clause_ssr.types import EmbeddingSpec
+    from app.services.overgraph.labels import scope_label
+    owner, repository, scope = repo
+    await repository.client.mutate("stale-seed", {"upsert_nodes": [{
+        "labels": ["SsrClauseAnchor", scope_label(scope.scope_key)], "key": "stale-a",
+        "props": {"scope_key": scope.scope_key, "category": "termination", "status": "active",
+                  "embedding_model": "old", "embedding_revision": "v1", "embedding_dimension": 4},
+    }]}, kind="batch")
+    changed = await repository.mark_stale_embeddings(
+        scope=scope, expected=EmbeddingSpec(model="new", revision="v2", dimension=4),
+    )
+    assert changed == 1
+    assert owner.catalog.get_by_key("SsrClauseAnchor", "stale-a").props["status"] == "stale_embedding"
+    pool = owner.catalog.get_by_key("SsrAnchorPool", repository._pool_key(scope, "termination"))
+    assert int(pool.props["revision"]) == 1
+    assert await repository.mark_stale_embeddings(
+        scope=scope, expected=EmbeddingSpec(model="new", revision="v2", dimension=4),
+    ) == 0
