@@ -22,6 +22,7 @@ class OwnerRuntime:
 
     async def connect(self, socket_path: str, *, catalog_id: str | None = None) -> None:
         if not socket_path.strip():
+            self.client = None
             self.status = {"status": "disabled", "write_paths_ready": False}
             return
         self.client = OwnerClient(Path(socket_path), catalog_id=catalog_id or None)
