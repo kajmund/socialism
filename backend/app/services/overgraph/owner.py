@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from overgraph import OverGraphError
+
 from app.services.overgraph.catalogs import open_catalog
 
 RECEIPT_LABEL = "MutationReceipt"
@@ -39,6 +41,7 @@ class IdempotencyConflict(RuntimeError):
 class MutationRequest:
     mutation_id: str
     patch: dict[str, Any]
+    kind: str = "patch"
 
 
 @dataclass
@@ -46,6 +49,7 @@ class OwnerMetrics:
     applied: int = 0
     duplicates: int = 0
     rejected: int = 0
+    conflicts: int = 0
     queue_high_water: int = 0
     wait_seconds: list[float] = field(default_factory=list)
 
@@ -104,7 +108,11 @@ class OvergraphOwner:
                 writer.write((json.dumps({"ok": True, "metrics": self.metrics.__dict__}) + "\n").encode())
                 await writer.drain()
                 return
-            request = MutationRequest(mutation_id=str(payload["mutation_id"]), patch=dict(payload["patch"]))
+            request = MutationRequest(
+                mutation_id=str(payload["mutation_id"]),
+                patch=dict(payload.get("patch") or {}),
+                kind=str(payload.get("kind") or "patch"),
+            )
             future: asyncio.Future[dict[str, Any]] = asyncio.get_running_loop().create_future()
             try:
                 self.queue.put_nowait((request, future))
@@ -138,13 +146,8 @@ class OvergraphOwner:
             finally:
                 self.queue.task_done()
 
-    @staticmethod
-    def _payload_hash(patch: dict[str, Any]) -> str:
-        canonical = json.dumps(patch, sort_keys=True, separators=(",", ":"), default=str)
-        return hashlib.sha256(canonical.encode()).hexdigest()
-
     def _apply(self, request: MutationRequest) -> dict[str, Any]:
-        payload_hash = self._payload_hash(request.patch)
+        payload_hash = self._payload_hash(request)
         receipt = self.catalog.get_by_key(RECEIPT_LABEL, request.mutation_id)
         if receipt is not None:
             previous = str(receipt.props.get("payload_hash", ""))
@@ -153,19 +156,86 @@ class OvergraphOwner:
                 return {"ok": False, "error": "idempotency_conflict", "mutation_id": request.mutation_id}
             self.metrics.duplicates += 1
             return {"ok": True, "duplicate": True, "mutation_id": request.mutation_id}
+        if request.kind == "conditional":
+            return self._apply_conditional(request, payload_hash)
         patch = dict(request.patch)
         nodes = list(patch.get("upsert_nodes", ()))
-        nodes.append(
-            {
-                "labels": [RECEIPT_LABEL, "overgraph-owner"],
-                "key": request.mutation_id,
-                "props": {"mutation_id": request.mutation_id, "payload_hash": payload_hash},
-            }
-        )
+        nodes.append(self._receipt_node(request.mutation_id, payload_hash))
         patch["upsert_nodes"] = nodes
         self.catalog.graph_patch(**patch)
         self.metrics.applied += 1
         return {"ok": True, "duplicate": False, "mutation_id": request.mutation_id}
+
+    @staticmethod
+    def _receipt_node(mutation_id: str, payload_hash: str) -> dict[str, Any]:
+        return {
+            "labels": [RECEIPT_LABEL, "overgraph-owner"],
+            "key": mutation_id,
+            "props": {"mutation_id": mutation_id, "payload_hash": payload_hash},
+        }
+
+    def _apply_conditional(self, request: MutationRequest, payload_hash: str) -> dict[str, Any]:
+        read = dict(request.patch["read"])
+        expected = dict(request.patch.get("expected") or {})
+        increments = list(request.patch.get("increments") or [])
+        nodes = list(request.patch.get("upsert_nodes", ()))
+        for attempt in range(3):
+            txn = self.catalog.begin_write_txn()
+            committed = False
+            try:
+                current = txn.get_node_by_key(str(read["label"]), str(read["key"]))
+                if current is None:
+                    txn.rollback()
+                    return {"ok": False, "error": "read_not_found", "mutation_id": request.mutation_id}
+                props = dict(current.get("props") or {})
+                if expected and any(props.get(name) != value for name, value in expected.items()):
+                    txn.rollback()
+                    return {"ok": False, "error": "precondition_failed", "mutation_id": request.mutation_id}
+                response_props = {name: props.get(name) for name in request.patch.get("result_props", ())}
+                for increment in increments:
+                    name = str(increment["prop"])
+                    props[name] = int(props.get(name) or 0) + int(increment.get("by", 1))
+                for node in nodes:
+                    txn.upsert_node(
+                        list(node["labels"]), str(node["key"]),
+                        props=dict(node.get("props") or {}),
+                        dense_vector=node.get("dense_vector"),
+                    )
+                if increments:
+                    txn.upsert_node(
+                        list(read.get("labels") or [read["label"]]),
+                        str(read["key"]),
+                        props=props,
+                    )
+                txn.upsert_node(
+                    [RECEIPT_LABEL, "overgraph-owner"], request.mutation_id,
+                    props={"mutation_id": request.mutation_id, "payload_hash": payload_hash},
+                )
+                txn.commit()
+                committed = True
+                self.metrics.applied += 1
+                return {
+                    "ok": True, "duplicate": False, "mutation_id": request.mutation_id,
+                    "props": response_props,
+                }
+            except OverGraphError as exc:
+                if "conflict" not in str(exc).lower():
+                    raise
+                self.metrics.conflicts += 1
+                if attempt == 2:
+                    raise
+            finally:
+                if not committed:
+                    txn.rollback()
+        raise RuntimeError("unreachable")
+
+    @staticmethod
+    def _payload_hash(request: MutationRequest) -> str:
+        canonical = json.dumps(
+            {"kind": request.kind, "patch": request.patch},
+            sort_keys=True, separators=(",", ":"), default=str,
+        )
+        return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 class OwnerClient:
@@ -173,10 +243,10 @@ class OwnerClient:
         self.socket_path = socket_path
         self.timeout = timeout
 
-    async def mutate(self, mutation_id: str, patch: dict[str, Any]) -> dict[str, Any]:
+    async def mutate(self, mutation_id: str, patch: dict[str, Any], *, kind: str = "patch") -> dict[str, Any]:
         reader, writer = await asyncio.open_unix_connection(str(self.socket_path), limit=16 * 1024 * 1024)
         try:
-            writer.write((json.dumps({"mutation_id": mutation_id, "patch": patch}) + "\n").encode())
+            writer.write((json.dumps({"mutation_id": mutation_id, "kind": kind, "patch": patch}) + "\n").encode())
             await writer.drain()
             line = await asyncio.wait_for(reader.readline(), timeout=self.timeout)
             return json.loads(line)
