@@ -86,3 +86,18 @@ async def test_receipt_survives_owner_restart():
         assert second.catalog.get_by_key("Probe", "after-restart") is None
     finally:
         await second.close()
+
+
+async def test_conditional_write_txn_increments(owner):
+    instance, client = owner
+    # Seed with a normal patch, then use conditional read-modify-write.
+    seeded = await client.mutate("gen-seed", {"upsert_nodes": [{"labels": ["Generation"], "key": "scope", "props": {"generation": 0}}]})
+    assert seeded["ok"] is True
+    mutation = {"read": {"label": "Generation", "key": "scope"}, "increments": [{"prop": "generation", "by": 1}], "result_props": ["generation"]}
+    responses = await asyncio.gather(
+        *(client.mutate(f"gen-{index}", mutation, kind="conditional") for index in range(1, 4))
+    )
+    assert all(item["ok"] for item in responses)
+    receipt = instance.catalog.get_by_key("Generation", "scope")
+    assert receipt is not None
+    assert int(receipt.props["generation"]) == 3
