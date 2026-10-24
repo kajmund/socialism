@@ -221,3 +221,18 @@ async def delete_text_units_by_ids_via_owner(
     return await delete_nodes_via_owner(
         client, [(TEXT_UNIT, unit_id) for unit_id in unit_ids], mutation_id=mutation_id,
     )
+
+
+async def delete_document_graph_via_owner(
+    client: OwnerClient,
+    *,
+    unit_ids: Sequence[str],
+    evidence_keys: Sequence[str],
+    mutation_id: str,
+) -> dict[str, object]:
+    """Delete TextUnits and evidence links in one atomic owner batch."""
+    from app.services.overgraph.legal_claims import EVIDENCE
+
+    nodes = [(TEXT_UNIT, unit_id) for unit_id in unit_ids]
+    nodes.extend((EVIDENCE, key) for key in evidence_keys)
+    return await delete_nodes_via_owner(client, nodes, mutation_id=mutation_id)

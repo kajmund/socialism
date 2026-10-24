@@ -29,8 +29,7 @@ from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.legal_claims import evidence_for_version
 from app.services.overgraph.owner_writer import (
-    delete_text_units_by_ids_via_owner,
-    unlink_document_versions_via_owner,
+    delete_document_graph_via_owner,
     write_text_units_via_owner,
 )
 from app.services.overgraph.text_units import (
@@ -263,14 +262,12 @@ async def delete_canonical_document(session: AsyncSession, document_id: str) -> 
     evidence_keys = [
         row.key for version_id in version_ids for row in evidence_for_version(catalog, version_id)
     ]
-    if evidence_keys:
-        await unlink_document_versions_via_owner(
-            client, evidence_keys, mutation_id=f"unlink-evidence:{document_id}",
-        )
-    if unit_ids:
-        await delete_text_units_by_ids_via_owner(
-            client, unit_ids, mutation_id=f"delete-text-units:{document_id}",
-        )
+    await delete_document_graph_via_owner(
+        client,
+        unit_ids=unit_ids,
+        evidence_keys=evidence_keys,
+        mutation_id=f"delete-document-graph:{document_id}",
+    )
     await session.delete(row)
     await session.flush()
     await prune_unsupported_claims(session)
