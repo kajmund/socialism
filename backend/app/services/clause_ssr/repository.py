@@ -9,7 +9,12 @@ from __future__ import annotations
 from typing import Any
 
 from app.services.clause_ssr.graph import now_ms
-from app.services.clause_ssr.keys import anchor_key, review_key, revision_key, verification_key
+from app.services.clause_ssr.keys import (
+    anchor_key,
+    review_key,
+    revision_key,
+    verification_key,
+)
 from app.services.clause_ssr.labels import (
     ABOUT,
     ANSWERS as ANSWERS_EDGE,
