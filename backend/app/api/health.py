@@ -10,6 +10,11 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@router.get("/health/overgraph-owner")
+async def overgraph_owner_health(request: Request) -> dict[str, Any]:
+    return dict(getattr(request.app.state, "overgraph_owner", {"status": "not_started"}))
+
+
 @router.get("/health/research-vector")
 async def research_vector_health(request: Request) -> dict[str, Any]:
     return dict(getattr(request.app.state, "research_vector", {"status": "not_started"}))
