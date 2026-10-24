@@ -58,6 +58,10 @@ def _record(view: object) -> GraphRecord:
     )
 
 
+class OwnerReadRequiredError(RuntimeError):
+    """This process must read the owner-owned catalog through the owner."""
+
+
 class Catalog:
     """Thin locked wrapper around one OverGraph directory."""
 
@@ -339,6 +343,34 @@ class Catalog:
             entries = self._db.neighbors(engine_id, **kwargs)
         return [_engine_id(getattr(entry, "node_id", entry)) for entry in entries]
 
+    def neighbor_edges(
+        self, engine_id: int, *, direction: str = "outgoing",
+        edge_label_filter: Sequence[str] | None = None, limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Bounded neighbor+edge payloads for the owner read protocol."""
+        kwargs: dict[str, Any] = {"direction": direction, "limit": limit}
+        if edge_label_filter is not None:
+            kwargs["edge_label_filter"] = list(edge_label_filter)
+        with self._lock:
+            entries = self._db.neighbors(engine_id, **kwargs)
+            rows: list[dict[str, Any]] = []
+            for entry in entries:
+                node = self._db.get_node(entry.node_id)
+                edge = self._db.get_edge(entry.edge_id)
+                rows.append({
+                    "node_id": int(entry.node_id),
+                    "key": str(getattr(node, "key", "")) if node is not None else "",
+                    "labels": [str(label) for label in getattr(node, "labels", ())],
+                    "props": _as_dict(node),
+                    "dir": direction,
+                    "label": str(entry.label),
+                    "weight": float(getattr(entry, "weight", 1.0)),
+                    "valid_from": getattr(entry, "valid_from", None),
+                    "valid_to": getattr(entry, "valid_to", None),
+                    "edge_props": _as_dict(getattr(edge, "props", {})),
+                })
+        return rows
+
     def traverse(
         self, engine_id: int, max_depth: int, *, direction: str = "outgoing",
     ) -> list[tuple[int, int]]:
@@ -380,19 +412,32 @@ class Catalog:
 
 
 class OverGraphRuntime:
-    def __init__(self, knowledge: Catalog, memory: Catalog) -> None:
+    def __init__(self, knowledge: Catalog | None, memory: Catalog) -> None:
         self.knowledge = knowledge
         self.memory = memory
 
     def close(self) -> None:
-        self.knowledge.close()
+        if self.knowledge is not None:
+            self.knowledge.close()
         self.memory.close()
 
 
 _runtime: OverGraphRuntime | None = None
 
+_owner_mode = False
+
+
+def set_owner_mode(enabled: bool) -> None:
+    """Forbid direct knowledge-catalog opens in an owner-mode backend process."""
+    global _owner_mode
+    _owner_mode = enabled
+
 
 def open_catalog(path: Path, *, kind: CatalogKind, dimension: int) -> Catalog:
+    if _owner_mode and kind == "knowledge":
+        raise OwnerReadRequiredError(
+            "knowledge catalog is owner-owned; direct open is forbidden in owner mode"
+        )
     path.mkdir(parents=True, exist_ok=True)
     db = OverGraph.open(
         str(path),
@@ -433,6 +478,11 @@ def get_runtime() -> OverGraphRuntime | None:
 def require_knowledge() -> Catalog:
     if _runtime is None:
         raise RuntimeError("OverGraph knowledge catalog is not open")
+    if _runtime.knowledge is None:
+        raise OwnerReadRequiredError(
+            "knowledge catalog is owner-owned; use the Owner read facade instead "
+            "of opening the catalog in this process"
+        )
     return _runtime.knowledge
 
 
