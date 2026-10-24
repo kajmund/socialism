@@ -59,14 +59,21 @@ async def test_concurrent_decisions_do_not_lose_revision(repo):
     key = verification_key(scope.scope_key, "cls-1", "unit-1", "admin-1")
     await repository.client.mutate("anchor", {"upsert_nodes": [{"labels": [ANCHOR, scope_label(scope.scope_key)], "key": anchor_key(scope.scope_key, key), "props": {"verification_id": key, "status": "active"}}]}, kind="batch")
     import asyncio
-    await asyncio.gather(
+    results = await asyncio.gather(
         repository.record_decision(scope=scope, classification_id="cls-1", unit_id="unit-1", reviewer_id="admin-1", answer="no"),
         repository.record_decision(scope=scope, classification_id="cls-1", unit_id="unit-1", reviewer_id="admin-1", answer="yes"),
         return_exceptions=True,
     )
+    applied = sum(
+        1 for result in results
+        if not isinstance(result, BaseException) and not result.get("duplicate")
+    )
+    assert applied >= 1
     current = owner.catalog.get_by_key(VERIFICATION, key)
     assert current is not None
-    assert int(current.props["revision"]) >= 2
+    # Every applied decision increments the revision exactly once; a lost
+    # update would leave the revision below 1 + applied.
+    assert int(current.props["revision"]) == 1 + applied
     assert owner.catalog.get_by_key(ANCHOR, anchor_key(scope.scope_key, key)).props["status"] == "revoked"
 
 

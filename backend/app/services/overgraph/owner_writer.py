@@ -264,3 +264,31 @@ async def load_text_units_via_owner(
         domain_unit_from_props(str(row["key"]), dict(row["props"]))
         for row in rows
     ]
+
+
+async def text_unit_ids_for_document_via_owner(
+    client: OwnerClient, *, document_id: str, limit: int = 20_000,
+) -> list[str]:
+    """TextUnit keys for a document, read through the owner (all versions)."""
+    rows = await client.list_nodes(
+        TEXT_UNIT, props={"document_id": document_id}, limit=limit,
+    )
+    if len(rows) >= limit:
+        raise OwnerProtocolError(f"document {document_id} exceeds {limit} TextUnits")
+    return [str(row["key"]) for row in rows]
+
+
+async def evidence_keys_for_version_via_owner(
+    client: OwnerClient, *, document_version_id: str, limit: int = 20_000,
+) -> list[str]:
+    """Evidence-link keys contributed by one document version."""
+    from app.services.overgraph.legal_claims import EVIDENCE
+
+    rows = await client.list_nodes(
+        EVIDENCE, props={"document_version_id": document_version_id}, limit=limit,
+    )
+    if len(rows) >= limit:
+        raise OwnerProtocolError(
+            f"version {document_version_id} exceeds {limit} evidence links"
+        )
+    return [str(row["key"]) for row in rows]

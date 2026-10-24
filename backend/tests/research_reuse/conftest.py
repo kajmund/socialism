@@ -14,18 +14,27 @@ def offline_boundaries(monkeypatch):
     real_connect = socket.socket.connect
     real_connect_ex = socket.socket.connect_ex
 
-    def local_unix_only(sock):
-        # The single-writer Overgraph owner is a local Unix socket, not a
-        # network boundary. Everything else stays forbidden.
-        return getattr(sock, "family", None) == socket.AF_UNIX
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+
+    def local_owner_socket(sock, address):
+        # Only the configured single-writer owner socket is local infrastructure;
+        # every other connect (including other AF_UNIX paths) stays forbidden.
+        if getattr(sock, "family", None) != socket.AF_UNIX:
+            return False
+        client = get_owner_runtime().client
+        if client is None:
+            return False
+        target = str(client.socket_path)
+        raw = address.decode() if isinstance(address, bytes) else str(address)
+        return raw == target
 
     def forbidden(sock, address, *args, **kwargs):
-        if local_unix_only(sock):
+        if local_owner_socket(sock, address):
             return real_connect(sock, address, *args, **kwargs)
         raise RuntimeError("research_reuse CI tests must mock every network boundary")
 
     def forbidden_ex(sock, address, *args, **kwargs):
-        if local_unix_only(sock):
+        if local_owner_socket(sock, address):
             return real_connect_ex(sock, address, *args, **kwargs)
         raise RuntimeError("research_reuse CI tests must mock every network boundary")
 

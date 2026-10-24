@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -25,15 +24,12 @@ from app.services.knowledge.scope import (
     visible_to,
 )
 from app.services.knowledge.units import DocumentSection, SegmentedDocument
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.owner_runtime import get_owner_runtime
-from app.services.overgraph.legal_claims import evidence_for_version
 from app.services.overgraph.owner_writer import (
     delete_document_graph_via_owner,
+    evidence_keys_for_version_via_owner,
+    text_unit_ids_for_document_via_owner,
     write_text_units_via_owner,
-)
-from app.services.overgraph.text_units import (
-    text_unit_ids_for_document,
 )
 
 
@@ -233,9 +229,9 @@ async def delete_canonical_document(session: AsyncSession, document_id: str) -> 
     row = await session.get(CanonicalDocumentRecord, document_id)
     if row is None:
         return
-    catalog = require_knowledge()
-    unit_ids = await asyncio.to_thread(
-        text_unit_ids_for_document, catalog, document_id=document_id,
+    client = get_owner_runtime().require_client()
+    unit_ids = await text_unit_ids_for_document_via_owner(
+        client, document_id=document_id,
     )
     if unit_ids:
         links = list(
@@ -258,9 +254,12 @@ async def delete_canonical_document(session: AsyncSession, document_id: str) -> 
             )
         ).scalars().all()
     )
-    client = get_owner_runtime().require_client()
     evidence_keys = [
-        row.key for version_id in version_ids for row in evidence_for_version(catalog, version_id)
+        key
+        for version_id in version_ids
+        for key in await evidence_keys_for_version_via_owner(
+            client, document_version_id=version_id,
+        )
     ]
     await delete_document_graph_via_owner(
         client,
