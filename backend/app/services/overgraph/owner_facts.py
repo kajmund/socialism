@@ -20,6 +20,7 @@ async def write_fact_via_owner(  # noqa: C901, PLR0912
     *,
     contradiction_key: str | None = None,
     mutation_id: str | None = None,
+    on_conflict: Any = None,
 ) -> dict[str, Any]:
     unit_refs = sorted({ref.ref for ref in proposed.sources if ref.kind == "text_unit"})
     unit = await client.read([{"label": "TextUnit", "key": unit_refs[0]}]) if unit_refs else {"values": {}}
@@ -83,6 +84,8 @@ async def write_fact_via_owner(  # noqa: C901, PLR0912
         ).hexdigest()
         result = await client.mutate(operation_id, {**expected, "upsert_nodes": nodes, "upsert_edges": edges}, kind="batch")
         if result.get("error") == "precondition_failed":
+            if on_conflict is not None:
+                on_conflict()
             continue
         return {"key": key, "props": merged, "result": result}
     raise RuntimeError("fact mutation precondition conflict")
