@@ -137,12 +137,42 @@ class OvergraphOwner:
         fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
         os.close(self._lock_fd)
 
-    async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    async def _handle(  # noqa: C901, PLR0911, PLR0912, PLR0915
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
+    ) -> None:
         try:
             line = await reader.readline()
             if not line:
                 return
             payload = json.loads(line)
+            if payload.get("type") == "list_nodes":
+                if payload.get("catalog_id") != self.catalog_id:
+                    writer.write((json.dumps({"ok": False, "error": "catalog_mismatch"}) + "\n").encode())
+                    await writer.drain()
+                    return
+                label = str(payload["label"])
+                filters = dict(payload.get("props") or {})
+                rows: list[dict[str, Any]] = []
+                after: int | None = None
+                while len(rows) < int(payload.get("limit", 500)):
+                    page, after = self.catalog.query_nodes(
+                        label_filter={"labels": [label], "mode": "all"},
+                        limit=500,
+                        after=after,
+                    )
+                    for row in page:
+                        props = dict(row.props)
+                        if any(props.get(name) != value for name, value in filters.items()):
+                            continue
+                        item = {"key": row.key, "props": props}
+                        if payload.get("include_vectors") and row.dense_vector is not None:
+                            item["dense_vector"] = list(row.dense_vector)
+                        rows.append(item)
+                    if after is None or not page:
+                        break
+                writer.write((json.dumps({"ok": True, "nodes": rows}) + "\n").encode())
+                await writer.drain()
+                return
             if payload.get("type") == "read":
                 if payload.get("catalog_id") != self.catalog_id:
                     writer.write((json.dumps({"ok": False, "error": "catalog_mismatch"}) + "\n").encode())
@@ -482,6 +512,19 @@ class OwnerClient:
         if self.catalog_id is not None and response.get("catalog_id") != self.catalog_id:
             raise OwnerProtocolError("catalog_mismatch")
         return response
+
+    async def list_nodes(
+        self, label: str, *, props: dict[str, Any] | None = None, include_vectors: bool = False,
+        limit: int = 500,
+    ) -> list[dict[str, Any]]:
+        if self.catalog_id is None:
+            health = await self._request({"type": "health"})
+            self.catalog_id = health.get("catalog_id")
+        response = await self._request({
+            "type": "list_nodes", "catalog_id": self.catalog_id, "label": label,
+            "props": props or {}, "include_vectors": include_vectors, "limit": limit,
+        })
+        return list(response.get("nodes") or [])
 
     async def read(self, keys: list[dict[str, str]], *, include_vectors: bool = False) -> dict[str, Any]:
         if self.catalog_id is None:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.overgraph.owner import OwnerUnavailable, OvergraphOwner
+from app.services.overgraph.owner import OwnerClient, OwnerUnavailable, OvergraphOwner
 from app.services.overgraph.owner_runtime import OwnerRuntime
 
 
@@ -55,3 +55,14 @@ async def test_owner_read_path(owner):
     await client.mutate("read-test", {"upsert_nodes": [{"labels": ["Probe"], "key": "read-key", "props": {"value": "x"}}]})
     values = await client.read([{"label": "Probe", "key": "read-key"}])
     assert values["values"]["Probe:read-key"] == {"value": "x"}
+
+
+async def test_owner_list_nodes_query(owner):
+    client = OwnerClient(owner.socket_path, catalog_id=owner.catalog_id)
+    await client.mutate("seed-list", {"upsert_nodes": [
+        {"labels": ["SsrClauseAnchor", "scope.customer.1"], "key": "a1", "props": {"category": "termination", "status": "active"}, "dense_vector": [1.0, 0.0, 0.0, 0.0]},
+        {"labels": ["SsrClauseAnchor", "scope.customer.1"], "key": "a2", "props": {"category": "price", "status": "active"}},
+    ]}, kind="batch")
+    rows = await client.list_nodes("SsrClauseAnchor", props={"category": "termination"}, include_vectors=True)
+    assert [row["key"] for row in rows] == ["a1"]
+    assert rows[0]["dense_vector"] == [1.0, 0.0, 0.0, 0.0]
