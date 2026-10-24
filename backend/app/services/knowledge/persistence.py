@@ -26,11 +26,14 @@ from app.services.knowledge.scope import (
 )
 from app.services.knowledge.units import DocumentSection, SegmentedDocument
 from app.services.overgraph.catalogs import require_knowledge
-from app.services.overgraph.legal_claims import unlink_document_versions
 from app.services.overgraph.owner_runtime import get_owner_runtime
-from app.services.overgraph.owner_writer import write_text_units_via_owner
+from app.services.overgraph.legal_claims import evidence_for_version
+from app.services.overgraph.owner_writer import (
+    delete_text_units_by_ids_via_owner,
+    unlink_document_versions_via_owner,
+    write_text_units_via_owner,
+)
 from app.services.overgraph.text_units import (
-    delete_text_units_for_document,
     text_unit_ids_for_document,
 )
 
@@ -256,11 +259,18 @@ async def delete_canonical_document(session: AsyncSession, document_id: str) -> 
             )
         ).scalars().all()
     )
-    if version_ids:
-        await asyncio.to_thread(unlink_document_versions, catalog, version_ids)
-    await asyncio.to_thread(
-        delete_text_units_for_document, catalog, document_id=document_id,
-    )
+    client = get_owner_runtime().require_client()
+    evidence_keys = [
+        row.key for version_id in version_ids for row in evidence_for_version(catalog, version_id)
+    ]
+    if evidence_keys:
+        await unlink_document_versions_via_owner(
+            client, evidence_keys, mutation_id=f"unlink-evidence:{document_id}",
+        )
+    if unit_ids:
+        await delete_text_units_by_ids_via_owner(
+            client, unit_ids, mutation_id=f"delete-text-units:{document_id}",
+        )
     await session.delete(row)
     await session.flush()
     await prune_unsupported_claims(session)

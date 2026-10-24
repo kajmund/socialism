@@ -184,3 +184,40 @@ async def delete_text_units_via_owner(
         ]
     }
     return await client.mutate(mutation_id, payload, kind="batch")
+
+
+async def delete_nodes_via_owner(
+    client: OwnerClient,
+    nodes: Sequence[tuple[str, str]],
+    *,
+    mutation_id: str,
+) -> dict[str, object]:
+    return await client.mutate(
+        mutation_id,
+        {"delete_nodes": [{"label": label, "key": key} for label, key in nodes]},
+        kind="batch",
+    )
+
+
+async def unlink_document_versions_via_owner(
+    client: OwnerClient,
+    evidence_keys: Sequence[str],
+    *,
+    mutation_id: str,
+) -> dict[str, object]:
+    from app.services.overgraph.legal_claims import EVIDENCE
+
+    return await delete_nodes_via_owner(
+        client, [(EVIDENCE, key) for key in evidence_keys], mutation_id=mutation_id,
+    )
+
+
+async def delete_text_units_by_ids_via_owner(
+    client: OwnerClient,
+    unit_ids: Sequence[str],
+    *,
+    mutation_id: str,
+) -> dict[str, object]:
+    return await delete_nodes_via_owner(
+        client, [(TEXT_UNIT, unit_id) for unit_id in unit_ids], mutation_id=mutation_id,
+    )
