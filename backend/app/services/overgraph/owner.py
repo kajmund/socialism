@@ -149,10 +149,17 @@ class OvergraphOwner:
                     await writer.drain()
                     return
                 values = {}
+                vectors = {}
                 for item in payload.get("keys", []):
                     row = self.catalog.get_by_key(str(item["label"]), str(item["key"]))
-                    values[f"{item['label']}:{item['key']}"] = None if row is None else dict(row.props)
-                writer.write((json.dumps({"ok": True, "values": values}) + "\n").encode())
+                    name = f"{item['label']}:{item['key']}"
+                    values[name] = None if row is None else dict(row.props)
+                    if payload.get("include_vectors") and row is not None and row.dense_vector is not None:
+                        vectors[name] = list(row.dense_vector)
+                result = {"ok": True, "values": values}
+                if payload.get("include_vectors"):
+                    result["vectors"] = vectors
+                writer.write((json.dumps(result) + "\n").encode())
                 await writer.drain()
                 return
             if payload.get("type") == "health":
@@ -476,11 +483,14 @@ class OwnerClient:
             raise OwnerProtocolError("catalog_mismatch")
         return response
 
-    async def read(self, keys: list[dict[str, str]]) -> dict[str, Any]:
+    async def read(self, keys: list[dict[str, str]], *, include_vectors: bool = False) -> dict[str, Any]:
         if self.catalog_id is None:
             health = await self._request({"type": "health"})
             self.catalog_id = health.get("catalog_id")
-        return await self._request({"type": "read", "keys": keys, "catalog_id": self.catalog_id})
+        return await self._request({
+            "type": "read", "keys": keys, "catalog_id": self.catalog_id,
+            "include_vectors": include_vectors,
+        })
 
     async def mutate(self, mutation_id: str, patch: dict[str, Any], *, kind: str = "patch") -> dict[str, Any]:
         if self.catalog_id is None:

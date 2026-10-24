@@ -113,3 +113,23 @@ async def test_concurrent_session_get_or_create_is_single(repo):
     assert len(ids) == 1
     key = next(iter(ids))
     assert owner.catalog.get_by_key("SsrReviewSession", key) is not None
+
+
+async def test_concurrent_promotion_and_revoke_never_leaves_active_anchor(repo):
+    import asyncio
+    from app.services.clause_ssr.types import EmbeddingSpec
+    owner, repository, scope = repo
+    await repository.record_decision(scope=scope, classification_id="cls-1", unit_id="unit-1", reviewer_id="admin-1", answer="yes")
+    key = verification_key(scope.scope_key, "cls-1", "unit-1", "admin-1")
+    embedding = EmbeddingSpec(model="test", revision="v1", dimension=4)
+    results = await asyncio.gather(
+        repository.promote_anchor(scope=scope, verification_id=key, embedding=embedding),
+        repository.record_decision(scope=scope, classification_id="cls-1", unit_id="unit-1", reviewer_id="admin-1", answer="no"),
+        return_exceptions=True,
+    )
+    assert any(isinstance(item, dict) and item.get("result", {}).get("ok") for item in results)
+    anchor = owner.catalog.get_by_key("SsrClauseAnchor", anchor_key(scope.scope_key, key))
+    if anchor is not None:
+        assert anchor.props["status"] != "active"
+    verification = owner.catalog.get_by_key("SsrVerification", key)
+    assert verification.props["answer"] == "no"

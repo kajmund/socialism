@@ -13,7 +13,7 @@ from app.services.overgraph.catalogs import Catalog, get_runtime
 from app.services.overgraph.owner import OwnerUnavailable
 from app.services.overgraph.owner_runtime import get_owner_runtime
 
-from app.services.clause_ssr.anchors import list_anchors, promote_anchor
+from app.services.clause_ssr.anchors import list_anchors
 from app.services.clause_ssr.repository import ClauseRepository
 from app.services.clause_ssr.classifications import (
     get_classification,
@@ -34,7 +34,7 @@ from app.services.clause_ssr.serialize import (
     verification_json,
 )
 from app.services.clause_ssr.spec import catalog_embedding
-from app.services.clause_ssr.types import ClassificationLevel, DecisionAnswer, ReviewSession, Verification
+from app.services.clause_ssr.types import Anchor, ClassificationLevel, DecisionAnswer, EmbeddingSpec, ReviewSession, Verification
 
 router = APIRouter(
     prefix="/clause-ssr",
@@ -286,18 +286,32 @@ async def api_undo(
 
 @router.post("/anchors/promote")
 async def api_promote(body: PromoteWrite) -> dict:
-    catalog = _catalog()
+    scope = _scope(body.customer_id)
     try:
-        item = await asyncio.to_thread(
-            promote_anchor,
-            catalog,
-            body.verification_id,
-            scope=_scope(body.customer_id),
-            embedding=catalog_embedding(catalog),
+        repository = ClauseRepository(get_owner_runtime().require_client())
+        props = await repository.promote_anchor(
+            scope=scope, verification_id=body.verification_id,
+            embedding=catalog_embedding(_catalog()),
         )
+    except OwnerUnavailable as exc:
+        raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
     except (PermissionError, KeyError, ValueError) as exc:
         raise _http(exc) from exc
-    return anchor_json(item)
+    anchor = Anchor(
+        id=str(props.get("id") or ""), verification_id=str(props.get("verification_id") or ""),
+        source_unit_id=str(props.get("source_unit_id") or ""),
+        classification_id=str(props.get("classification_id") or ""),
+        category=str(props.get("category") or ""), polarity=str(props.get("polarity") or "positive"),
+        content_hash=str(props.get("content_hash") or ""), status=str(props.get("status") or "draft"),
+        embedding=EmbeddingSpec(
+            model=str(props.get("embedding_model") or ""),
+            revision=str(props.get("embedding_revision") or ""),
+            dimension=int(props.get("embedding_dimension") or 0),
+        ),
+        vector=None, scope_key=str(props.get("scope_key") or ""),
+        provenance={"reviewer_id": str(props.get("reviewer_id") or ""), "question": str(props.get("question") or "")},
+    )
+    return anchor_json(anchor)
 
 
 @router.get("/anchors")
