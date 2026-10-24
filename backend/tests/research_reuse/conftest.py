@@ -11,11 +11,26 @@ from tests.test_research_graph_v2_reuse import Embeddings, seed_fact
 
 @pytest.fixture(autouse=True)
 def offline_boundaries(monkeypatch):
-    def forbidden(*_args, **_kwargs):
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+
+    def local_unix_only(sock):
+        # The single-writer Overgraph owner is a local Unix socket, not a
+        # network boundary. Everything else stays forbidden.
+        return getattr(sock, "family", None) == socket.AF_UNIX
+
+    def forbidden(sock, address, *args, **kwargs):
+        if local_unix_only(sock):
+            return real_connect(sock, address, *args, **kwargs)
+        raise RuntimeError("research_reuse CI tests must mock every network boundary")
+
+    def forbidden_ex(sock, address, *args, **kwargs):
+        if local_unix_only(sock):
+            return real_connect_ex(sock, address, *args, **kwargs)
         raise RuntimeError("research_reuse CI tests must mock every network boundary")
 
     monkeypatch.setattr(socket.socket, "connect", forbidden)
-    monkeypatch.setattr(socket.socket, "connect_ex", forbidden)
+    monkeypatch.setattr(socket.socket, "connect_ex", forbidden_ex)
     monkeypatch.setattr("app.services.research.composition.research_embeddings", Embeddings)
 
 
