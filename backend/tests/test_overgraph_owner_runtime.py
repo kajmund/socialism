@@ -28,12 +28,24 @@ async def test_runtime_reports_owner_ready_but_write_paths_not_migrated(owner):
     assert runtime.require_client() is runtime.client
 
 
-async def test_runtime_fails_closed_when_owner_missing(tmp_path: Path):
+async def test_runtime_stays_unavailable_until_owner_appears():
+    root = Path(tempfile.mkdtemp(prefix="ogo-late-"))
     runtime = OwnerRuntime()
-    await runtime.connect(str(tmp_path / "missing.sock"))
+    socket_path = root / "late.sock"
+    await runtime.connect(str(socket_path))
     assert runtime.status["status"] == "unavailable"
+    # The client stays configured so a later owner start is usable without a
+    # backend restart; using it before that fails loudly.
+    client = runtime.require_client()
     with pytest.raises(OwnerUnavailable):
-        runtime.require_client()
+        await client.health()
+    owner = OvergraphOwner(root / "catalog", dimension=4, socket_path=socket_path)
+    await owner.start()
+    try:
+        assert (await runtime.refresh())["status"] == "ready"
+        assert (await client.health())["catalog_id"] == owner.catalog_id
+    finally:
+        await owner.close()
 
 
 async def test_catalog_identity_survives_restart():

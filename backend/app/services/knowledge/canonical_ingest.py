@@ -6,7 +6,6 @@ identity and extracted text. This module does not import provider adapters.
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
@@ -30,10 +29,11 @@ from app.services.knowledge.persistence import (
     persist_segmented_document,
 )
 from app.services.knowledge.provider import KnowledgeVectorStoreError
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.owner_runtime import get_owner_runtime
-from app.services.overgraph.owner_writer import write_text_unit_embeddings_via_owner
-from app.services.overgraph.text_units import load_domain_text_units
+from app.services.overgraph.owner_writer import (
+    load_text_units_via_owner,
+    write_text_unit_embeddings_via_owner,
+)
 from app.services.knowledge.scope import (
     KnowledgeTenantScope,
     require_persist_scope,
@@ -157,9 +157,8 @@ async def persist_extracted_source(
     if existing is not None:
         current = await get_current_document_version(session, existing.id)
         if current is not None and current.content_hash == identity.content_hash:
-            current_units = await asyncio.to_thread(
-                load_domain_text_units,
-                require_knowledge(),
+            current_units = await load_text_units_via_owner(
+                get_owner_runtime().require_client(),
                 document_version_id=current.id,
             )
             if not current_units:
@@ -174,8 +173,9 @@ async def persist_extracted_source(
         source_object_id=identity.source_object_id,
         segmented=segmented,
     )
-    segmented = await persisted_segment(session, segmented, written.version)
-    # Release the row lock and the pool connection before embedding.
+    version_row = written.version
+    version_id = version_row.id
+    segmented = await persisted_segment(session, segmented, version_row)
     await session.commit()
     units = list(segmented.text_units)
     if written.reused_current and not units:
@@ -186,7 +186,7 @@ async def persist_extracted_source(
             status="indexed",
             chunks_indexed=len(units),
             content_hash=identity.content_hash,
-            document_version_id=written.version.id,
+            document_version_id=version_id,
             reused_version=written.reused_current,
             extracted=extracted,
             segmented=segmented,
@@ -293,17 +293,19 @@ async def _current_index_inputs(
     if document_id is not None:
         statement = statement.where(CanonicalDocumentRecord.id == document_id)
     rows = list(await session.scalars(statement))
-    inputs = []
+    versions = []
     for row in rows:
         version = await get_current_document_version(session, row.id)
-        if version is None:
-            continue
-        units = await asyncio.to_thread(
-            load_domain_text_units, require_knowledge(), document_version_id=version.id,
-        )
+        if version is not None:
+            versions.append((_knowledge_document_for_index(row, version), version.id))
+    client = get_owner_runtime().require_client()
+    inputs = []
+    for document, version_id in versions:
+        units = await load_text_units_via_owner(client, document_version_id=version_id)
         if not units:
             continue
-        inputs.append((_knowledge_document_for_index(row, version), units))
+        inputs.append((document, units))
+    await session.rollback()
     return inputs
 
 

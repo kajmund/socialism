@@ -9,7 +9,8 @@ from app.services.knowledge.scope import KnowledgeTenantScope
 from app.services.knowledge.units import TextUnit
 from app.services.overgraph.labels import CONTAINS, DOCUMENT_VERSION, NEXT, TEXT_UNIT, scope_label
 from app.services.overgraph.owner import OwnerClient
-from app.services.overgraph.text_units import text_unit_to_write
+from app.services.overgraph.owner import OwnerProtocolError
+from app.services.overgraph.text_units import domain_unit_from_props, text_unit_to_write
 from app.services.overgraph.write import _ms
 
 
@@ -236,3 +237,30 @@ async def delete_document_graph_via_owner(
     nodes = [(TEXT_UNIT, unit_id) for unit_id in unit_ids]
     nodes.extend((EVIDENCE, key) for key in evidence_keys)
     return await delete_nodes_via_owner(client, nodes, mutation_id=mutation_id)
+
+
+async def load_text_units_via_owner(
+    client: OwnerClient, *, document_version_id: str, limit: int = 20_000,
+) -> list[TextUnit]:
+    """Read one document version's TextUnits through the owner.
+
+    A backend-local catalog is a snapshot opened at process start; it does not
+    see commits made by the separate owner process. Post-write readbacks must
+    therefore go through the owner. Raises instead of silently truncating.
+    """
+    rows = await client.list_nodes(
+        TEXT_UNIT, props={"document_version_id": document_version_id}, limit=limit,
+    )
+    if len(rows) >= limit:
+        raise OwnerProtocolError(
+            f"document version {document_version_id} exceeds {limit} TextUnits"
+        )
+    rows.sort(key=lambda row: (
+        int(row["props"].get("section_ordinal", -1)),
+        int(row["props"].get("ordinal", 0)),
+        str(row["key"]),
+    ))
+    return [
+        domain_unit_from_props(str(row["key"]), dict(row["props"]))
+        for row in rows
+    ]
