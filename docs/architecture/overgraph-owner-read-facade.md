@@ -1,7 +1,9 @@
 # Owner-only authoritative reads: facade, vertical integration and remaining paths
 
-Status: first vertical slice implemented and verified (PR #432). Companion to
-[overgraph-owner-multiprocess-hardening.md](overgraph-owner-multiprocess-hardening.md).
+Status: first vertical slice and Phase A1 answer reuse implemented and verified
+(PR #432). Companion to
+[overgraph-owner-multiprocess-hardening.md](overgraph-owner-multiprocess-hardening.md)
+and [overgraph-owner-answer-reuse.md](overgraph-owner-answer-reuse.md).
 
 ## Goal and model
 
@@ -81,7 +83,7 @@ read path, so both this test and the two-backend harness fail on it.
 | ingest/embedding/reuse post-write TextUnit readbacks | read-after-write | **migrated** (owner `list_nodes` helper) |
 | document deletion TextUnit/evidence resolution | read-after-write | **migrated** |
 | research fact writer endpoint/provenance reads | read-after-write | **migrated** (owner key reads) |
-| research answer reuse (`answer_facts`, `current_fact`) | authoritative | **not migrated** |
+| research answer reuse (`answer_facts`, `current_fact`, `entity_attributes`) | authoritative | **migrated** (Phase A1) |
 | research graph reuse / candidate retrieval / hybrid search | bounded retrieval | **not migrated** |
 | Tantivy index build/reconcile | snapshot/index build | **not migrated**; owner mode disables it |
 | clause SSR queue/match/classifications/anchor reads | authoritative | **not migrated**; write paths already owner |
@@ -126,9 +128,10 @@ loop. Large result sets remain the client's explicit choice.
 
 ## Remaining work / blockers
 
-1. Migrate Phase A research/answer-reuse reads; they need async owner-backed
-   replacements for `answer_facts`, `current_fact`, graph reuse and hybrid
-   retrieval.
+1. Migrate the remaining Phase A retrieval reads (graph reuse, candidate
+   retrieval, hybrid/vector search). Known-answer reuse is already migrated; it
+   performs four bounded owner reads and carries 3.2/8.5/62 KB for 1/10/100
+   evidence items (see the answer-reuse note).
 2. Decide and implement Tantivy consistency (bounded paging vs bounded change
    feed) after measuring both.
 3. Migrate Phase C clause/Tabular reads and Phase D document QA/legal/memory.
