@@ -45,6 +45,53 @@ class ClauseRepository:
     async def _apply(self, mutation_id: str, patch: dict[str, Any]) -> dict[str, Any]:
         return await self.client.mutate(mutation_id, patch, kind="batch")
 
+    async def get_or_create_session(
+        self,
+        *,
+        scope: KnowledgeTenantScope,
+        reviewer_id: str,
+        classification_id: str,
+        document_id: str | None = None,
+    ) -> dict[str, Any]:
+        session_id = session_key(scope.scope_key, reviewer_id, classification_id, document_id)
+        for _attempt in range(3):
+            existing = await self._read(REVIEW_SESSION, session_id)
+            if existing is not None:
+                return existing
+            props = {
+                "id": session_id,
+                "scope_key": scope.scope_key,
+                "reviewer_id": reviewer_id,
+                "classification_id": classification_id,
+                "document_id": document_id or "",
+                "last_unit_id": "",
+                "last_verification_id": "",
+                "decided_yes": 0,
+                "decided_no": 0,
+                "skipped": 0,
+                "unsure": 0,
+                "session_version": 1,
+            }
+            result = await self._apply(
+                f"session:{session_id}",
+                {
+                    "expected_absent": [{"label": REVIEW_SESSION, "key": session_id}],
+                    "upsert_nodes": [{
+                        "labels": [REVIEW_SESSION, scope_label(scope.scope_key)],
+                        "key": session_id, "props": props,
+                    }],
+                    "upsert_edges": [{
+                        "from": {"label": REVIEW_SESSION, "key": session_id},
+                        "to": {"label": CLASSIFICATION, "key": classification_id},
+                        "label": FOR,
+                    }],
+                },
+            )
+            if result.get("error") == "precondition_failed":
+                continue
+            return props
+        raise RuntimeError("clause session precondition conflict")
+
     async def record_decision(  # noqa: C901, PLR0912
         self,
         *,

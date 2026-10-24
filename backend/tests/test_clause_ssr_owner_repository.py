@@ -98,3 +98,18 @@ async def test_repository_accepts_existing_session_without_session_version(repo)
     )
     assert result["result"]["ok"] is True
     assert int(result["session"]["decided_yes"]) == 1
+
+
+async def test_concurrent_session_get_or_create_is_single(repo):
+    import asyncio
+    owner, repository, scope = repo
+    results = await asyncio.gather(*(
+        repository.get_or_create_session(
+            scope=scope, reviewer_id="admin-1", classification_id="cls-1",
+        )
+        for _ in range(6)
+    ))
+    ids = {result["id"] for result in results}
+    assert len(ids) == 1
+    key = next(iter(ids))
+    assert owner.catalog.get_by_key("SsrReviewSession", key) is not None
