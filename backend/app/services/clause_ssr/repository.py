@@ -53,6 +53,22 @@ class ClauseRepository:
         row = await self._read("SsrAnchorPool", self._pool_key(scope, category))
         return int((row or {}).get("revision") or 0)
 
+    async def _pool_bump(self, scope: KnowledgeTenantScope, category: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        key = self._pool_key(scope, category)
+        current = await self._read("SsrAnchorPool", key)
+        props = {
+            "scope_key": scope.scope_key,
+            "category": category,
+            "revision": int((current or {}).get("revision") or 0) + 1,
+        }
+        node = {"labels": ["SsrAnchorPool", scope_label(scope.scope_key)], "key": key, "props": props}
+        expected = (
+            {"expected_absent": [{"label": "SsrAnchorPool", "key": key}]}
+            if current is None
+            else {"expected_nodes": [{"label": "SsrAnchorPool", "key": key, "props": {"revision": current.get("revision")}}]}
+        )
+        return node, expected
+
     async def list_anchor_candidates(
         self, *, scope: KnowledgeTenantScope, category: str,
     ) -> tuple[list[dict[str, Any]], int]:
@@ -227,6 +243,10 @@ class ClauseRepository:
                     "label": REVIEW_SESSION, "key": session_id,
                     "props": {"session_version": session.get("session_version")},
                 })
+            pool_node, pool_expected = await self._pool_bump(scope, str(classification.get("category") or ""))
+            nodes.append(pool_node)
+            expected.setdefault("expected_absent", []).extend(pool_expected.get("expected_absent", []))
+            expected.setdefault("expected_nodes", []).extend(pool_expected.get("expected_nodes", []))
             result = await self._apply(f"decision:{key}:{revision}", {**expected, "upsert_nodes": nodes, "upsert_edges": edges})
             if result.get("error") == "precondition_failed":
                 continue
@@ -262,13 +282,20 @@ class ClauseRepository:
                     "key": anchor_key(scope.scope_key, verification_id),
                     "props": {**anchor, "status": "revoked"},
                 })
+            pool_node, pool_expected = await self._pool_bump(scope, str(current.get("category") or ""))
+            nodes.append(pool_node)
+            expected = {
+                "expected_nodes": [{
+                    "label": VERIFICATION, "key": verification_id,
+                    "props": {"revision": revision, "status": str(current.get("status") or "active")},
+                }],
+            }
+            expected.setdefault("expected_absent", []).extend(pool_expected.get("expected_absent", []))
+            expected.setdefault("expected_nodes", []).extend(pool_expected.get("expected_nodes", []))
             result = await self._apply(
                 f"revoke:{verification_id}:{revision}",
                 {
-                    "expected_nodes": [{
-                        "label": VERIFICATION, "key": verification_id,
-                        "props": {"revision": revision, "status": str(current.get("status") or "active")},
-                    }],
+                    **expected,
                     "upsert_nodes": nodes,
                     "upsert_edges": [{
                         "from": {"label": VERIFICATION, "key": verification_id},
@@ -412,7 +439,9 @@ class ClauseRepository:
                 "reviewer_id": str(verification.get("reviewer_id") or ""),
                 "question": str(verification.get("question") or ""),
             }
+            pool_node, pool_expected = await self._pool_bump(scope, str(verification.get("category") or ""))
             patch = {
+                **pool_expected,
                 "expected_nodes": [{
                     "label": VERIFICATION, "key": verification_id,
                     "props": {"revision": int(verification.get("revision") or 1), "status": "active"},
@@ -421,7 +450,7 @@ class ClauseRepository:
                     "labels": [ANCHOR, scope_label(scope.scope_key)],
                     "key": anchor_id, "props": props,
                     "dense_vector": vector,
-                }],
+                }, pool_node],
                 "upsert_edges": [
                     {"from": {"label": ANCHOR, "key": anchor_id}, "to": {"label": VERIFICATION, "key": verification_id}, "label": "ssr.DERIVED_FROM"},
                     {"from": {"label": ANCHOR, "key": anchor_id}, "to": {"label": "TextUnit", "key": props["source_unit_id"]}, "label": "ssr.REPRESENTS"},
