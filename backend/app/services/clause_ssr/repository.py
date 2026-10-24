@@ -151,7 +151,7 @@ class ClauseRepository:
             else:
                 expected.setdefault("expected_nodes", []).append({
                     "label": REVIEW_SESSION, "key": session_id,
-                    "props": {"session_version": int(session.get("session_version") or 0)},
+                    "props": {"session_version": session.get("session_version")},
                 })
             result = await self._apply(f"decision:{key}:{revision}", {**expected, "upsert_nodes": nodes, "upsert_edges": edges})
             if result.get("error") == "precondition_failed":
@@ -207,3 +207,85 @@ class ClauseRepository:
                 continue
             return {**current, "status": "revoked", "result": result}
         raise RuntimeError("clause revocation precondition conflict")
+
+    async def undo_last(
+        self,
+        *,
+        scope: KnowledgeTenantScope,
+        reviewer_id: str,
+        classification_id: str,
+        document_id: str | None = None,
+    ) -> tuple[dict[str, Any] | None, str | None]:
+        session_id = session_key(scope.scope_key, reviewer_id, classification_id, document_id)
+        for _attempt in range(3):
+            session = await self._read(REVIEW_SESSION, session_id)
+            if session is None or not session.get("last_verification_id"):
+                return session, None
+            verification_id = str(session["last_verification_id"])
+            current = await self._read(VERIFICATION, verification_id)
+            if current is None:
+                return session, None
+            revision = int(current.get("revision") or 1)
+            unit_id = str(current.get("source_unit_id") or "")
+            nodes = [
+                {
+                    "labels": [VERIFICATION_REVISION, scope_label(scope.scope_key)],
+                    "key": revision_key(verification_id, revision),
+                    "props": {**current, "status": "superseded", "revision": revision},
+                },
+                {
+                    "labels": [VERIFICATION, scope_label(scope.scope_key)],
+                    "key": verification_id,
+                    "props": {**current, "status": "revoked"},
+                },
+            ]
+            anchor = await self._read(ANCHOR, anchor_key(scope.scope_key, verification_id))
+            if anchor is not None:
+                nodes.append({
+                    "labels": [ANCHOR, scope_label(scope.scope_key)],
+                    "key": anchor_key(scope.scope_key, verification_id),
+                    "props": {**anchor, "status": "revoked"},
+                })
+            counts = {
+                "yes": int(session.get("decided_yes") or 0),
+                "no": int(session.get("decided_no") or 0),
+                "skip": int(session.get("skipped") or 0),
+                "unsure": int(session.get("unsure") or 0),
+            }
+            old_answer = str(current.get("answer") or "")
+            if old_answer in counts:
+                counts[old_answer] = max(0, counts[old_answer] - 1)
+            session_props = {
+                "id": session_id,
+                "scope_key": scope.scope_key,
+                "reviewer_id": reviewer_id,
+                "classification_id": classification_id,
+                "document_id": document_id or "",
+                "last_unit_id": "",
+                "last_verification_id": "",
+                "decided_yes": counts["yes"],
+                "decided_no": counts["no"],
+                "skipped": counts["skip"],
+                "unsure": counts["unsure"],
+                "session_version": int(session.get("session_version") or 0) + 1,
+            }
+            nodes.append({"labels": [REVIEW_SESSION, scope_label(scope.scope_key)], "key": session_id, "props": session_props})
+            result = await self._apply(
+                f"undo:{verification_id}:{revision}",
+                {
+                    "expected_nodes": [
+                        {"label": VERIFICATION, "key": verification_id, "props": {"revision": revision, "status": str(current.get("status") or "active")}},
+                        {"label": REVIEW_SESSION, "key": session_id, "props": {"session_version": session.get("session_version")}},
+                    ],
+                    "upsert_nodes": nodes,
+                    "upsert_edges": [{
+                        "from": {"label": VERIFICATION, "key": verification_id},
+                        "to": {"label": VERIFICATION_REVISION, "key": revision_key(verification_id, revision)},
+                        "label": SUPERSEDES,
+                    }],
+                },
+            )
+            if result.get("error") == "precondition_failed":
+                continue
+            return session_props, unit_id
+        raise RuntimeError("clause undo precondition conflict")

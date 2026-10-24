@@ -10,8 +10,11 @@ from app.auth.dependencies import require_admin
 from app.database.models import UserAccount
 from app.services.knowledge.scope import KnowledgeTenantScope, customer_scope, shared_scope
 from app.services.overgraph.catalogs import Catalog, get_runtime
+from app.services.overgraph.owner import OwnerUnavailable
+from app.services.overgraph.owner_runtime import get_owner_runtime
 
 from app.services.clause_ssr.anchors import list_anchors, promote_anchor
+from app.services.clause_ssr.repository import ClauseRepository
 from app.services.clause_ssr.classifications import (
     get_classification,
     list_classifications,
@@ -30,10 +33,8 @@ from app.services.clause_ssr.serialize import (
     set_json,
     verification_json,
 )
-from app.services.clause_ssr.sessions import apply_decision, get_or_create_session, undo_last
 from app.services.clause_ssr.spec import catalog_embedding
-from app.services.clause_ssr.types import ClassificationLevel, DecisionAnswer
-from app.services.clause_ssr.verifications import record_decision
+from app.services.clause_ssr.types import ClassificationLevel, DecisionAnswer, ReviewSession, Verification
 
 router = APIRouter(
     prefix="/clause-ssr",
@@ -189,32 +190,46 @@ async def api_queue(
 async def api_record_decision(
     body: DecisionWrite, user: UserAccount = Depends(require_admin),
 ) -> dict:
-    catalog = _catalog()
     scope = _scope(body.customer_id)
     try:
-        verification = await asyncio.to_thread(
-            record_decision,
-            catalog,
+        repository = ClauseRepository(get_owner_runtime().require_client())
+        result = await repository.record_decision(
             scope=scope,
             classification_id=body.classification_id,
             unit_id=body.unit_id,
             reviewer_id=user.id,
             answer=body.answer,
-            source=body.source,
-        )
-        session = await asyncio.to_thread(
-            get_or_create_session,
-            catalog,
-            scope=scope,
-            reviewer_id=user.id,
-            classification_id=body.classification_id,
             document_id=body.document_id,
         )
-        session = await asyncio.to_thread(
-            apply_decision, catalog, session, verification, scope=scope,
-        )
+    except OwnerUnavailable as exc:
+        raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
     except (PermissionError, KeyError, ValueError) as exc:
         raise _http(exc) from exc
+    v = dict(result["verification"])
+    s = dict(result["session"])
+    v.setdefault("id", "")
+    verification = Verification(
+        id=str(v.get("id") or ""), source_unit_id=str(v.get("source_unit_id") or ""),
+        source_document_id=str(v.get("source_document_id") or ""),
+        content_hash=str(v.get("content_hash") or ""),
+        classification_id=str(v.get("classification_id") or ""),
+        classification_version=int(v.get("classification_version") or 1),
+        question=str(v.get("question") or ""), category=str(v.get("category") or ""),
+        answer=str(v.get("answer") or "skip"), polarity=(str(v.get("polarity")) or None),
+        reviewer_id=str(v.get("reviewer_id") or ""), decided_at_ms=int(v.get("decided_at_ms") or 0),
+        source=str(v.get("source") or "admin_queue"), revision=int(v.get("revision") or 1),
+        status=str(v.get("status") or "active"), scope_key=str(v.get("scope_key") or ""),
+    )
+    session = ReviewSession(
+        id=str(s.get("id") or ""), reviewer_id=str(s.get("reviewer_id") or user.id),
+        classification_id=str(s.get("classification_id") or body.classification_id),
+        document_id=str(s.get("document_id") or "") or None,
+        last_unit_id=str(s.get("last_unit_id") or "") or None,
+        last_verification_id=str(s.get("last_verification_id") or "") or None,
+        decided_yes=int(s.get("decided_yes") or 0), decided_no=int(s.get("decided_no") or 0),
+        skipped=int(s.get("skipped") or 0), unsure=int(s.get("unsure") or 0),
+        scope_key=str(s.get("scope_key") or scope.scope_key),
+    )
     return {"verification": verification_json(verification), "session": session_json(session)}
 
 
@@ -222,20 +237,29 @@ async def api_record_decision(
 async def api_undo(
     body: UndoWrite, user: UserAccount = Depends(require_admin),
 ) -> dict:
-    catalog = _catalog()
     scope = _scope(body.customer_id)
     try:
-        session = await asyncio.to_thread(
-            get_or_create_session,
-            catalog,
-            scope=scope,
-            reviewer_id=user.id,
-            classification_id=body.classification_id,
-            document_id=body.document_id,
+        repository = ClauseRepository(get_owner_runtime().require_client())
+        session_props, unit_id = await repository.undo_last(
+            scope=scope, reviewer_id=user.id,
+            classification_id=body.classification_id, document_id=body.document_id,
         )
-        session, unit_id = await asyncio.to_thread(undo_last, catalog, session, scope=scope)
+    except OwnerUnavailable as exc:
+        raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
     except (PermissionError, KeyError, ValueError) as exc:
         raise _http(exc) from exc
+    if session_props is None:
+        return {"session": None, "unit_id": None}
+    session = ReviewSession(
+        id=str(session_props.get("id") or ""), reviewer_id=user.id,
+        classification_id=body.classification_id,
+        document_id=str(session_props.get("document_id") or "") or None,
+        last_unit_id=None, last_verification_id=None,
+        decided_yes=int(session_props.get("decided_yes") or 0),
+        decided_no=int(session_props.get("decided_no") or 0),
+        skipped=int(session_props.get("skipped") or 0), unsure=int(session_props.get("unsure") or 0),
+        scope_key=scope.scope_key,
+    )
     return {"session": session_json(session), "unit_id": unit_id}
 
 
