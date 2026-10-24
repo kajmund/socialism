@@ -23,7 +23,7 @@ from app.services.clause_ssr.classifications import (
 )
 from app.services.clause_ssr.match import match_query
 from app.services.clause_ssr.queue import next_queue
-from app.services.clause_ssr.select import build_anchor_set, list_anchor_sets
+from app.services.clause_ssr.select import list_anchor_sets
 from app.services.clause_ssr.serialize import (
     anchor_json,
     classification_json,
@@ -34,7 +34,7 @@ from app.services.clause_ssr.serialize import (
     verification_json,
 )
 from app.services.clause_ssr.spec import catalog_embedding
-from app.services.clause_ssr.types import Anchor, ClassificationLevel, DecisionAnswer, EmbeddingSpec, ReviewSession, Verification
+from app.services.clause_ssr.types import Anchor, AnchorSet, ClassificationLevel, DecisionAnswer, EmbeddingSpec, ReviewSession, Verification
 
 router = APIRouter(
     prefix="/clause-ssr",
@@ -331,19 +331,32 @@ async def api_list_anchors(
 
 @router.post("/anchor-sets")
 async def api_build_set(body: BuildSetWrite) -> dict:
-    catalog = _catalog()
+    scope = _scope(body.customer_id)
     try:
-        item = await asyncio.to_thread(
-            build_anchor_set,
-            catalog,
-            scope=_scope(body.customer_id),
-            category=body.category,
-            embedding=catalog_embedding(catalog),
+        repository = ClauseRepository(get_owner_runtime().require_client())
+        props = await repository.build_anchor_set(
+            scope=scope, category=body.category,
+            embedding=catalog_embedding(_catalog()),
             holdout_ids=tuple(body.holdout_ids),
             max_per_polarity=body.max_per_polarity,
         )
+    except OwnerUnavailable as exc:
+        raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
     except (PermissionError, KeyError, ValueError) as exc:
         raise _http(exc) from exc
+    item = AnchorSet(
+        id=str(props.get("id") or ""), version=int(props.get("version") or 1),
+        category=str(props.get("category") or ""), status=str(props.get("status") or "active"),
+        selection_method="deterministic_diversity",
+        embedding=EmbeddingSpec(
+            model=str(props.get("embedding_model") or ""),
+            revision=str(props.get("embedding_revision") or ""),
+            dimension=int(props.get("embedding_dimension") or 0),
+        ),
+        holdout_ids=tuple(item for item in str(props.get("holdout_ids") or "").split(",") if item),
+        member_ids=tuple(props.get("member_ids") or ()),
+        scope_key=scope.scope_key, created_at_ms=int(props.get("created_at_ms") or 0),
+    )
     return set_json(item)
 
 
