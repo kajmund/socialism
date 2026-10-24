@@ -422,7 +422,7 @@ def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
             thread.start()
         for thread in threads:
             thread.join(timeout=60)
-        ingest_seconds = round(time.perf_counter() - started, 3)
+        dispatch_seconds = round(time.perf_counter() - started, 3)
 
         results: dict[str, Any] = {}
         for filename, uploaded in uploads.items():
@@ -443,6 +443,7 @@ def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
                 "vectors": sum(1 for row in rows if row.get("dense_vector")),
                 "locators": sorted(row["props"]["locator"] for row in rows),
             }
+        ingest_seconds = round(time.perf_counter() - started, 3)
 
         # Real owner-backed knowledge writes from both API processes: clause
         # decisions on different units through the same owner.
@@ -512,6 +513,7 @@ def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
         return {
             "owner_id": owner_id,
             "owner_status": {"a": status_a, "b": status_b},
+            "dispatch_seconds": dispatch_seconds,
             "ingest_seconds": ingest_seconds,
             "documents": results,
             "clause_decisions": len(decisions),

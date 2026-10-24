@@ -97,9 +97,9 @@ never reports a rejected mutation as success.
 fact sequence through the direct writers and through the owner in two isolated
 catalogs and compares a semantic snapshot (nodes, labels, props, dense vectors,
 edge endpoints, edge props, validity windows, provenance). Only non-semantic
-values are normalized: owner receipts, the creation instant OverGraph stamps on
-edges without an explicit `valid_from`, and the direction of the symmetric
-`CONTRADICTS` relation.
+values are normalized: owner receipts and the creation instant OverGraph stamps
+on edges without an explicit `valid_from`. Fact↔Fact `CONTRADICTS` uses one
+canonical key-sorted orientation in both writers and is compared directed.
 
 ## Tests
 
