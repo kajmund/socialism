@@ -79,3 +79,22 @@ async def test_explicit_revoke_removes_anchor(repo):
     assert revoked["result"]["ok"] is True
     assert owner.catalog.get_by_key(VERIFICATION, key).props["status"] == "revoked"
     assert owner.catalog.get_by_key(ANCHOR, anchor_key(scope.scope_key, key)).props["status"] == "revoked"
+
+
+async def test_repository_accepts_existing_session_without_session_version(repo):
+    owner, repository, scope = repo
+    from app.services.clause_ssr.keys import session_key
+    from app.services.clause_ssr.labels import REVIEW_SESSION
+    from app.services.overgraph.labels import scope_label
+
+    key = session_key(scope.scope_key, "admin-1", "cls-1", None)
+    await repository.client.mutate("legacy-session", {"upsert_nodes": [{
+        "labels": [REVIEW_SESSION, scope_label(scope.scope_key)], "key": key,
+        "props": {"reviewer_id": "admin-1", "classification_id": "cls-1", "document_id": ""},
+    }]}, kind="batch")
+    result = await repository.record_decision(
+        scope=scope, classification_id="cls-1", unit_id="unit-1",
+        reviewer_id="admin-1", answer="yes",
+    )
+    assert result["result"]["ok"] is True
+    assert int(result["session"]["decided_yes"]) == 1
