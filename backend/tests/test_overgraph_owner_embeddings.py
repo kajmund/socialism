@@ -62,3 +62,17 @@ async def test_embedding_via_owner_is_idempotent(owner):
     second = await write_text_unit_embeddings_via_owner(client, [unit], [[1.0, 0.0, 0.0, 0.0]], mutation_id="embed-fixed")
     assert first["ok"] is True
     assert second["duplicate"] is True
+
+
+async def test_embedding_after_delete_cannot_resurrect_text_unit(owner):
+    from app.services.overgraph.owner import OwnerClient
+    from app.services.overgraph.owner_writer import delete_text_units_via_owner
+
+    client = OwnerClient(owner.socket_path, catalog_id=owner.catalog_id)
+    unit = _unit()
+    batch = build_text_unit_batch([unit], scope=customer_scope(1), embeddings=[None])
+    await client.mutate("seed", batch, kind="batch")
+    await delete_text_units_via_owner(client, [unit], mutation_id="delete-before-embedding")
+    result = await write_text_unit_embeddings_via_owner(client, [unit], [[1.0, 0.0, 0.0, 0.0]], mutation_id="late-embedding")
+    assert result["error"] == "text_unit_not_found"
+    assert owner.catalog.get_by_key("TextUnit", "unit-1") is None
