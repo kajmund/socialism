@@ -238,3 +238,25 @@ def test_read_inside_writer_is_allowed():
     with lock:
         with lock.reader():
             pass
+
+
+def test_runtime_guard_forbids_direct_knowledge_writes_in_owner_mode():
+    from app.services.overgraph.owner_guards import (
+        DirectWriteForbidden,
+        set_direct_writes_forbidden,
+    )
+
+    root = Path(tempfile.mkdtemp(prefix="catalog-guard-"))
+    knowledge = open_catalog(root / "knowledge", kind="knowledge", dimension=4)
+    memory = open_catalog(root / "memory", kind="memory", dimension=4)
+    set_direct_writes_forbidden(True)
+    try:
+        with pytest.raises(DirectWriteForbidden):
+            knowledge.upsert_node([FACT], "blocked", props={"scope_key": "customer:1"})
+        with pytest.raises(DirectWriteForbidden):
+            knowledge.begin_write_txn()
+        memory.upsert_node([FACT], "allowed", props={"scope_key": "customer:1"})
+    finally:
+        set_direct_writes_forbidden(False)
+        knowledge.close()
+        memory.close()
