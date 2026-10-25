@@ -7,7 +7,7 @@ slice. PR #432 stays open and `write_paths_ready=false`.
 
 | Area | Catalog used | Production callers | Status |
 | --- | --- | --- | --- |
-| Legal claims/evidence (`legal_claims.py`, `claims.py`, `claim_answers.py`, `graph_claim_mirror.py`, `graph_observation_mirror.py`) | **Owner knowledge catalog** (`require_knowledge()`) | claim persistence, observations, legal research mirrors | **not migrated**; also uses direct reads, not just writes |
+| Legal claims/evidence (production paths) | **Owner knowledge catalog** | claim persistence, evidence, claim answers, supersession | **migrated** through `owner_legal.py`; atomic claim+evidence+supports batch and owner reads. Offline backfill/parity/rekey tooling still uses direct catalog |
 | Document QA (`document_qa/store.py`, `catalog_write.py`, `review.py`, `lifecycle.py`) | **per-tenant catalogs** `overgraph/tenants/<customer>/knowledge` via `TenantCatalogs` | graph writeback worker, workspace tools | **not migrated**; separate catalog per tenant needs its own Owner instance |
 | mem0 (`overgraph/mem0_store.py`) | **memory catalog** (`root/memory`) | expert memory through mem0 | **not migrated**; memory catalog has no Owner |
 | SWE run store (`overgraph/workflows.py`) | separate workflow/run-store catalog | SWE workflows | **do not migrate here**; it is not the Owner knowledge catalog |
@@ -21,8 +21,9 @@ or the memory catalog without going through the knowledge Owner.
 
 ## Runtime guard
 
-`Catalog.set_direct_writes_forbidden(True)` is set by the backend lifespan in
-owner mode. Every knowledge-catalog write entry point (`upsert_node`,
+Legal production writes now go through `owner_legal.py` on the existing
+Knowledge Owner. `Catalog.set_direct_writes_forbidden(True)` is set by the
+backend lifespan in owner mode. Every knowledge-catalog write entry point (`upsert_node`,
 `batch_upsert_nodes`, `upsert_edge`, `graph_patch`, `delete_node`,
 `begin_write_txn`, property index, ingest mode) raises `DirectWriteForbidden`
 instead of silently writing locally. The owner process itself never sets this
@@ -41,11 +42,11 @@ allowance.
 - **mem0** writes the separate memory catalog. It needs a memory-catalog Owner
   (or a documented decision that memory remains local); reusing the knowledge
   Owner would mix two catalog kinds.
-- **Legal claims/evidence** does use the knowledge catalog, but every claim read
-  and write currently calls the direct `Catalog` synchronously. A safe migration
-  must convert those reads too (claim identity, evidence links, supersession),
-  not only the mirror write; otherwise owner mode would break reads while
-  claiming the write path is migrated.
+- **Legal claims/evidence** production paths are migrated: claim/evidence/
+  support publication is one Owner batch; claim identity, evidence links,
+  support validity, answers and supersession go through Owner reads. Offline
+  maintenance tools (backfill, parity, rekey) still use direct catalogs and are
+  not request-time paths.
 - **SWE run store / Jev cache** are separate derived stores and should not be
   migrated merely because they embed Overgraph.
 
