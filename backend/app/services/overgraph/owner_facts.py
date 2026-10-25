@@ -337,6 +337,11 @@ def _fact_patch(
         _fact_node(prepared.key, proposed, props),
         *provenance_nodes,
     ]
+    if _has_text_unit_source(proposed):
+        # The marker is part of the same atomic mutation. It is deterministic
+        # for a given fact payload, so an idempotent retry reuses the receipt
+        # instead of producing a second marker change.
+        nodes.append(_scope_index_node(proposed))
     edges = [
         *provenance_edges,
         *_fact_edges(
@@ -357,6 +362,26 @@ def _fact_patch(
         "upsert_edges": edges,
     }
     return patch, props
+
+
+def _has_text_unit_source(proposed: FactInput) -> bool:
+    return any(source.kind == "text_unit" for source in proposed.sources)
+
+
+def _scope_index_node(proposed: FactInput) -> dict[str, Any]:
+    from app.services.overgraph.research import INDEX_PREFIX
+
+    scope_key = proposed.scope.scope_key
+    return {
+        "labels": [ENTITY, scope_label(scope_key)],
+        "key": f"{INDEX_PREFIX}{scope_key}",
+        "props": {
+            "scope_key": scope_key,
+            "node_type": "research.index",
+            "name": "index",
+            "has_text_unit_facts": 1,
+        },
+    }
 
 
 async def write_fact_via_owner(
