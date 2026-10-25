@@ -26,12 +26,12 @@ from app.services.overgraph.owner import OwnerClient  # noqa: E402
 from app.services.overgraph.research_owner import collect_research_hits_via_owner  # noqa: E402
 
 BACKEND = Path(__file__).resolve().parents[1]
-DIMENSION = 32
+DIMENSION = 3072
 GROUPS = 10
-PER_GROUP = 200
+PER_GROUP = 100
 BOUND = 20
-MUTATIONS = 100
-READER_COUNTS = (1, 8, 16)
+MUTATIONS = 1000
+READER_COUNTS = (1, 8)
 
 
 def _stats(values: list[float]) -> dict[str, float]:
@@ -83,21 +83,20 @@ def _vector(group: int = 0) -> list[float]:
     return vector
 
 
-def _spawn(root: Path, *, offload: bool) -> subprocess.Popen[str]:
+def _spawn(root: Path, *, read_workers: int) -> subprocess.Popen[str]:
     argv = [
         sys.executable, "-m", "app.services.overgraph.owner",
         str(root / "catalog"), "--socket", str(root / "owner.sock"),
         "--dimension", str(DIMENSION), "--no-sync", "--profile-lag",
+        "--read-workers", str(read_workers),
     ]
-    if offload:
-        argv.append("--read-offload")
     return subprocess.Popen(
         argv, cwd=BACKEND, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
     )
 
 
-async def _start(root: Path, *, offload: bool) -> tuple[subprocess.Popen[str], OwnerClient]:
-    process = _spawn(root, offload=offload)
+async def _start(root: Path, *, read_workers: int) -> tuple[subprocess.Popen[str], OwnerClient]:
+    process = _spawn(root, read_workers=read_workers)
     deadline = time.monotonic() + 20
     while time.monotonic() < deadline:
         try:
@@ -179,8 +178,8 @@ def _tail(after: dict[str, Any], name: str, count: int) -> list[float]:
     return after[name][-count:] if count else []
 
 
-async def _measure_mode(root: Path, *, offload: bool) -> dict[str, Any]:  # noqa: PLR0915
-    process, client = await _start(root, offload=offload)
+async def _measure_mode(root: Path, *, read_workers: int) -> dict[str, Any]:  # noqa: PLR0915
+    process, client = await _start(root, read_workers=read_workers)
     try:
         await _seed(client)
         before = await _metrics(client)
@@ -245,7 +244,9 @@ async def _measure_mode(root: Path, *, offload: bool) -> dict[str, Any]:  # noqa
             after_write = await _metrics(client)
             loaded_parts = {
                 "client": _stats(loaded),
-                "queue_wait": _stats(_delta(before_write, after_write, "queue_wait_seconds")),
+                "queue_wait": _stats(_tail(
+                    after_write, "queue_wait_seconds", MUTATIONS,
+                )),
                 "commit": _stats(_tail(
                     after_write, "commit_seconds",
                     after_write["applied"] - before_write["applied"],
@@ -282,7 +283,7 @@ async def _measure_mode(root: Path, *, offload: bool) -> dict[str, Any]:  # noqa
                 "owner_read_bytes": after_bound["read_bytes"] - before_bound["read_bytes"],
             }
         return {
-            "offload": offload,
+            "read_workers": read_workers,
             "baseline": baseline_parts,
             "phases": phases,
             "bounds_at_8_readers": bounds,
@@ -305,10 +306,10 @@ async def main() -> int:
     parser.add_argument("--json", default="")
     args = parser.parse_args()
     report = {}
-    for offload in (False, True):
-        root = Path(tempfile.mkdtemp(prefix=f"owner-profile-{offload}-"))
-        report["offload" if offload else "inline"] = await _measure_mode(
-            root, offload=offload,
+    for read_workers in (0, 4, 8):
+        root = Path(tempfile.mkdtemp(prefix=f"owner-profile-{read_workers}-"))
+        report["inline" if read_workers == 0 else f"workers_{read_workers}"] = (
+            await _measure_mode(root, read_workers=read_workers)
         )
     print(json.dumps(report, indent=2))
     if args.json:

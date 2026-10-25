@@ -13,19 +13,19 @@ import fcntl
 import json
 import time
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 from overgraph import OverGraphError
 
 from app.services.overgraph.catalogs import open_catalog
-from app.services.overgraph.owner_reads import handle_read
+from app.services.overgraph.owner_execution import LagMonitor, ReadExecutor
 from app.services.overgraph.owner_client import (
     IdempotencyConflict,
     MutationRequest,
     OwnerAlreadyActive,
     OwnerClient,
-    METRIC_SAMPLES,
     OwnerMetrics,
     OwnerProtocolError,
     OwnerQueueFull,
@@ -77,7 +77,12 @@ class OvergraphOwner:
         self.max_queue = max_queue
         self.sync_on_commit = sync_on_commit
         self.profile_lag = False
-        self.read_offload = False
+        self.read_workers = 4
+        self._reads: ReadExecutor | None = None
+        self._write_executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="overgraph-owner-writer",
+        )
+        self._lag_monitor: LagMonitor | None = None
         self.queue: asyncio.Queue[tuple[MutationRequest, asyncio.Future[dict[str, Any]]]] = asyncio.Queue(
             maxsize=max_queue
         )
@@ -91,9 +96,11 @@ class OvergraphOwner:
     async def start(self) -> None:
         self.socket_path.parent.mkdir(parents=True, exist_ok=True)
         self.socket_path.unlink(missing_ok=True)
+        self._reads = ReadExecutor(self.catalog, self.metrics, self.read_workers)
         self._worker = asyncio.create_task(self._run_worker())
         if self.profile_lag:
-            self._lag_monitor = asyncio.create_task(self._measure_event_loop_lag())
+            self._lag_monitor = LagMonitor(self.metrics)
+            self._lag_monitor.start()
         self._server = await asyncio.start_unix_server(self._handle, path=str(self.socket_path), limit=16 * 1024 * 1024)
 
     async def close(self) -> None:
@@ -101,6 +108,8 @@ class OvergraphOwner:
         if self._server is not None:
             self._server.close()
             await self._server.wait_closed()
+        if self._reads is not None:
+            await self._reads.close()
         if self._worker is not None:
             # Let in-flight handlers observe _closed and reject new submits,
             # then fail anything still queued so queue.join() cannot hang. The
@@ -123,12 +132,9 @@ class OvergraphOwner:
                 await self._worker
             except asyncio.CancelledError:
                 pass
+        self._write_executor.shutdown(wait=True)
         if self._lag_monitor is not None:
-            self._lag_monitor.cancel()
-            try:
-                await self._lag_monitor
-            except asyncio.CancelledError:
-                pass
+            await self._lag_monitor.close()
         if self._owns_catalog:
             self.catalog.close()
         self.socket_path.unlink(missing_ok=True)
@@ -143,20 +149,13 @@ class OvergraphOwner:
             if not line:
                 return
             payload = json.loads(line)
-            started = time.perf_counter()
-            if self.read_offload:
-                read_response = await asyncio.to_thread(
-                    handle_read, payload, self.catalog, self.catalog_id,
-                )
-            else:
-                read_response = handle_read(payload, self.catalog, self.catalog_id)
+            read_response = await self._read_payload(payload)
             if read_response is not None:
                 read_response.setdefault("read_revision", self.read_revision)
                 encoded = (json.dumps(read_response) + "\n").encode()
                 self.metrics.read_ops += 1
                 self.metrics.read_objects += len(read_response.get("nodes") or read_response.get("values") or {})
                 self.metrics.read_bytes += len(encoded)
-                _record_sample(self.metrics.read_seconds, started)
                 writer.write(encoded)
                 await writer.drain()
                 return
@@ -172,10 +171,6 @@ class OvergraphOwner:
                 return
             if payload.get("catalog_id") != self.catalog_id:
                 writer.write((json.dumps({"ok": False, "error": "catalog_mismatch"}) + "\n").encode())
-                await writer.drain()
-                return
-            if self._closed:
-                writer.write((json.dumps({"ok": False, "error": "owner_closed"}) + "\n").encode())
                 await writer.drain()
                 return
             request = MutationRequest(
@@ -202,15 +197,8 @@ class OvergraphOwner:
             writer.close()
             await writer.wait_closed()
 
-    async def _measure_event_loop_lag(self) -> None:
-        interval = 0.005
-        next_at = time.perf_counter() + interval
-        while True:
-            await asyncio.sleep(interval)
-            now = time.perf_counter()
-            self.metrics.event_loop_lag_seconds.append(round(max(0.0, now - next_at), 6))
-            del self.metrics.event_loop_lag_seconds[:-METRIC_SAMPLES]
-            next_at = now + interval
+    async def _read_payload(self, payload: dict[str, Any]) -> dict[str, Any] | None:
+        return await self._reads.read(payload, self.catalog_id)
 
     async def _run_worker(self) -> None:
         while True:
@@ -219,7 +207,9 @@ class OvergraphOwner:
             try:
                 if future.cancelled():
                     continue
-                result = await asyncio.to_thread(self._apply, request)
+                result = await asyncio.get_running_loop().run_in_executor(
+                    self._write_executor, self._apply, request,
+                )
                 if result.get("ok") and self.sync_on_commit:
                     # An ack must mean durable: group_commit only fsyncs on its
                     # ~50 ms timer, so a small commit is still in a userspace
@@ -227,7 +217,9 @@ class OvergraphOwner:
                     # original sync may have failed after its commit.
                     try:
                         started = time.perf_counter()
-                        await asyncio.to_thread(self.catalog.sync)
+                        await asyncio.get_running_loop().run_in_executor(
+                            self._write_executor, self.catalog.sync,
+                        )
                         _record_sample(self.metrics.sync_seconds, started)
                     except (OverGraphError, OSError) as exc:  # persisted, unacked
                         self.metrics.rejected += 1
