@@ -1,7 +1,8 @@
 # Tantivy index strategies: inventory and first benchmark
 
 Status: inventory + isolated benchmark. **No production change.** PR #432 stays
-open and `write_paths_ready=false`.
+open and `write_paths_ready=false`. The durable generation/tombstone design is
+in [tantivy-generation-ledger.md](tantivy-generation-ledger.md).
 
 ## Existing index (already implemented)
 
