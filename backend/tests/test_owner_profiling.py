@@ -55,3 +55,32 @@ async def test_close_waits_for_inflight_reads_before_closing_catalog(monkeypatch
         pass
     with pytest.raises(OwnerUnavailable):
         await client.query_nodes("TextUnit", limit=1)
+
+
+async def test_read_submission_failure_does_not_leak_inflight(monkeypatch):
+    root = Path(tempfile.mkdtemp(prefix="ogo-inflight-"))
+    owner = OvergraphOwner(root / "catalog", dimension=4, socket_path=root / "owner.sock")
+    owner.read_workers = 2
+    await owner.start()
+    try:
+        reads = owner._reads
+
+        class FailingExecutor:
+            def submit(self, *_args, **_kwargs):
+                raise RuntimeError("cannot schedule new futures")
+
+            def shutdown(self, **_kwargs):
+                return None
+
+        reads.executor = FailingExecutor()
+        with pytest.raises(RuntimeError):
+            await asyncio.wait_for(
+                reads.read({"type": "query_nodes", "label": "TextUnit", "limit": 1},
+                           owner.catalog_id),
+                timeout=2,
+            )
+        assert reads._inflight == 0
+        await asyncio.wait_for(owner.close(), timeout=2)
+    finally:
+        if owner._reads is not None:
+            owner._reads.executor = None
