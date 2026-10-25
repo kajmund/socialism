@@ -76,6 +76,7 @@ class OwnerMetrics:
     read_objects: int = 0
     read_bytes: int = 0
     read_seconds: list[float] = field(default_factory=list)
+    event_loop_lag_seconds: list[float] = field(default_factory=list)
 
 
 class OwnerClient:
