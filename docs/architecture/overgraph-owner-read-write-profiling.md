@@ -102,7 +102,51 @@ experiment.
   transaction-wide writer-exclusive. This must be fixed before any default
   change.
 
-## 5. Ingest A/B
+## 5. Durable-sync mixed workload
+
+Same four modes with `--sync` enabled (the production durable-ack path):
+
+| Mode (8 readers, 1 000 mutations + sync) | Mutation p50/p95/p99 |
+| --- | ---: |
+| Inline, global | 127 / 183 / 199 ms |
+| 4 read workers, global | 61 / 93 / 112 ms |
+| 4 read workers, read/write lock | 45 / **55 / 63 ms** |
+| 8 read workers, read/write lock | 40 / **52 / 60 ms** |
+
+Durable sync shifts all modes up by roughly 15–45 ms, but the ordering and the
+read/write-lock advantage remain. Eight workers are only marginally better than
+four while adding event-loop and read-execution cost; four stays the default
+candidate.
+
+## 6. Transaction lifecycle verification
+
+The owner already has the right serialization point: `_run_worker` submits the
+entire synchronous `_apply` operation to one writer executor. For `batch`,
+`conditional` and `embedding` mutations, `begin_write_txn → precondition reads
+→ node/edge writes → receipt → commit/rollback` runs inside that one thread with
+no `await`. Receipts are inside the same transaction.
+
+`tests/test_owner_transaction_isolation.py` adds a deterministic test seam that
+pauses the writer after staging nodes and before commit:
+
+- Reader during an open transaction sees exactly the previous committed state,
+  never a partial node set (verified under both global and read/write lock).
+- Releasing the barrier exposes the complete committed set.
+- A failing edge after staging rolls back; no partial rows and the next
+  mutation still works (no stuck transaction).
+- Conditional conflict leaves visible state unchanged.
+- Owner shutdown waits for the open transaction; reopening the catalog shows
+  either no new rows or the complete new set, never a partial set.
+
+Fact/answer/clause writes perform their read-modify-write preparation before
+submitting a batch, but the submitted batch carries `expected_*`/preconditions
+and is retried on conflict; the mutation itself, provenance and receipt commit
+atomically. All owner-migrated mutation paths use this protocol. Direct writers
+outside the Owner (document QA, legal claims, mem0, SWE run store) still exist;
+they are not covered by the owner lock-mode experiment and `write_paths_ready`
+remains false.
+
+## 7. Ingest A/B
 
 Controlled two-backend harness runs with the same data:
 
@@ -114,7 +158,7 @@ Controlled two-backend harness runs with the same data:
 The earlier 1.09 s ingest was not reproducible in this A/B; the executor is not
 shown to regress ingest. The controlled difference is ~4 %.
 
-## 6. Verification
+## 8. Verification
 
 - `backend/scripts/verify_owner_multiprocess_fastapi.py` passed end-to-end with
   the read executor enabled: two real backends, owner restart, concurrent
@@ -125,14 +169,14 @@ shown to regress ingest. The controlled difference is ~4 %.
 - Full suite and CI are re-run after the change; owner atomicity, idempotency,
   receipts and retrieval parity are unchanged.
 
-## 7. Correction of the earlier 127.5 ms figure
+## 9. Correction of the earlier 127.5 ms figure
 
 The old 20-sample helper selected the maximum value as “p95”. With 1 000
 samples and 3 072 dimensions the reproducible inline mutation p95 is **137 ms**;
 the old 127.5 ms was directionally right but mislabelled. The new profiler fixes
 the percentile calculation.
 
-## 8. Next steps (not done here)
+## 10. Next steps (not done here)
 
 1. **Separate lock-narrowing change** in `Catalog`: audit `RLock` scope, close/read
    race, snapshots, flush and restart; then rerun this exact benchmark. No lock
