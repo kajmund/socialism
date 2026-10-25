@@ -100,7 +100,6 @@ async def _open_retrieval_index() -> None:
 async def _prepare_graph_access(owner_mode: bool, app: FastAPI) -> None:
     set_owner_mode(owner_mode)
     set_direct_writes_forbidden(owner_mode)
-    set_direct_writes_forbidden(owner_mode)
     set_runtime(_graph_runtime_for_mode(owner_mode))
     if owner_mode:
         logger.warning(
