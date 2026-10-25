@@ -62,6 +62,7 @@ from app.services.overgraph.catalogs import (
     set_owner_mode,
     set_runtime,
 )
+from app.services.overgraph.owner_guards import set_direct_writes_forbidden
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
 from app.services.knowledge.vector_store import SupabaseVectorBucketStore
@@ -98,6 +99,8 @@ async def _open_retrieval_index() -> None:
 
 async def _prepare_graph_access(owner_mode: bool, app: FastAPI) -> None:
     set_owner_mode(owner_mode)
+    set_direct_writes_forbidden(owner_mode)
+    set_direct_writes_forbidden(owner_mode)
     set_runtime(_graph_runtime_for_mode(owner_mode))
     if owner_mode:
         logger.warning(

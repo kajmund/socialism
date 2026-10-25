@@ -15,6 +15,7 @@ from app.services.overgraph.labels import (
     TEXT_UNIT,
     visible_scope_labels,
 )
+from app.services.overgraph.owner_guards import assert_direct_write_allowed
 from app.services.overgraph.owner_locks import read_guard
 from app.services.overgraph.model import GraphRecord
 T = TypeVar("T")
@@ -62,7 +63,6 @@ class OwnerReadRequiredError(RuntimeError):
 
 class Catalog:
     """Thin locked wrapper around one OverGraph directory."""
-
     def __init__(self, db: Any, *, kind: CatalogKind, dimension: int, path: Path) -> None:
         self._db = db
         self.kind = kind
@@ -71,32 +71,26 @@ class Catalog:
         self._lock = threading.RLock()
         self.lock_mode = "global"
         self._lock_probe = False
-
     def close(self) -> None:
         with self._lock:
             closer = getattr(self._db, "close", None)
             if closer is not None:
                 closer()
-
     def read(self, fn: Callable[[Any], T]) -> T:
         """Run a read under the catalog lock so it cannot overlap a write."""
         with read_guard(self):
             return fn(self._db)
-
     def sync(self) -> None:
         with self._lock:
             self._db.sync()
-
     def flush(self) -> None:
         with self._lock:
             self._db.flush()
-
     def scrub(self) -> int:
         """Integrity-check the on-disk catalog; returns the failed-component count."""
         with self._lock:
             report = self._db.scrub()
         return int(getattr(report, "total_components_failed", 0))
-
     def snapshot(self, dest: Path) -> None:
         """Quiesce writes and copy the on-disk catalog to ``dest`` (consistent backup)."""
         dest = Path(dest)
@@ -105,20 +99,19 @@ class Catalog:
             self._db.flush()
             self._db.sync()
             shutil.copytree(self.path, dest, dirs_exist_ok=True)
-
     def count_nodes_by_labels(self, labels: Sequence[str]) -> int:
         with read_guard(self):
             return int(self._db.count_nodes_by_labels(list(labels)))
-
     def count_edges_by_label(self, label: str) -> int:
         with read_guard(self):
             return int(self._db.count_edges_by_label(label))
-
     def ingest_mode(self) -> None:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             self._db.ingest_mode()
 
     def end_ingest(self) -> None:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             self._db.end_ingest()
 
@@ -132,12 +125,14 @@ class Catalog:
         weight: float = 1.0,
     ) -> int:
         payload = dict(props or {})
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             return _engine_id(self._db.upsert_node(
                 list(labels), key, props=payload, dense_vector=dense_vector, weight=weight,
             ))
 
     def batch_upsert_nodes(self, nodes: Sequence[dict[str, Any]]) -> list[int]:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             result = self._db.batch_upsert_nodes(list(nodes))
         return [_engine_id(item) for item in result]
@@ -149,6 +144,7 @@ class Catalog:
         single mutation worker. Reads and writes inside the transaction are
         invisible until commit and are rolled back on failure.
         """
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             return self._db.begin_write_txn()
 
@@ -168,6 +164,7 @@ class Catalog:
             options["valid_from"] = valid_from
         if valid_to is not None:
             options["valid_to"] = valid_to
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             return _engine_id(self._db.upsert_edge(source, target, label, **options))
 
@@ -180,6 +177,7 @@ class Catalog:
         delete_node_ids: Sequence[int] = (),
         delete_edge_ids: Sequence[int] = (),
     ) -> None:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             self._db.graph_patch({
                 "upsert_nodes": list(upsert_nodes),
@@ -208,10 +206,12 @@ class Catalog:
         return _record(view)
 
     def delete_node(self, engine_id: int) -> None:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             self._db.delete_node(engine_id)
 
     def ensure_node_property_index(self, label: str, spec: dict[str, Any]) -> str:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             info = self._db.ensure_node_property_index(label, spec)
         return str(getattr(info, "state", "unknown"))
