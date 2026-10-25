@@ -24,6 +24,7 @@ ALLOWLIST = {
     "services/document_qa/lifecycle.py",
     "services/knowledge/backfill_text_units.py",
     "services/overgraph/owner.py",  # the owner itself
+    "services/overgraph/owner_mutations.py",  # owner conditional transaction worker
     "services/kund_dokument.py",
     "services/document_qa/process_probe.py",
     "services/knowledge/graph_relationship_mirror.py",
