@@ -95,6 +95,9 @@ class OvergraphOwner:
         self._lag_monitor: asyncio.Task[None] | None = None
         self._server: asyncio.AbstractServer | None = None
         self._closed = False
+        # Test-only seam: called inside the writer thread after a transaction
+        # has staged its first changes, before commit.
+        self._txn_barrier = None
 
     async def start(self) -> None:
         self.socket_path.parent.mkdir(parents=True, exist_ok=True)
@@ -304,6 +307,8 @@ class OvergraphOwner:
                         props=dict(node.get("props") or {}),
                         dense_vector=node.get("dense_vector"),
                     )
+                if nodes and self._txn_barrier is not None:
+                    self._txn_barrier("conditional")
                 if increments:
                     txn.upsert_node(
                         list(read.get("labels") or [read["label"]]),
@@ -394,6 +399,8 @@ class OvergraphOwner:
                         dense_vector=node.get("dense_vector"),
                     )
                     changed += 1
+                if nodes and self._txn_barrier is not None:
+                    self._txn_barrier("batch")
                 for item in deletes:
                     current = txn.get_node_by_key(str(item["label"]), str(item["key"]))
                     if current is not None:

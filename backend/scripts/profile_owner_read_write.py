@@ -83,23 +83,27 @@ def _vector(group: int = 0) -> list[float]:
     return vector
 
 
-def _spawn(root: Path, *, read_workers: int, lock_mode: str) -> subprocess.Popen[str]:
+def _spawn(
+    root: Path, *, read_workers: int, lock_mode: str, sync: bool,
+) -> subprocess.Popen[str]:
     argv = [
         sys.executable, "-m", "app.services.overgraph.owner",
         str(root / "catalog"), "--socket", str(root / "owner.sock"),
-        "--dimension", str(DIMENSION), "--no-sync", "--profile-lag",
+        "--dimension", str(DIMENSION), "--profile-lag",
         "--profile-locks", "--read-workers", str(read_workers),
         "--lock-mode", lock_mode,
     ]
+    if not sync:
+        argv.append("--no-sync")
     return subprocess.Popen(
         argv, cwd=BACKEND, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
     )
 
 
 async def _start(
-    root: Path, *, read_workers: int, lock_mode: str,
+    root: Path, *, read_workers: int, lock_mode: str, sync: bool,
 ) -> tuple[subprocess.Popen[str], OwnerClient]:
-    process = _spawn(root, read_workers=read_workers, lock_mode=lock_mode)
+    process = _spawn(root, read_workers=read_workers, lock_mode=lock_mode, sync=sync)
     deadline = time.monotonic() + 20
     while time.monotonic() < deadline:
         try:
@@ -182,9 +186,11 @@ def _tail(after: dict[str, Any], name: str, count: int) -> list[float]:
 
 
 async def _measure_mode(  # noqa: PLR0915
-    root: Path, *, read_workers: int, lock_mode: str,
+    root: Path, *, read_workers: int, lock_mode: str, sync: bool,
 ) -> dict[str, Any]:
-    process, client = await _start(root, read_workers=read_workers, lock_mode=lock_mode)
+    process, client = await _start(
+        root, read_workers=read_workers, lock_mode=lock_mode, sync=sync,
+    )
     try:
         await _seed(client)
         before = await _metrics(client)
@@ -291,6 +297,7 @@ async def _measure_mode(  # noqa: PLR0915
         return {
             "read_workers": read_workers,
             "lock_mode": lock_mode,
+            "sync": sync,
             "catalog_lock": lock_report,
             "baseline": baseline_parts,
             "phases": phases,
@@ -312,14 +319,17 @@ async def _measure_mode(  # noqa: PLR0915
 async def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", default="")
+    parser.add_argument("--sync", action="store_true")
     args = parser.parse_args()
     report = {}
     for read_workers, lock_mode in (
         (0, "global"), (4, "global"), (4, "read_write"), (8, "read_write"),
     ):
-        root = Path(tempfile.mkdtemp(prefix=f"owner-profile-{read_workers}-{lock_mode}-"))
+        root = Path(tempfile.mkdtemp(
+            prefix=f"owner-profile-{read_workers}-{lock_mode}-sync{int(args.sync)}-",
+        ))
         report[f"workers_{read_workers}_{lock_mode}"] = await _measure_mode(
-            root, read_workers=read_workers, lock_mode=lock_mode,
+            root, read_workers=read_workers, lock_mode=lock_mode, sync=args.sync,
         )
     print(json.dumps(report, indent=2))
     if args.json:
