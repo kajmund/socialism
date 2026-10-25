@@ -17,6 +17,7 @@ from app.services.overgraph.labels import (
     OBJECT,
     SUBJECT,
     TEXT_UNIT,
+    scope_label,
     visible_scope_keys,
 )
 from app.services.overgraph.model import GraphFactView, TextUnitWrite
@@ -56,17 +57,22 @@ class ResearchFactWrite:
     target_key: str | None = None
 
 
-def mark_scope_index(catalog: Catalog, scope_key: str) -> None:
-    catalog.upsert_node(
-        [ENTITY, f"scope.{scope_key.replace(':', '.')}"],
-        f"{INDEX_PREFIX}{scope_key}",
-        props={
+def scope_index_node(scope_key: str) -> dict[str, Any]:
+    return {
+        "labels": [ENTITY, scope_label(scope_key)],
+        "key": f"{INDEX_PREFIX}{scope_key}",
+        "props": {
             "scope_key": scope_key,
             "node_type": "research.index",
             "name": "index",
             "has_text_unit_facts": 1,
         },
-    )
+    }
+
+
+def mark_scope_index(catalog: Catalog, scope_key: str) -> None:
+    node = scope_index_node(scope_key)
+    catalog.upsert_node(node["labels"], node["key"], props=node["props"])
 
 
 def drop_scope_index(catalog: Catalog, scope_key: str) -> None:
