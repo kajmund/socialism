@@ -16,6 +16,7 @@ from app.services.tantivy_generation import (
     SearchIndexRebuildRequired,
     read_checkpoint,
     read_generation,
+    validate_candidates,
     write_checkpoint,
 )
 from app.services.tantivy_index import build_from_overgraph
@@ -232,3 +233,73 @@ async def test_non_search_change_does_not_bump_generation():
         assert await read_generation(client) == before
     finally:
         await owner.close()
+
+
+async def test_paginated_replay_handles_a_large_generation():
+    owner, client, index, checkpoint, _root = await _start()
+    try:
+        nodes = [_unit(f"bulk-{number}", f"v{number + 2}", f"uppsagning bulk {number}")
+                 for number in range(1100)]
+        await client.mutate("bulk-1100", {"upsert_nodes": nodes}, kind="batch")
+        indexer = SearchIndexer(index, checkpoint, page_size=100)
+        await indexer.apply_pending(client)
+        assert await indexer.lag(client) == 0
+        result = index.search("uppsagning", kind="text_unit", limit=1)
+        # 1100 bulk units plus the original u-old.
+        assert result.total == 1101
+    finally:
+        await owner.close()
+
+
+async def test_validation_rejects_stale_deleted_and_revoked_candidates():
+    owner, client, index, checkpoint, _root = await _start()
+    try:
+        await client.mutate("stale-delete", {
+            "delete_nodes": [{"label": TEXT_UNIT, "key": "u-old"}],
+            "upsert_nodes": [_fact("f-old", status="revoked")],
+        }, kind="batch")
+        # The index has not applied the generation yet: stale hits still exist.
+        stale_units = {hit.key for hit in index.search("uppsagning").hits}
+        assert "u-old" in stale_units
+        valid = await validate_candidates(
+            client, text_unit_keys=["u-old"], fact_keys=["f-old"],
+        )
+        assert valid == set()
+        indexer = SearchIndexer(index, checkpoint)
+        await indexer.ensure_current(client)
+        assert "u-old" not in {hit.key for hit in index.search("uppsagning").hits}
+        assert "f-old" not in {hit.key for hit in index.search_fact_keys(
+            "uppsagning", tenant_ids=(SCOPE,), limit=10,
+        )}
+    finally:
+        await owner.close()
+
+
+async def test_restart_resumes_a_multi_generation_backlog():
+    owner, client, index, checkpoint, root = await _start()
+    owner_closed = False
+    try:
+        for number in range(5):
+            await client.mutate(
+                f"backlog-{number}",
+                {"upsert_nodes": [_unit(f"backlog-{number}", f"v{number + 2}")]},
+                kind="batch",
+            )
+        indexer = SearchIndexer(index, checkpoint)
+        await indexer.apply_pending(client, max_generations=2)
+        assert await indexer.lag(client) == 3
+        await owner.close()
+        owner_closed = True
+        catalog = open_catalog(root / "catalog", kind="knowledge", dimension=DIMENSION)
+        restarted = OvergraphOwner(root / "catalog", dimension=DIMENSION,
+                                  socket_path=root / "owner.sock", catalog=catalog)
+        await restarted.start()
+        restarted_client = OwnerClient(restarted.socket_path, catalog_id=restarted.catalog_id)
+        try:
+            await SearchIndexer(index, checkpoint).apply_pending(restarted_client)
+            assert await SearchIndexer(index, checkpoint).lag(restarted_client) == 0
+        finally:
+            await restarted.close()
+    finally:
+        if not owner_closed:
+            await owner.close()
