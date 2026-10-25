@@ -25,6 +25,7 @@ from app.services.overgraph.owner_client import (
     MutationRequest,
     OwnerAlreadyActive,
     OwnerClient,
+    METRIC_SAMPLES,
     OwnerMetrics,
     OwnerProtocolError,
     OwnerQueueFull,
@@ -75,12 +76,15 @@ class OvergraphOwner:
         self.socket_path = socket_path
         self.max_queue = max_queue
         self.sync_on_commit = sync_on_commit
+        self.profile_lag = False
+        self.read_offload = False
         self.queue: asyncio.Queue[tuple[MutationRequest, asyncio.Future[dict[str, Any]]]] = asyncio.Queue(
             maxsize=max_queue
         )
         self.metrics = OwnerMetrics()
         self.read_revision = 0
         self._worker: asyncio.Task[None] | None = None
+        self._lag_monitor: asyncio.Task[None] | None = None
         self._server: asyncio.AbstractServer | None = None
         self._closed = False
 
@@ -88,6 +92,8 @@ class OvergraphOwner:
         self.socket_path.parent.mkdir(parents=True, exist_ok=True)
         self.socket_path.unlink(missing_ok=True)
         self._worker = asyncio.create_task(self._run_worker())
+        if self.profile_lag:
+            self._lag_monitor = asyncio.create_task(self._measure_event_loop_lag())
         self._server = await asyncio.start_unix_server(self._handle, path=str(self.socket_path), limit=16 * 1024 * 1024)
 
     async def close(self) -> None:
@@ -117,6 +123,12 @@ class OvergraphOwner:
                 await self._worker
             except asyncio.CancelledError:
                 pass
+        if self._lag_monitor is not None:
+            self._lag_monitor.cancel()
+            try:
+                await self._lag_monitor
+            except asyncio.CancelledError:
+                pass
         if self._owns_catalog:
             self.catalog.close()
         self.socket_path.unlink(missing_ok=True)
@@ -132,7 +144,12 @@ class OvergraphOwner:
                 return
             payload = json.loads(line)
             started = time.perf_counter()
-            read_response = handle_read(payload, self.catalog, self.catalog_id)
+            if self.read_offload:
+                read_response = await asyncio.to_thread(
+                    handle_read, payload, self.catalog, self.catalog_id,
+                )
+            else:
+                read_response = handle_read(payload, self.catalog, self.catalog_id)
             if read_response is not None:
                 read_response.setdefault("read_revision", self.read_revision)
                 encoded = (json.dumps(read_response) + "\n").encode()
@@ -184,6 +201,16 @@ class OvergraphOwner:
         finally:
             writer.close()
             await writer.wait_closed()
+
+    async def _measure_event_loop_lag(self) -> None:
+        interval = 0.005
+        next_at = time.perf_counter() + interval
+        while True:
+            await asyncio.sleep(interval)
+            now = time.perf_counter()
+            self.metrics.event_loop_lag_seconds.append(round(max(0.0, now - next_at), 6))
+            del self.metrics.event_loop_lag_seconds[:-METRIC_SAMPLES]
+            next_at = now + interval
 
     async def _run_worker(self) -> None:
         while True:

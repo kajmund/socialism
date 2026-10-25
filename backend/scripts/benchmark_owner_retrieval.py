@@ -65,10 +65,14 @@ def _rows() -> list[dict[str, Any]]:
 
 def _stats(values: list[float]) -> dict[str, float]:
     ordered = sorted(values)
+    def pct(share: float) -> float:
+        return ordered[max(0, math.ceil(share * len(ordered)) - 1)]
     return {
         "p50": round(statistics.median(ordered), 5),
-        "p95": round(ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))], 5),
+        "p95": round(pct(0.95), 5),
+        "p99": round(pct(0.99), 5),
         "max": round(ordered[-1], 5),
+        "n": len(ordered),
     }
 
 

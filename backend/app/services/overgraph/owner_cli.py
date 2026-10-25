@@ -21,6 +21,8 @@ def main() -> int:
         "--sync", action=argparse.BooleanOptionalAction, default=True,
         help="fsync before acknowledging a mutation (durable ack)",
     )
+    parser.add_argument("--profile-lag", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--read-offload", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     async def run() -> None:
@@ -28,6 +30,8 @@ def main() -> int:
             args.path, dimension=args.dimension, socket_path=args.socket,
             max_queue=args.max_queue, sync_on_commit=args.sync,
         )
+        owner.profile_lag = args.profile_lag
+        owner.read_offload = args.read_offload
         await owner.start()
         stop = asyncio.Event()
         loop = asyncio.get_running_loop()

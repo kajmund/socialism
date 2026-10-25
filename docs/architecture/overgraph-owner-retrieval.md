@@ -49,11 +49,11 @@ the transport change.
 | Owner read ops per query | 2 | — |
 | Owner socket bytes per query | 7.9 KB | — |
 
-Under eight tight retrieval loops, a mutation's p50 went from 1.31 ms to
-2.94 ms and p95 from 4.17 ms to 127.5 ms. Mutation queue wait went from
-0.02/0.07 ms (p50/p95) to 0.09/0.71 ms. That is real owner-event-loop
-contention and is the next scaling question for many parallel SWE workflows;
-it is not hidden by the benchmark.
+The older 127.5 ms mutation "p95" was a max-like outlier from 20 samples; see
+[the read/write profiling report](overgraph-owner-read-write-profiling.md) for
+the corrected 100-sample measurement (mutation p95 ~18.7 ms at eight readers,
+with queue wait and commit accounting for only ~6 ms). That contention remains
+the next scaling question for many parallel SWE workflows.
 
 The two-backend harness now also proves cross-process retrieval: A writes a fact
 through the production owner writer, B runs `lookup_candidates` through its
