@@ -20,7 +20,7 @@ dependencies = [
     "mem0ai==2.0.20",
     "openai==2.48.0",
     # Embedded graph + hybrid vector engine; not something we write in <30 lines.
-    "overgraph==0.17.0",
+    "overgraph==0.17.1",
     # Embedded fulltext engine (BM25 + Swedish analysis) for the derived search index.
     "tantivy==0.26.2",
     "pdfplumber==0.11.9",
