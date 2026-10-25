@@ -63,6 +63,14 @@ Owner acceptance test. Static allowlist absence is never sufficient.
 - Restart and stale-read paths behave explicitly.
 - Only then set the relevant readiness flag.
 
+## Routing foundation
+
+`app/services/overgraph/owner_registry.py` provides the catalog router: routes
+are keyed by `(catalog kind, customer_id)` and each route must have a healthy
+Owner endpoint. The registry does not start processes; deployment owns one
+Owner process per active catalog. Tests verify knowledge/tenant/memory routing
+and that identical keys in two tenant catalogs stay isolated.
+
 ## Current state
 
 Legal claims/evidence production paths are migrated to the existing Knowledge
