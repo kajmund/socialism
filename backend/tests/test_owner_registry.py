@@ -7,7 +7,11 @@ from pathlib import Path
 
 from app.services.overgraph.catalogs import open_catalog
 from app.services.overgraph.owner import OvergraphOwner
-from app.services.overgraph.owner_registry import OwnerRegistry, OwnerRoute
+from app.services.overgraph.owner_registry import (
+    OwnerRegistry,
+    OwnerRoute,
+    parse_tenant_owner_sockets,
+)
 
 DIMENSION = 4
 NODE = {"labels": ["Entity", "scope.customer.1"], "key": "same-key",
@@ -59,3 +63,25 @@ async def test_registry_routes_each_catalog_to_its_own_owner():
         await registry.close()
         for owner in owners:
             await owner.close()
+
+
+def test_parse_tenant_owner_sockets_returns_verified_routes():
+    routes = parse_tenant_owner_sockets(
+        "1=/run/tenant-1.sock, 2 = /run/tenant-2.sock ,"
+    )
+    assert [(route.kind, route.customer_id, str(route.socket_path)) for route in routes] == [
+        ("tenant_knowledge", 1, "/run/tenant-1.sock"),
+        ("tenant_knowledge", 2, "/run/tenant-2.sock"),
+    ]
+    assert parse_tenant_owner_sockets("") == []
+    assert parse_tenant_owner_sockets(" , ") == []
+
+
+def test_parse_tenant_owner_sockets_rejects_invalid_config():
+    for raw in ("1", "1=", "=/run/a.sock", "x=/run/a.sock", "0=/run/a.sock",
+                "1=/a.sock,1=/b.sock"):
+        try:
+            parse_tenant_owner_sockets(raw)
+        except ValueError:
+            continue
+        raise AssertionError(f"invalid tenant owner config accepted: {raw!r}")

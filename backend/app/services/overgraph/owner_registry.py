@@ -23,6 +23,38 @@ class OwnerRoute:
         return (self.kind, self.customer_id)
 
 
+def parse_tenant_owner_sockets(raw: str) -> list[OwnerRoute]:
+    """Parse ``customer_id=socket`` entries into tenant Knowledge Owner routes.
+
+    Empty config means no tenant owner is configured; using one then fails
+    explicitly instead of silently opening a local catalog.
+    """
+    routes: list[OwnerRoute] = []
+    seen: set[int] = set()
+    for entry in raw.split(","):
+        item = entry.strip()
+        if not item:
+            continue
+        customer, separator, socket = item.partition("=")
+        if not separator or not customer.strip() or not socket.strip():
+            raise ValueError(f"invalid tenant owner route: {item!r}")
+        try:
+            customer_id = int(customer.strip())
+        except ValueError as exc:
+            raise ValueError(f"invalid tenant customer id: {customer!r}") from exc
+        if customer_id < 1:
+            raise ValueError(f"tenant customer id must be positive: {customer_id}")
+        if customer_id in seen:
+            raise ValueError(f"duplicate tenant owner route for customer {customer_id}")
+        seen.add(customer_id)
+        routes.append(OwnerRoute(
+            kind="tenant_knowledge",
+            socket_path=Path(socket.strip()),
+            customer_id=customer_id,
+        ))
+    return routes
+
+
 class OwnerRegistry:
     def __init__(self) -> None:
         self._clients: dict[tuple[str, int | None], OwnerClient] = {}
@@ -71,3 +103,8 @@ async def connect_owner_registry(routes: list[OwnerRoute]) -> dict[str, object]:
 
 async def close_owner_registry() -> None:
     await asyncio.to_thread(_registry.close)
+
+
+def tenant_owner_client(customer_id: int) -> OwnerClient:
+    """Route one verified tenant to its Knowledge Owner, or fail explicitly."""
+    return _registry.client_for("tenant_knowledge", customer_id=customer_id)
