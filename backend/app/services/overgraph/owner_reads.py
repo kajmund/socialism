@@ -126,6 +126,33 @@ def _neighbors_handler(
     return _neighbors(payload, catalog)
 
 
+
+def _vector_search(
+    payload: dict[str, Any], catalog: Catalog, catalog_id: str,
+) -> dict[str, Any]:
+    """Label-scoped dense search for owner-backed read models (for example Q&A)."""
+    label = str(payload["label"])
+    k = max(1, min(int(payload.get("k", 10)), 200))
+    hits = catalog.vector_search("dense", {
+        "k": k,
+        "dense_query": list(payload["dense_query"]),
+        "label_filter": {"labels": [label], "mode": "all"},
+    })
+    rows: list[dict[str, Any]] = []
+    for engine_id, score in hits:
+        row = catalog.get(engine_id)
+        if row is None or label not in row.labels:
+            continue
+        rows.append({
+            "id": engine_id,
+            "key": row.key,
+            "labels": list(row.labels),
+            "props": dict(row.props),
+            "score": float(score),
+        })
+    return {"ok": True, "hits": rows, "catalog_id": catalog_id}
+
+
 def _hybrid_search(
     payload: dict[str, Any], catalog: Catalog, catalog_id: str,
 ) -> dict[str, Any]:
@@ -170,6 +197,7 @@ def _hybrid_search(
 READ_HANDLERS = {
     "list_nodes": _list_nodes,
     "hybrid_search": _hybrid_search,
+    "vector_search": _vector_search,
     "read": _read_handler,
     "query_nodes": _query_nodes,
     "count_nodes": _count_nodes,
