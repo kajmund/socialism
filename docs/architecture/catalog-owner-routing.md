@@ -71,6 +71,14 @@ Owner endpoint. The registry does not start processes; deployment owns one
 Owner process per active catalog. Tests verify knowledge/tenant/memory routing
 and that identical keys in two tenant catalogs stay isolated.
 
+Tenant routes are configured with `OVERGRAPH_TENANT_OWNER_SOCKETS` as
+`customer_id=socket` entries (comma separated, for example
+`1=/run/tenant-1.sock,2=/run/tenant-2.sock`). The backend connects and
+health-checks every configured route at startup; malformed or unreachable
+routes fail startup. An unconfigured tenant has no route, so tenant access
+fails explicitly instead of opening a local catalog. Tenant owner health is
+reported by `GET /health/overgraph-owner`.
+
 ## Current state
 
 Legal claims/evidence production paths are migrated to the existing Knowledge
@@ -82,7 +90,8 @@ document/version/question/answer/posts/citations, owner reads for reuse,
 review, archive and purge. Five owner tests cover two clients, duplicate
 publish, invalid citation rejection, reuse, review, archive/purge and tenant
 isolation. Production Document QA callers still use per-tenant catalogs until
-tenant Knowledge Owner lifecycle is wired; the owner repository is not yet on
-the request path. mem0 still uses the separate memory catalog; tenant and
+tenant Knowledge Owner lifecycle is wired; the backend can now configure and
+health-check tenant Owner routes, but the owner repository is not yet on the
+request path. mem0 still uses the separate memory catalog; tenant and
 memory Owners are the next slices. Runtime guard blocks direct knowledge writes
 in owner mode. `write_paths_ready` remains false.

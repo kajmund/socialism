@@ -136,6 +136,9 @@ class Settings(LiveSpeechSettings, BaseSettings):
     # rather than falling back to a direct catalog writer.
     overgraph_owner_socket: str = ""
     overgraph_owner_catalog_id: str = ""
+    # Tenant Knowledge Owner routes as ``customer_id=socket`` entries. Empty
+    # means no tenant owner is configured; tenant access then fails explicitly.
+    overgraph_tenant_owner_sockets: str = ""
     # Persistent expert memory history in the configured Supabase Postgres database.
     mem0_collection_name: str = "expert_memories"
     mem0_embedding_model: str = "text-embedding-3-small"

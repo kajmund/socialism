@@ -63,6 +63,11 @@ from app.services.overgraph.catalogs import (
     set_runtime,
 )
 from app.services.overgraph.owner_guards import set_direct_writes_forbidden
+from app.services.overgraph.owner_registry import (
+    close_owner_registry,
+    connect_owner_registry,
+    parse_tenant_owner_sockets,
+)
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
 from app.services.knowledge.vector_store import SupabaseVectorBucketStore
@@ -170,6 +175,10 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
         catalog_id=settings.overgraph_owner_catalog_id or None,
     )
     _app.state.overgraph_owner = owner_runtime.status
+    tenant_routes = parse_tenant_owner_sockets(settings.overgraph_tenant_owner_sockets)
+    _app.state.overgraph_tenant_owners = (
+        await connect_owner_registry(tenant_routes) if tenant_routes else {}
+    )
     owner_mode = owner_runtime.client is not None
     await _prepare_graph_access(owner_mode, _app)
     _app.state.research_vector = {"status": "disabled"}
@@ -200,6 +209,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
         if vector_runtime is not None:
             await vector_runtime.close()
         try:
+            await close_owner_registry()
             await owner_runtime.close()
             close_default_expert_memory()
         finally:
