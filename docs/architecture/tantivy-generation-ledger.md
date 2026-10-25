@@ -96,6 +96,19 @@ only as a candidate source and verify candidates against the Owner (existence,
 document version, fact status/validity) before using them as evidence. This is
 the intended next wiring step; it is not enabled here.
 
+## Performance and corpus status
+
+The ledger adds one generation node and one change record per changed
+search item, inside the existing mutation transaction. The multiprocess harness
+still passes after wiring (ingest ~0.47 s, 0 direct writes). The mixed-workload
+mutation benchmark and Tantivy search benchmark were measured before this
+wiring; neither has been rerun against the ledger path yet.
+
+No existing production golden retrieval set was found in the repository. The
+quality numbers in the strategy note are synthetic and must not be used to
+choose a placement. A real contract corpus + golden questions remains a
+prerequisite.
+
 ## Remaining before choosing A/B/C/D
 
 1. Wire ledger appends into production search-relevant write paths (document
