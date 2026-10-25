@@ -135,3 +135,28 @@ Flera investerarstrategier får var sin virtuell portfölj och kan investera bud
 ---
 
 **Kärnhypotes:** SWE kan leverera fler verifierat korrekta researchsvar per resursenhet genom att spekulativt utforska flera vägar, lära av tidigare utfall och omfördela budget — utan att kompromissa med spårbarhet och kostnadstak.
+
+## 10. Reinforcement learning: hybridträning i SWE Gym
+
+**Vald experimentriktning:** Samla erfarenheter efter varje Golden Question, uppdatera investerarmodellernas parametrar i minibatcher och utvärdera varje generation på separata frågor. Uppdateringsfrekvensen är en hyperparameter, inte en fast regel.
+
+### Tre jämförbara träningsregimer
+
+- **Online:** Uppdatera efter varje fråga. Snabb anpassning, men högre risk för brus och instabilitet.
+- **Batch:** Kör en fryst policy genom exempelvis 200 frågor och uppdatera därefter. Stabilare jämförelse men långsammare anpassning.
+- **Hybrid (förstahandsval):** Logga varje fråga, uppdatera exempelvis var 20:e fråga och genomför en generationsutvärdering efter 200 frågor. Siffrorna är experimentparametrar, inte optimerade värden.
+
+### Körning och datadisciplin
+
+1. Dela Golden Questions i **träning**, **validering** och ett **orört sluttest**; gruppera närbesläktade frågor och källdokument så att facit eller nära dubbletter inte läcker mellan delmängder.
+2. För varje beslut, logga frågefeatures, policyversion, tillstånd, tillgängliga handlingar, vald handling, budget, observerat utfall och sannolikheten för vald handling om policyn är stokastisk.
+3. Kör SWE med hårda Sweycoin-tak; räkna verkliga kostnader och facitbaserad belöning. Spara delresultat och evidens i Overgraph.
+4. Samla erfarenheter kontinuerligt; gör policyuppdateringar efter ett konfigurerbart antal frågor, exempelvis 1, 20 eller 200. Frys policyn under varje utvärderingsblock.
+5. Jämför generationer på valideringsfrågor. Använd sluttestet sparsamt, för en slutlig opartisk jämförelse, inte för att välja hyperparametrar.
+6. Rapportera verifierad kvalitet per Sweycoin, lösta frågor inom budget, latens och osäkerhet; jämför alltid med en deterministisk budgetbaslinje.
+
+### Vad som tränas
+
+Första versionen tränar **budget- och routingpolicyn**, inte JEV eller den narrativa språkmodellen. Börja med contextual bandits för ett enstaka budgetbeslut. Om policyn ska göra flera beroende beslut under en och samma researchkörning (fortsätt, pausa, delegera, avbryt) kan experimentet utökas till sekventiell RL.
+
+**Viktiga reservationer:** Återspelning av cachade körningar är billig men visar inte säkert utfallet av handlingar som aldrig provades. Sådana kontrafaktiska val kräver kontrollerad exploration, nya riktiga körningar eller en validerad simulator. Portföljernas virtuella avkastning får inte kringgå verkliga resurstak. Undersök även om olika investerarstrategier gynnas av olika uppdateringsintervall, men utvärdera dem under samma jämförbara förutsättningar.
