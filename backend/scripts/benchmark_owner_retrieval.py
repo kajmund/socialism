@@ -120,7 +120,7 @@ def _quality(ids: list[str], group: int) -> dict[str, float]:
     }
 
 
-async def _owner_measure(root: Path) -> dict[str, Any]:
+async def _owner_measure(root: Path) -> dict[str, Any]:  # noqa: PLR0915
     process, client = await _start(root)
     try:
         rows = _rows()
@@ -151,6 +151,7 @@ async def _owner_measure(root: Path) -> dict[str, Any]:
                 else:
                     quality[group] = {"ids": ids, **_quality(ids, group % GROUPS)}
 
+        baseline_metrics = (await client.health())["metrics"]
         baseline = []
         for index in range(20):
             started = time.perf_counter()
@@ -158,6 +159,10 @@ async def _owner_measure(root: Path) -> dict[str, Any]:
                 "upsert_nodes": [_rows()[0] | {"key": f"write-base-{index}"}],
             }, kind="batch")
             baseline.append(time.perf_counter() - started)
+        after_baseline = (await client.health())["metrics"]
+        baseline_queue = after_baseline["queue_wait_seconds"][
+            len(baseline_metrics["queue_wait_seconds"]):
+        ]
 
         stop = asyncio.Event()
 
@@ -182,6 +187,10 @@ async def _owner_measure(root: Path) -> dict[str, Any]:
         finally:
             stop.set()
             await asyncio.gather(*readers, return_exceptions=True)
+        after_loaded = (await client.health())["metrics"]
+        loaded_queue = after_loaded["queue_wait_seconds"][
+            len(after_baseline["queue_wait_seconds"]):
+        ]
         return {
             "latency": _stats(durations),
             "read_ops": round(read_ops / (QUERIES * REPEATS), 2),
@@ -193,6 +202,8 @@ async def _owner_measure(root: Path) -> dict[str, Any]:
             "write_under_read_load": {
                 "baseline": _stats(baseline),
                 "with_8_readers": _stats(loaded),
+                "queue_wait_baseline": _stats(baseline_queue),
+                "queue_wait_with_8_readers": _stats(loaded_queue),
             },
         }
     finally:

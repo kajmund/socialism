@@ -38,13 +38,14 @@ the transport change.
 | Recall@20 | 1.0 | 1.0 |
 | Recall@50 | 1.0 | 1.0 |
 | NDCG@20 | 1.0 | 1.0 |
-| p50 latency | 0.81 ms | 0.40 ms |
-| p95 latency | 1.00 ms | 0.68 ms |
+| p50 latency | 0.81 ms | 0.38 ms |
+| p95 latency | 0.99 ms | 0.53 ms |
 | Owner read ops per query | 2 | — |
 | Owner socket bytes per query | 7.9 KB | — |
 
-Under eight tight retrieval loops, a mutation's p50 went from 1.36 ms to
-2.89 ms and p95 from 5.19 ms to 137.7 ms. That is real owner-event-loop
+Under eight tight retrieval loops, a mutation's p50 went from 1.31 ms to
+2.94 ms and p95 from 4.17 ms to 127.5 ms. Mutation queue wait went from
+0.02/0.07 ms (p50/p95) to 0.09/0.71 ms. That is real owner-event-loop
 contention and is the next scaling question for many parallel SWE workflows;
 it is not hidden by the benchmark.
 
