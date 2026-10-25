@@ -51,14 +51,25 @@ Properties:
   upsert/delete operations; a crash after Tantivy commit but before checkpoint
   safely replays.
 - **Lag detection:** `SearchIndexer.lag()`/`assert_current()` compare the
-  checkpoint with the current durable generation.
+  checkpoint with the current durable generation; `ensure_current()` first
+  replays pending generations and then fails if still behind.
+- **Paginated replay:** each generation's change records are read through the
+  Owner's stable node-id cursor (`query_nodes`), sorted by explicit ordinal;
+  no 1000-record hard cap. A generation with more than 1000 changes is applied
+  page by page.
+- **Deterministic ordering:** a mutation records an ordinal per changed item;
+  deletes are applied before upserts so re-ingest of the same key is
+  deterministic.
+- **Candidate validation:** `validate_candidates()` checks TextUnit existence
+  and Fact status/validity against the Owner before a stale-index hit may be
+  used as evidence. A lagging index is not silently treated as complete.
 - **Deterministic rebuild:** `rebuild_from(catalog, index_dir, generation=...)`
   rebuilds from the current authoritative graph and resets the checkpoint.
 - **No cache activation:** this is internal indexing metadata only; tickets
   45/46 remain disabled.
 
-Missing change records or a generation above 1000 records require a rebuild;
-the indexer fails closed instead of silently advancing.
+Missing change records require a rebuild; the indexer fails closed instead of
+silently advancing. Large generations are paginated, not treated as missing.
 
 ## Production paths now writing the ledger
 
@@ -87,6 +98,9 @@ search text and are intentionally not ledgered.
 | Checkpoint ahead of ledger | rebuild required |
 | Non-search node change | generation unchanged |
 | Duplicate/failed mutation | no extra generation |
+| Large generation (>1000 changes) | paginated replay, index complete |
+| Stale deleted/revoked hit | validation rejects it before evidence |
+| Restart mid-backlog | remaining generations replayed |
 
 ## Freshness before evidence use
 

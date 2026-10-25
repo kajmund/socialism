@@ -25,6 +25,7 @@ class SearchChange:
     key: str
     scope_key: str = ""
     document_version_id: str = ""
+    ordinal: int = 0
 
 
 def change_for_node(
@@ -76,6 +77,7 @@ def append_in_txn(txn: Any, changes: list[SearchChange]) -> int | None:
                 "key": change.key,
                 "scope_key": change.scope_key,
                 "document_version_id": change.document_version_id,
+                "ordinal": index,
             },
         )
     return generation
