@@ -20,6 +20,7 @@ from app.services.overgraph.catalogs import open_catalog
 from app.services.overgraph.model import TextUnitWrite
 from app.services.overgraph.owner import OwnerClient, OvergraphOwner
 from app.services.overgraph.owner_facts import write_fact_via_owner
+from app.services.overgraph.research import mark_scope_index
 from app.services.overgraph.write import fact_key, upsert_entity, upsert_text_unit, write_fact
 from tests.overgraph_graph_snapshot import graph_snapshot
 
@@ -131,6 +132,9 @@ async def test_direct_and_owner_fact_writes_are_semantically_identical(direct_ca
         )
         assert rewritten["key"] == direct_row.key
 
+        # Production direct research writes mark the scope index separately;
+        # the owner writer now includes it in the same atomic mutation.
+        mark_scope_index(direct, direct_first.scope.scope_key)
         direct_snapshot = graph_snapshot(direct)
         owner_snapshot = graph_snapshot(owner.catalog)
         assert owner_snapshot == direct_snapshot

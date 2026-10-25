@@ -17,6 +17,12 @@ applies the unchanged research filters/ranking.
   - merging/`setdefault` order is unchanged.
 - `grounded_fact_evidence` loads supporting TextUnits through the owner, and
   `passages_allowed` resolves basis TextUnit ids through the owner.
+- **Scope-index marker:** an owner fact write with at least one `text_unit`
+  source now includes the `research-index:<scope>` marker node in the same
+  atomic mutation as the fact and its provenance. Answer facts (episode-only
+  sources) do not create the marker. The marker payload is deterministic for a
+  given fact payload, so a duplicate `mutation_id`+payload retry is receipted
+  without applying another marker write; a failed mutation leaves no marker.
 - The owner `hybrid_search` operation runs the same per-kind scoped top-k merge
   as `retrieval.hybrid_search` and returns only the top `limit` hits. The full
   corpus is never transported. The implementation lives in the owner process so
@@ -61,8 +67,7 @@ owner path and finds it, with zero local knowledge-catalog opens.
   index, not a new authoritative source.
 - `document_find` hybrid search and other direct `retrieval.hybrid_search`
   callers are not migrated.
-- The scope-index marker (`research-index:*`) is still written by the legacy
-  direct/legal publish paths. Owner-written facts that should enable graph reuse
-  must mark that index atomically in the owner write path (a separate
-  write-path slice).
+- The scope-index marker is now written atomically by owner text-unit fact
+  writes and still by the legacy direct/legal publish paths. Facts with only an
+  episode source intentionally do not set it.
 - No retrieval algorithm, scoring, filter or ranking constant was changed.

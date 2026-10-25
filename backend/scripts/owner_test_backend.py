@@ -171,10 +171,8 @@ async def _test_publish_answer(request: Request) -> dict:
 async def _test_seed_retrieval(request: Request) -> dict:
     from app.database.knowledge_scope import customer_scope
     from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
-    from app.services.overgraph.labels import ENTITY, scope_label
     from app.services.overgraph.owner_facts import write_fact_via_owner
     from app.services.overgraph.owner_runtime import get_owner_runtime
-    from app.services.overgraph.research import INDEX_PREFIX
     from app.services.overgraph.write import entity_key
 
     body = await request.json()
@@ -196,14 +194,6 @@ async def _test_seed_retrieval(request: Request) -> dict:
         ),
         entities=(source, target),
     )
-    await client.mutate(f"test-index-{body['key']}", {"upsert_nodes": [{
-        "labels": [ENTITY, scope_label(scope.scope_key)],
-        "key": f"{INDEX_PREFIX}{scope.scope_key}",
-        "props": {
-            "scope_key": scope.scope_key, "node_type": "research.index",
-            "name": "index", "has_text_unit_facts": 1,
-        },
-    }]}, kind="batch")
     return {"fact_id": result["key"]}
 
 
