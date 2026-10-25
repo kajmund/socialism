@@ -163,7 +163,19 @@ Controlled two-backend harness runs with the same data:
 The earlier 1.09 s ingest was not reproducible in this A/B; the executor is not
 shown to regress ingest. The controlled difference is ~4 %.
 
-## 8. Verification
+## 8. Lifecycle hardening and dependency
+
+- Read-executor completion is now an idempotent per-read token. A failed
+  submission, cancellation or worker completion finishes exactly once; a
+  fault-injection test asserts `_inflight` returns to zero and `owner.close()`
+  completes.
+- Overgraph was upgraded separately from 0.17.0 to **0.17.1** (lockfile
+  regenerated with `uv`). The published owner transaction/read tests and the
+  multiprocess harness pass against the new wheel.
+- Remaining latent review findings are documented (typed closed-catalog error,
+  maintenance while a native transaction is open).
+
+## 9. Verification
 
 - `backend/scripts/verify_owner_multiprocess_fastapi.py` passed end-to-end with
   the read executor enabled: two real backends, owner restart, concurrent
@@ -174,14 +186,14 @@ shown to regress ingest. The controlled difference is ~4 %.
 - Full suite and CI are re-run after the change; owner atomicity, idempotency,
   receipts and retrieval parity are unchanged.
 
-## 9. Correction of the earlier 127.5 ms figure
+## 10. Correction of the earlier 127.5 ms figure
 
 The old 20-sample helper selected the maximum value as “p95”. With 1 000
 samples and 3 072 dimensions the reproducible inline mutation p95 is **137 ms**;
 the old 127.5 ms was directionally right but mislabelled. The new profiler fixes
 the percentile calculation.
 
-## 10. Next steps (not done here)
+## 11. Next steps (not done here)
 
 1. Keep `--lock-mode global` as fallback during rollout and monitor close/
    snapshot/flush/restart in production.
