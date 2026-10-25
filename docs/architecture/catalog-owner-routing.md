@@ -91,9 +91,12 @@ review, archive and purge. Document ingest and the type index also have
 Owner-native writes: `owner_ingest.py` publishes document/version/TextUnits,
 embeddings and edges in one batch, and `owner_document_index.py` writes
 effective type/category membership and reads a type index with paginated Owner
-queries. Seven owner tests cover two clients, duplicate publish, invalid
-citation rejection, reuse, review, archive/purge, tenant isolation, atomic
-ingest and index reclassification. Production Document QA callers still use per-tenant catalogs until
+queries. `owner_find.py` runs the document-find strategies through Owner reads
+(category, hybrid, category-then-hybrid, within/filter), with a parity test
+against the direct implementation for the same tenant data. Ten owner tests
+cover two clients, duplicate publish, invalid citation rejection, reuse,
+review, archive/purge, tenant isolation, atomic ingest, index
+reclassification, find strategies and direct parity. Production Document QA callers still use per-tenant catalogs until
 tenant Knowledge Owner lifecycle is wired; the backend can now configure and
 health-check tenant Owner routes, but the owner repository is not yet on the
 request path. mem0 still uses the separate memory catalog; tenant and

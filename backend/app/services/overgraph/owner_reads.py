@@ -107,6 +107,59 @@ def _neighbors(payload: dict[str, Any], catalog: Catalog) -> dict[str, Any]:
     return {"ok": True, "nodes": rows}
 
 
+
+def _related_nodes(
+    payload: dict[str, Any], catalog: Catalog, catalog_id: str,
+) -> dict[str, Any]:
+    """One-hop bounded relation read for a bounded set of parents."""
+    direction = str(payload.get("direction") or "outgoing")
+    edge_label = str(payload["edge_label"])
+    child_label = payload.get("child_label")
+    limit = max(1, min(int(payload.get("limit", 50)), 200))
+    rows: list[dict[str, Any]] = []
+    for item in payload.get("items", []):
+        parent = catalog.get_by_key(str(item["label"]), str(item["key"]))
+        if parent is None or parent.engine_id is None:
+            continue
+        for entry in catalog.neighbor_edges(
+            int(parent.engine_id), direction=direction,
+            edge_label_filter=[edge_label], limit=limit,
+        ):
+            if child_label and child_label not in entry["labels"]:
+                continue
+            rows.append({"parent_key": parent.key, **entry})
+    return {"ok": True, "nodes": rows, "catalog_id": catalog_id}
+
+
+def _scoped_search(
+    payload: dict[str, Any], catalog: Catalog, catalog_id: str,
+) -> dict[str, Any]:
+    """Dense search scoped from one authored start node, bounded depth/top-k."""
+    from app.services.overgraph.retrieval import scoped_search
+
+    hits = scoped_search(
+        catalog,
+        customer_id=payload.get("customer_id"),
+        start_key=str(payload["start_key"]),
+        start_label=str(payload["start_label"]),
+        dense_query=list(payload["dense_query"]),
+        max_depth=max(1, min(int(payload.get("max_depth", 2)), 8)),
+        limit=max(1, min(int(payload.get("limit", 20)), 200)),
+    )
+    return {
+        "ok": True,
+        "hits": [
+            {
+                "key": hit.key, "kind": hit.kind, "score": float(hit.score),
+                "scope_key": hit.scope_key, "text": hit.text,
+                "props": dict(hit.props), "hop": hit.hop,
+            }
+            for hit in hits
+        ],
+        "catalog_id": catalog_id,
+    }
+
+
 def _count_nodes(payload: dict[str, Any], catalog: Catalog, catalog_id: str) -> dict[str, Any]:
     count = catalog.count_nodes_by_labels([str(payload["label"])])
     return {"ok": True, "count": int(count), "catalog_id": catalog_id}
@@ -198,6 +251,8 @@ READ_HANDLERS = {
     "list_nodes": _list_nodes,
     "hybrid_search": _hybrid_search,
     "vector_search": _vector_search,
+    "related_nodes": _related_nodes,
+    "scoped_search": _scoped_search,
     "read": _read_handler,
     "query_nodes": _query_nodes,
     "count_nodes": _count_nodes,

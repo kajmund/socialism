@@ -172,6 +172,38 @@ class OwnerClient:
         }))
         return list(response.get("hits") or [])
 
+    async def related_nodes(
+        self, items: list[dict[str, str]], edge_label: str, *,
+        direction: str = "outgoing", child_label: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """One-hop bounded relation read for several parents at once."""
+        if self.catalog_id is None:
+            health = await self._request({"type": "health"})
+            self.catalog_id = health.get("catalog_id")
+        response = _require_ok(await self._request({
+            "type": "related_nodes", "catalog_id": self.catalog_id,
+            "items": items, "edge_label": edge_label, "direction": direction,
+            "child_label": child_label, "limit": limit,
+        }))
+        return list(response.get("nodes") or [])
+
+    async def scoped_search(
+        self, *, customer_id: int | None, start_label: str, start_key: str,
+        dense_query: list[float], max_depth: int = 2, limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Dense search scoped from one node by the owner."""
+        if self.catalog_id is None:
+            health = await self._request({"type": "health"})
+            self.catalog_id = health.get("catalog_id")
+        response = _require_ok(await self._request({
+            "type": "scoped_search", "catalog_id": self.catalog_id,
+            "customer_id": customer_id, "start_label": start_label,
+            "start_key": start_key, "dense_query": dense_query,
+            "max_depth": max_depth, "limit": limit,
+        }))
+        return list(response.get("hits") or [])
+
     async def count_nodes(self, label: str) -> int:
         if self.catalog_id is None:
             health = await self._request({"type": "health"})
