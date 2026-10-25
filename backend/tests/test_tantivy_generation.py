@@ -195,6 +195,7 @@ async def test_duplicate_and_failed_mutations_do_not_bump_generation():
 
 async def test_owner_restart_preserves_generation_history():
     owner, client, index, checkpoint, root = await _start()
+    owner_closed = False
     try:
         await client.mutate(
             "before-restart", {"upsert_nodes": [_unit("u-restart", "v2")]},
@@ -202,6 +203,7 @@ async def test_owner_restart_preserves_generation_history():
         )
         generation = await read_generation(client)
         await owner.close()
+        owner_closed = True
         catalog = open_catalog(root / "catalog", kind="knowledge", dimension=DIMENSION)
         restarted = OvergraphOwner(root / "catalog", dimension=DIMENSION,
                                   socket_path=root / "owner.sock", catalog=catalog)
@@ -215,7 +217,7 @@ async def test_owner_restart_preserves_generation_history():
         finally:
             await restarted.close()
     finally:
-        if owner._server is not None:
+        if not owner_closed:
             await owner.close()
 
 
