@@ -160,3 +160,49 @@ Flera investerarstrategier får var sin virtuell portfölj och kan investera bud
 Första versionen tränar **budget- och routingpolicyn**, inte JEV eller den narrativa språkmodellen. Börja med contextual bandits för ett enstaka budgetbeslut. Om policyn ska göra flera beroende beslut under en och samma researchkörning (fortsätt, pausa, delegera, avbryt) kan experimentet utökas till sekventiell RL.
 
 **Viktiga reservationer:** Återspelning av cachade körningar är billig men visar inte säkert utfallet av handlingar som aldrig provades. Sådana kontrafaktiska val kräver kontrollerad exploration, nya riktiga körningar eller en validerad simulator. Portföljernas virtuella avkastning får inte kringgå verkliga resurstak. Undersök även om olika investerarstrategier gynnas av olika uppdateringsintervall, men utvärdera dem under samma jämförbara förutsättningar.
+
+## 11. Minimal Sweycoin Ledger (första implementationen)
+
+**Syfte:** Mät, reservera och bokför budget i SWE:s Rust-runtime. Detta är en experimentell infrastrukturkomponent; inga lärande modeller krävs.
+
+### Modell
+
+- `run_id`: researchkörning.
+- `account_id`: budgetkonto (rotkörning eller delegerad gren).
+- `event_id`: unik händelseidentitet.
+- `idempotency_key`: stabil nyckel för retries/resume.
+- `kind`: `allocate | reserve | spend | release | transfer | reward`.
+- `amount_milli`: positivt heltal i tusendels Sweycoin; undvik flyttal.
+- `operation_id`: den JEV-, LLM-, retrieval- eller CPU-operation som debiteras.
+- `timestamp`, `metadata`: revisionsspår och tarifferingsversion.
+
+**Balans:** `available = allocated + incoming_transfers - outgoing_transfers - spent - reserved`. En reservation flyttar belopp från tillgängligt till reserverat. `spend` kan konsumera en reservation; `release` återför outnyttjad reservation. Alla överföringar ska vara atomiska och balanserade. `reward` bokförs **endast** i gymmets separata virtuella poängkonto och påverkar aldrig tillgänglig exekveringsbudget.
+
+### Exempel
+
+En researchkörning får 100 Sweycoins. JEV-grenen reserverar 20, spenderar 12 och återlämnar 8. LLM-grenen reserverar 30, spenderar 25 och återlämnar 5. Verklig förbrukning är 37 och 63 återstår tillgängliga (förutsatt inga andra reservationer eller utgifter). En verifierad lösning kan samtidigt ge exempelvis 80 virtuella belöningscoins, utan att öka de 63 som får spenderas.
+
+### Rust-API (förslag)
+
+```rust
+trait SweycoinLedger {
+    fn reserve(&self, run: RunId, account: AccountId, amount_milli: u64, key: &str) -> Result<ReservationId>;
+    fn settle(&self, reservation: ReservationId, spent_milli: u64, key: &str) -> Result<()>;
+    fn transfer(&self, from: AccountId, to: AccountId, amount_milli: u64, key: &str) -> Result<()>;
+    fn balance(&self, account: AccountId) -> Result<Balance>;
+}
+```
+
+`settle` debiterar faktisk kostnad och frigör återstoden atomiskt. Separat gym-API bokför `reward`. Börja med en append-only eventlogg och en materialiserad balans per konto; använd samma transaktionsgräns för reservation och debitering. Persistensbackend väljs efter befintliga SWE-förutsättningar, utan att anta att Overgraph i sig erbjuder transaktioner.
+
+### Acceptanskriterier
+
+1. Parallella grenar kan aldrig spendera mer än körningens hårda tak.
+2. Retry och resume med samma idempotency key debiterar exakt en gång.
+3. Avbruten gren frigör ej spenderad reservation.
+4. Delegering bevarar total exekveringsbudget och kan inte skapa cirkulär obegränsad kredit.
+5. Ledgern kan återspelas deterministiskt och revideras per körning, gren och operation.
+6. Virtuell reward kan aldrig användas för att kringgå resurstaket.
+7. Tester omfattar parallella reservationer, krascher mellan steg, dubbla events och negativa balansförsök.
+
+**Första experiment:** Instrumentera JEV-anrop med en fast testtariff och verifiera att 100 parallella anrop under ett tak på 20 Sweycoins inte kan debitera mer än taket. Lägg därefter till LLM-tokens och Overgraph-uppslag.
