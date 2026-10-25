@@ -26,6 +26,11 @@ def main() -> int:
         help="bounded read worker threads (0 keeps reads on the event loop)",
     )
     parser.add_argument("--profile-lag", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--profile-locks", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--lock-mode", choices=("global", "read_write"), default="global",
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args()
 
     async def run() -> None:
@@ -34,6 +39,8 @@ def main() -> int:
             max_queue=args.max_queue, sync_on_commit=args.sync,
         )
         owner.profile_lag = args.profile_lag
+        owner.profile_locks = args.profile_locks
+        owner.lock_mode = args.lock_mode
         owner.read_workers = max(0, args.read_workers)
         await owner.start()
         stop = asyncio.Event()

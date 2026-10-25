@@ -62,7 +62,49 @@ Findings:
 
 Large result pages still dominate the client tail, independent of scheduling.
 
-## 4. Verification
+## 4. Lock A/B experiment (opt-in, not default)
+
+Lock wait instrumentation (`TimedRLock`) and an opt-in readers-share/writer-
+exclusive `ReadWriteLock` were added for the isolated experiment. The default
+remains the global reentrant lock; `--lock-mode read_write` selects the
+experiment.
+
+| Mode (8 readers, 1 000 mutations) | Mutation p50/p95/p99 | Read client p95 | Read exec p95 | Event lag p95 | Writer lock wait p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Inline, global | 105 / 135 / 163 ms | 149 ms | 14.9 ms | 80 ms | 10.1 ms |
+| 4 read workers, global | 51 / 81 / 90 ms | 160 ms | 64.5 ms | 1.5 ms | 12.5 ms |
+| 4 read workers, read/write lock | 28 / **39 / 45 ms** | **56.5 ms** | **16.1 ms** | 5.6 ms | 11.5 ms |
+| 8 read workers, read/write lock | 21 / **35 / 41 ms** | 51.2 ms | 22.7 ms | 7.5 ms | 11.0 ms |
+
+- The read/write lock cuts mutation p95 from 81 to 39 ms with 4 workers and
+  reduces read execution from 64.5 to 16.1 ms. This is consistent with
+  read-read serialization being a real contributor.
+- The target ~24 ms is **not** reproduced. Remaining time is spread across
+  writer lock wait (~11 ms p95), commit, read execution, socket/JSON and the
+  remaining GIL/engine work; it is not one single lock wait.
+- The raw OverGraph probe (`scripts/probe_overgraph_concurrency.py`) at 3 072
+  dimensions ran 8 concurrent readers and a concurrent writer with no errors
+  (parallel read p50 ~3.1 ms), which supports the premise that concurrent
+  published reads are usable. This is a probe, not a proof of every API path.
+- Native `begin_write_txn()` still releases the Catalog guard after opening the
+  transaction; the experiment does not claim transaction-wide reader exclusion.
+  That must be resolved before any lock-mode default change.
+- The experiment is opt-in only. An independent review of the lock code is
+  required before it could become the default.
+
+## 5. Ingest A/B
+
+Controlled two-backend harness runs with the same data:
+
+| Owner read workers | End-to-end ingest | Dispatch |
+| --- | ---: | ---: |
+| 0 (inline) | 0.456 s | 0.198 s |
+| 4 (bounded executor) | 0.474 s | 0.210 s |
+
+The earlier 1.09 s ingest was not reproducible in this A/B; the executor is not
+shown to regress ingest. The controlled difference is ~4 %.
+
+## 6. Verification
 
 - `backend/scripts/verify_owner_multiprocess_fastapi.py` passed end-to-end with
   the read executor enabled: two real backends, owner restart, concurrent
@@ -73,14 +115,14 @@ Large result pages still dominate the client tail, independent of scheduling.
 - Full suite and CI are re-run after the change; owner atomicity, idempotency,
   receipts and retrieval parity are unchanged.
 
-## 5. Correction of the earlier 127.5 ms figure
+## 7. Correction of the earlier 127.5 ms figure
 
 The old 20-sample helper selected the maximum value as “p95”. With 1 000
 samples and 3 072 dimensions the reproducible inline mutation p95 is **137 ms**;
 the old 127.5 ms was directionally right but mislabelled. The new profiler fixes
 the percentile calculation.
 
-## 6. Next steps (not done here)
+## 8. Next steps (not done here)
 
 1. **Separate lock-narrowing change** in `Catalog`: audit `RLock` scope, close/read
    race, snapshots, flush and restart; then rerun this exact benchmark. No lock

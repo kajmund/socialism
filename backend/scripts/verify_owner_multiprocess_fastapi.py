@@ -187,6 +187,9 @@ def _start_owner(root: Path, *, sync: bool = True) -> Process:
         "--socket", str(root / "owner.sock"),
         "--dimension", str(DIMENSION),
     ]
+    read_workers = os.environ.get("OWNER_TEST_READ_WORKERS")
+    if read_workers is not None:
+        argv.extend(["--read-workers", read_workers])
     if not sync:
         argv.append("--no-sync")
     process = Process("owner", argv, _base_env(root, owner_id=None), root / "owner.log")
