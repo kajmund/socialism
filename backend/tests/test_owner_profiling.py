@@ -5,9 +5,12 @@ from __future__ import annotations
 import asyncio
 import tempfile
 import time
+
+import pytest
 from pathlib import Path
 
 from app.services.overgraph.owner import OvergraphOwner, OwnerClient
+from app.services.overgraph.owner_client import OwnerUnavailable
 
 
 async def test_event_loop_lag_monitor_and_bounded_read_workers():
@@ -48,5 +51,7 @@ async def test_close_waits_for_inflight_reads_before_closing_catalog(monkeypatch
     await asyncio.wait_for(owner.close(), timeout=5)
     try:
         await asyncio.wait_for(read, timeout=2)
-    except (OSError, RuntimeError, asyncio.CancelledError):
+    except (OwnerUnavailable, OSError, RuntimeError, asyncio.CancelledError):
         pass
+    with pytest.raises(OwnerUnavailable):
+        await client.query_nodes("TextUnit", limit=1)

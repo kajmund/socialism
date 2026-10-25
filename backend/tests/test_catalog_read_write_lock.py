@@ -8,6 +8,8 @@ import threading
 import time
 from pathlib import Path
 
+import pytest
+
 from overgraph import OverGraphError
 
 from app.services.overgraph.catalogs import open_catalog
@@ -60,6 +62,8 @@ def test_read_write_lock_allows_concurrent_reads_and_exclusive_writes():
     for thread in readers:
         thread.join(timeout=10)
     try:
+        assert not write_thread.is_alive()
+        assert all(not thread.is_alive() for thread in readers)
         assert errors == []
         assert catalog.count_nodes_by_labels([FACT]) == 300
     finally:
@@ -74,23 +78,29 @@ def test_close_waits_for_an_inflight_read_before_closing_the_handle():
     started = threading.Event()
     finished = threading.Event()
 
+    errors: list[BaseException] = []
+
     def read() -> None:
-        started.set()
+        try:
+            def slow_read(db):
+                started.set()
+                time.sleep(0.2)
+                finished.set()
+                return db.get_node_by_key(FACT, "lock-0")
 
-        def slow_read(db):
-            time.sleep(0.2)
-            finished.set()
-            return db.get_node_by_key(FACT, "lock-0")
-
-        catalog.read(slow_read)
+            catalog.read(slow_read)
+        except (OverGraphError, RuntimeError, ValueError, TypeError) as exc:
+            errors.append(exc)
 
     thread = threading.Thread(target=read)
     thread.start()
-    started.wait(timeout=2)
+    assert started.wait(timeout=2)
     begin = time.perf_counter()
     catalog.close()
     elapsed = time.perf_counter() - begin
     thread.join(timeout=2)
+    assert not thread.is_alive()
+    assert errors == []
     assert finished.is_set()
     assert elapsed >= 0.15
 
@@ -123,3 +133,99 @@ async def test_owner_read_write_lock_mode_serves_concurrent_reads_and_writes():
         assert all(not isinstance(result, BaseException) for result in results)
     finally:
         await owner.close()
+
+
+def test_nested_read_does_not_deadlock_behind_a_waiting_writer():
+    root = Path(tempfile.mkdtemp(prefix="catalog-rw-nested-"))
+    catalog = open_catalog(root / "catalog", kind="knowledge", dimension=4)
+    enable_read_write_lock(catalog)
+    _seed(catalog)
+    entered = threading.Event()
+    release = threading.Event()
+    writer_started = threading.Event()
+    writer_done = threading.Event()
+    errors: list[BaseException] = []
+
+    def reader() -> None:
+        try:
+            def outer(db):
+                entered.set()
+                release.wait(timeout=2)
+                return catalog.count_nodes_by_labels([FACT])
+
+            catalog.read(outer)
+        except (OverGraphError, RuntimeError, ValueError, TypeError) as exc:
+            errors.append(exc)
+
+    def writer() -> None:
+        try:
+            writer_started.set()
+            catalog.upsert_node(
+                [FACT, scope_label("customer:1")], "nested-write",
+                props={"scope_key": "customer:1", "status": "active"},
+            )
+        except (OverGraphError, RuntimeError, ValueError, TypeError) as exc:
+            errors.append(exc)
+        finally:
+            writer_done.set()
+
+    reader_thread = threading.Thread(target=reader)
+    writer_thread = threading.Thread(target=writer)
+    reader_thread.start()
+    assert entered.wait(timeout=2)
+    writer_thread.start()
+    assert writer_started.wait(timeout=2)
+    time.sleep(0.05)
+    release.set()
+    reader_thread.join(timeout=2)
+    writer_thread.join(timeout=2)
+    try:
+        assert not reader_thread.is_alive()
+        assert writer_done.is_set()
+        assert errors == []
+    finally:
+        catalog.close()
+
+
+def test_write_inside_read_callback_raises_instead_of_deadlocking():
+    from app.services.overgraph.owner_locks import ReadWriteLock
+
+    lock = ReadWriteLock()
+    with lock.reader():
+        with pytest.raises(RuntimeError):
+            with lock:
+                pass
+
+
+def test_mode_switch_waits_for_an_inflight_read():
+    from app.services.overgraph.owner_locks import ReadWriteLock
+
+    root = Path(tempfile.mkdtemp(prefix="catalog-rw-switch-"))
+    catalog = open_catalog(root / "catalog", kind="knowledge", dimension=4)
+    _seed(catalog)
+    entered = threading.Event()
+    release = threading.Event()
+    switched = threading.Event()
+
+    def reader() -> None:
+        catalog.read(lambda db: (entered.set(), release.wait(timeout=2)))
+
+    def switch() -> None:
+        enable_read_write_lock(catalog)
+        switched.set()
+
+    reader_thread = threading.Thread(target=reader)
+    switch_thread = threading.Thread(target=switch)
+    reader_thread.start()
+    assert entered.wait(timeout=2)
+    switch_thread.start()
+    time.sleep(0.05)
+    assert not switched.is_set()
+    release.set()
+    reader_thread.join(timeout=2)
+    switch_thread.join(timeout=2)
+    try:
+        assert switched.is_set()
+        assert isinstance(catalog._lock, ReadWriteLock)
+    finally:
+        catalog.close()

@@ -89,8 +89,18 @@ experiment.
 - Native `begin_write_txn()` still releases the Catalog guard after opening the
   transaction; the experiment does not claim transaction-wide reader exclusion.
   That must be resolved before any lock-mode default change.
-- The experiment is opt-in only. An independent review of the lock code is
-  required before it could become the default.
+- The experiment is opt-in only. An independent review found: non-reentrant
+  reader/writer locks (fixed with owner-aware reentrancy and an explicit error
+  for writer acquisition inside a read callback), an unguarded mode switch
+  (fixed by switching under the old lock), a read-executor barrier that counted
+  awaiting rather than executing tasks (fixed by completing in the worker
+  thread and rejecting reads after close), and a health-report race (fixed with
+  snapshots under the metrics lock). New tests cover nested reads, read-inside-
+  write failure, close/read, mode switch and post-close reads.
+- Remaining limitation: native `begin_write_txn()` releases the guard before
+  transaction work, so the main batch/conditional mutation paths are not
+  transaction-wide writer-exclusive. This must be fixed before any default
+  change.
 
 ## 5. Ingest A/B
 
