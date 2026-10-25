@@ -65,6 +65,9 @@ Owner acceptance test. Static allowlist absence is never sufficient.
 
 ## Current state
 
-Legal claims/evidence still use direct Catalog reads and writes; document QA
-uses per-tenant catalogs; mem0 uses the separate memory catalog. Runtime guard
-blocks direct knowledge writes in owner mode. No migration is claimed done.
+Legal claims/evidence production paths are migrated to the existing Knowledge
+Owner (`owner_legal.py`): atomic claim+evidence+support batch, owner reads for
+identity/status/evidence/answers/supersession, two owner clients verified.
+Document QA still uses per-tenant catalogs; mem0 still uses the separate memory
+catalog; tenant and memory Owners are the next slices. Runtime guard blocks
+direct knowledge writes in owner mode. `write_paths_ready` remains false.
