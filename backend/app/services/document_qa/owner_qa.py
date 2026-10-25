@@ -28,17 +28,17 @@ from app.services.document_qa.normalize import (
     question_key,
     reuse_digest,
 )
-from app.services.document_qa.owner_qa_protocol import (
-    OwnerQaError,
-    _Batch,
-    _apply,
-    _edge,
-    _neighbors,
-    _node,
-    _node_id,
-    _props,
-    _read,
-    _vector,
+from app.services.overgraph.owner_graph import (
+    OwnerGraphError,
+    GraphBatch,
+    apply_batch,
+    make_edge,
+    neighbors_of,
+    make_node,
+    id_of,
+    props_of,
+    read_nodes,
+    vector_of,
 )
 from app.services.document_qa.types import (
     LoadedAnswer,
@@ -55,7 +55,7 @@ async def _answers(
     client: OwnerClient,
     question_id: int,
 ) -> tuple[LoadedAnswer, ...]:
-    rows = await _neighbors(client, question_id, HAS_ANSWER)
+    rows = await neighbors_of(client, question_id, HAS_ANSWER)
     answers = [
         await _answer_from_row(client, row) for row in rows if ANSWER in row.get("labels", [])
     ]
@@ -65,7 +65,7 @@ async def _answers(
 async def _answer_from_row(client: OwnerClient, row: dict[str, Any]) -> LoadedAnswer:
     posts = tuple(
         _post_from_row(post)
-        for post in await _neighbors(client, int(row["node_id"]), HAS_POST)
+        for post in await neighbors_of(client, int(row["node_id"]), HAS_POST)
         if ANSWER_POST in post.get("labels", [])
     )
     return LoadedAnswer(
@@ -103,18 +103,18 @@ def _post_from_row(row: dict[str, Any]) -> LoadedPost:
 
 
 async def load_question(client: OwnerClient, key: str) -> LoadedQuestion | None:
-    response = await _read(client, [(QUESTION, key)])
-    props = _props(response, QUESTION, key)
-    question_id = _node_id(response, QUESTION, key)
+    response = await read_nodes(client, [(QUESTION, key)])
+    props = props_of(response, QUESTION, key)
+    question_id = id_of(response, QUESTION, key)
     if props is None or question_id is None:
         return None
     return _question_from(props, key, await _answers(client, question_id))
 
 
 async def load_answer(client: OwnerClient, key: str) -> LoadedAnswer | None:
-    response = await _read(client, [(ANSWER, key)])
-    props = _props(response, ANSWER, key)
-    answer_id = _node_id(response, ANSWER, key)
+    response = await read_nodes(client, [(ANSWER, key)])
+    props = props_of(response, ANSWER, key)
+    answer_id = id_of(response, ANSWER, key)
     if props is None or answer_id is None:
         return None
     return await _answer_from_row(
@@ -192,24 +192,24 @@ async def persist(
         ),
         *((TEXT_UNIT, unit_id) for unit_id in cited),
     ]
-    response = await _read(client, refs, include_vectors=True)
-    document = _props(response, CANONICAL_DOCUMENT, write.document_id)
+    response = await read_nodes(client, refs, include_vectors=True)
+    document = props_of(response, CANONICAL_DOCUMENT, write.document_id)
     existing_question_ref = refs[1]
-    existing_question = _props(response, QUESTION, existing_question_ref[1])
-    units = {unit_id: _props(response, TEXT_UNIT, unit_id) for unit_id in cited}
+    existing_question = props_of(response, QUESTION, existing_question_ref[1])
+    units = {unit_id: props_of(response, TEXT_UNIT, unit_id) for unit_id in cited}
     for unit_id, unit in units.items():
         version = str((unit or {}).get("document_version_id") or "")
         if version and version != write.document_version_id:
             raise ValueError("source TextUnit belongs to another document version")
 
-    batch = _Batch()
+    batch = GraphBatch()
     document_props = {
         "document_id": write.document_id,
         "archived": int((document or {}).get("archived") or 0),
     }
-    batch.nodes.append(_node(CANONICAL_DOCUMENT, write.document_id, document_props))
+    batch.nodes.append(make_node(CANONICAL_DOCUMENT, write.document_id, document_props))
     batch.nodes.append(
-        _node(
+        make_node(
             DOCUMENT_VERSION,
             write.document_version_id,
             {
@@ -219,7 +219,7 @@ async def persist(
         )
     )
     batch.edges.append(
-        _edge(
+        make_edge(
             (CANONICAL_DOCUMENT, write.document_id),
             (DOCUMENT_VERSION, write.document_version_id),
             HAS_VERSION,
@@ -228,19 +228,19 @@ async def persist(
     vector = (
         list(write.embedding)
         if write.embedding is not None
-        else _vector(response, QUESTION, existing_question_ref[1])
+        else vector_of(response, QUESTION, existing_question_ref[1])
     )
     q_key, q_props = _question_node(write, viewer, existing=existing_question)
-    batch.nodes.append(_node(QUESTION, q_key, q_props, dense_vector=vector))
+    batch.nodes.append(make_node(QUESTION, q_key, q_props, dense_vector=vector))
     batch.edges.append(
-        _edge(
+        make_edge(
             (CANONICAL_DOCUMENT, write.document_id),
             (QUESTION, q_key),
             HAS_QUESTION,
         )
     )
     batch.edges.append(
-        _edge(
+        make_edge(
             (QUESTION, q_key),
             (DOCUMENT_VERSION, write.document_version_id),
             ABOUT_VERSION,
@@ -254,7 +254,7 @@ async def persist(
         write.answer_text,
     )
     batch.nodes.append(
-        _node(
+        make_node(
             ANSWER,
             a_key,
             {
@@ -271,7 +271,7 @@ async def persist(
             },
         )
     )
-    batch.edges.append(_edge((QUESTION, q_key), (ANSWER, a_key), HAS_ANSWER))
+    batch.edges.append(make_edge((QUESTION, q_key), (ANSWER, a_key), HAS_ANSWER))
     for ordinal, post in enumerate(write.posts):
         _append_post(
             write=write,
@@ -282,10 +282,10 @@ async def persist(
             units=units,
             batch=batch,
         )
-    await _apply(client, "qa:persist", nodes=batch.nodes, edges=batch.edges)
+    await apply_batch(client, "qa:persist", nodes=batch.nodes, edges=batch.edges)
     loaded = await load_question(client, q_key)
     if loaded is None:
-        raise OwnerQaError("persisted Q&A is missing after owner write")
+        raise OwnerGraphError("persisted Q&A is missing after owner write")
     return loaded
 
 
@@ -297,12 +297,12 @@ def _append_post(
     ordinal: int,
     post: Any,
     units: dict[str, dict[str, Any] | None],
-    batch: _Batch,
+    batch: GraphBatch,
 ) -> None:
     key = post_key(viewer.customer_id, answer, ordinal)
     cites = [_anchor_cite(write, cite) for cite in post.sources]
     batch.nodes.append(
-        _node(
+        make_node(
             ANSWER_POST,
             key,
             {
@@ -313,11 +313,11 @@ def _append_post(
             },
         )
     )
-    batch.edges.append(_edge((ANSWER, answer), (ANSWER_POST, key), HAS_POST))
+    batch.edges.append(make_edge((ANSWER, answer), (ANSWER_POST, key), HAS_POST))
     for cite in post.sources:
         if units.get(cite.text_unit_id) is None:
             batch.nodes.append(
-                _node(
+                make_node(
                     TEXT_UNIT,
                     cite.text_unit_id,
                     {
@@ -329,14 +329,14 @@ def _append_post(
                 )
             )
         batch.edges.append(
-            _edge(
+            make_edge(
                 (DOCUMENT_VERSION, write.document_version_id),
                 (TEXT_UNIT, cite.text_unit_id),
                 CONTAINS,
             )
         )
         batch.edges.append(
-            _edge(
+            make_edge(
                 (ANSWER_POST, key),
                 (TEXT_UNIT, cite.text_unit_id),
                 CITES,
