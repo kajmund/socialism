@@ -6,9 +6,13 @@ import time
 from dataclasses import dataclass
 
 from app.services.document_find.request import (
+    PRESENTATION_CAP as PRESENTATION_CAP,
     FindRequest,
     empty_scope_result,
+    needs_embedding as needs_embedding,
     normalize_find_mode,
+    presentation_slice as presentation_slice,
+    suggested_title as suggested_title,
 )
 from app.services.document_find.strategies import (
     extend_set,
