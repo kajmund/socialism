@@ -229,3 +229,12 @@ def test_mode_switch_waits_for_an_inflight_read():
         assert isinstance(catalog._lock, ReadWriteLock)
     finally:
         catalog.close()
+
+
+def test_read_inside_writer_is_allowed():
+    from app.services.overgraph.owner_locks import ReadWriteLock
+
+    lock = ReadWriteLock()
+    with lock:
+        with lock.reader():
+            pass

@@ -144,7 +144,9 @@ class ReadWriteLock:
         tid = threading.get_ident()
         with self._condition:
             if kind == "read":
-                if self._read_depth.get(tid, 0):
+                if self._writer and self._writer_thread == tid:
+                    self._read_depth[tid] = self._read_depth.get(tid, 0) + 1
+                elif self._read_depth.get(tid, 0):
                     self._read_depth[tid] += 1
                 else:
                     while self._writer or self._waiting_writers:
@@ -165,6 +167,7 @@ class ReadWriteLock:
                     self._writer_depth = 1
                 finally:
                     self._waiting_writers -= 1
+                    self._condition.notify_all()
         self._record(self.wait_by_thread, kind, time.perf_counter() - started)
         self._entered_at[kind].setdefault(tid, []).append(time.perf_counter())
 

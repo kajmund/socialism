@@ -47,7 +47,6 @@ __all__ = [
     "OwnerQueueFull",
     "OwnerUnavailable",
 ]
-
 RECEIPT_LABEL = "MutationReceipt"
 
 
@@ -79,7 +78,7 @@ class OvergraphOwner:
         self.sync_on_commit = sync_on_commit
         self.profile_lag = False
         self.profile_locks = False
-        self.lock_mode = "global"
+        self.lock_mode = "read_write"
         self.read_workers = 4
         self._reads: ReadExecutor | None = None
         self._write_executor = ThreadPoolExecutor(
@@ -98,7 +97,6 @@ class OvergraphOwner:
         # Test-only seam: called inside the writer thread after a transaction
         # has staged its first changes, before commit.
         self._txn_barrier = None
-
     async def start(self) -> None:
         self.socket_path.parent.mkdir(parents=True, exist_ok=True)
         self.socket_path.unlink(missing_ok=True)
@@ -112,7 +110,6 @@ class OvergraphOwner:
             self._lag_monitor = LagMonitor(self.metrics)
             self._lag_monitor.start()
         self._server = await asyncio.start_unix_server(self._handle, path=str(self.socket_path), limit=16 * 1024 * 1024)
-
     async def close(self) -> None:
         self._closed = True
         if self._server is not None:
@@ -150,7 +147,6 @@ class OvergraphOwner:
         self.socket_path.unlink(missing_ok=True)
         fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
         os.close(self._lock_fd)
-
     async def _handle(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
     ) -> None:
@@ -207,10 +203,8 @@ class OvergraphOwner:
         finally:
             writer.close()
             await writer.wait_closed()
-
     async def _read_payload(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         return await self._reads.read(payload, self.catalog_id)
-
     async def _run_worker(self) -> None:
         while True:
             request, future = await self.queue.get()
@@ -247,7 +241,6 @@ class OvergraphOwner:
                     future.set_exception(exc)
             finally:
                 self.queue.task_done()
-
     def _apply(self, request: MutationRequest) -> dict[str, Any]:
         payload_hash = compute_payload_hash(request)
         receipt = self.catalog.get_by_key(RECEIPT_LABEL, request.mutation_id)
@@ -273,7 +266,6 @@ class OvergraphOwner:
         _record_sample(self.metrics.commit_seconds, started)
         self.metrics.applied += 1
         return {"ok": True, "duplicate": False, "mutation_id": request.mutation_id}
-
     @staticmethod
     def _receipt_node(mutation_id: str, payload_hash: str) -> dict[str, Any]:
         return {
@@ -290,6 +282,7 @@ class OvergraphOwner:
         for attempt in range(3):
             txn = self.catalog.begin_write_txn()
             committed = False
+            txn_closed = False
             try:
                 current = txn.get_node_by_key(str(read["label"]), str(read["key"]))
                 if current is None:
@@ -329,13 +322,15 @@ class OvergraphOwner:
                     "props": response_props,
                 }
             except OverGraphError as exc:
+                # Failed commit already closed the txn; do not mask it.
+                txn_closed = True
                 if "conflict" not in str(exc).lower():
                     raise
                 self.metrics.conflicts += 1
                 if attempt == 2:
                     raise
             finally:
-                if not committed:
+                if not committed and not txn_closed:
                     txn.rollback()
         raise RuntimeError("unreachable")
 
@@ -364,6 +359,7 @@ class OvergraphOwner:
         for attempt in range(3):
             txn = self.catalog.begin_write_txn()
             committed = False
+            txn_closed = False
             try:
                 for absent in expected_absent:
                     if txn.get_node_by_key(str(absent["label"]), str(absent["key"])) is not None:
@@ -443,13 +439,15 @@ class OvergraphOwner:
                     "generation": generation_props.get(str(generation["prop"])) if generation else None,
                 }
             except OverGraphError as exc:
+                # Failed commit already closed the txn; do not mask it.
+                txn_closed = True
                 if "conflict" not in str(exc).lower():
                     raise
                 self.metrics.conflicts += 1
                 if attempt == 2:
                     raise
             finally:
-                if not committed:
+                if not committed and not txn_closed:
                     txn.rollback()
         raise RuntimeError("unreachable")
 
@@ -459,6 +457,7 @@ class OvergraphOwner:
         for attempt in range(3):
             txn = self.catalog.begin_write_txn()
             committed = False
+            txn_closed = False
             try:
                 for update in updates:
                     row = txn.get_node_by_key(str(update["label"]), str(update["key"]))
@@ -482,13 +481,15 @@ class OvergraphOwner:
                 self.metrics.applied += 1
                 return {"ok": True, "duplicate": False, "mutation_id": request.mutation_id}
             except OverGraphError as exc:
+                # Failed commit already closed the txn; do not mask it.
+                txn_closed = True
                 if "conflict" not in str(exc).lower():
                     raise
                 self.metrics.conflicts += 1
                 if attempt == 2:
                     raise
             finally:
-                if not committed:
+                if not committed and not txn_closed:
                     txn.rollback()
         raise RuntimeError("unreachable")
 
