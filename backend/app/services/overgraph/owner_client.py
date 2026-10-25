@@ -54,6 +54,7 @@ class MutationRequest:
 
 
 METRIC_SAMPLES = 1000
+RECEIPT_LABEL = "MutationReceipt"
 
 
 def _record_sample(samples: list[float], started: float) -> None:

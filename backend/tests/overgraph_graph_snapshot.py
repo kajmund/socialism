@@ -12,7 +12,8 @@ from typing import Any
 
 from app.services.overgraph.catalogs import Catalog
 
-NODE_LABELS = ("Fact", "Entity", "TextUnit", "DocumentVersion", "Identifier")
+NODE_LABELS = ("Fact", "Entity", "TextUnit", "DocumentVersion", "Identifier", "SearchIndexGeneration", "SearchIndexChange")
+SEARCH_LEDGER_LABELS = {"SearchIndexGeneration", "SearchIndexChange"}
 EDGE_LABELS = (
     "SUBJECT", "OBJECT", "CONTEXT", "SUPPORTS", "CONTRADICTS", "DEPENDS_ON",
     "CONTAINS", "NEXT",
@@ -46,6 +47,8 @@ def graph_snapshot(catalog: Catalog) -> dict[str, Any]:
         )
         for row in rows:
             if row.engine_id is None:
+                continue
+            if SEARCH_LEDGER_LABELS.intersection(row.labels):
                 continue
             engine_ids[row.key] = row.engine_id
             nodes[row.key] = {
