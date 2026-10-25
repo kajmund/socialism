@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -40,19 +41,46 @@ class ReadExecutor:
         self._inflight += 1
         self._idle.clear()
         self._loop = asyncio.get_running_loop()
-        return await self._loop.run_in_executor(
-            self.executor, self._execute, payload, catalog_id,
-        )
+        finish = self._completion()
+        try:
+            future = self._loop.run_in_executor(
+                self.executor, self._execute, payload, catalog_id, finish,
+            )
+        except BaseException:
+            # Submission failed before the worker could own the completion.
+            finish()
+            raise
+        try:
+            return await future
+        except BaseException:
+            finish()
+            raise
 
-    def _execute(self, payload: dict[str, Any], catalog_id: str) -> dict[str, Any] | None:
+    def _completion(self) -> Any:
+        lock = threading.Lock()
+        done = False
+
+        def finish() -> None:
+            nonlocal done
+            with lock:
+                if done:
+                    return
+                done = True
+            self._inflight -= 1
+            if self._inflight == 0 and self._loop is not None:
+                self._loop.call_soon_threadsafe(self._idle.set)
+
+        return finish
+
+    def _execute(
+        self, payload: dict[str, Any], catalog_id: str, finish: Any,
+    ) -> dict[str, Any] | None:
         started = time.perf_counter()
         try:
             return handle_read(payload, self.catalog, catalog_id)
         finally:
             _record_sample(self.metrics.read_seconds, started)
-            self._inflight -= 1
-            if self._inflight == 0 and self._loop is not None:
-                self._loop.call_soon_threadsafe(self._idle.set)
+            finish()
 
     async def close(self) -> None:
         self._closed = True
