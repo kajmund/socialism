@@ -15,9 +15,10 @@ in [tantivy-generation-ledger.md](tantivy-generation-ledger.md).
   newer than the watermark; `reconcile` pages by time range and upserts by key.
   At-least-once; callers persist the new watermark only after success.
 - Deletion: `TextUnitIndex.delete_keys` exists but **is not called by reconcile**
-  and has no production caller. A deleted TextUnit/Fact therefore remains in the
-  index; hydration filters some fact cases but lexical candidates can still be
-  stale.
+  and has no production caller. The new durable generation/tombstone ledger
+  ([tantivy-generation-ledger.md](tantivy-generation-ledger.md)) records
+  explicit deletes, but no production indexer consumes it yet; old reconcile
+  remains upsert-only.
 - `retrieval_index` is process-local and owner mode currently disables it. There
   is no generation token beyond the millisecond watermark.
 - Index maintenance is not wired into owner ingestion; owner mode fails closed

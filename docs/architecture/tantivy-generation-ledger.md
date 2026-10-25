@@ -1,7 +1,10 @@
 # Durable generation/tombstone ledger for the derived Tantivy index
 
-Status: implementation + tests in `backend/app/services/tantivy_generation.py`.
-No production index wiring and no choice of A/B/C/D yet.
+Status: ledger is now written by the Owner's production mutation paths
+(server-side `owner.py`/`owner_mutations.py`), with tests in
+`backend/app/services/tantivy_generation.py` and
+`backend/tests/test_tantivy_generation.py`. No Tantivy production activation
+and no A/B/C/D placement choice yet.
 
 ## Inventory (reuse first)
 
@@ -17,12 +20,16 @@ No production index wiring and no choice of A/B/C/D yet.
   represent deletes and can tie; it remains for backward compatibility but is
   not the new indexing contract.
 - No new Owner protocol is introduced. The ledger is written through the
-  existing batch/generation path.
+  existing batch/conditional transaction path, automatically for changed
+  TextUnit/Fact nodes.
 
 ## Model
 
-Every search-relevant mutation appends explicit change records and bumps one
-monotonic generation in the **same atomic Owner mutation**:
+Every changed TextUnit/Fact in an Owner batch or conditional mutation appends
+explicit change records and bumps one monotonic generation in the **same native
+transaction**. Non-search nodes (entities, receipts, clause records) do not
+bump it. Explicit deletes and fact status transitions to non-active produce
+delete records; failed/no-op/duplicate mutations do not:
 
 - generation node: `SearchIndexGeneration` / `search-index:generation`
 - change node: `SearchIndexChange` / `search-index:change:<generation>:<n>`
@@ -53,6 +60,20 @@ Properties:
 Missing change records or a generation above 1000 records require a rebuild;
 the indexer fails closed instead of silently advancing.
 
+## Production paths now writing the ledger
+
+- TextUnit ingest/upsert and document re-ingest (batch upserts/deletes)
+- TextUnit/document delete (`delete_nodes` batch)
+- Fact write/update and fact revocation/status changes
+- Clause SSR and other owner-migrated writes that create/update/delete TextUnit
+  or Fact nodes
+- Receipts stay in the same transaction
+
+Still missing: direct writers outside the Owner (document QA, legal claims,
+mem0, SWE run store) do not append this ledger; they are unmigrated and
+`write_paths_ready` stays false. Embedding-only updates do not change lexical
+search text and are intentionally not ledgered.
+
 ## Verified scenarios
 
 `backend/tests/test_tantivy_generation.py`:
@@ -64,6 +85,8 @@ the indexer fails closed instead of silently advancing.
 | Indexer crash after index write, before checkpoint | restart replays idempotently, no duplicate hit |
 | Owner faster than indexer | lag > 0 detected; `assert_current` raises; apply catches up |
 | Checkpoint ahead of ledger | rebuild required |
+| Non-search node change | generation unchanged |
+| Duplicate/failed mutation | no extra generation |
 
 ## Freshness before evidence use
 

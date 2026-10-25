@@ -14,22 +14,17 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
-
 from app.services.overgraph.labels import ENTITY, FACT, TEXT_UNIT
 from app.services.overgraph.model import GraphRecord
 from app.services.overgraph.owner import OwnerClient
+from app.services.overgraph.search_ledger import (
+    CHANGE_LABEL,
+    GENERATION_KEY,
+    SearchChange,
+)
 from app.services.tantivy_documents import FactDoc, TextUnitDoc, _fact, _unit
 from app.services.tantivy_index import TextUnitIndex, build_from_overgraph
-
-GENERATION_LABEL = "SearchIndexGeneration"
-CHANGE_LABEL = "SearchIndexChange"
-GENERATION_KEY = "search-index:generation"
-CHECKPOINT_FILE = "generation.json"
-CHANGE_KIND = Literal["text_unit", "fact"]
-CHANGE_OP = Literal["upsert", "delete"]
 
 
 class SearchIndexLagError(RuntimeError):
@@ -40,93 +35,12 @@ class SearchIndexRebuildRequired(RuntimeError):
     """The checkpoint is beyond the ledger (or records are missing)."""
 
 
-@dataclass(frozen=True)
-class SearchChange:
-    kind: CHANGE_KIND
-    op: CHANGE_OP
-    key: str
-    scope_key: str = ""
-    document_version_id: str = ""
-
-
-def _generation_node() -> dict[str, Any]:
-    return {
-        "labels": [ENTITY, GENERATION_LABEL],
-        "key": GENERATION_KEY,
-        "props": {"generation": 0},
-    }
-
-
-async def ensure_generation(client: OwnerClient) -> int:
-    """Create the generation node at 0 if the catalog has none."""
-    response = await client.read([{"label": ENTITY, "key": GENERATION_KEY}])
-    props = response["values"].get(f"{ENTITY}:{GENERATION_KEY}")
-    if props is not None:
-        return int(props.get("generation") or 0)
-    await client.mutate(
-        "search-index-generation-init",
-        {"upsert_nodes": [_generation_node()]},
-        kind="batch",
-    )
-    return 0
-
-
 async def read_generation(client: OwnerClient) -> int:
     response = await client.read([{"label": ENTITY, "key": GENERATION_KEY}])
     props = response["values"].get(f"{ENTITY}:{GENERATION_KEY}")
     if props is None:
         return 0
     return int(props.get("generation") or 0)
-
-
-async def append_changes(
-    client: OwnerClient,
-    changes: list[SearchChange],
-    *,
-    mutation_id: str,
-) -> int:
-    """Bump the generation and write explicit change records atomically.
-
-    The Owner batch carries the generation update and all change nodes in one
-    transaction. A no-op change list does not bump anything. A concurrent
-    writer causes a precondition retry, never a skipped generation.
-    """
-    if not changes:
-        return await read_generation(client)
-    await ensure_generation(client)
-    for _attempt in range(5):
-        current = await read_generation(client)
-        generation = current + 1
-        nodes = [{
-            "labels": [ENTITY, CHANGE_LABEL],
-            "key": f"search-index:change:{generation}:{index}",
-            "props": {
-                "generation": generation,
-                "op": change.op,
-                "kind": change.kind,
-                "key": change.key,
-                "scope_key": change.scope_key,
-                "document_version_id": change.document_version_id,
-            },
-        } for index, change in enumerate(changes)]
-        result = await client.mutate(
-            mutation_id,
-            {
-                "generation": {
-                    "label": ENTITY, "labels": [ENTITY, GENERATION_LABEL],
-                    "key": GENERATION_KEY, "prop": "generation",
-                },
-                "expected": {"generation": current},
-                "upsert_nodes": nodes,
-            },
-            kind="batch",
-        )
-        if result.get("error") == "precondition_failed":
-            continue
-        if result.get("ok") is not True:
-            raise RuntimeError(f"search ledger mutation failed: {result}")
-        return int(result.get("generation") or generation)
-    raise RuntimeError("search generation precondition conflict")
 
 
 async def list_changes(client: OwnerClient, generation: int) -> list[SearchChange]:
