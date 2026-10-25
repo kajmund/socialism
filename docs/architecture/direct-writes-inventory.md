@@ -8,7 +8,7 @@ slice. PR #432 stays open and `write_paths_ready=false`.
 | Area | Catalog used | Production callers | Status |
 | --- | --- | --- | --- |
 | Legal claims/evidence (production paths) | **Owner knowledge catalog** | claim persistence, evidence, claim answers, supersession | **migrated** through `owner_legal.py`; atomic claim+evidence+supports batch and owner reads. Offline backfill/parity/rekey tooling still uses direct catalog |
-| Document QA (`document_qa/store.py`, `catalog_write.py`, `review.py`, `lifecycle.py`) | **per-tenant catalogs** `overgraph/tenants/<customer>/knowledge` via `TenantCatalogs` | graph writeback worker, workspace tools | **not migrated**; separate catalog per tenant needs its own Owner instance |
+| Document QA (`document_qa/store.py`, `catalog_write.py`, `review.py`, `lifecycle.py`) | **per-tenant catalogs** `overgraph/tenants/<customer>/knowledge` via `TenantCatalogs` | graph writeback worker, workspace tools | **owner repository ready, production path not switched**: `owner_qa.py` provides atomic publish, owner reads, reuse, review, archive and purge with five owner tests. Cutover is blocked on tenant Knowledge Owner lifecycle/routing; separate catalog per tenant needs its own Owner instance |
 | mem0 (`overgraph/mem0_store.py`) | **memory catalog** (`root/memory`) | expert memory through mem0 | **not migrated**; memory catalog has no Owner |
 | SWE run store (`overgraph/workflows.py`) | separate workflow/run-store catalog | SWE workflows | **do not migrate here**; it is not the Owner knowledge catalog |
 | Jev cache (`overgraph/jev_cache.py`) | separate cache store | Jev cache | **do not migrate here**; separate cache store |
