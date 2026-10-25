@@ -28,7 +28,7 @@ def main() -> int:
     parser.add_argument("--profile-lag", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--profile-locks", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument(
-        "--lock-mode", choices=("global", "read_write"), default="global",
+        "--lock-mode", choices=("global", "read_write"), default="read_write",
         help=argparse.SUPPRESS,
     )
     args = parser.parse_args()

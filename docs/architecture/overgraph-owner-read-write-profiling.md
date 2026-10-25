@@ -1,7 +1,8 @@
 # Owner read/write scheduling: 3072-dim profiling and bounded read executor
 
-Status: bounded read executor is implemented (default 4 workers) and verified.
-No `Catalog` lock change was made in this slice.
+Status: bounded read executor (**default 4 workers**) and the readers-share/
+writer-exclusive Catalog lock (**default for the owner**) are implemented and
+verified. `--lock-mode global` remains the diagnostic and safe fallback.
 
 ## 1. Realistic benchmark
 
@@ -23,6 +24,8 @@ p50/p95/p99/max (not the old `floor(0.95*n)` helper). It records:
   closing the catalog, so a catalog cannot be closed under an active read.
 - Inline mode remains available for comparison; the default is the bounded
   executor (`--read-workers 4`).
+- The owner default is now `read_write`; `--lock-mode global` keeps the old
+  global RLock as a diagnostic fallback.
 - Tests cover the executor path, close/read race, lag monitor and the existing
   owner contracts.
 
@@ -62,12 +65,13 @@ Findings:
 
 Large result pages still dominate the client tail, independent of scheduling.
 
-## 4. Lock A/B experiment (opt-in, not default)
+## 4. Lock A/B experiment (now default)
 
-Lock wait instrumentation (`TimedRLock`) and an opt-in readers-share/writer-
-exclusive `ReadWriteLock` were added for the isolated experiment. The default
-remains the global reentrant lock; `--lock-mode read_write` selects the
-experiment.
+Lock wait instrumentation (`TimedRLock`) and the readers-share/writer-exclusive
+`ReadWriteLock` were added for the isolated experiment. After the measurements
+below and an independent review, the owner default is `read_write` with four
+read-workers; `--lock-mode global` remains available as a diagnostic and safe
+fallback. `Catalog` itself still defaults to the global lock for direct callers.
 
 | Mode (8 readers, 1 000 mutations) | Mutation p50/p95/p99 | Read client p95 | Read exec p95 | Event lag p95 | Writer lock wait p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -89,7 +93,7 @@ experiment.
 - Native `begin_write_txn()` still releases the Catalog guard after opening the
   transaction; the experiment does not claim transaction-wide reader exclusion.
   That must be resolved before any lock-mode default change.
-- The experiment is opt-in only. An independent review found: non-reentrant
+- Independent review found: non-reentrant
   reader/writer locks (fixed with owner-aware reentrancy and an explicit error
   for writer acquisition inside a read callback), an unguarded mode switch
   (fixed by switching under the old lock), a read-executor barrier that counted
@@ -97,10 +101,11 @@ experiment.
   thread and rejecting reads after close), and a health-report race (fixed with
   snapshots under the metrics lock). New tests cover nested reads, read-inside-
   write failure, close/read, mode switch and post-close reads.
-- Remaining limitation: native `begin_write_txn()` releases the guard before
-  transaction work, so the main batch/conditional mutation paths are not
-  transaction-wide writer-exclusive. This must be fixed before any default
-  change.
+- Remaining latent limitation: native `begin_write_txn()` releases the guard
+  before transaction work. This existed under the global lock too; the owner is
+  protected by executor ordering plus the transaction barrier tests, and direct
+  maintenance writes are unreachable in owner mode. Native conflict retry is
+  fixed so a closed transaction cannot mask a conflict.
 
 ## 5. Durable-sync mixed workload
 
@@ -108,10 +113,10 @@ Same four modes with `--sync` enabled (the production durable-ack path):
 
 | Mode (8 readers, 1 000 mutations + sync) | Mutation p50/p95/p99 |
 | --- | ---: |
-| Inline, global | 127 / 183 / 199 ms |
-| 4 read workers, global | 61 / 93 / 112 ms |
-| 4 read workers, read/write lock | 45 / **55 / 63 ms** |
-| 8 read workers, read/write lock | 40 / **52 / 60 ms** |
+| Inline, global | 131 / 188 / 208 ms |
+| 4 read workers, global | 63 / 95 / 114 ms |
+| 4 read workers, read/write lock | 45 / **54 / 61 ms** |
+| 8 read workers, read/write lock | 40 / **51 / 59 ms** |
 
 Durable sync shifts all modes up by roughly 15–45 ms, but the ordering and the
 read/write-lock advantage remain. Eight workers are only marginally better than
@@ -178,9 +183,10 @@ the percentile calculation.
 
 ## 10. Next steps (not done here)
 
-1. **Separate lock-narrowing change** in `Catalog`: audit `RLock` scope, close/read
-   race, snapshots, flush and restart; then rerun this exact benchmark. No lock
-   change is included in this slice.
-2. **Independent review before considering lock changes safe** (per the plan).
+1. Keep `--lock-mode global` as fallback during rollout and monitor close/
+   snapshot/flush/restart in production.
+2. Address the remaining latent findings from the independent review (typed
+   closed-catalog error, maintenance while a native transaction is open,
+   read-executor submission-failure leak).
 3. Tantivy after the owner scheduling work.
 4. Micro-batched durable sync remains a separate throughput optimization.
