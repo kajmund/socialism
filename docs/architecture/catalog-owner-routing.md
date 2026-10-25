@@ -87,9 +87,13 @@ identity/status/evidence/answers/supersession, two owner clients verified.
 Document QA has an Owner-backed Q&A repository (`document_qa/owner_qa.py`,
 `owner_qa_lifecycle.py`, `owner_qa_retrieve.py`): atomic owner batch for
 document/version/question/answer/posts/citations, owner reads for reuse,
-review, archive and purge. Five owner tests cover two clients, duplicate
-publish, invalid citation rejection, reuse, review, archive/purge and tenant
-isolation. Production Document QA callers still use per-tenant catalogs until
+review, archive and purge. Document ingest and the type index also have
+Owner-native writes: `owner_ingest.py` publishes document/version/TextUnits,
+embeddings and edges in one batch, and `owner_document_index.py` writes
+effective type/category membership and reads a type index with paginated Owner
+queries. Seven owner tests cover two clients, duplicate publish, invalid
+citation rejection, reuse, review, archive/purge, tenant isolation, atomic
+ingest and index reclassification. Production Document QA callers still use per-tenant catalogs until
 tenant Knowledge Owner lifecycle is wired; the backend can now configure and
 health-check tenant Owner routes, but the owner repository is not yet on the
 request path. mem0 still uses the separate memory catalog; tenant and

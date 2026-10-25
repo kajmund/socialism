@@ -272,3 +272,89 @@ async def test_two_tenant_owners_keep_the_same_ids_isolated():
     finally:
         await owner_a.close()
         await owner_b.close()
+
+
+def _text_unit(unit_id: str, document_id: str, version_id: str, *, next_id: str | None = None):
+    from app.services.knowledge.scope import customer_scope
+    from app.services.overgraph.model import TextUnitWrite
+
+    return TextUnitWrite(
+        unit_id=unit_id,
+        scope=customer_scope(1),
+        document_id=document_id,
+        document_version_id=version_id,
+        text=f"text {unit_id}",
+        content_hash=f"hash-{unit_id}",
+        ordinal=0,
+        next_id=next_id,
+        embedding=EMBEDDING,
+    )
+
+
+async def test_document_units_are_published_atomically():
+    from app.services.document_qa.owner_ingest import persist_document_units
+    from app.services.overgraph.labels import CONTAINS
+
+    root = Path(tempfile.mkdtemp(prefix="owner-qa-"))
+    owner, first, second = await _start(root, "tenant-1")
+    try:
+        units = (
+            _text_unit("unit-1", "doc-9", "ver-9", next_id="unit-2"),
+            _text_unit("unit-2", "doc-9", "ver-9"),
+        )
+        await persist_document_units(first, document_id="doc-9", units=units)
+        response = await second.read(
+            [{"label": CANONICAL_DOCUMENT, "key": "doc-9"},
+             {"label": "DocumentVersion", "key": "ver-9"},
+             {"label": TEXT_UNIT, "key": "unit-1"}],
+            include_vectors=True,
+        )
+        assert response["values"][f"{CANONICAL_DOCUMENT}:doc-9"]["archived"] == 0
+        assert response["values"]["DocumentVersion:ver-9"]["document_id"] == "doc-9"
+        assert response["vectors"][f"{TEXT_UNIT}:unit-1"] == list(EMBEDDING)
+        version_id = response["ids"]["DocumentVersion:ver-9"]
+        assert sorted(
+            row["key"] for row in await second.neighbors(version_id, labels=[CONTAINS])
+        ) == ["unit-1", "unit-2"]
+        # Duplicate ingest is idempotent: no duplicated nodes.
+        await persist_document_units(first, document_id="doc-9", units=units)
+        assert owner.catalog.count_nodes_by_labels([TEXT_UNIT]) == 2
+    finally:
+        await owner.close()
+
+
+async def test_document_index_writes_and_reclassifies_through_the_owner():
+    from app.services.document_qa.owner_document_index import (
+        classify_and_index,
+        documents_for_type,
+    )
+    from app.services.document_qa.owner_ingest import persist_document_units
+
+    root = Path(tempfile.mkdtemp(prefix="owner-qa-"))
+    owner, first, second = await _start(root, "tenant-1")
+    try:
+        for document_id in ("doc-a", "doc-b"):
+            await persist_document_units(first, document_id=document_id, units=(
+                _text_unit(f"{document_id}-unit", document_id, f"{document_id}-ver"),
+            ))
+        await classify_and_index(first, document_id="doc-a", document_type="nda")
+        await classify_and_index(first, document_id="doc-b", document_type="dpa")
+        assert await documents_for_type(second, "nda") == ["doc-a"]
+        assert await documents_for_type(second, "dpa") == ["doc-b"]
+        # Reclassification removes the document from the old category.
+        await classify_and_index(first, document_id="doc-a", document_type="dpa")
+        assert await documents_for_type(second, "nda") == []
+        assert await documents_for_type(second, "dpa") == ["doc-a", "doc-b"]
+        # Archived documents are not returned by the index.
+        await archive_document(
+            first,
+            Viewer(
+                customer_id=1, workspace_id="ws-1",
+                readable_document_ids=frozenset({"doc-b"}),
+                readable_version_ids=frozenset({"doc-b-ver"}),
+            ),
+            "doc-b",
+        )
+        assert await documents_for_type(second, "dpa") == ["doc-a"]
+    finally:
+        await owner.close()
