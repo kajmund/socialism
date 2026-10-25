@@ -1,0 +1,137 @@
+# SWE: Sweycoins och en självlärande researchmotor
+
+**Strategi och experimentplan — 25 oktober 2026**  
+**Status:** Idé- och experimentunderlag, inte ett beslut om produktionsarkitektur.
+
+## 1. Vision
+
+Socialism Work Engine (SWE) ska kunna lösa komplexa researchfrågor snabbt, resurssnålt och med spårbar kvalitet. Motorn ska inte bara exekvera ett på förhand bestämt workflow, utan kunna pröva flera lösningsvägar, omfördela resurser och över tid lära sig vilka strategier som fungerar för olika typer av problem.
+
+Det långsiktiga stresstestet är ett mycket stort, fast dokumentkorpus — exempelvis de så kallade Epstein-filerna — som en demonstration av effektiv kunskapsextraktion och kunskapsutforskning, inte som ett påstående om innehållet i dokumenten.
+
+## 2. Utgångsläge
+
+- SWE är skriven i Rust, använder Overgraph och stöder avbrott och återupptagning.
+- Exekveringsvägar kan vara deterministiska regler, JEV-baserad analys och narrativ LLM.
+- Research kan använda asynkrona JEV-anrop över chunkad text, SSR-ankare, retrieval, graftraversering och cachning.
+- Golden Questions med facit ger en testbänk för verifierbar utvärdering.
+- Målet är att undvika onödiga modell- och källanrop, särskilt vid stora korpusar.
+
+## 3. Centrala idéer från diskussionen
+
+### 3.1 Spekulativ exekvering
+
+Starta flera alternativa vägar parallellt när det är oklart vilken som är bäst. En billig deterministisk väg kan misslyckas snabbt; en JEV-väg kan komma långt på en liten budget; en LLM-väg kan hitta helhetsrelationer som chunkad analys missar.
+
+**Viktigt:** Snabbast är inte samma sak som korrekt. Ett svar måste uppfylla explicita evidens- och kvalitetsvillkor innan det kan användas som verifierat resultat.
+
+### 3.2 Levande, versionerade svar
+
+Alla vägar får bidra till ett aggregerat svar. Tidiga svar kan publiceras som preliminära och senare kompletteras, motsägas eller revideras. Resultat ska vara versionerade och ha provenance. Nedströms steg ärver preliminärhet från de indata de faktiskt använder. Vid ändringar markeras beroende resultat inaktuella och relevanta delsteg körs om.
+
+Skilj på **färdigställandegrad** (preliminär/fastställd för en körning), **aktualitet** (aktuell/inaktuell) och **evidensstyrka**. Ett fastställt svar är inte garanterat evigt sant.
+
+### 3.3 Budgeterad spekulation
+
+Att låta ett steg med 2 500 JEV-anrop köras fullt ut på osäkra indata kan bli dyrt. SWE bör kunna ge en liten initial budget, mäta framsteg och tilldela mer när det finns skäl. Spekulationsbudget och totalbudget är separata. Återanvänd cachade delresultat om deras beroenden fortfarande är giltiga.
+
+### 3.4 Sweycoins
+
+**Sweycoins** är SWE:s interna kostnadsenhet. De kan debiteras för JEV-anrop, LLM-tokens/anrop, Overgraph-sökning, CPU-arbete och andra resurser. Inledande priser är experimentella, exempelvis JEV = 1, LLM-anrop = 10 och grafuppslag = 0,01 Sweycoins; de ska kalibreras mot uppmätt resursåtgång. Väggklockstid och svarskvalitet mäts separat.
+
+### 3.5 Självlärande budgetfördelning
+
+En liten policy-modell kan använda frågeembedding, uppgiftstyp, historiska utfall, hittillsvarande kostnad och verifierbara framsteg för att bedöma den förväntade nyttan av ytterligare budget på en viss väg. Börja med regler och loggning; jämför därefter regression/gradient boosting och contextual bandits. En möjlig fråga för policyn är: *Hur mycket förbättras sannolikheten för ett verifierat svar om denna väg får ytterligare 10 Sweycoins?*
+
+### 3.6 Virtuella portföljer och modellmarknad
+
+Flera investerarstrategier får var sin virtuell portfölj och kan investera budget i egna eller andras exekveringsstrategier. En modell kan exempelvis känna igen en frågetyp och delegera till en annan som är bättre på att välja researchväg. Belöningar betalas för verifierade resultat, särskilt svåra frågor, men kostnaden dras av. Portföljvärde blir en tränings- och jämförelsesignal, **inte** en obegränsad verklig budget.
+
+## 4. Principer för ekonomin
+
+1. **Bevarande:** Delegering flyttar budget; den skapar inte nya Sweycoins. Belöningar i gymmet bokförs separat som simulerad intäkt och ger inte automatiskt rätt att förbruka fler verkliga resurser.
+2. **Verifiering:** Belöning baseras på facit och evidens, inte modellens egen självsäkerhet.
+3. **Svårighetsviktning:** Svårare uppgifter kan ge större belöning, men svårighet ska bestämmas i förväg från testdata eller oberoende baslinjer, inte efter modellens egen förbrukning.
+4. **Jämförbarhet:** Alla strategier utvärderas på samma eller statistiskt balanserade frågor, med held-out testmängd.
+5. **Ingen dubbel belöning:** En gemensam belöning fördelas mellan investerare och utförare enligt fast regel; den multipliceras inte i delegationskedjan.
+6. **Skydd mot loopar:** Delegeringar har maxdjup, tidsgräns, budgettak och cykeldetektering.
+7. **Konkurs utan minnesförlust:** Underpresterande strategier pausas eller får lägre experimentandel; deras historik bevaras.
+8. **Separata mätvärden:** Kvalitet, kostnad, latens och evidenstäckning redovisas var för sig, även när en sammanvägd belöning används.
+
+## 5. Föreslagen minimal arkitektur
+
+**SWE Rust runtime:** Schemaläggning, parallella grenar, budgetreservation, avbrott/resume, cancellation och versionsberoenden.
+
+**Overgraph:** Persistens för frågefeatures, workflow- och delresultat, provenance, kostnadshändelser, strategiutfall och cache med tydlig isolering mellan experimentella och verifierade data.
+
+**Budget ledger:** Append-only händelser för `reserve`, `spend`, `refund`, `delegate` och `reward`. Atomisk debitering och idempotensnycklar för att undvika dubbeldebitering vid resume/retry.
+
+**Strategy interface:** En strategi får ett tillstånd och returnerar ett budgetförslag: fortsätt, pausa, avbryt, delegera eller publicera preliminärt resultat. Runtime verkställer säkerhets- och kostnadstak.
+
+**Evaluator:** Jämför svar mot golden-facit och evidenskrav. Mäter fullständighet, korrekthet, kostnad, latens och stabilitet efter revisioner.
+
+**Policy trainer:** Tränas offline på körloggar. Policyversion och träningsdata-version loggas för reproducerbarhet.
+
+## 6. Första experimentet: minsta användbara gym
+
+**Syfte:** Testa om spekulativ budgetfördelning ger högre verifierad svarskvalitet per Sweycoin än en enkel baslinje.
+
+**Material:** Ett fryst urval Golden Questions med facit, grupperade efter svårighetsgrad och frågetyp. Börja smått och reservera separata frågor för sluttest.
+
+**Armar:**
+
+- A: Sekventiell prioritet — deterministisk → JEV → LLM.
+- B: Parallell körning med lika startbudget och deterministisk fortsättningsregel.
+- C: Parallell körning med adaptiv budget baserad på observerade framsteg.
+- D (senare): Liten inlärd policy.
+- E (ännu senare): Flera portföljer med begränsad delegering mellan strategier.
+
+**Körprotokoll:**
+
+1. Tilldela varje fråga ett totalt resurstak och samma datatillgång.
+2. Starta tillåtna grenar med liten initial budget.
+3. Logga kostnad och verifierbara delresultat efter varje budgetkvantum.
+4. Stoppa uppenbart misslyckade vägar; ge mer budget till lovande vägar inom taket.
+5. Publicera eventuellt preliminära svar, men använd bara verifierade svar för huvudpoängen.
+6. Bedöm slutresultat mot facit och spara komplett körspår.
+7. Upprepa över frågor och slumpfrön; jämför kvalitet–kostnad-kurvor, latens och feltyper.
+
+**Mätvärden:** Accuracy/facitmatch, evidensfullständighet, kostnad per korrekt svar, P50/P95-latens, andel frågor lösta inom budget, antal onödiga anrop, antal revisioner och återanvänd cache.
+
+**Exempel på virtuell belöning:** `reward = difficulty_weight × verified_quality × base_payout − sweycoins_spent`. Detta är endast en startformel. Rapportera även de separata komponenterna; annars kan en sammanvägd poäng dölja regressionsfel.
+
+## 7. Viktiga risker och kontrollpunkter
+
+- **Tidiga framsteg kan vilseleda:** Ett spår kan se lovande ut men aldrig nå korrekt slutsats. Mät fullständiga utfall, inte bara progress-score.
+- **Träningsbias:** Historiska loggar innehåller främst de vägar som tidigare fick budget. Kontrollerad exploration behövs för att jämföra alternativ rättvist.
+- **Reward hacking:** Belöningsfunktionen kan exploateras. Håll facit åtskilt från strategierna och utvärdera på okända frågor.
+- **Kostnadsexplosion:** Globala och per-gren-budgettak gäller alltid, även vid delegation och retries.
+- **Spekulativa bieffekter:** Externa, irreversibla handlingar får inte köras från preliminära resultat utan explicit commit-policy.
+- **Motsägande resultat:** Behåll båda evidenskedjorna och märk konflikten; skriv inte över tidigare svar tyst.
+- **Överanpassning:** Ett gym med få frågor räcker inte för att påstå att en policy generaliserar.
+
+## 8. Föreslagen genomförandeordning
+
+**Fas 0 — Instrumentera:** Kostnadsledger, Sweycoin-tariffer, reproducerbara körloggar och kvalitetsevaluator.
+
+**Fas 1 — Deterministisk budget:** Små initiala anslag, fail-fast, globala tak och cacheåteranvändning. Ingen tränad modell.
+
+**Fas 2 — Levande svar:** Versionshantering, preliminärhetspropagering och selektiv omkörning. Börja med read-only researchsteg.
+
+**Fas 3 — Lärande:** Träna en liten policy offline, kör i shadow mode och jämför med fas 1 på held-out frågor.
+
+**Fas 4 — Marknadsgym:** Virtuella portföljer, belöning för svåra verifierade frågor och begränsad delegering. Jämför mot central budgetfördelare.
+
+**Fas 5 — Skalning:** Större och mer heterogena korpusar, gradvis mot Epstein-filerna som stresstest för ingestion, retrieval, provenance, cache och research.
+
+## 9. Vad som är beslutat respektive öppet
+
+**Gemensam riktning:** Experimentera med Sweycoins, budgeterad spekulation, levande resultat och inlärd strategioptimering i SWE:s researchmotor.
+
+**Öppet:** Prissättning, budgetkvantum, kvalitetsmått, svårighetsvikter, modellfamiljer, policy för preliminära beroenden, belöningsfördelning vid delegation och exakt Overgraph-schema.
+
+**Rekommenderat första kodsteg:** Bygg en append-only Sweycoin-ledger och ett reproducerbart benchmark som jämför sekventiell exekvering mot parallell exekvering med liten startbudget. Lägg inte till portföljmarknaden förrän detta kan mätas.
+
+---
+
+**Kärnhypotes:** SWE kan leverera fler verifierat korrekta researchsvar per resursenhet genom att spekulativt utforska flera vägar, lära av tidigare utfall och omfördela budget — utan att kompromissa med spårbarhet och kostnadstak.
