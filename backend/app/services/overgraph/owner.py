@@ -21,6 +21,7 @@ from overgraph import OverGraphError
 
 from app.services.overgraph.catalogs import open_catalog
 from app.services.overgraph.owner_execution import LagMonitor, ReadExecutor
+from app.services.overgraph.owner_locks import enable_lock_probe, enable_read_write_lock, lock_report
 from app.services.overgraph.owner_client import (
     IdempotencyConflict,
     MutationRequest,
@@ -77,6 +78,8 @@ class OvergraphOwner:
         self.max_queue = max_queue
         self.sync_on_commit = sync_on_commit
         self.profile_lag = False
+        self.profile_locks = False
+        self.lock_mode = "global"
         self.read_workers = 4
         self._reads: ReadExecutor | None = None
         self._write_executor = ThreadPoolExecutor(
@@ -96,6 +99,10 @@ class OvergraphOwner:
     async def start(self) -> None:
         self.socket_path.parent.mkdir(parents=True, exist_ok=True)
         self.socket_path.unlink(missing_ok=True)
+        if self.lock_mode == "read_write":
+            enable_read_write_lock(self.catalog)
+        if self.profile_locks:
+            enable_lock_probe(self.catalog)
         self._reads = ReadExecutor(self.catalog, self.metrics, self.read_workers)
         self._worker = asyncio.create_task(self._run_worker())
         if self.profile_lag:
@@ -166,6 +173,7 @@ class OvergraphOwner:
                     "sync_on_commit": self.sync_on_commit,
                     "read_revision": self.read_revision,
                     "metrics": self.metrics.__dict__,
+                    "catalog_lock": lock_report(self.catalog),
                 }) + "\n").encode())
                 await writer.drain()
                 return

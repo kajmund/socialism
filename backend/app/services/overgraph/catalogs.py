@@ -10,18 +10,16 @@ from pathlib import Path
 from typing import Any, Literal, TypeVar
 
 from overgraph import OverGraph
-
 from app.services.overgraph.labels import (
     FACT,
     TEXT_UNIT,
     visible_scope_labels,
 )
+from app.services.overgraph.owner_locks import read_guard
 from app.services.overgraph.model import GraphRecord
-
 T = TypeVar("T")
 
 CatalogKind = Literal["knowledge", "memory"]
-
 
 def _as_dict(value: object) -> dict[str, Any]:
     if value is None:
@@ -71,6 +69,8 @@ class Catalog:
         self.dimension = dimension
         self.path = path
         self._lock = threading.RLock()
+        self.lock_mode = "global"
+        self._lock_probe = False
 
     def close(self) -> None:
         with self._lock:
@@ -80,7 +80,7 @@ class Catalog:
 
     def read(self, fn: Callable[[Any], T]) -> T:
         """Run a read under the catalog lock so it cannot overlap a write."""
-        with self._lock:
+        with read_guard(self):
             return fn(self._db)
 
     def sync(self) -> None:
@@ -107,11 +107,11 @@ class Catalog:
             shutil.copytree(self.path, dest, dirs_exist_ok=True)
 
     def count_nodes_by_labels(self, labels: Sequence[str]) -> int:
-        with self._lock:
+        with read_guard(self):
             return int(self._db.count_nodes_by_labels(list(labels)))
 
     def count_edges_by_label(self, label: str) -> int:
-        with self._lock:
+        with read_guard(self):
             return int(self._db.count_edges_by_label(label))
 
     def ingest_mode(self) -> None:
@@ -190,18 +190,18 @@ class Catalog:
             })
 
     def get_by_key(self, label: str, key: str) -> GraphRecord | None:
-        with self._lock:
+        with read_guard(self):
             view = self._db.get_node_by_key(label, key)
         if view is None:
             return None
         return _record(view)
 
     def get_edge_by_triple(self, source: int, target: int, label: str):
-        with self._lock:
+        with read_guard(self):
             return self._db.get_edge_by_triple(source, target, label)
 
     def get(self, engine_id: int) -> GraphRecord | None:
-        with self._lock:
+        with read_guard(self):
             view = self._db.get_node(engine_id)
         if view is None:
             return None
@@ -217,7 +217,7 @@ class Catalog:
         return str(getattr(info, "state", "unknown"))
 
     def find_nodes(self, label: str, prop_key: str, prop_value: Any) -> list[int]:
-        with self._lock:
+        with read_guard(self):
             return self._db.find_nodes(label, prop_key, prop_value).to_list()
 
     def find_nodes_paged(
@@ -229,7 +229,7 @@ class Catalog:
         limit: int | None = None,
         after: int | None = None,
     ) -> tuple[list[int], int | None]:
-        with self._lock:
+        with read_guard(self):
             page = self._db.find_nodes_paged(
                 label, prop_key, prop_value, limit=limit, after=after,
             )
@@ -238,7 +238,7 @@ class Catalog:
     def find_nodes_by_time_range(
         self, label: str, from_ms: int, to_ms: int,
     ) -> list[int]:
-        with self._lock:
+        with read_guard(self):
             return self._db.find_nodes_by_time_range(label, from_ms, to_ms).to_list()
 
     def find_nodes_by_time_range_paged(
@@ -250,7 +250,7 @@ class Catalog:
         limit: int | None = None,
         after: int | None = None,
     ) -> tuple[list[int], int | None]:
-        with self._lock:
+        with read_guard(self):
             page = self._db.find_nodes_by_time_range_paged(
                 label, from_ms, to_ms, limit=limit, after=after,
             )
@@ -272,13 +272,13 @@ class Catalog:
             request["limit"] = limit
         if after is not None:
             request["after"] = after
-        with self._lock:
+        with read_guard(self):
             page = self._db.query_nodes(request)
         items = [_record(item) for item in (getattr(page, "items", None) or [])]
         return items, getattr(page, "next_cursor", None)
 
     def get_nodes(self, node_ids: Sequence[int]) -> list[GraphRecord | None]:
-        with self._lock:
+        with read_guard(self):
             views = self._db.get_nodes(list(node_ids))
         return [None if view is None else _record(view) for view in views]
 
@@ -301,7 +301,7 @@ class Catalog:
             kwargs["scope_max_depth"] = scope_max_depth or 2
         if fusion_mode is not None:
             kwargs["fusion_mode"] = fusion_mode
-        with self._lock:
+        with read_guard(self):
             hits = self._db.vector_search(mode, **kwargs)
         return [(_engine_id(hit), float(getattr(hit, "score", 0.0))) for hit in hits]
 
@@ -316,7 +316,7 @@ class Catalog:
         kwargs: dict[str, Any] = {"algorithm": algorithm, "max_results": max_results}
         if edge_label_filter is not None:
             kwargs["edge_label_filter"] = list(edge_label_filter)
-        with self._lock:
+        with read_guard(self):
             result = self._db.personalized_pagerank(list(seed_ids), **kwargs)
         ids = list(getattr(result, "node_ids", ()))
         scores = list(getattr(result, "scores", ()))
@@ -325,7 +325,7 @@ class Catalog:
     def top_k_neighbors(
         self, engine_id: int, k: int, *, direction: str = "outgoing",
     ) -> list[tuple[int, float]]:
-        with self._lock:
+        with read_guard(self):
             hits = self._db.top_k_neighbors(engine_id, k, direction=direction)
         return [(_engine_id(hit), float(getattr(hit, "weight", getattr(hit, "score", 0.0))))
                 for hit in hits]
@@ -339,7 +339,7 @@ class Catalog:
             kwargs["edge_label_filter"] = list(edge_label_filter)
         if limit is not None:
             kwargs["limit"] = limit
-        with self._lock:
+        with read_guard(self):
             entries = self._db.neighbors(engine_id, **kwargs)
         return [_engine_id(getattr(entry, "node_id", entry)) for entry in entries]
 
@@ -351,7 +351,7 @@ class Catalog:
         kwargs: dict[str, Any] = {"direction": direction, "limit": limit}
         if edge_label_filter is not None:
             kwargs["edge_label_filter"] = list(edge_label_filter)
-        with self._lock:
+        with read_guard(self):
             entries = self._db.neighbors(engine_id, **kwargs)
             rows: list[dict[str, Any]] = []
             for entry in entries:
@@ -374,7 +374,7 @@ class Catalog:
     def traverse(
         self, engine_id: int, max_depth: int, *, direction: str = "outgoing",
     ) -> list[tuple[int, int]]:
-        with self._lock:
+        with read_guard(self):
             result = self._db.traverse(engine_id, max_depth, direction=direction)
         items = getattr(result, "items", result)
         if isinstance(items, dict):

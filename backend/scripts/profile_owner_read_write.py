@@ -83,20 +83,23 @@ def _vector(group: int = 0) -> list[float]:
     return vector
 
 
-def _spawn(root: Path, *, read_workers: int) -> subprocess.Popen[str]:
+def _spawn(root: Path, *, read_workers: int, lock_mode: str) -> subprocess.Popen[str]:
     argv = [
         sys.executable, "-m", "app.services.overgraph.owner",
         str(root / "catalog"), "--socket", str(root / "owner.sock"),
         "--dimension", str(DIMENSION), "--no-sync", "--profile-lag",
-        "--read-workers", str(read_workers),
+        "--profile-locks", "--read-workers", str(read_workers),
+        "--lock-mode", lock_mode,
     ]
     return subprocess.Popen(
         argv, cwd=BACKEND, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
     )
 
 
-async def _start(root: Path, *, read_workers: int) -> tuple[subprocess.Popen[str], OwnerClient]:
-    process = _spawn(root, read_workers=read_workers)
+async def _start(
+    root: Path, *, read_workers: int, lock_mode: str,
+) -> tuple[subprocess.Popen[str], OwnerClient]:
+    process = _spawn(root, read_workers=read_workers, lock_mode=lock_mode)
     deadline = time.monotonic() + 20
     while time.monotonic() < deadline:
         try:
@@ -178,8 +181,10 @@ def _tail(after: dict[str, Any], name: str, count: int) -> list[float]:
     return after[name][-count:] if count else []
 
 
-async def _measure_mode(root: Path, *, read_workers: int) -> dict[str, Any]:  # noqa: PLR0915
-    process, client = await _start(root, read_workers=read_workers)
+async def _measure_mode(  # noqa: PLR0915
+    root: Path, *, read_workers: int, lock_mode: str,
+) -> dict[str, Any]:
+    process, client = await _start(root, read_workers=read_workers, lock_mode=lock_mode)
     try:
         await _seed(client)
         before = await _metrics(client)
@@ -282,8 +287,11 @@ async def _measure_mode(root: Path, *, read_workers: int) -> dict[str, Any]:  # 
                 "owner_reads": after_bound["read_ops"] - before_bound["read_ops"],
                 "owner_read_bytes": after_bound["read_bytes"] - before_bound["read_bytes"],
             }
+        lock_report = (await client.health()).get("catalog_lock", {})
         return {
             "read_workers": read_workers,
+            "lock_mode": lock_mode,
+            "catalog_lock": lock_report,
             "baseline": baseline_parts,
             "phases": phases,
             "bounds_at_8_readers": bounds,
@@ -306,10 +314,12 @@ async def main() -> int:
     parser.add_argument("--json", default="")
     args = parser.parse_args()
     report = {}
-    for read_workers in (0, 4, 8):
-        root = Path(tempfile.mkdtemp(prefix=f"owner-profile-{read_workers}-"))
-        report["inline" if read_workers == 0 else f"workers_{read_workers}"] = (
-            await _measure_mode(root, read_workers=read_workers)
+    for read_workers, lock_mode in (
+        (0, "global"), (4, "global"), (4, "read_write"), (8, "read_write"),
+    ):
+        root = Path(tempfile.mkdtemp(prefix=f"owner-profile-{read_workers}-{lock_mode}-"))
+        report[f"workers_{read_workers}_{lock_mode}"] = await _measure_mode(
+            root, read_workers=read_workers, lock_mode=lock_mode,
         )
     print(json.dumps(report, indent=2))
     if args.json:
