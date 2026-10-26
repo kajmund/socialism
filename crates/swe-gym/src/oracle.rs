@@ -82,6 +82,60 @@ pub fn oracle_value(config: &EnvConfig, qtype: u8, budget_milli: Amount) -> i64 
     dp.value(start)
 }
 
+/// The total cost of one optimal-value path — the stop-decision reference:
+/// how much a policy that achieves the oracle value should spend.
+pub fn oracle_policy_cost(config: &EnvConfig, qtype: u8, budget_milli: Amount) -> Amount {
+    let mut dp = Dp {
+        config: config.clone(),
+        qtype,
+        total_coins: (budget_milli / 1_000) as u8,
+        memo: HashMap::new(),
+    };
+    let mut state = State {
+        budget_coins: dp.total_coins,
+        tiers: [0; STRATEGY_COUNT],
+    };
+    let mut spent = 0;
+    // Walk one optimal path: pick the first action whose continuation
+    // reaches the state's optimal value (ties -> finish).
+    loop {
+        let target = dp.value(state);
+        let spent_here = (dp.total_coins - state.budget_coins) as u64 * 1_000;
+        if target == terminal_reward(&config, qtype, &state.tiers, spent_here) {
+            return spent;
+        }
+        let mut found = false;
+        for s in 0..STRATEGY_COUNT {
+            for amount_coins in [1u8, 5, 10, 20] {
+                if amount_coins > state.budget_coins {
+                    continue;
+                }
+                let amount_milli = amount_coins as u64 * 1_000;
+                let gained = gain_tiers(&config, qtype, s, state.tiers[s], amount_milli);
+                if gained == 0 {
+                    continue;
+                }
+                let mut tiers = state.tiers;
+                tiers[s] += gained;
+                let next = State {
+                    budget_coins: state.budget_coins - amount_coins,
+                    tiers,
+                };
+                if dp.value(next) == target {
+                    state = next;
+                    spent += amount_milli;
+                    found = true;
+                    break;
+                }
+            }
+            if found {
+                break;
+            }
+        }
+        assert!(found, "optimal path must continue or finish");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

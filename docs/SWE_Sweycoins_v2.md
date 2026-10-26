@@ -175,9 +175,11 @@ Implementation: `crates/swe-gym/src/{env,agent,oracle,train}.rs`, tester i `test
 |---|---|
 | lika fördelning | 95 312 |
 | sekventiell | 84 062 |
-| heuristisk adaptiv | 49 062 |
+| heuristisk adaptiv | 99 062 |
 | **mc-q-learner** | **128 500** |
 | orakel | 132 500 |
+
+Not: den adaptiva baslinjen fick en platå-stoppregel efter att steg 6 avslöjat att EMA-regeln aldrig når exakt 0 och därför aldrig slutar (49k → 99k; learen vinner fortfarande, testerna om-pinnade).
 
 Kalibreringsgrinden: orakel / bästa baslinje = 1.39 (krav ≥ 1.10) ✓ · learen 97 % av orakel ✓ · kriterier 1–4, 6, 7 gröna i CI-tester. Kriterium 5 (verklig bänk) kvarstår — steg 6, utvärdering mot de frysta verkliga frågorna.
 
@@ -202,7 +204,7 @@ RealEnv-design: A = JEV-scan i likhetsordning (arm H:s motor, 1 coin/chunk), B =
 
 Tre dokumenterade överföringsblockerare: (1) frågetyp-regeln är en godtycklig proxy — syntetiska typer har ingen semantisk motsvarighet i verkliga drag; (2) tier-semantiken (0–4 per strategi) kan inte uttrycka det verkliga framstegssignalen (fynd-antal) — verkliga baslinjer behöver `obs.found`; (3) den verkliga bänkens lärbara marginal är densamma som v1 mätte: ordning (arm H 38/26/47/18/16 vs C\* 20/13/34/13/7 scans), inte budgetallokering över strategier — med bara en bra strategi och en dominerad finns ingen allokeringsstruktur att lära.
 
-**Beslutspunkt (cratens exit criteria):** v2:s hypotes ("budgetallokering över strategier är ett bredare problem än skanningsordning") stöds **inte** av frysta verkliga data i denna POC-form. Experimentets svar: learen kan lära sig allokering när signalen finns (11.1) men den syntetiskt tränade policyn överförs inte (11.2). Nästa steg om hypotesen ska leva: träna learen **i den verkliga miljöns gränssnitt** — det kräver antingen verkliga träningsfrågor (vi har 5) eller en syntetisk miljö kalibrerad mot verkliga tier-/fynd-dynamiker, plus frågetyp från embeddings i stället för chunk-count. Alternativet: avsluta budget-RL-spåret och behålla det som experimentet faktiskt bevisat om och om igen — ordningen är värdet, och arm H har redan den.
+**Korrigerad slutsats (efter granskning):** det som mätts är att *överföringen* från syntetisk träning till verklig miljö misslyckades — **inte** att idén om en lärande budgetförvaltare är falsifierad. Två skäl till att slutsatsen inte får dras längre: (1) den frysta bänken har bara **en** förmåga med data (JEV-scan; deep/LLM saknas), så nivå-2-frågan — allokering *mellan* retrieval/JEV/LLM — kunde aldrig ställas där; (2) stoppmisslyckandet är ett gränssnittsfel: learen tränade mot tier-semantik som den verkliga miljön inte producerar, och dess tillstånd saknade den signal (fynd-platå) som ett rationellt stoppbeslut kräver. Nästa steg är därför inte att avsluta spåret utan att bygga nivå-2-gymmet med tre genuint olika förmågor — se §12.
 
 ## 12. Punkter i specen att justera före implementation
 
@@ -212,3 +214,35 @@ Tre dokumenterade överföringsblockerare: (1) frågetyp-regeln är en godtyckli
 4. **§9 POC A-arm:** A bör vara v1:s tvåfasscanner (arm H) — retrieval-ordningen stod för nästan hela vinsten på den verkliga bänken; det är den realistiska retrievalstrategin.
 5. **§4 Kostnadstabell:** kalibrera mot uppmätt förbrukning i v1:s fixtures istället för platshållarvärden; indexets capital accounting finns redan (78 coins engångskostnad).
 6. **§10 Modellmarknad:** rätt att hålla utanför POC; notera att ledgerns `transfer`/`reward`-konton redan är byggstenen för virtuella portföljer när den fasen kommer.
+
+## 12. Två nivåer: budget och strategi — och nästa experiment
+
+**Arkitekturfrågan (fördelar RL mellan färdiga workflows, eller investerar den i enskilda operationer inuti ett workflow?): båda — på två nivåer med en hård söm.**
+
+- **Nivå 1 (inuti ett workflow):** vilken chunk som skannas härnäst, när JEV kontra lookup, eskaleringströsklar. Högfrekventa, billiga beslut. Policy: fast och beprövad — arm H:s tvåfasscanner. (V1 mätte att RL:s marginalvärde här ≈ 0.)
+- **Nivå 2 (mellan workflows/förmågor):** `INVEST(förmåga, belopp)`, paus, stopp, avsluta. Lågfrekventa, dyra beslut — budgetförvaltarens hela jobb.
+- **Sömmen = förmågans gränssnitt:** `invest(amount) → {kostnad, framsteg, delresultat}`. Budgetförvaltaren lär sig förväntad förbättring per coin per förmåga per frågetyp — aldrig *hur* JEV skannar ett dokument. Exakt användarens skiss: RL Budget Manager ovanpå Retrieval/graf, JEV/analys, LLM/research, med kvalitet/kostnad/framsteg/belöning tillbaka, och verifierat resultat + ledger under.
+- Produktionsmotsvarighet: budgetrader i `loop_control.ResearchWaveConfig` (budgetförvaltarens söm), `fast_controller` (JEV), `result_store`/`answer_graph` (verifierade resultat), ledgern (kostnad).
+
+**Nästa experiment — nivå-2-gym med tre genuina förmågor (implementerat, `env::capability_config`):**
+
+- A = retrieval/graftraversering (billig, kvalitetstak 0.5 — hittar evidens, resonerar inte), B = JEV-analys (mittenpris, tak 0.75 — verifierar), C = narrativ LLM (dyr, tak 1.0 — resonerar). Per-tier-kostnader som stiger → avtagande marginalavkastning, dvs. den mättnadssignal ett stoppbeslut kräver.
+- Fyra frågetyper med distinkta optimala mixar (DP-verifierade): t0 retrieval-ledd A3+B2+C1, t1 JEV-ledd B4+C1, t2 LLM ensam C4, t3 balanserad A3+B2+C1. **Ingen strategi är alltid bäst.**
+- Facit finns bara i terminalbelöningen — aldrig i observationen (kvalitet avslöjas vid episodslut).
+
+**Uppmätt (held-out = 8 osedda frågor, budgets 60k/140k):**
+
+| Arm | Medel |
+|---|---|
+| lika fördelning | 58 750 |
+| sekventiell | 35 625 |
+| adaptiv (med platå-stopp) | 58 750 |
+| **mc-q-learner** | **81 250** |
+| orakel | 86 250 |
+
+Grind: 1.47 (krav ≥ 1.10) ✓ · learen 94 % av oraklet ✓ · **stoppbeslutet: learen spenderar 150k mot oraklets optimala 110k (kvot 1.36, acceptans ≤ 1.5)** — den lär sig alltså att sluta nära optimalt när tillståndet bär mättnadssignalen. Tester: `tests/capability_tests.rs` (4 st, pinnade), rapport: `cargo run --example v2_capabilities`.
+
+Lärdom på vägen: den "enkla adaptiva regeln" var degenererad — EMA-marginalen når aldrig exakt 0, så regeln investerade tills budgeten tog slut (medel 0). Med platå-stopp (3 no-gain → avsluta) blev den 58 750. Samma bugg fanns i RealEnv:s adaptiva baslinje och fixades där. Det är en bra påminnelse om varför baslinjerna måste vara lika genomtänkta som learen.
+
+**Nästa steg:** först när detta fungerar i syntetiska scenarier som liknar verkliga researchförlopp (kalibrerade mot uppmätta fynd-dynamiker, se 11.2), går vi till verkliga Golden Questions — och då krävs ny fryst data för LLM-förmågan (live-capture, env-gated) eftersom den befintliga bänken bara täcker JEV.
+
