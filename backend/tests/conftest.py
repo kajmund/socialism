@@ -201,6 +201,29 @@ async def tenant_owners(monkeypatch):
             shutil.rmtree(root, ignore_errors=True)
 
 
+@pytest.fixture
+async def owner_tenant_catalogs(monkeypatch):
+    """Tenant catalogs served by in-process Owners, with test seed handles."""
+    import app.services.overgraph.owner_registry as owner_registry_module
+    from tests.tenant_catalogs import close_tenant_catalogs, start_tenant_catalogs
+
+    started = []
+
+    async def factory(*, dimension: int, customers: tuple[int, ...] = (1, 2)):
+        catalogs = await start_tenant_catalogs(
+            dimension=dimension, customers=customers,
+        )
+        monkeypatch.setattr(owner_registry_module, "_registry", catalogs.registry)
+        started.append(catalogs)
+        return catalogs
+
+    try:
+        yield factory
+    finally:
+        for catalogs in started:
+            await close_tenant_catalogs(catalogs)
+
+
 class NoopExpertMemory:
     async def search(self, **_kwargs) -> list[ExpertMemoryHit]:
         return []

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from pathlib import Path
 
 import pytest
@@ -20,11 +19,11 @@ from app.services.document_qa.kinds import DOCUMENT_QA_WRITE
 from app.services.document_qa.outbox import enqueue_document_qa
 from app.services.document_qa.retrieve import exact_reuse
 from app.config import settings
-from app.services.document_qa.store import load_question, persist as store_persist
-from app.services.document_qa.tenants import TenantCatalogs, set_tenant_catalogs
+from app.services.document_qa.store import load_question
 from app.services.graph_v2.errors import PermanentGraphError
 from app.services.graph_v2.outbox import process_graph_work
-from app.services.graph_v2.worker import start_graph_owner, stop_graph_owner
+from app.main import _start_graph_worker
+from app.services.graph_v2.worker import stop_graph_ingest_loop
 from app.services.knowledge.units import hash_text
 
 DIM = 8
@@ -79,13 +78,8 @@ async def _seed(session, *, customer_id=1, document_id="doc-1", version_id="ver-
 
 
 @pytest.fixture
-def catalogs(tmp_path):
-    registry = TenantCatalogs(tmp_path, dimension=DIM)
-    set_tenant_catalogs(registry)
-    try:
-        yield registry
-    finally:
-        set_tenant_catalogs(None)
+async def catalogs(owner_tenant_catalogs):
+    return await owner_tenant_catalogs(dimension=DIM)
 
 
 @pytest.fixture
@@ -211,12 +205,14 @@ async def test_writeback_releases_the_only_connection(tmp_path, catalogs, monkey
     factory = async_sessionmaker(engine, expire_on_commit=False)
     started = asyncio.Event()
 
-    def blocked(catalog, viewer, write):
+    async def blocked(client, viewer, write):
         started.set()
-        time.sleep(0.2)
-        return store_persist(catalog, viewer, write)
+        await asyncio.sleep(0.2)
+        return await owner_persist(client, viewer, write)
 
-    monkeypatch.setattr("app.services.document_qa.apply.persist", blocked)
+    from app.services.document_qa.owner_qa import persist as owner_persist
+
+    monkeypatch.setattr("app.services.document_qa.apply.persist_owner", blocked)
     async with factory.begin() as session:
         await _seed(session)
         await enqueue_document_qa(session, customer_id=1, write=_write())
@@ -232,13 +228,11 @@ async def test_writeback_releases_the_only_connection(tmp_path, catalogs, monkey
 async def test_graph_loop_can_start_without_research_workers(factory, monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "research_worker_loop_enabled", False)
     monkeypatch.setattr(settings, "graph_ingest_loop_enabled", False)
-    assert start_graph_owner(factory) is None
+    assert _start_graph_worker(False, factory) is None
     monkeypatch.setattr(settings, "graph_ingest_loop_enabled", True)
-    monkeypatch.setattr(settings, "overgraph_dir", str(tmp_path / "og"))
-    monkeypatch.setattr(settings, "embedding_dimension", DIM)
-    task = start_graph_owner(factory)
+    task = _start_graph_worker(False, factory)
     assert task is not None
-    await stop_graph_owner(task)
+    await stop_graph_ingest_loop(task)
 
 
 @pytest.mark.asyncio
@@ -249,7 +243,6 @@ async def test_owner_mode_qa_write_uses_the_tenant_owner(
     from app.services.document_qa.owner_qa_retrieve import exact_reuse as owner_reuse
 
     client = await tenant_owners(1, dimension=DIM)
-    monkeypatch.setattr(settings, "overgraph_tenant_owner_sockets", "1=/tmp/tenant.sock")
     async with factory() as session:
         await _seed(session)
         write = _write()

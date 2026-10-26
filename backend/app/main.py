@@ -53,11 +53,7 @@ from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
 from app.services import retrieval_index
 from app.services.expertgranskning.memory import close_default_expert_memory
-from app.services.graph_v2.worker import (
-    start_graph_ingest_loop,
-    start_graph_owner,
-    stop_graph_owner,
-)
+from app.services.graph_v2.worker import start_graph_ingest_loop, stop_graph_ingest_loop
 from app.services.overgraph.catalogs import (
     OverGraphRuntime,
     OwnerReadRequiredError,
@@ -124,9 +120,7 @@ async def _prepare_graph_access(owner_mode: bool, app: FastAPI) -> None:
 def _start_graph_worker(owner_mode: bool, factory):
     if not settings.graph_ingest_loop_enabled:
         return None
-    if owner_mode:
-        return start_graph_ingest_loop(factory)
-    return start_graph_owner(factory)
+    return start_graph_ingest_loop(factory)
 
 
 def _graph_runtime_for_mode(owner_mode: bool) -> OverGraphRuntime:
@@ -217,7 +211,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
         await _app.state.live_speech_registry.close_all()
         if reclaim_stop is not None:
             await stop_research_reclaim_loop(reclaim_stop)
-        await stop_graph_owner(graph_task)
+        await stop_graph_ingest_loop(graph_task)
         set_knowledge_vector_store_factory(None)
         set_lagen_nu_selector_factory(None)
         if vector_runtime is not None:

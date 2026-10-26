@@ -1,5 +1,4 @@
 """Small handlers behind the common workspace command boundary."""
-import asyncio
 from dataclasses import dataclass
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +26,6 @@ from app.services.document_find import (
     needs_embedding,
     normalize_find_mode,
     presentation_slice,
-    run_find,
     suggested_title,
 )
 from app.services.document_find.id_map import (
@@ -36,11 +34,7 @@ from app.services.document_find.id_map import (
     readable_source_ids_for_documents,
 )
 from app.services.document_qa.owner_find import run_find as run_owner_find
-from app.services.document_qa.tenant_access import (
-    require_tenant_owner,
-    tenant_owners_enabled,
-)
-from app.services.document_qa.tenants import require_tenant_catalogs
+from app.services.overgraph.owner_registry import tenant_owner_client
 from app.services.knowledge.embeddings import OpenAIEmbeddingProvider, require_embedding_vectors
 from app.services.workspace_document_context import (
     created_document_read,
@@ -120,12 +114,7 @@ async def find_documents(context: ToolContext, arguments: dict) -> dict:
             limit=args.limit,
             allowed=frozenset(allowed_documents),
         )
-        if tenant_owners_enabled():
-            result = await run_owner_find(
-                require_tenant_owner(customer_id), request,
-            )
-        else:
-            result = await asyncio.to_thread(_find_in_catalog, request)
+        result = await run_owner_find(tenant_owner_client(customer_id), request)
     else:
         result = empty_scope_result(args.query)
     await require_workspace(session, workspace.id, context.user)
@@ -172,11 +161,6 @@ async def find_documents(context: ToolContext, arguments: dict) -> dict:
         "db_ms": result.db_ms,
         "total_ms": result.total_ms,
     }
-
-
-def _find_in_catalog(request: FindRequest) -> FindResult:
-    """Blocking tenant-catalog open + search. Run via asyncio.to_thread only."""
-    return run_find(require_tenant_catalogs().open_for(request.customer_id), request)
 
 
 async def _find_query_embedding(query: str) -> tuple[float, ...]:
