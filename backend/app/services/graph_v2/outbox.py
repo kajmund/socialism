@@ -23,6 +23,7 @@ from app.services.knowledge.entities import KnowledgeEntity
 
 logger = logging.getLogger(__name__)
 LEASE = timedelta(minutes=5)
+DOCUMENT_KINDS = (DOCUMENT_CATALOG_WRITE, DOCUMENT_QA_WRITE)
 
 
 async def enqueue_legal_graph(
@@ -74,14 +75,25 @@ def _deserialize(work: GraphIngestWork):
     return claims, entities, module
 
 
-async def claim_graph_work(factory: async_sessionmaker[AsyncSession]) -> tuple[str, int] | None:
+async def claim_graph_work(
+    factory: async_sessionmaker[AsyncSession],
+    *,
+    kinds: Sequence[str] | None = None,
+) -> tuple[str, int] | None:
     now = datetime.now(UTC)
+    conditions = [
+        or_(GraphIngestWork.status == "pending",
+            (GraphIngestWork.status == "processing")
+            & (GraphIngestWork.claimed_at < now - LEASE)),
+        or_(GraphIngestWork.retry_at.is_(None), GraphIngestWork.retry_at <= now),
+    ]
+    if kinds:
+        conditions.append(or_(*[
+            GraphIngestWork.payload["kind"].as_string() == kind for kind in kinds
+        ]))
     async with factory.begin() as session:
         row = await session.scalar(select(GraphIngestWork).where(
-            or_(GraphIngestWork.status == "pending",
-                (GraphIngestWork.status == "processing")
-                & (GraphIngestWork.claimed_at < now - LEASE)),
-            or_(GraphIngestWork.retry_at.is_(None), GraphIngestWork.retry_at <= now),
+            *conditions,
         ).order_by(GraphIngestWork.created_at, GraphIngestWork.id)
           .limit(1).with_for_update(skip_locked=True))
         if row is None:
@@ -96,11 +108,12 @@ async def claim_graph_work(factory: async_sessionmaker[AsyncSession]) -> tuple[s
 async def process_graph_work(
     factory: async_sessionmaker[AsyncSession], *, limit: int = 50,
     embedder: EmbeddingProvider | None = None,
+    kinds: Sequence[str] | None = None,
 ) -> dict[str, int]:
     completed = failed = 0
     provider: GraphEmbeddingCacheProvider | EmbeddingProvider | None = None
     for _ in range(limit):
-        claim = await claim_graph_work(factory)
+        claim = await claim_graph_work(factory, kinds=kinds)
         if claim is None:
             break
         work_id, attempt = claim

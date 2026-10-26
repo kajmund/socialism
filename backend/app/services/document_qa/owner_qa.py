@@ -141,6 +141,13 @@ def _question_from(
     )
 
 
+def _document_props(existing: dict[str, Any] | None, document_id: str) -> dict[str, Any]:
+    props = dict(existing or {})
+    props["document_id"] = document_id
+    props["archived"] = int(props.get("archived") or 0)
+    return props
+
+
 def _question_node(
     write: QaWrite,
     viewer: Viewer,
@@ -203,10 +210,7 @@ async def persist(
             raise ValueError("source TextUnit belongs to another document version")
 
     batch = GraphBatch()
-    document_props = {
-        "document_id": write.document_id,
-        "archived": int((document or {}).get("archived") or 0),
-    }
+    document_props = _document_props(document, write.document_id)
     batch.nodes.append(make_node(CANONICAL_DOCUMENT, write.document_id, document_props))
     batch.nodes.append(
         make_node(

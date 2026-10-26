@@ -10,7 +10,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from app.database.graph_v2 import GraphIngestWork
 from app.services.document_qa.outbox import qa_from_payload, require_owned_version
+from app.services.document_qa.owner_qa import persist as persist_owner
 from app.services.document_qa.store import persist
+from app.services.document_qa.tenant_access import (
+    require_tenant_owner,
+    tenant_owners_enabled,
+)
 from app.services.document_qa.tenants import require_tenant_catalogs
 from app.services.graph_v2.errors import PermanentGraphError
 
@@ -29,8 +34,11 @@ async def apply_document_qa_work(
         except (ValueError, TypeError, KeyError) as exc:
             raise PermanentGraphError("document_qa_write payload is invalid") from exc
         await require_owned_version(session, customer_id, write)
-    catalogs = require_tenant_catalogs()
-    await asyncio.to_thread(persist, catalogs.open_for(customer_id), viewer, write)
+    if tenant_owners_enabled():
+        await persist_owner(require_tenant_owner(customer_id), viewer, write)
+    else:
+        catalogs = require_tenant_catalogs()
+        await asyncio.to_thread(persist, catalogs.open_for(customer_id), viewer, write)
     async with factory.begin() as session:
         result = await session.execute(update(GraphIngestWork).where(
             GraphIngestWork.id == work_id,

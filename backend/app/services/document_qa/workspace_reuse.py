@@ -13,11 +13,17 @@ from app.services.document_qa.from_workspace import (
     workspace_question,
 )
 from app.services.document_qa.outbox import require_owned_ids
+from app.services.document_qa.owner_qa_retrieve import exact_reuse as exact_reuse_owner
 from app.services.document_qa.retrieve import exact_reuse
+from app.services.document_qa.tenant_access import (
+    require_tenant_owner,
+    tenant_owners_enabled,
+)
 from app.services.document_qa.tenants import get_tenant_catalogs
 from app.services.document_qa.types import ExactHit, LoadedCite
 from app.services.graph_v2.errors import PermanentGraphError
 from app.services.overgraph.catalogs import Catalog
+from app.services.overgraph.owner import OwnerClient
 
 
 async def try_reuse_workspace_answer(session: AsyncSession, job_id: str) -> dict | None:
@@ -26,8 +32,9 @@ async def try_reuse_workspace_answer(session: AsyncSession, job_id: str) -> dict
     if saved is not None or job is None:
         return saved
     asked = workspace_question(job)
+    owner_mode = tenant_owners_enabled()
     catalogs = get_tenant_catalogs()
-    if asked is None or catalogs is None or job.result:
+    if asked is None or job.result or (not owner_mode and catalogs is None):
         return None
     try:
         await require_owned_ids(
@@ -38,7 +45,12 @@ async def try_reuse_workspace_answer(session: AsyncSession, job_id: str) -> dict
         return None
     chat_id = str(job.request.get("chat_id") or "")
     await session.rollback()
-    hit = exact_hit_for_question(catalogs.open_for(asked.customer_id), asked)
+    if owner_mode:
+        hit = await exact_hit_for_question_owner(
+            require_tenant_owner(asked.customer_id), asked,
+        )
+    else:
+        hit = exact_hit_for_question(catalogs.open_for(asked.customer_id), asked)
     if hit is None or not chat_id:
         return None
     result = result_from_hit(hit, asked.source_object_id)
@@ -53,6 +65,24 @@ def _finished_answer(job: Job | None) -> dict | None:
     if saved.get("answer"):
         return saved
     return None
+
+
+async def exact_hit_for_question_owner(
+    client: OwnerClient, asked: WorkspaceQuestion,
+) -> ExactHit | None:
+    return await exact_reuse_owner(
+        client,
+        Viewer(
+            customer_id=asked.customer_id,
+            workspace_id=asked.workspace_id,
+            readable_document_ids=frozenset({asked.document_id}),
+            readable_version_ids=frozenset({asked.document_version_id}),
+        ),
+        question_text=asked.question,
+        document_id=asked.document_id,
+        document_version_id=asked.document_version_id,
+        contract=workspace_analysis_contract(),
+    )
 
 
 def exact_hit_for_question(catalog: Catalog, asked: WorkspaceQuestion) -> ExactHit | None:
