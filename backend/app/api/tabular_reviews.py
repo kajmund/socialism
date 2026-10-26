@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.auth.dependencies import get_current_user
 from app.database.models import UserAccount
 from app.services.clause_ssr import owner_select
-from app.services.clause_ssr.select import get_anchor_set, list_anchor_sets
 from app.database.session import get_session
 from app.database.tabular_review import TabularReview, TabularReviewCell, TabularReviewVerificationLabel
 from app.schemas.tabular_review import (
@@ -21,10 +19,8 @@ from app.schemas.tabular_review import (
     TabularReviewCreate,
     TabularReviewUpdate,
 )
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.owner_text_units import load_version_vectors
-from app.services.overgraph.text_units import load_text_units
 from app.services.tabular_review.access import require_tabular_review_kund
 from app.services.tabular_review.run import fill_review
 from app.services.tabular_review.serialize import (
@@ -58,13 +54,9 @@ def _error(exc: TabularReviewError) -> HTTPException:
 
 
 async def _embeddings_from_catalog(document_version_id: str) -> dict[str, list[float]]:
-    owner = get_owner_runtime().client
-    if owner is not None:
-        return await load_version_vectors(owner, document_version_id)
-    rows = await asyncio.to_thread(
-        load_text_units, require_knowledge(), document_version_id=document_version_id,
+    return await load_version_vectors(
+        get_owner_runtime().require_client(), document_version_id,
     )
-    return {row.key: list(row.dense_vector) for row in rows if row.dense_vector}
 
 
 async def _gated_review(session: AsyncSession, user: UserAccount, review_id: int):
@@ -77,12 +69,9 @@ async def _gated_review(session: AsyncSession, user: UserAccount, review_id: int
 
 
 async def _validate_clause_column(anchor_set_id: str, label: str) -> None:
-    owner = get_owner_runtime().client
-    if owner is not None:
-        anchor_set = await owner_select.get_anchor_set(owner, anchor_set_id)
-    else:
-        catalog = require_knowledge()
-        anchor_set = await asyncio.to_thread(get_anchor_set, catalog, anchor_set_id)
+    anchor_set = await owner_select.get_anchor_set(
+        get_owner_runtime().require_client(), anchor_set_id,
+    )
     if anchor_set.status != "active":
         raise HTTPException(status_code=400, detail="anchor_set_not_active")
     if anchor_set.category != label:
@@ -104,16 +93,9 @@ async def list_clause_anchors(
     session: AsyncSession = Depends(get_session),
 ) -> list[dict]:
     kund = await require_tabular_review_kund(session, user)
-    owner = get_owner_runtime().client
-    if owner is not None:
-        rows = await owner_select.list_anchor_sets(
-            owner, customer_id=kund.id, active_only=True,
-        )
-    else:
-        catalog = require_knowledge()
-        rows = await asyncio.to_thread(
-            list_anchor_sets, catalog, customer_id=kund.id, active_only=True,
-        )
+    rows = await owner_select.list_anchor_sets(
+        get_owner_runtime().require_client(), customer_id=kund.id, active_only=True,
+    )
     return [
         {
             "id": row.id,
@@ -283,12 +265,11 @@ async def run_tabular_review(
         )
     factory = async_sessionmaker(session.bind, expire_on_commit=False, class_=AsyncSession)
     await session.commit()
-    catalog = None if get_owner_runtime().client is not None else require_knowledge()
     try:
         await fill_review(
             factory,
             review_id,
-            catalog=catalog,
+            catalog=None,
             embeddings_by_document=embeddings,
             customer_id=kund.id,
         )
