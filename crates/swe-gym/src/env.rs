@@ -55,6 +55,9 @@ pub struct Observation {
     pub remaining_milli: Amount,
     pub bracket: u8,
     pub tiers: [u8; STRATEGY_COUNT],
+    /// Verified findings so far — the facit-free progress signal of the
+    /// real env (v1's ScanState.found). Synthetic env: 0 (no hit concept).
+    pub found: u8,
     pub statuses: [Status; STRATEGY_COUNT],
     pub spent_milli: [Amount; STRATEGY_COUNT],
     pub steps: u32,
@@ -451,6 +454,7 @@ impl SweEnv for SyntheticEnv {
             remaining_milli: question.budget_milli,
             bracket: budget_bracket(question.budget_milli),
             tiers: [0; STRATEGY_COUNT],
+            found: 0,
             statuses: [Status::Idle; STRATEGY_COUNT],
             spent_milli: [0; STRATEGY_COUNT],
             steps: 0,

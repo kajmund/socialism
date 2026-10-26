@@ -364,6 +364,7 @@ fn state_indexing_and_brackets_are_stable() {
         remaining_milli: 50_000,
         bracket: budget_bracket(50_000),
         tiers: [1, 2, 3],
+        found: 0,
         statuses: [swe_gym::env::Status::Active; 3],
         spent_milli: [0; 3],
         steps: 0,
