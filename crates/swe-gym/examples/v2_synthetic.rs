@@ -87,4 +87,17 @@ fn main() {
     );
     println!("\n(real-bench criterion: synthetic success alone is not a pass —");
     println!(" the frozen real bench is evaluated separately.)");
+
+    println!("\n-- per-question (learner vs oracle) --");
+    for q in &held_out {
+        let report = swe_gym::train::run_episode(&config, &mut learner, q, 1);
+        let ov = swe_gym::oracle::oracle_value(&config, q.qtype, q.budget_milli);
+        println!(
+            "  {:<20} learner {:>7}   oracle {:>7}   gap {:>6}",
+            q.id,
+            report.reward_milli,
+            ov,
+            ov - report.reward_milli
+        );
+    }
 }
