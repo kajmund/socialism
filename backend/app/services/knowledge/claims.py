@@ -45,11 +45,7 @@ from app.services.overgraph.views import text_unit_view
 from app.services.knowledge.claim_supersession import supersede_graph_claim
 from app.services.overgraph.claim_answers import (
     ClaimAnswerSource,
-    answered_claim_ids,
-    claim_answer_edges,
-    link_claim_answer,
 )
-from app.services.overgraph.legal_claims import supporting_text_units
 from app.services.overgraph.research import load_text_units
 from app.services.overgraph.text_units import load_domain_text_unit
 SUPPORTED_BY = "SUPPORTED_BY"
@@ -223,20 +219,10 @@ async def answer_research_need(
         question_key=question_key,
         scope=claim_scope,
     )
-    client = get_owner_runtime().client
-    if client is not None:
-        existing = set(await owner_answered_claim_ids(
-            client, research_need_id=research_need_id, claim_ids=tuple(claim_ids),
-        ))
-    else:
-        existing = set(
-            await asyncio.to_thread(
-                answered_claim_ids,
-                require_knowledge(),
-                research_need_id=research_need_id,
-                claim_ids=tuple(claim_ids),
-            )
-        )
+    client = get_owner_runtime().require_client()
+    existing = set(await owner_answered_claim_ids(
+        client, research_need_id=research_need_id, claim_ids=tuple(claim_ids),
+    ))
     for claim_id in claim_ids:
         if claim_id in existing:
             continue
@@ -246,21 +232,10 @@ async def answer_research_need(
             relation=ANSWERED_BY,
             created_at_ms=int(utc_now().timestamp() * 1000),
         )
-        if client is not None:
-            await owner_link_answer(
-                client, claim_key=claim_id, scope=claim_scope,
-                question_key=question_key, research_need_id=research_need_id, source=source,
-            )
-        else:
-            await asyncio.to_thread(
-                link_claim_answer,
-                require_knowledge(),
-                claim_key=claim_id,
-                scope=claim_scope,
-                question_key=question_key,
-                research_need_id=research_need_id,
-                source=source,
-            )
+        await owner_link_answer(
+            client, claim_key=claim_id, scope=claim_scope,
+            question_key=question_key, research_need_id=research_need_id, source=source,
+        )
     await session.flush()
 
 
@@ -271,60 +246,32 @@ async def claim_answers_for_question_key(
     question_key: str,
 ) -> list[KnowledgeClaimAnswerHit]:
     """Reuse: claims that answer this question, read from OverGraph."""
-    client = get_owner_runtime().client
-    if client is not None:
-        owner_edges = await owner_claim_answer_edges(
-            client, customer_id=customer_id, question_key=question_key,
-        )
-        hits = []
-        for node, edge_props in owner_edges:
-            claim_props = dict(node.get("props") or {})
-            claim_id = str(node["key"])
-            support = await owner_supporting_text_units(client, claim_id)
-            if not support:
-                raise KnowledgeClaimError(f"claim {claim_id} has no SUPPORTED_BY TextUnits")
-            scope_key = str(claim_props.get("scope_key") or "")
-            customer = int(scope_key.split(":", 1)[1]) if scope_key.startswith("customer:") else None
-            hits.append(KnowledgeClaimAnswerHit(
-                claim=KnowledgeClaim(
-                    id=claim_id,
-                    customer_id=customer,
-                    scope_type="customer" if customer is not None else "shared",
-                    predicate=str(claim_props.get("predicate") or ""),
-                    value=json.loads(str(claim_props.get("value_json") or "{}")),
-                    supporting_text_unit_ids=tuple(support),
-                ),
-                source_type=str(edge_props.get("source_type") or ""),
-                knowledge_question_id=str(edge_props.get("knowledge_question_id") or "") or None,
-                created_at=_created_at(edge_props, None),
-            ))
-        return hits
-    catalog = require_knowledge()
-    edges = await asyncio.to_thread(
-        claim_answer_edges, catalog, customer_id=customer_id, question_key=question_key,
+    client = get_owner_runtime().require_client()
+    owner_edges = await owner_claim_answer_edges(
+        client, customer_id=customer_id, question_key=question_key,
     )
-    hits: list[KnowledgeClaimAnswerHit] = []
-    for node, props in edges:
-        claim_id = str(node.key)
-        support = await catalog.run(supporting_text_units, catalog, claim_id)
+    hits = []
+    for node, edge_props in owner_edges:
+        claim_props = dict(node.get("props") or {})
+        claim_id = str(node["key"])
+        support = await owner_supporting_text_units(client, claim_id)
         if not support:
             raise KnowledgeClaimError(f"claim {claim_id} has no SUPPORTED_BY TextUnits")
-        scope_customer = scope_customer_from_node(node)
-        hits.append(
-            KnowledgeClaimAnswerHit(
-                claim=KnowledgeClaim(
-                    id=claim_id,
-                    customer_id=scope_customer,
-                    scope_type="customer" if scope_customer is not None else "shared",
-                    predicate=str(node.props.get("predicate") or ""),
-                    value=json.loads(str(node.props.get("value_json") or "{}")),
-                    supporting_text_unit_ids=tuple(support),
-                ),
-                source_type=str(props.get("source_type") or ""),
-                knowledge_question_id=str(props.get("knowledge_question_id") or "") or None,
-                created_at=_created_at(props, node),
-            )
-        )
+        scope_key = str(claim_props.get("scope_key") or "")
+        customer = int(scope_key.split(":", 1)[1]) if scope_key.startswith("customer:") else None
+        hits.append(KnowledgeClaimAnswerHit(
+            claim=KnowledgeClaim(
+                id=claim_id,
+                customer_id=customer,
+                scope_type="customer" if customer is not None else "shared",
+                predicate=str(claim_props.get("predicate") or ""),
+                value=json.loads(str(claim_props.get("value_json") or "{}")),
+                supporting_text_unit_ids=tuple(support),
+            ),
+            source_type=str(edge_props.get("source_type") or ""),
+            knowledge_question_id=str(edge_props.get("knowledge_question_id") or "") or None,
+            created_at=_created_at(edge_props, None),
+        ))
     return hits
 
 
@@ -379,26 +326,13 @@ async def _scoped_knowledge_question_id(
 
 async def _claim_scope(session: AsyncSession, claim_id: str) -> KnowledgeTenantScope:
     """Claim scope from SQL, or from the graph node when the claim lives only there."""
-    client = get_owner_runtime().client
-    if client is not None:
-        response = await client.read([{"label": "Claim", "key": claim_id}])
-        props = response["values"].get(f"Claim:{claim_id}")
-        if props is None:
-            raise KnowledgeClaimError(f"claim {claim_id} is missing")
-        scope_key = str(props.get("scope_key") or "")
-        return _scope_from_key(scope_key, claim_id)
-    catalog = require_knowledge()
-    node = catalog.get_by_key("Claim", claim_id)
-    if node is None:
+    client = get_owner_runtime().require_client()
+    response = await client.read([{"label": "Claim", "key": claim_id}])
+    props = response["values"].get(f"Claim:{claim_id}")
+    if props is None:
         raise KnowledgeClaimError(f"claim {claim_id} is missing")
-    scope_key = str(node.props.get("scope_key") or "")
-    if not scope_key:
-        raise KnowledgeClaimError(f"claim {claim_id} has no scope")
-    if scope_key == "shared":
-        return require_persist_scope(scope_type="shared")
-    if scope_key.startswith("customer:"):
-        return require_persist_scope(customer_id=int(scope_key.split(":", 1)[1]))
-    raise KnowledgeClaimError(f"claim {claim_id} has an unknown scope {scope_key!r}")
+    scope_key = str(props.get("scope_key") or "")
+    return _scope_from_key(scope_key, claim_id)
 
 
 def _scope_from_key(scope_key: str, claim_id: str) -> KnowledgeTenantScope:
@@ -489,11 +423,8 @@ async def supporting_text_unit_ids_for_claim(
     session: AsyncSession,
     claim_id: str,
 ) -> list[str]:
-    client = get_owner_runtime().client
-    if client is not None:
-        return await owner_supporting_text_units(client, claim_id)
-    catalog = require_knowledge()
-    return await catalog.run(supporting_text_units, catalog, claim_id)
+    client = get_owner_runtime().require_client()
+    return await owner_supporting_text_units(client, claim_id)
 
 
 def _compact(value: str) -> str:

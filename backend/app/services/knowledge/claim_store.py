@@ -19,7 +19,6 @@ from app.services.knowledge.claims import (
     knowledge_claim_id,
 )
 from app.services.knowledge.events import CLAIM_ADDED, record_graph_event, utc_now
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.labels import CLAIM, scope_label
 from app.services.overgraph.owner_legal import (
     claim_record as owner_claim_record,
@@ -29,8 +28,7 @@ from app.services.overgraph.owner_legal import (
     attach_supports as owner_attach_supports,
 )
 from app.services.overgraph.owner_runtime import get_owner_runtime
-from app.services.overgraph.legal_claims import claim_in_graph, claim_is_superseded
-from app.services.knowledge.graph_claim_mirror import attach_claim_supports, mirror_claim
+from app.services.knowledge.graph_claim_mirror import attach_claim_supports
 from app.services.knowledge.persistence_class import DOMAIN_KNOWLEDGE, classify_persistence
 
 
@@ -80,46 +78,28 @@ async def persist_domain_claim(
     if claim.id != identity:
         raise KnowledgeClaimError("claim id does not match stable identity")
     await assert_claim_grounding_scope(session, claim)
-    client = get_owner_runtime().client
-    if client is not None:
-        existing = await owner_claim_record(
-            client, scope_key=claim.scope.scope_key, identity=identity,
-        )
-        if existing is not None:
-            key = identity
-            reused = True
-        else:
-            key = await owner_find_claim_key(
-                client, scope_key=claim.scope.scope_key,
-                identity_value=claim.value, predicate=claim.predicate,
-            ) or identity
-            reused = key != identity
-        if await owner_is_superseded(client, key):
-            raise KnowledgeClaimError(f"claim {key} is superseded")
-        await owner_persist_claim(
-            client, scope=claim.scope, predicate=claim.predicate,
-            value=claim.value, unit_ids=tuple(claim.supporting_text_unit_ids), key=key,
-        )
-        await owner_attach_supports(
-            client, claim_key=key, unit_ids=tuple(claim.supporting_text_unit_ids),
-        )
+    client = get_owner_runtime().require_client()
+    existing = await owner_claim_record(
+        client, scope_key=claim.scope.scope_key, identity=identity,
+    )
+    if existing is not None:
+        key = identity
+        reused = True
     else:
-        # After migration 192 the graph is the only claim store; the legacy SQL
-        # table is gone (rows are retained as knowledge_claims_dropped only).
-        catalog = require_knowledge()
-        existing = claim_in_graph(
-            catalog, scope_key=claim.scope.scope_key, identity=identity
-        )
-        if existing is not None:
-            key = identity
-            reused = True
-        else:
-            key = _graph_key_by_identity(catalog, claim) or identity
-            reused = key != identity
-        if claim_is_superseded(catalog, key):
-            raise KnowledgeClaimError(f"claim {key} is superseded")
-        await asyncio.to_thread(mirror_claim, claim, key=key)
-        await asyncio.to_thread(attach_claim_supports, key, claim.supporting_text_unit_ids)
+        key = await owner_find_claim_key(
+            client, scope_key=claim.scope.scope_key,
+            identity_value=claim.value, predicate=claim.predicate,
+        ) or identity
+        reused = key != identity
+    if await owner_is_superseded(client, key):
+        raise KnowledgeClaimError(f"claim {key} is superseded")
+    await owner_persist_claim(
+        client, scope=claim.scope, predicate=claim.predicate,
+        value=claim.value, unit_ids=tuple(claim.supporting_text_unit_ids), key=key,
+    )
+    await owner_attach_supports(
+        client, claim_key=key, unit_ids=tuple(claim.supporting_text_unit_ids),
+    )
     if not reused:
         await record_graph_event(
             session,
