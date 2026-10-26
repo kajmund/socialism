@@ -42,6 +42,7 @@ fn main() {
     demo_real_bench();
     demo_embedding_report();
     demo_two_phase();
+    demo_capital();
 }
 
 // ---------------------------------------------------------------------------
@@ -768,6 +769,54 @@ fn demo_two_phase() {
         println!();
     }
     println!("(H förutsätter ett engångs-byggt retrieval-index — mätt av embed_analysis)");
+}
+
+// ---------------------------------------------------------------------------
+// Section 11: the retrieval index as one-time capital cost, amortized over
+// questions under the calibration anchor (1 Sweycoin = 1000 tokens or 1 s).
+// ---------------------------------------------------------------------------
+
+fn demo_capital() {
+    println!();
+    println!("=== L: retrieval-indexet som engångs-kapitalkostnad ===");
+    let source = std::fs::read_to_string("benchmarks/real_embedding_report.json")
+        .expect("report must exist");
+    let json = swe_native::parse_json_str(&source).expect("report must parse");
+    let index = json.get("index").expect("report index");
+    let tokens = index
+        .get("total_tokens")
+        .and_then(swe_native::Json::as_number)
+        .and_then(|n| n.as_u64())
+        .unwrap();
+    let latency_ms = index
+        .get("latency_ms")
+        .and_then(swe_native::Json::as_number)
+        .and_then(|n| n.as_u64())
+        .unwrap();
+    let index_coins = ((tokens as f64 / 1_000.0).max(latency_ms as f64 / 1_000.0)).ceil() as u64;
+    println!(
+        "  index: {} texter, {} tokens, {} ms  →  {} Sweycoins engångs (ankare 1 coin = 1000 tokens eller 1 s)",
+        index.get("texts").and_then(swe_native::Json::as_number).and_then(|n| n.as_u64()).unwrap(),
+        tokens,
+        latency_ms,
+        index_coins,
+    );
+    let per_question: &[(&str, usize, usize)] = &[
+        ("auto-renewal", 568, 38),
+        ("notice-period", 320, 26),
+        ("liability-cap", 525, 47),
+        ("confidentiality", 179, 18),
+        ("liability-secrecy-carveout", 244, 16),
+    ];
+    println!("  besparing per fråga (A → H, i Sweycoins):");
+    for (qid, a, h) in per_question {
+        let savings = (a - h) as u64;
+        println!(
+            "    {qid:<28} {savings:>4}  ({:.1}x indexkostnaden)",
+            savings as f64 / index_coins as f64,
+        );
+    }
+    println!("  break-even: under en fråga — indexet amorteras omedelbart.");
 }
 
 // ---------------------------------------------------------------------------
