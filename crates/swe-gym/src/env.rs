@@ -58,6 +58,21 @@ pub struct Observation {
     /// Verified findings so far — the facit-free progress signal of the
     /// real env (v1's ScanState.found). Synthetic env: 0 (no hit concept).
     pub found: u8,
+    /// New evidence objects since the previous decision (count).
+    pub new_evidence: u8,
+    /// Contradictions between findings observed so far (0 in the frozen
+    /// 2019 fixtures — they carry no contradiction data; the field exists
+    /// so the interface is stable when richer captures arrive).
+    pub contradictions: u8,
+    /// Recent marginal utility: findings per 100 verification calls over
+    /// the last 20 calls (facit-free — computed from observed outcomes).
+    pub recent_hit_rate_bp: u32,
+    /// Confidence score (basis points) of the last verification call —
+    /// the observable uncertainty proxy.
+    pub last_score_bp: u32,
+    /// Retrieval pool state (real env): chunks surfaced so far / total.
+    pub pool_scanned: u32,
+    pub pool_total: u32,
     pub statuses: [Status; STRATEGY_COUNT],
     pub spent_milli: [Amount; STRATEGY_COUNT],
     pub steps: u32,
@@ -132,6 +147,10 @@ pub struct EnvConfig {
 pub struct SynergyConfig {
     pub cost_unlocks: Vec<(usize, usize, f64)>,
     pub quality_gates: Vec<(usize, usize)>,
+    /// Hard prerequisites: the target's tier gains are 0 while the
+    /// source's tier is 0 (e.g. JEV cannot extract what retrieval has
+    /// not surfaced — the real env's semantics).
+    pub hard_gates: Vec<(usize, usize)>,
 }
 
 /// Default synthetic world: four question types with distinct optimal
@@ -448,6 +467,7 @@ pub fn synergy_config() -> EnvConfig {
         synergy: Some(SynergyConfig {
             cost_unlocks: vec![(1, 0, 4.0)], // B costs 4x while A tier == 0
             quality_gates: vec![(2, 1)],     // C scales with min(tC, tB)
+            hard_gates: vec![],
         }),
         types: [
             TypeSpec {
@@ -586,6 +606,29 @@ pub fn synergy_config() -> EnvConfig {
     }
 }
 
+/// Benchmark-training world (docs/SWE_Sweycoins_v2.md 14): the real
+/// env's semantics mirrored in synthetic form. B's tier gains are HARD
+/// gated on A (JEV cannot extract what retrieval has not surfaced — a
+/// no-op without A, exactly like the real pool), and there is no
+/// skip-retrieval type: retrieval is mandatory and cheap in reality.
+/// Everything else matches the synergy world (C gated by B, diminishing
+/// per-tier costs, no strategy always best).
+pub fn benchmark_config() -> EnvConfig {
+    let mut config = synergy_config();
+    if let Some(syn) = &mut config.synergy {
+        syn.hard_gates = vec![(1, 0)];
+    }
+    // t1 ("retrieval lönar sig inte") becomes "light retrieval unlocks a
+    // B-heavy mix": A cheap enough that A1 is always the right opener.
+    config.types[1].strategies[0].tier_cost_milli = [
+        [500, 1_000, 2_000, 4_000],
+        [500, 1_000, 2_000, 4_000],
+        [500, 1_000, 2_000, 4_000],
+        [500, 1_000, 2_000, 4_000],
+    ];
+    config
+}
+
 /// Verified quality of a progress state: sum of per-strategy quality
 /// contributions, capped at 1.0. In the synthetic world the quality model
 /// is the facit; it is evaluated only at episode end, never observed.
@@ -663,6 +706,15 @@ pub fn gain_tiers(
     tiers: &[u8; STRATEGY_COUNT],
     invest_milli: Amount,
 ) -> u8 {
+    if let Some(syn) = &config.synergy {
+        if syn
+            .hard_gates
+            .iter()
+            .any(|(target, source)| *target == s && tiers[*source] == 0)
+        {
+            return 0; // prerequisite not met: the segment achieves nothing
+        }
+    }
     let mut left = invest_milli;
     let mut gained = 0;
     let mut t = tiers[s];
@@ -816,6 +868,12 @@ impl SweEnv for SyntheticEnv {
             bracket: budget_bracket(question.budget_milli),
             tiers: [0; STRATEGY_COUNT],
             found: 0,
+            new_evidence: 0,
+            contradictions: 0,
+            recent_hit_rate_bp: 0,
+            last_score_bp: 0,
+            pool_scanned: 0,
+            pool_total: 0,
             statuses: [Status::Idle; STRATEGY_COUNT],
             spent_milli: [0; STRATEGY_COUNT],
             steps: 0,

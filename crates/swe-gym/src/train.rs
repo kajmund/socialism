@@ -106,6 +106,44 @@ pub fn run_season(
     reports
 }
 
+/// The frozen real benchmark's RL arm: trained on the synthetic synergy
+/// world (online season + deterministic coverage sweep + offline replay
+/// fit), then evaluated on real questions without any real training data
+/// — the facit-isolated transfer setup of docs/SWE_Sweycoins_v2.md 14.
+pub fn train_benchmark_learner(seed: u64) -> crate::agent::McQLearner {
+    use crate::agent::McQLearner;
+    use crate::env::{benchmark_config, Question};
+    let config = benchmark_config();
+    let mut learner = McQLearner::new(seed);
+    let mut train = Vec::new();
+    for qtype in 0..4u8 {
+        for i in 0..200u32 {
+            train.push(Question {
+                id: format!("t{qtype}-{i}"),
+                qtype,
+                budget_milli: 100_000,
+            });
+        }
+    }
+    run_season(&config, &mut learner, &train);
+    learner.set_sweep(true);
+    let mut sweep = Vec::new();
+    for qtype in 0..4u8 {
+        for i in 0..400u32 {
+            sweep.push(Question {
+                id: format!("s{qtype}-{i}"),
+                qtype,
+                budget_milli: 100_000,
+            });
+        }
+    }
+    run_season(&config, &mut learner, &sweep);
+    learner.set_sweep(false);
+    learner.replay_fit(100);
+    learner.set_eval(true);
+    learner
+}
+
 /// Results of the calibration gate (docs/SWE_Sweycoins_v2.md 9, criterion 1).
 #[derive(Clone, Debug)]
 pub struct GateReport {

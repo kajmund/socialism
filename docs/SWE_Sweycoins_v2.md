@@ -275,3 +275,36 @@ Grind 1.94 ✓ · learen **92 % av oraklet, 1.79× bästa baslinje** ✓ · stop
 
 **Beslut: gymmets arkitektur fryses här.** Nästa steg är verkliga Golden Questions — vilket kräver ny fryst data för LLM-förmågan (live-capture, env-gated), eftersom befintlig bänk bara täcker JEV.
 
+## 14. Verklig benchmark: gemensamt observationsgränssnitt och två förmågor
+
+Svar på granskningens två frågor, och den verkliga bänk de motiverade.
+
+**Generaliseringsfrågan — ärligt svar:** täckningssvepen + värdeiterationen gör learen till en nästan komplett tabell över en *liten deterministisk syntetisk värld*. Det är en **kontroll** — den bevisar att signalen är inlärningsbar och att learen kan fånga fördröjd avkastning — men det är **inte** generalisering. Generalisering mäts bara på nya problem; det är den verkliga bänkens enda jobb.
+
+**Framstegsfrågan — gränssnittet:** observationen bär nu det gemensamma interfacet för verkliga workflows (facit-fritt, allt beräknat från observerbara utfall):
+
+| Fält | Betydelse |
+|---|---|
+| `spent_milli` / `remaining_milli` | faktiskt spenderat per förmåga / återstående budget |
+| `found` / `new_evidence` | evidensobjekt totalt / sedan förra beslutet (källor = chunk-id:n) |
+| `recent_hit_rate_bp` | fynd per 100 verifieringsanrop, rullande 20-fönster — observerad marginalnytta |
+| `last_score_bp` | senaste verifieringens konfidens — osäkerhetsproxy |
+| `pool_scanned` / `pool_total` | retrieval-poolens tillstånd |
+| `contradictions` | 0 i fryst data (fältet finns för rikare fångster) |
+
+Facit (kvalitet = fynd/required) avslöjas bara i terminalbelöningen — aldrig i observationen.
+
+**Bänken (`src/real.rs` v2, `tests/real_env_tests.rs`):** två genuint olika förmågor med frysta, reproducerbara resultat: **A = retrieval** (50 milli/chunk, bygger kandidatpoolen i likhetsordning, noll direkt evidens) och **B = JEV** (1 coin/anrop, verifierar poolens topp mot 2019-fixturerna). JEV:s marginalnytta beror på poolen A har byggt — den verkliga fördröjda avkastningen. C = LLM maskerad tills deep-data fångats (live-capture, nästa steg).
+
+**Uppmätt (5 frysta frågor, 200 coins/fråga):**
+
+| Arm | Medel netto |
+|---|---|
+| real-equal-split | +22 000 |
+| **real-pipeline-adaptive (stark baslinje)** | **+58 846** |
+| mc-q-learner (syntetiskt tränad) | −29 200 |
+
+**Utslaget:** RL-armen regresserar mot den starka baslinjen. Diagnosen är specifik och användbar: learen hittar evidensen (21/20, 15/13, 23/13 fynd på de frågor den jobbar på) men **stoppar för sent** — den bränner budgeten i tier-tillstånd som den syntetiska träningen aldrig besökte. Orsaken är **tillståndsgeometrin**: syntetiska tiers (0–4 per förmåga, beloppsdrivna) matchar inte verklighetens geometri (pool-kvintiler + fynd-takt), och frågetyp-proxyn (chunk-count-bucket) är fortfarande godtycklig. Allokeringskonceptet fälldes inte — gränssnittet mellan träning och verklighet gjorde det. Baslinjen använder det nya gränssnittet och vinner på att läsa `recent_hit_rate_bp` + pool-tillstånd.
+
+**Slutsatsen för nästa steg:** en praktiskt användbar Sweycoin-förvaltare kräver att learen **tränas i det verkliga observationsgränssnittet** — vilket kräver verkliga träningskörningar (fler Golden Questions eller inspelade produktionskörningar) eller en syntetisk tvilling som speglar verklighetens geometri exakt (pool-kvintiler, fynd-takt, frågetyp från embeddings). Gymmet, ledgern, bänken och baslinjerna är nu på plats och frysta; det som saknas är träningsdata i rätt form.
+
