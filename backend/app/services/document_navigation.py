@@ -6,7 +6,6 @@ parser, or anchor system.
 
 from __future__ import annotations
 
-import asyncio
 import re
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -25,7 +24,6 @@ from app.database.models import (
 )
 from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifact, WorkspaceSource
 from app.services.document_ingest_status import document_text_ready
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.labels import TEXT_UNIT
 from app.services.overgraph.model import GraphRecord, TextUnitView
 from app.services.overgraph.owner_runtime import get_owner_runtime
@@ -177,11 +175,7 @@ async def _sections(session: AsyncSession, source_id: str) -> list[DocumentSecti
 async def _units(session: AsyncSession, source_id: str) -> list[TextUnitView]:
     version_ids = _current_versions().where(CanonicalDocumentRecord.source_object_id == source_id)
     ids = list((await session.scalars(version_ids)).all())
-    owner = get_owner_runtime().client
-    if owner is not None:
-        return await _load_owner_units(owner, ids)
-    catalog = require_knowledge()
-    return await asyncio.to_thread(_load_units_for_versions, catalog, ids)
+    return await _load_owner_units(get_owner_runtime().require_client(), ids)
 
 
 async def _load_owner_units(client, version_ids: list[str]) -> list[TextUnitView]:

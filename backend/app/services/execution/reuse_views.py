@@ -18,7 +18,6 @@ from app.database.models import (
 from app.services.execution.reuse_reference import REUSE_KEY
 from app.services.overgraph.answers import ANSWER_TYPE, entity_attributes
 from app.services.overgraph.answers_owner import entity_attributes_via_owner
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.labels import FACT
 from app.services.overgraph.model import GraphRecord
 from app.services.overgraph.owner_runtime import get_owner_runtime
@@ -43,20 +42,13 @@ async def reuse_payloads(
             )
         )
     }
-    owner = get_owner_runtime().client
-    catalog = None if owner is not None else require_knowledge()
+    owner = get_owner_runtime().require_client()
     output = []
     for attempt, ref in bound:
-        if owner is not None:
-            parts = await _reuse_answer_owner(
-                owner, str(ref["answer_fact_id"]),
-                f"customer:{runs[attempt.run_id].customer_id}",
-            )
-        else:
-            parts = await catalog.run(
-                _reuse_answer, catalog, str(ref["answer_fact_id"]),
-                f"customer:{runs[attempt.run_id].customer_id}",
-            )
+        parts = await _reuse_answer_owner(
+            owner, str(ref["answer_fact_id"]),
+            f"customer:{runs[attempt.run_id].customer_id}",
+        )
         if parts is None:
             raise RuntimeError("Research reuse reference does not match its frozen result")
         fact, target = parts

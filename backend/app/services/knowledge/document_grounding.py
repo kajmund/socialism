@@ -10,11 +10,9 @@ from app.database.models import (
     StoredObject,
 )
 from app.services.knowledge.models import KnowledgeHit, KnowledgeScope, KnowledgeScopeRequiredError
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.owner_text_units import get_unit
 from app.services.overgraph.model import TextUnitView
-from app.services.overgraph.research import load_text_units
 from app.services.workspaces import company_workspace_id
 
 
@@ -64,13 +62,7 @@ async def grounded_hits(
     unit_id = hit.metadata.get("text_unit_id")
     if not isinstance(unit_id, str):
         return []
-    owner = get_owner_runtime().client
-    if owner is not None:
-        unit = await get_unit(owner, unit_id)
-    else:
-        catalog = require_knowledge()
-        units = await catalog.run(load_text_units, catalog, [unit_id])
-        unit = units[0] if units else None
+    unit = await get_unit(get_owner_runtime().require_client(), unit_id)
     if unit is None or unit.document_id != hit.document_id:
         return []
     version_id = hit.metadata.get("document_version_id")
