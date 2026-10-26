@@ -18,7 +18,9 @@ from app.services.knowledge.persistence_class import (
     PersistenceClassError,
     require_persistence_class,
 )
+from app.services.knowledge import owner_graph_mirror
 from app.services.knowledge.graph_observation_mirror import mirror_observation
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.labels import VERIFICATION_OBSERVATION
 from app.services.knowledge.scope import (
@@ -122,6 +124,11 @@ async def persist_knowledge_observation(
 ) -> tuple[PersistedObservation, bool]:
     """Write the observation to OverGraph. Provenance stays a database-read check."""
     await _validate_observation_provenance(session, observation)
+    owner = get_owner_runtime().client
+    if owner is not None:
+        existing = await owner_graph_mirror.observation_exists(owner, observation)
+        await owner_graph_mirror.mirror_observation(owner, observation)
+        return PersistedObservation(id=observation.id), existing
     catalog = require_knowledge()
     existing = catalog.get_by_key(VERIFICATION_OBSERVATION, observation.id)
     await asyncio.to_thread(mirror_observation, observation)
