@@ -263,6 +263,156 @@ pub fn default_config() -> EnvConfig {
     }
 }
 
+/// Level-2 capability world: three genuinely different capabilities —
+/// A = retrieval/graftraversering (cheap, quality-capped at 0.5: finds
+/// evidence, does not reason), B = JEV-analys (mid-cost, capped 0.75:
+/// verifies and scores), C = narrativ LLM (expensive, capped 1.0:
+/// reasons). No strategy is always best; the optimal mix differs per
+/// question type, and per-tier costs rise so marginal returns diminish —
+/// the saturation signal a budget manager must learn to read.
+/// (docs/SWE_Sweycoins_v2.md 12: this is the level-2 allocation gym;
+/// operation-level choices stay inside each capability as fixed policy.)
+pub fn capability_config() -> EnvConfig {
+    EnvConfig {
+        base_reward_milli: 100_000,
+        types: [
+            TypeSpec {
+                // t0 evidens-tung: retrieval-ledd mix vinner.
+                difficulty: 1.0,
+                strategies: [
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [500, 1_000, 2_000, 4_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                            [500, 1_000, 3_000, 6_000],
+                        ],
+                        cap_quality: 0.5,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [1_000, 2_000, 4_000, 8_000],
+                            [500, 1_000, 2_000, 4_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                        ],
+                        cap_quality: 0.75,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [5_000, 10_000, 20_000, 40_000],
+                            [5_000, 10_000, 20_000, 40_000],
+                            [500, 1_000, 2_000, 4_000],
+                            [3_000, 6_000, 12_000, 24_000],
+                        ],
+                        cap_quality: 1.0,
+                    },
+                ],
+            },
+            TypeSpec {
+                // t1 verifierings-tung: JEV-ledd mix vinner.
+                difficulty: 1.0,
+                strategies: [
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [2_000, 4_000, 8_000, 16_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                            [500, 1_000, 3_000, 6_000],
+                        ],
+                        cap_quality: 0.5,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [500, 1_000, 2_000, 4_000],
+                            [500, 1_000, 2_000, 4_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                        ],
+                        cap_quality: 0.75,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [5_000, 10_000, 20_000, 40_000],
+                            [5_000, 10_000, 20_000, 40_000],
+                            [500, 1_000, 2_000, 4_000],
+                            [3_000, 6_000, 12_000, 24_000],
+                        ],
+                        cap_quality: 1.0,
+                    },
+                ],
+            },
+            TypeSpec {
+                // t2 resonemangs-tung: bara LLM når full kvalitet.
+                difficulty: 1.0,
+                strategies: [
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [4_000, 8_000, 16_000, 32_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                            [500, 1_000, 3_000, 6_000],
+                        ],
+                        cap_quality: 0.5,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [2_000, 4_000, 8_000, 16_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                        ],
+                        cap_quality: 0.75,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [500, 1_000, 2_000, 4_000],
+                            [500, 1_000, 2_000, 4_000],
+                            [500, 1_000, 2_000, 4_000],
+                            [3_000, 6_000, 12_000, 24_000],
+                        ],
+                        cap_quality: 1.0,
+                    },
+                ],
+            },
+            TypeSpec {
+                // t3 blandad med tydligt avtagande avkastning: balanserad
+                // mix vinner; marginalkostnaden stiger per tier.
+                difficulty: 1.0,
+                strategies: [
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [500, 1_000, 3_000, 6_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                            [500, 1_000, 3_000, 6_000],
+                        ],
+                        cap_quality: 0.5,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [1_000, 2_000, 4_000, 8_000],
+                            [500, 1_000, 2_000, 4_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                        ],
+                        cap_quality: 0.75,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [3_000, 6_000, 12_000, 24_000],
+                            [5_000, 10_000, 20_000, 40_000],
+                            [500, 1_000, 2_000, 4_000],
+                            [3_000, 6_000, 12_000, 24_000],
+                        ],
+                        cap_quality: 1.0,
+                    },
+                ],
+            },
+        ],
+    }
+}
+
 /// Verified quality of a progress state: sum of per-strategy quality
 /// contributions, capped at 1.0. In the synthetic world the quality model
 /// is the facit; it is evaluated only at episode end, never observed.

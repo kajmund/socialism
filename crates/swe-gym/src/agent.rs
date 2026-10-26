@@ -231,9 +231,21 @@ impl Policy for AdaptiveGreedyPolicy {
         }
         if let Some(s) = self.mem.last_invested {
             let gain = obs.tiers[s].saturating_sub(self.mem.prev_tier);
+            if gain == 0 {
+                self.mem.no_gain_streak += 1;
+            } else {
+                self.mem.no_gain_streak = 0;
+            }
             let sample = gain as f64 / 5_000.0;
             let est = self.mem.est_marginal[s];
             self.mem.est_marginal[s] = 0.5 * est + 0.5 * sample;
+        }
+        // Plateau stop: the EMA never reaches exactly zero, so without
+        // this the rule invests until budget exhaustion (measured: mean
+        // 0 on the capability world's held-out set). Three consecutive
+        // zero-gain investments = the strategy mix is saturated.
+        if self.mem.no_gain_streak >= 3 {
+            return Action::Finish;
         }
         let mut best: Option<(usize, f64)> = None;
         for s in 0..STRATEGY_COUNT {
