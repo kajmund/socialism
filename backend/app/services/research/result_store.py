@@ -26,10 +26,8 @@ from app.services.overgraph.answers_owner import (
     answer_facts_via_owner,
     entity_attributes_via_owner,
 )
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.labels import FACT
 from app.services.overgraph.model import GraphRecord
-from app.services.overgraph.answers import answer_facts, entity_attributes
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.views import fact_view
 from app.services.research.graph_grounding import GraphResearchError, fact_is_current
@@ -75,13 +73,6 @@ async def meaningful_context(session: AsyncSession, objective: ResearchObjective
     return context
 
 
-def _answers_in_scope(catalog, question_id, customer_id, now):
-    return answer_facts(
-        catalog, question_id, customer_id, limit=8, now=now,
-        exact_scope=f"customer:{customer_id}",
-    )
-
-
 async def exact_answers(
     session: AsyncSession, need: ResearchNeed, context: ResearchContext, *, now: datetime,
 ) -> list[str]:
@@ -94,33 +85,11 @@ async def exact_answers(
     )
     if question_id is None:
         return []
-    owner = get_owner_runtime().client
-    if owner is not None:
-        facts = await answer_facts_via_owner(
-            owner, question_id, context.scope.customer_id, now=now,
-        )
-    else:
-        catalog = require_knowledge()
-        facts = await catalog.run(
-            _answers_in_scope, catalog, question_id, context.scope.customer_id, now,
-        )
+    facts = await answer_facts_via_owner(
+        get_owner_runtime().require_client(), question_id,
+        context.scope.customer_id, now=now,
+    )
     return [fact.id for fact in facts]
-
-
-def _saved_answer_parts(catalog, fact_id: str, scope_key: str):
-    row = catalog.get_by_key(FACT, fact_id)
-    if row is None:
-        return None
-    fact = fact_view(row)
-    if fact.scope_key != scope_key or fact.predicate != ANSWER_PREDICATE:
-        return None
-    target = entity_attributes(catalog, fact.target_id)
-    source = entity_attributes(catalog, fact.source_id)
-    if target is None or source is None or target.node_type != ANSWER_TYPE:
-        return None
-    if target.scope_key != fact.scope_key or source.scope_key != fact.scope_key:
-        raise GraphResearchError("Saved research question crossed its tenant boundary")
-    return fact, target, source
 
 
 async def _saved_answer_owner(session: AsyncSession, evidence_set_id: str, context):
@@ -164,7 +133,8 @@ async def _saved_answer_supported(session, basis, fact, context, *, now) -> bool
     if not await basis_workspace_allowed(session, basis, context):
         return False
     return await _current_basis(
-        session, basis, fact.scope_key, now, client=get_owner_runtime().client,
+        session, basis, fact.scope_key, now,
+        client=get_owner_runtime().require_client(),
     )
 
 
@@ -197,16 +167,10 @@ async def load_saved_answer(
     *,
     now: datetime,
 ) -> SavedResearch | None:
-    owner = get_owner_runtime().client
-    if owner is not None:
-        parts = await _saved_answer_parts_owner(
-            owner, fact_id, f"customer:{context.scope.customer_id}",
-        )
-    else:
-        catalog = require_knowledge()
-        parts = await catalog.run(
-            _saved_answer_parts, catalog, fact_id, f"customer:{context.scope.customer_id}",
-        )
+    parts = await _saved_answer_parts_owner(
+        get_owner_runtime().require_client(), fact_id,
+        f"customer:{context.scope.customer_id}",
+    )
     if parts is None:
         return None
     fact, target, source = parts

@@ -12,16 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.models import DocumentVersionRecord, EvidenceSet, KnowledgeQuestionRow
 from app.services.knowledge.scope import require_persist_scope
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.owner_facts import publish_answer_via_owner
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.publish import AnswerPublish
-from app.services.overgraph.answers import (
-    ANSWER_PREDICATE as GRAPH_ANSWER_PREDICATE,
-    answer_facts,
-    current_fact,
-    entity_attributes,
-)
+from app.services.overgraph.answers import ANSWER_PREDICATE as GRAPH_ANSWER_PREDICATE
 from app.services.overgraph.answers_owner import (
     answer_facts_via_owner,
     current_facts_via_owner,
@@ -112,7 +106,7 @@ async def lookup_answers(
     if not need.knowledge_question_id:
         return []
     scopes = ("shared", f"customer:{context.scope.customer_id}")
-    client = get_owner_runtime().client
+    client = get_owner_runtime().require_client()
     facts = await _answer_candidates_for(
         client, need.knowledge_question_id, context.scope.customer_id, now,
     )
@@ -147,19 +141,13 @@ async def lookup_answers(
 
 
 async def _answer_candidates_for(client, question_id, customer_id, now):
-    if client is not None:
-        return await answer_facts_via_owner(
-            client, question_id, customer_id, now=now,
-        )
-    catalog = require_knowledge()
-    return await catalog.run(_answer_candidates, catalog, question_id, customer_id, now)
+    return await answer_facts_via_owner(
+        client, question_id, customer_id, now=now,
+    )
 
 
 async def _answer_target_for(client, target_id):
-    if client is not None:
-        return await entity_attributes_via_owner(client, target_id)
-    catalog = require_knowledge()
-    return await catalog.run(entity_attributes, catalog, target_id)
+    return await entity_attributes_via_owner(client, target_id)
 
 
 def _context_matches(fact, context: ResearchContext) -> bool:
@@ -168,11 +156,7 @@ def _context_matches(fact, context: ResearchContext) -> bool:
     )
 
 
-def _answer_candidates(catalog, question_id, customer_id, now):
-    return answer_facts(catalog, question_id, customer_id, now=now)
-
-
-async def _current_basis(session, basis, scope_key, now, *, client=None) -> bool:
+async def _current_basis(session, basis, scope_key, now, *, client) -> bool:
     max_age = settings.research_knowledge_freshness_max_age_seconds
     for item in basis:
         stamp = (
@@ -191,16 +175,10 @@ async def _current_basis(session, basis, scope_key, now, *, client=None) -> bool
         for item in basis
         if item.metadata.get("document_version_id")
     )
-    if client is not None:
-        if not await current_facts_via_owner(
-            client, sorted(fact_ids), scope_key, now,
-        ):
-            return False
-    else:
-        catalog = require_knowledge()
-        for fact_id in fact_ids:
-            if not await catalog.run(current_fact, catalog, fact_id, scope_key, now):
-                return False
+    if not await current_facts_via_owner(
+        client, sorted(fact_ids), scope_key, now,
+    ):
+        return False
     versions = (await session.execute(select(
         DocumentVersionRecord.id, DocumentVersionRecord.scope_key, DocumentVersionRecord.superseded_at,
         DocumentVersionRecord.valid_from, DocumentVersionRecord.valid_to,

@@ -20,7 +20,6 @@ from app.services.overgraph.labels import (
 )
 from app.services.knowledge.embeddings import EmbeddingProvider, require_embedding_vectors
 from app.services.prompt_store import require_active_prompts
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.hybrid_retrieval import (
     hybrid_fact_hits,
     hybrid_fact_hits_via_owner,
@@ -119,21 +118,13 @@ def _question_seeds(catalog, keys: list[str], scope_key: str) -> list[str]:
 async def _seeds(session, need, scope, embeddings, *, vector) -> list[str]:
     index = await asyncio.to_thread(require_current_index)
     customer_id = scope.scope.customer_id
-    scope_key = f"customer:{customer_id}"
-    owner = get_owner_runtime().client
-    if owner is not None:
-        collected = await _graph_seeds_owner(
-            owner, index, need.question, customer_id, vector=vector,
-        )
-        return await _question_seeds_owner(
-            owner, collected["endpoints"] + collected["dependencies"], scope_key,
-        )
-    catalog = require_knowledge()
-    collected = await asyncio.to_thread(
-        _graph_seeds, catalog, index, need.question, customer_id, vector=vector,
+    owner = get_owner_runtime().require_client()
+    collected = await _graph_seeds_owner(
+        owner, index, need.question, customer_id, vector=vector,
     )
-    return _question_seeds(
-        catalog, collected["endpoints"] + collected["dependencies"], scope_key,
+    return await _question_seeds_owner(
+        owner, collected["endpoints"] + collected["dependencies"],
+        f"customer:{customer_id}",
     )
 
 
@@ -233,15 +224,8 @@ def _frontier_rows(catalog, *, customer_id: int, frontier: list[str], visited: s
 
 
 async def _frontier(session, frontier, scope, visited, *, remaining) -> list[dict]:
-    owner = get_owner_runtime().client
-    if owner is not None:
-        return await _frontier_rows_owner(
-            owner, customer_id=scope.scope.customer_id,
-            frontier=list(frontier), visited=set(visited), remaining=remaining,
-        )
-    catalog = require_knowledge()
-    return await asyncio.to_thread(
-        _frontier_rows, catalog,
+    return await _frontier_rows_owner(
+        get_owner_runtime().require_client(),
         customer_id=scope.scope.customer_id,
         frontier=list(frontier), visited=set(visited), remaining=remaining,
     )
@@ -373,15 +357,10 @@ async def _nearby(factory, need, scope, context, *, result, embeddings, judge) -
         completed = await _completed_evidence_sets(session, scope)
     if not completed:
         return
-    owner = get_owner_runtime().client
-    if owner is not None:
-        present = await _answer_target_in_sets_owner(
-            owner, scope.scope.customer_id, completed,
-        )
-    else:
-        present = await asyncio.to_thread(
-            _answer_target_in_sets, require_knowledge(), scope.scope.customer_id, completed,
-        )
+    present = await _answer_target_in_sets_owner(
+        get_owner_runtime().require_client(),
+        scope.scope.customer_id, completed,
+    )
     if not present:
         return
     if embeddings is None:
