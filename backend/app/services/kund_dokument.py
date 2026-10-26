@@ -10,7 +10,6 @@ connection checked out; see AGENTS.md "release database connections".
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import asdict, dataclass
 
 from sqlalchemy import delete, func, select, update
@@ -40,7 +39,6 @@ from app.database.workspaces import WorkspaceChatMessage
 from app.services.document_knowledge import DOCUMENT_ITEM_VECTOR_PREFIX, DOCUMENT_INGEST_JOB_KIND
 from app.services.knowledge.vector_store import KnowledgeVectorStoreError
 from app.services.object_storage import KIND_UNDERLAG, ObjectStorageError, delete_object
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.owner_graph import apply_batch
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.labels import (
@@ -51,7 +49,6 @@ from app.services.overgraph.labels import (
     KNOWLEDGE_QUESTION,
     TEXT_UNIT,
     VERIFICATION_OBSERVATION,
-    scope_label,
 )
 from app.services.research.composition import ResearchCompositionError, require_knowledge_vector_store
 
@@ -269,46 +266,22 @@ def _scope_key(customer_id: int) -> str:
 
 
 async def _graph_edge_count(customer_id: int) -> int:
-    """Relationship neighbours owned by this tenant (direct and owner parity)."""
-    owner = get_owner_runtime().client
-    if owner is not None:
-        seen: set[int] = set()
-        for label in (ENTITY, CLAIM, TEXT_UNIT, FACT, DOCUMENT_VERSION):
-            for row in await _owner_scope_nodes(owner, label, customer_id):
-                for neighbour in await owner.neighbors(
-                    int(row["id"]), direction="outgoing", limit=200,
-                ):
-                    seen.add(int(neighbour["node_id"]))
-        return len(seen)
-    return await asyncio.to_thread(_graph_edge_count_sync, customer_id)
-
-
-def _graph_edge_count_sync(customer_id: int) -> int:
-    catalog = require_knowledge()
+    """Relationship neighbours owned by this tenant."""
+    owner = get_owner_runtime().require_client()
     seen: set[int] = set()
     for label in (ENTITY, CLAIM, TEXT_UNIT, FACT, DOCUMENT_VERSION):
-        nodes, _ = catalog.query_nodes(
-            label_filter={"labels": [label, scope_label(_scope_key(customer_id))], "mode": "all"},
-            limit=5000,
-        )
-        for node in nodes:
-            if node.engine_id is None:
-                continue
-            for edge_id in catalog.neighbors(node.engine_id, direction="outgoing"):
-                seen.add(edge_id)
+        for row in await _owner_scope_nodes(owner, label, customer_id):
+            for neighbour in await owner.neighbors(
+                int(row["id"]), direction="outgoing", limit=200,
+            ):
+                seen.add(int(neighbour["node_id"]))
     return len(seen)
 
 
 async def _graph_node_count(label: str, customer_id: int) -> int:
-    owner = get_owner_runtime().client
-    if owner is not None:
-        return len(await _owner_scope_nodes(owner, label, customer_id))
-    return await asyncio.to_thread(_graph_node_count_sync, label, customer_id)
-
-
-def _graph_node_count_sync(label: str, customer_id: int) -> int:
-    catalog = require_knowledge()
-    return catalog.count_nodes_by_labels([label, scope_label(_scope_key(customer_id))])
+    return len(await _owner_scope_nodes(
+        get_owner_runtime().require_client(), label, customer_id,
+    ))
 
 
 async def _owner_scope_nodes(owner, label: str, customer_id: int) -> list[dict]:
@@ -432,31 +405,15 @@ async def _count_text_units(customer_id: int) -> int:
 
 
 async def _delete_scope_nodes(label: str, customer_id: int) -> None:
-    owner = get_owner_runtime().client
-    if owner is not None:
-        rows = await _owner_scope_nodes(owner, label, customer_id)
-        keys = [str(row["key"]) for row in rows]
-        for start in range(0, len(keys), 500):
-            await apply_batch(
-                owner, f"purge:{label}",
-                nodes=[], edges=[],
-                deletes=[{"label": label, "key": key} for key in keys[start:start + 500]],
-            )
-        return
-    await asyncio.to_thread(_delete_scope_nodes_sync, label, customer_id)
-
-
-def _delete_scope_nodes_sync(label: str, customer_id: int) -> None:
-    catalog = require_knowledge()
-    label_filter = {"labels": [label, scope_label(_scope_key(customer_id))], "mode": "all"}
-    after: int | None = None
-    while True:
-        page, after = catalog.query_nodes(label_filter=label_filter, limit=1000, after=after)
-        for row in page:
-            if row.engine_id is not None:
-                catalog.delete_node(row.engine_id)
-        if after is None or not page:
-            break
+    owner = get_owner_runtime().require_client()
+    rows = await _owner_scope_nodes(owner, label, customer_id)
+    keys = [str(row["key"]) for row in rows]
+    for start in range(0, len(keys), 500):
+        await apply_batch(
+            owner, f"purge:{label}",
+            nodes=[], edges=[],
+            deletes=[{"label": label, "key": key} for key in keys[start:start + 500]],
+        )
 
 
 
