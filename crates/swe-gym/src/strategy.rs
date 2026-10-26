@@ -18,6 +18,9 @@ pub struct QuestionView {
     /// The question text the chunks are judged against (real benches carry
     /// the gold classify question; synthetic questions leave it empty).
     pub question: String,
+    /// Measured retrieval order (e.g. embedding similarity): the order a
+    /// two-phase scanner should visit chunks in. Empty = document order.
+    pub scan_order: Vec<String>,
 }
 
 /// A benchmark question: view (visible to strategies) plus the facit.
@@ -415,6 +418,52 @@ impl Strategy for AdaptiveStrategy {
             return;
         };
         deep.chunks = rank_unresolved_by_score(deep, observations);
+    }
+}
+
+/// Arm H: two-phase scanner. Assumes a prebuilt retrieval index (the
+/// measured embedding-similarity order in the bench) and scans chunks in
+/// that order, so the JEV pass stops as soon as the required coverage is
+/// reached. The measurement behind it (tools/embed_analysis.py) shows this
+/// cuts the blind scan 9-15x on the real bench.
+pub struct SimilarityOrderStrategy;
+
+impl Strategy for SimilarityOrderStrategy {
+    fn name(&self) -> &'static str {
+        "H likhetsordnad scan"
+    }
+
+    fn plan(
+        &self,
+        view: &QuestionView,
+        total_budget_milli: Amount,
+        tariffs: &Tariffs,
+    ) -> Vec<BranchPlan> {
+        let chunks = if view.scan_order.is_empty() {
+            view.chunks.clone()
+        } else {
+            view.scan_order.clone()
+        };
+        let scan_cost = tariffs.scan_milli.saturating_mul(chunks.len() as Amount);
+        let scan_budget = scan_cost.min(total_budget_milli);
+        vec![
+            BranchPlan {
+                account: "h-scan".into(),
+                provider: ProviderKind::Scan,
+                chunks,
+                start_budget_milli: scan_budget,
+            },
+            BranchPlan {
+                account: "h-deep".into(),
+                provider: ProviderKind::Deep,
+                chunks: view.chunks.clone(),
+                start_budget_milli: total_budget_milli - scan_budget,
+            },
+        ]
+    }
+
+    fn continuation(&self) -> Continuation {
+        Continuation::Sequential
     }
 }
 

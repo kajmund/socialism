@@ -75,6 +75,17 @@ pub fn load_bench(source: &str) -> Result<BenchFile, String> {
             .and_then(Json::as_str)
             .unwrap_or("")
             .to_string();
+        let scan_order = question
+            .get("scan_order")
+            .and_then(Json::as_array)
+            .map(|array| {
+                array
+                    .iter()
+                    .filter_map(Json::as_str)
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default();
         let chunks = string_array(question, "chunks")?;
         let evidence: HashSet<String> = string_array(question, "evidence")?.into_iter().collect();
         let scan_blind: HashSet<String> =
@@ -100,6 +111,7 @@ pub fn load_bench(source: &str) -> Result<BenchFile, String> {
                 chunks,
                 required_coverage,
                 question: question_text,
+                scan_order,
             },
             evidence,
             scan_blind,
