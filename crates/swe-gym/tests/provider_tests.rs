@@ -13,6 +13,7 @@ fn corpus(evidence: &[&str], blind: &[&str]) -> FakeCorpus {
             id: "t".into(),
             chunks: vec![],
             required_coverage: 0,
+            question: String::new(),
         },
         evidence: evidence.iter().map(|chunk| chunk.to_string()).collect(),
         scan_blind: blind.iter().map(|chunk| chunk.to_string()).collect(),

@@ -38,6 +38,7 @@ fn main() {
             id: "Q3 riktig (JEV-replay)".into(),
             chunks,
             required_coverage: 2,
+            question: String::new(),
         },
         evidence: HashSet::from(["chunk-r1".into(), "chunk-r3".into()]),
         scan_blind: HashSet::new(),
