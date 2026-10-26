@@ -66,6 +66,7 @@ socialism/
 │   └── manual/         # Swedish operator guides
 ├── backend/            # FastAPI service (see backend/AGENTS.md); SWD 1.0 parser + runtime adapter in app/swe/
 ├── crates/swe-native/  # SWE in-memory Rust/PyO3 kernel (`swe_native`)
+├── crates/swe-gym/     # standalone experiment, governed by its own AGENTS.md
 ├── frontend/           # React SPA (see frontend/AGENTS.md)
 └── word-addin/         # Word desktop task pane (expertgranskning)
 ```

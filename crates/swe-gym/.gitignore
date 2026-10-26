@@ -1,0 +1,2 @@
+# Embedding cache: large, regenerable via tools/embed_analysis.py
+benchmarks/real_embeddings.json
