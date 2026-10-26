@@ -52,8 +52,11 @@ graph access. Direct writers are forbidden in owner mode.
 ## Readiness
 
 `write_paths_ready` must become per catalog kind/function, not a global claim.
-The global flag remains `false` until every relevant catalog type has its own
-Owner acceptance test. Static allowlist absence is never sufficient.
+`GET /health/overgraph-owner` now reports `catalogs`: tenant knowledge and
+memory request write paths are marked ready when their Owner routes are
+configured and their two-backend acceptance scenarios exist; knowledge remains
+false until the remaining direct read/write paths are migrated. The global
+flag stays `false`. Static allowlist absence is never sufficient.
 
 ## Tenant catalog acceptance
 

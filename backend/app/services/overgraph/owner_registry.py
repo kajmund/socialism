@@ -117,3 +117,26 @@ def memory_owner_client() -> OwnerClient:
 def parse_memory_owner_route(raw: str) -> list[OwnerRoute]:
     path = raw.strip()
     return [OwnerRoute(kind="memory", socket_path=Path(path))] if path else []
+
+
+def catalog_readiness(
+    *, knowledge_owner: bool, tenant_routes: int, memory_owner: bool,
+) -> dict[str, dict[str, object]]:
+    """Per-catalog readiness. The global ``write_paths_ready`` stays false."""
+    return {
+        "knowledge": {
+            "owner_configured": knowledge_owner,
+            "request_write_paths_ready": False,
+            "reason": "remaining direct read/write paths outside the owner",
+        },
+        "tenant_knowledge": {
+            "owner_routes": tenant_routes,
+            "request_write_paths_ready": tenant_routes > 0,
+            "acceptance": "tenant_catalog two-backend scenario",
+        },
+        "memory": {
+            "owner_configured": memory_owner,
+            "request_write_paths_ready": memory_owner,
+            "acceptance": "memory_catalog two-backend scenario",
+        },
+    }
