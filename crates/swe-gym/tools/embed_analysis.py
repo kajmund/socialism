@@ -47,9 +47,15 @@ def env_value(name: str, dotenv: Path, fallback: str = "") -> str:
     return fallback
 
 
-def embed(texts: list[str], model: str, base_url: str, api_key: str) -> list[list[float]]:
-    """Batch-embed texts via the OpenAI-compatible endpoint."""
+def embed(
+    texts: list[str], model: str, base_url: str, api_key: str
+) -> tuple[list[list[float]], int, int]:
+    """Batch-embed texts; returns (vectors, total_tokens, total_ms)."""
+    import time
+
     embeddings: list[list[float]] = []
+    total_tokens = 0
+    total_ms = 0
     batch_size = 500
     for offset in range(0, len(texts), batch_size):
         batch = texts[offset : offset + batch_size]
@@ -63,12 +69,15 @@ def embed(texts: list[str], model: str, base_url: str, api_key: str) -> list[lis
                 "Content-Type": "application/json",
             },
         )
+        started = time.perf_counter()
         with urllib.request.urlopen(request, timeout=60) as response:
             payload = json.loads(response.read().decode("utf-8"))
+        total_ms += int((time.perf_counter() - started) * 1000)
+        total_tokens += int(payload.get("usage", {}).get("total_tokens") or 0)
         rows = sorted(payload["data"], key=lambda row: row["index"])
         embeddings.extend([row["embedding"] for row in rows])
         print(f"  bäddade in {offset + len(batch)}/{len(texts)}")
-    return embeddings
+    return embeddings, total_tokens, total_ms
 
 
 def cosine(a: list[float], b: list[float]) -> float:
@@ -109,13 +118,21 @@ def main() -> None:
     chunk_ids = sorted(union)
     print(f"bäddar in {len(chunk_ids)} chunks + {len(bench['questions'])} frågor")
 
+    force = "--force" in sys.argv
     cache: dict[str, list[float]] = {}
-    if CACHE.exists():
+    if CACHE.exists() and not force:
         cache = json.loads(CACHE.read_text(encoding="utf-8"))
+
+    index_tokens = 0
+    index_latency_ms = 0
 
     missing_chunks = [chunk for chunk in chunk_ids if chunk not in cache]
     if missing_chunks:
-        vectors = embed([union[chunk] for chunk in missing_chunks], model, base_url, api_key)
+        vectors, tokens, latency = embed(
+            [union[chunk] for chunk in missing_chunks], model, base_url, api_key
+        )
+        index_tokens += tokens
+        index_latency_ms += latency
         for chunk, vector in zip(missing_chunks, vectors):
             cache[chunk] = vector
     missing_questions = [
@@ -129,12 +146,24 @@ def main() -> None:
             for question in bench["questions"]
             if f"q:{question['id']}" in missing_questions
         ]
-        vectors = embed(question_texts, model, base_url, api_key)
+        vectors, tokens, latency = embed(question_texts, model, base_url, api_key)
+        index_tokens += tokens
+        index_latency_ms += latency
         for key, vector in zip(missing_questions, vectors):
             cache[key] = vector
     CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
 
-    report = {"model": model, "questions": []}
+    if force:
+        report_index = {
+            "texts": len(chunk_ids) + len(bench["questions"]),
+            "total_tokens": index_tokens,
+            "latency_ms": index_latency_ms,
+            "note": "engångskostnad för retrieval-indexet; mätt med --force",
+        }
+    else:
+        report_index = {"note": "index-kostnad mäts med --force; se tidigare körning"}
+
+    report = {"model": model, "questions": [], "index": report_index}
     for question in bench["questions"]:
         qid = question["id"]
         evidence = set(question["evidence"])
