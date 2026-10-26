@@ -218,8 +218,11 @@ pub fn build_chain_document_for(provider: &str, chunk_count: usize) -> String {
             r#""analyze_{i}":{{"type":"decision","evaluator":"provider","provider":"{provider}","prompt_key":"demo.{provider}","input":{{"chunk":"$.input.chunks.{i}.id","text":"$.input.chunks.{i}.text"}},"choices":["fynd","inget"],"routes":{{"fynd":"{next}","inget":"{next}"}},"cache_policy":"off"}},"#
         ));
     }
+    // Kernel steps, not provider calls: each chain node consumes several
+    // steps (invoke, complete, route, events). Headroom per chunk x8.
+    let max_steps = chunk_count.saturating_mul(8).saturating_add(32).max(100) as u32;
     format!(
-        r#"{{"version":"1.0","name":"sweycoin_demo","entrypoint":"analyze_0","limits":{{"max_steps":100,"max_depth":4,"timeout_seconds":30}},"nodes":{{{nodes}"done":{{"type":"end","status":"completed"}}}}}}"#
+        r#"{{"version":"1.0","name":"sweycoin_demo","entrypoint":"analyze_0","limits":{{"max_steps":{max_steps},"max_depth":4,"timeout_seconds":30}},"nodes":{{{nodes}"done":{{"type":"end","status":"completed"}}}}}}"#
     )
 }
 
@@ -232,9 +235,28 @@ pub fn build_chunk_input(chunk_count: usize) -> String {
 
 /// Input document for an explicit, ordered chunk list.
 pub fn build_chunk_input_for(chunks: &[&str]) -> String {
+    build_chunk_input_with_texts(chunks, &std::collections::HashMap::new())
+}
+
+/// Input document with real chunk texts; missing entries fall back to the
+/// placeholder so synthetic questions keep working.
+pub fn build_chunk_input_with_texts(
+    chunks: &[&str],
+    texts: &std::collections::HashMap<String, String>,
+) -> String {
     let chunks = chunks
         .iter()
-        .map(|chunk| format!(r#"{{"id":"{chunk}","text":"lorem ipsum {chunk}"}}"#))
+        .map(|chunk| {
+            let text = texts
+                .get(*chunk)
+                .cloned()
+                .unwrap_or_else(|| format!("lorem ipsum {chunk}"));
+            format!(
+                r#"{{"id":"{}","text":"{}"}}"#,
+                chunk,
+                crate::provider::json_escape(&text),
+            )
+        })
         .collect::<Vec<_>>()
         .join(",");
     format!(r#"{{"chunks":[{chunks}]}}"#)

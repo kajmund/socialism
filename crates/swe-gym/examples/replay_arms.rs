@@ -43,6 +43,7 @@ fn main() {
         scan_blind: HashSet::new(),
         noise_seed: 0,
         budget_milli: 0,
+        texts: std::collections::HashMap::new(),
     };
 
     println!("=== Armar på riktiga JEV-svar (replay-fixtur, offline) ===\n");

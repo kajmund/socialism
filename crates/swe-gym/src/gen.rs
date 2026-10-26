@@ -99,6 +99,7 @@ impl QuestionGenerator {
             scan_blind,
             noise_seed: 1 + self.next_u64(),
             budget_milli: (20 + self.below(21)) as u64 * 1_000,
+            texts: std::collections::HashMap::new(),
         }
     }
 
@@ -134,6 +135,7 @@ impl QuestionGenerator {
             scan_blind,
             noise_seed: 0,
             budget_milli: 0,
+            texts: std::collections::HashMap::new(),
         }
     }
 }
