@@ -149,7 +149,7 @@ class ClauseRepository:
             raise ValueError(f"unknown decision answer: {answer}")
         key = verification_key(scope.scope_key, classification_id, unit_id, reviewer_id)
         session_id = session_key(scope.scope_key, reviewer_id, classification_id, document_id)
-        for _attempt in range(3):
+        for _attempt in range(10):
             classification = await self._read(CLASSIFICATION, classification_id)
             unit = await self._read("TextUnit", unit_id)
             if classification is None:

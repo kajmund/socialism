@@ -24,12 +24,16 @@ async def overgraph_owner_health(request: Request) -> dict[str, Any]:
     """Live readiness: catches an owner that started after the backend or died."""
     status = await get_owner_runtime().refresh()
     status["tenant_owners"] = await get_owner_registry().health()
-    status["catalogs"] = catalog_readiness(
+    catalogs = catalog_readiness(
         knowledge_owner=status.get("status") == "ready",
         tenant_routes=len(parse_tenant_owner_sockets(
             settings.overgraph_tenant_owner_sockets,
         )),
         memory_owner=bool(parse_memory_owner_route(settings.overgraph_memory_owner_socket)),
+    )
+    status["catalogs"] = catalogs
+    status["write_paths_ready"] = all(
+        bool(catalog.get("request_write_paths_ready")) for catalog in catalogs.values()
     )
     request.app.state.overgraph_owner = status
     return status

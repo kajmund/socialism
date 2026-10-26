@@ -597,21 +597,36 @@ def scenario_tenant_catalog(root: Path) -> dict[str, Any]:
 def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
     seeded = _seed_clause_catalog(_base_env(root, owner_id=None))
     owner = _start_owner(root)
+    tenant = _start_tenant_owner(root, 1)
+    memory = _start_memory_owner(root)
     backends: list[Process] = []
     guard_a = root / "guard-a.log"
     guard_b = root / "guard-b.log"
+    routes = f"1={root / 'tenant-1.sock'}"
+    memory_socket = root / "memory-owner.sock"
     try:
         owner_id = _owner_id(root)
         port_a, port_b = _free_port(), _free_port()
-        backend_a = _start_backend(root, port=port_a, owner_id=owner_id, guard=guard_a)
-        backend_b = _start_backend(root, port=port_b, owner_id=owner_id, guard=guard_b)
+        backend_a = _start_backend(
+            root, port=port_a, owner_id=owner_id, guard=guard_a,
+            tenant_sockets=routes, memory_socket=memory_socket,
+        )
+        backend_b = _start_backend(
+            root, port=port_b, owner_id=owner_id, guard=guard_b,
+            tenant_sockets=routes, memory_socket=memory_socket,
+        )
         backends = [backend_a, backend_b]
         status_a = _owner_status(port_a)
         status_b = _owner_status(port_b)
         assert status_a["status"] == "ready" and status_a["catalog_id"] == owner_id
         assert status_b["status"] == "ready" and status_b["catalog_id"] == owner_id
-        assert status_a["write_paths_ready"] is False
-        assert status_b["write_paths_ready"] is False
+        assert status_a["write_paths_ready"] is True
+        assert status_b["write_paths_ready"] is True
+        for status in (status_a, status_b):
+            assert all(
+                catalog["request_write_paths_ready"]
+                for catalog in status["catalogs"].values()
+            )
 
         token = _login(port_a)
         assert _http("GET", f"http://127.0.0.1:{port_b}/me", token=token)[0] == 200
@@ -872,6 +887,8 @@ def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
         for backend in backends:
             if backend.proc.poll() is None:
                 backend.stop()
+        tenant.stop()
+        memory.stop()
         if owner is not None:
             owner.stop()
 

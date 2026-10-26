@@ -57,8 +57,12 @@ memory request paths are ready when their Owner routes are configured and
 their two-backend acceptance scenarios exist. Knowledge request paths are
 ready when the Knowledge Owner is configured: request-facing reads and writes
 now require the Owner or fail explicitly, and only offline tooling keeps
-direct catalog access. The global flag stays `false`. Static allowlist
-absence is never sufficient.
+direct catalog access. The global `write_paths_ready` is derived from the
+three per-catalog flags: it is `true` only when the Knowledge Owner, tenant
+Owners and the memory Owner are all configured. The multiprocess acceptance
+harness starts all three Owners, exercises the request paths and requires
+zero direct local catalog opens. Static allowlist absence is never
+sufficient.
 
 ## Tenant catalog acceptance
 
