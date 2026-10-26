@@ -223,5 +223,5 @@ fn benchmark_comparison_pinned() {
 }
 
 const LEARNER_REAL2_PIN: f64 = -29_200.0;
-const PIPELINE_REAL2_PIN: f64 = 58_846.2;
+const PIPELINE_REAL2_PIN: f64 = 59_846.2;
 const EQUAL_REAL2_PIN: f64 = 22_000.0;

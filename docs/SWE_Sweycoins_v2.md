@@ -322,3 +322,16 @@ Granskningens tre slutsatser är antagna och implementerade:
 
 **Automatisk generering av Golden Questions — svaret på diskussionsfrågan:** ja, med en hård varning. Mekaniskt går det: generera mallfrågor över Overgraph-dokument ("Vad säger avtalet om X?" per klausultyp), låt SWE köra research, och använd svaren som facit. Men om facit kommer från samma motor som utför researschen mäter bänken självkonsistens, inte researchkvalitet — ett cirkulärt facit är värdelöst och strider mot cratens non-negotiable 1. Den försvarbara vägen är halvautomatisk med oberoende signaler: (a) utöka det manuella guldet modest (10–30 klausulfrågor — billigt att annotera), (b) generera kandidatfrågor + kandidatevidens från strukturerad korpusdata (klausulrubriker, korsdokument-överensstämmelse där samma faktum styrks av flera oberoende dokument), (c) verifiera facit offline med JEV/LLM och behåll bara högtroende poster, (d) mänsklig stickprovsgranskning som grind. Tusentals frågor är målet; varje steg dit måste hålla facit oberoende av researche-pipelinen.
 
+## 16. Lärare–elev-POC: leave-one-question-out-grinden
+
+Granskningens POC-plan, genomförd i minsta kontrollerade form:
+
+1. **Lärarpolicy** = den adaptiva pipelinen — omskriven till att vara **observations-deterministisk** (en ren funktion av gränssnittet, ingen dold minnesräknare). Mätning tvingade fram detta: en minnesbaserad lärare producerade etikettkonflikter — samma observation mappade till olika handlingar — vilket gör beteendekloning principiellt omöjlig. Gränssnittet kompletterades också med `zero_hit_streak` (facit-fri stall-räknare) och `pool_extension_yielded` (har senaste pool-utökningen betalat sig) — "osäkerhet kring om fortsatt investering kan förbättra svaret", operationaliserat.
+2. **Beteendekloning** = multinomial logistisk regression (30 parametrar, SGD, ingen ny beroende) över 11 facit-fria features → lärarens tre handlingar {Invest(A,1000), Invest(B,5000), Finish}.
+3. **Kontrollerad utforskning** — planerad, ej byggd: ska läggas ovanpå eleven först när grinden passerat.
+4. **Oberoende utvärdering** — leave-one-question-out: träna på fyra frågor, testa på den femte, fem gånger; testfrågans alla nio trajektorior hålls utanför.
+
+**Grinden: PASS — 1.000 överensstämmelse på alla fem foldar**, inklusive folden som håller ut den enda frågan av typ 0 (ren extrapolering till osedd typ). Roll-out-verifikation: eleven driver RealEnv på den hållna frågan och når identiskt netto som läraren vid alla tre budgetar. Tester: `tests/student_tests.rs` (3 st, pinnade), rapport: `cargo run --example v2_student`.
+
+**Vad grinden betyder och inte betyder:** eleven kan överföra lärarens beteende till en osedd fråga — nödvändig grund för fortsatt RL. Den bevisar inte att eleven kan *överträffa* läraren; det kräver kontrollerad utforskning med terminalkvalitet som kreditsignal — och där är kreditfördelningsproblemet granskningen pekade ut: terminalkvaliteten märker episoden, inte det enskilda beslutet. Nästa steg: ε-utforskning kring lärarpolicyn i RealEnv, hårda kostnadstak, och utvärdering mot nya frågor när sådana finns (fem frågor räcker inte för generaliseringsslutsatser — §15:s dataset-väg).
+
