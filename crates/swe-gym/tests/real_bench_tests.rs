@@ -167,6 +167,46 @@ fn synthetic_trained_policies_transfer_to_real_questions() {
 }
 
 #[test]
+fn embedding_report_pins_the_information_content() {
+    let source = include_str!("../benchmarks/real_embedding_report.json");
+    let json = swe_native::parse_json_str(source).unwrap();
+    let questions = json
+        .get("questions")
+        .and_then(swe_native::Json::as_array)
+        .expect("report questions");
+    assert_eq!(questions.len(), 5);
+    for question in questions {
+        let id = question
+            .get("id")
+            .and_then(swe_native::Json::as_str)
+            .unwrap();
+        let get = |key: &str| {
+            question
+                .get(key)
+                .and_then(swe_native::Json::as_number)
+                .and_then(|n| n.as_u64())
+                .unwrap() as usize
+        };
+        let doc = get("scans_document_order");
+        let jev = get("scans_jev_score_order");
+        let sim = get("scans_similarity_order");
+        let oracle = get("oracle_scans");
+        // The three signals, ranked: embedding similarity beats blind
+        // document order by a wide margin; JEV's own scores beat similarity
+        // and sit near the oracle floor.
+        assert!(
+            sim < doc,
+            "{id}: similarity {sim} must beat document order {doc}"
+        );
+        assert!(
+            jev <= sim,
+            "{id}: JEV scores {jev} must beat similarity {sim}"
+        );
+        assert!(jev <= oracle * 2, "{id}: JEV {jev} near oracle {oracle}");
+    }
+}
+
+#[test]
 fn real_bench_arms_solve_via_replay() {
     use swe_gym::benchmark::run_arm_with_provider;
     use swe_gym::strategy::{AdaptiveStrategy, OracleStrategy, SequentialStrategy};
