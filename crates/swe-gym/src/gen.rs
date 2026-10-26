@@ -58,6 +58,50 @@ impl QuestionGenerator {
         question
     }
 
+    /// Structured variant for the feature experiment: evidence lives only in
+    /// the first half of the corpus (positions 0..5) — a scripted stand-in
+    /// for real document structure. The scan position then carries real,
+    /// facit-free information: a policy that reads it can stop scanning once
+    /// the evidence region is behind it. Deterministic per generator seed.
+    pub fn generate_structured_noisy(&mut self, count: usize) -> Vec<Question> {
+        (0..count).map(|_| self.one_structured()).collect()
+    }
+
+    fn one_structured(&mut self) -> Question {
+        let evidence_count = 2 + self.below(4); // 2..=5
+        let blind_count = (1 + self.below(2)).min(evidence_count);
+        let mut positions: Vec<usize> = Vec::new();
+        while positions.len() < evidence_count {
+            let position = self.below(5); // evidence region: first half
+            if !positions.contains(&position) {
+                positions.push(position);
+            }
+        }
+        let chunks: Vec<String> = (0..CHUNK_COUNT).map(|i| format!("chunk-{i:02}")).collect();
+        let evidence: HashSet<String> = positions
+            .iter()
+            .map(|position| chunks[*position].clone())
+            .collect();
+        let scan_blind: HashSet<String> = positions
+            .iter()
+            .take(blind_count)
+            .map(|position| chunks[*position].clone())
+            .collect();
+        let id = format!("gen-struct-{:04}", self.issued);
+        self.issued += 1;
+        Question {
+            view: QuestionView {
+                id,
+                chunks,
+                required_coverage: evidence_count,
+            },
+            evidence,
+            scan_blind,
+            noise_seed: 1 + self.next_u64(),
+            budget_milli: (20 + self.below(21)) as u64 * 1_000,
+        }
+    }
+
     fn one(&mut self) -> Question {
         let evidence_count = 2 + self.below(4); // 2..=5
         let blind_count = (1 + self.below(2)).min(evidence_count); // 1..=2

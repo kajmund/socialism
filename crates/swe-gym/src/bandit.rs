@@ -354,8 +354,13 @@ pub fn train_bandit(
 // ---------------------------------------------------------------------------
 
 /// Discretize the checkpoint context: gap (2 bits), best-score band (2
-/// bits), last-score band (2 bits), remaining band (1 bit). Shared by the
+/// bits), last-score band (2 bits), remaining band (2 bits). Shared by the
 /// tabular bandit and the TD policy.
+///
+/// The remaining feature got a second bit for the structured-corpus
+/// experiment: scan position is real, facit-free information when evidence
+/// is regionally clustered, and finer bands let the policy learn the region
+/// boundary.
 pub fn scan_state_key(context: &Context) -> u64 {
     let band = |score: f64| -> u64 {
         let bp = (score * 10_000.0).round() as u64;
@@ -372,7 +377,16 @@ pub fn scan_state_key(context: &Context) -> u64 {
     let gap = (context.features[1].round() as u64).min(3);
     let best = band(context.features[5]);
     let last = band(context.features[4]);
-    let remaining = (context.features[2].round() as u64).min(1);
+    let remaining_count = (context.features[2] * 10.0).round() as u64;
+    let remaining = if remaining_count >= 8 {
+        0
+    } else if remaining_count >= 5 {
+        1
+    } else if remaining_count >= 2 {
+        2
+    } else {
+        3
+    };
     gap | (best << 2) | (last << 4) | (remaining << 6)
 }
 

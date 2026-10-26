@@ -47,6 +47,74 @@ fn td_training_is_reproducible() {
 }
 
 #[test]
+fn structured_generator_clusters_evidence_in_the_first_half() {
+    let mut generator = QuestionGenerator::new(7);
+    let questions = generator.generate_structured_noisy(100);
+    let mut again = QuestionGenerator::new(7);
+    assert_eq!(again.generate_structured_noisy(100), questions);
+    for question in &questions {
+        for chunk in &question.evidence {
+            let position = question
+                .view
+                .chunks
+                .iter()
+                .position(|candidate| candidate == chunk)
+                .unwrap();
+            assert!(position < 5, "evidence must live in the first half");
+        }
+        assert!(question.noise_seed > 0);
+    }
+}
+
+#[test]
+fn td_with_position_signal_beats_arm_c_on_structured_heldout() {
+    let tariffs = tariffs();
+    let mut train_generator = QuestionGenerator::new(7);
+    let train_questions = train_generator.generate_structured_noisy(4_000);
+    let mut policy = TdPolicy::new(4242, 0.2, 0.1, 0.95);
+    let records = train_td(&mut policy, &train_questions, BUDGET, &tariffs);
+    assert!(records.len() > 10_000, "many sequential updates");
+    policy.set_epsilon(0.0);
+
+    let mut eval_generator = QuestionGenerator::new(99);
+    let eval_questions = eval_generator.generate_structured_noisy(500);
+    let mut g_solved = 0;
+    let mut g_spend = 0u64;
+    let mut g_scans = 0usize;
+    let mut c_solved = 0;
+    let mut c_spend = 0u64;
+    for question in &eval_questions {
+        let mut td_strategy = TdSequentialStrategy::new(policy.clone());
+        let td_report = run_arm(&mut td_strategy, question, BUDGET, &tariffs);
+        let adaptive_report = run_arm(&mut AdaptiveStrategy, question, BUDGET, &tariffs);
+        if td_report.solved {
+            g_solved += 1;
+        }
+        g_spend += td_report.spent_milli;
+        g_scans += td_report
+            .calls
+            .iter()
+            .filter(|call| call.provider == "scan")
+            .count();
+        if adaptive_report.solved {
+            c_solved += 1;
+        }
+        c_spend += adaptive_report.spent_milli;
+    }
+    // The headline of the feature experiment: with scan position as a real
+    // signal, the learned policy stops scanning past the evidence region —
+    // beating the hand rule on both axes. It solves at least as many, spends
+    // less, and scans clearly fewer chunks.
+    assert!(g_solved >= c_solved, "TD {} vs C {}", g_solved, c_solved);
+    assert!(g_spend < c_spend, "TD {} vs C {}", g_spend, c_spend);
+    let g_avg_scans = g_scans as f64 / eval_questions.len() as f64;
+    assert!(
+        g_avg_scans < 8.0,
+        "TD must stop early: {g_avg_scans:.2} scans"
+    );
+}
+
+#[test]
 fn td_policy_matches_arm_c_on_noisy_heldout() {
     let tariffs = tariffs();
     let mut train_generator = QuestionGenerator::new(7);
