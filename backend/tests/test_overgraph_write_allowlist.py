@@ -41,6 +41,7 @@ OPEN_ALLOWLIST = {
     "main.py",  # owner mode opens only the memory catalog; owner-mode test below
     "services/overgraph/catalogs.py",  # the definition itself
     "services/overgraph/owner.py",  # the owner implementation
+    "services/overgraph/owner_cli.py",  # opens the owner's own catalog by --kind
     "services/overgraph/workflows.py",  # SWE run store, separate catalog
     "services/overgraph/jev_cache.py",  # Jev cache store, separate catalog
     "services/document_qa/tenants.py",  # offline/benchmark only, not request paths
