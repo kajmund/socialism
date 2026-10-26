@@ -1,0 +1,14 @@
+[package]
+name = "swe-gym"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+description = "Sweycoin budget gym: ledger, metered driver, PoC demo"
+license = "UNLICENSED"
+publish = false
+
+[dependencies]
+swe-native = { path = "../swe-native" }
+# Small sync HTTP client; ureq's dependency tree (url → idna → icu) needs
+# edition 2024 on current releases, which the repo's Rust 1.83 cannot parse.
+minreq = { version = "2", features = ["https-rustls"] }
