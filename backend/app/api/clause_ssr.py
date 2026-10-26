@@ -23,7 +23,7 @@ from app.services.clause_ssr.classifications import (
 )
 from app.services.clause_ssr.match import match_query
 from app.services.clause_ssr.queue import next_queue
-from app.services.clause_ssr import owner_select
+from app.services.clause_ssr import owner_match, owner_select
 from app.services.clause_ssr.select import list_anchor_sets
 from app.services.clause_ssr.serialize import (
     anchor_json,
@@ -395,18 +395,31 @@ async def api_list_sets(customer_id: int | None = Query(default=None)) -> dict:
 
 @router.post("/match")
 async def api_match(body: MatchWrite) -> dict:
-    catalog = _catalog()
+    owner = get_owner_runtime().client
+    scope = _scope(body.customer_id)
     try:
-        result = await asyncio.to_thread(
-            match_query,
-            catalog,
-            scope=_scope(body.customer_id),
-            embedding=catalog_embedding(catalog),
-            vector=body.dense_vector,
-            text_unit_id=body.text_unit_id,
-            k=body.k,
-            set_id=body.set_id,
-        )
+        if owner is not None:
+            result = await owner_match.match_query(
+                owner,
+                scope=scope,
+                embedding=catalog_embedding(_catalog()),
+                vector=body.dense_vector,
+                text_unit_id=body.text_unit_id,
+                k=body.k,
+                set_id=body.set_id,
+            )
+        else:
+            catalog = _catalog()
+            result = await asyncio.to_thread(
+                match_query,
+                catalog,
+                scope=scope,
+                embedding=catalog_embedding(catalog),
+                vector=body.dense_vector,
+                text_unit_id=body.text_unit_id,
+                k=body.k,
+                set_id=body.set_id,
+            )
     except (PermissionError, KeyError, ValueError) as exc:
         raise _http(exc) from exc
     return match_json(result)

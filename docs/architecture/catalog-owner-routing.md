@@ -127,7 +127,7 @@ without tenant routes; the first tenant operation fails explicitly. The direct
 backend request path imports it. TextUnit reads for document navigation, live
 speech terms, workspace source passages and tabular-review embeddings use a
 shared Owner reader with cursor pagination (legacy local read only when no
-Owner runtime is configured). Clause anchor/anchor-set listings, tabular-review run inputs and saved-research-answer reads
+Owner runtime is configured). Clause anchor/anchor-set listings, matching, tabular-review run inputs and saved-research-answer reads
 also use Owner helpers with bounded reads. The memory catalog
 now has an Owner-backed repository (`owner_memory.py`) for
 upsert/get/update/delete/search/list/link and a configurable Owner route.
