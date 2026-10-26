@@ -26,6 +26,8 @@ from app.services.lagen_nu.models import LagenNuDocument
 from app.services.lagen_nu.registration import LAGEN_NU_PROVIDER_ID
 from app.services.lagen_nu.uris import canonical_lagen_nu_document_uri
 from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.owner_writer import load_text_units_via_owner
 from app.services.overgraph.text_units import load_domain_text_units
 
 
@@ -75,9 +77,15 @@ async def current_lagen_nu_units(
         raise LagenNuResearchKnowledgeError(
             f"CanonicalDocument {row.id} has no current version"
         )
-    units = await asyncio.to_thread(
-        load_domain_text_units, require_knowledge(), document_version_id=version.id,
-    )
+    owner = get_owner_runtime().client
+    if owner is not None:
+        units = await load_text_units_via_owner(
+            owner, document_version_id=version.id,
+        )
+    else:
+        units = await asyncio.to_thread(
+            load_domain_text_units, require_knowledge(), document_version_id=version.id,
+        )
     if not units:
         # SQL metadata can survive an OverGraph reset; treat this as "not
         # ingested" so the provider fetches and re-materialises TextUnits.
