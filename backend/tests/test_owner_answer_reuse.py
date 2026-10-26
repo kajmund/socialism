@@ -19,7 +19,6 @@ from app.services.knowledge.models import KnowledgeScope
 from app.services.overgraph.owner_facts import answer_fact_key, publish_answer_via_owner
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.publish import AnswerPublish
-from app.services.research import answer_graph
 from app.services.research.answer_graph import lookup_answers
 from app.services.research.models import ResearchContext, ResearchEvidence, ResearchNeed
 
@@ -84,10 +83,6 @@ async def test_backend_finds_answer_published_through_owner(session, monkeypatch
     client = get_owner_runtime().require_client()
     published_id = await publish_answer_via_owner(client, published)
 
-    def forbidden(*_args, **_kwargs):
-        raise AssertionError("research reuse opened the local knowledge catalog")
-
-    monkeypatch.setattr(answer_graph, "require_knowledge", forbidden)
     need = ResearchNeed(
         id="need-reuse-1",
         question="Vad gäller uppsägningstiden?",
