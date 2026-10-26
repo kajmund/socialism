@@ -198,9 +198,9 @@ RealEnv-design: A = JEV-scan i likhetsordning (arm H:s motor, 1 coin/chunk), B =
 | real-adaptive (fynd-platå) | +44 000 |
 | real-equal-split | +22 000 |
 | real-sequential (likhet först) | +20 000 |
-| **mc-q-learner (syntetiskt tränad)** | **−100 000** |
+| **mc-q-learner (syntetiskt tränad)** | **−9 303** |
 
-**Kriterium 5: UNDERKÄNT — learen regresserar mot lika fördelning på den verkliga bänken.** Detaljen är värd att läsa rätt: learen hittar full täckning på alla fem frågorna (21/20, 15/13, 42/34, 22/13, 7/7 fynd) men **slutar aldrig** — den bränner hela budgeten (200/200 coins) eftersom dess stoppbeslut är inlärt mot syntetiska tier-dynamiker som den verkliga miljön inte producerar (tier-tillstånd som syntetisk träning aldrig besökte → Q-tabellen är skräp där). Överföringsfelet sitter i stoppbeslutet, inte i att hitta evidens.
+**Kriterium 5: UNDERKÄNT — learen regresserar mot lika fördelning på den verkliga bänken.** Detaljen: learen hittar full täckning på alla fem frågorna men stoppar för sent — dess stoppbeslut är inlärt mot syntetiska tier-dynamiker som den verkliga miljön inte producerar. (Före självloop-fixen i §13 brände den hela budgeten, −100k; efter fixen −9.3k — samma utslag, mildare magnitud.) Överföringsfelet sitter i stoppbeslutet, inte i att hitta evidens.
 
 Tre dokumenterade överföringsblockerare: (1) frågetyp-regeln är en godtycklig proxy — syntetiska typer har ingen semantisk motsvarighet i verkliga drag; (2) tier-semantiken (0–4 per strategi) kan inte uttrycka det verkliga framstegssignalen (fynd-antal) — verkliga baslinjer behöver `obs.found`; (3) den verkliga bänkens lärbara marginal är densamma som v1 mätte: ordning (arm H 38/26/47/18/16 vs C\* 20/13/34/13/7 scans), inte budgetallokering över strategier — med bara en bra strategi och en dominerad finns ingen allokeringsstruktur att lära.
 
@@ -245,4 +245,33 @@ Grind: 1.47 (krav ≥ 1.10) ✓ · learen 94 % av oraklet ✓ · **stoppbeslutet
 Lärdom på vägen: den "enkla adaptiva regeln" var degenererad — EMA-marginalen når aldrig exakt 0, så regeln investerade tills budgeten tog slut (medel 0). Med platå-stopp (3 no-gain → avsluta) blev den 58 750. Samma bugg fanns i RealEnv:s adaptiva baslinje och fixades där. Det är en bra påminnelse om varför baslinjerna måste vara lika genomtänkta som learen.
 
 **Nästa steg:** först när detta fungerar i syntetiska scenarier som liknar verkliga researchförlopp (kalibrerade mot uppmätta fynd-dynamiker, se 11.2), går vi till verkliga Golden Questions — och då krävs ny fryst data för LLM-förmågan (live-capture, env-gated) eftersom den befintliga bänken bara täcker JEV.
+
+## 13. Synergi-experimentet: kompletterande förmågor och fördröjd belöning
+
+Det sista syntetiska experimentet innan gymmets arkitektur fryses. Skillnaden mot §12: här **förändrar en investering i A värdet av en senare investering i B** — fördröjd avkastning, inte bara olika kostnads-/kvalitetsprofiler.
+
+**Världen (`env::synergy_config`):** A = retrieval (hittar källor; **noll direkt kvalitet** — ren unlock), B = JEV (extraherar evidens; **4× dyrare per tier tills A hittat källorna**), C = LLM (syntetiserar; bidrar bara i mån av extraherad evidens: `cap × min(tC, tB)/4`). Typer: t0 kedjan lönar sig, t1 retrieval lönar sig inte (A prissatt över besparingen), t2 full syntes krävs, t3 lätt unlock räcker. Facit finns bara i terminalbelöningen.
+
+**Pipeline:** online-säsong (200/typ) → **deterministisk täckningssvep** (400/typ; minst-besökta-handling-regeln är frö-oberoende) → **offline replay-fit** (värdeiteration över alla insamlade episoder till konvergens). Två lärdomar som krävdes:
+
+1. **Självloop-biasen (γ=1):** en no-gain-investering bootstrappar från sitt eget tillstånds max och kunde slå Finish — learen loopade 22 no-gain-investeringar på skip-A-typen. Fix: γ=0.999 (späder 10-stegskedjor ~1 %). Om-pinnat i alla sviter.
+2. **Frö-lotteriet:** online-exploreringens täckningsluckor gjorde greedy-policyn frö-beroende (29k–63k). Fix: täckningssvepen gör datatäckningen deterministisk; därefter är learen stabil över frön.
+
+**Uppmätt (held-out = 8 osedda frågor, budgets 60k/140k):**
+
+| Arm | Medel |
+|---|---|
+| sekventiell (pipeline A→B→C) | 12 812 |
+| lika fördelning | 35 312 |
+| adaptiv (platå) | 35 312 |
+| **mc-q-learner** | **63 125** |
+| orakel | 68 625 |
+
+Grind 1.94 ✓ · learen **92 % av oraklet, 1.79× bästa baslinje** ✓ · stoppkvot 1.19 (≤ 1.5) ✓.
+
+**Fördröjd-avkastningsbeviset (proberna, pinnade i tester):** på kedjetypen är learens **första investering retrieval (A)** trots att A ger noll direkt kvalitet (netto 65k mot oraklets 69k), och på skip-A-typen startar den med JEV (netto 57.5k = oraklet exakt). Den har alltså lärt sig *både* att betala för fördröjd avkastning *och* att hoppa retrieval när det inte lönar sig.
+
+**Svar på frågan om marginalnytta:** ja — learen kan investera i samma förmåga flera gånger och observerar marginalnyttan via tier-tillståndet efter varje investering; Q-tabellen indexerar på (typ, tiers), vilket är precis byggstenen synergiinlärningen ovan utnyttjar.
+
+**Beslut: gymmets arkitektur fryses här.** Nästa steg är verkliga Golden Questions — vilket kräver ny fryst data för LLM-förmågan (live-capture, env-gated), eftersom befintlig bänk bara täcker JEV.
 
