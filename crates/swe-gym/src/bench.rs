@@ -6,7 +6,7 @@
 //! in any eval set, and must be kept out of strategy code (enforced by the
 //! type system).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use swe_native::{parse_json_str, Json};
 
@@ -74,6 +74,16 @@ pub fn load_bench(source: &str) -> Result<BenchFile, String> {
         let evidence: HashSet<String> = string_array(question, "evidence")?.into_iter().collect();
         let scan_blind: HashSet<String> =
             string_array(question, "scan_blind")?.into_iter().collect();
+        let texts: HashMap<String, String> = question
+            .get("texts")
+            .and_then(Json::as_object)
+            .map(|object| {
+                object
+                    .iter()
+                    .map(|(chunk, text)| (chunk.clone(), text.as_str().unwrap_or("").to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
         if evidence.is_empty() {
             return Err(format!(
                 "question {id:?} requires at least one evidence chunk"
@@ -89,6 +99,7 @@ pub fn load_bench(source: &str) -> Result<BenchFile, String> {
             scan_blind,
             noise_seed: 0,
             budget_milli: 0,
+            texts,
         });
     }
     if questions.is_empty() {
