@@ -30,8 +30,6 @@ fn train_learner(seed: u64) -> McQLearner {
         }
     }
     run_season(&config, &mut learner, &train);
-    // Coverage sweep: complete the visited-state set deterministically,
-    // so the replay fit's data no longer depends on exploration luck.
     learner.set_sweep(true);
     let mut sweep = Vec::new();
     for qtype in 0..4u8 {

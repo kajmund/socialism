@@ -1,39 +1,43 @@
-//! RealEnv: the v2 gym over the frozen real legal bench (step 6 of
-//! docs/SWE_Sweycoins_v2.md).
+//! RealEnv: the v2 gym over the frozen real legal bench — the common
+//! observation interface for real workflows (docs/SWE_Sweycoins_v2.md 14).
 //!
-//! Strategies (same Action interface as the synthetic env):
+//! Two genuinely different capabilities with frozen, reproducible data:
 //!
-//! - **A** = JEV scan in similarity order (the arm-H engine — v1's best
-//!   measured real policy), 1 coin per chunk (tariff `scan`).
-//! - **B** = JEV scan in document order (the arm-A engine), 1 coin per chunk.
-//! - **C** = deep/LLM analysis — **masked**: the frozen fixtures contain no
-//!   deep answers, so the real env cannot model it honestly. A documented
-//!   limitation, loud not silent: investing in C is an invalid action.
+//! - **A = retrieval**: expands the candidate pool in similarity order
+//!   (tariff `lookup`, 50 milli/chunk). Retrieval alone produces NO
+//!   verified evidence — it changes the value of later JEV calls, the
+//!   real delayed-return structure.
+//! - **B = JEV**: verifies the top unverified chunk of the pool (tariff
+//!   `scan`, 1 coin/call) against the frozen 2019 answers. Its marginal
+//!   utility depends on the pool A has surfaced.
+//! - **C = deep/LLM**: masked — the frozen fixtures carry no deep
+//!   answers (documented limitation; capturing them is the next step).
 //!
-//! State/observation: same shape as the synthetic env. Progress tiers are
-//! the facit-free signal v1's scanner already observed: findings per
-//! strategy (`tier_s = min(4, hits_found_by_s)`). Quality — the facit —
-//! is evaluated only at episode end: `hits / required`, capped at 1.0.
-//!
-//! Question type: a pre-registered observable rule — bucket by chunk
-//! count (the only facit-free scalar in the bench besides the question
-//! text). This is a proxy, not a learned feature; the transfer test's
-//! whole point is to find out whether it suffices. It is recorded here
-//! so the rule cannot be tuned after seeing results.
-//!
-//! All money flows through the ledger with per-step accounting: each
-//! INVEST reserves the granted amount, settles the ACTUAL scan cost and
-//! releases the unspent remainder — the real settle path, unlike the
-//! synthetic env's fixed-cost segments.
+//! Observation: the facit-free interface the budget manager must be able
+//! to reason from (docs 14): spent per capability, remaining budget,
+//! new evidence count, recent findings per 100 verification calls,
+//! last verification confidence, pool state. Quality (hits/required) is
+//! revealed only at episode end, never in the observation.
 
 use std::collections::HashSet;
 
+use crate::agent::Policy;
+use crate::bench::load_bench_file;
 use crate::env::{
     budget_bracket, Action, Observation, Status, StepInfo, INVEST_AMOUNTS_MILLI, MIN_INVEST_MILLI,
     STRATEGY_COUNT, TIER_MAX,
 };
 use crate::ledger::{Amount, Ledger};
 use crate::provider::{ReplayProvider, ResearchProvider};
+use crate::train::EpisodeReport;
+
+/// Retrieval lookup tariff: 0.05 coin per surfaced chunk (the SSR-anchor
+/// / embedding-side cost; the index itself is already amortized).
+pub const LOOKUP_MILLI: Amount = 50;
+/// JEV verification tariff (matches the frozen bench's `scan` tariff).
+pub const SCAN_MILLI: Amount = 1_000;
+/// Rolling window for the observable marginal-utility signal.
+pub const HIT_RATE_WINDOW: usize = 20;
 
 /// Pre-registered observable type rule (see module docs). Chunk count
 /// buckets: <=400 -> 0, <=700 -> 1, <=900 -> 2, else 3.
@@ -48,6 +52,7 @@ pub fn observable_qtype(chunk_count: usize) -> u8 {
 
 /// One real question for the budget manager: the facit-free view plus
 /// the facit (evaluator only, same split as bench.rs).
+#[derive(Clone)]
 pub struct RealQuestion {
     pub id: String,
     pub qtype: u8,
@@ -66,9 +71,12 @@ pub struct RealEnv {
     question: Option<RealQuestion>,
     ledger: Ledger,
     key_seq: u64,
-    cursors: [usize; 2],
+    pool_cursor: usize,   // retrieval: chunks surfaced (A)
+    verify_cursor: usize, // JEV: chunks verified (B)
     hits_by: [u8; 2],
     found: HashSet<String>,
+    recent_outcomes: Vec<bool>,
+    last_score_bp: u32,
     remaining_milli: Amount,
     spent_milli: [Amount; STRATEGY_COUNT],
     steps: u32,
@@ -85,9 +93,12 @@ impl RealEnv {
             question: None,
             ledger: Ledger::new(),
             key_seq: 0,
-            cursors: [0, 0],
+            pool_cursor: 0,
+            verify_cursor: 0,
             hits_by: [0, 0],
             found: HashSet::new(),
+            recent_outcomes: Vec::new(),
+            last_score_bp: 0,
             remaining_milli: 0,
             spent_milli: [0; STRATEGY_COUNT],
             steps: 0,
@@ -102,8 +113,14 @@ impl RealEnv {
     }
 
     fn tiers(&self) -> [u8; STRATEGY_COUNT] {
+        let question = self.question.as_ref().expect("reset before tiers");
+        let pool_quintile = if question.chunks.is_empty() {
+            0
+        } else {
+            (self.pool_cursor as u64 * TIER_MAX as u64 / question.chunks.len() as u64) as u8
+        };
         [
-            self.hits_by[0].min(TIER_MAX),
+            pool_quintile.min(TIER_MAX),
             self.hits_by[1].min(TIER_MAX),
             0,
         ]
@@ -115,6 +132,15 @@ impl RealEnv {
             return 1.0;
         }
         (self.found.len() as f64 / q.required as f64).min(1.0)
+    }
+
+    fn recent_hit_rate_bp(&self) -> u32 {
+        let n = self.recent_outcomes.len();
+        if n == 0 {
+            return 0;
+        }
+        let hits: usize = self.recent_outcomes.iter().filter(|h| **h).count();
+        (10_000 * hits / n) as u32
     }
 
     fn finish(&mut self, reason: &str) -> Result<(Observation, StepInfo), String> {
@@ -174,9 +200,12 @@ impl RealEnv {
         self.ledger
             .allocate(&q.id, "exec", q.budget_milli, &alloc_key)
             .map_err(|e| e.to_string())?;
-        self.cursors = [0, 0];
+        self.pool_cursor = 0;
+        self.verify_cursor = 0;
         self.hits_by = [0, 0];
         self.found = HashSet::new();
+        self.recent_outcomes = Vec::new();
+        self.last_score_bp = 0;
         self.remaining_milli = q.budget_milli;
         self.spent_milli = [0; STRATEGY_COUNT];
         self.steps = 0;
@@ -188,6 +217,12 @@ impl RealEnv {
             bracket: budget_bracket(q.budget_milli),
             tiers: [0; STRATEGY_COUNT],
             found: 0,
+            new_evidence: 0,
+            contradictions: 0,
+            recent_hit_rate_bp: 0,
+            last_score_bp: 0,
+            pool_scanned: 0,
+            pool_total: q.chunks.len() as u32,
             statuses: [Status::Idle; STRATEGY_COUNT],
             spent_milli: [0; STRATEGY_COUNT],
             steps: 0,
@@ -233,6 +268,7 @@ impl RealEnv {
 
         let mut gained = [0u8; STRATEGY_COUNT];
         let cost: Amount;
+        let mut new_evidence = 0u8;
         match action {
             Action::Invest(s, amount) => {
                 if s >= 2 {
@@ -249,40 +285,67 @@ impl RealEnv {
                     }
                     _ => {}
                 }
-                let order: &[String] = if s == 0 && !scan_order.is_empty() {
-                    &scan_order
-                } else {
-                    &chunks
-                };
                 let res_key = self.next_key("res");
                 let reservation = self
                     .ledger
                     .reserve(&question_id, "exec", amount, &res_key)
                     .map_err(|e| e.to_string())?;
                 let mut spent: Amount = 0;
-                let cursor = &mut self.cursors[s];
-                let before_hits = self.hits_by[s];
-                while spent < amount && *cursor < order.len() {
-                    let chunk = &order[*cursor];
-                    *cursor += 1;
-                    let answer = self
-                        .replay
-                        .as_ref()
-                        .expect("reset loads the replay")
-                        .analyze("scan", chunk, "")
-                        .map_err(|e| e.to_string())?;
-                    spent += 1_000; // tariff scan
-                    if answer.choice == "fynd" && self.found.insert(chunk.clone()) {
-                        self.hits_by[s] += 1;
+                match s {
+                    0 => {
+                        // Retrieval: surface pool chunks in similarity order.
+                        let per_chunk = LOOKUP_MILLI;
+                        while spent + per_chunk <= amount && self.pool_cursor < chunks.len() {
+                            self.pool_cursor += 1;
+                            spent += per_chunk;
+                        }
+                    }
+                    _ => {
+                        // JEV: verify the top unverified chunk of the pool.
+                        let order: &[String] = if !scan_order.is_empty() {
+                            &scan_order
+                        } else {
+                            &chunks
+                        };
+                        let replay = self.replay.as_ref().expect("reset loads the replay");
+                        while spent + SCAN_MILLI <= amount && self.verify_cursor < self.pool_cursor
+                        {
+                            let chunk = &order[self.verify_cursor];
+                            self.verify_cursor += 1;
+                            spent += SCAN_MILLI;
+                            let answer = replay
+                                .analyze("scan", chunk, "")
+                                .map_err(|e| e.to_string())?;
+                            self.last_score_bp = answer.score_bp;
+                            let hit = answer.choice == "fynd";
+                            self.recent_outcomes.push(hit);
+                            if self.recent_outcomes.len() > HIT_RATE_WINDOW {
+                                self.recent_outcomes.remove(0);
+                            }
+                            if hit && self.found.insert(chunk.clone()) {
+                                self.hits_by[1] += 1;
+                                new_evidence += 1;
+                            }
+                        }
                     }
                 }
                 let settle_key = self.next_key("settle");
                 self.ledger
                     .settle(reservation, spent, &settle_key)
                     .map_err(|e| e.to_string())?;
-                gained[s] = self.hits_by[s].saturating_sub(before_hits);
+                gained[s] = if s == 0 {
+                    let before = obs.tiers[0];
+                    let after = self.tiers()[0];
+                    after.saturating_sub(before)
+                } else {
+                    0
+                };
                 obs.tiers = self.tiers();
                 obs.found = (self.found.len() as u8).min(255);
+                obs.new_evidence = new_evidence;
+                obs.recent_hit_rate_bp = self.recent_hit_rate_bp();
+                obs.last_score_bp = self.last_score_bp;
+                obs.pool_scanned = self.pool_cursor as u32;
                 obs.spent_milli[s] += spent;
                 obs.remaining_milli -= spent;
                 obs.bracket = budget_bracket(obs.remaining_milli);
@@ -363,13 +426,7 @@ impl RealEnv {
 // ---------------------------------------------------------------------------
 // Harness: episode loop, evaluation, bench loading
 
-use crate::agent::Policy;
-use crate::bench::load_bench_file;
-use crate::train::EpisodeReport;
-
-/// Run one episode with a fresh env; reported reward is the net return
-/// (sum of per-step rewards — same accounting identity as the synthetic
-/// env).
+/// Run one episode with a fresh env; reported reward is the net return.
 pub fn run_episode_real(
     env: &mut RealEnv,
     policy: &mut dyn Policy,
@@ -421,11 +478,6 @@ pub fn evaluate_real(
     total / questions.len() as f64
 }
 
-/// Load the frozen real bench as v2 RealQuestions: bench JSON plus the
-/// per-question replay fixtures. Budget per question is a configurable
-/// constant (200 coins: enough for the similarity scanner on every
-/// question, not enough for document order on the big ones — the
-/// scarcity the budget manager is supposed to handle).
 pub const REAL_BUDGET_PER_QUESTION_MILLI: Amount = 200_000;
 pub const REAL_BASE_REWARD_MILLI: Amount = 100_000;
 
@@ -450,9 +502,7 @@ pub fn load_real_bench(bench_path: &str, fixtures_dir: &str) -> Result<Vec<RealQ
 }
 
 // ---------------------------------------------------------------------------
-// Real baselines: the same three simple rules as the synthetic baselines,
-// but they stop on the real progress signal — new findings — which the
-// tier quantization (0..4) cannot express.
+// Real baselines for the two-capability benchmark
 
 #[derive(Default)]
 struct RealMem {
@@ -460,9 +510,8 @@ struct RealMem {
     last_invested: Option<usize>,
     prev_found: u8,
     no_gain: u8,
-    no_gain_by: [u8; 2],
     next: usize,
-    est: [f64; 2],
+    cycle_found: u8,
 }
 
 impl RealMem {
@@ -471,13 +520,10 @@ impl RealMem {
         self.last_invested = None;
         self.prev_found = 0;
         self.no_gain = 0;
-        self.no_gain_by = [0; 2];
         self.next = 0;
-        // Optimistic prior: 1 hit per 5000 milli until observed.
-        self.est = [1.0 / 5_000.0; 2];
+        self.cycle_found = 0;
     }
 
-    /// New findings since the previous decision; 0 if not investing yet.
     fn observe(&mut self, obs: &Observation) -> u8 {
         if self.last_invested.is_some() {
             let gain = obs.found.saturating_sub(self.prev_found);
@@ -489,8 +535,75 @@ impl RealMem {
     }
 }
 
-/// Equal split over the real strategies: round-robin 5 coins A/B until
-/// three consecutive investments yield no new findings.
+/// The strong adaptive baseline: pipeline with adaptive pool extension.
+/// Verify (B) while it keeps finding evidence; when it stalls for three
+/// investments, extend the retrieval pool (A) and resume; finish when
+/// the pool is exhausted and B has stalled.
+pub struct RealPipelinePolicy {
+    mem: RealMem,
+}
+
+impl RealPipelinePolicy {
+    pub fn new() -> Self {
+        Self {
+            mem: RealMem::default(),
+        }
+    }
+}
+
+impl Policy for RealPipelinePolicy {
+    fn name(&self) -> &'static str {
+        "real-pipeline-adaptive"
+    }
+
+    fn episode_start(&mut self, question: &crate::env::Question, _question_index: u64) {
+        self.mem.begin(question);
+    }
+
+    fn act(&mut self, obs: &Observation, valid: &[Action]) -> Action {
+        if self.mem.question_id != obs.question_id {
+            self.mem.begin(&crate::env::Question {
+                id: obs.question_id.clone(),
+                qtype: obs.qtype,
+                budget_milli: obs.remaining_milli,
+            });
+        }
+        let gain = self.mem.observe(obs);
+        if let Some(s) = self.mem.last_invested {
+            if s == 1 && gain == 0 {
+                self.mem.no_gain += 1;
+            } else if s == 1 {
+                self.mem.no_gain = 0;
+            }
+        }
+        // Extend the pool when B stalls or has nothing to verify yet —
+        // but a full extend-and-verify cycle that adds no new evidence
+        // means the productive region is exhausted: finish. (Measured:
+        // without this the pipeline keeps extending the pool forever and
+        // burns the whole budget on zero-finding verifications.)
+        let pool_full = obs.pool_scanned >= obs.pool_total;
+        if !pool_full && (self.mem.no_gain >= 3 || obs.pool_scanned == 0) {
+            if obs.found <= self.mem.cycle_found && obs.pool_scanned > 0 {
+                return Action::Finish;
+            }
+            if valid.contains(&Action::Invest(0, 1_000)) {
+                self.mem.cycle_found = obs.found;
+                self.mem.last_invested = Some(0);
+                self.mem.prev_found = obs.found;
+                return Action::Invest(0, 1_000);
+            }
+        }
+        if valid.contains(&Action::Invest(1, 5_000)) {
+            self.mem.last_invested = Some(1);
+            self.mem.prev_found = obs.found;
+            return Action::Invest(1, 5_000);
+        }
+        Action::Finish
+    }
+}
+
+/// Equal split over the two capabilities: alternate A/B until three
+/// consecutive B investments yield no new findings.
 pub struct RealEqualSplitPolicy {
     mem: RealMem,
 }
@@ -521,10 +634,10 @@ impl Policy for RealEqualSplitPolicy {
             });
         }
         let gain = self.mem.observe(obs);
-        if self.mem.last_invested.is_some() {
-            if gain == 0 {
+        if let Some(s) = self.mem.last_invested {
+            if s == 1 && gain == 0 {
                 self.mem.no_gain += 1;
-            } else {
+            } else if s == 1 {
                 self.mem.no_gain = 0;
             }
         }
@@ -534,135 +647,13 @@ impl Policy for RealEqualSplitPolicy {
         for _ in 0..2 {
             let s = self.mem.next;
             self.mem.next = (s + 1) % 2;
-            if valid.contains(&Action::Invest(s, 5_000)) {
+            let amount = if s == 0 { 1_000 } else { 5_000 };
+            if valid.contains(&Action::Invest(s, amount)) {
                 self.mem.last_invested = Some(s);
                 self.mem.prev_found = obs.found;
-                return Action::Invest(s, 5_000);
+                return Action::Invest(s, amount);
             }
         }
         Action::Finish
-    }
-}
-
-/// Sequential priority over the real strategies: all-in on the first
-/// strategy until three no-finding investments, then the second, then
-/// finish. `first` picks the priority (0 = similarity scan first).
-pub struct RealSequentialPolicy {
-    mem: RealMem,
-    first: usize,
-}
-
-impl RealSequentialPolicy {
-    pub fn new(first: usize) -> Self {
-        Self {
-            mem: RealMem::default(),
-            first,
-        }
-    }
-}
-
-impl Policy for RealSequentialPolicy {
-    fn name(&self) -> &'static str {
-        "real-sequential"
-    }
-
-    fn episode_start(&mut self, question: &crate::env::Question, _question_index: u64) {
-        self.mem.begin(question);
-    }
-
-    fn act(&mut self, obs: &Observation, valid: &[Action]) -> Action {
-        if self.mem.question_id != obs.question_id {
-            self.mem.begin(&crate::env::Question {
-                id: obs.question_id.clone(),
-                qtype: obs.qtype,
-                budget_milli: obs.remaining_milli,
-            });
-        }
-        let gain = self.mem.observe(obs);
-        if let Some(s) = self.mem.last_invested {
-            if gain == 0 {
-                self.mem.no_gain_by[s] += 1;
-                if self.mem.no_gain_by[s] >= 3 {
-                    self.mem.next = s + 1;
-                }
-            } else {
-                self.mem.no_gain_by[s] = 0;
-            }
-        }
-        // Priority order: [first, 1 - first].
-        for candidate in [self.first, 1 - self.first] {
-            if candidate >= self.mem.next && valid.contains(&Action::Invest(candidate, 5_000)) {
-                self.mem.last_invested = Some(candidate);
-                self.mem.prev_found = obs.found;
-                return Action::Invest(candidate, 5_000);
-            }
-        }
-        Action::Finish
-    }
-}
-
-/// Heuristic adaptive over the real strategies: greedy on the observed
-/// marginal findings per coin (EMA per strategy, optimistic prior).
-pub struct RealAdaptivePolicy {
-    mem: RealMem,
-}
-
-impl RealAdaptivePolicy {
-    pub fn new() -> Self {
-        Self {
-            mem: RealMem::default(),
-        }
-    }
-}
-
-impl Policy for RealAdaptivePolicy {
-    fn name(&self) -> &'static str {
-        "real-adaptive"
-    }
-
-    fn episode_start(&mut self, question: &crate::env::Question, _question_index: u64) {
-        self.mem.begin(question);
-    }
-
-    fn act(&mut self, obs: &Observation, valid: &[Action]) -> Action {
-        if self.mem.question_id != obs.question_id {
-            self.mem.begin(&crate::env::Question {
-                id: obs.question_id.clone(),
-                qtype: obs.qtype,
-                budget_milli: obs.remaining_milli,
-            });
-        }
-        if let Some(s) = self.mem.last_invested {
-            let gain = obs.found.saturating_sub(self.mem.prev_found);
-            if gain == 0 {
-                self.mem.no_gain += 1;
-            } else {
-                self.mem.no_gain = 0;
-            }
-            let sample = gain as f64 / 5_000.0;
-            let est = self.mem.est[s];
-            self.mem.est[s] = 0.5 * est + 0.5 * sample;
-        }
-        if self.mem.no_gain >= 3 {
-            return Action::Finish;
-        }
-        let mut best: Option<(usize, f64)> = None;
-        for s in 0..2 {
-            if !valid.contains(&Action::Invest(s, 5_000)) {
-                continue;
-            }
-            let est = self.mem.est[s];
-            if best.map_or(true, |(_, be)| est > be) {
-                best = Some((s, est));
-            }
-        }
-        match best {
-            Some((s, est)) if est > 0.0 => {
-                self.mem.last_invested = Some(s);
-                self.mem.prev_found = obs.found;
-                Action::Invest(s, 5_000)
-            }
-            _ => Action::Finish,
-        }
     }
 }
