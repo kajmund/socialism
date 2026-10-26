@@ -23,7 +23,8 @@ use swe_gym::gen::QuestionGenerator;
 use swe_gym::ledger::{EventKind, Ledger};
 use swe_gym::provider::ReplayProvider;
 use swe_gym::strategy::{
-    AdaptiveStrategy, OracleStrategy, ParallelEqualStrategy, Question, SequentialStrategy, Strategy,
+    AdaptiveStrategy, OracleStrategy, ParallelEqualStrategy, Question, SequentialStrategy,
+    SimilarityOrderStrategy, Strategy,
 };
 use swe_gym::td::{train_td, TdPolicy, TdSequentialStrategy};
 
@@ -40,6 +41,7 @@ fn main() {
     demo_td_structured();
     demo_real_bench();
     demo_embedding_report();
+    demo_two_phase();
 }
 
 // ---------------------------------------------------------------------------
@@ -713,6 +715,59 @@ fn demo_embedding_report() {
         );
     }
     println!("  (sim = scan i embeddings-likhetsordning; jev = scan i JEV-poängordning)");
+}
+
+// ---------------------------------------------------------------------------
+// Section 10: arm H — the two-phase scanner. Scans in the measured
+// embedding-similarity order (prebuilt retrieval index), JEV-scoring each
+// candidate until coverage is reached. Target: the report's sim column.
+// ---------------------------------------------------------------------------
+
+fn demo_two_phase() {
+    let bench = load_bench_file("benchmarks/bench_real_v2.json").expect("real bench must exist");
+    println!();
+    println!(
+        "=== K: arm H — likhetsordnad scan med JEV-poängsättning ({} frågor) ===",
+        bench.questions.len(),
+    );
+    for question in &bench.questions {
+        let fixture = std::fs::read_to_string(format!(
+            "benchmarks/real_fixtures/{}.json",
+            question.view.id
+        ))
+        .expect("real fixture must exist");
+        let replay = ReplayProvider::load(&fixture).expect("real fixture must load");
+        let mut a = SequentialStrategy;
+        let a_report = run_arm_with_provider(
+            &mut a,
+            question,
+            bench.total_budget_milli,
+            &bench.tariffs,
+            &replay,
+        );
+        let mut h = SimilarityOrderStrategy;
+        let h_report = run_arm_with_provider(
+            &mut h,
+            question,
+            bench.total_budget_milli,
+            &bench.tariffs,
+            &replay,
+        );
+        let mut oracle = OracleStrategy::new(question);
+        let cx_report = run_arm_with_provider(
+            &mut oracle,
+            question,
+            bench.total_budget_milli,
+            &bench.tariffs,
+            &replay,
+        );
+        println!("{}", question.view.id);
+        for report in [&a_report, &h_report, &cx_report] {
+            print_real_arm(report);
+        }
+        println!();
+    }
+    println!("(H förutsätter ett engångs-byggt retrieval-index — mätt av embed_analysis)");
 }
 
 // ---------------------------------------------------------------------------

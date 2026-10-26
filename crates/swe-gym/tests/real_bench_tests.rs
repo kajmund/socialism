@@ -167,6 +167,49 @@ fn synthetic_trained_policies_transfer_to_real_questions() {
 }
 
 #[test]
+fn two_phase_scanner_beats_blind_scan_on_all_real_questions() {
+    use swe_gym::strategy::SimilarityOrderStrategy;
+    let bench = load_bench(REAL_BENCH).expect("real bench must load");
+    // Measured arm H scan counts per question, pinned.
+    let expected: &[(&str, usize)] = &[
+        ("auto-renewal", 38),
+        ("notice-period", 26),
+        ("liability-cap", 48),
+        ("confidentiality", 18),
+        ("liability-secrecy-carveout", 16),
+    ];
+    for (question, (qid, h_scans)) in bench.questions.iter().zip(expected) {
+        assert_eq!(question.view.id, *qid);
+        let source =
+            std::fs::read_to_string(format!("benchmarks/real_fixtures/{qid}.json")).unwrap();
+        let replay = ReplayProvider::load(&source).unwrap();
+        let mut a = swe_gym::strategy::SequentialStrategy;
+        let a_report = run_arm_with_provider(&mut a, question, 2_000_000, &bench.tariffs, &replay);
+        let mut h = SimilarityOrderStrategy;
+        let h_report = run_arm_with_provider(&mut h, question, 2_000_000, &bench.tariffs, &replay);
+        let h_scans_actual = h_report
+            .calls
+            .iter()
+            .filter(|call| call.provider == "scan")
+            .count();
+        assert!(h_report.solved, "{qid}: arm H must solve");
+        assert_eq!(h_scans_actual, *h_scans, "{qid}: arm H scan count");
+        // The whole point: the retrieval-ordered scan cuts the blind scan
+        // by an order of magnitude and sits within 2.5x of the oracle.
+        assert!(
+            h_scans_actual * 3 < a_report.calls.len(),
+            "{qid}: H {h_scans_actual} must beat A {} clearly",
+            a_report.calls.len(),
+        );
+        assert!(
+            h_scans_actual <= question.view.required_coverage * 2 + 10,
+            "{qid}: H {h_scans_actual} must stay near the oracle {}",
+            question.view.required_coverage,
+        );
+    }
+}
+
+#[test]
 fn embedding_report_pins_the_information_content() {
     let source = include_str!("../benchmarks/real_embedding_report.json");
     let json = swe_native::parse_json_str(source).unwrap();
