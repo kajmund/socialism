@@ -184,17 +184,18 @@ def _vector_search(
     payload: dict[str, Any], catalog: Catalog, catalog_id: str,
 ) -> dict[str, Any]:
     """Label-scoped dense search for owner-backed read models (for example Q&A)."""
-    label = str(payload["label"])
+    labels = payload.get("labels") or [payload["label"]]
+    labels = [str(label) for label in labels]
     k = max(1, min(int(payload.get("k", 10)), 200))
     hits = catalog.vector_search("dense", {
         "k": k,
         "dense_query": list(payload["dense_query"]),
-        "label_filter": {"labels": [label], "mode": "all"},
+        "label_filter": {"labels": labels, "mode": "all"},
     })
     rows: list[dict[str, Any]] = []
     for engine_id, score in hits:
         row = catalog.get(engine_id)
-        if row is None or label not in row.labels:
+        if row is None or any(label not in row.labels for label in labels):
             continue
         rows.append({
             "id": engine_id,

@@ -160,15 +160,16 @@ class OwnerClient:
         return list(response.get("hits") or [])
 
     async def vector_search(
-        self, label: str, dense_query: list[float], *, k: int = 10,
+        self, label: str | list[str], dense_query: list[float], *, k: int = 10,
     ) -> list[dict[str, Any]]:
-        """Owner-executed dense search bounded to one label."""
+        """Owner-executed dense search bounded to one label or a label set."""
         if self.catalog_id is None:
             health = await self._request({"type": "health"})
             self.catalog_id = health.get("catalog_id")
         response = _require_ok(await self._request({
             "type": "vector_search", "catalog_id": self.catalog_id,
-            "label": label, "dense_query": dense_query, "k": k,
+            "labels": [label] if isinstance(label, str) else list(label),
+            "dense_query": dense_query, "k": k,
         }))
         return list(response.get("hits") or [])
 
