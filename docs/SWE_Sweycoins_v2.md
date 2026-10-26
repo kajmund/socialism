@@ -181,6 +181,8 @@ Implementation: `crates/swe-gym/src/{env,agent,oracle,train}.rs`, tester i `test
 
 Kalibreringsgrinden: orakel / bästa baslinje = 1.39 (krav ≥ 1.10) ✓ · learen 97 % av orakel ✓ · kriterier 1–4, 6, 7 gröna i CI-tester. Kriterium 5 (verklig bänk) kvarstår — steg 6, utvärdering mot de frysta verkliga frågorna.
 
+Per fråga (learner vs orakel): t0 80k/80k, t1 130k/130k, t3 190k/190k — gap 0. Hela gapet ligger på t2 (114k/130k): där når B4+C2 redan kvalitetstaket (1.0) och den sista marginalinvesteringen är nära break-even — learen tar den, oraklet gör det inte.
+
 ## 12. Punkter i specen att justera före implementation
 
 1. **§5.2 Action-redundans:** `INVEST`/`CONTINUE`/`START` → en `INVEST`; `TRANSFER` skjuts upp till efter POC (kredittilldelning över transfers är en egen fälla).
