@@ -119,7 +119,9 @@ to facts through the Knowledge Owner (`owner_legal_writeback.py`), so legal and
 document work share one loop. A knowledge-only owner-mode deployment can start
 without tenant routes; the first tenant operation fails explicitly. The direct
 `TenantCatalogs` opener remains only for offline scripts and benchmarks; no
-backend request path imports it. The memory catalog now has an
+backend request path imports it. Document navigation's TextUnit reads also use
+the Knowledge Owner with cursor pagination (legacy local read only when no
+Owner runtime is configured). The memory catalog now has an
 Owner-backed repository (`owner_memory.py`) for
 upsert/get/update/delete/search/list/link and a configurable Owner route; the
 synchronous mem0 adapter is not switched yet. Runtime guard blocks direct knowledge writes in
