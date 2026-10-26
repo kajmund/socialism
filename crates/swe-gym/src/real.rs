@@ -77,6 +77,8 @@ pub struct RealEnv {
     found: HashSet<String>,
     recent_outcomes: Vec<bool>,
     last_score_bp: u32,
+    extension_baseline: usize,
+    zero_streak: u8,
     remaining_milli: Amount,
     spent_milli: [Amount; STRATEGY_COUNT],
     steps: u32,
@@ -99,6 +101,8 @@ impl RealEnv {
             found: HashSet::new(),
             recent_outcomes: Vec::new(),
             last_score_bp: 0,
+            extension_baseline: 0,
+            zero_streak: 0,
             remaining_milli: 0,
             spent_milli: [0; STRATEGY_COUNT],
             steps: 0,
@@ -212,6 +216,8 @@ impl RealEnv {
         self.found = HashSet::new();
         self.recent_outcomes = Vec::new();
         self.last_score_bp = 0;
+        self.extension_baseline = 0;
+        self.zero_streak = 0;
         self.remaining_milli = q.budget_milli;
         self.spent_milli = [0; STRATEGY_COUNT];
         self.steps = 0;
@@ -229,6 +235,8 @@ impl RealEnv {
             last_score_bp: 0,
             pool_scanned: 0,
             pool_total: q.chunks.len() as u32,
+            pool_extension_yielded: 0,
+            zero_hit_streak: 0,
             statuses: [Status::Idle; STRATEGY_COUNT],
             spent_milli: [0; STRATEGY_COUNT],
             steps: 0,
@@ -300,6 +308,9 @@ impl RealEnv {
                 match s {
                     0 => {
                         // Retrieval: surface pool chunks in similarity order.
+                        // A new extension resets the yield baseline: has
+                        // this extension paid off in new evidence?
+                        self.extension_baseline = self.found.len();
                         let per_chunk = LOOKUP_MILLI;
                         while spent + per_chunk <= amount && self.pool_cursor < chunks.len() {
                             self.pool_cursor += 1;
@@ -324,6 +335,11 @@ impl RealEnv {
                                 .map_err(|e| e.to_string())?;
                             self.last_score_bp = answer.score_bp;
                             let hit = answer.choice == "fynd";
+                            if hit {
+                                self.zero_streak = 0;
+                            } else {
+                                self.zero_streak = self.zero_streak.saturating_add(1);
+                            }
                             self.recent_outcomes.push(hit);
                             if self.recent_outcomes.len() > HIT_RATE_WINDOW {
                                 self.recent_outcomes.remove(0);
@@ -352,6 +368,8 @@ impl RealEnv {
                 obs.recent_hit_rate_bp = self.recent_hit_rate_bp();
                 obs.last_score_bp = self.last_score_bp;
                 obs.pool_scanned = self.pool_cursor as u32;
+                obs.pool_extension_yielded = (self.found.len() > self.extension_baseline) as u8;
+                obs.zero_hit_streak = self.zero_streak;
                 obs.spent_milli[s] += spent;
                 obs.remaining_milli -= spent;
                 obs.bracket = budget_bracket(obs.remaining_milli);
@@ -541,18 +559,36 @@ impl RealMem {
     }
 }
 
-/// The strong adaptive baseline: pipeline with adaptive pool extension.
-/// Verify (B) while it keeps finding evidence; when it stalls for three
-/// investments, extend the retrieval pool (A) and resume; finish when
-/// the pool is exhausted and B has stalled.
+/// The strong adaptive baseline — and the teacher policy for the
+/// student POC. The rule is a pure function of the observation interface
+/// (no hidden memory): behavior cloning can only imitate what the
+/// observation determines, so the teacher must be observation-
+/// deterministic by construction (measured: a memory-based variant
+/// produced label conflicts — the same observation mapped to different
+/// actions).
+///
+/// Rule: empty pool -> retrieve (A). Verifying (B) while the zero-find
+/// streak is short. On a stall (streak >= 3): if the current pool
+/// extension paid off in new evidence, extend again; if it paid
+/// nothing, the productive region is exhausted — finish.
 pub struct RealPipelinePolicy {
     mem: RealMem,
+    /// Zero-find streak that triggers the stall decision (calls).
+    pub stall_threshold: u8,
 }
 
 impl RealPipelinePolicy {
     pub fn new() -> Self {
         Self {
             mem: RealMem::default(),
+            stall_threshold: 12,
+        }
+    }
+
+    pub fn with_stall(threshold: u8) -> Self {
+        Self {
+            mem: RealMem::default(),
+            stall_threshold: threshold,
         }
     }
 }
@@ -574,37 +610,24 @@ impl Policy for RealPipelinePolicy {
                 budget_milli: obs.remaining_milli,
             });
         }
-        let gain = self.mem.observe(obs);
-        if let Some(s) = self.mem.last_invested {
-            if s == 1 && gain == 0 {
-                self.mem.no_gain += 1;
-            } else if s == 1 {
-                self.mem.no_gain = 0;
-            }
+        if obs.pool_scanned == 0 {
+            return Action::Invest(0, 1_000);
         }
-        // Extend the pool when B stalls or has nothing to verify yet —
-        // but a full extend-and-verify cycle that adds no new evidence
-        // means the productive region is exhausted: finish. (Measured:
-        // without this the pipeline keeps extending the pool forever and
-        // burns the whole budget on zero-finding verifications.)
-        let pool_full = obs.pool_scanned >= obs.pool_total;
-        if !pool_full && (self.mem.no_gain >= 3 || obs.pool_scanned == 0) {
-            if obs.found <= self.mem.cycle_found && obs.pool_scanned > 0 {
-                return Action::Finish;
-            }
-            if valid.contains(&Action::Invest(0, 1_000)) {
-                self.mem.cycle_found = obs.found;
-                self.mem.last_invested = Some(0);
-                self.mem.prev_found = obs.found;
+        if obs.zero_hit_streak >= self.stall_threshold {
+            let pool_full = obs.pool_scanned >= obs.pool_total;
+            if obs.pool_extension_yielded == 1
+                && !pool_full
+                && valid.contains(&Action::Invest(0, 1_000))
+            {
                 return Action::Invest(0, 1_000);
             }
+            return Action::Finish;
         }
         if valid.contains(&Action::Invest(1, 5_000)) {
-            self.mem.last_invested = Some(1);
-            self.mem.prev_found = obs.found;
-            return Action::Invest(1, 5_000);
+            Action::Invest(1, 5_000)
+        } else {
+            Action::Finish
         }
-        Action::Finish
     }
 }
 

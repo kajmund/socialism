@@ -17,5 +17,6 @@ pub mod oracle;
 pub mod provider;
 pub mod real;
 pub mod strategy;
+pub mod student;
 pub mod td;
 pub mod train;

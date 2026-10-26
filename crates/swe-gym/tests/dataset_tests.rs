@@ -96,6 +96,6 @@ fn collected_dataset_is_frozen_and_mixed_quality() {
     );
 }
 
-const PIPELINE_SUM_PIN: i64 = 882_693;
+const PIPELINE_SUM_PIN: i64 = 897_693;
 const EQUAL_SUM_PIN: i64 = 368_000;
 const LEARNER_SUM_PIN: i64 = -318_000;

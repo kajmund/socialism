@@ -371,6 +371,8 @@ fn state_indexing_and_brackets_are_stable() {
         last_score_bp: 0,
         pool_scanned: 0,
         pool_total: 0,
+        pool_extension_yielded: 0,
+        zero_hit_streak: 0,
         statuses: [swe_gym::env::Status::Active; 3],
         spent_milli: [0; 3],
         steps: 0,

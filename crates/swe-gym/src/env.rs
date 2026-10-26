@@ -73,6 +73,15 @@ pub struct Observation {
     /// Retrieval pool state (real env): chunks surfaced so far / total.
     pub pool_scanned: u32,
     pub pool_total: u32,
+    /// Facit-free uncertainty signal: whether any NEW evidence was found
+    /// by verifications AFTER the most recent pool extension. 0 = the
+    /// last extension has not paid off yet — the observable "is more
+    /// investment likely to improve the answer" signal.
+    pub pool_extension_yielded: u8,
+    /// Consecutive zero-finding verifications (facit-free): the streak
+    /// resets on every new finding. The observable "stall counter" the
+    /// teacher's plateau rules use.
+    pub zero_hit_streak: u8,
     pub statuses: [Status; STRATEGY_COUNT],
     pub spent_milli: [Amount; STRATEGY_COUNT],
     pub steps: u32,
@@ -888,6 +897,8 @@ impl SweEnv for SyntheticEnv {
             last_score_bp: 0,
             pool_scanned: 0,
             pool_total: 0,
+            pool_extension_yielded: 0,
+            zero_hit_streak: 0,
             statuses: [Status::Idle; STRATEGY_COUNT],
             spent_milli: [0; STRATEGY_COUNT],
             steps: 0,
