@@ -19,7 +19,6 @@ from app.services.graph_v2.outbox import (
     process_graph_work,
 )
 from app.services.graph_v2.errors import JevMalformedResponseError, PermanentGraphError
-import app.services.graph_v2.outbox as graph_outbox
 from app.services.knowledge.claims import KnowledgeClaim
 from sqlalchemy.exc import DataError, IntegrityError, ProgrammingError
 from tests.text_unit_fakes import persisted_text_unit
@@ -71,9 +70,6 @@ def test_graph_error_classification_separates_permanent_from_transient():
 
 
 async def test_malformed_jev_response_retries_graph_work(tmp_path, monkeypatch):
-    from app.services.overgraph.owner_runtime import get_owner_runtime
-
-    monkeypatch.setattr(get_owner_runtime(), "client", None)
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/jev-retry.db")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -88,7 +84,10 @@ async def test_malformed_jev_response_retries_graph_work(tmp_path, monkeypatch):
     async def malformed(*args, **kwargs):
         raise JevMalformedResponseError("semantic fact judge returned an invalid decision")
 
-    monkeypatch.setattr(graph_outbox, "write_legal_facts", malformed)
+    monkeypatch.setattr(
+        "app.services.graph_v2.owner_legal_writeback.write_legal_facts_via_owner",
+        malformed,
+    )
     assert await process_graph_work(factory, embedder=FakeEmbedder()) == {
         "completed": 0, "failed": 1,
     }
