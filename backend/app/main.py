@@ -52,7 +52,10 @@ from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
 from app.services import retrieval_index
-from app.services.expertgranskning.memory import close_default_expert_memory
+from app.services.expertgranskning.memory import (
+    close_default_expert_memory,
+    set_expert_memory_factory,
+)
 from app.services.graph_v2.worker import start_graph_ingest_loop, stop_graph_ingest_loop
 from app.services.overgraph.catalogs import (
     OverGraphRuntime,
@@ -179,10 +182,15 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
     )
     _app.state.overgraph_owner = owner_runtime.status
     tenant_routes = parse_tenant_owner_sockets(settings.overgraph_tenant_owner_sockets)
-    owner_routes = tenant_routes + parse_memory_owner_route(settings.overgraph_memory_owner_socket)
+    memory_routes = parse_memory_owner_route(settings.overgraph_memory_owner_socket)
+    owner_routes = tenant_routes + memory_routes
     _app.state.overgraph_tenant_owners = (
         await connect_owner_registry(owner_routes) if owner_routes else {}
     )
+    if memory_routes:
+        from app.services.expertgranskning.owner_memory_service import OwnerExpertMemory
+
+        set_expert_memory_factory(OwnerExpertMemory)
     owner_mode = owner_runtime.client is not None
     await _prepare_graph_access(owner_mode, _app)
     _app.state.research_vector = {"status": "disabled"}
@@ -215,6 +223,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
         try:
             await close_owner_registry()
             await owner_runtime.close()
+            set_expert_memory_factory(None)
             close_default_expert_memory()
         finally:
             set_runtime(None)

@@ -125,6 +125,9 @@ shared Owner reader with cursor pagination (legacy local read only when no
 Owner runtime is configured). Clause AnchorSet and saved-research-answer reads
 also use Owner helpers with bounded neighbor/entity reads. The memory catalog
 now has an Owner-backed repository (`owner_memory.py`) for
-upsert/get/update/delete/search/list/link and a configurable Owner route; the
-synchronous mem0 adapter is not switched yet. Runtime guard blocks direct knowledge writes in
+upsert/get/update/delete/search/list/link and a configurable Owner route.
+With `OVERGRAPH_MEMORY_OWNER_SOCKET` set, expert memory uses
+`OwnerExpertMemory`: mem0 extraction runs against an in-memory staging vector
+store and the resulting diff is published in one Owner batch. Without the
+route, the legacy mem0/direct memory adapter remains. Runtime guard blocks direct knowledge writes in
 owner mode. `write_paths_ready` remains false.
