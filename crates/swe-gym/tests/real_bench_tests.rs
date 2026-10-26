@@ -3,16 +3,17 @@
 //! synthetic bench before them.
 
 use swe_gym::bench::load_bench;
+use swe_gym::benchmark::run_arm_with_provider;
 use swe_gym::provider::{ReplayProvider, ResearchProvider};
 
 const REAL_BENCH: &str = include_str!("../benchmarks/bench_real_v2.json");
-const REAL_FIXTURE: &str = include_str!("../benchmarks/jev_fixture_real_v2.json");
+const REAL_FIXTURE: &str = include_str!("../benchmarks/real_fixtures/auto-renewal.json");
 
 #[test]
 fn real_bench_is_frozen_and_complete() {
     let bench = load_bench(REAL_BENCH).expect("real bench must load");
-    assert_eq!(bench.name, "swe-gym-real-auto-renewal");
-    assert_eq!(bench.questions.len(), 1);
+    assert_eq!(bench.name, "swe-gym-real-legal-v1");
+    assert_eq!(bench.questions.len(), 5);
     let question = &bench.questions[0];
     assert_eq!(question.view.chunks.len(), 638);
     assert_eq!(question.evidence.len(), 20);
@@ -57,38 +58,112 @@ fn real_bench_is_frozen_and_complete() {
             .all(|chunk| !chunk.starts_with("Avtal_15_Bonusavtal:")),
         "the hard negative must not be evidence"
     );
+    // The other four questions: non-empty, with their own evidence and
+    // classify question text.
+    for question in &bench.questions[1..] {
+        assert!(!question.view.chunks.is_empty());
+        assert!(!question.evidence.is_empty());
+        assert!(
+            !question.view.question.is_empty(),
+            "{} must carry its classify question",
+            question.view.id,
+        );
+    }
 }
 
 #[test]
-fn real_fixture_is_frozen_and_matches_gold() {
+fn real_fixtures_are_frozen_and_match_gold() {
+    // Measured JEV behavior on the project's corpus, per question:
+    // (id, chunks, gold evidence, JEV fynd, true positives, extra fynd).
+    let expected: &[(&str, usize, usize, usize, usize, usize)] = &[
+        ("auto-renewal", 638, 20, 22, 20, 2),
+        ("notice-period", 408, 13, 15, 13, 2),
+        ("liability-cap", 877, 34, 51, 34, 17),
+        ("confidentiality", 419, 13, 23, 13, 10),
+        ("liability-secrecy-carveout", 315, 7, 7, 7, 0),
+    ];
     let bench = load_bench(REAL_BENCH).expect("real bench must load");
-    let question = &bench.questions[0];
-    let replay = ReplayProvider::load(REAL_FIXTURE).expect("real fixture must load");
-    assert_eq!(replay.len(), 638);
-    let evidence = &question.evidence;
-    let mut gold_found = 0;
-    let mut extra_fynd = 0;
-    for chunk in &question.view.chunks {
-        let answer = replay
-            .analyze("scan", chunk, "")
-            .unwrap_or_else(|error| panic!("fixture missing {chunk}: {error}"));
-        assert!(answer.latency_ms > 0, "captured answers carry latency");
-        if answer.choice == "fynd" {
-            if evidence.contains(chunk) {
-                gold_found += 1;
-            } else {
-                extra_fynd += 1;
+    assert_eq!(bench.questions.len(), expected.len());
+    for (question, (qid, chunks, gold, _fynd, tp, fp)) in bench.questions.iter().zip(expected) {
+        assert_eq!(question.view.id, *qid);
+        assert_eq!(question.view.chunks.len(), *chunks, "{qid} chunks");
+        assert_eq!(question.evidence.len(), *gold, "{qid} gold");
+        let source = std::fs::read_to_string(format!("benchmarks/real_fixtures/{qid}.json"))
+            .unwrap_or_else(|error| panic!("fixture missing for {qid}: {error}"));
+        let replay = ReplayProvider::load(&source).unwrap();
+        assert_eq!(replay.len(), *chunks, "{qid} fixture size");
+        let evidence = &question.evidence;
+        let mut gold_found = 0;
+        let mut extra_fynd = 0;
+        for chunk in &question.view.chunks {
+            let answer = replay
+                .analyze("scan", chunk, "")
+                .unwrap_or_else(|error| panic!("fixture missing {chunk}: {error}"));
+            assert!(answer.latency_ms > 0, "captured answers carry latency");
+            if answer.choice == "fynd" {
+                if evidence.contains(chunk) {
+                    gold_found += 1;
+                } else {
+                    extra_fynd += 1;
+                }
             }
         }
+        // Real JEV finds every gold chunk on all five questions; the false
+        // positives vary with question specificity. Pinned.
+        assert_eq!(gold_found, *tp, "{qid}: JEV must find all gold evidence");
+        assert_eq!(extra_fynd, *fp, "{qid}: measured extra fynd count");
     }
-    // The live capture: JEV found every gold chunk and flagged two extra
-    // candidates outside the gold. Pinned — this is measured model behavior
-    // on the project's own corpus, and CI must notice if the fixture drifts.
-    assert_eq!(gold_found, 20, "real JEV must find all gold evidence");
-    assert_eq!(
-        extra_fynd, 2,
-        "real JEV flagged exactly two extra candidates"
-    );
+}
+
+#[test]
+fn synthetic_trained_policies_transfer_to_real_questions() {
+    use swe_gym::bandit::{train_sequential, ScanPolicy, SequentialBanditStrategy};
+    use swe_gym::gen::QuestionGenerator;
+    use swe_gym::td::{train_td, TdPolicy, TdSequentialStrategy};
+    let bench = load_bench(REAL_BENCH).expect("real bench must load");
+    let tariffs = bench.tariffs;
+
+    // Train the two sequential policies on the synthetic noisy corpus.
+    let mut train_generator = QuestionGenerator::new(7);
+    let train_questions = train_generator.generate_noisy(4_000);
+    let mut scan_policy = ScanPolicy::new(1337, 0.2);
+    train_sequential(&mut scan_policy, &train_questions, 30_000, &tariffs);
+    scan_policy.set_epsilon(0.0);
+    let mut td_policy = TdPolicy::new(4242, 0.2, 0.1, 0.95);
+    train_td(&mut td_policy, &train_questions, 30_000, &tariffs);
+    td_policy.set_epsilon(0.0);
+
+    for question in &bench.questions {
+        let fixture = std::fs::read_to_string(format!(
+            "benchmarks/real_fixtures/{}.json",
+            question.view.id
+        ))
+        .unwrap();
+        let replay = ReplayProvider::load(&fixture).unwrap();
+        let mut a = swe_gym::strategy::SequentialStrategy;
+        let a_report = run_arm_with_provider(&mut a, question, 2_000_000, &tariffs, &replay);
+        let mut e = SequentialBanditStrategy::new(scan_policy.clone());
+        let e_report = run_arm_with_provider(&mut e, question, 2_000_000, &tariffs, &replay);
+        let mut g = TdSequentialStrategy::new(td_policy.clone());
+        let g_report = run_arm_with_provider(&mut g, question, 2_000_000, &tariffs, &replay);
+        // Transfer safety: the synthetic-trained sequential policies must
+        // not collapse into pathological early escalation on real
+        // out-of-distribution contexts. Measured: both solve every real
+        // question with exactly arm A's scan count.
+        for report in [&e_report, &g_report] {
+            assert!(report.solved, "{} must solve via scan", question.view.id);
+            assert_eq!(
+                report.calls.iter().filter(|c| c.provider == "scan").count(),
+                a_report
+                    .calls
+                    .iter()
+                    .filter(|c| c.provider == "scan")
+                    .count(),
+                "{}: transferred policy must scan like arm A",
+                question.view.id,
+            );
+        }
+    }
 }
 
 #[test]
