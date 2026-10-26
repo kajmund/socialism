@@ -184,10 +184,6 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
         await connect_owner_registry(owner_routes) if owner_routes else {}
     )
     owner_mode = owner_runtime.client is not None
-    if owner_mode and not tenant_routes:
-        raise RuntimeError(
-            "owner mode requires OVERGRAPH_TENANT_OWNER_SOCKETS for tenant catalogs"
-        )
     await _prepare_graph_access(owner_mode, _app)
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None

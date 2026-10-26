@@ -197,6 +197,39 @@ def _start_owner(root: Path, *, sync: bool = True) -> Process:
     return process
 
 
+def _start_tenant_owner(root: Path, customer_id: int) -> Process:
+    socket_path = root / f"tenant-{customer_id}.sock"
+    argv = [
+        sys.executable, "-m", "app.services.overgraph.owner",
+        str(root / "overgraph" / "tenants" / str(customer_id) / "knowledge"),
+        "--socket", str(socket_path),
+        "--dimension", str(DIMENSION),
+    ]
+    process = Process(
+        f"tenant-owner-{customer_id}", argv, _base_env(root, owner_id=None),
+        root / f"tenant-owner-{customer_id}.log",
+    )
+    _wait_owner_ready(socket_path)
+    return process
+
+
+def _tenant_rows(socket_path: Path, label: str) -> list[dict[str, Any]]:
+    async def run() -> list[dict[str, Any]]:
+        return await OwnerClient(socket_path).list_nodes(label, limit=100)
+
+    return asyncio.run(run())
+
+
+def _wait_tenant_document(socket_path: Path, *, timeout: float = 60) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        rows = _tenant_rows(socket_path, "CanonicalDocument")
+        if rows:
+            return rows[0]
+        time.sleep(0.2)
+    raise TimeoutError("tenant Owner never received the document")
+
+
 def _wait_owner_ready(socket_path: Path) -> None:
     deadline = time.monotonic() + OWNER_READY_TIMEOUT
     last: Exception | None = None
@@ -262,12 +295,18 @@ def _wait_http(url: str, *, timeout: float) -> None:
 
 
 def _start_backend(
-    root: Path, *, port: int, owner_id: str, guard: Path, sync_on_commit: bool = True,
+    root: Path, *, port: int, owner_id: str, guard: Path,
+    sync_on_commit: bool = True, tenant_sockets: str = "",
+    graph_loop: bool = False,
 ) -> Process:
     del sync_on_commit  # owner-side setting; kept for call-site clarity
     env = _base_env(root, owner_id=owner_id)
     env["OWNER_TEST_GUARD_FILE"] = str(guard)
     env["OWNER_TEST_NO_LOCAL_KNOWLEDGE"] = "1"
+    if tenant_sockets:
+        env["OVERGRAPH_TENANT_OWNER_SOCKETS"] = tenant_sockets
+    if graph_loop:
+        env["GRAPH_INGEST_LOOP_ENABLED"] = "true"
     process = Process(
         f"backend-{port}",
         [sys.executable, str(LAUNCHER), str(port)],
@@ -400,6 +439,62 @@ def _guard_lines(guard: Path) -> list[str]:
     if not guard.exists():
         return []
     return [line for line in guard.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def scenario_tenant_catalog(root: Path) -> dict[str, Any]:
+    """Two backends ingest into one Tenant Knowledge Owner; no local open."""
+    owner = _start_owner(root)
+    tenant = _start_tenant_owner(root, 1)
+    backends: list[Process] = []
+    guard_a = root / "guard-tenant-a.log"
+    guard_b = root / "guard-tenant-b.log"
+    try:
+        tenant_socket = root / "tenant-1.sock"
+        routes = f"1={tenant_socket}"
+        port_a, port_b = _free_port(), _free_port()
+        backend_a = _start_backend(
+            root, port=port_a, owner_id=_owner_id(root), guard=guard_a,
+            tenant_sockets=routes, graph_loop=True,
+        )
+        backend_b = _start_backend(
+            root, port=port_b, owner_id=_owner_id(root), guard=guard_b,
+            tenant_sockets=routes, graph_loop=True,
+        )
+        backends = [backend_a, backend_b]
+        assert _owner_status(port_a)["tenant_owners"]["tenant_knowledge:1"] is True
+        assert _owner_status(port_b)["tenant_owners"]["tenant_knowledge:1"] is True
+        token = _login(port_a)
+        uploaded = _upload(
+            port_a, token, "tenant-scenario.txt",
+            "Hyresavtalet löper till sista december. Uppsägningstid är tre månader.",
+        )
+        job = _wait_job(port_a, token, str(uploaded["knowledge_job_id"]))
+        assert job["status"] == "succeeded", job
+        document = _wait_tenant_document(tenant_socket)
+        assert document["props"]["document_id"]
+        assert _tenant_rows(tenant_socket, "TextUnit"), "tenant TextUnits missing"
+        assert _tenant_rows(tenant_socket, "CanonicalDocument")[0]["props"][
+            "effective_type"
+        ], "document type index missing"
+        # Owner restart keeps the tenant data and needs no backend restart.
+        tenant.stop()
+        tenant = _start_tenant_owner(root, 1)
+        assert _tenant_rows(tenant_socket, "CanonicalDocument")
+        assert _tenant_rows(tenant_socket, "TextUnit")
+        for guard in (guard_a, guard_b):
+            lines = _guard_lines(guard)
+            assert not [line for line in lines if "tenants" in line], lines
+        return {
+            "document_id": document["props"]["document_id"],
+            "text_units": len(_tenant_rows(tenant_socket, "TextUnit")),
+            "tenant_owner_restart": True,
+            "local_tenant_opens": 0,
+        }
+    finally:
+        for backend in backends:
+            backend.stop()
+        tenant.stop()
+        owner.stop()
 
 
 def scenario_two_backends(root: Path) -> dict[str, Any]:  # noqa: C901, PLR0915
@@ -868,6 +963,7 @@ def main() -> int:
     try:
         for name, scenario in (
             ("two_backends", scenario_two_backends),
+            ("tenant_catalog", scenario_tenant_catalog),
             ("exclusive_owner_restart_receipt", scenario_exclusive_owner_and_restart_receipt),
             ("durable_ack", scenario_durable_ack),
             ("lifecycle_and_outage", scenario_lifecycle_and_outage),
