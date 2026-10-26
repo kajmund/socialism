@@ -94,3 +94,19 @@ def test_memory_owner_route_is_optional_and_explicit():
     assert route.kind == "memory"
     assert route.customer_id is None
     assert str(route.socket_path) == "/run/memory-owner.sock"
+
+
+def test_catalog_readiness_is_per_catalog_and_keeps_knowledge_false():
+    from app.services.overgraph.owner_registry import catalog_readiness
+
+    ready = catalog_readiness(
+        knowledge_owner=True, tenant_routes=2, memory_owner=True,
+    )
+    assert ready["knowledge"]["request_write_paths_ready"] is False
+    assert ready["tenant_knowledge"]["request_write_paths_ready"] is True
+    assert ready["memory"]["request_write_paths_ready"] is True
+    empty = catalog_readiness(
+        knowledge_owner=False, tenant_routes=0, memory_owner=False,
+    )
+    assert empty["tenant_knowledge"]["request_write_paths_ready"] is False
+    assert empty["memory"]["request_write_paths_ready"] is False
