@@ -17,7 +17,9 @@ from app.database.models import (
 )
 from app.services.knowledge.claims import SUPPORTED_BY
 from app.services.knowledge.events import EDGE_ADDED, record_graph_event, utc_now
+from app.services.knowledge import owner_graph_mirror
 from app.services.knowledge.graph_relationship_mirror import mirror_relationship
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.knowledge.scope import (
     SCOPE_CUSTOMER,
     shared_scope,
@@ -182,6 +184,37 @@ async def persist_knowledge_relationship_result(
 ) -> tuple[KnowledgeRelationship, bool]:
     """Write the edge to OverGraph; the graph edge is authoritative."""
     await _assert_endpoint_scopes(session, edge)
+    owner = get_owner_runtime().client
+    if owner is not None:
+        existing_props = await owner_graph_mirror._read_edge(owner, edge)
+        if existing_props is not None and bool(existing_props.get("superseded")):
+            raise KnowledgeRelationshipError("relationship is superseded")
+        merged = await owner_graph_mirror.mirror_relationship(owner, edge)
+        if not merged.mappable:
+            raise KnowledgeRelationshipError(
+                f"relationship {edge.id} has an endpoint missing from the graph "
+                f"({edge.from_kind}:{edge.from_id} -> {edge.to_kind}:{edge.to_id})"
+            )
+        if merged.created:
+            await record_graph_event(
+                session,
+                scope=edge.scope,
+                event_type=EDGE_ADDED,
+                node_kind="relationship",
+                node_id=edge.id,
+                related_id=edge.to_id,
+                payload={
+                    "relation": edge.relation,
+                    "from_kind": edge.from_kind,
+                    "from_id": edge.from_id,
+                    "to_kind": edge.to_kind,
+                    "to_id": edge.to_id,
+                },
+                created_at=utc_now(),
+            )
+        stored_props = await owner_graph_mirror._read_edge(owner, edge) or {}
+        stored_extra = stored_props.get("extra") or {}
+        return replace(edge, extra=dict(stored_extra)), not merged.created
     existing = await _existing_edge_in_graph(edge)
     if existing is not None:
         _reject_superseded_extra(existing)
