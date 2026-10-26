@@ -126,8 +126,8 @@ def catalog_readiness(
     return {
         "knowledge": {
             "owner_configured": knowledge_owner,
-            "request_write_paths_ready": False,
-            "reason": "remaining direct read/write paths outside the owner",
+            "request_write_paths_ready": knowledge_owner,
+            "acceptance": "request paths require the owner; offline tooling only",
         },
         "tenant_knowledge": {
             "owner_routes": tenant_routes,

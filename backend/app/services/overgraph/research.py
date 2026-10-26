@@ -393,33 +393,17 @@ async def lookup_candidates(
     dense_query: list[float],
     bound: int,
 ) -> list[ResearchFactHit]:
-    client = get_owner_runtime().client
-    if client is not None:
-        from app.services.overgraph.research_owner import collect_research_hits_via_owner
+    from app.services.overgraph.research_owner import collect_research_hits_via_owner
 
-        return await collect_research_hits_via_owner(
-            client, customer_id=customer_id, question_id=question_id,
-            dense_query=dense_query, bound=bound,
-        )
-    catalog = require_knowledge()
-
-    def work() -> list[ResearchFactHit]:
-        return collect_research_hits(
-            catalog,
-            customer_id=customer_id,
-            question_id=question_id,
-            dense_query=dense_query,
-            bound=bound,
-        )
-
-    return await catalog.run(work)
+    return await collect_research_hits_via_owner(
+        get_owner_runtime().require_client(), customer_id=customer_id,
+        question_id=question_id, dense_query=dense_query, bound=bound,
+    )
 
 
 async def graph_has_supported_facts(customer_id: int | None) -> bool:
-    client = get_owner_runtime().client
-    if client is not None:
-        from app.services.overgraph.research_owner import has_supported_facts_via_owner
+    from app.services.overgraph.research_owner import has_supported_facts_via_owner
 
-        return await has_supported_facts_via_owner(client, customer_id)
-    catalog = require_knowledge()
-    return await catalog.run(has_supported_facts, catalog, customer_id)
+    return await has_supported_facts_via_owner(
+        get_owner_runtime().require_client(), customer_id,
+    )
