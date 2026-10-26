@@ -27,43 +27,53 @@ What is missing: answer identity, status transitions, a dependency edge between
 "this run consumed that answer", and a rerun trigger when a consumed answer
 changes.
 
-## Proposed minimal model
+## Reuse-vs-new audit
+
+Per the root reuse-before-new rule, every concern maps to an existing
+counterpart before anything new is proposed. Inventory of the production
+research services (`backend/app/services/research/`):
+
+| Concern | Existing counterpart | Decision | Justification |
+|---|---|---|---|
+| Answer identity + actuality | `result_store.py` (`load_saved_answer`, `_answer_is_usable` with `frozen`/`now`) | **Reuse/extend** | Identity and actuality already live in answer lookup |
+| Versioning (`answer_version`) | `run_results.py` attempt/variant history, `_saved_answer_parts` | **Extend** | Add a version number to the existing saved-answer parts; no new table pair |
+| Preliminary / finalized | `answer_review.complete_research_freeze`, `KnowledgeAnswerReview` (DB) | **Extend** | Add a preliminary state to the existing freeze/review flow if it is missing |
+| Provenance | `answer_graph.py` (`publish_answer`, `_current_basis`, `_rebind`) + Overgraph | **Reuse** | The graph already owns derivation |
+| Consumed-input dependencies | `_saved_answer_supported`, research context/basis records | **Extend** | Record consumed answer versions on the existing basis record |
+| Invalidation / selective rerun | `question_reuse.py`, `graph_reuse.py`, `reuse_gate.py` | **Extend** | Add stale-marking in the existing reuse gate |
+| Evidence strength | `quality_persist.py` (`persist_evidence_quality_drafts`, `ResearchEvidenceQuality`) | **Reuse** | Already exists; kept separate from actuality, as the strategy requires |
+| New `answers` table + `answer_inputs` join table | — | **Rejected** | Would be a parallel model; the rows above cover the needs |
+
+The earlier draft's `answers` + `answer_inputs` tables are therefore withdrawn.
+
+## Revised minimal model (extensions, not new models)
 
 ```text
-Answer {
-  question_id
-  answer_version            # monotonically increasing per question
-  status                    # preliminary | finalized
-  actuality                 # current | superseded
-  evidence_strength         # evaluator score, never merged into status
-  provenance                # run_id + input answer versions + definition sha
-}
-
-Run {
-  run_id
-  input_answer_versions     # {question_id -> answer_version} consumed at run time
-  output_answers            # answers this run produced
-}
+saved answer (existing result_store/answer_graph record)
+  + answer_version            # extend: monotonic per question
+  + completion                # extend: preliminary | finalized (freeze flow)
+  + consumed_input_versions   # extend: basis record gains {question_id -> version}
 
 Propagation:
-  run.preciseness = preliminary if ANY input answer is preliminary
-                  = finalized  if ALL inputs are finalized
+  run.preciseness = preliminary if ANY consumed input answer is preliminary
+                  = finalized  if ALL are finalized
 
-Invalidation:
-  superseding an answer marks every run that consumed that (question, version)
-  stale -> its outputs are re-evaluated and re-run selectively.
+Invalidation (extend reuse_gate):
+  superseding an answer marks runs that consumed that (question, version)
+  stale -> selective rerun through the existing reuse/rebind paths.
 ```
 
 ## Where it lives
 
 - **Not in the SWE kernel.** Like the gym driver, this is a runtime-adapter
-  concern: `backend/app/swe` wraps kernel runs, records consumed answer
-  versions, and stamps produced answers.
-- **RunStore extension** (Postgres via the existing SQLAlchemy path, SQLite for
-  tests): `answers` table plus a `answer_inputs` join table. Overgraph keeps the
-  knowledge-graph provenance; the answer table owns *answer identity and status*.
-  No duplication of the run event log — the ledger of the gym remains the
-  experiment's cost record, this is the production answer record.
+  concern: `backend/app/services/research` wraps kernel runs and stamps the
+  extensions above.
+- **No new tables.** The extensions land on the existing saved-answer/basis
+  records (SQLAlchemy models behind `RunStore`/the research DB path; SQLite
+  for tests as today). Overgraph keeps provenance as it already does.
+- **Proof of the reused path:** each delivery step ships with an integration
+  test that invokes the *existing* primitive (e.g. `load_saved_answer` with a
+  versioned basis) before the extension is accepted.
 
 ## Guardrails
 
@@ -76,10 +86,12 @@ Invalidation:
 
 ## Delivery order
 
-1. `answers` table + versioning + status/actuality transitions, with tests.
-2. Propagation of preliminaryness through run inputs.
-3. Invalidation → stale marking → selective rerun, with a replay test proving
-   downstream runs observe the new version and nothing else changes.
+1. Extend the saved-answer record with `answer_version` + preliminary state
+   (reusing `result_store`/`answer_review`), with tests over the existing lookup.
+2. Record consumed input versions on the basis record; propagate preliminaryness
+   through run inputs.
+3. Extend `reuse_gate` with stale-marking → selective rerun, with a replay test
+   proving downstream runs observe the new version and nothing else changes.
 
 ## Decision points
 
