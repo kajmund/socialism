@@ -127,3 +127,39 @@ async def test_claim_verification_uses_owner_edge_props():
         assert await claim_is_verified(second, key, now=datetime.now(UTC)) is True
     finally:
         await owner.close()
+
+
+class _Embedder:
+    model = "test-model"
+    dimension = DIMENSION
+
+    async def embed(self, texts):
+        return [[1.0, 0.0, 0.0, 0.0] for _ in texts]
+
+
+async def test_legal_projection_writes_facts_through_the_owner():
+    from app.services.graph_v2.owner_legal_writeback import write_legal_facts_via_owner
+    from app.services.knowledge.claims import KnowledgeClaim
+    from app.services.knowledge.entities import KnowledgeEntity
+
+    owner, first, second, _root = await _setup()
+    try:
+        claims = [KnowledgeClaim(
+            id="claim-1", customer_id=1, predicate="outcome.granted",
+            value={"value": True}, supporting_text_unit_ids=("tu-a",),
+        )]
+        entities = [KnowledgeEntity(
+            id="source-1", customer_id=1, entity_type="legal.source",
+            key="source-1", name="Tingsrätten", extra={},
+        )]
+        ids = await write_legal_facts_via_owner(
+            first, claims=claims, entities=entities, embedder=_Embedder(),
+        )
+        assert len(ids) == 1
+        response = await second.read([{"label": "Fact", "key": ids[0]}])
+        props = response["values"][f"Fact:{ids[0]}"]
+        assert props["fact_text"] == "Tingsrätten — outcome.granted: true"
+        assert props["scope_key"] == "customer:1"
+        assert owner.catalog.get_by_key("Fact", ids[0]) is not None
+    finally:
+        await owner.close()

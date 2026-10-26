@@ -101,8 +101,8 @@ reclassification, find strategies and direct parity.
 Document QA request paths are cut over when tenant Owner routes are configured:
 catalog writeback (ingest + type index), Q&A writeback, workspace answer reuse
 and `find_documents` all use the tenant Owner. The graph worker runs in owner
-mode with a document-kind filter, so legal projection work stays out of it
-until that writeback is owner-backed. With no tenant routes configured, the
+mode and projects legal claims to facts through the Knowledge Owner
+(`owner_legal_writeback.py`), so legal and document work share one loop. With no tenant routes configured, the
 legacy in-process `TenantCatalogs` path remains for tests and local
 development; owner mode refuses to start without tenant routes. The memory
 catalog now has an Owner-backed repository (`owner_memory.py`) for

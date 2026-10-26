@@ -169,6 +169,9 @@ async def test_foreign_tenant_document_is_rejected(factory):
 
 @pytest.mark.asyncio
 async def test_legal_jobs_still_run_without_a_kind(factory, monkeypatch):
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+
+    monkeypatch.setattr(get_owner_runtime(), "client", None)
     calls: list[str] = []
 
     async def fake_legal(session, **kwargs):
@@ -252,7 +255,7 @@ async def test_owner_mode_qa_write_uses_the_tenant_owner(
         write = _write()
         work_id = await enqueue_document_qa(session, customer_id=1, write=write)
         await session.commit()
-    result = await process_graph_work(factory, limit=1, kinds=[DOCUMENT_QA_WRITE])
+    result = await process_graph_work(factory, limit=1)
     assert result == {"completed": 1, "failed": 0}
     async with factory() as session:
         assert (await session.get(GraphIngestWork, work_id)).status == "completed"
