@@ -46,5 +46,11 @@
    "scans_similarity_order": 16,
    "oracle_scans": 7
   }
- ]
+ ],
+ "index": {
+  "texts": 1429,
+  "total_tokens": 77483,
+  "latency_ms": 8793,
+  "note": "engångskostnad för retrieval-indexet; mätt med --force"
+ }
 }
