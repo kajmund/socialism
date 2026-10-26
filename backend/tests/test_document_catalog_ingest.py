@@ -17,7 +17,6 @@ from app.services.document_qa.kinds import DOCUMENT_CATALOG_WRITE
 from app.services.document_find.category_index import documents_for_type
 from app.services.document_find.taxonomy import LEASE
 from app.services.document_qa.labels import CANONICAL_DOCUMENT, HAS_VERSION, QUESTION, TEXT_UNIT
-from app.services.document_qa.tenants import TenantCatalogs, set_tenant_catalogs
 from app.services.graph_v2.outbox import process_graph_work
 from app.services.knowledge.units import hash_text
 from app.services.overgraph.labels import CONTAINS, DOCUMENT_VERSION
@@ -72,13 +71,8 @@ async def _seed(session, *, customer_id=1):
 
 
 @pytest.fixture
-def catalogs(tmp_path):
-    registry = TenantCatalogs(tmp_path, dimension=DIM)
-    set_tenant_catalogs(registry)
-    try:
-        yield registry
-    finally:
-        set_tenant_catalogs(None)
+async def catalogs(owner_tenant_catalogs):
+    return await owner_tenant_catalogs(dimension=DIM)
 
 
 @pytest.fixture
@@ -171,17 +165,20 @@ async def test_units_are_searchable_and_retry_is_idempotent(factory, catalogs):
 
 @pytest.mark.asyncio
 async def test_writeback_releases_the_only_connection(tmp_path, catalogs, monkeypatch):
-    from app.services.document_qa import catalog_write as write_mod
+    from app.services.document_qa.owner_ingest import persist_document_units
 
-    real = write_mod.write_document_units
     started = asyncio.Event()
 
-    async def blocked(catalog, *, document_id, units):
+    async def blocked(client, *, document_id, units):
         started.set()
         await asyncio.sleep(0.2)
-        return await real(catalog, document_id=document_id, units=units)
+        return await persist_document_units(
+            client, document_id=document_id, units=units,
+        )
 
-    monkeypatch.setattr("app.services.document_qa.catalog_apply.write_document_units", blocked)
+    monkeypatch.setattr(
+        "app.services.document_qa.catalog_apply.persist_document_units", blocked,
+    )
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{tmp_path}/catalog-one.db",
         pool_size=1, max_overflow=0, pool_timeout=0.3,

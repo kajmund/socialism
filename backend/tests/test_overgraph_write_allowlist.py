@@ -26,7 +26,6 @@ ALLOWLIST = {
     "services/overgraph/owner.py",  # the owner itself
     "services/overgraph/owner_mutations.py",  # owner conditional transaction worker
     "services/kund_dokument.py",
-    "services/document_qa/process_probe.py",
     "services/knowledge/graph_relationship_mirror.py",
     "services/knowledge/migrate_fact_identity.py",
     "services/clause_ssr/graph.py",
@@ -44,7 +43,7 @@ OPEN_ALLOWLIST = {
     "services/overgraph/owner.py",  # the owner implementation
     "services/overgraph/workflows.py",  # SWE run store, separate catalog
     "services/overgraph/jev_cache.py",  # Jev cache store, separate catalog
-    "services/document_qa/tenants.py",  # per-tenant catalog routing, Phase D
+    "services/document_qa/tenants.py",  # offline/benchmark only, not request paths
     "services/knowledge/backfill_text_units.py",  # offline maintenance
     "services/knowledge/parity_gate.py",  # offline parity gate
 }

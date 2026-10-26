@@ -101,14 +101,15 @@ cover two clients, duplicate publish, invalid citation rejection, reuse,
 review, archive/purge, tenant isolation, atomic ingest, index
 reclassification, find strategies and direct parity.
 
-Document QA request paths are cut over when tenant Owner routes are configured:
-catalog writeback (ingest + type index), Q&A writeback, workspace answer reuse
-and `find_documents` all use the tenant Owner. The graph worker runs in owner
-mode and projects legal claims to facts through the Knowledge Owner
-(`owner_legal_writeback.py`), so legal and document work share one loop. With no tenant routes configured, the
-legacy in-process `TenantCatalogs` path remains for tests and local
-development; owner mode refuses to start without tenant routes. The memory
-catalog now has an Owner-backed repository (`owner_memory.py`) for
+Document QA request paths always use a tenant Owner: catalog writeback
+(ingest + type index), Q&A writeback, workspace answer reuse and
+`find_documents` call `tenant_owner_client`, which fails explicitly when a
+route is missing. The graph worker runs in owner mode and projects legal claims
+to facts through the Knowledge Owner (`owner_legal_writeback.py`), so legal and
+document work share one loop. Owner mode refuses to start without tenant
+routes. The direct `TenantCatalogs` opener remains only for offline scripts and
+benchmarks; no backend request path imports it. The memory catalog now has an
+Owner-backed repository (`owner_memory.py`) for
 upsert/get/update/delete/search/list/link and a configurable Owner route; the
 synchronous mem0 adapter is not switched yet. Runtime guard blocks direct knowledge writes in
 owner mode. `write_paths_ready` remains false.
