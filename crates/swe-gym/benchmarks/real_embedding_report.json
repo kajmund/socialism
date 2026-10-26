@@ -1,0 +1,50 @@
+{
+ "model": "text-embedding-3-large",
+ "questions": [
+  {
+   "id": "auto-renewal",
+   "chunks": 638,
+   "evidence": 20,
+   "scans_document_order": 597,
+   "scans_jev_score_order": 21,
+   "scans_similarity_order": 64,
+   "oracle_scans": 20
+  },
+  {
+   "id": "notice-period",
+   "chunks": 408,
+   "evidence": 13,
+   "scans_document_order": 371,
+   "scans_jev_score_order": 13,
+   "scans_similarity_order": 38,
+   "oracle_scans": 13
+  },
+  {
+   "id": "liability-cap",
+   "chunks": 877,
+   "evidence": 34,
+   "scans_document_order": 849,
+   "scans_jev_score_order": 41,
+   "scans_similarity_order": 61,
+   "oracle_scans": 34
+  },
+  {
+   "id": "confidentiality",
+   "chunks": 419,
+   "evidence": 13,
+   "scans_document_order": 389,
+   "scans_jev_score_order": 15,
+   "scans_similarity_order": 27,
+   "oracle_scans": 13
+  },
+  {
+   "id": "liability-secrecy-carveout",
+   "chunks": 315,
+   "evidence": 7,
+   "scans_document_order": 244,
+   "scans_jev_score_order": 7,
+   "scans_similarity_order": 16,
+   "oracle_scans": 7
+  }
+ ]
+}
