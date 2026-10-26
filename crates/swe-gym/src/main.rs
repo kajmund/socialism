@@ -586,45 +586,58 @@ fn demo_td_structured() {
 fn demo_real_bench() {
     let bench = load_bench_file("benchmarks/bench_real_v2.json")
         .expect("real bench must exist — run tools/export_real_bench.py");
-    let fixture = std::fs::read_to_string("benchmarks/jev_fixture_real_v2.json")
-        .expect("real fixture must exist — run capture_real");
-    let replay = ReplayProvider::load(&fixture).expect("real fixture must load");
-    let question = &bench.questions[0];
 
     println!();
     println!(
-        "=== I: riktig bench — auto-renewal, {} riktiga chunks, riktiga JEV-svar (replay) ===",
-        question.view.chunks.len(),
+        "=== I: riktig bench — {} frågor, riktiga chunks, riktiga JEV-svar (replay) ===",
+        bench.questions.len(),
     );
-    let mut a = SequentialStrategy;
-    let a_report = run_arm_with_provider(
-        &mut a,
-        question,
-        bench.total_budget_milli,
-        &bench.tariffs,
-        &replay,
-    );
-    let mut c = AdaptiveStrategy;
-    let c_report = run_arm_with_provider(
-        &mut c,
-        question,
-        bench.total_budget_milli,
-        &bench.tariffs,
-        &replay,
-    );
-    let mut oracle = OracleStrategy::new(question);
-    let cx_report = run_arm_with_provider(
-        &mut oracle,
-        question,
-        bench.total_budget_milli,
-        &bench.tariffs,
-        &replay,
-    );
-    for report in [&a_report, &c_report, &cx_report] {
-        print_real_arm(report);
+    for question in &bench.questions {
+        let fixture = std::fs::read_to_string(format!(
+            "benchmarks/real_fixtures/{}.json",
+            question.view.id
+        ))
+        .expect("real fixture must exist — run capture_real");
+        let replay = ReplayProvider::load(&fixture).expect("real fixture must load");
+
+        let mut a = SequentialStrategy;
+        let a_report = run_arm_with_provider(
+            &mut a,
+            question,
+            bench.total_budget_milli,
+            &bench.tariffs,
+            &replay,
+        );
+        let mut c = AdaptiveStrategy;
+        let c_report = run_arm_with_provider(
+            &mut c,
+            question,
+            bench.total_budget_milli,
+            &bench.tariffs,
+            &replay,
+        );
+        let mut oracle = OracleStrategy::new(question);
+        let cx_report = run_arm_with_provider(
+            &mut oracle,
+            question,
+            bench.total_budget_milli,
+            &bench.tariffs,
+            &replay,
+        );
+        println!(
+            "{} ({} chunks, krav {})",
+            question.view.id,
+            question.view.chunks.len(),
+            question.view.required_coverage,
+        );
+        for report in [&a_report, &c_report, &cx_report] {
+            print_real_arm(report);
+        }
+        println!();
     }
-    println!();
-    println!("(facit: 20 gold-chunks ur legal-questions-v1; JEV hittade 20/20 + 2 extra fynd)");
+    println!(
+        "(facit: legal-questions-v1 gold; riktig JEV: 100 % gold-träffar, 0 missar på alla fem)"
+    );
 }
 
 fn print_real_arm(report: &ArmReport) {

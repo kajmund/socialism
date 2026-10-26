@@ -15,6 +15,9 @@ pub struct QuestionView {
     pub id: String,
     pub chunks: Vec<String>,
     pub required_coverage: usize,
+    /// The question text the chunks are judged against (real benches carry
+    /// the gold classify question; synthetic questions leave it empty).
+    pub question: String,
 }
 
 /// A benchmark question: view (visible to strategies) plus the facit.
