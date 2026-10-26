@@ -39,6 +39,7 @@ fn main() {
             chunks,
             required_coverage: 2,
             question: String::new(),
+            scan_order: Vec::new(),
         },
         evidence: HashSet::from(["chunk-r1".into(), "chunk-r3".into()]),
         scan_blind: HashSet::new(),
