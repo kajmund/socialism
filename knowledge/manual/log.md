@@ -1,5 +1,10 @@
 # Manual update log
 
+## 2026-10-26
+
+* **Expertpaneler**: Guiden för detaljsidan beskriver **Generera expert** och **Ta bort panel**.
+* **Tabular Review**: Guiden täcker listan, kolumnhantering och sök/statusfilter.
+
 ## 2026-10-23
 
 * **Tabular Review**: Ny guide för den opt-in-tabell där avtal jämförs mot klausulankare. Cellen visar ordagrann klausul och similarity. Ingen träff betyder inte att klausulen saknas.
