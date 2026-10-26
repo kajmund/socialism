@@ -17,8 +17,11 @@ from app.database.models import (
 )
 from app.services.execution.reuse_reference import REUSE_KEY
 from app.services.overgraph.answers import ANSWER_TYPE, entity_attributes
+from app.services.overgraph.answers_owner import entity_attributes_via_owner
 from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.labels import FACT
+from app.services.overgraph.model import GraphRecord
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.views import fact_view
 
 
@@ -40,13 +43,20 @@ async def reuse_payloads(
             )
         )
     }
-    catalog = require_knowledge()
+    owner = get_owner_runtime().client
+    catalog = None if owner is not None else require_knowledge()
     output = []
     for attempt, ref in bound:
-        parts = await catalog.run(
-            _reuse_answer, catalog, str(ref["answer_fact_id"]),
-            f"customer:{runs[attempt.run_id].customer_id}",
-        )
+        if owner is not None:
+            parts = await _reuse_answer_owner(
+                owner, str(ref["answer_fact_id"]),
+                f"customer:{runs[attempt.run_id].customer_id}",
+            )
+        else:
+            parts = await catalog.run(
+                _reuse_answer, catalog, str(ref["answer_fact_id"]),
+                f"customer:{runs[attempt.run_id].customer_id}",
+            )
         if parts is None:
             raise RuntimeError("Research reuse reference does not match its frozen result")
         fact, target = parts
@@ -58,6 +68,21 @@ async def reuse_payloads(
             raise RuntimeError("Research reuse reference does not match its frozen result")
         output.append((attempt, ref, target.attributes))
     return output
+
+
+async def _reuse_answer_owner(client, fact_id: str, scope_key: str):
+    response = await client.read([{"label": FACT, "key": fact_id}])
+    props = response["values"].get(f"{FACT}:{fact_id}")
+    if props is None:
+        return None
+    fact = fact_view(GraphRecord(
+        key=fact_id, labels=(FACT,), props=dict(props),
+        engine_id=response["ids"].get(f"{FACT}:{fact_id}"),
+    ))
+    target = await entity_attributes_via_owner(client, fact.target_id)
+    if target is None or target.node_type != ANSWER_TYPE or target.scope_key != scope_key:
+        return None
+    return fact, target
 
 
 def _reuse_answer(catalog, fact_id: str, scope_key: str):
