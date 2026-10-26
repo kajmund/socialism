@@ -36,6 +36,7 @@ class MemoryRecord:
     id: str
     score: float | None
     payload: dict[str, Any]
+    vector: tuple[float, ...] | None = None
 
 
 def _kind(collection_name: str) -> str:
@@ -168,6 +169,7 @@ async def list_records(
     kind: str,
     filters: dict[str, Any] | None = None,
     limit: int = 10_000,
+    include_vectors: bool = False,
 ) -> list[MemoryRecord]:
     filters = filters or {}
     props: dict[str, Any] = {}
@@ -179,10 +181,13 @@ async def list_records(
     while len(records) < limit:
         page = await client.query_nodes(
             kind, props=props, limit=min(PAGE_LIMIT, limit - len(records)),
-            after=cursor,
+            after=cursor, include_vectors=include_vectors,
         )
         for row in page["nodes"]:
-            records.append(_record(row))
+            records.append(MemoryRecord(
+                id=str(row["key"]), score=None, payload=_payload(dict(row.get("props") or {})),
+                vector=tuple(row.get("dense_vector") or ()) or None,
+            ))
         cursor = page.get("next_cursor")
         if cursor is None:
             break
@@ -191,3 +196,32 @@ async def list_records(
 
 def memory_kind(collection_name: str) -> str:
     return _kind(collection_name)
+
+
+async def apply_changes(
+    client: OwnerClient,
+    *,
+    kind: str,
+    collection: str,
+    upserts: list[MemoryRecord],
+    deletes: list[str],
+) -> None:
+    """Publish a staging diff for one memory collection in one owner batch."""
+    batch = GraphBatch()
+    for record in upserts:
+        payload = dict(record.payload)
+        batch.nodes.append(make_node(_labels(kind, payload), record.id, {
+            "payload_json": json.dumps(
+                payload, ensure_ascii=False, separators=(",", ":"),
+            ),
+            "user_id": str(payload.get("user_id") or ""),
+            "agent_id": str(payload.get("agent_id") or ""),
+            "collection": collection,
+        }, dense_vector=list(record.vector) if record.vector else None))
+        for linked in payload.get("linked_memory_ids") or ():
+            batch.edges.append(make_edge((kind, record.id), (MEMORY, str(linked)), LINKED))
+    if upserts or deletes:
+        await apply_batch(
+            client, "memory:apply", nodes=batch.nodes, edges=batch.edges,
+            deletes=[{"label": kind, "key": memory_id} for memory_id in deletes],
+        )
