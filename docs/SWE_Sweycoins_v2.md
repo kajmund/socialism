@@ -183,6 +183,27 @@ Kalibreringsgrinden: orakel / bästa baslinje = 1.39 (krav ≥ 1.10) ✓ · lear
 
 Per fråga (learner vs orakel): t0 80k/80k, t1 130k/130k, t3 190k/190k — gap 0. Hela gapet ligger på t2 (114k/130k): där når B4+C2 redan kvalitetstaket (1.0) och den sista marginalinvesteringen är nära break-even — learen tar den, oraklet gör det inte.
 
+### 11.2 Status — steg 6: fryst verklig bänk (2026-10-26)
+
+Implementation: `src/real.rs` (RealEnv över den frysta bänken + verkliga baslinjer), tester i `tests/real_env_tests.rs` (6 test), körbar rapport `cargo run --example v2_real`.
+
+RealEnv-design: A = JEV-scan i likhetsordning (arm H:s motor, 1 coin/chunk), B = JEV-scan i dokumentordning, **C = LLM maskerad** (fryst data saknar deep-svar — dokumenterad begränsning, högljutt inte tyst). Framsteg = fynd per strategi (facit-fritt, v1:s ScanState.found). Kvalitet = fynd/required, bara vid episodslut. Allt via ledgern med per-stegs-bokföring; `settle` frigör ospenderad rest. Frågetyp = pre-registrerad observerbar regel (chunk-count-buckets) — en proxy, avsiktligt inspelad innan resultaten fanns.
+
+**Uppmätta medelvärden (5 frysta frågor, budget 200 coins/fråga):**
+
+| Arm | Medel netto |
+|---|---|
+| real-adaptive (fynd-platå) | +44 000 |
+| real-equal-split | +22 000 |
+| real-sequential (likhet först) | +20 000 |
+| **mc-q-learner (syntetiskt tränad)** | **−100 000** |
+
+**Kriterium 5: UNDERKÄNT — learen regresserar mot lika fördelning på den verkliga bänken.** Detaljen är värd att läsa rätt: learen hittar full täckning på alla fem frågorna (21/20, 15/13, 42/34, 22/13, 7/7 fynd) men **slutar aldrig** — den bränner hela budgeten (200/200 coins) eftersom dess stoppbeslut är inlärt mot syntetiska tier-dynamiker som den verkliga miljön inte producerar (tier-tillstånd som syntetisk träning aldrig besökte → Q-tabellen är skräp där). Överföringsfelet sitter i stoppbeslutet, inte i att hitta evidens.
+
+Tre dokumenterade överföringsblockerare: (1) frågetyp-regeln är en godtycklig proxy — syntetiska typer har ingen semantisk motsvarighet i verkliga drag; (2) tier-semantiken (0–4 per strategi) kan inte uttrycka det verkliga framstegssignalen (fynd-antal) — verkliga baslinjer behöver `obs.found`; (3) den verkliga bänkens lärbara marginal är densamma som v1 mätte: ordning (arm H 38/26/47/18/16 vs C\* 20/13/34/13/7 scans), inte budgetallokering över strategier — med bara en bra strategi och en dominerad finns ingen allokeringsstruktur att lära.
+
+**Beslutspunkt (cratens exit criteria):** v2:s hypotes ("budgetallokering över strategier är ett bredare problem än skanningsordning") stöds **inte** av frysta verkliga data i denna POC-form. Experimentets svar: learen kan lära sig allokering när signalen finns (11.1) men den syntetiskt tränade policyn överförs inte (11.2). Nästa steg om hypotesen ska leva: träna learen **i den verkliga miljöns gränssnitt** — det kräver antingen verkliga träningsfrågor (vi har 5) eller en syntetisk miljö kalibrerad mot verkliga tier-/fynd-dynamiker, plus frågetyp från embeddings i stället för chunk-count. Alternativet: avsluta budget-RL-spåret och behålla det som experimentet faktiskt bevisat om och om igen — ordningen är värdet, och arm H har redan den.
+
 ## 12. Punkter i specen att justera före implementation
 
 1. **§5.2 Action-redundans:** `INVEST`/`CONTINUE`/`START` → en `INVEST`; `TRANSFER` skjuts upp till efter POC (kredittilldelning över transfers är en egen fälla).
