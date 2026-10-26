@@ -7,6 +7,7 @@ from typing import Any
 from app.services.clause_ssr.labels import ANCHOR, ANCHOR_SET, MEMBER_OF, VERIFICATION
 from app.services.clause_ssr.types import (
     LABEL_ANSWERS,
+    Anchor,
     AnchorSet,
     EmbeddingSpec,
 )
@@ -123,3 +124,55 @@ async def get_anchor_set(client: OwnerClient, set_id: str) -> AnchorSet:
 
 
 __all__ = ["ANCHOR", "get_anchor_set", "list_anchor_sets"]
+
+
+async def list_anchors(
+    client: OwnerClient,
+    *,
+    customer_id: int | None,
+    classification_id: str | None = None,
+    statuses: tuple[str, ...] = ("draft", "active"),
+) -> list[Anchor]:
+    allowed = set(statuses)
+    anchors: list[Anchor] = []
+    for scope_key in visible_scope_keys(customer_id):
+        props = {"scope_key": scope_key}
+        if classification_id is not None:
+            props["classification_id"] = classification_id
+        cursor: int | None = None
+        while True:
+            page = await client.query_nodes(
+                ANCHOR, props=props, include_vectors=True,
+                limit=PAGE_LIMIT, after=cursor,
+            )
+            for row in page["nodes"]:
+                item = dict(row.get("props") or {})
+                if _str(item, "status") not in allowed:
+                    continue
+                vector = row.get("dense_vector")
+                anchors.append(Anchor(
+                    id=str(row["key"]),
+                    verification_id=_str(item, "verification_id"),
+                    source_unit_id=_str(item, "source_unit_id"),
+                    classification_id=_str(item, "classification_id"),
+                    category=_str(item, "category"),
+                    polarity=_str(item, "polarity"),
+                    content_hash=_str(item, "content_hash"),
+                    status=_str(item, "status") or "draft",
+                    embedding=EmbeddingSpec(
+                        model=_str(item, "embedding_model"),
+                        revision=_str(item, "embedding_revision"),
+                        dimension=_int(item, "embedding_dimension"),
+                    ),
+                    vector=tuple(vector) if vector else None,
+                    scope_key=_str(item, "scope_key"),
+                    provenance={
+                        "reviewer_id": _str(item, "reviewer_id"),
+                        "question": _str(item, "question"),
+                    },
+                ))
+            cursor = page.get("next_cursor")
+            if cursor is None:
+                break
+    anchors.sort(key=lambda item: (item.category, item.id))
+    return anchors

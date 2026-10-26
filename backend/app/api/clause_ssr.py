@@ -23,6 +23,7 @@ from app.services.clause_ssr.classifications import (
 )
 from app.services.clause_ssr.match import match_query
 from app.services.clause_ssr.queue import next_queue
+from app.services.clause_ssr import owner_select
 from app.services.clause_ssr.select import list_anchor_sets
 from app.services.clause_ssr.serialize import (
     anchor_json,
@@ -319,13 +320,18 @@ async def api_list_anchors(
     customer_id: int | None = Query(default=None),
     classification_id: str | None = Query(default=None),
 ) -> dict:
-    catalog = _catalog()
-    items = await asyncio.to_thread(
-        list_anchors,
-        catalog,
-        customer_id=customer_id,
-        classification_id=classification_id,
-    )
+    owner = get_owner_runtime().client
+    if owner is not None:
+        items = await owner_select.list_anchors(
+            owner, customer_id=customer_id, classification_id=classification_id,
+        )
+    else:
+        items = await asyncio.to_thread(
+            list_anchors,
+            _catalog(),
+            customer_id=customer_id,
+            classification_id=classification_id,
+        )
     return {"items": [anchor_json(item) for item in items]}
 
 
@@ -377,8 +383,13 @@ async def api_mark_stale(customer_id: int | None = Query(default=None)) -> dict:
 
 @router.get("/anchor-sets")
 async def api_list_sets(customer_id: int | None = Query(default=None)) -> dict:
-    catalog = _catalog()
-    items = await asyncio.to_thread(list_anchor_sets, catalog, customer_id=customer_id)
+    owner = get_owner_runtime().client
+    if owner is not None:
+        items = await owner_select.list_anchor_sets(owner, customer_id=customer_id)
+    else:
+        items = await asyncio.to_thread(
+            list_anchor_sets, _catalog(), customer_id=customer_id,
+        )
     return {"items": [set_json(item) for item in items]}
 
 
