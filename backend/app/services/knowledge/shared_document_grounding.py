@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord
 from app.services.knowledge.models import KnowledgeHit
 from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.owner_text_units import get_unit
 from app.services.overgraph.model import TextUnitView
 from app.services.overgraph.research import load_text_units
 
@@ -13,9 +15,13 @@ async def grounded_shared_hits(session: AsyncSession, hit: KnowledgeHit) -> list
     unit_id = hit.metadata.get("text_unit_id")
     if not isinstance(unit_id, str):
         return []
-    catalog = require_knowledge()
-    units = await catalog.run(load_text_units, catalog, [unit_id])
-    unit = units[0] if units else None
+    owner = get_owner_runtime().client
+    if owner is not None:
+        unit = await get_unit(owner, unit_id)
+    else:
+        catalog = require_knowledge()
+        units = await catalog.run(load_text_units, catalog, [unit_id])
+        unit = units[0] if units else None
     if unit is None or unit.document_id != hit.document_id:
         return []
     basis = await readable_shared_document_passage(session, unit)
