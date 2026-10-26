@@ -283,11 +283,12 @@ async def run_tabular_review(
         )
     factory = async_sessionmaker(session.bind, expire_on_commit=False, class_=AsyncSession)
     await session.commit()
+    catalog = None if get_owner_runtime().client is not None else require_knowledge()
     try:
         await fill_review(
             factory,
             review_id,
-            catalog=require_knowledge(),
+            catalog=catalog,
             embeddings_by_document=embeddings,
             customer_id=kund.id,
         )
