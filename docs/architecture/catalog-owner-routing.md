@@ -55,6 +55,16 @@ graph access. Direct writers are forbidden in owner mode.
 The global flag remains `false` until every relevant catalog type has its own
 Owner acceptance test. Static allowlist absence is never sufficient.
 
+## Tenant catalog acceptance
+
+`backend/scripts/verify_owner_multiprocess_fastapi.py` includes a
+`tenant_catalog` scenario: real Knowledge Owner + real Tenant Knowledge Owner +
+two real uvicorn backends. Backend A uploads a document; the graph worker writes
+document/version/TextUnits/type index through the tenant Owner; the harness
+reads them back via a separate Owner client; the tenant Owner restarts with no
+backend restart; both backend guard logs show **zero** local tenant-catalog
+opens. This is runtime acceptance, not a static allowlist claim.
+
 ## Acceptance per catalog type
 
 - Owner + two real backend processes.
@@ -106,9 +116,10 @@ Document QA request paths always use a tenant Owner: catalog writeback
 `find_documents` call `tenant_owner_client`, which fails explicitly when a
 route is missing. The graph worker runs in owner mode and projects legal claims
 to facts through the Knowledge Owner (`owner_legal_writeback.py`), so legal and
-document work share one loop. Owner mode refuses to start without tenant
-routes. The direct `TenantCatalogs` opener remains only for offline scripts and
-benchmarks; no backend request path imports it. The memory catalog now has an
+document work share one loop. A knowledge-only owner-mode deployment can start
+without tenant routes; the first tenant operation fails explicitly. The direct
+`TenantCatalogs` opener remains only for offline scripts and benchmarks; no
+backend request path imports it. The memory catalog now has an
 Owner-backed repository (`owner_memory.py`) for
 upsert/get/update/delete/search/list/link and a configurable Owner route; the
 synchronous mem0 adapter is not switched yet. Runtime guard blocks direct knowledge writes in
