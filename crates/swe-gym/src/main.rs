@@ -36,6 +36,7 @@ fn main() {
     demo_noise();
     demo_sequential();
     demo_td();
+    demo_td_structured();
 }
 
 // ---------------------------------------------------------------------------
@@ -500,6 +501,79 @@ fn eval_aggregate_td(
             .count();
     }
     (solved, spend, scans)
+}
+
+// ---------------------------------------------------------------------------
+// Section 7: TD with informative features — the structured corpus. Evidence
+// lives in the first half, so scan position is real facit-free information.
+// The question: does the learned policy use it and beat arm C's scan-all?
+// ---------------------------------------------------------------------------
+
+fn demo_td_structured() {
+    let tariffs = swe_gym::strategy::Tariffs {
+        scan_milli: 1_000,
+        deep_milli: 10_000,
+    };
+
+    println!();
+    println!("=== H: TD med informativ signal — strukturerad korpus ===");
+    println!("(evidens enbart i positioner 0-5; scriptade providers)");
+
+    let mut train_generator = QuestionGenerator::new(7);
+    let train_questions = train_generator.generate_structured_noisy(10_000);
+    let mut policy = TdPolicy::new(4242, 0.2, 0.1, 0.95);
+    let records = train_td(&mut policy, &train_questions, 30_000, &tariffs);
+    let start = records.len().saturating_sub(200);
+    println!(
+        "träning: {} uppdateringar   slutbelöningsmedel: första 200 = {:.2}, sista 200 = {:.2}",
+        records.len(),
+        mean_reward_td(&records[..200.min(records.len())]),
+        mean_reward_td(&records[start..]),
+    );
+
+    policy.set_epsilon(0.0); // fryser
+
+    let mut eval_generator = QuestionGenerator::new(99);
+    let eval_questions = eval_generator.generate_structured_noisy(500);
+    let (a_solved, a_spend) = eval_aggregate(&eval_questions, 30_000, &tariffs, || {
+        Box::new(SequentialStrategy)
+    });
+    let (c_solved, c_spend) = eval_aggregate(&eval_questions, 30_000, &tariffs, || {
+        Box::new(AdaptiveStrategy)
+    });
+    let eval_policy = policy.clone();
+    let (g_solved, g_spend, g_scans) =
+        eval_aggregate_td(&eval_questions, 30_000, &tariffs, move || {
+            Box::new(TdSequentialStrategy::new(eval_policy.clone()))
+        });
+    let mut oracle_solved = 0;
+    let mut oracle_spend = 0u64;
+    for question in &eval_questions {
+        let mut oracle = OracleStrategy::new(question);
+        let report = run_arm(&mut oracle, question, 30_000, &tariffs);
+        if report.solved {
+            oracle_solved += 1;
+        }
+        oracle_spend += report.spent_milli;
+    }
+    println!("500 nya strukturerade frågor (held-out):");
+    println!(
+        "  A sekventiell:    {a_solved}/500 lösta, spend {}",
+        format_amount(a_spend)
+    );
+    println!(
+        "  C adaptiv:        {c_solved}/500 lösta, spend {}",
+        format_amount(c_spend)
+    );
+    println!(
+        "  G TD (Sarsa):     {g_solved}/500 lösta, spend {} (snitt {} scan/fråga)",
+        format_amount(g_spend),
+        g_scans as f64 / eval_questions.len() as f64,
+    );
+    println!(
+        "  C* orakel [tak]:  {oracle_solved}/500 lösta, spend {}",
+        format_amount(oracle_spend),
+    );
 }
 
 // ---------------------------------------------------------------------------
