@@ -108,6 +108,8 @@ if _guard_file:
     def _guarded_open_catalog(path, *, kind, dimension):
         if os.environ.get("OWNER_TEST_NO_LOCAL_KNOWLEDGE") == "1" and kind == "knowledge":
             _record(f"LOCAL_KNOWLEDGE_OPEN {path}")
+        if os.environ.get("OWNER_TEST_NO_LOCAL_MEMORY") == "1" and kind == "memory":
+            _record(f"LOCAL_MEMORY_OPEN {path}")
         return _real_open_catalog(path, kind=kind, dimension=dimension)
 
     catalogs_module.open_catalog = _guarded_open_catalog

@@ -63,7 +63,9 @@ two real uvicorn backends. Backend A uploads a document; the graph worker writes
 document/version/TextUnits/type index through the tenant Owner; the harness
 reads them back via a separate Owner client; the tenant Owner restarts with no
 backend restart; both backend guard logs show **zero** local tenant-catalog
-opens. This is runtime acceptance, not a static allowlist claim.
+opens. A `memory_catalog` scenario does the same for expert memory: B reads a
+memory written through the Memory Owner, the Owner restarts without a backend
+restart, and both guards show zero local memory opens. This is runtime acceptance, not a static allowlist claim.
 
 ## Acceptance per catalog type
 
@@ -129,5 +131,6 @@ upsert/get/update/delete/search/list/link and a configurable Owner route.
 With `OVERGRAPH_MEMORY_OWNER_SOCKET` set, expert memory uses
 `OwnerExpertMemory`: mem0 extraction runs against an in-memory staging vector
 store and the resulting diff is published in one Owner batch. Without the
-route, the legacy mem0/direct memory adapter remains. Runtime guard blocks direct knowledge writes in
+route, the legacy mem0/direct memory adapter remains. The backend does not open
+the memory catalog at all when the route is configured. Runtime guard blocks direct knowledge writes in
 owner mode. `write_paths_ready` remains false.

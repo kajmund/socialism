@@ -106,10 +106,12 @@ async def _open_retrieval_index() -> None:
     await asyncio.to_thread(retrieval_index.ensure_current)
 
 
-async def _prepare_graph_access(owner_mode: bool, app: FastAPI) -> None:
+async def _prepare_graph_access(
+    owner_mode: bool, app: FastAPI, *, memory_owner: bool = False,
+) -> None:
     set_owner_mode(owner_mode)
     set_direct_writes_forbidden(owner_mode)
-    set_runtime(_graph_runtime_for_mode(owner_mode))
+    set_runtime(_graph_runtime_for_mode(owner_mode, memory_owner=memory_owner))
     if owner_mode:
         logger.warning(
             "owner read mode: knowledge catalog opened only by the owner; "
@@ -126,17 +128,19 @@ def _start_graph_worker(owner_mode: bool, factory):
     return start_graph_ingest_loop(factory)
 
 
-def _graph_runtime_for_mode(owner_mode: bool) -> OverGraphRuntime:
+def _graph_runtime_for_mode(
+    owner_mode: bool, *, memory_owner: bool = False,
+) -> OverGraphRuntime:
     """Owner mode keeps the knowledge catalog out of the backend process."""
     root = catalog_root(settings.overgraph_dir)
     memory_dimension = EMBEDDING_MODEL_DIMENSIONS[settings.mem0_embedding_model]
     if owner_mode:
         from app.services.overgraph.catalogs import open_catalog
 
-        return OverGraphRuntime(
-            None,
-            open_catalog(root / "memory", kind="memory", dimension=memory_dimension),
+        memory = None if memory_owner else open_catalog(
+            root / "memory", kind="memory", dimension=memory_dimension,
         )
+        return OverGraphRuntime(None, memory)
     return open_runtime(
         root,
         knowledge_dimension=settings.embedding_dimension,
@@ -192,7 +196,7 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
 
         set_expert_memory_factory(OwnerExpertMemory)
     owner_mode = owner_runtime.client is not None
-    await _prepare_graph_access(owner_mode, _app)
+    await _prepare_graph_access(owner_mode, _app, memory_owner=bool(memory_routes))
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None
     set_lagen_nu_selector_factory(LlmLagenNuSelector)

@@ -38,6 +38,7 @@ BACKEND = Path(__file__).resolve().parents[1]
 LAUNCHER = Path(__file__).resolve().with_name("owner_test_backend.py")
 DIMENSION = 3072
 EMBEDDING_MODEL = "text-embedding-3-large"
+MEMORY_DIMENSION = 1536
 LOCAL_SECRET = "owner-multiprocess-test-secret-32bytes"
 OWNER_READY_TIMEOUT = 30
 HTTP_TIMEOUT = 30
@@ -197,6 +198,39 @@ def _start_owner(root: Path, *, sync: bool = True) -> Process:
     return process
 
 
+def _start_memory_owner(root: Path) -> Process:
+    socket_path = root / "memory-owner.sock"
+    argv = [
+        sys.executable, "-m", "app.services.overgraph.owner",
+        str(root / "overgraph" / "memory"),
+        "--socket", str(socket_path),
+        "--dimension", str(MEMORY_DIMENSION),
+        "--kind", "memory",
+    ]
+    process = Process(
+        "memory-owner", argv, _base_env(root, owner_id=None), root / "memory-owner.log",
+    )
+    _wait_owner_ready(socket_path)
+    return process
+
+
+async def _seed_memory(socket_path: Path) -> str:
+    from app.services.overgraph.owner_memory import upsert
+
+    payload = {
+        "data": "Kunden föredrar korta avtal.",
+        "user_id": "kund:1",
+        "agent_id": "expert:e1",
+        "source": "chat",
+    }
+    await upsert(
+        OwnerClient(socket_path), kind="Memory", memory_id="memory-cross-process",
+        vector=[1.0] + [0.0] * (MEMORY_DIMENSION - 1), payload=payload,
+        collection="expert_memories",
+    )
+    return "memory-cross-process"
+
+
 def _start_tenant_owner(root: Path, customer_id: int) -> Process:
     socket_path = root / f"tenant-{customer_id}.sock"
     argv = [
@@ -294,10 +328,10 @@ def _wait_http(url: str, *, timeout: float) -> None:
     raise TimeoutError(f"{url} did not become ready")
 
 
-def _start_backend(
+def _start_backend(  # noqa: PLR0913
     root: Path, *, port: int, owner_id: str, guard: Path,
     sync_on_commit: bool = True, tenant_sockets: str = "",
-    graph_loop: bool = False,
+    graph_loop: bool = False, memory_socket: Path | None = None,
 ) -> Process:
     del sync_on_commit  # owner-side setting; kept for call-site clarity
     env = _base_env(root, owner_id=owner_id)
@@ -307,6 +341,9 @@ def _start_backend(
         env["OVERGRAPH_TENANT_OWNER_SOCKETS"] = tenant_sockets
     if graph_loop:
         env["GRAPH_INGEST_LOOP_ENABLED"] = "true"
+    if memory_socket is not None:
+        env["OVERGRAPH_MEMORY_OWNER_SOCKET"] = str(memory_socket)
+        env["OWNER_TEST_NO_LOCAL_MEMORY"] = "1"
     process = Process(
         f"backend-{port}",
         [sys.executable, str(LAUNCHER), str(port)],
@@ -439,6 +476,66 @@ def _guard_lines(guard: Path) -> list[str]:
     if not guard.exists():
         return []
     return [line for line in guard.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def scenario_memory_catalog(root: Path) -> dict[str, Any]:
+    """Two backends read expert memory through one Memory Owner."""
+    owner = _start_owner(root)
+    memory = _start_memory_owner(root)
+    backends: list[Process] = []
+    guard_a = root / "guard-memory-a.log"
+    guard_b = root / "guard-memory-b.log"
+    try:
+        memory_socket = root / "memory-owner.sock"
+        port_a, port_b = _free_port(), _free_port()
+        backend_a = _start_backend(
+            root, port=port_a, owner_id=_owner_id(root), guard=guard_a,
+            memory_socket=memory_socket,
+        )
+        backend_b = _start_backend(
+            root, port=port_b, owner_id=_owner_id(root), guard=guard_b,
+            memory_socket=memory_socket,
+        )
+        backends = [backend_a, backend_b]
+        token = _login(port_b)
+        memory_id = asyncio.run(_seed_memory(memory_socket))
+
+        def read_memories() -> list[dict[str, Any]]:
+            status, payload = _http(
+                "GET", f"http://127.0.0.1:{port_b}/expert-memory?customer_id=1",
+                token=token,
+            )
+            assert status == 200, (status, payload)
+            return list(payload.get("memories") or [])
+
+        memories = _wait_for(lambda: read_memories())
+        assert any(row["id"] == memory_id for row in memories), memories
+        memory.stop()
+        memory = _start_memory_owner(root)
+        memories = _wait_for(lambda: read_memories())
+        assert any(row["id"] == memory_id for row in memories)
+        for guard in (guard_a, guard_b):
+            assert not [line for line in _guard_lines(guard) if "memory" in line], guard
+        return {
+            "memory_id": memory_id,
+            "memory_owner_restart": True,
+            "local_memory_opens": 0,
+        }
+    finally:
+        for backend in backends:
+            backend.stop()
+        memory.stop()
+        owner.stop()
+
+
+def _wait_for(reader, *, timeout: float = 60):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        result = reader()
+        if result:
+            return result
+        time.sleep(0.2)
+    raise TimeoutError("timed out waiting for HTTP state")
 
 
 def scenario_tenant_catalog(root: Path) -> dict[str, Any]:
@@ -964,6 +1061,7 @@ def main() -> int:
         for name, scenario in (
             ("two_backends", scenario_two_backends),
             ("tenant_catalog", scenario_tenant_catalog),
+            ("memory_catalog", scenario_memory_catalog),
             ("exclusive_owner_restart_receipt", scenario_exclusive_owner_and_restart_receipt),
             ("durable_ack", scenario_durable_ack),
             ("lifecycle_and_outage", scenario_lifecycle_and_outage),
