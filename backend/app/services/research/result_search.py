@@ -21,8 +21,12 @@ from app.services.overgraph.labels import (
 from app.services.knowledge.embeddings import EmbeddingProvider, require_embedding_vectors
 from app.services.prompt_store import require_active_prompts
 from app.services.overgraph.catalogs import require_knowledge
-from app.services.overgraph.hybrid_retrieval import hybrid_fact_hits
+from app.services.overgraph.hybrid_retrieval import (
+    hybrid_fact_hits,
+    hybrid_fact_hits_via_owner,
+)
 from app.services.overgraph.labels import DEPENDS_ON
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.research import QUESTION_TYPE
 from app.services.research.answer_graph import ANSWER_PREDICATE
 from app.services.retrieval_index import require_current_index
@@ -113,16 +117,59 @@ def _question_seeds(catalog, keys: list[str], scope_key: str) -> list[str]:
 
 
 async def _seeds(session, need, scope, embeddings, *, vector) -> list[str]:
-    catalog = require_knowledge()
     index = await asyncio.to_thread(require_current_index)
     customer_id = scope.scope.customer_id
+    scope_key = f"customer:{customer_id}"
+    owner = get_owner_runtime().client
+    if owner is not None:
+        collected = await _graph_seeds_owner(
+            owner, index, need.question, customer_id, vector=vector,
+        )
+        return await _question_seeds_owner(
+            owner, collected["endpoints"] + collected["dependencies"], scope_key,
+        )
+    catalog = require_knowledge()
     collected = await asyncio.to_thread(
         _graph_seeds, catalog, index, need.question, customer_id, vector=vector,
     )
-    scope_key = f"customer:{customer_id}"
     return _question_seeds(
         catalog, collected["endpoints"] + collected["dependencies"], scope_key,
     )
+
+
+async def _graph_seeds_owner(owner, index, question: str, customer_id: int, *, vector):
+    hits = await hybrid_fact_hits_via_owner(
+        owner, index, customer_id=customer_id, query=question,
+        limit=8, dense_query=list(vector) if vector is not None else None,
+    )
+    endpoints: set[str] = set()
+    dependencies: set[str] = set()
+    for hit in hits:
+        endpoints.update((hit.fact.source_id, hit.fact.target_id))
+        response = await owner.read([{"label": FACT, "key": hit.fact.id}])
+        node_id = response["ids"].get(f"{FACT}:{hit.fact.id}")
+        if node_id is None:
+            continue
+        for row in await owner.neighbors(
+            int(node_id), direction="incoming", labels=[DEPENDS_ON], limit=100,
+        ):
+            key = str(row.get("key") or "")
+            if key:
+                dependencies.add(key)
+    return {"endpoints": sorted(endpoints), "dependencies": sorted(dependencies)}
+
+
+async def _question_seeds_owner(owner, keys: list[str], scope_key: str) -> list[str]:
+    response = await owner.read([{"label": ENTITY, "key": key} for key in sorted(set(keys))])
+    seeds = []
+    for key in sorted(set(keys)):
+        props = response["values"].get(f"{ENTITY}:{key}") or {}
+        if str(props.get("node_type") or "") != QUESTION_TYPE:
+            continue
+        if str(props.get("scope_key") or "") != scope_key:
+            continue
+        seeds.append(key)
+    return seeds[:8]
 
 
 FRONTIER_PREDICATES = (ANSWER_PREDICATE, "research.decomposed_to")
@@ -186,12 +233,74 @@ def _frontier_rows(catalog, *, customer_id: int, frontier: list[str], visited: s
 
 
 async def _frontier(session, frontier, scope, visited, *, remaining) -> list[dict]:
+    owner = get_owner_runtime().client
+    if owner is not None:
+        return await _frontier_rows_owner(
+            owner, customer_id=scope.scope.customer_id,
+            frontier=list(frontier), visited=set(visited), remaining=remaining,
+        )
     catalog = require_knowledge()
     return await asyncio.to_thread(
         _frontier_rows, catalog,
         customer_id=scope.scope.customer_id,
         frontier=list(frontier), visited=set(visited), remaining=remaining,
     )
+
+
+async def _frontier_rows_owner(
+    owner, *, customer_id: int, frontier: list[str], visited: set[str], remaining: int,
+) -> list[dict]:
+    visible = set(visible_scope_keys(customer_id))
+    responses = await owner.read([
+        {"label": ENTITY, "key": key} for key in sorted(frontier)
+    ])
+    found: dict[str, dict] = {}
+    for node_key in sorted(frontier):
+        node_id = responses["ids"].get(f"{ENTITY}:{node_key}")
+        if node_id is None:
+            continue
+        for row in await owner.neighbors(
+            int(node_id), direction="incoming", labels=[SUBJECT, OBJECT], limit=200,
+        ):
+            props = dict(row.get("props") or {})
+            key = str(row.get("key") or "")
+            if key in visited or key in found:
+                continue
+            if str(props.get("scope_key") or "") not in visible:
+                continue
+            if str(props.get("status") or "active") != "active":
+                continue
+            if str(props.get("predicate") or "") not in FRONTIER_PREDICATES:
+                continue
+            found[key] = {"key": key, "props": props}
+    endpoint_keys = list({
+        str(item["props"].get("source_key") or "") for item in found.values()
+    } | {
+        str(item["props"].get("target_key") or "") for item in found.values()
+    } - {""})
+    entities = await owner.read([
+        {"label": ENTITY, "key": key} for key in endpoint_keys
+    ])
+    rows: list[dict] = []
+    for key in sorted(found, key=lambda item: (str(found[item]["props"].get("predicate")), item)):
+        props = found[key]["props"]
+        source_key = str(props.get("source_key") or "")
+        target_key = str(props.get("target_key") or "")
+        source = entities["values"].get(f"{ENTITY}:{source_key}") or {}
+        target = entities["values"].get(f"{ENTITY}:{target_key}") or {}
+        if not _in_visible_scope(source, visible) or not _in_visible_scope(target, visible):
+            continue
+        rows.append({
+            "id": key,
+            "predicate": str(props.get("predicate") or ""),
+            "source_id": source_key,
+            "target_id": target_key,
+            "source_question": str(source.get("name") or ""),
+            "target_question": str(target.get("name") or ""),
+        })
+        if len(rows) >= remaining:
+            break
+    return rows
 
 
 async def _completed_evidence_sets(session, scope) -> set[str]:
@@ -229,14 +338,50 @@ def _answer_target_in_sets(catalog, customer_id: int, set_ids: set[str]) -> bool
     return False
 
 
+async def _answer_target_in_sets_owner(
+    owner, customer_id: int, set_ids: set[str],
+) -> bool:
+    for scope_key in visible_scope_keys(customer_id):
+        cursor: int | None = None
+        while True:
+            page = await owner.query_nodes(
+                FACT, props={"scope_key": scope_key}, limit=500, after=cursor,
+            )
+            targets = [
+                str((row.get("props") or {}).get("target_key") or "")
+                for row in page["nodes"]
+                if str((row.get("props") or {}).get("predicate") or "") == ANSWER_PREDICATE
+            ]
+            targets = [key for key in dict.fromkeys(targets) if key]
+            if targets:
+                response = await owner.read([
+                    {"label": ENTITY, "key": key} for key in targets
+                ])
+                for key in targets:
+                    props = response["values"].get(f"{ENTITY}:{key}") or {}
+                    attributes = json.loads(str(props.get("attributes_json") or "{}"))
+                    if str(attributes.get(ANSWER_ATTRS_EVIDENCE_SET) or "") in set_ids:
+                        return True
+            cursor = page.get("next_cursor")
+            if cursor is None:
+                break
+    return False
+
+
 async def _nearby(factory, need, scope, context, *, result, embeddings, judge) -> None:
     async with factory() as session:
         completed = await _completed_evidence_sets(session, scope)
     if not completed:
         return
-    present = await asyncio.to_thread(
-        _answer_target_in_sets, require_knowledge(), scope.scope.customer_id, completed,
-    )
+    owner = get_owner_runtime().client
+    if owner is not None:
+        present = await _answer_target_in_sets_owner(
+            owner, scope.scope.customer_id, completed,
+        )
+    else:
+        present = await asyncio.to_thread(
+            _answer_target_in_sets, require_knowledge(), scope.scope.customer_id, completed,
+        )
     if not present:
         return
     if embeddings is None:
