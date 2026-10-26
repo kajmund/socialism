@@ -39,7 +39,7 @@ Compare `O ∈ {lexical (BM25), semantic (BGE-M3 dense), production}` on
 | Ranking metrics | `overgraph_ingest/retrieval/evaluate.py` (recall, NDCG, `first_relevant_rank`, `hard_negative_ranks`) | **Reuse** |
 | Budget/scan curves | `overgraph_ingest/retrieval/two_stage.py` (`stage1_curve`, `score_allocation`) | **Reuse** |
 | Frozen baseline loaders | `overgraph_ingest/retrieval/conclusions.py` | **Reuse** |
-| Document-level gold | `synthetic_sme/ground_truth/coverage_matrix.json` (200 GQs, `requires_data`) + `facit.json` | **Reuse** |
+| Document-level gold | `synthetic_sme/ground_truth/coverage_matrix.json` (200 GQs, `requires_data`) + `facit.json` | **Reuse** (deferred) |
 | Facit-isolation cross-check | swe-gym `benchmarks/bench_real_v2.json` + `real_fixtures/` | **Reuse** |
 | Glue script + production-ordering replay adapter + report + one CI contract test | — | **New** — justified: nothing in the repo currently orders the production path against the suite's gold |
 
@@ -81,10 +81,10 @@ the contract test reuses the `tests/research_reuse` pattern.
 ## Decision rule
 
 No production change is proposed unless, on frozen gold: semantic ordering
-reduces the median `scans-until-covered` versus the production ordering by a
-margin fixed **before reading results** (start: ≥2×), with no hard-negative
-rank regression. The spec itself changes nothing; it only produces the
-decision basis.
+reduces the median `scans-until-covered` versus the production ordering by
+**≥2×, fixed before reading results (decided 2026-10-26)**, with no
+hard-negative rank regression. The spec itself changes nothing; it only
+produces the decision basis.
 
 ## Guardrails / non-goals
 
@@ -95,13 +95,45 @@ decision basis.
 - No new models, tables, frameworks, or production code — per the
   reuse-before-new standard.
 
+## Fidelity check (done 2026-10-26)
+
+Production's passage retrieval is already hybrid, not lexical-only:
+
+- `KnowledgeResearchSource` (`backend/app/services/research/knowledge_source.py`)
+  → Overgraph search (`backend/app/services/overgraph/catalogs.py`) accepts
+  both `dense_query` and `sparse_query`; dense vectors come from
+  `text-embedding-3-large` (3072 dims) — the same encoder as the swe-gym
+  similarity ordering that produced the 9–15× result.
+- `result_search._graph_seeds` augments candidates with hybrid fact hits.
+
+The frozen baseline `phase2-overgraph-hybrid-search.json` measures the same
+mechanism (Overgraph engine hybrid, k=50, 2548 TextUnits,
+`text-embedding-3-large`) but is an experimental snapshot, not today's
+production number: its own flags say `do_not_overwrite`,
+`does_not_replace_c8`, `do_not_optimize_engine`, and the suite treats the
+official classify baseline (c8) separately.
+
+**Consequence:** the production-order measurement must replay the actual
+production candidate path (`KnowledgeResearchSource` → Overgraph catalogs
+hybrid) offline against the same gold. The frozen baseline serves as a drift
+reference. Because production is already hybrid, the comparison frame gains a
+fourth reference: production hybrid vs pure BM25 vs pure BGE-M3 vs the
+gym's measured similarity ordering (38/26/47/18/16 scans on the five clause
+questions).
+
+## Decisions (fixed before measurement)
+
+1. **Threshold:** ≥2× median `scans-until-covered` reduction required to
+   propose a production change.
+2. **Scope:** clause questions first (`retrieval_gold/`, five questions).
+   The SPEC-SME document-level pass is deferred.
+3. **Fidelity:** replay the production candidate path itself; the frozen
+   hybrid baseline is a drift reference only.
+
 ## Open questions
 
-1. **Fidelity:** does the frozen overgraph-search baseline represent today's
-   production ordering? Verify against
-   `backend/app/services/research/need_retrieval.py` and `result_search.py`
-   before trusting its replay.
-2. **Threshold:** what margin justifies a production change — 2×, 5×? Decide
-   before reading results.
-3. **Scope:** clause questions only, or also the tabular gold
-   (`USER_QUESTIONS` in `bm25_answer.py`)?
+1. Does the production hybrid ordering reproduce the gym's similarity-order
+   numbers on the five clause golds, or does the sparse component pull it
+   toward lexical behavior?
+2. Is a pure-dense ordering meaningfully better than production's hybrid on
+   this gold, or is hybrid already at the optimum?
