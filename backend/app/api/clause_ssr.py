@@ -105,17 +105,17 @@ def _catalog() -> Catalog:
     return runtime.knowledge
 
 
-def _embedding() -> EmbeddingSpec:
-    if get_owner_runtime().client is not None:
-        runtime = get_owner_runtime()
-        dimension = runtime.status.get("dimension") or settings.embedding_dimension
+async def _embedding() -> EmbeddingSpec:
+    runtime = get_owner_runtime()
+    if runtime.client is not None:
+        health = await runtime.client.health()
+        dimension = health.get("dimension") or settings.embedding_dimension
         return EmbeddingSpec(
             model=settings.embedding_model,
             revision=settings.embedding_model_revision,
             dimension=int(dimension),
         )
-    return _embedding()
-
+    return catalog_embedding(_catalog())
 
 def _scope(customer_id: int | None) -> KnowledgeTenantScope:
     return shared_scope() if customer_id is None else customer_scope(customer_id)
@@ -326,7 +326,7 @@ async def api_promote(body: PromoteWrite) -> dict:
         repository = ClauseRepository(get_owner_runtime().require_client())
         props = await repository.promote_anchor(
             scope=scope, verification_id=body.verification_id,
-            embedding=_embedding(),
+            embedding=await _embedding(),
         )
     except OwnerUnavailable as exc:
         raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
@@ -376,7 +376,7 @@ async def api_build_set(body: BuildSetWrite) -> dict:
         repository = ClauseRepository(get_owner_runtime().require_client())
         props = await repository.build_anchor_set(
             scope=scope, category=body.category,
-            embedding=_embedding(),
+            embedding=await _embedding(),
             holdout_ids=tuple(body.holdout_ids),
             max_per_polarity=body.max_per_polarity,
         )
@@ -406,7 +406,7 @@ async def api_mark_stale(customer_id: int | None = Query(default=None)) -> dict:
     try:
         repository = ClauseRepository(get_owner_runtime().require_client())
         changed = await repository.mark_stale_embeddings(
-            scope=scope, expected=_embedding(),
+            scope=scope, expected=await _embedding(),
         )
     except OwnerUnavailable as exc:
         raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
@@ -436,7 +436,7 @@ async def api_match(body: MatchWrite) -> dict:
             result = await owner_match.match_query(
                 owner,
                 scope=scope,
-                embedding=_embedding(),
+                embedding=await _embedding(),
                 vector=body.dense_vector,
                 text_unit_id=body.text_unit_id,
                 k=body.k,
