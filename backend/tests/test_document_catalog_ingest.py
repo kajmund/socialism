@@ -201,3 +201,55 @@ async def test_writeback_releases_the_only_connection(tmp_path, catalogs, monkey
         assert await session.scalar(text("SELECT 1")) == 1
     assert await task == {"completed": 1, "failed": 0}
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_owner_mode_catalog_write_uses_the_tenant_owner(
+    factory, tenant_owners, monkeypatch,
+):
+    from app.config import settings
+    from app.services.document_qa.owner_find import run_find
+    from app.services.document_find.request import FindRequest
+
+    client = await tenant_owners(1, dimension=DIM)
+    monkeypatch.setattr(settings, "overgraph_tenant_owner_sockets", "1=/tmp/tenant.sock")
+    async with factory() as session:
+        await _seed(session)
+        work_id = await enqueue_document_catalog(
+            session, customer_id=1, document_id="doc-1", document_version_id="ver-1",
+        )
+        await session.commit()
+    result = await process_graph_work(
+        factory, limit=1, kinds=[DOCUMENT_CATALOG_WRITE], embedder=FakeEmbedder(),
+    )
+    assert result == {"completed": 1, "failed": 0}
+    async with factory() as session:
+        row = await session.get(GraphIngestWork, work_id)
+        assert row.status == "completed"
+    found = await run_find(
+        client, FindRequest(customer_id=1, query="visa alla hyresavtal", mode="replace"),
+    )
+    assert found.document_ids == ("doc-1",)
+    read = await client.read([
+        {"label": CANONICAL_DOCUMENT, "key": "doc-1"},
+        {"label": TEXT_UNIT, "key": "unit-1"},
+    ], include_vectors=True)
+    assert read["values"][f"{CANONICAL_DOCUMENT}:doc-1"]["effective_type"] == LEASE
+    assert read["ids"][f"{TEXT_UNIT}:unit-1"] is not None
+
+
+@pytest.mark.asyncio
+async def test_document_work_filter_skips_legal_projection(factory):
+    from app.services.graph_v2.outbox import claim_graph_work
+
+    async with factory() as session:
+        await _seed(session)
+        session.add(GraphIngestWork(
+            id="legal-work", customer_id=1, scope_key="customer:1",
+            payload={"module": "dd", "claims": [], "entities": []},
+            status="pending", attempts=0,
+        ))
+        await session.commit()
+    assert await claim_graph_work(factory, kinds=[DOCUMENT_CATALOG_WRITE]) is None
+    async with factory() as session:
+        assert (await session.get(GraphIngestWork, "legal-work")).status == "pending"

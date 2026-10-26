@@ -96,9 +96,14 @@ queries. `owner_find.py` runs the document-find strategies through Owner reads
 against the direct implementation for the same tenant data. Ten owner tests
 cover two clients, duplicate publish, invalid citation rejection, reuse,
 review, archive/purge, tenant isolation, atomic ingest, index
-reclassification, find strategies and direct parity. Production Document QA callers still use per-tenant catalogs until
-tenant Knowledge Owner lifecycle is wired; the backend can now configure and
-health-check tenant Owner routes, but the owner repository is not yet on the
-request path. mem0 still uses the separate memory catalog; tenant and
-memory Owners are the next slices. Runtime guard blocks direct knowledge writes
-in owner mode. `write_paths_ready` remains false.
+reclassification, find strategies and direct parity.
+
+Document QA request paths are cut over when tenant Owner routes are configured:
+catalog writeback (ingest + type index), Q&A writeback, workspace answer reuse
+and `find_documents` all use the tenant Owner. The graph worker runs in owner
+mode with a document-kind filter, so legal projection work stays out of it
+until that writeback is owner-backed. With no tenant routes configured, the
+legacy in-process `TenantCatalogs` path remains for tests and local
+development; owner mode refuses to start without tenant routes. mem0 still uses
+the separate memory catalog. Runtime guard blocks direct knowledge writes in
+owner mode. `write_paths_ready` remains false.

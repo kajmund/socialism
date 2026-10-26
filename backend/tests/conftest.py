@@ -54,6 +54,7 @@ from app.services.panel.synthesis import GenericPanelSynthesis
 from app.services.prompt_fields_store import clear_prompt_cache
 from app.services.ssr import clear_embedding_cache, set_embedder
 from app.services.overgraph.owner import OwnerClient, OvergraphOwner
+from app.services.overgraph.owner_registry import OwnerRegistry, OwnerRoute
 from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.catalogs import (
     OverGraphRuntime,
@@ -163,6 +164,41 @@ async def owner_writer_runtime(research_overgraph):
         runtime.client = previous_client
         runtime.status = previous_status
         await owner.close()
+
+
+@pytest.fixture
+async def tenant_owners(monkeypatch):
+    """Start one in-process tenant Knowledge Owner per requested customer."""
+    import app.services.overgraph.owner_registry as owner_registry_module
+
+    registry = OwnerRegistry()
+    monkeypatch.setattr(owner_registry_module, "_registry", registry)
+    owners: dict[int, OvergraphOwner] = {}
+    roots: list[Path] = []
+
+    async def start(customer_id: int, *, dimension: int = 4) -> OwnerClient:
+        if customer_id in owners:
+            return registry.client_for("tenant_knowledge", customer_id=customer_id)
+        root = Path(tempfile.mkdtemp(prefix=f"tenant-owner-{customer_id}-"))
+        roots.append(root)
+        owner = OvergraphOwner(
+            root / "catalog", dimension=dimension, socket_path=root / "owner.sock",
+        )
+        await owner.start()
+        owners[customer_id] = owner
+        await registry.connect([OwnerRoute(
+            kind="tenant_knowledge", socket_path=owner.socket_path,
+            customer_id=customer_id,
+        )])
+        return registry.client_for("tenant_knowledge", customer_id=customer_id)
+
+    try:
+        yield start
+    finally:
+        for owner in owners.values():
+            await owner.close()
+        for root in roots:
+            shutil.rmtree(root, ignore_errors=True)
 
 
 class NoopExpertMemory:

@@ -53,7 +53,12 @@ from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
 from app.services import retrieval_index
 from app.services.expertgranskning.memory import close_default_expert_memory
-from app.services.graph_v2.worker import start_graph_owner, stop_graph_owner
+from app.services.graph_v2.outbox import DOCUMENT_KINDS
+from app.services.graph_v2.worker import (
+    start_graph_ingest_loop,
+    start_graph_owner,
+    stop_graph_owner,
+)
 from app.services.overgraph.catalogs import (
     OverGraphRuntime,
     OwnerReadRequiredError,
@@ -117,7 +122,13 @@ async def _prepare_graph_access(owner_mode: bool, app: FastAPI) -> None:
 
 
 def _start_graph_worker(owner_mode: bool, factory):
-    return None if owner_mode else start_graph_owner(factory)
+    if not settings.graph_ingest_loop_enabled:
+        return None
+    if owner_mode:
+        # Owner mode writes tenant catalogs through their Owners; legal
+        # writeback is still direct and stays out of this loop.
+        return start_graph_ingest_loop(factory, kinds=DOCUMENT_KINDS)
+    return start_graph_owner(factory)
 
 
 def _graph_runtime_for_mode(owner_mode: bool) -> OverGraphRuntime:
@@ -180,6 +191,10 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
         await connect_owner_registry(tenant_routes) if tenant_routes else {}
     )
     owner_mode = owner_runtime.client is not None
+    if owner_mode and not tenant_routes:
+        raise RuntimeError(
+            "owner mode requires OVERGRAPH_TENANT_OWNER_SOCKETS for tenant catalogs"
+        )
     await _prepare_graph_access(owner_mode, _app)
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None

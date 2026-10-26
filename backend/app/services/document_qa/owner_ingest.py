@@ -60,10 +60,10 @@ def _unit_props(unit: TextUnitWrite) -> dict[str, Any]:
 
 
 def _document_props(existing: dict[str, Any] | None, document_id: str) -> dict[str, Any]:
-    return {
-        "document_id": document_id,
-        "archived": int((existing or {}).get("archived") or 0),
-    }
+    props = dict(existing or {})
+    props["document_id"] = document_id
+    props["archived"] = int(props.get("archived") or 0)
+    return props
 
 
 async def persist_document_units(

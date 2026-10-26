@@ -236,3 +236,38 @@ async def test_graph_loop_can_start_without_research_workers(factory, monkeypatc
     task = start_graph_owner(factory)
     assert task is not None
     await stop_graph_owner(task)
+
+
+@pytest.mark.asyncio
+async def test_owner_mode_qa_write_uses_the_tenant_owner(
+    factory, tenant_owners, monkeypatch, research_overgraph,
+):
+    from app.services.document_qa.owner_qa import load_question
+    from app.services.document_qa.owner_qa_retrieve import exact_reuse as owner_reuse
+
+    client = await tenant_owners(1, dimension=DIM)
+    monkeypatch.setattr(settings, "overgraph_tenant_owner_sockets", "1=/tmp/tenant.sock")
+    async with factory() as session:
+        await _seed(session)
+        write = _write()
+        work_id = await enqueue_document_qa(session, customer_id=1, write=write)
+        await session.commit()
+    result = await process_graph_work(factory, limit=1, kinds=[DOCUMENT_QA_WRITE])
+    assert result == {"completed": 1, "failed": 0}
+    async with factory() as session:
+        assert (await session.get(GraphIngestWork, work_id)).status == "completed"
+    from app.services.document_qa.normalize import question_key, reuse_digest, normalize_question
+    loaded = await load_question(
+        client, question_key(1, reuse_digest(normalize_question(write.question_text), "ver-1", CONTRACT)),
+    )
+    assert loaded is not None
+    viewer = Viewer(
+        customer_id=1, workspace_id="ws-1",
+        readable_document_ids=frozenset({"doc-1"}),
+        readable_version_ids=frozenset({"ver-1"}),
+    )
+    hit = await owner_reuse(
+        client, viewer, question_text=write.question_text,
+        document_id="doc-1", document_version_id="ver-1", contract=CONTRACT,
+    )
+    assert hit is not None
