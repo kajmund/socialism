@@ -8,6 +8,7 @@ pub mod bandit;
 pub mod bench;
 pub mod benchmark;
 pub mod calibrate;
+pub mod dataset;
 pub mod driver;
 pub mod env;
 pub mod gen;

@@ -177,6 +177,12 @@ impl RealEnv {
         self.found.len()
     }
 
+    /// Verified quality of the current state (facit-evaluated; used by
+    /// the dataset recorder for the terminal field only).
+    pub fn terminal_quality(&self) -> f64 {
+        self.quality()
+    }
+
     pub fn observation(&self) -> &Observation {
         self.obs.as_ref().expect("reset before observe")
     }
