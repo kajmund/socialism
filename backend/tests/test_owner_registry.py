@@ -10,6 +10,7 @@ from app.services.overgraph.owner import OvergraphOwner
 from app.services.overgraph.owner_registry import (
     OwnerRegistry,
     OwnerRoute,
+    parse_memory_owner_route,
     parse_tenant_owner_sockets,
 )
 
@@ -85,3 +86,11 @@ def test_parse_tenant_owner_sockets_rejects_invalid_config():
         except ValueError:
             continue
         raise AssertionError(f"invalid tenant owner config accepted: {raw!r}")
+
+
+def test_memory_owner_route_is_optional_and_explicit():
+    assert parse_memory_owner_route("") == []
+    route = parse_memory_owner_route("/run/memory-owner.sock")[0]
+    assert route.kind == "memory"
+    assert route.customer_id is None
+    assert str(route.socket_path) == "/run/memory-owner.sock"
