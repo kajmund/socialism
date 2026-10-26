@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.auth.dependencies import require_admin
+from app.config import settings
 from app.database.models import UserAccount
 from app.services.knowledge.scope import KnowledgeTenantScope, customer_scope, shared_scope
 from app.services.overgraph.catalogs import Catalog, get_runtime
@@ -23,7 +24,12 @@ from app.services.clause_ssr.classifications import (
 )
 from app.services.clause_ssr.match import match_query
 from app.services.clause_ssr.queue import next_queue
-from app.services.clause_ssr import owner_match, owner_select
+from app.services.clause_ssr import (
+    owner_classifications,
+    owner_match,
+    owner_queue,
+    owner_select,
+)
 from app.services.clause_ssr.select import list_anchor_sets
 from app.services.clause_ssr.serialize import (
     anchor_json,
@@ -99,6 +105,18 @@ def _catalog() -> Catalog:
     return runtime.knowledge
 
 
+def _embedding() -> EmbeddingSpec:
+    if get_owner_runtime().client is not None:
+        runtime = get_owner_runtime()
+        dimension = runtime.status.get("dimension") or settings.embedding_dimension
+        return EmbeddingSpec(
+            model=settings.embedding_model,
+            revision=settings.embedding_model_revision,
+            dimension=int(dimension),
+        )
+    return _embedding()
+
+
 def _scope(customer_id: int | None) -> KnowledgeTenantScope:
     return shared_scope() if customer_id is None else customer_scope(customer_id)
 
@@ -118,26 +136,34 @@ async def api_list_classifications(
     customer_id: int | None = Query(default=None),
     active_only: bool = True,
 ) -> dict:
-    catalog = _catalog()
-    items = await asyncio.to_thread(
-        list_classifications, catalog, customer_id=customer_id, active_only=active_only,
-    )
+    owner = get_owner_runtime().client
+    if owner is not None:
+        items = await owner_classifications.list_classifications(
+            owner, customer_id=customer_id, active_only=active_only,
+        )
+    else:
+        items = await asyncio.to_thread(
+            list_classifications, _catalog(),
+            customer_id=customer_id, active_only=active_only,
+        )
     return {"items": [classification_json(item) for item in items]}
 
 
 @router.post("/classifications")
 async def api_upsert_classification(body: ClassificationWrite) -> dict:
-    catalog = _catalog()
+    owner = get_owner_runtime().client
     try:
-        item = await asyncio.to_thread(
-            upsert_classification,
-            catalog,
-            scope=_scope(body.customer_id),
-            slug=body.slug,
-            question=body.question,
-            category=body.category,
-            level=body.level,
-        )
+        if owner is not None:
+            item = await owner_classifications.upsert(
+                owner, scope=_scope(body.customer_id), slug=body.slug,
+                question=body.question, category=body.category, level=body.level,
+            )
+        else:
+            item = await asyncio.to_thread(
+                upsert_classification, _catalog(), scope=_scope(body.customer_id),
+                slug=body.slug, question=body.question,
+                category=body.category, level=body.level,
+            )
     except (PermissionError, KeyError, ValueError) as exc:
         raise _http(exc) from exc
     return classification_json(item)
@@ -147,16 +173,22 @@ async def api_upsert_classification(body: ClassificationWrite) -> dict:
 async def api_set_classification_active(
     classification_id: str, body: ClassificationActiveWrite,
 ) -> dict:
-    catalog = _catalog()
+    owner = get_owner_runtime().client
     try:
-        current = await asyncio.to_thread(get_classification, catalog, classification_id)
-        item = await asyncio.to_thread(
-            set_classification_active,
-            catalog,
-            current,
-            scope=_scope(body.customer_id),
-            active=body.active,
-        )
+        if owner is not None:
+            current = await owner_classifications.get(owner, classification_id)
+            item = await owner_classifications.set_active(
+                owner, current, scope=_scope(body.customer_id), active=body.active,
+            )
+        else:
+            catalog = _catalog()
+            current = await asyncio.to_thread(
+                get_classification, catalog, classification_id,
+            )
+            item = await asyncio.to_thread(
+                set_classification_active, catalog, current,
+                scope=_scope(body.customer_id), active=body.active,
+            )
     except (PermissionError, KeyError, ValueError) as exc:
         raise _http(exc) from exc
     return classification_json(item)
@@ -171,8 +203,8 @@ async def api_queue(
     limit: int = Query(default=5, ge=1, le=20),
     user: UserAccount = Depends(require_admin),
 ) -> dict:
-    catalog = _catalog()
     scope = _scope(customer_id)
+    owner = get_owner_runtime().client
     try:
         repository = ClauseRepository(get_owner_runtime().require_client())
         session_props = await repository.get_or_create_session(
@@ -191,16 +223,18 @@ async def api_queue(
             unsure=int(session_props.get("unsure") or 0),
             scope_key=scope.scope_key,
         )
-        page = await asyncio.to_thread(
-            next_queue,
-            catalog,
-            scope=scope,
-            classification_id=classification_id,
-            reviewer_id=user.id,
-            document_id=document_id,
-            limit=limit,
-            session=session,
-        )
+        if owner is not None:
+            page = await owner_queue.next_queue(
+                owner, scope=scope, classification_id=classification_id,
+                reviewer_id=user.id, document_id=document_id,
+                limit=limit, session=session,
+            )
+        else:
+            page = await asyncio.to_thread(
+                next_queue, _catalog(), scope=scope,
+                classification_id=classification_id, reviewer_id=user.id,
+                document_id=document_id, limit=limit, session=session,
+            )
     except OwnerUnavailable as exc:
         raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
     except (PermissionError, KeyError, ValueError) as exc:
@@ -292,7 +326,7 @@ async def api_promote(body: PromoteWrite) -> dict:
         repository = ClauseRepository(get_owner_runtime().require_client())
         props = await repository.promote_anchor(
             scope=scope, verification_id=body.verification_id,
-            embedding=catalog_embedding(_catalog()),
+            embedding=_embedding(),
         )
     except OwnerUnavailable as exc:
         raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
@@ -342,7 +376,7 @@ async def api_build_set(body: BuildSetWrite) -> dict:
         repository = ClauseRepository(get_owner_runtime().require_client())
         props = await repository.build_anchor_set(
             scope=scope, category=body.category,
-            embedding=catalog_embedding(_catalog()),
+            embedding=_embedding(),
             holdout_ids=tuple(body.holdout_ids),
             max_per_polarity=body.max_per_polarity,
         )
@@ -372,7 +406,7 @@ async def api_mark_stale(customer_id: int | None = Query(default=None)) -> dict:
     try:
         repository = ClauseRepository(get_owner_runtime().require_client())
         changed = await repository.mark_stale_embeddings(
-            scope=scope, expected=catalog_embedding(_catalog()),
+            scope=scope, expected=_embedding(),
         )
     except OwnerUnavailable as exc:
         raise HTTPException(status_code=503, detail="overgraph_owner_unavailable") from exc
@@ -402,7 +436,7 @@ async def api_match(body: MatchWrite) -> dict:
             result = await owner_match.match_query(
                 owner,
                 scope=scope,
-                embedding=catalog_embedding(_catalog()),
+                embedding=_embedding(),
                 vector=body.dense_vector,
                 text_unit_id=body.text_unit_id,
                 k=body.k,

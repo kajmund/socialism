@@ -49,6 +49,7 @@ class OwnerRuntime:
         self.status = {
             "status": "ready",
             "catalog_id": health.get("catalog_id"),
+            "dimension": health.get("dimension"),
             "write_paths_ready": False,
         }
         return dict(self.status)
