@@ -163,16 +163,16 @@ async def test_foreign_tenant_document_is_rejected(factory):
 
 @pytest.mark.asyncio
 async def test_legal_jobs_still_run_without_a_kind(factory, monkeypatch):
-    from app.services.overgraph.owner_runtime import get_owner_runtime
-
-    monkeypatch.setattr(get_owner_runtime(), "client", None)
     calls: list[str] = []
 
-    async def fake_legal(session, **kwargs):
+    async def fake_legal(client, **kwargs):
         calls.append("legal")
         return []
 
-    monkeypatch.setattr("app.services.graph_v2.outbox.write_legal_facts", fake_legal)
+    monkeypatch.setattr(
+        "app.services.graph_v2.owner_legal_writeback.write_legal_facts_via_owner",
+        fake_legal,
+    )
     async with factory.begin() as session:
         session.add(Kund(id=1, name="One", slug="one", available_modules=[]))
         session.add(GraphIngestWork(
