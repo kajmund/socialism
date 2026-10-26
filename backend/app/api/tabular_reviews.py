@@ -21,6 +21,8 @@ from app.schemas.tabular_review import (
     TabularReviewUpdate,
 )
 from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.owner_text_units import load_version_vectors
 from app.services.overgraph.text_units import load_text_units
 from app.services.tabular_review.access import require_tabular_review_kund
 from app.services.tabular_review.run import fill_review
@@ -54,8 +56,13 @@ def _error(exc: TabularReviewError) -> HTTPException:
     return HTTPException(status_code=status, detail=str(exc))
 
 
-def _embeddings_from_catalog(document_version_id: str) -> dict[str, list[float]]:
-    rows = load_text_units(require_knowledge(), document_version_id=document_version_id)
+async def _embeddings_from_catalog(document_version_id: str) -> dict[str, list[float]]:
+    owner = get_owner_runtime().client
+    if owner is not None:
+        return await load_version_vectors(owner, document_version_id)
+    rows = await asyncio.to_thread(
+        load_text_units, require_knowledge(), document_version_id=document_version_id,
+    )
     return {row.key: list(row.dense_vector) for row in rows if row.dense_vector}
 
 
@@ -258,10 +265,11 @@ async def run_tabular_review(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     kund, review = await _gated_review(session, user, review_id)
-    embeddings = {
-        row.document_id: _embeddings_from_catalog(row.document_version_id)
-        for row in review.rows
-    }
+    embeddings = {}
+    for row in review.rows:
+        embeddings[row.document_id] = await _embeddings_from_catalog(
+            row.document_version_id,
+        )
     factory = async_sessionmaker(session.bind, expire_on_commit=False, class_=AsyncSession)
     await session.commit()
     try:

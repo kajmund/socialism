@@ -14,6 +14,8 @@ from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, 
 from app.database.workspace_models import VoiceWorkspace
 from app.schemas.workspace import WorkspaceState
 from app.services.overgraph.catalogs import require_knowledge
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.owner_text_units import load_version_units
 from app.services.overgraph.text_units import load_domain_text_units
 from app.services.workspaces import resolve_readable_workspace_ids
 
@@ -168,12 +170,16 @@ async def text_unit_texts(
             DocumentVersionRecord.superseded_at.is_(None),
         )
     )).all())
-    catalog = require_knowledge()
+    owner = get_owner_runtime().client
     texts: list[str] = []
     for version_id in version_ids:
-        units = await asyncio.to_thread(
-            load_domain_text_units, catalog, document_version_id=version_id,
-        )
+        if owner is not None:
+            units = await load_version_units(owner, version_id)
+        else:
+            units = await asyncio.to_thread(
+                load_domain_text_units, require_knowledge(),
+                document_version_id=version_id,
+            )
         for unit in units:
             if len(texts) >= 300:
                 return texts
