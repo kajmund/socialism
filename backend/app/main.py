@@ -53,7 +53,6 @@ from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
 from app.services import retrieval_index
 from app.services.expertgranskning.memory import close_default_expert_memory
-from app.services.graph_v2.outbox import DOCUMENT_KINDS
 from app.services.graph_v2.worker import (
     start_graph_ingest_loop,
     start_graph_owner,
@@ -125,9 +124,7 @@ def _start_graph_worker(owner_mode: bool, factory):
     if not settings.graph_ingest_loop_enabled:
         return None
     if owner_mode:
-        # Owner mode writes tenant catalogs through their Owners; legal
-        # writeback is still direct and stays out of this loop.
-        return start_graph_ingest_loop(factory, kinds=DOCUMENT_KINDS)
+        return start_graph_ingest_loop(factory)
     return start_graph_owner(factory)
 
 

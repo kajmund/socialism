@@ -23,7 +23,6 @@ from app.services.knowledge.entities import KnowledgeEntity
 
 logger = logging.getLogger(__name__)
 LEASE = timedelta(minutes=5)
-DOCUMENT_KINDS = (DOCUMENT_CATALOG_WRITE, DOCUMENT_QA_WRITE)
 
 
 async def enqueue_legal_graph(
@@ -75,25 +74,14 @@ def _deserialize(work: GraphIngestWork):
     return claims, entities, module
 
 
-async def claim_graph_work(
-    factory: async_sessionmaker[AsyncSession],
-    *,
-    kinds: Sequence[str] | None = None,
-) -> tuple[str, int] | None:
+async def claim_graph_work(factory: async_sessionmaker[AsyncSession]) -> tuple[str, int] | None:
     now = datetime.now(UTC)
-    conditions = [
-        or_(GraphIngestWork.status == "pending",
-            (GraphIngestWork.status == "processing")
-            & (GraphIngestWork.claimed_at < now - LEASE)),
-        or_(GraphIngestWork.retry_at.is_(None), GraphIngestWork.retry_at <= now),
-    ]
-    if kinds:
-        conditions.append(or_(*[
-            GraphIngestWork.payload["kind"].as_string() == kind for kind in kinds
-        ]))
     async with factory.begin() as session:
         row = await session.scalar(select(GraphIngestWork).where(
-            *conditions,
+            or_(GraphIngestWork.status == "pending",
+                (GraphIngestWork.status == "processing")
+                & (GraphIngestWork.claimed_at < now - LEASE)),
+            or_(GraphIngestWork.retry_at.is_(None), GraphIngestWork.retry_at <= now),
         ).order_by(GraphIngestWork.created_at, GraphIngestWork.id)
           .limit(1).with_for_update(skip_locked=True))
         if row is None:
@@ -108,12 +96,11 @@ async def claim_graph_work(
 async def process_graph_work(
     factory: async_sessionmaker[AsyncSession], *, limit: int = 50,
     embedder: EmbeddingProvider | None = None,
-    kinds: Sequence[str] | None = None,
 ) -> dict[str, int]:
     completed = failed = 0
     provider: GraphEmbeddingCacheProvider | EmbeddingProvider | None = None
     for _ in range(limit):
-        claim = await claim_graph_work(factory, kinds=kinds)
+        claim = await claim_graph_work(factory)
         if claim is None:
             break
         work_id, attempt = claim
@@ -131,6 +118,11 @@ async def process_graph_work(
                 continue
             if provider is None:
                 provider = _legal_embedder(factory, embedder)
+            if _owner_mode():
+                completed += await _apply_legal_owner(
+                    factory, work_id, attempt, provider,
+                )
+                continue
             async with factory.begin() as session:
                 row = await session.get(GraphIngestWork, work_id)
                 claims, entities, module = _deserialize(row)
@@ -170,6 +162,39 @@ async def _peek_kind(factory: async_sessionmaker[AsyncSession], work_id: str) ->
         if row is None:
             raise PermanentGraphError("graph ingest work is missing")
         return work_kind(row.payload)
+
+
+def _owner_mode() -> bool:
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+
+    return get_owner_runtime().client is not None
+
+
+async def _apply_legal_owner(
+    factory: async_sessionmaker[AsyncSession],
+    work_id: str,
+    attempt: int,
+    embedder: EmbeddingProvider,
+) -> int:
+    """Read the payload, close the DB session, then project through the Owner."""
+    from app.services.graph_v2.owner_legal_writeback import write_legal_facts_via_owner
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+
+    async with factory.begin() as session:
+        row = await session.get(GraphIngestWork, work_id)
+        claims, entities, module = _deserialize(row)
+    await write_legal_facts_via_owner(
+        get_owner_runtime().require_client(), claims=claims, entities=entities,
+        embedder=embedder, module=module,
+    )
+    async with factory.begin() as session:
+        result = await session.execute(update(GraphIngestWork).where(
+            GraphIngestWork.id == work_id,
+            GraphIngestWork.status == "processing",
+            GraphIngestWork.attempts == attempt,
+        ).values(status="completed", processed_at=datetime.now(UTC),
+                 retry_at=None, last_error=None))
+    return int(result.rowcount == 1)
 
 
 def _legal_embedder(

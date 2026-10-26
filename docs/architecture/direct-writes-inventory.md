@@ -12,7 +12,7 @@ slice. PR #432 stays open and `write_paths_ready=false`.
 | mem0 (`overgraph/mem0_store.py`) | **memory catalog** (`root/memory`) | expert memory through mem0 | **owner repository ready, adapter not switched**: `owner_memory.py` provides owner-backed upsert/get/update/delete/search/list/link with two tests. The mem0 `VectorStoreBase` adapter is synchronous, so the async expert-memory cutover is next. |
 | SWE run store (`overgraph/workflows.py`) | separate workflow/run-store catalog | SWE workflows | **do not migrate here**; it is not the Owner knowledge catalog |
 | Jev cache (`overgraph/jev_cache.py`) | separate cache store | Jev cache | **do not migrate here**; separate cache store |
-| Graph v2 worker (`graph_v2/outbox.py`, `worker.py`) | owner knowledge + tenant catalogs | backend graph loop | disabled in owner mode; writes are the legal/document-QA paths above |
+| Graph v2 worker (`graph_v2/outbox.py`, `worker.py`) | owner knowledge + tenant Owners | backend graph loop | **owner mode enabled**: document kinds use tenant Owners; legal projection uses the Knowledge Owner (`owner_legal_writeback.py`). Legacy direct path only when Owner runtime is not configured. |
 | Backfill/parity/offline maintenance | knowledge/tenant files | offline scripts | explicit maintenance paths, not request-time writers |
 
 The static writer allowlist still lists these modules. A static allowlist alone
