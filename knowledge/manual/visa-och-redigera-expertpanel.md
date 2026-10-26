@@ -20,10 +20,13 @@ På **expertpanelens detaljsida** ser du vilka experter som ingår och kan juste
 7. Per expert:
    - **Öppna** går till expertens profil och chatt.
    - **Ta bort** tar bort experten från panelen (experten finns kvar i biblioteket).
+8. **Generera expert** öppnar samma **Välj underlag** som i **Föreslå experter** under **Experter**. Välj dokument, granska förslagen och bekräfta. Valda profiler skapas i biblioteket och läggs direkt till i panelen.
+9. **Ta bort panel** raderar hela panelen efter bekräftelse. Experterna i biblioteket påverkas inte.
 
 ## Relaterade guider
 
 - [Hantera expertpaneler](hantera-expertpaneler.md)
 - [Komponera en expertpanel](komponera-expertpanel.md)
 - [Skapa och redigera expert](skapa-och-redigera-expert.md)
+- [Hantera experter](hantera-experter.md)
 - [Köra en Due Diligence-kampanj](kora-dd-kampanj.md)
