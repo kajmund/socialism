@@ -27,7 +27,9 @@ def start_graph_ingest_loop(factory: async_sessionmaker[AsyncSession]) -> asynci
     return asyncio.create_task(run_graph_ingest_loop(factory), name="graph-v2-ingest")
 
 
-async def stop_graph_ingest_loop(task: asyncio.Task[None]) -> None:
+async def stop_graph_ingest_loop(task: asyncio.Task[None] | None) -> None:
+    if task is None:
+        return
     task.cancel()
     try:
         await task
