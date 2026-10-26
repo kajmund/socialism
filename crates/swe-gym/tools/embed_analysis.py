@@ -175,6 +175,9 @@ def main() -> None:
                 "oracle_scans": len(evidence),
             }
         )
+        # Annotate the frozen bench with the measured retrieval order, so
+        # arm H can scan in similarity order without recomputing anything.
+        question["scan_order"] = ranked_similarity
         print(
             f"{qid:<28} doc {doc_scans:>4} | jev {jev_scans:>4} | "
             f"sim {similarity_scans:>4} | orakel {len(evidence)}"
@@ -182,7 +185,8 @@ def main() -> None:
     REPORT.write_text(
         json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8"
     )
-    print(f"skrev {REPORT.relative_to(REPO)}")
+    BENCH.write_text(json.dumps(bench, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"skrev {REPORT.relative_to(REPO)} och annoterade benchen med scan_order")
 
 
 if __name__ == "__main__":
