@@ -74,3 +74,12 @@ async def get_unit(client: OwnerClient, unit_id: str) -> TextUnitView | None:
         key=unit_id, labels=(TEXT_UNIT,), props=dict(props),
         engine_id=response.get("ids", {}).get(f"{TEXT_UNIT}:{unit_id}"),
     ))
+
+
+async def get_unit_vector(
+    client: OwnerClient, unit_id: str,
+) -> list[float] | None:
+    response = await client.read(
+        [{"label": TEXT_UNIT, "key": unit_id}], include_vectors=True,
+    )
+    return response.get("vectors", {}).get(f"{TEXT_UNIT}:{unit_id}")
