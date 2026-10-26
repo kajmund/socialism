@@ -8,6 +8,7 @@ import json
 import signal
 from pathlib import Path
 
+from app.services.overgraph.catalogs import open_catalog
 from app.services.overgraph.owner import OvergraphOwner
 
 
@@ -16,6 +17,10 @@ def main() -> int:
     parser.add_argument("path", type=Path)
     parser.add_argument("--socket", type=Path, required=True)
     parser.add_argument("--dimension", type=int, default=3072)
+    parser.add_argument(
+        "--kind", choices=("knowledge", "memory"), default="knowledge",
+        help="catalog kind the Owner opens",
+    )
     parser.add_argument("--max-queue", type=int, default=256)
     parser.add_argument(
         "--sync", action=argparse.BooleanOptionalAction, default=True,
@@ -34,10 +39,14 @@ def main() -> int:
     args = parser.parse_args()
 
     async def run() -> None:
+        catalog = open_catalog(
+            args.path, kind=args.kind, dimension=args.dimension,
+        )
         owner = OvergraphOwner(
             args.path, dimension=args.dimension, socket_path=args.socket,
-            max_queue=args.max_queue, sync_on_commit=args.sync,
+            max_queue=args.max_queue, sync_on_commit=args.sync, catalog=catalog,
         )
+        owner._owns_catalog = True  # the CLI opened the catalog for this process
         owner.profile_lag = args.profile_lag
         owner.profile_locks = args.profile_locks
         owner.lock_mode = args.lock_mode

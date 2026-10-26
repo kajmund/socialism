@@ -412,14 +412,14 @@ class Catalog:
 
 
 class OverGraphRuntime:
-    def __init__(self, knowledge: Catalog | None, memory: Catalog) -> None:
+    def __init__(self, knowledge: Catalog | None, memory: Catalog | None) -> None:
         self.knowledge = knowledge
         self.memory = memory
 
     def close(self) -> None:
-        if self.knowledge is not None:
-            self.knowledge.close()
-        self.memory.close()
+        for catalog in (self.knowledge, self.memory):
+            if catalog is not None:
+                catalog.close()
 
 
 _runtime: OverGraphRuntime | None = None
@@ -487,7 +487,7 @@ def require_knowledge() -> Catalog:
 
 
 def require_memory() -> Catalog:
-    if _runtime is None:
+    if _runtime is None or _runtime.memory is None:
         raise RuntimeError("OverGraph memory catalog is not open")
     return _runtime.memory
 
