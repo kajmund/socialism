@@ -39,6 +39,7 @@ fn main() {
     demo_td();
     demo_td_structured();
     demo_real_bench();
+    demo_embedding_report();
 }
 
 // ---------------------------------------------------------------------------
@@ -669,6 +670,49 @@ fn print_real_arm(report: &ArmReport) {
     if let Some(error) = &report.error {
         println!("  fel: {error}");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Section 9: embedding information content — how many scans each ranking
+// order needs before all gold evidence is found (measured report, frozen).
+// ---------------------------------------------------------------------------
+
+fn demo_embedding_report() {
+    println!();
+    println!("=== J: inbäddningarnas informationsinnehåll (fryst rapport) ===");
+    let source = std::fs::read_to_string("benchmarks/real_embedding_report.json")
+        .expect("report must exist — run tools/embed_analysis.py");
+    let json = swe_native::parse_json_str(&source).expect("report must parse");
+    let questions = json
+        .get("questions")
+        .and_then(swe_native::Json::as_array)
+        .expect("report questions");
+    println!(
+        "  {:<28} {:>5} {:>5} {:>6} {:>7}",
+        "fråga", "doc", "sim", "jev", "orakel"
+    );
+    for question in questions {
+        let id = question
+            .get("id")
+            .and_then(swe_native::Json::as_str)
+            .unwrap();
+        let get = |key: &str| {
+            question
+                .get(key)
+                .and_then(swe_native::Json::as_number)
+                .and_then(|n| n.as_u64())
+                .unwrap()
+        };
+        println!(
+            "  {:<28} {:>5} {:>5} {:>6} {:>7}",
+            id,
+            get("scans_document_order"),
+            get("scans_similarity_order"),
+            get("scans_jev_score_order"),
+            get("oracle_scans"),
+        );
+    }
+    println!("  (sim = scan i embeddings-likhetsordning; jev = scan i JEV-poängordning)");
 }
 
 // ---------------------------------------------------------------------------
