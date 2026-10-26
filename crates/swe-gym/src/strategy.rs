@@ -31,6 +31,10 @@ pub struct Question {
     pub noise_seed: u64,
     /// Per-question total budget in milli-Sweycoins; 0 = the caller's budget.
     pub budget_milli: u64,
+    /// Real chunk texts by chunk id; empty for synthetic questions (the
+    /// harness then fabricates placeholder text). Real benches carry texts
+    /// so live providers and future embedding features see actual content.
+    pub texts: HashMap<String, String>,
 }
 
 impl Question {
