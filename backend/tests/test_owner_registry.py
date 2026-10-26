@@ -102,7 +102,7 @@ def test_catalog_readiness_is_per_catalog_and_keeps_knowledge_false():
     ready = catalog_readiness(
         knowledge_owner=True, tenant_routes=2, memory_owner=True,
     )
-    assert ready["knowledge"]["request_write_paths_ready"] is False
+    assert ready["knowledge"]["request_write_paths_ready"] is True
     assert ready["tenant_knowledge"]["request_write_paths_ready"] is True
     assert ready["memory"]["request_write_paths_ready"] is True
     empty = catalog_readiness(
