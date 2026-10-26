@@ -561,15 +561,18 @@ impl Strategy for SequentialBanditStrategy {
         total_budget_milli: Amount,
         tariffs: &Tariffs,
     ) -> Vec<BranchPlan> {
-        let scan_cost = tariffs
-            .scan_milli
-            .saturating_mul(view.chunks.len() as Amount);
+        let chunks = if view.scan_order.is_empty() {
+            view.chunks.clone()
+        } else {
+            view.scan_order.clone()
+        };
+        let scan_cost = tariffs.scan_milli.saturating_mul(chunks.len() as Amount);
         let scan_budget = scan_cost.min(total_budget_milli);
         vec![
             BranchPlan {
                 account: "e-scan".into(),
                 provider: ProviderKind::Scan,
-                chunks: view.chunks.clone(),
+                chunks,
                 start_budget_milli: scan_budget,
             },
             BranchPlan {
