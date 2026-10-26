@@ -170,6 +170,7 @@ class OvergraphOwner:
                 writer.write((json.dumps({
                     "ok": True,
                     "catalog_id": self.catalog_id,
+                    "dimension": self.catalog.dimension,
                     "sync_on_commit": self.sync_on_commit,
                     "read_revision": self.read_revision,
                     "metrics": self.metrics.__dict__,
