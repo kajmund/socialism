@@ -70,6 +70,11 @@ pub fn load_bench(source: &str) -> Result<BenchFile, String> {
     for question in questions_json {
         let id = required_str(question, "id")?.to_string();
         let required_coverage = required_u64(question, "required_coverage")? as usize;
+        let question_text = question
+            .get("question")
+            .and_then(Json::as_str)
+            .unwrap_or("")
+            .to_string();
         let chunks = string_array(question, "chunks")?;
         let evidence: HashSet<String> = string_array(question, "evidence")?.into_iter().collect();
         let scan_blind: HashSet<String> =
@@ -94,6 +99,7 @@ pub fn load_bench(source: &str) -> Result<BenchFile, String> {
                 id,
                 chunks,
                 required_coverage,
+                question: question_text,
             },
             evidence,
             scan_blind,
