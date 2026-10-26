@@ -101,6 +101,20 @@ pub fn amount_index(milli: Amount) -> Option<usize> {
     INVEST_AMOUNTS_MILLI.iter().position(|a| *a == milli)
 }
 
+/// Reconstruct an action from its index (the dataset's compact form).
+pub fn action_from_index(idx: usize) -> Action {
+    match idx {
+        0..12 => {
+            let s = idx / 4;
+            let a = INVEST_AMOUNTS_MILLI[idx % 4];
+            Action::Invest(s, a)
+        }
+        12..15 => Action::Pause(idx - 12),
+        15..18 => Action::Stop(idx - 15),
+        _ => Action::Finish,
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StepInfo {
     pub reward_milli: i64,
