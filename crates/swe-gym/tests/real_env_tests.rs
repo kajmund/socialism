@@ -214,9 +214,11 @@ fn transfer_gate_real_bench_pinned() {
     let adapt_mean = evaluate_real(&mut env, &mut RealAdaptivePolicy::new(), &questions);
 
     // Pins — measured, then frozen (see docs/SWE_Sweycoins_v2.md 11.2).
-    // Verdict (recorded, not gamed): learner -100k < equal-split +22k —
-    // the synthetic-trained policy regresses on the real bench, so
-    // criterion 5 FAILS. The decision point follows in the docs.
+    // Verdict (recorded, not gamed): learner < equal-split — the
+    // synthetic-trained policy regresses on the real bench, so criterion
+    // 5 FAILS. (The magnitude changed once the learner's self-loop bias
+    // was fixed: it no longer burns the whole budget, it just stops too
+    // late — the verdict is unchanged.)
     assert_eq!(learner_mean, LEARNER_REAL_PIN, "learner mean drifted");
     assert_eq!(equal_mean, EQUAL_REAL_PIN, "equal-split mean drifted");
     assert_eq!(seq_mean, SEQ_REAL_PIN, "sequential mean drifted");
@@ -227,7 +229,7 @@ fn transfer_gate_real_bench_pinned() {
     );
 }
 
-const LEARNER_REAL_PIN: f64 = -100_000.0;
+const LEARNER_REAL_PIN: f64 = -9_303.4;
 const EQUAL_REAL_PIN: f64 = 22_000.0;
 const SEQ_REAL_PIN: f64 = 20_000.0;
 const ADAPT_REAL_PIN: f64 = 44_000.0;

@@ -116,6 +116,22 @@ pub struct TypeSpec {
 pub struct EnvConfig {
     pub types: [TypeSpec; 4],
     pub base_reward_milli: Amount,
+    /// Cross-capability dependencies (the synergy experiment, docs 13).
+    /// None = independent capabilities (default and capability worlds).
+    pub synergy: Option<SynergyConfig>,
+}
+
+/// Cross-capability dependencies: complementary capabilities with delayed
+/// return. `cost_unlocks` = (target, source, multiplier): the target's
+/// per-tier cost is multiplied while the source's tier is 0 (e.g. JEV is
+/// expensive until retrieval has found the sources). `quality_gates` =
+/// (target, source): the target's quality contribution scales as
+/// `cap * min(target_tier, source_tier) / TIER_MAX` (e.g. the LLM can
+/// only synthesize what JEV has extracted).
+#[derive(Clone, Debug)]
+pub struct SynergyConfig {
+    pub cost_unlocks: Vec<(usize, usize, f64)>,
+    pub quality_gates: Vec<(usize, usize)>,
 }
 
 /// Default synthetic world: four question types with distinct optimal
@@ -125,6 +141,7 @@ pub struct EnvConfig {
 pub fn default_config() -> EnvConfig {
     EnvConfig {
         base_reward_milli: 100_000,
+        synergy: None,
         types: [
             TypeSpec {
                 // t0: cheap single-strategy questions; C alone is enough.
@@ -275,6 +292,7 @@ pub fn default_config() -> EnvConfig {
 pub fn capability_config() -> EnvConfig {
     EnvConfig {
         base_reward_milli: 100_000,
+        synergy: None,
         types: [
             TypeSpec {
                 // t0 evidens-tung: retrieval-ledd mix vinner.
@@ -413,6 +431,161 @@ pub fn capability_config() -> EnvConfig {
     }
 }
 
+/// Synergy world (docs/SWE_Sweycoins_v2.md 13): complementary
+/// capabilities with delayed return. A = retrieval (finds sources; zero
+/// direct quality — a pure unlock), B = JEV (extracts evidence; 4x more
+/// expensive per tier until A has found the sources), C = LLM
+/// (synthesizes; its quality contribution is gated by B's tier — it can
+/// only synthesize what has been extracted).
+///
+/// Types: t0 the chain pays (cheap A unlocks cheap B), t1 retrieval does
+/// not pay (A priced above the unlock savings — the agent must learn to
+/// skip it), t2 full synthesis (the whole A->B->C chain is required),
+/// t3 a light unlock suffices.
+pub fn synergy_config() -> EnvConfig {
+    EnvConfig {
+        base_reward_milli: 100_000,
+        synergy: Some(SynergyConfig {
+            cost_unlocks: vec![(1, 0, 4.0)], // B costs 4x while A tier == 0
+            quality_gates: vec![(2, 1)],     // C scales with min(tC, tB)
+        }),
+        types: [
+            TypeSpec {
+                // t0 kedjan lönar sig.
+                difficulty: 1.0,
+                strategies: [
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [500, 1_000, 2_000, 4_000],
+                            [25_000, 50_000, 100_000, 200_000],
+                            [500, 1_000, 2_000, 4_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                        ],
+                        cap_quality: 0.0,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [2_000, 4_000, 8_000, 16_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [1_500, 3_000, 6_000, 12_000],
+                        ],
+                        cap_quality: 0.75,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [2_000, 4_000, 8_000, 16_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                        ],
+                        cap_quality: 1.0,
+                    },
+                ],
+            },
+            TypeSpec {
+                // t1 retrieval lönar sig inte: hoppa A.
+                difficulty: 1.0,
+                strategies: [
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [25_000, 50_000, 100_000, 200_000],
+                            [25_000, 50_000, 100_000, 200_000],
+                            [25_000, 50_000, 100_000, 200_000],
+                            [25_000, 50_000, 100_000, 200_000],
+                        ],
+                        cap_quality: 0.0,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [1_000, 2_000, 4_000, 8_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                        ],
+                        cap_quality: 0.75,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [4_000, 8_000, 16_000, 32_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                        ],
+                        cap_quality: 1.0,
+                    },
+                ],
+            },
+            TypeSpec {
+                // t2 full syntes: hela kedjan krävs.
+                difficulty: 1.0,
+                strategies: [
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [500, 1_000, 2_000, 4_000],
+                            [25_000, 50_000, 100_000, 200_000],
+                            [500, 1_000, 2_000, 4_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                        ],
+                        cap_quality: 0.0,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [2_000, 4_000, 8_000, 16_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [1_500, 3_000, 6_000, 12_000],
+                        ],
+                        cap_quality: 0.75,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [1_000, 2_000, 4_000, 8_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                        ],
+                        cap_quality: 1.0,
+                    },
+                ],
+            },
+            TypeSpec {
+                // t3 lätt unlock räcker.
+                difficulty: 1.0,
+                strategies: [
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [1_000, 2_000, 4_000, 8_000],
+                            [25_000, 50_000, 100_000, 200_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                        ],
+                        cap_quality: 0.0,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [1_500, 3_000, 6_000, 12_000],
+                            [1_000, 2_000, 4_000, 8_000],
+                            [1_500, 3_000, 6_000, 12_000],
+                            [1_500, 3_000, 6_000, 12_000],
+                        ],
+                        cap_quality: 0.75,
+                    },
+                    StrategyProfile {
+                        tier_cost_milli: [
+                            [2_000, 4_000, 8_000, 16_000],
+                            [4_000, 8_000, 16_000, 32_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                            [2_000, 4_000, 8_000, 16_000],
+                        ],
+                        cap_quality: 1.0,
+                    },
+                ],
+            },
+        ],
+    }
+}
+
 /// Verified quality of a progress state: sum of per-strategy quality
 /// contributions, capped at 1.0. In the synthetic world the quality model
 /// is the facit; it is evaluated only at episode end, never observed.
@@ -420,7 +593,14 @@ pub fn verified_quality(config: &EnvConfig, qtype: u8, tiers: &[u8; STRATEGY_COU
     let type_spec = &config.types[qtype as usize];
     let mut q = 0.0;
     for s in 0..STRATEGY_COUNT {
-        q += type_spec.strategies[s].cap_quality * tiers[s] as f64 / TIER_MAX as f64;
+        let contribution = match &config.synergy {
+            None => tiers[s] as f64 / TIER_MAX as f64,
+            Some(syn) => match syn.quality_gates.iter().find(|(target, _)| *target == s) {
+                Some((_, source)) => tiers[s].min(tiers[*source]) as f64 / TIER_MAX as f64,
+                None => tiers[s] as f64 / TIER_MAX as f64,
+            },
+        };
+        q += type_spec.strategies[s].cap_quality * contribution;
     }
     q.min(1.0)
 }
@@ -447,16 +627,47 @@ pub fn terminal_reward(
     quality_reward(config, qtype, tiers) - spent_milli as i64
 }
 
-/// Tiers gained by investing `invest_milli` in strategy `s` from `tier`:
-/// whole tiers are paid in sequence, the leftover is overhead (a metered
-/// segment that overshoots its quota). Deterministic.
-pub fn gain_tiers(config: &EnvConfig, qtype: u8, s: usize, tier: u8, invest_milli: Amount) -> u8 {
-    let costs = &config.types[qtype as usize].strategies[s].tier_cost_milli[qtype as usize];
+/// Per-tier cost with synergy applied: cost unlocks multiply the base
+/// cost while the source capability is still at tier 0.
+fn tier_cost_at(
+    config: &EnvConfig,
+    qtype: u8,
+    s: usize,
+    tiers: &[u8; STRATEGY_COUNT],
+    tier: u8,
+) -> Amount {
+    let base =
+        config.types[qtype as usize].strategies[s].tier_cost_milli[qtype as usize][tier as usize];
+    match &config.synergy {
+        None => base,
+        Some(syn) => {
+            let mut cost = base as f64;
+            for (target, source, multiplier) in &syn.cost_unlocks {
+                if *target == s && tiers[*source] == 0 {
+                    cost *= multiplier;
+                }
+            }
+            cost.round() as Amount
+        }
+    }
+}
+
+/// Tiers gained by investing `invest_milli` in strategy `s` from the
+/// current tiers: whole tiers are paid in sequence, the leftover is
+/// overhead (a metered segment that overshoots its quota). Deterministic.
+/// The gain depends on the full tier state when synergies are active.
+pub fn gain_tiers(
+    config: &EnvConfig,
+    qtype: u8,
+    s: usize,
+    tiers: &[u8; STRATEGY_COUNT],
+    invest_milli: Amount,
+) -> u8 {
     let mut left = invest_milli;
     let mut gained = 0;
-    let mut t = tier;
+    let mut t = tiers[s];
     while t < TIER_MAX {
-        let cost = costs[t as usize];
+        let cost = tier_cost_at(config, qtype, s, tiers, t);
         if left < cost {
             break;
         }
@@ -655,7 +866,8 @@ impl SweEnv for SyntheticEnv {
                 self.ledger
                     .settle(reservation, amount, &settle_key)
                     .map_err(EnvError::Ledger)?;
-                let gained_here = gain_tiers(&self.config, obs.qtype, s, obs.tiers[s], amount);
+                let tiers_before = obs.tiers;
+                let gained_here = gain_tiers(&self.config, obs.qtype, s, &tiers_before, amount);
                 gained[s] = gained_here;
                 obs.tiers[s] = (obs.tiers[s] + gained_here).min(TIER_MAX);
                 obs.spent_milli[s] += amount;

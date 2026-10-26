@@ -321,7 +321,6 @@ const UCB_C: f64 = 20_000.0;
 pub struct McQLearner {
     q: Vec<f64>,
     counts: Vec<f64>,
-    alpha: f64,
     gamma: f64,
     epsilon_start: f64,
     epsilon_min: f64,
@@ -329,12 +328,20 @@ pub struct McQLearner {
     update_every: usize,
     rng_state: u64,
     eval: bool,
+    /// Coverage sweep mode: pick the least-visited valid action (pure
+    /// count-driven exploration, seed-independent). Used to complete the
+    /// visited-state coverage before the offline replay fit.
+    sweep: bool,
     episodes_seen: u64,
     /// (state, action, valid action indices) of the current episode, in
     /// order; the valid set is what the backward max bootstraps over.
     episode: Vec<(usize, usize, Vec<u8>, i64)>,
     /// Buffered episodes (spec 7 minibatch).
     pending: Vec<Vec<(usize, usize, Vec<u8>, i64)>>,
+    /// All training episodes, kept for the offline replay fit (value
+    /// iteration over collected experience — the stable phase that
+    /// follows the noisy online season; opt-in via `replay_fit`).
+    history: Vec<Vec<(usize, usize, Vec<u8>, i64)>>,
     /// How often a state-action was updated — kept for reporting.
     pub updates: u64,
 }
@@ -344,17 +351,23 @@ impl McQLearner {
         Self {
             q: vec![Q_INIT; Q_TABLE_LEN],
             counts: vec![0.0; Q_TABLE_LEN],
-            alpha: 1.0,
-            gamma: 1.0,
+            // gamma just below 1: breaks the self-loop degeneracy —
+            // with gamma=1 a no-gain invest bootstraps from the same
+            // state's max and can outrank Finish (measured: the learner
+            // looped 22 zero-gain invests on the synergy skip-A type).
+            // 0.999 over a 10-step chain dilutes credit by ~1%.
+            gamma: 0.999,
             epsilon_start: 0.1,
             epsilon_min: 0.02,
             epsilon_decay: 0.99,
             update_every: 20,
             rng_state: seed.max(1),
             eval: false,
+            sweep: false,
             episodes_seen: 0,
             episode: Vec::new(),
             pending: Vec::new(),
+            history: Vec::new(),
             updates: 0,
         }
     }
@@ -420,26 +433,67 @@ impl McQLearner {
     /// step's target is its own step reward; each earlier step targets
     /// `r + gamma * max Q(successor)`, so credit reaches the whole chain
     /// in a single pass (v1's td.rs pattern, off-policy max variant).
+    /// One backward Q-learning pass over one recorded episode
+    /// (alpha = 1: the terminal credit propagates through the whole
+    /// decision chain in a single pass — deep delayed-return chains need
+    /// this; alpha < 1 dilutes credit by alpha^n).
+    fn apply_episode(&mut self, episode: &[(usize, usize, Vec<u8>, i64)]) {
+        let mut successor_max = 0.0f64; // terminal state value
+        for (state, action, valid, r) in episode.iter().rev() {
+            let target = *r as f64 + self.gamma * successor_max;
+            let cell = state * ACTION_COUNT + action;
+            let q = &mut self.q[cell];
+            *q += target - *q;
+            self.updates += 1;
+            // For the previous step, the successor is THIS state;
+            // its value is the max over the actions valid here.
+            let mut max_here = f64::NEG_INFINITY;
+            for &a in valid {
+                let v = self.q[state * ACTION_COUNT + a as usize];
+                if v > max_here {
+                    max_here = v;
+                }
+            }
+            successor_max = max_here;
+        }
+    }
+
     fn flush(&mut self) {
         for episode in std::mem::take(&mut self.pending) {
-            let mut successor_max = 0.0f64; // terminal state value
-            for (state, action, valid, r) in episode.iter().rev() {
-                let target = *r as f64 + self.gamma * successor_max;
-                let q = &mut self.q[state * ACTION_COUNT + action];
-                *q += self.alpha * (target - *q);
-                self.updates += 1;
-                // For the previous step, the successor is THIS state;
-                // its value is the max over the actions valid here.
-                let mut max_here = f64::NEG_INFINITY;
-                for &a in valid {
-                    let v = self.q[state * ACTION_COUNT + a as usize];
-                    if v > max_here {
-                        max_here = v;
-                    }
-                }
-                successor_max = max_here;
+            self.apply_episode(&episode);
+        }
+    }
+
+    /// Enable/disable the coverage sweep exploration mode.
+    pub fn set_sweep(&mut self, sweep: bool) {
+        self.sweep = sweep;
+    }
+
+    /// Offline value-iteration sweeps over all collected episodes: the
+    /// stable phase after the noisy online season. Sweeps repeat until
+    /// the table stops moving (deterministic env), so late noisy
+    /// overwrites and greedy lock-in cannot dominate — every episode's
+    /// transition data contributes to the fixed point. Returns the
+    /// remaining max |delta| after the last sweep.
+    pub fn replay_fit(&mut self, max_sweeps: usize) -> f64 {
+        let mut last_delta = f64::INFINITY;
+        for _ in 0..max_sweeps {
+            let before = self.q.clone();
+            let history = self.history.clone();
+            for episode in &history {
+                self.apply_episode(episode);
+            }
+            last_delta = self
+                .q
+                .iter()
+                .zip(before.iter())
+                .map(|(a, b)| (a - b).abs())
+                .fold(0.0f64, f64::max);
+            if last_delta < 1.0 {
+                break;
             }
         }
+        last_delta
     }
 }
 
@@ -458,6 +512,20 @@ impl Policy for McQLearner {
         let state = state_index(obs.qtype, &obs.tiers);
         let action = if self.eval {
             self.greedy(obs, valid)
+        } else if self.sweep {
+            // Deterministic coverage sweep: least-visited valid action,
+            // lowest index on ties — seed-independent, so the replay
+            // fit's state coverage no longer depends on exploration luck.
+            valid
+                .iter()
+                .min_by_key(|&&a| {
+                    (
+                        self.counts[state * ACTION_COUNT + action_index(a)] as u64,
+                        action_index(a),
+                    )
+                })
+                .copied()
+                .expect("valid is never empty")
         } else {
             // UCB exploration: value plus an exploration bonus that
             // decays with visits, so undersampled actions (and the deep
@@ -510,7 +578,9 @@ impl Policy for McQLearner {
     fn episode_end(&mut self, _reward_milli: i64) {
         self.episodes_seen += 1;
         if !self.eval {
-            self.pending.push(std::mem::take(&mut self.episode));
+            let done = std::mem::take(&mut self.episode);
+            self.history.push(done.clone());
+            self.pending.push(done);
             if self.pending.len() >= self.update_every {
                 self.flush();
             }

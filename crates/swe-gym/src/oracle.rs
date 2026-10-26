@@ -41,7 +41,7 @@ impl Dp {
                     continue;
                 }
                 let amount_milli = amount_coins as u64 * 1_000;
-                let gained = gain_tiers(&self.config, self.qtype, s, state.tiers[s], amount_milli);
+                let gained = gain_tiers(&self.config, self.qtype, s, &state.tiers, amount_milli);
                 if gained == 0 {
                     continue; // dominated: spending for zero progress
                 }
@@ -111,7 +111,7 @@ pub fn oracle_policy_cost(config: &EnvConfig, qtype: u8, budget_milli: Amount) -
                     continue;
                 }
                 let amount_milli = amount_coins as u64 * 1_000;
-                let gained = gain_tiers(&config, qtype, s, state.tiers[s], amount_milli);
+                let gained = gain_tiers(&config, qtype, s, &state.tiers, amount_milli);
                 if gained == 0 {
                     continue;
                 }
