@@ -6,7 +6,6 @@ only holds the verified client/endpoint for each catalog.
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -102,7 +101,7 @@ async def connect_owner_registry(routes: list[OwnerRoute]) -> dict[str, object]:
 
 
 async def close_owner_registry() -> None:
-    await asyncio.to_thread(_registry.close)
+    await _registry.close()
 
 
 def tenant_owner_client(customer_id: int) -> OwnerClient:
