@@ -18,6 +18,7 @@ fn corpus(evidence: &[&str], blind: &[&str]) -> FakeCorpus {
         scan_blind: blind.iter().map(|chunk| chunk.to_string()).collect(),
         noise_seed: 0,
         budget_milli: 0,
+        texts: std::collections::HashMap::new(),
     }
     .corpus()
 }

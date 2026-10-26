@@ -13,7 +13,7 @@ use swe_native::{
     parse_json_str, sha256_hex, start_run, Effect, Json, RuntimeError, StepOutcome, WorkflowMachine,
 };
 
-use crate::driver::{build_chain_document_for, build_chunk_input_for, CallRecord};
+use crate::driver::{build_chain_document_for, build_chunk_input_with_texts, CallRecord};
 use crate::ledger::{Amount, Ledger, LedgerError};
 use crate::provider::ResearchProvider;
 use crate::strategy::{
@@ -38,6 +38,8 @@ pub struct ArmReport {
     pub ledger_events: usize,
     pub machine_events: usize,
     pub ledger: Ledger,
+    /// Kernel error if the run failed (budget, limits, provider failure).
+    pub error: Option<String>,
 }
 
 struct LiveBranch {
@@ -52,11 +54,13 @@ struct Harness<'a> {
     ledger: Ledger,
     provider: &'a dyn ResearchProvider,
     tariffs: &'a Tariffs,
+    texts: &'a std::collections::HashMap<String, String>,
     required: usize,
     found: HashSet<String>,
     calls: Vec<CallRecord>,
     denied: Vec<(String, String)>,
     machine_events: usize,
+    error: Option<String>,
 }
 
 /// Run one strategy (arm) on one question with a hard total budget, using the
@@ -123,11 +127,13 @@ pub fn run_arm_with_provider(
         ledger,
         provider,
         tariffs,
+        texts: &question.texts,
         required: question.view.required_coverage,
         found: HashSet::new(),
         calls: Vec::new(),
         denied: Vec::new(),
         machine_events: 0,
+        error: None,
     };
 
     match strategy.continuation() {
@@ -157,6 +163,7 @@ pub fn run_arm_with_provider(
         calls: harness.calls,
         denied: harness.denied,
         ledger: harness.ledger,
+        error: harness.error,
     }
 }
 
@@ -341,7 +348,7 @@ impl<'a> Harness<'a> {
         let document = parse_json_str(&document).expect("branch workflow document");
         let sha = sha256_hex(&document).expect("document hash");
         let chunks: Vec<&str> = candidates.iter().map(String::as_str).collect();
-        let input = build_chunk_input_for(&chunks);
+        let input = build_chunk_input_with_texts(&chunks, self.texts);
         let input = parse_json_str(&input).expect("branch input document");
         let (machine, outcome) = start_run(
             document,
@@ -501,6 +508,9 @@ impl<'a> Harness<'a> {
         }
         if branch.finished {
             self.machine_events += branch.machine.events().len();
+            if let Some(error) = branch.machine.error() {
+                self.error = Some(error.message.clone());
+            }
         }
     }
 }

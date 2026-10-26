@@ -17,10 +17,11 @@ use swe_gym::bandit::{
     SequentialBanditStrategy,
 };
 use swe_gym::bench::load_bench_file;
-use swe_gym::benchmark::{run_arm, ArmReport};
+use swe_gym::benchmark::{run_arm, run_arm_with_provider, ArmReport};
 use swe_gym::driver::{build_chain_document, build_chunk_input, run_with_budget, RunReport};
 use swe_gym::gen::QuestionGenerator;
 use swe_gym::ledger::{EventKind, Ledger};
+use swe_gym::provider::ReplayProvider;
 use swe_gym::strategy::{
     AdaptiveStrategy, OracleStrategy, ParallelEqualStrategy, Question, SequentialStrategy, Strategy,
 };
@@ -37,6 +38,7 @@ fn main() {
     demo_sequential();
     demo_td();
     demo_td_structured();
+    demo_real_bench();
 }
 
 // ---------------------------------------------------------------------------
@@ -574,6 +576,86 @@ fn demo_td_structured() {
         "  C* orakel [tak]:  {oracle_solved}/500 lösta, spend {}",
         format_amount(oracle_spend),
     );
+}
+
+// ---------------------------------------------------------------------------
+// Section 8: the real bench — 638 real contract chunks, real JEV answers
+// (replayed), gold facit from the project's legal-questions suite.
+// ---------------------------------------------------------------------------
+
+fn demo_real_bench() {
+    let bench = load_bench_file("benchmarks/bench_real_v2.json")
+        .expect("real bench must exist — run tools/export_real_bench.py");
+    let fixture = std::fs::read_to_string("benchmarks/jev_fixture_real_v2.json")
+        .expect("real fixture must exist — run capture_real");
+    let replay = ReplayProvider::load(&fixture).expect("real fixture must load");
+    let question = &bench.questions[0];
+
+    println!();
+    println!(
+        "=== I: riktig bench — auto-renewal, {} riktiga chunks, riktiga JEV-svar (replay) ===",
+        question.view.chunks.len(),
+    );
+    let mut a = SequentialStrategy;
+    let a_report = run_arm_with_provider(
+        &mut a,
+        question,
+        bench.total_budget_milli,
+        &bench.tariffs,
+        &replay,
+    );
+    let mut c = AdaptiveStrategy;
+    let c_report = run_arm_with_provider(
+        &mut c,
+        question,
+        bench.total_budget_milli,
+        &bench.tariffs,
+        &replay,
+    );
+    let mut oracle = OracleStrategy::new(question);
+    let cx_report = run_arm_with_provider(
+        &mut oracle,
+        question,
+        bench.total_budget_milli,
+        &bench.tariffs,
+        &replay,
+    );
+    for report in [&a_report, &c_report, &cx_report] {
+        print_real_arm(report);
+    }
+    println!();
+    println!("(facit: 20 gold-chunks ur legal-questions-v1; JEV hittade 20/20 + 2 extra fynd)");
+}
+
+fn print_real_arm(report: &ArmReport) {
+    let solved = if report.solved { "LÖST " } else { "OLÖST" };
+    let scan_calls = report
+        .calls
+        .iter()
+        .filter(|call| call.provider == "scan")
+        .count();
+    let deep_calls = report
+        .calls
+        .iter()
+        .filter(|call| call.provider == "deep")
+        .count();
+    let label = if report.diagnostic {
+        format!("{} [tak]", report.strategy)
+    } else {
+        report.strategy.to_string()
+    };
+    println!(
+        "  {:<28} {}  spend {}  scan {} deep {}  fynd: {}",
+        label,
+        solved,
+        format_amount(report.spent_milli),
+        scan_calls,
+        deep_calls,
+        report.found.len(),
+    );
+    if let Some(error) = &report.error {
+        println!("  fel: {error}");
+    }
 }
 
 // ---------------------------------------------------------------------------
