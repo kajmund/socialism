@@ -70,6 +70,7 @@ from app.services.overgraph.owner_guards import set_direct_writes_forbidden
 from app.services.overgraph.owner_registry import (
     close_owner_registry,
     connect_owner_registry,
+    parse_memory_owner_route,
     parse_tenant_owner_sockets,
 )
 from app.services.overgraph.owner_runtime import get_owner_runtime
@@ -184,8 +185,9 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
     )
     _app.state.overgraph_owner = owner_runtime.status
     tenant_routes = parse_tenant_owner_sockets(settings.overgraph_tenant_owner_sockets)
+    owner_routes = tenant_routes + parse_memory_owner_route(settings.overgraph_memory_owner_socket)
     _app.state.overgraph_tenant_owners = (
-        await connect_owner_registry(tenant_routes) if tenant_routes else {}
+        await connect_owner_registry(owner_routes) if owner_routes else {}
     )
     owner_mode = owner_runtime.client is not None
     if owner_mode and not tenant_routes:

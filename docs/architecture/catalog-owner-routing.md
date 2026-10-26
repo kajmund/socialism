@@ -71,6 +71,9 @@ Owner endpoint. The registry does not start processes; deployment owns one
 Owner process per active catalog. Tests verify knowledge/tenant/memory routing
 and that identical keys in two tenant catalogs stay isolated.
 
+The memory route is configured with `OVERGRAPH_MEMORY_OWNER_SOCKET`; an empty
+value keeps the legacy local memory catalog until the mem0 cutover.
+
 Tenant routes are configured with `OVERGRAPH_TENANT_OWNER_SOCKETS` as
 `customer_id=socket` entries (comma separated, for example
 `1=/run/tenant-1.sock,2=/run/tenant-2.sock`). The backend connects and
@@ -106,6 +109,6 @@ mode and projects legal claims to facts through the Knowledge Owner
 legacy in-process `TenantCatalogs` path remains for tests and local
 development; owner mode refuses to start without tenant routes. The memory
 catalog now has an Owner-backed repository (`owner_memory.py`) for
-upsert/get/update/delete/search/list/link; the synchronous mem0 adapter is not
-switched yet. Runtime guard blocks direct knowledge writes in
+upsert/get/update/delete/search/list/link and a configurable Owner route; the
+synchronous mem0 adapter is not switched yet. Runtime guard blocks direct knowledge writes in
 owner mode. `write_paths_ready` remains false.

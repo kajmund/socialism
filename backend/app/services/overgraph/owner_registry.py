@@ -107,3 +107,13 @@ async def close_owner_registry() -> None:
 def tenant_owner_client(customer_id: int) -> OwnerClient:
     """Route one verified tenant to its Knowledge Owner, or fail explicitly."""
     return _registry.client_for("tenant_knowledge", customer_id=customer_id)
+
+
+def memory_owner_client() -> OwnerClient:
+    """Route the memory catalog to its Owner, or fail explicitly."""
+    return _registry.client_for("memory")
+
+
+def parse_memory_owner_route(raw: str) -> list[OwnerRoute]:
+    path = raw.strip()
+    return [OwnerRoute(kind="memory", socket_path=Path(path))] if path else []
