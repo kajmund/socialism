@@ -157,7 +157,10 @@ async def owner_writer_runtime(research_overgraph):
     runtime = get_owner_runtime()
     previous_client, previous_status = runtime.client, runtime.status
     runtime.client = OwnerClient(socket_path, catalog_id=owner.catalog_id)
-    runtime.status = {"status": "ready", "catalog_id": owner.catalog_id, "write_paths_ready": False}
+    runtime.status = {
+        "status": "ready", "catalog_id": owner.catalog_id,
+        "dimension": RESEARCH_TEST_DIM, "write_paths_ready": False,
+    }
     try:
         yield
     finally:
