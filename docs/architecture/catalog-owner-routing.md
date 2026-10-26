@@ -104,6 +104,8 @@ and `find_documents` all use the tenant Owner. The graph worker runs in owner
 mode with a document-kind filter, so legal projection work stays out of it
 until that writeback is owner-backed. With no tenant routes configured, the
 legacy in-process `TenantCatalogs` path remains for tests and local
-development; owner mode refuses to start without tenant routes. mem0 still uses
-the separate memory catalog. Runtime guard blocks direct knowledge writes in
+development; owner mode refuses to start without tenant routes. The memory
+catalog now has an Owner-backed repository (`owner_memory.py`) for
+upsert/get/update/delete/search/list/link; the synchronous mem0 adapter is not
+switched yet. Runtime guard blocks direct knowledge writes in
 owner mode. `write_paths_ready` remains false.
