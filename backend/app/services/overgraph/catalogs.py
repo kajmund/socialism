@@ -10,18 +10,17 @@ from pathlib import Path
 from typing import Any, Literal, TypeVar
 
 from overgraph import OverGraph
-
 from app.services.overgraph.labels import (
     FACT,
     TEXT_UNIT,
     visible_scope_labels,
 )
+from app.services.overgraph.owner_guards import assert_direct_write_allowed
+from app.services.overgraph.owner_locks import read_guard
 from app.services.overgraph.model import GraphRecord
-
 T = TypeVar("T")
 
 CatalogKind = Literal["knowledge", "memory"]
-
 
 def _as_dict(value: object) -> dict[str, Any]:
     if value is None:
@@ -58,41 +57,40 @@ def _record(view: object) -> GraphRecord:
     )
 
 
+class OwnerReadRequiredError(RuntimeError):
+    """This process must read the owner-owned catalog through the owner."""
+
+
 class Catalog:
     """Thin locked wrapper around one OverGraph directory."""
-
     def __init__(self, db: Any, *, kind: CatalogKind, dimension: int, path: Path) -> None:
         self._db = db
         self.kind = kind
         self.dimension = dimension
         self.path = path
         self._lock = threading.RLock()
-
+        self.lock_mode = "global"
+        self._lock_probe = False
     def close(self) -> None:
         with self._lock:
             closer = getattr(self._db, "close", None)
             if closer is not None:
                 closer()
-
     def read(self, fn: Callable[[Any], T]) -> T:
         """Run a read under the catalog lock so it cannot overlap a write."""
-        with self._lock:
+        with read_guard(self):
             return fn(self._db)
-
     def sync(self) -> None:
         with self._lock:
             self._db.sync()
-
     def flush(self) -> None:
         with self._lock:
             self._db.flush()
-
     def scrub(self) -> int:
         """Integrity-check the on-disk catalog; returns the failed-component count."""
         with self._lock:
             report = self._db.scrub()
         return int(getattr(report, "total_components_failed", 0))
-
     def snapshot(self, dest: Path) -> None:
         """Quiesce writes and copy the on-disk catalog to ``dest`` (consistent backup)."""
         dest = Path(dest)
@@ -101,20 +99,19 @@ class Catalog:
             self._db.flush()
             self._db.sync()
             shutil.copytree(self.path, dest, dirs_exist_ok=True)
-
     def count_nodes_by_labels(self, labels: Sequence[str]) -> int:
-        with self._lock:
+        with read_guard(self):
             return int(self._db.count_nodes_by_labels(list(labels)))
-
     def count_edges_by_label(self, label: str) -> int:
-        with self._lock:
+        with read_guard(self):
             return int(self._db.count_edges_by_label(label))
-
     def ingest_mode(self) -> None:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             self._db.ingest_mode()
 
     def end_ingest(self) -> None:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             self._db.end_ingest()
 
@@ -128,15 +125,28 @@ class Catalog:
         weight: float = 1.0,
     ) -> int:
         payload = dict(props or {})
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             return _engine_id(self._db.upsert_node(
                 list(labels), key, props=payload, dense_vector=dense_vector, weight=weight,
             ))
 
     def batch_upsert_nodes(self, nodes: Sequence[dict[str, Any]]) -> list[int]:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             result = self._db.batch_upsert_nodes(list(nodes))
         return [_engine_id(item) for item in result]
+
+    def begin_write_txn(self) -> Any:
+        """Open a native OverGraph write transaction.
+
+        The caller owns serialization; the owner process uses this only from its
+        single mutation worker. Reads and writes inside the transaction are
+        invisible until commit and are rolled back on failure.
+        """
+        assert_direct_write_allowed(self.kind)
+        with self._lock:
+            return self._db.begin_write_txn()
 
     def upsert_edge(
         self,
@@ -154,6 +164,7 @@ class Catalog:
             options["valid_from"] = valid_from
         if valid_to is not None:
             options["valid_to"] = valid_to
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             return _engine_id(self._db.upsert_edge(source, target, label, **options))
 
@@ -166,6 +177,7 @@ class Catalog:
         delete_node_ids: Sequence[int] = (),
         delete_edge_ids: Sequence[int] = (),
     ) -> None:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             self._db.graph_patch({
                 "upsert_nodes": list(upsert_nodes),
@@ -176,34 +188,36 @@ class Catalog:
             })
 
     def get_by_key(self, label: str, key: str) -> GraphRecord | None:
-        with self._lock:
+        with read_guard(self):
             view = self._db.get_node_by_key(label, key)
         if view is None:
             return None
         return _record(view)
 
     def get_edge_by_triple(self, source: int, target: int, label: str):
-        with self._lock:
+        with read_guard(self):
             return self._db.get_edge_by_triple(source, target, label)
 
     def get(self, engine_id: int) -> GraphRecord | None:
-        with self._lock:
+        with read_guard(self):
             view = self._db.get_node(engine_id)
         if view is None:
             return None
         return _record(view)
 
     def delete_node(self, engine_id: int) -> None:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             self._db.delete_node(engine_id)
 
     def ensure_node_property_index(self, label: str, spec: dict[str, Any]) -> str:
+        assert_direct_write_allowed(self.kind)
         with self._lock:
             info = self._db.ensure_node_property_index(label, spec)
         return str(getattr(info, "state", "unknown"))
 
     def find_nodes(self, label: str, prop_key: str, prop_value: Any) -> list[int]:
-        with self._lock:
+        with read_guard(self):
             return self._db.find_nodes(label, prop_key, prop_value).to_list()
 
     def find_nodes_paged(
@@ -215,7 +229,7 @@ class Catalog:
         limit: int | None = None,
         after: int | None = None,
     ) -> tuple[list[int], int | None]:
-        with self._lock:
+        with read_guard(self):
             page = self._db.find_nodes_paged(
                 label, prop_key, prop_value, limit=limit, after=after,
             )
@@ -224,7 +238,7 @@ class Catalog:
     def find_nodes_by_time_range(
         self, label: str, from_ms: int, to_ms: int,
     ) -> list[int]:
-        with self._lock:
+        with read_guard(self):
             return self._db.find_nodes_by_time_range(label, from_ms, to_ms).to_list()
 
     def find_nodes_by_time_range_paged(
@@ -236,7 +250,7 @@ class Catalog:
         limit: int | None = None,
         after: int | None = None,
     ) -> tuple[list[int], int | None]:
-        with self._lock:
+        with read_guard(self):
             page = self._db.find_nodes_by_time_range_paged(
                 label, from_ms, to_ms, limit=limit, after=after,
             )
@@ -258,13 +272,13 @@ class Catalog:
             request["limit"] = limit
         if after is not None:
             request["after"] = after
-        with self._lock:
+        with read_guard(self):
             page = self._db.query_nodes(request)
         items = [_record(item) for item in (getattr(page, "items", None) or [])]
         return items, getattr(page, "next_cursor", None)
 
     def get_nodes(self, node_ids: Sequence[int]) -> list[GraphRecord | None]:
-        with self._lock:
+        with read_guard(self):
             views = self._db.get_nodes(list(node_ids))
         return [None if view is None else _record(view) for view in views]
 
@@ -287,7 +301,7 @@ class Catalog:
             kwargs["scope_max_depth"] = scope_max_depth or 2
         if fusion_mode is not None:
             kwargs["fusion_mode"] = fusion_mode
-        with self._lock:
+        with read_guard(self):
             hits = self._db.vector_search(mode, **kwargs)
         return [(_engine_id(hit), float(getattr(hit, "score", 0.0))) for hit in hits]
 
@@ -302,7 +316,7 @@ class Catalog:
         kwargs: dict[str, Any] = {"algorithm": algorithm, "max_results": max_results}
         if edge_label_filter is not None:
             kwargs["edge_label_filter"] = list(edge_label_filter)
-        with self._lock:
+        with read_guard(self):
             result = self._db.personalized_pagerank(list(seed_ids), **kwargs)
         ids = list(getattr(result, "node_ids", ()))
         scores = list(getattr(result, "scores", ()))
@@ -311,7 +325,7 @@ class Catalog:
     def top_k_neighbors(
         self, engine_id: int, k: int, *, direction: str = "outgoing",
     ) -> list[tuple[int, float]]:
-        with self._lock:
+        with read_guard(self):
             hits = self._db.top_k_neighbors(engine_id, k, direction=direction)
         return [(_engine_id(hit), float(getattr(hit, "weight", getattr(hit, "score", 0.0))))
                 for hit in hits]
@@ -325,14 +339,42 @@ class Catalog:
             kwargs["edge_label_filter"] = list(edge_label_filter)
         if limit is not None:
             kwargs["limit"] = limit
-        with self._lock:
+        with read_guard(self):
             entries = self._db.neighbors(engine_id, **kwargs)
         return [_engine_id(getattr(entry, "node_id", entry)) for entry in entries]
+
+    def neighbor_edges(
+        self, engine_id: int, *, direction: str = "outgoing",
+        edge_label_filter: Sequence[str] | None = None, limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Bounded neighbor+edge payloads for the owner read protocol."""
+        kwargs: dict[str, Any] = {"direction": direction, "limit": limit}
+        if edge_label_filter is not None:
+            kwargs["edge_label_filter"] = list(edge_label_filter)
+        with read_guard(self):
+            entries = self._db.neighbors(engine_id, **kwargs)
+            rows: list[dict[str, Any]] = []
+            for entry in entries:
+                node = self._db.get_node(entry.node_id)
+                edge = self._db.get_edge(entry.edge_id)
+                rows.append({
+                    "node_id": int(entry.node_id),
+                    "key": str(getattr(node, "key", "")) if node is not None else "",
+                    "labels": [str(label) for label in getattr(node, "labels", ())],
+                    "props": _as_dict(node),
+                    "dir": direction,
+                    "label": str(entry.label),
+                    "weight": float(getattr(entry, "weight", 1.0)),
+                    "valid_from": getattr(entry, "valid_from", None),
+                    "valid_to": getattr(entry, "valid_to", None),
+                    "edge_props": _as_dict(getattr(edge, "props", {})),
+                })
+        return rows
 
     def traverse(
         self, engine_id: int, max_depth: int, *, direction: str = "outgoing",
     ) -> list[tuple[int, int]]:
-        with self._lock:
+        with read_guard(self):
             result = self._db.traverse(engine_id, max_depth, direction=direction)
         items = getattr(result, "items", result)
         if isinstance(items, dict):
@@ -370,19 +412,32 @@ class Catalog:
 
 
 class OverGraphRuntime:
-    def __init__(self, knowledge: Catalog, memory: Catalog) -> None:
+    def __init__(self, knowledge: Catalog | None, memory: Catalog | None) -> None:
         self.knowledge = knowledge
         self.memory = memory
 
     def close(self) -> None:
-        self.knowledge.close()
-        self.memory.close()
+        for catalog in (self.knowledge, self.memory):
+            if catalog is not None:
+                catalog.close()
 
 
 _runtime: OverGraphRuntime | None = None
 
+_owner_mode = False
+
+
+def set_owner_mode(enabled: bool) -> None:
+    """Forbid direct knowledge-catalog opens in an owner-mode backend process."""
+    global _owner_mode
+    _owner_mode = enabled
+
 
 def open_catalog(path: Path, *, kind: CatalogKind, dimension: int) -> Catalog:
+    if _owner_mode and kind == "knowledge":
+        raise OwnerReadRequiredError(
+            "knowledge catalog is owner-owned; direct open is forbidden in owner mode"
+        )
     path.mkdir(parents=True, exist_ok=True)
     db = OverGraph.open(
         str(path),
@@ -423,11 +478,16 @@ def get_runtime() -> OverGraphRuntime | None:
 def require_knowledge() -> Catalog:
     if _runtime is None:
         raise RuntimeError("OverGraph knowledge catalog is not open")
+    if _runtime.knowledge is None:
+        raise OwnerReadRequiredError(
+            "knowledge catalog is owner-owned; use the Owner read facade instead "
+            "of opening the catalog in this process"
+        )
     return _runtime.knowledge
 
 
 def require_memory() -> Catalog:
-    if _runtime is None:
+    if _runtime is None or _runtime.memory is None:
         raise RuntimeError("OverGraph memory catalog is not open")
     return _runtime.memory
 

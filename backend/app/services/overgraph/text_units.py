@@ -172,10 +172,14 @@ def delete_text_units_for_document(catalog: Catalog, *, document_id: str) -> int
     return deleted
 
 
-def _domain_unit(row: GraphRecord) -> TextUnit:
-    props = row.props
+def domain_unit_from_props(key: str, props: dict[str, object]) -> TextUnit:
+    """Map stored TextUnit props back to the domain object.
+
+    Shared by the local reader and the owner-backed reader so both surfaces
+    decode the same graph node identically.
+    """
     return TextUnit(
-        id=row.key,
+        id=key,
         document_version_id=str(props.get("document_version_id") or ""),
         document_id=str(props.get("document_id") or ""),
         section_id=str(props.get("section_id") or "") or None,
@@ -192,6 +196,10 @@ def _domain_unit(row: GraphRecord) -> TextUnit:
         ingested_at=_from_ms(props.get("ingested_at")),
         metadata=_metadata(props.get("extra_json")),
     )
+
+
+def _domain_unit(row: GraphRecord) -> TextUnit:
+    return domain_unit_from_props(row.key, row.props)
 
 
 def _positive(value: object) -> int | None:

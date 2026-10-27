@@ -31,17 +31,19 @@ def next_queue(
     reviewer_id: str,
     document_id: str | None = None,
     limit: int = 5,
+    session: ReviewSession | None = None,
 ) -> QueuePage:
     classification = get_classification(catalog, classification_id)
     if not can_reference(scope, classification.scope_key):
         raise PermissionError("classification is outside the caller tenant")
-    session = get_or_create_session(
-        catalog,
-        scope=scope,
-        reviewer_id=reviewer_id,
-        classification_id=classification_id,
-        document_id=document_id,
-    )
+    if session is None:
+        session = get_or_create_session(
+            catalog,
+            scope=scope,
+            reviewer_id=reviewer_id,
+            classification_id=classification_id,
+            document_id=document_id,
+        )
     decided = list_reviewer_decisions(
         catalog, classification_id=classification_id, reviewer_id=reviewer_id,
     )

@@ -3494,6 +3494,12 @@ export const en: LocalizedTree<SvMessages> = {
       noHit: "No hit",
       unknown: "Unknown",
       negativeHit: "Negative hit",
+      noHitReason: {
+        belowThreshold: "Low similarity",
+        noActiveAnchors: "No active anchors",
+        noCandidates: "No candidates",
+        abstainMargin: "Uncertain margin",
+      },
     },
     cell: {
       similarity: "Similarity {score}",

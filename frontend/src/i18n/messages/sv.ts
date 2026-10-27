@@ -3494,6 +3494,12 @@ export const sv = {
       noHit: "Ingen träff",
       unknown: "Osäker",
       negativeHit: "Negativ träff",
+      noHitReason: {
+        belowThreshold: "Låg likhet",
+        noActiveAnchors: "Inga aktiva ankare",
+        noCandidates: "Inga kandidater",
+        abstainMargin: "Osäker marginal",
+      },
     },
     cell: {
       similarity: "Similarity {score}",

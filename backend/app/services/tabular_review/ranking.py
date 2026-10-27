@@ -47,12 +47,21 @@ def decide_cell(
     abstain_margin: float | None,
 ) -> CellDecision:
     """Absence of a hit is unknown/no_hit — never negative evidence."""
-    if not ranked or ranked[0].similarity < threshold:
+    if not ranked:
+        return CellDecision(
+            status=NO_HIT,
+            selected=None,
+            candidates=(),
+            threshold=threshold,
+            no_hit_reason="no_candidates",
+        )
+    if ranked[0].similarity < threshold:
         return CellDecision(
             status=NO_HIT,
             selected=None,
             candidates=tuple(ranked),
             threshold=threshold,
+            no_hit_reason="below_threshold",
         )
     if allow_abstain and abstain_margin is not None and len(ranked) >= 2:
         gap = ranked[0].similarity - ranked[1].similarity
@@ -62,6 +71,7 @@ def decide_cell(
                 selected=None,
                 candidates=tuple(ranked),
                 threshold=threshold,
+                no_hit_reason="abstain_margin",
             )
     status = NEGATIVE_HIT if polarity == "negative" else HIT
     return CellDecision(
@@ -92,6 +102,14 @@ def score_document_column(
     allow_abstain = options.allow_abstain
     abstain_margin = options.abstain_margin
     limit = options.limit
+    if not anchor_vectors:
+        return CellDecision(
+            status=NO_HIT,
+            selected=None,
+            candidates=(),
+            threshold=threshold,
+            no_hit_reason="no_active_anchors",
+        )
     scored: list[RankedCandidate] = []
     for unit in units:
         vector = embeddings.get(unit.id)

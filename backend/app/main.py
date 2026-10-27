@@ -52,9 +52,27 @@ from app.logging import configure_logging
 from app.modules.registry import MODULE_REGISTRY
 from app.services import jobs as jobs_service
 from app.services import retrieval_index
-from app.services.expertgranskning.memory import close_default_expert_memory
-from app.services.graph_v2.worker import start_graph_owner, stop_graph_owner
-from app.services.overgraph.catalogs import catalog_root, open_runtime, set_runtime
+from app.services.expertgranskning.memory import (
+    close_default_expert_memory,
+    set_expert_memory_factory,
+)
+from app.services.graph_v2.worker import start_graph_ingest_loop, stop_graph_ingest_loop
+from app.services.overgraph.catalogs import (
+    OverGraphRuntime,
+    OwnerReadRequiredError,
+    catalog_root,
+    open_runtime,
+    set_owner_mode,
+    set_runtime,
+)
+from app.services.overgraph.owner_guards import set_direct_writes_forbidden
+from app.services.overgraph.owner_registry import (
+    close_owner_registry,
+    connect_owner_registry,
+    parse_memory_owner_route,
+    parse_tenant_owner_sockets,
+)
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.knowledge.supabase_vector_client import start_supabase_vector_runtime
 from app.services.knowledge.vector_store import SupabaseVectorBucketStore
 from app.services.kund_store import ensure_default_kunder
@@ -88,6 +106,48 @@ async def _open_retrieval_index() -> None:
     await asyncio.to_thread(retrieval_index.ensure_current)
 
 
+async def _prepare_graph_access(
+    owner_mode: bool, app: FastAPI, *, memory_owner: bool = False,
+) -> None:
+    set_owner_mode(owner_mode)
+    set_direct_writes_forbidden(owner_mode)
+    set_runtime(_graph_runtime_for_mode(owner_mode, memory_owner=memory_owner))
+    if owner_mode:
+        logger.warning(
+            "owner read mode: knowledge catalog opened only by the owner; "
+            "retrieval index and graph writeback loops are disabled",
+        )
+        app.state.retrieval_index = {"status": "owner_mode_pending"}
+        return
+    await _open_retrieval_index()
+
+
+def _start_graph_worker(owner_mode: bool, factory):
+    if not settings.graph_ingest_loop_enabled:
+        return None
+    return start_graph_ingest_loop(factory)
+
+
+def _graph_runtime_for_mode(
+    owner_mode: bool, *, memory_owner: bool = False,
+) -> OverGraphRuntime:
+    """Owner mode keeps the knowledge catalog out of the backend process."""
+    root = catalog_root(settings.overgraph_dir)
+    memory_dimension = EMBEDDING_MODEL_DIMENSIONS[settings.mem0_embedding_model]
+    if owner_mode:
+        from app.services.overgraph.catalogs import open_catalog
+
+        memory = None if memory_owner else open_catalog(
+            root / "memory", kind="memory", dimension=memory_dimension,
+        )
+        return OverGraphRuntime(None, memory)
+    return open_runtime(
+        root,
+        knowledge_dimension=settings.embedding_dimension,
+        memory_dimension=memory_dimension,
+    )
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):  # noqa: PLR0915
     _require_chat_llm()
@@ -119,13 +179,24 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
     except (OperationalError, ProgrammingError) as exc:
         logger.warning("Skipping LLM runtime settings load on startup: %s", exc)
     vector_runtime = None
-    graph_runtime = open_runtime(
-        catalog_root(settings.overgraph_dir),
-        knowledge_dimension=settings.embedding_dimension,
-        memory_dimension=EMBEDDING_MODEL_DIMENSIONS[settings.mem0_embedding_model],
+    owner_runtime = get_owner_runtime()
+    await owner_runtime.connect(
+        settings.overgraph_owner_socket,
+        catalog_id=settings.overgraph_owner_catalog_id or None,
     )
-    set_runtime(graph_runtime)
-    await _open_retrieval_index()
+    _app.state.overgraph_owner = owner_runtime.status
+    tenant_routes = parse_tenant_owner_sockets(settings.overgraph_tenant_owner_sockets)
+    memory_routes = parse_memory_owner_route(settings.overgraph_memory_owner_socket)
+    owner_routes = tenant_routes + memory_routes
+    _app.state.overgraph_tenant_owners = (
+        await connect_owner_registry(owner_routes) if owner_routes else {}
+    )
+    if memory_routes:
+        from app.services.expertgranskning.owner_memory_service import OwnerExpertMemory
+
+        set_expert_memory_factory(OwnerExpertMemory)
+    owner_mode = owner_runtime.client is not None
+    await _prepare_graph_access(owner_mode, _app, memory_owner=bool(memory_routes))
     _app.state.research_vector = {"status": "disabled"}
     reclaim_stop = None
     set_lagen_nu_selector_factory(LlmLagenNuSelector)
@@ -141,19 +212,22 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0915
             "dimension": vector_runtime.health.dimension,
         }
         reclaim_stop = start_research_reclaim_loop()
-    graph_task = start_graph_owner(factory)
+    graph_task = _start_graph_worker(owner_mode, factory)
     try:
         yield
     finally:
         await _app.state.live_speech_registry.close_all()
         if reclaim_stop is not None:
             await stop_research_reclaim_loop(reclaim_stop)
-        await stop_graph_owner(graph_task)
+        await stop_graph_ingest_loop(graph_task)
         set_knowledge_vector_store_factory(None)
         set_lagen_nu_selector_factory(None)
         if vector_runtime is not None:
             await vector_runtime.close()
         try:
+            await close_owner_registry()
+            await owner_runtime.close()
+            set_expert_memory_factory(None)
             close_default_expert_memory()
         finally:
             set_runtime(None)
@@ -218,6 +292,16 @@ def create_app() -> FastAPI:
     if not settings.supabase_service_role_key.strip():
         raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required")
     app = FastAPI(title="Opinionssimulator", version="0.1.0", lifespan=lifespan)
+
+    @app.exception_handler(OwnerReadRequiredError)
+    async def _owner_read_required(_request, exc: OwnerReadRequiredError):
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "knowledge_requires_owner_read", "message": str(exc)},
+        )
+
     app.state.live_speech_registry = LiveSpeechRegistry()
     app.add_middleware(
         CORSMiddleware,
