@@ -1,0 +1,44 @@
+=== g2-15
+QUESTION: Vilka av dessa dokument innehåller en klausul om sekretess? (Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_15_Bonusavtal, Avtal_11_Distansarbetsavtal)
+GAP: FEL: invalid LLM answer "AVTAL_15_BONUSAVTAL" (content: "Avtal_15_Bonusavtal sekretessklausul, Avtal_11_Distansarbetsavtal sekretessklausul")
+NEW_HITS: Avtal_11_Distansarbetsavtal:19
+STATIC: FEL: invalid LLM answer "AVTAL_06_SEKRETESSAVTAL_ENSIDIGT_NDA," (content: "Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal")
+ITERATIVE: FEL: invalid LLM answer "AVTAL_06_SEKRETESSAVTAL_ENSIDIGT_NDA," (content: "Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_11_Distansarbetsavtal")
+ADAPTIVE: FEL: invalid LLM answer "AVTAL_06_SEKRETESSAVTAL_ENSIDIGT_NDA," (content: "Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal")
+ORACLE: FEL: invalid LLM answer "AVTAL_06_SEKRETESSAVTAL_ENSIDIGT_NDA," (content: "Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_11_Distansarbetsavtal")
+
+=== g2-17
+QUESTION: Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_15_Bonusavtal, Avtal_02_Provanstallningsavtal)
+GAP: FEL: invalid LLM answer "AVTAL_05_KONSULTAVTAL," (content: "Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal")
+NEW_HITS: 
+STATIC: FEL: invalid LLM answer "AVTAL_05_KONSULTAVTAL," (content: "Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal")
+ITERATIVE: FEL: invalid LLM answer "AVTAL_05_KONSULTAVTAL," (content: "Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal.")
+ADAPTIVE: FEL: invalid LLM answer "AVTAL_05_KONSULTAVTAL," (content: "Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal.")
+ORACLE: FEL: invalid LLM answer "AVTAL_05_KONSULTAVTAL," (content: "Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal")
+
+=== g2-29
+QUESTION: Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_17_Hyresavtal_lokal, Avtal_15_Bonusavtal, Avtal_03_Visstidsanstallning)
+GAP: FEL: invalid LLM answer "AVTAL_17_HYRESAVTAL_LOKAL:UPPSÄGNINGSKLAUSUL," (content: "Avtal_17_Hyresavtal_lokal:uppsägningsklausul, Avtal_15_Bonusavtal:uppsägningsklausul")
+NEW_HITS: 
+STATIC: FEL: invalid LLM answer "AVTAL_01_TILLSVIDAREANSTALLNINGSAVTAL," (content: "Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning")
+ITERATIVE: FEL: invalid LLM answer "AVTAL_01_TILLSVIDAREANSTALLNINGSAVTAL," (content: "Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning")
+ADAPTIVE: FEL: invalid LLM answer "AVTAL_01_TILLSVIDAREANSTALLNINGSAVTAL," (content: "Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning")
+ORACLE: FEL: invalid LLM answer "AVTAL_01_TILLSVIDAREANSTALLNINGSAVTAL," (content: "Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning")
+
+=== g2-20
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning, Avtal_11_Distansarbetsavtal)
+GAP: FEL: invalid LLM answer "UPPSÄGNINGSTID" (content: "Uppsägningstid i Avtal_01_Tillsvidareanstallningsavtal, Uppsägningstid i Avtal_03_Visstidsanstallning, Uppsägningstid i Avtal_11_Distansarbetsavtal")
+NEW_HITS: 
+STATIC: FEL: invalid LLM answer "UPPGIFT" (content: "Uppgift saknas.")
+ITERATIVE: FEL: invalid LLM answer "UPPGIFT" (content: "Uppgift saknas.")
+ADAPTIVE: FEL: invalid LLM answer "UPPGIFT" (content: "Uppgift saknas.")
+ORACLE: FEL: invalid LLM answer "AVTAL_01_TILLSVIDAREANSTALLNINGSAVTAL" (content: "Avtal_01_Tillsvidareanstallningsavtal")
+
+=== g2-23
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_18_Hyresavtal_bostad, Avtal_22_Kontorshotell_coworking, Avtal_28_Aktieagaravtal)
+GAP: FEL: invalid LLM answer "UPPSÄGNINGSTID," (content: "Uppsägningstid, Avtal_18_Hyresavtal_bostad – uppsägningsklausul, Avtal_22_Kontorshotell_coworking – uppsägningsklausul, Avtal_28_Aktieagaravtal – uppsägningsklausul, Jämförelse av uppsägningstider.")
+NEW_HITS: 
+STATIC: FEL: invalid LLM answer "INGEN" (content: "Ingen information om uppsägningstid finns i den angivna evidensen.")
+ITERATIVE: FEL: invalid LLM answer "INGEN" (content: "Ingen information om uppsägningstid finns i den angivna evidensen.")
+ADAPTIVE: FEL: invalid LLM answer "INGEN" (content: "Ingen information om uppsägningstid finns i den angivna evidensen.")
+ORACLE: FEL: invalid LLM answer "AVTAL_18_HYRESAVTAL_BOSTAD" (content: "Avtal_18_Hyresavtal_bostad")
