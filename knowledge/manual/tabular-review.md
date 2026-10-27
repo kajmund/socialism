@@ -11,6 +11,12 @@ tags: [grunddata]
 
 Varje rad är ett avtal. Varje kolumn är en kategori (till exempel uppsägningstid eller pris). Cellen visar den **ordagranna klausulen** och ett **similarity**-värde, inte en procentsannolikhet.
 
+## Hantera sparade reviews
+
+1. På listan öppnar du en sparad review genom att klicka på namnet.
+2. Varje rad visar hur många avtal och kolumner som ingår samt när reviewn senast uppdaterades.
+3. **Ta bort** raderar reviewn. Avtalen i underlaget påverkas inte.
+
 ## Skapa en review
 
 1. Öppna **Tabular Review** och välj **Ny review**.
@@ -19,6 +25,8 @@ Varje rad är ett avtal. Varje kolumn är en kategori (till exempel uppsägnings
 4. Lägg till kolumner från ett **klausulankarset** (skapas under **Verktyg** → **SSR-ankare**, typ **Klausul**).
 5. Justera **scoregränsen** om du vill kräva högre eller lägre likhet.
 6. Välj **Fyll tabellen**.
+7. Lägg till eller ta bort **kolumner** när som helst: välj kategori från klausulankarset, ange rubrik och **Lägg till kolumn**, eller **Ta bort kolumn** på en befintlig kolumn.
+8. Använd **Sök** och **Statusfilter** ovanför tabellen för att hitta rader eller celler med till exempel träff, ingen träff eller osäker.
 
 ## Läsa tabellen
 

@@ -83,7 +83,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Skapa och redigera expert](skapa-och-redigera-expert.md) — Profil, chatt och vilka verktyg experten får använda
 * [Hantera expertpaneler](hantera-expertpaneler.md) — Lista, duplicera och ta bort sparade paneler
 * [Komponera en expertpanel](komponera-expertpanel.md) — Välj experter och spara panelen direkt
-* [Visa och redigera expertpanel](visa-och-redigera-expertpanel.md) — Medlemmar och lägg till från biblioteket
+* [Visa och redigera expertpanel](visa-och-redigera-expertpanel.md) — Medlemmar, generera expert från underlag och ta bort panel
 * [Hantera kampanjer](hantera-kampanjer.md) — Sök, öppna och ta bort Due Diligence-kampanjer
 * [Köra en Due Diligence-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra Due Diligence per kandidat
 * [Byt namn på en Due Diligence-kampanj](byt-namn-pa-dd-kampanj.md) — Ändra kampanjens titel på fliken Översikt
@@ -110,7 +110,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 
 # Tabular Review
 
-* [Använda Tabular Review](tabular-review.md) — Jämför avtal mot SSR-kategorier och granska klausuler i originalet
+* [Använda Tabular Review](tabular-review.md) — Lista reviews, fyll tabellen, filtrera och granska klausuler i originalet
 
 # Rapporter
 
