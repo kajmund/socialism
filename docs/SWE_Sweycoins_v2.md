@@ -459,3 +459,26 @@ H1-felet är metodologiskt värdefullt: för att gap-steget ska ha riktigt uppt�
 
 **Slutsatsen:** diagnosmaskineriet och behovsmodellen är på plats; milstolpen är inte nådd, och vi vet exakt varför — kandidat-konstruktionen, inte kedjans förmåga. Nästa körning med rank-baserade initial-kandidater är det som kan ge det första reproducerbara fallet där kedjan ensam svarar rätt.
 
+## 24. Skärpt milstolpe: strukturerade behov, rank-baslinje och behovsarkitekturen
+
+Granskningens tre punkter implementerade:
+
+1. **Behov som förstaklassobjekt.** Gap-analysen svarar nu strukturerad JSON: `{need, document, importance (REQUIRED/SUPPORTING/EXPLORATORY), status (UNRESOLVED/RESOLVED), evidence}`. Ett nytt fynd uppdaterar ett specifikt behov, inte en generell täckningssiffra. Arkitekturfrågan ("investera i verktyg eller i behov?") besvaras implementerande: motorn väljer **vilket behov** som ska lösas (importance först, sedan förväntad avkastning per coin) och väljer sedan verktyg för just det behovet — en budgetstyrd undersökningsmotor, inte en modellrouter.
+2. **Riktig retrieval-baslinje.** Initial-kandidaterna kommer från de frysta embedding-rankningarna (K=8); facit används enbart i utvärderingen. K-expansionen (K+8) är den ekonomiska referensen. Två mätfel hittades och fixades under vägen: poolen exkluderade per konstruktion facit-evidensen (H1-felet från §23) och behovs-hämtningen var nyckelords- i stället för rank-ordnad.
+3. **H3-diagnos med orsaker.** Negativa fall klassas: `sufficient` (gap: inga behov), `no yield` (behov gav inget), `exhausted` (resurser slut).
+
+**Resultatet (skärpta kriterierna):**
+
+| Kriterium | Resultat |
+|---|---|
+| C1 samma rankade kandidater för alla kedjor | ✓ strukturellt |
+| C2 ett REQUIRED-behov saknar initialt evidens | ✓ 7/12 fall |
+| C3 gap leder till nytt facit-korrekt evidens | ✓ 4/7 positiva fall (efter evidensrelevans-prompten) |
+| C4 iterativ rätt där statisk är fel | ✗ |
+| C5 K-expansion klarar det inte | (beroende av C4) |
+| C6 reproducerbart utan facit-läckage | ✓ strukturellt |
+
+**Diagnosen för C4 (ärligt):** på g3-01 levererar kedjan hela vägen — gap identifierar alla tre dokumentens uppsägningstider som REQUIRED, hämtningen verifierar det saknade facit-evidenset (Avtal_20:7), och syntesen svarar ett dokument — men **fel** dokument: den valde det enda dokument vars evidens den faktiskt sett, i stället för att vänta tills alla REQUIRED-behov är RESOLVED. Mekanismen är demonstrerad; den återstående bristen är syntesens hantering av ofullständiga behov — samma flaskhalsklass som orakel-dekompositionen (§23) pekat ut. Nästa iteration: syntesen får behovsstatusen (vilka REQUIRED som förblir UNRESOLVED) och måste svara "otillräcklig evidens" i stället för att gissa.
+
+**Slutsatsen:** kedjan kan nu upptäcka behov, omvandla dem till rank-ordnad hämtning och hitta facit-evidens som den statiska kedjan aldrig såg. Det som återstår är att låta syntesen respektera behovsstatusen — då kan C4 och milstolpen falla utan att facit rör beslutsprocessen.
+
