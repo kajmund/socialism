@@ -78,7 +78,7 @@ fn student_rollout_matches_the_teacher_on_held_out_questions() {
         .filter(|t| t.question_id != held)
         .cloned()
         .collect();
-    let student = StudentPolicy::train(&teacher_pairs(&train), 1_000, 0.5);
+    let student = StudentPolicy::train(&teacher_pairs(&train), 200, 0.5);
 
     let mut env = RealEnv::new(REAL_BASE_REWARD_MILLI);
     for budget in [100_000u64, 200_000, 300_000] {

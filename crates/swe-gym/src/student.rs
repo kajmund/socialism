@@ -38,15 +38,24 @@ pub fn features(obs: &Observation) -> [f64; FEATURE_COUNT] {
     ]
 }
 
-/// The teacher's action vocabulary (the pipeline only ever takes these).
-pub const CLASSES: [Action; 3] = [
+/// The student's action vocabulary: the teacher's three actions plus
+/// the amount alternatives exploration can discover (finer JEV bets,
+/// larger pool extensions). Six classes — the student must be able to
+/// EXPRESS an improvement, not only imitate.
+pub const CLASSES: [Action; 6] = [
     Action::Invest(0, 1_000),
+    Action::Invest(0, 5_000),
+    Action::Invest(1, 1_000),
     Action::Invest(1, 5_000),
+    Action::Invest(1, 10_000),
     Action::Finish,
 ];
 
 pub fn class_of(action: Action) -> usize {
-    CLASSES.iter().position(|&a| a == action).unwrap_or(2) // unknown actions count as Finish
+    CLASSES
+        .iter()
+        .position(|&a| a == action)
+        .unwrap_or(CLASSES.len() - 1) // unknown actions count as Finish
 }
 
 #[derive(Clone, Debug)]
@@ -62,8 +71,8 @@ impl StudentPolicy {
         }
     }
 
-    fn scores(&self, x: &[f64]) -> [f64; 3] {
-        let mut s = [0.0f64; 3];
+    fn scores(&self, x: &[f64]) -> Vec<f64> {
+        let mut s = vec![0.0f64; CLASSES.len()];
         for (c, sc) in s.iter_mut().enumerate() {
             let base = c * (FEATURE_COUNT + 1);
             *sc = self.w[base]; // bias
@@ -74,19 +83,19 @@ impl StudentPolicy {
         s
     }
 
-    pub fn probs(&self, x: &[f64]) -> [f64; 3] {
+    pub fn probs(&self, x: &[f64]) -> Vec<f64> {
         let s = self.scores(x);
         let max = s.iter().cloned().fold(f64::MIN, f64::max);
         let exps: Vec<f64> = s.iter().map(|v| (v - max).exp()).collect();
         let sum: f64 = exps.iter().sum();
-        [exps[0] / sum, exps[1] / sum, exps[2] / sum]
+        exps.into_iter().map(|e| e / sum).collect()
     }
 
     pub fn predict(&self, obs: &Observation) -> usize {
         let x = features(obs);
         let p = self.probs(&x);
         let mut best = 0;
-        for c in 1..3 {
+        for c in 1..p.len() {
             if p[c] > p[best] {
                 best = c;
             }
@@ -100,7 +109,7 @@ impl StudentPolicy {
         for _ in 0..epochs {
             for (x, y) in pairs {
                 let p = student.probs(x);
-                for c in 0..3 {
+                for c in 0..CLASSES.len() {
                     let target = if c == *y { 1.0 } else { 0.0 };
                     let base = c * (FEATURE_COUNT + 1);
                     student.w[base] += lr * (target - p[c]);
@@ -168,7 +177,7 @@ pub fn leave_one_out_gate(trajectories: &[Trajectory]) -> Vec<f64> {
             .partition(|t| t.question_id != *held_out);
         let train_owned: Vec<Trajectory> = train.iter().map(|t| (*t).clone()).collect();
         let pairs = teacher_pairs(&train_owned);
-        let student = StudentPolicy::train(&pairs, 400, 0.5);
+        let student = StudentPolicy::train(&pairs, 200, 0.5);
         let mut hits = 0usize;
         let mut total = 0usize;
         for t in &test {
