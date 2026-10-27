@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "name": "swe-gym-minimal-bench",
+  "score_model": "v1",
+  "tariffs_milli": { "scan": 1000, "deep": 10000 },
+  "total_budget_milli": 30000,
+  "questions": [
+    {
+      "id": "Q1 lätt",
+      "required_coverage": 2,
+      "chunks": [
+        "chunk-00", "chunk-01", "chunk-02", "chunk-03", "chunk-04",
+        "chunk-05", "chunk-06", "chunk-07", "chunk-08", "chunk-09"
+      ],
+      "evidence": ["chunk-01", "chunk-05", "chunk-07"],
+      "scan_blind": []
+    },
+    {
+      "id": "Q2 svår",
+      "required_coverage": 3,
+      "chunks": [
+        "chunk-00", "chunk-01", "chunk-02", "chunk-03", "chunk-04",
+        "chunk-05", "chunk-06", "chunk-07", "chunk-08", "chunk-09"
+      ],
+      "evidence": ["chunk-01", "chunk-05", "chunk-07"],
+      "scan_blind": ["chunk-07"]
+    }
+  ]
+}

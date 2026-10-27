@@ -27,6 +27,21 @@ function statusKey(status: TabularReviewCell["status"]) {
   }
 }
 
+function reasonKey(reason: string) {
+  switch (reason) {
+    case "below_threshold":
+      return "tabularReview.status.noHitReason.belowThreshold" as const
+    case "no_active_anchors":
+      return "tabularReview.status.noHitReason.noActiveAnchors" as const
+    case "no_candidates":
+      return "tabularReview.status.noHitReason.noCandidates" as const
+    case "abstain_margin":
+      return "tabularReview.status.noHitReason.abstainMargin" as const
+    default:
+      return null
+  }
+}
+
 function sortMark(active: boolean, dir: TabularReview["sort_dir"]) {
   if (!active) return ""
   return dir === "asc" ? " ↑" : " ↓"
@@ -111,6 +126,11 @@ export function ReviewTable({ review, onOpenCell, onSort }: Props) {
                         onClick={() => onOpenCell(row, cell)}
                       >
                         <span className="block font-medium">{t(statusKey(cell.status))}</span>
+                        {cell.no_hit_reason && reasonKey(cell.no_hit_reason) ? (
+                          <span className="block text-xs text-muted-foreground">
+                            {t(reasonKey(cell.no_hit_reason)!)}
+                          </span>
+                        ) : null}
                         {cell.status === "no_hit" ? null : (
                           <span className="block line-clamp-2 text-xs">{cell.exact_text}</span>
                         )}

@@ -15,6 +15,7 @@ from app.observability.knowledge import (
     record_knowledge_decision,
 )
 from app.services.knowledge.graph_claim_mirror import mirror_claim
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.knowledge.graph_relationship_mirror import mirror_relationship
 from app.services.knowledge.claim_store import persist_domain_claim
 from app.services.knowledge.claims import (
@@ -87,8 +88,9 @@ async def persist_extracted_claim(
             session, claim, decision, counters=counters, question_key=question_key
         )
     row, reused = await persist_domain_claim(session, claim)
-    # Transitional mirror so the OverGraph reader has real data before parcel 5.
-    await asyncio.to_thread(mirror_claim, claim)
+    # The owner path already published claim + evidence atomically.
+    if get_owner_runtime().client is None:
+        await asyncio.to_thread(mirror_claim, claim)
     record_knowledge_decision(
         counters,
         KnowledgeDecision(

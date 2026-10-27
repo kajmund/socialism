@@ -16,7 +16,6 @@ from app.services.document_qa.kinds import DOCUMENT_CATALOG_WRITE, DOCUMENT_QA_W
 from app.services.graph_v2.embeddings import GraphEmbeddingCacheProvider
 from app.services.graph_v2.errors import PermanentGraphError
 from app.services.graph_v2.identity import stable_id
-from app.services.graph_v2.legal_writeback import write_legal_facts
 from app.services.knowledge.claims import KnowledgeClaim
 from app.services.knowledge.embeddings import EmbeddingProvider, OpenAIEmbeddingProvider
 from app.services.knowledge.entities import KnowledgeEntity
@@ -118,20 +117,9 @@ async def process_graph_work(
                 continue
             if provider is None:
                 provider = _legal_embedder(factory, embedder)
-            async with factory.begin() as session:
-                row = await session.get(GraphIngestWork, work_id)
-                claims, entities, module = _deserialize(row)
-                await write_legal_facts(
-                    session, claims=claims, entities=entities,
-                    embedder=provider, module=module,
-                )
-                result = await session.execute(update(GraphIngestWork).where(
-                    GraphIngestWork.id == work_id,
-                    GraphIngestWork.status == "processing",
-                    GraphIngestWork.attempts == attempt,
-                ).values(status="completed", processed_at=datetime.now(UTC),
-                         retry_at=None, last_error=None))
-            completed += int(result.rowcount == 1)
+            completed += await _apply_legal_owner(
+                factory, work_id, attempt, provider,
+            )
         except Exception as exc:  # One bad projection must not stall the queue.
             if _is_permanent_graph_error(exc):
                 logger.exception(
@@ -157,6 +145,33 @@ async def _peek_kind(factory: async_sessionmaker[AsyncSession], work_id: str) ->
         if row is None:
             raise PermanentGraphError("graph ingest work is missing")
         return work_kind(row.payload)
+
+
+async def _apply_legal_owner(
+    factory: async_sessionmaker[AsyncSession],
+    work_id: str,
+    attempt: int,
+    embedder: EmbeddingProvider,
+) -> int:
+    """Read the payload, close the DB session, then project through the Owner."""
+    from app.services.graph_v2.owner_legal_writeback import write_legal_facts_via_owner
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+
+    async with factory.begin() as session:
+        row = await session.get(GraphIngestWork, work_id)
+        claims, entities, module = _deserialize(row)
+    await write_legal_facts_via_owner(
+        get_owner_runtime().require_client(), claims=claims, entities=entities,
+        embedder=embedder, module=module,
+    )
+    async with factory.begin() as session:
+        result = await session.execute(update(GraphIngestWork).where(
+            GraphIngestWork.id == work_id,
+            GraphIngestWork.status == "processing",
+            GraphIngestWork.attempts == attempt,
+        ).values(status="completed", processed_at=datetime.now(UTC),
+                 retry_at=None, last_error=None))
+    return int(result.rowcount == 1)
 
 
 def _legal_embedder(
