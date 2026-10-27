@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import (
     CanonicalDocumentRecord,
-    KnowledgeEntityRecord,
     KnowledgeRelationshipRecord,
 )
 from app.services.knowledge.claims import SUPPORTED_BY
@@ -329,9 +328,7 @@ async def _endpoint_scope(
 
         response = await owner.read([{"label": ENTITY, "key": node_id}])
         props = response["values"].get(f"{ENTITY}:{node_id}")
-        if props is not None:
-            return scope_from_props(props)
-        row = await session.get(KnowledgeEntityRecord, node_id)
+        return scope_from_props(props) if props is not None else None
     elif kind == "claim":
         response = await owner.read([{"label": CLAIM, "key": node_id}])
         props = response["values"].get(f"{CLAIM}:{node_id}")
