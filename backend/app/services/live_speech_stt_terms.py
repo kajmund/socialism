@@ -9,6 +9,7 @@ from collections.abc import Iterable, Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, StoredObject
 from app.database.workspace_models import VoiceWorkspace
 from app.schemas.workspace import WorkspaceState
@@ -47,7 +48,7 @@ def keywords_from_text_units(
     texts: Iterable[str],
     *,
     base: Sequence[str] = (),
-    limit: int = 24,
+    limit: int | None = None,
 ) -> list[str]:
     counts: Counter[str] = Counter()
     surfaces: dict[str, str] = {}
@@ -61,11 +62,14 @@ def keywords_from_text_units(
             current = surfaces.get(key)
             if current is None or (word[:1].isupper() and not current[:1].isupper()):
                 surfaces[key] = word
+    # A generous bias list makes the decoder hear the list instead of the
+    # speech. Terms must recur, or be long enough to be deliberate names.
     ranked = [
         surfaces[key]
         for key, count in counts.most_common()
-        if count >= 2 or len(key) >= 10
+        if count >= settings.live_speech_stt_keyword_min_count or len(key) >= 12
     ]
+    cap = settings.live_speech_stt_keyword_limit if limit is None else limit
     chosen: list[str] = []
     seen: set[str] = set()
     for word in (*ranked, *base):
@@ -75,7 +79,7 @@ def keywords_from_text_units(
             continue
         seen.add(key)
         chosen.append(text)
-        if len(chosen) >= limit:
+        if len(chosen) >= cap:
             break
     return chosen
 

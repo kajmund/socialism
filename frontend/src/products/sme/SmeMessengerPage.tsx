@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Plus } from "lucide-react"
-import { listPersonaMessages } from "@/api/personas"
+import { listPersonaMessages, clearSmeExpertMessages } from "@/api/personas"
 import { listSmeInbox, markSmeThreadRead, type SmeInboxFilter, type SmeInboxItem } from "@/api/sme"
 import { voiceWorkspaces, type WorkspaceMessage } from "@/api/voiceWorkspaces"
 import { ExpertVoiceButton } from "@/components/chat/ExpertVoiceButton"
@@ -142,7 +142,10 @@ export function SmeMessengerPage() {
     const scope = { workspaceId: workspace.id, expertId: selectedId }
     const epoch = ++transcriptEpoch.current
     await conversation.stop()
-    await voiceWorkspaces.clearMessages(scope.workspaceId, scope.expertId)
+    await Promise.all([
+      voiceWorkspaces.clearMessages(scope.workspaceId, scope.expertId),
+      clearSmeExpertMessages(scope.expertId),
+    ])
     if (transcriptEpoch.current !== epoch || selectedExpert.current !== scope.expertId) return
     setMessages([]); setPreview(null); setDraftPreview(null); setChatError(null)
     await nativeInbox.refresh(scope.workspaceId)

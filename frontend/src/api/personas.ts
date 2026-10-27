@@ -24,9 +24,12 @@ export type PersonaWrite = {
   tools?: string[]
   live_voice_provider?: LiveVoiceProviderName
   live_voice?: string
+  live_voice_model?: string
+  stt_correction_enabled?: boolean
+  stt_correction_timeout_seconds?: number
 }
 
-export type LiveVoiceProviderName = "gemini" | "elevenlabs" | "socialism"
+export type LiveVoiceProviderName = "gemini" | "elevenlabs" | "openai" | "socialism"
 
 export type LiveVoiceOption = { id: string; name: string }
 
@@ -36,6 +39,9 @@ export type PersonaWriteOptions = {
   tools?: string[]
   liveVoiceProvider?: LiveVoiceProviderName
   liveVoice?: string
+  liveVoiceModel?: string
+  sttCorrectionEnabled?: boolean
+  sttCorrectionTimeoutSeconds?: number
 }
 
 export function editableToWrite(
@@ -62,6 +68,9 @@ export function editableToWrite(
       tools: options.tools,
       live_voice_provider: options.liveVoiceProvider,
       live_voice: options.liveVoice,
+      live_voice_model: options.liveVoiceModel,
+      stt_correction_enabled: options.sttCorrectionEnabled,
+      stt_correction_timeout_seconds: options.sttCorrectionTimeoutSeconds,
     }
   }
   const age = Number.parseInt(persona.age, 10)
@@ -131,8 +140,12 @@ export function listLiveVoices(provider: LiveVoiceProviderName): Promise<LiveVoi
   return api.get<LiveVoiceOption[]>("/personas/live-voices", { provider })
 }
 
+export function listLiveModels(provider: LiveVoiceProviderName): Promise<LiveVoiceOption[]> {
+  return api.get<LiveVoiceOption[]>("/personas/live-models", { provider })
+}
+
 export type PersonaLiveSession = {
-  provider: "gemini" | "elevenlabs"
+  provider: "gemini" | "elevenlabs" | "openai"
   websocket_url: string
   model: string
   voice: string
@@ -264,6 +277,10 @@ export function listPersonaMessages(
   mode: ChatMode,
 ): Promise<PersonaMessage[]> {
   return api.get<PersonaMessage[]>(`/personas/${id}/messages`, { mode })
+}
+
+export function clearSmeExpertMessages(expertId: string): Promise<void> {
+  return api.delete(`/sme/experts/${expertId}/messages`)
 }
 
 export function getSuggestedQuestions(

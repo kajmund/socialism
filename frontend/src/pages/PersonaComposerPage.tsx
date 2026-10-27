@@ -229,7 +229,11 @@ type EditorProps = {
   onAvatarUrlChange?: (path: string | null) => void
   liveVoiceProvider?: LiveVoiceProviderName
   liveVoice?: string
-  onLiveVoiceChange?: (provider: LiveVoiceProviderName, voice: string) => void
+  liveVoiceModel?: string
+  onLiveVoiceChange?: (provider: LiveVoiceProviderName, voice: string, model: string) => void
+  correctionEnabled?: boolean
+  correctionTimeout?: number
+  onCorrectionChange?: (enabled: boolean, timeout: number) => void
 }
 
 function Editor({
@@ -257,7 +261,11 @@ function Editor({
   onAvatarUrlChange,
   liveVoiceProvider = "gemini",
   liveVoice = "",
+  liveVoiceModel = "",
   onLiveVoiceChange,
+  correctionEnabled = true,
+  correctionTimeout = 2.0,
+  onCorrectionChange = () => undefined,
 }: EditorProps) {
   const { intl } = useLocale()
   const [mode, setMode] = useState<"work" | "present">("work")
@@ -759,7 +767,7 @@ function Editor({
         >
           {kind === "expert" ? (
             <>
-              <ExpertLiveVoiceFields provider={liveVoiceProvider} voice={liveVoice} onChange={onLiveVoiceChange ?? (() => undefined)} />
+              <ExpertLiveVoiceFields provider={liveVoiceProvider} voice={liveVoice} model={liveVoiceModel} correctionEnabled={correctionEnabled} correctionTimeout={correctionTimeout} onChange={onLiveVoiceChange ?? (() => undefined)} onCorrectionChange={onCorrectionChange} />
               <div className="layer-h">{t("personas.composer.layerDemography")}</div>
               <LayerTable
                 fieldOptions={fieldOptions}
@@ -1385,6 +1393,9 @@ export function PersonaComposerPage({
   )
   const [liveProvider, setLiveProvider] = useState<LiveVoiceProviderName>("gemini")
   const [liveVoice, setLiveVoice] = useState("")
+  const [liveModel, setLiveModel] = useState("")
+  const [correctionEnabled, setCorrectionEnabled] = useState(true)
+  const [correctionTimeout, setCorrectionTimeout] = useState(2.0)
   const [loading, setLoading] = useState(!!existingId)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -1482,6 +1493,9 @@ export function PersonaComposerPage({
         )
         setLiveProvider(detail.live_voice_provider)
         setLiveVoice(detail.live_voice)
+        setLiveModel(detail.live_voice_model ?? "")
+        setCorrectionEnabled(detail.stt_correction_enabled ?? true)
+        setCorrectionTimeout(detail.stt_correction_timeout_seconds ?? 2.0)
         setLoading(false)
       })
       .catch((err: unknown) => {
@@ -1510,6 +1524,9 @@ export function PersonaComposerPage({
         tools,
         liveVoiceProvider: isExpert ? liveProvider : undefined,
         liveVoice: isExpert ? liveVoice : undefined,
+        liveVoiceModel: isExpert ? liveModel : undefined,
+        sttCorrectionEnabled: isExpert ? correctionEnabled : undefined,
+        sttCorrectionTimeoutSeconds: isExpert ? correctionTimeout : undefined,
       })
       if (personaId) {
         const saved = await updatePersona(personaId, body)
@@ -1523,6 +1540,9 @@ export function PersonaComposerPage({
         setAvatarUrl(saved.avatar_url ?? null)
         setLiveProvider(saved.live_voice_provider)
         setLiveVoice(saved.live_voice)
+        setLiveModel(saved.live_voice_model ?? "")
+        setCorrectionEnabled(saved.stt_correction_enabled ?? true)
+        setCorrectionTimeout(saved.stt_correction_timeout_seconds ?? 2.0)
         if (embedded) onSaved?.(saved)
       } else {
         const saved = await createPersona(body)
@@ -1535,6 +1555,9 @@ export function PersonaComposerPage({
         )
         setLiveProvider(saved.live_voice_provider)
         setLiveVoice(saved.live_voice)
+        setLiveModel(saved.live_voice_model ?? "")
+        setCorrectionEnabled(saved.stt_correction_enabled ?? true)
+        setCorrectionTimeout(saved.stt_correction_timeout_seconds ?? 2.0)
         if (!embedded) navigate(`${basePath}/${saved.id}`, { replace: true })
         if (embedded) onSaved?.(saved)
       }
@@ -1776,7 +1799,11 @@ export function PersonaComposerPage({
               avatarUrl={avatarUrl}
               liveVoiceProvider={liveProvider}
               liveVoice={liveVoice}
-              onLiveVoiceChange={(provider, voice) => { setLiveProvider(provider); setLiveVoice(voice) }}
+              liveVoiceModel={liveModel}
+              onLiveVoiceChange={(provider, voice, model) => { setLiveProvider(provider); setLiveVoice(voice); setLiveModel(model) }}
+              correctionEnabled={correctionEnabled}
+              correctionTimeout={correctionTimeout}
+              onCorrectionChange={(enabled, timeout) => { setCorrectionEnabled(enabled); setCorrectionTimeout(timeout) }}
               onAvatarUrlChange={(path) => {
                 setAvatarUrl(path)
                 onAvatarChange?.(path)
