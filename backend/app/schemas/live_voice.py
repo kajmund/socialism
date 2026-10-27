@@ -2,9 +2,30 @@
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-LiveVoiceProviderName = Literal["gemini", "elevenlabs", "socialism"]
+LiveVoiceProviderName = Literal["gemini", "elevenlabs", "socialism", "openai"]
+
+
+class LiveVoiceModelMixin:
+    """Per-expert model for providers that offer one (OpenAI Realtime)."""
+
+    live_voice_model: str | None = Field(default=None, max_length=64)
+
+    @field_validator("live_voice_model")
+    @classmethod
+    def strip_live_voice_model(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        return text or None
+
+
+class SttCorrectionMixin:
+    """Per-expert STT-correction settings for Socialism live voice."""
+
+    stt_correction_enabled: bool | None = None
+    stt_correction_timeout_seconds: float | None = Field(default=None, ge=0.5, le=10)
 
 
 class LiveVoiceOption(BaseModel):

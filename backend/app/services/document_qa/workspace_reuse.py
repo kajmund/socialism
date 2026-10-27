@@ -13,11 +13,11 @@ from app.services.document_qa.from_workspace import (
     workspace_question,
 )
 from app.services.document_qa.outbox import require_owned_ids
-from app.services.document_qa.retrieve import exact_reuse
-from app.services.document_qa.tenants import get_tenant_catalogs
+from app.services.document_qa.owner_qa_retrieve import exact_reuse as exact_reuse_owner
+from app.services.overgraph.owner_registry import tenant_owner_client
 from app.services.document_qa.types import ExactHit, LoadedCite
 from app.services.graph_v2.errors import PermanentGraphError
-from app.services.overgraph.catalogs import Catalog
+from app.services.overgraph.owner import OwnerClient
 
 
 async def try_reuse_workspace_answer(session: AsyncSession, job_id: str) -> dict | None:
@@ -26,8 +26,7 @@ async def try_reuse_workspace_answer(session: AsyncSession, job_id: str) -> dict
     if saved is not None or job is None:
         return saved
     asked = workspace_question(job)
-    catalogs = get_tenant_catalogs()
-    if asked is None or catalogs is None or job.result:
+    if asked is None or job.result:
         return None
     try:
         await require_owned_ids(
@@ -38,7 +37,9 @@ async def try_reuse_workspace_answer(session: AsyncSession, job_id: str) -> dict
         return None
     chat_id = str(job.request.get("chat_id") or "")
     await session.rollback()
-    hit = exact_hit_for_question(catalogs.open_for(asked.customer_id), asked)
+    hit = await exact_hit_for_question_owner(
+        tenant_owner_client(asked.customer_id), asked,
+    )
     if hit is None or not chat_id:
         return None
     result = result_from_hit(hit, asked.source_object_id)
@@ -55,9 +56,11 @@ def _finished_answer(job: Job | None) -> dict | None:
     return None
 
 
-def exact_hit_for_question(catalog: Catalog, asked: WorkspaceQuestion) -> ExactHit | None:
-    return exact_reuse(
-        catalog,
+async def exact_hit_for_question_owner(
+    client: OwnerClient, asked: WorkspaceQuestion,
+) -> ExactHit | None:
+    return await exact_reuse_owner(
+        client,
         Viewer(
             customer_id=asked.customer_id,
             workspace_id=asked.workspace_id,

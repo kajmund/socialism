@@ -369,9 +369,10 @@ async def test_observations_are_mirrored_under_the_domain_identity(session):
     assert not node.props.get("decision")
 
 
-def test_customer_purge_removes_graph_observations():
+async def test_customer_purge_removes_graph_observations():
     """Deleting a customer's knowledge must not leave observation inventory behind."""
-    from app.services.kund_dokument import _delete_observations_from_graph
+    from app.services.kund_dokument import _delete_scope_nodes
+    from app.services.overgraph.labels import VERIFICATION_OBSERVATION
     from app.services.overgraph.claims import (
         VerificationObservationWrite,
         observation_identity,
@@ -392,7 +393,7 @@ def test_customer_purge_removes_graph_observations():
     key = observation_identity(write)
     assert catalog.get_by_key("VerificationObservation", key) is not None
 
-    _delete_observations_from_graph(7)
+    await _delete_scope_nodes(VERIFICATION_OBSERVATION, 7)
     assert catalog.get_by_key("VerificationObservation", key) is None
 
 
