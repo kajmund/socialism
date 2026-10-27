@@ -11,18 +11,14 @@ import pytest
 from app.services.document_qa import (
     AnalysisContract,
     AnswerPostWrite,
-    QaOutbox,
     QaPermissionError,
-    QaStoreError,
     QaWrite,
     SourceCite,
-    TenantCatalogs,
     Viewer,
     archive_document,
     cache_decision,
     exact_reuse,
     persist,
-    persist_after_answer,
     purge_document,
     review_answer,
     review_history,
@@ -93,12 +89,8 @@ def _write(patch: dict | None = None, *, posts=None) -> QaWrite:
 
 
 @pytest.fixture
-def tenants(tmp_path):
-    registry = TenantCatalogs(tmp_path, dimension=DIM)
-    try:
-        yield registry
-    finally:
-        registry.close()
+async def tenants(owner_tenant_catalogs):
+    return await owner_tenant_catalogs(dimension=DIM)
 
 
 def test_client_cannot_choose_tenant_file(tenants):
@@ -297,7 +289,6 @@ def test_verified_answer_beats_unreviewed_and_rejected_is_not_reused(tenants):
 
 def test_archive_hides_and_purge_removes(tenants):
     catalog = tenants.open_for(1)
-    outbox = QaOutbox(tenants)
     loaded = persist(catalog, _viewer(), _write())
     archive_document(catalog, _viewer(), "doc-1")
     assert document_is_archived(catalog, "doc-1")
@@ -312,32 +303,9 @@ def test_archive_hides_and_purge_removes(tenants):
         include_archived=True,
     )
     assert hidden is not None
-    outbox.enqueue(_viewer(), _write({"created": "2026-10-11T15:00:00Z", "text": "senare"}))
-    purge_document(catalog, _viewer(), "doc-1", outbox=outbox)
+    purge_document(catalog, _viewer(), "doc-1")
     assert document_exists(catalog, "doc-1") is False
     assert catalog.get_by_key(QUESTION, loaded.key) is None
-    results = outbox.flush()
-    assert results == []
-    assert catalog.get_by_key(QUESTION, loaded.key) is None
-
-
-def test_failed_writeback_does_not_block_answer(tenants):
-    catalog = tenants.open_for(1)
-
-    def boom(*_args, **_kwargs):
-        raise QaStoreError("disk full")
-
-    answer = persist_after_answer(catalog, _viewer(), _write(), persist_fn=boom)
-    assert answer.text == "Svar om uppsägning." and answer.persisted is False
-    outbox = QaOutbox(tenants, persist_fn=boom)
-    queued = outbox.enqueue(_viewer(), _write())
-    assert queued.persisted is False
-    flushed = outbox.flush()
-    assert flushed[0].ok is False
-    assert exact_reuse(
-        catalog, _viewer(), question_text="Vad gäller uppsägning?",
-        document_id="doc-1", document_version_id="ver-1", contract=CONTRACT,
-    ) is None
 
 
 @pytest.mark.asyncio

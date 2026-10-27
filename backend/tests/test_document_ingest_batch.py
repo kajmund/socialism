@@ -237,6 +237,7 @@ async def test_ingest_finishes_without_generated_knowledge_cards(client_db, monk
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("client", ["file_database"], indirect=True)
 async def test_two_files_ingest_without_waiting_for_generated_cards(client_db, monkeypatch):
     _fake_knowledge(monkeypatch)
     client, factory = client_db

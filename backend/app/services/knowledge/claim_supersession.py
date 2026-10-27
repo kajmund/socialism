@@ -6,15 +6,14 @@ claim is closed in the graph with the same semantics: status, validity window, s
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.knowledge.events import CLAIM_SUPERSEDED, record_graph_event, utc_now
 from app.services.knowledge.scope import require_persist_scope
-from app.services.overgraph.catalogs import require_knowledge
-from app.services.overgraph.legal_claims import claim_is_superseded, mark_claim_superseded
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.owner_legal import is_superseded as owner_is_superseded, mark_superseded as owner_mark_superseded
 
 
 async def supersede_graph_claim(
@@ -27,11 +26,12 @@ async def supersede_graph_claim(
     valid_to: datetime | None,
 ):
     """Close a graph-only claim (the SQL row no longer exists)."""
-    catalog = require_knowledge()
-    node = catalog.get_by_key("Claim", claim_id)
-    if node is None:
+    client = get_owner_runtime().require_client()
+    response = await client.read([{"label": "Claim", "key": claim_id}])
+    props = response["values"].get(f"Claim:{claim_id}")
+    if props is None:
         raise error_type(f"claim {claim_id} is missing")
-    if claim_is_superseded(catalog, claim_id):
+    if await owner_is_superseded(client, claim_id):
         raise error_type(f"claim {claim_id} is already superseded")
     stamp = at or utc_now()
     successor_id = None
@@ -42,17 +42,15 @@ async def supersede_graph_claim(
         successor_id = stored.id
         if successor_id == claim_id:
             raise error_type("a claim cannot supersede itself")
-    await asyncio.to_thread(
-        mark_claim_superseded,
-        catalog,
-        claim_id,
-        superseded_at=stamp,
-        valid_to=valid_to or stamp,
-        successor_id=successor_id,
+    await owner_mark_superseded(
+        client, claim_id, superseded_at=stamp,
+        valid_to=valid_to or stamp, successor_id=successor_id,
     )
+    scope_key = str(props.get("scope_key") or "")
+    customer = int(scope_key.split(":", 1)[1]) if scope_key.startswith("customer:") else None
     await record_graph_event(
         session,
-        scope=require_persist_scope(customer_id=_scope_customer(node)),
+        scope=require_persist_scope(customer_id=customer),
         event_type=CLAIM_SUPERSEDED,
         node_kind="claim",
         node_id=claim_id,

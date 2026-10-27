@@ -79,10 +79,13 @@ from app.services.research.router import ResearchRouter
 from app.swe.features import WorkflowHostContext
 from scripts.benchmark_research_loop import (
     CUSTOMER_ID,
+    OwnerBinding,
     _install_fake_embeddings,
     _new_attempt,
     _open_database,
     _open_runtime,
+    close_owner_binding,
+    open_owner_for_runtime,
 )
 from scripts.benchmark_research_swe import (
     ARMS,
@@ -537,6 +540,7 @@ class Env:
     source: Any
     run_store: WorkflowRunStore | None
     llm_calls: list[LLMCallStats]
+    owner_binding: OwnerBinding
 
     def provider_calls(self) -> int:
         return int(getattr(self.source, "calls", 0))
@@ -691,7 +695,8 @@ async def _open_env(*, arm: str, root: Path, latency_ms: int, persist: bool,
                     source: Any = None) -> Env:
     env_root = root / tag
     env_root.mkdir(parents=True, exist_ok=True)
-    _open_runtime(env_root / "overgraph")
+    runtime = _open_runtime(env_root / "overgraph")
+    owner_binding = await open_owner_for_runtime(runtime)
     engine, factory = await _open_database(env_root / "research.sqlite")
     chosen = source or LatencySource(FAKE_SOURCE_TYPE, latency_ms)
     registry = ResearchSourceRegistry()
@@ -706,12 +711,14 @@ async def _open_env(*, arm: str, root: Path, latency_ms: int, persist: bool,
     return Env(
         engine=engine, factory=factory, router=ResearchRouter(registry),
         source=chosen, run_store=run_store, llm_calls=llm_calls,
+        owner_binding=owner_binding,
     )
 
 
 async def _close_env(env: Env) -> None:
     if env.run_store is not None:
         env.run_store.close()
+    await close_owner_binding(env.owner_binding)
     from app.services.overgraph.catalogs import set_runtime
 
     set_runtime(None)

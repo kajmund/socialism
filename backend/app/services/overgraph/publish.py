@@ -24,11 +24,13 @@ class AnswerPublish:
     scope: KnowledgeTenantScope
     identity: str
     evidence_set_id: str
-    fact_id: str
     attributes: dict
     basis: list
     assessment: dict
     dependency_ids: tuple[str, ...]
+    # Only the legacy direct writer needs a precomputed key; the owner writer
+    # derives the content-addressed answer fact identity itself.
+    fact_id: str | None = None
 
 
 def publish_legal_fact(
@@ -71,6 +73,8 @@ def link_legal_questions(
 
 
 def publish_answer_fact(catalog: Catalog, published: AnswerPublish) -> str:
+    if published.fact_id is None:
+        raise ValueError("direct answer publish requires a precomputed fact_id")
     source = upsert_entity(catalog, NodeInput(
         node_type=QUESTION_TYPE,
         name=published.question_text,
