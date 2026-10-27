@@ -371,3 +371,28 @@ Granskningens tre punkter, genomförda:
 
 **3. Djup-capture — den tredje förmågans data är nu fryst.** `cargo run --example v2_capture_deep` körde 125 live LLM-anrop (Cerebras) över de 25 bästa kandidaterna per fråga och frös `benchmarks/real_fixtures_deep/*.json`. Fyndet i datan: **alla fem frågorna har noll blind-guld** (`evidence ∩ scan_blind = ∅`) — JEV täcker redan hela facit, och LLM:s fynd är en delmängd (16/20, 11/13, 20/34, 12/13, 7/7 av guldet). Därmed har deep-förmågan **noll marginalvärde på denna bänk** — den kan inte skapa ett tre-förmåge-allokeringsspel på dessa frågor. Det är ett ärligt och viktigt bänk-fynd: för att lära SWE att förvalta en hel researchbudget krävs frågetyper där resonemang har marginalvärde (motsägelsefulla källor, syntesfrågor) — nästa steg i frågegenereringen (§15) måste prioritera just det. När sådana frågor finns är allt maskineri redo: deep-fixtures, RealEnv:s C-förmåga (maskad tills vidare) och trajektorie-insamlaren.
 
+## 19. Research Gym: kursändring — marknaden före motorn
+
+**RL-implementationen är frusen** (§13–§18 står som de är; inga fler hyperparameter- eller feature-ändringar mot fem-fråge-bänken). Nästa version bygger marknaden: 30 oberoende Golden Questions över tre kategorier (evidenssökning, korsdokumentanalys, resonemang/syntes) med **separat facit för nödvändig evidens och korrekt slutsats**, genererade ur verkliga dokument med en deterministisk strukturextraktor — inte av SWE:s researchmotor. Därefter mäts JEV, retrieval och LLM separat och i kombination för faktiskt marginalvärde, innan någon ytterligare RL-träning. En förmåga utan marginalvärde redovisas som sådan.
+
+## 20. Research Gym: 30 frågor, dubbelt facit, marginalvärdesmätning
+
+Uppdraget från kursändringen, genomfört i tre steg:
+
+1. **Frågegeneratorn** (`tools/gen_golden_v2.py`): deterministisk strukturextraktor — klausulnyckelord + regex-värdeextraktion över de 50 riktiga avtalsdokumentens chunktexter. **Facit härleds ur dokumentstrukturen, inte ur JEV/LLM/embeddings.** 30 frågor, 10 per kategori: evidenssökning (positiva + negativa klausulfrågor), korsdokument (vilka av fyra dokument har klausulen), resonemang/syntes (uppsägningstid-värden och jämförelser). Varje fråga har **separat facit**: nödvändig evidens (chunkar) och korrekt slutsats. Allt facit är loggat med sina råa chunktexter i `benchmarks/golden_v2_verify.txt` — avsiktligt människoverifierbart, och en mänsklig granskningspass är grinden innan slutsatser litas på.
+2. **Mätningen** (`examples/v2_measure.rs` + `tools/rank_candidates.py` + `tools/measure_marginal.py`): kandidat-set per fråga (24 st: facit-evidens + deterministiskt dragna distraktorer), frysta embedding-rankningar (`golden_v2_ranks.json`), och live JEV+LLM-svar frysta som fixtures (`golden_v2_fixtures/`). Analysen är offline och reproducerbar.
+3. **Resultat** (720 JEV-anrop + 707 LLM-anrop, 13 ogiltiga LLM-svar = 1,8 % formatvägran — redovisas som förmåge-egenskap, inte dold):
+
+| Plan | Täckning | Korrekthet | Kostnad (milli) |
+|---|---|---|---|
+| JEV ensam | 0.75 | 0.60 | 7 790 000 |
+| LLM ensam | 0.73 | 0.60 | 7 790 000 |
+| Retrieval+JEV | 0.75 | 0.60 | 7 790 000 |
+| Retrieval+JEV+LLM | 0.78 | 0.60 | 7 790 000 |
+
+Per kategori (kombinationen): evidenssökning 0.95 täckning / 0.90 korrekthet · korsdokument 0.90 / 0.40 · resonemang/syntes 0.50 / 0.50.
+
+**Det ärliga svaret — och det viktigaste fyndet:** på dessa 30 frågor har **JEV och LLM nästan identiskt marginalvärde** — ingen förmåga bidrar med något unikt, och kombinationen lägger +0.03 täckning och noll korrekthet. Marknaden är fortfarande inte differentierad. Varför: frågornas slutsatser är strukturellt extraherbara (klausulnyckelord + regex), så "resonemang/syntes"-frågorna testar fortfarande hämtning, inte resonemang — och per-chunk-klassificeringen är samma uppgift för båda modellerna. Slutsatsen är metodologisk: nästa frågegenerering måste producera slutsatser som **inte** kan assembleras från nyckelordsträffar — riktig syntes (riskallokering, konsekvensbedömning, motsägelsehantering) — annars mäter bänken återigen bara retrieval. Vi konstruerar inte facit så att LLM vinner; vi bygger verkliga problem och låter resultaten visa när förmågorna skiljer sig. Korsdokumentens 0.40 visar också att den deterministiska assemblern är för strikt (exakt dokumentmängd) — en toleransfråga, inte ett förmågefel.
+
+**Metodnot:** retrieval mäts som rankningskvalitet (frysta embeddings) — den besvarar inga frågor själv, den ordnar kandidaterna. Kostnadsmodell: JEV 1 coin/anrop, LLM 10 coins/anrop, retrieval = amorterad indexkostnad (rapporteras som embedding-tokens).
+
