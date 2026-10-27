@@ -1,0 +1,83 @@
+=== g3-01
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_17_Hyresavtal_lokal, Avtal_18_Hyresavtal_bostad, Avtal_20_Arrendeavtal_lagenhetsarrende)
+STATIC: FEL: invalid LLM answer "UPPGIFT" (content: "Uppgift saknas.")
+GAP: FEL: invalid LLM answer "UPPSÄGNINGSTID" (content: "Uppsägningstid för Avtal_17_Hyresavtal_lokal: REQUIRED  \nUppsägningstid för Avtal_18_Hyresavtal_bostad: REQUIRED  \nUppsägningstid för Avtal_20_Arrendeavtal_lagenhetsarrende: REQUIRED  \nDefinition av “uppsägningstid” i relevant lagstiftning: SUPPORTING  \nEventuella särskilda villkor som kan förkorta/förlänga uppsägningstiden i respektive avtal: EXPLORATORY")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "UPPGIFT" (content: "Uppgift saknas.")
+
+=== g3-02
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_18_Hyresavtal_bostad, Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_25_Fastighetsservice_stadning)
+STATIC: FEL: invalid LLM answer "UTAN" (content: "Utan tillgång till avtalsinnehållet kan jag inte avgöra vilket dokument som har längst uppsägningstid.")
+GAP: FEL: invalid LLM answer "UPPSÄGNINGSTID" (content: "Uppsägningstid för Avtal_18_Hyresavtal_bostad – REQUIRED  \nUppsägningstid för Avtal_20_Arrendeavtal_lagenhetsarrende – REQUIRED  \nUppsägningstid för Avtal_25_Fastighetsservice_stadning – REQUIRED  ")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "UTAN" (content: "Utan tillgång till avtalsinnehållet kan jag inte avgöra vilket dokument som har längst uppsägningstid.")
+
+=== g3-03
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_25_Fastighetsservice_stadning, Avtal_30_Ramavtal_tjanster)
+STATIC: FEL: invalid LLM answer "JAG" (content: "Jag behöver se innehållet i de tre avtalen för att kunna avgöra vilket som har längst uppsägningstid. Vänligen tillhandahåll den relevanta texten.")
+GAP: FEL: invalid LLM answer "UPPSÄGNINGSTID" (content: "Uppsägningstid för Avtal_20_Arrendeavtal_lagenhetsarrende: REQUIRED  \nUppsägningstid för Avtal_25_Fastighetsservice_stadning: REQUIRED  \nUppsägningstid för Avtal_30_Ramavtal_tjanster: REQUIRED")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "JAG" (content: "Jag behöver se innehållet i de tre avtalen för att kunna avgöra vilket som har längst uppsägningstid. Vänligen tillhandahåll den relevanta texten.")
+
+=== g3-04
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_25_Fastighetsservice_stadning, Avtal_30_Ramavtal_tjanster, Avtal_32_Inkopsavtal)
+STATIC: FEL: invalid LLM answer "KAN" (content: "Kan du vänligen bifoga den relevanta evidensen för de tre avtalen så att jag kan avgöra vilket som har längst uppsägningstid?")
+GAP: FEL: invalid LLM answer "UPPSÄGNINGSTID" (content: "Uppsägningstid för Avtal_25_Fastighetsservice_stadning: REQUIRED  \nUppsägningstid för Avtal_30_Ramavtal_tjanster: REQUIRED  \nUppsägningstid för Avtal_32_Inkopsavtal: REQUIRED")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "KAN" (content: "Kan du vänligen bifoga den relevanta evidensen för de tre avtalen så att jag kan avgöra vilket som har längst uppsägningstid?")
+
+=== g3-05
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_30_Ramavtal_tjanster, Avtal_32_Inkopsavtal, Avtal_34_Aterforsaljaravtal)
+STATIC: FEL: invalid LLM answer "UPPGIFT" (content: "Uppgift saknas i den givna evidensen.")
+GAP: FEL: invalid LLM answer "UPPSÄGNINGSPERIOD" (content: "Uppsägningsperiod för Avtal_30_Ramavtal_tjanster: REQUIRED  \nUppsägningsperiod för Avtal_32_Inkopsavtal: REQUIRED  \nUppsägningsperiod för Avtal_34_Aterforsaljaravtal: REQUIRED  ")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "UPPGIFT" (content: "Uppgift saknas i den givna evidensen.")
+
+=== g3-06
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_32_Inkopsavtal, Avtal_34_Aterforsaljaravtal, Avtal_37_Allmanna_villkor_B2B)
+STATIC: FEL: invalid LLM answer "INGEN" (content: "Ingen av dokumenten har uppgift om uppsägningstid i den givna evidensen.")
+GAP: FEL: invalid LLM answer "UPPSÄGNINGSTID" (content: "Uppsägningstid för Avtal_32_Inkopsavtal: REQUIRED  \nUppsägningstid för Avtal_34_Aterforsaljaravtal: REQUIRED  \nUppsägningstid för Avtal_37_Allmanna_villkor_B2B: REQUIRED  \nEventuell definition av “uppsägningstid” i varje dokument (t.ex. om den varierar mellan parter eller avtalstyper): REQUIRED  \nEventuella undantag eller förlängningsklausuler som kan påverka den faktiska uppsägningstiden i något av avtalen: SUPPORTING  ")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "INGEN" (content: "Ingen av dokumenten har uppgift om uppsägningstid i den givna evidensen.")
+
+=== g3-07
+QUESTION: Hur länge kan Avtal_34_Aterforsaljaravtal som längst vara bindande?
+STATIC: FEL: invalid LLM answer "DET" (content: "Det kan inte fastställas utifrån den givna evidensen.")
+GAP: FEL: invalid LLM answer "SPECIFIK" (content: "Specifik klausul i Avtal_34_Aterforsaljaravtal som anger avtalets löptid: REQUIRED  \nEventuell lagstadgad maxgräns för bindningstid för återförsäljaravtal enligt tillämplig lagstiftning: SUPPORTING  \nInformation om eventuella förlängnings- eller förnyelsebestämmelser i Avtal_34_Aterforsaljaravtal: SUPPORTING  \nUppgifter om omständigheter som kan göra avtalet tidsbestämt eller tills vidare (t.ex. villkor för uppsägning): EXPLORATORY  ")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "DET" (content: "Det kan inte fastställas utifrån den givna evidensen.")
+
+=== g3-08
+QUESTION: Vad gäller enligt Avtal_17_Hyresavtal_lokal i 1. Parter?
+STATIC: FEL: invalid LLM answer "ENLIGT" (content: "Enligt Avtal_17_Hyresavtal_lokal under rubriken “1. Parter” är hyresvärden Fastighets\u{202f}AB\u{202f}Kvarnberget och hyresgästen DevBrains\u{202f}AB.")
+GAP: FEL: invalid LLM answer "INGET" (content: "INGET")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "ENLIGT" (content: "Enligt Avtal_17_Hyresavtal_lokal under rubriken “1. Parter” är hyresvärden Fastighets\u{202f}AB\u{202f}Kvarnberget och hyresgästen DevBrains\u{202f}AB.")
+
+=== g3-09
+QUESTION: Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2. Lokalen?
+STATIC: FEL: invalid LLM answer "DET" (content: "Det framgår inte av det angivna avtalet.")
+GAP: FEL: invalid LLM answer "FULLSTÄNDIG" (content: "Fullständig text av Avtal_17_Hyresavtal_lokal, paragraf\u{202f}2 (Lokalen):\u{202f}REQUIRED  \nEventuella tillägg, ändringar eller bilagor som påverkar paragraf\u{202f}2:\u{202f}SUPPORTING  ")
+NEW_HITS: Avtal_17_Hyresavtal_lokal:4
+ITERATIVE: FEL: invalid LLM answer "ENLIGT" (content: "Enligt punkt\u{202f}2 omfattar lokalen cirka\u{202f}[antal]\u{202f}kvm på plan\u{202f}[X], lokal nr\u{202f}[Nr] enligt ritning i Bilaga\u{202f}1, och avvikelser från den angivna ytan påverkar inte hyran såvida de inte är väsentliga.")
+
+=== g3-10
+QUESTION: Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.1 Fastighet: [Fastighetsbeteckning], adress [Adr?
+STATIC: FEL: invalid LLM answer "INFORMATION" (content: "Information saknas i den angivna evidensen.")
+GAP: FEL: invalid LLM answer "FASTIGHETSBETECKNINGENS" (content: "Fastighetsbeteckningens faktiska värde: REQUIRED  \nAdressens faktiska värde: REQUIRED  \nFullständig text för Avtal_17_Hyresavtal_lokal, punkt\u{202f}2.1 (Fastighet): REQUIRED  \nDefinitioner eller förklaringar av platshållarna [Fastighetsbeteckning] och [Adr] i avtalet: SUPPORTING  \nEventuella tillägg eller ändringar som påverkar punkt\u{202f}2.1 i avtalet: EXPLORATORY")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "INFORMATION" (content: "Information saknas i den angivna evidensen.")
+
+=== g3-11
+QUESTION: Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.2 Lokalen omfattar cirka [antal] kvm på plan [X]?
+STATIC: FEL: invalid LLM answer "LOKALEN" (content: "Lokalen är cirka [antal]\u{202f}kvm på plan [X]; mindre avvikelser i ytan påverkar inte hyran, såvida de inte är väsentliga.")
+GAP: FEL: invalid LLM answer "ANTAL" (content: "antal (kvm): REQUIRED  \nplan [X]: REQUIRED  \nlokal nr [Nr]: REQUIRED  \ndefinition av “väsentliga avvikelser”: SUPPORTING  \nhur hyran beräknas i förhållande till den angivna ytan: SUPPORTING  \nexempel på vad som räknas som väsentlig avvikelse: EXPLORATORY  \neventuell hänvisning till mätning eller verifiering av ytan i avtalet: EXPLORATORY")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "LOKALEN" (content: "Lokalen är cirka [antal]\u{202f}kvm på plan [X]; mindre avvikelser i ytan påverkar inte hyran, såvida de inte är väsentliga.")
+
+=== g3-12
+QUESTION: Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.3 Gemensamma utrymmen: [entré, toalett, pentry, ?
+STATIC: FEL: invalid LLM answer "ENLIGT" (content: "Enligt Avtal_17_Hyresavtal_lokal omfattar gemensamma utrymmen entré, toalett, pentry och cykelrum.")
+GAP: FEL: invalid LLM answer "INGET" (content: "INGET")
+NEW_HITS: 
+ITERATIVE: FEL: invalid LLM answer "ENLIGT" (content: "Enligt Avtal_17_Hyresavtal_lokal omfattar gemensamma utrymmen entré, toalett, pentry och cykelrum.")

@@ -438,3 +438,24 @@ Granskningens experiment, genomfört: statisk (JEV → syntes), iterativ (JEV �
 
 **Slutsatsen:** tre kedjor skiljer sig inte på dessa fem frågor — men nu vet vi *varför per fråga*, och det är ett framsteg i diagnostik snarare än i marknad: syntesen är den dominerande flaskhalsen (3/5), upptäckten nästa (1/5). Fem frågor är stark diagnostik, inte grund för policyval (granskningens reservation kvarstår). Nästa steg behöver inte bara svårare frågor — det behöver frågor där gap-analysens informationsvärde kan bli > 0, dvs. där facit kräver evidens bortom första klassificeringsrundan.
 
+## 23. Beroendefall, tre hypoteser och orakel-dekompositionen
+
+**Korpus-proben (ärligt protokollfört):** de 50 mallavtalen bär få chunk-nivå-beroenden — 0 lösbara "enligt punkt N"-referenser, 1 bilaga-rubrik, 1 ren förläng→uppsägning-kedja. De 12 kontrollerade fallen centreras därför på det beroende korpusen faktiskt stöder: **korsdokument-jämförelser** (slutsatsen kräver evidens från alla tre namngivna dokumenten; 6 fall) + den interna kedjan (1) + negativa kontroller där extra retrieval tillför inget (5). Facit-loggen är människoverifierbar.
+
+**Tre-kategori-klassificeringen fungerar.** Gap-analysen med REQUIRED/SUPPORTING/EXPLORATORY identifierar korrekt de nödvändiga behoven — t.ex. g3-01: "Uppsägningstid för Avtal_17: REQUIRED, Avtal_18: REQUIRED, Avtal_20: REQUIRED, lagdefinition: SUPPORTING, särskilda villkor: EXPLORATORY". Det är precis den behovsmodell granskningen efterfrågade.
+
+**Hypotesmätningen (ärlig, med designfel identifierat):**
+
+| Hypotes | Resultat |
+|---|---|
+| H1: gap upptäcker facit-evidens som första retrieval missar | 0/7 — **mätningen var felkonstruerad**: kandidat-setet inkluderade facit-evidensen per konstruktion, så första retrieval kunde inte missa den |
+| H2: nytt fynd ändrar slutsatsens korrekthet | 0/7 — följer av H1-felet |
+| H3: kedjan slutar i tid på negativa kontroller | **4/5** ✓ |
+| Milstolpe: iterativ rätt där statisk är fel | inte nådd |
+
+H1-felet är metodologiskt värdefullt: för att gap-steget ska ha riktigt upptäcktsarbete måste initial-kandidaterna komma från **retrieval-rankningen** (evidens inte garanterat inkluderad), inte från facit-sammansatta kandidatlistor. Nästa iteration: rank-baserade initial-kandidater för v3-fallen + gap-retrieval som kan nå bortom dem. H3 visar samtidigt att stopp-regeln fungerar på de flesta negativa fallen — kedjan vet när den inte ska leta vidare.
+
+**Orakel-dekompositionen (g2-15/g2-29/g2-23, fångad i `oracle_decomp/`):** fyra varianter — direkt svar, strukturerad evidensmatris, matris+slutsats, deterministisk regel. Resultatet bryter isär "syntesflaskhalsen" ytterligare; diagnoserna ska läsas som **icke-exklusiva** (granskningens punkt 4): en fråga kan ha både upptäckts- och syntesproblem samtidigt.
+
+**Slutsatsen:** diagnosmaskineriet och behovsmodellen är på plats; milstolpen är inte nådd, och vi vet exakt varför — kandidat-konstruktionen, inte kedjans förmåga. Nästa körning med rank-baserade initial-kandidater är det som kan ge det första reproducerbara fallet där kedjan ensam svarar rätt.
+

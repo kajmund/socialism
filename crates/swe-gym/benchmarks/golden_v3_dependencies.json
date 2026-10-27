@@ -1,0 +1,134 @@
+{
+  "g3-01": {
+    "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_17_Hyresavtal_lokal, Avtal_18_Hyresavtal_bostad, Avtal_20_Arrendeavtal_lagenhetsarrende)",
+    "positive": true,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": false,
+    "h1": false,
+    "h2": false,
+    "h3": false
+  },
+  "g3-02": {
+    "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_18_Hyresavtal_bostad, Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_25_Fastighetsservice_stadning)",
+    "positive": true,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": false,
+    "h1": false,
+    "h2": false,
+    "h3": false
+  },
+  "g3-03": {
+    "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_25_Fastighetsservice_stadning, Avtal_30_Ramavtal_tjanster)",
+    "positive": true,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": false,
+    "h1": false,
+    "h2": false,
+    "h3": false
+  },
+  "g3-04": {
+    "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_25_Fastighetsservice_stadning, Avtal_30_Ramavtal_tjanster, Avtal_32_Inkopsavtal)",
+    "positive": true,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": false,
+    "h1": false,
+    "h2": false,
+    "h3": false
+  },
+  "g3-05": {
+    "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_30_Ramavtal_tjanster, Avtal_32_Inkopsavtal, Avtal_34_Aterforsaljaravtal)",
+    "positive": true,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": false,
+    "h1": false,
+    "h2": false,
+    "h3": false
+  },
+  "g3-06": {
+    "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_32_Inkopsavtal, Avtal_34_Aterforsaljaravtal, Avtal_37_Allmanna_villkor_B2B)",
+    "positive": true,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": false,
+    "h1": false,
+    "h2": false,
+    "h3": false
+  },
+  "g3-07": {
+    "question": "Hur länge kan Avtal_34_Aterforsaljaravtal som längst vara bindande?",
+    "positive": true,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": false,
+    "h1": false,
+    "h2": false,
+    "h3": false
+  },
+  "g3-08": {
+    "question": "Vad gäller enligt Avtal_17_Hyresavtal_lokal i 1. Parter?",
+    "positive": false,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": true,
+    "h1": false,
+    "h2": false,
+    "h3": true
+  },
+  "g3-09": {
+    "question": "Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2. Lokalen?",
+    "positive": false,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": false,
+    "h1": false,
+    "h2": false,
+    "h3": false
+  },
+  "g3-10": {
+    "question": "Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.1 Fastighet: [Fastighetsbeteckning], adress [Adr?",
+    "positive": false,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": false,
+    "h1": false,
+    "h2": false,
+    "h3": true
+  },
+  "g3-11": {
+    "question": "Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.2 Lokalen omfattar cirka [antal] kvm på plan [X]?",
+    "positive": false,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": false,
+    "h1": false,
+    "h2": false,
+    "h3": true
+  },
+  "g3-12": {
+    "question": "Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.3 Gemensamma utrymmen: [entré, toalett, pentry, ?",
+    "positive": false,
+    "static_correct": false,
+    "iterative_correct": false,
+    "new_facit_evidence": [],
+    "gap_says_nothing": true,
+    "h1": false,
+    "h2": false,
+    "h3": true
+  }
+}

@@ -72,7 +72,7 @@ def normalize_answer(answer, question):
     docs = sorted(set(DOC_RE.findall(answer)))
     if "längst uppsägningstid" in question["question"]:
         return docs[0] if docs else None
-    if question["category"] == "korsdokument":
+    if question.get("category") == "korsdokument":
         return docs
     d = extract_duration(answer)
     return d
@@ -81,7 +81,7 @@ def normalize_answer(answer, question):
 def correct(facit, normalized, question):
     if normalized is None:
         return False
-    if question["category"] == "korsdokument":
+    if question.get("category") == "korsdokument":
         return set(normalized) == set(re.split(r",\s*", facit))
     return normalized == facit or facit in normalized
 
