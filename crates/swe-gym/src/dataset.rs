@@ -16,7 +16,7 @@ use crate::provider::json_escape;
 use crate::real::{RealEnv, RealQuestion};
 use swe_native::{parse_json_str, Json};
 
-pub const DATASET_VERSION: u64 = 3;
+pub const DATASET_VERSION: u64 = 4;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct StepRecord {
@@ -100,7 +100,7 @@ fn obs_to_json(obs: &Observation) -> String {
     let statuses = obs.statuses.map(|st| (st as u8).to_string()).join(",");
     let spent = obs.spent_milli.map(|s| s.to_string()).join(",");
     format!(
-        r#"{{"question_id":"{}","qtype":{},"remaining_milli":{},"bracket":{},"tiers":[{}],"found":{},"new_evidence":{},"contradictions":{},"recent_hit_rate_bp":{},"last_score_bp":{},"pool_scanned":{},"pool_total":{},"pool_extension_yielded":{},"zero_hit_streak":{},"statuses":[{}],"spent_milli":[{}],"steps":{}}}"#,
+        r#"{{"question_id":"{}","qtype":{},"remaining_milli":{},"bracket":{},"tiers":[{}],"found":{},"new_evidence":{},"contradictions":{},"recent_hit_rate_bp":{},"last_score_bp":{},"pool_scanned":{},"pool_total":{},"pool_extension_yielded":{},"zero_hit_streak":{},"next_rank_bp":{},"docs_remaining":{},"docs_with_hits":{},"new_doc_hit":{},"statuses":[{}],"spent_milli":[{}],"steps":{}}}"#,
         json_escape(&obs.question_id),
         obs.qtype,
         obs.remaining_milli,
@@ -115,6 +115,10 @@ fn obs_to_json(obs: &Observation) -> String {
         obs.pool_total,
         obs.pool_extension_yielded,
         obs.zero_hit_streak,
+        obs.next_rank_bp,
+        obs.docs_remaining,
+        obs.docs_with_hits,
+        obs.new_doc_hit,
         statuses,
         spent,
         obs.steps,
@@ -185,6 +189,10 @@ fn obs_from_json(json: &Json) -> Result<Observation, String> {
         pool_total: u32_at("pool_total")?,
         pool_extension_yielded: u8_at("pool_extension_yielded")?,
         zero_hit_streak: u8_at("zero_hit_streak")?,
+        next_rank_bp: u32_at("next_rank_bp")?,
+        docs_remaining: u8_at("docs_remaining")?,
+        docs_with_hits: u8_at("docs_with_hits")?,
+        new_doc_hit: u8_at("new_doc_hit")?,
         statuses: [
             status_from_u8(statuses[0] as u8)?,
             status_from_u8(statuses[1] as u8)?,

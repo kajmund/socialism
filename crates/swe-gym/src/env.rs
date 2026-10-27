@@ -82,6 +82,18 @@ pub struct Observation {
     /// resets on every new finding. The observable "stall counter" the
     /// teacher's plateau rules use.
     pub zero_hit_streak: u8,
+    /// Rank progress of the next candidate (basis points of the ranked
+    /// list): the facit-free proxy for similarity-score decay further
+    /// down the candidate list — deeper rank = weaker candidates.
+    pub next_rank_bp: u32,
+    /// Distinct documents still unverified in the pool (from chunk-id
+    /// document prefixes) — "how many different sources remain".
+    pub docs_remaining: u8,
+    /// Distinct documents with findings so far.
+    pub docs_with_hits: u8,
+    /// Whether the most recent finding came from a previously unfound
+    /// document (new evidence cluster).
+    pub new_doc_hit: u8,
     pub statuses: [Status; STRATEGY_COUNT],
     pub spent_milli: [Amount; STRATEGY_COUNT],
     pub steps: u32,
@@ -899,6 +911,10 @@ impl SweEnv for SyntheticEnv {
             pool_total: 0,
             pool_extension_yielded: 0,
             zero_hit_streak: 0,
+            next_rank_bp: 0,
+            docs_remaining: 0,
+            docs_with_hits: 0,
+            new_doc_hit: 0,
             statuses: [Status::Idle; STRATEGY_COUNT],
             spent_milli: [0; STRATEGY_COUNT],
             steps: 0,
