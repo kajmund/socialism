@@ -335,7 +335,12 @@ async def persist_decision(
     cell.similarity = selected.similarity if selected else None
     cell.text_unit_id = new_unit_id
     cell.exact_text = selected.exact_text if selected else None
-    cell.source_json = locator_payload(selected.source) if selected else {}
+    if selected:
+        cell.source_json = locator_payload(selected.source)
+    elif decision.no_hit_reason:
+        cell.source_json = {"no_hit_reason": decision.no_hit_reason}
+    else:
+        cell.source_json = {}
     cell.computed_at = utcnow()
     await session.execute(
         delete(TabularReviewCandidate).where(TabularReviewCandidate.cell_id == cell.id)

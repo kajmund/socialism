@@ -173,6 +173,7 @@ async def test_create_run_lock_approve_and_missed_hit(client_db, review_embedder
     assert hit["similarity"] == 1.0
     assert hit["source"]["page_start"] == 3
     assert miss["status"] == "no_hit"
+    assert miss["no_hit_reason"] == "below_threshold"
     assert miss["exact_text"] is None
 
     locked = await client.post(f"/tabular-reviews/{review_id}/cells/{hit['id']}/lock")
@@ -289,6 +290,7 @@ async def test_revoked_anchor_preserves_locked_history_and_blocks_new_match(
     assert locked["exact_text"] == hit["exact_text"]
     unlocked = [cell for cell in rerun_cells if cell["id"] != hit["id"]]
     assert all(cell["status"] == "no_hit" for cell in unlocked)
+    assert all(cell["no_hit_reason"] == "no_active_anchors" for cell in unlocked)
 
     async with factory() as session:
         clause_rows = list(

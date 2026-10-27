@@ -48,6 +48,7 @@ class CellDecision:
     selected: RankedCandidate | None
     candidates: tuple[RankedCandidate, ...]
     threshold: float
+    no_hit_reason: str | None = None
 
 
 @dataclass(frozen=True)
