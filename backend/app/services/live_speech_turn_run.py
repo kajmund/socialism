@@ -75,6 +75,7 @@ async def run_voice_turn(runtime: LiveSpeechRuntime, turn_id: str, text: str) ->
             )
         queue.put_nowait(None)
         await _finish_spoken_turn(runtime, turn_id, done.reply, tts_task)
+        runtime.note_turn("assistant", done.reply)
     except asyncio.CancelledError:
         await runtime._stop_turn_helpers(tts_task)
         raise
