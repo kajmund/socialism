@@ -1,0 +1,236 @@
+{
+  "g3-01": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": true,
+    "new_facit_evidence": [
+      "Avtal_20_Arrendeavtal_lagenhetsarrende:7"
+    ],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 46000,
+    "stop_reason": null,
+    "criteria": {
+      "c1": true,
+      "c2": true,
+      "c3": true,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-02": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": true,
+    "new_facit_evidence": [
+      "Avtal_20_Arrendeavtal_lagenhetsarrende:7"
+    ],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 40000,
+    "stop_reason": null,
+    "criteria": {
+      "c1": true,
+      "c2": true,
+      "c3": true,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-03": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": true,
+    "new_facit_evidence": [
+      "Avtal_20_Arrendeavtal_lagenhetsarrende:7"
+    ],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 46000,
+    "stop_reason": null,
+    "criteria": {
+      "c1": true,
+      "c2": true,
+      "c3": true,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-04": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": true,
+    "new_facit_evidence": [],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 46000,
+    "stop_reason": null,
+    "criteria": {
+      "c1": true,
+      "c2": true,
+      "c3": false,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-05": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": false,
+    "new_facit_evidence": [],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 28000,
+    "stop_reason": null,
+    "criteria": {
+      "c1": true,
+      "c2": false,
+      "c3": false,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-06": {
+    "static_correct": true,
+    "kexp_correct": true,
+    "iterative_correct": true,
+    "required_unmet": true,
+    "new_facit_evidence": [],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 36000,
+    "stop_reason": null,
+    "criteria": {
+      "c1": true,
+      "c2": true,
+      "c3": false,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-07": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": false,
+    "new_facit_evidence": [],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 34000,
+    "stop_reason": null,
+    "criteria": {
+      "c1": true,
+      "c2": false,
+      "c3": false,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-08": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": false,
+    "new_facit_evidence": [],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 28000,
+    "stop_reason": "sufficient",
+    "criteria": {
+      "c1": true,
+      "c2": false,
+      "c3": false,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-09": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": false,
+    "new_facit_evidence": [],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 28000,
+    "stop_reason": "sufficient",
+    "criteria": {
+      "c1": true,
+      "c2": false,
+      "c3": false,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-10": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": true,
+    "new_facit_evidence": [],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 34000,
+    "stop_reason": "no yield",
+    "criteria": {
+      "c1": true,
+      "c2": true,
+      "c3": false,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-11": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": false,
+    "new_facit_evidence": [],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 34000,
+    "stop_reason": "no yield",
+    "criteria": {
+      "c1": true,
+      "c2": false,
+      "c3": false,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  },
+  "g3-12": {
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_correct": false,
+    "required_unmet": false,
+    "new_facit_evidence": [],
+    "static_cost": 18000,
+    "kexp_cost": 26000,
+    "iterative_cost": 28000,
+    "stop_reason": "sufficient",
+    "criteria": {
+      "c1": true,
+      "c2": false,
+      "c3": false,
+      "c4": false,
+      "c5": false,
+      "c6": true
+    }
+  }
+}
