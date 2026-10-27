@@ -11,6 +11,7 @@ pub mod calibrate;
 pub mod dataset;
 pub mod driver;
 pub mod env;
+pub mod explore;
 pub mod gen;
 pub mod ledger;
 pub mod oracle;

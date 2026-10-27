@@ -335,3 +335,27 @@ Granskningens POC-plan, genomförd i minsta kontrollerade form:
 
 **Vad grinden betyder och inte betyder:** eleven kan överföra lärarens beteende till en osedd fråga — nödvändig grund för fortsatt RL. Den bevisar inte att eleven kan *överträffa* läraren; det kräver kontrollerad utforskning med terminalkvalitet som kreditsignal — och där är kreditfördelningsproblemet granskningen pekade ut: terminalkvaliteten märker episoden, inte det enskilda beslutet. Nästa steg: ε-utforskning kring lärarpolicyn i RealEnv, hårda kostnadstak, och utvärdering mot nya frågor när sådana finns (fem frågor räcker inte för generaliseringsslutsatser — §15:s dataset-väg).
 
+## 17. Kontrollerad exploration: kan eleven överträffa läraren?
+
+Experimentet granskningen begärde, med riktad (inte uniform) exploration, fryst utvärdering, per-beslut-avvikelser och kvalitet/kostnad åtskilda. Två diagnoser först:
+
+1. **Tak-proben:** en handbyggd "svans-optimerad" policy (finare JEV-insatser vid stall) ger exakt lärarens netto på alla fem frågorna — det finns inget svans-slöseri att hämta (settle-bokföringen tar redan faktisk kostnad, och tröskelsvepet 6–18 visade att stall-tröskeln är betydelselös här).
+2. **Elevens vokabulär utökades till sex klasser** ({A 1000, A 5000, B 1000, B 5000, B 10000, Finish}) — eleven måste kunna *uttrycka* en förbättring, inte bara imitera.
+
+**Uppmätt (leave-one-question-out, fryst utvärdering, pinnat i `tests/explore_tests.rs`):**
+
+| Fold (hållen fråga) | Lärare | B – enkel ε | C – riktad |
+|---|---|---|---|
+| auto-renewal | 64 000 (q .85) | 58 000 (q .85) — regression | 64 000 |
+| notice-period | 48 231 (q .69) | **58 000 (q 1.00) — VINST +9.8k** | 48 231 |
+| liability-cap | 29 000 (q .50) | **34 765 (q .62) — VINST +5.8k** | 29 000 |
+| confidentiality | 79 000 (q 1.00) | 63 000 (q 1.00) — regression | 79 000 |
+| liability-secrecy-carveout | 79 000 (q 1.00) | 79 000 | 79 000 |
+
+**Acceptanskriteriet (slå läraren på ≥1 osedd fråga utan försämrad täckning): PASS — 2/5, via B.** Vinstmekanismen är avläsbar i avvikelseloggen: ε-eleven är *mer tålmodig* än läraren på frågor där likhetsordningen har fynd-gap — lärarens stall-regel avslutar för tidigt, eleven fortsätter verifiera och hittar de sista fynden (kvalitet 0.69→1.00 respektive 0.50→0.62). Kostnaden syns i de två regressionerna: samma tålmodighet kostar 6–16k på frågor där läraren redan slutat rätt.
+
+**Två lärdomar, båda pinnade:**
+
+1. **Den riktade explorationens prior var felriktad.** Den utforskade "billigare/avsluta"-rörelser — exakt de rörelser tak-proben visade har noll utrymme. Vinsten låg i *mer* tålmodighet vid stallgränsen, och den hittades av den enkla uniforma ε:en. Riktningen ska vara: vid stallgränsen, pröva att fortsätta — inte att sluta.
+2. **Blandat utfall = det ärliga utfallet.** Eleven är inte uniformt bättre (2 vinst, 2 regression, 1 lika). Det är förväntat för en 30-parametersmodell på 5 frågor — och det är precis varför kriteriet krävde *minst en* osedd fråga, inte ett genomsnitt. Nästa steg om vi vill ha vinsterna utan regressionerna: träna direkt på avvikelserna (per-beslut-kredit via terminalkvalitet) och fler frågor — dataset-vägen i §15.
+
