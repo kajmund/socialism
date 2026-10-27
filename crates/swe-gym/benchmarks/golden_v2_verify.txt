@@ -1,0 +1,198 @@
+=== 01 [evidenssökning] Innehåller Avtal_05_Konsultavtal en klausul om uppsägningstid?
+    slutsats: ja
+
+    evidens Avtal_05_Konsultavtal:24: 11. Uppsägning och hävning 
+    evidens Avtal_05_Konsultavtal:25: 11.1 Båda parter får säga upp avtalet med [30] dagars uppsägningstid. 
+
+=== 02 [evidenssökning] Innehåller Avtal_06_Sekretessavtal_ensidigt_NDA en klausul om sekretess?
+    slutsats: ja
+
+    evidens Avtal_06_Sekretessavtal_ensidigt_NDA:0: Avtal 6 – Sekretessavtal ensidigt (NDA) När används det: När bara den ena parten lämnar ut konfidentiell information, t.ex. när en kund, leverantör eller möjlig partner får ta del av Bolagets uppgifter. Avtalsdatum (tids
+    evidens Avtal_06_Sekretessavtal_ensidigt_NDA:12: 5. Återlämnande På Utlämnande Parts begäran, och senast när diskussionerna avslutas, ska Mottagaren återlämna eller förstöra all Konfidentiell Information, inklusive kopior. Mottagaren ska bekräfta detta skriftligen. Kop
+    evidens Avtal_06_Sekretessavtal_ensidigt_NDA:17: 8. Giltighetstid Avtalet gäller från undertecknandet. Sekretesskyldigheten gäller i [fem (5)] år från det att informationen lämnades ut. För företagshemligheter gäller den så länge informationen utgör en företagshemlighe
+    evidens Avtal_06_Sekretessavtal_ensidigt_NDA:5: 3.2 Konfidentiell Information omfattar inte information som Mottagaren kan visa a) var eller blev allmänt tillgänglig på annat sätt än genom brott mot detta avtal; b) redan fanns hos Mottagaren utan sekretesskyldighet nä
+
+=== 03 [evidenssökning] Innehåller Avtal_17_Hyresavtal_lokal en klausul om automatisk förlängning?
+    slutsats: ja
+
+    evidens Avtal_17_Hyresavtal_lokal:33: 13. Tvister Svensk lag gäller. Tvister om villkor vid förlängning prövas av hyresnämnden enligt jordabalken. Övriga tvister prövas av allmän domstol, [Ort] tingsrätt. 
+    evidens Avtal_17_Hyresavtal_lokal:9: 4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget. 
+
+=== 04 [evidenssökning] Innehåller Avtal_30_Ramavtal_tjanster en klausul om force majeure?
+    slutsats: ja
+
+    evidens Avtal_30_Ramavtal_tjanster:43: 14. Force majeure En part är befriad från sina skyldigheter om fullgörandet förhindras av omständigheter som parten inte rimligen kunde förutse eller råda över, t.ex. krig, myndighetsbeslut, naturkatastrof, omfattande cy
+
+=== 05 [evidenssökning] Innehåller Avtal_47_Programvarulicensavtal en klausul om skadestånd?
+    slutsats: ja
+
+    evidens Avtal_47_Programvarulicensavtal:20: 8. Intrång i tredje mans rätt Licensgivaren ska försvara DevBrains och ersätta DevBrains för kostnader och skadestånd vid krav från tredje man om att Programvaran gör intrång i immateriella rättigheter. DevBrains ska uta
+
+=== 06 [evidenssökning] Innehåller Avtal_31_Leveransavtal en klausul om tillämplig lag?
+    slutsats: ja
+
+    evidens Avtal_31_Leveransavtal:31: 12. Tillämplig lag och tvister Köplagen (1990:931) gäller, med de avvikelser som följer av detta avtal. Tvister avgörs enligt tvistlösningsbestämmelsen i ramavtalet (avtal 30). 
+
+=== 07 [evidenssökning] Innehåller Avtal_30_Ramavtal_tjanster en klausul om överlåtelse?
+    slutsats: ja
+
+    evidens Avtal_30_Ramavtal_tjanster:50: 17.2 Ingen part får överlåta avtalet utan den andra partens skriftliga samtycke. DevBrains får dock överlåta avtalet inom sin koncern eller i samband med en överlåtelse av verksamheten. 
+
+=== 08 [evidenssökning] Innehåller Avtal_15_Bonusavtal en klausul om sekretess?
+    slutsats: nej
+
+
+=== 09 [evidenssökning] Innehåller Avtal_11_Distansarbetsavtal en klausul om force majeure?
+    slutsats: nej
+
+
+=== 10 [evidenssökning] Innehåller Avtal_02_Provanstallningsavtal en klausul om automatisk förlängning?
+    slutsats: nej
+
+
+=== 11 [evidenssökning] Innehåller Avtal_15_Bonusavtal en klausul om skadestånd?
+    slutsats: nej
+
+
+=== 12 [evidenssökning] Innehåller Avtal_06_Sekretessavtal_ensidigt_NDA en klausul om tillämplig lag?
+    slutsats: nej
+
+
+=== 13 [korsdokument] Vilka av dessa dokument innehåller en klausul om tillämplig lag? (Avtal_31_Leveransavtal, Avtal_51_Anvandarvillkor_webbplats_app, Avtal_15_Bonusavtal, Avtal_11_Distansarbetsavtal)
+    slutsats: Avtal_31_Leveransavtal, Avtal_51_Anvandarvillkor_webbplats_app
+
+    evidens Avtal_31_Leveransavtal:31: 12. Tillämplig lag och tvister Köplagen (1990:931) gäller, med de avvikelser som följer av detta avtal. Tvister avgörs enligt tvistlösningsbestämmelsen i ramavtalet (avtal 30). 
+    evidens Avtal_51_Anvandarvillkor_webbplats_app:25: 11. Tillämplig lag och tvister Svensk lag gäller. Tvister avgörs av svensk allmän domstol. Om du är konsument kan du även vända dig till Allmänna reklamationsnämnden (ARN) eller EU:s plattform för tvistlösning online. 
+
+=== 14 [korsdokument] Vilka av dessa dokument innehåller en klausul om överlåtelse? (Avtal_42_Factoringavtal, Avtal_30_Ramavtal_tjanster, Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_15_Bonusavtal)
+    slutsats: Avtal_42_Factoringavtal, Avtal_30_Ramavtal_tjanster
+
+    evidens Avtal_30_Ramavtal_tjanster:50: 17.2 Ingen part får överlåta avtalet utan den andra partens skriftliga samtycke. DevBrains får dock överlåta avtalet inom sin koncern eller i samband med en överlåtelse av verksamheten. 
+    evidens Avtal_42_Factoringavtal:5: 3. Överlåtelse och denuntiation 
+    evidens Avtal_42_Factoringavtal:7: 3.2 Fakturorna ska innehålla en överlåtelseklausul som anger att betalning endast får ske till Bankens konto: "Denna fordran har överlåtits till Sundholms Bank AB. Betalning med befriande verkan kan endast ske till bankg
+
+=== 15 [korsdokument] Vilka av dessa dokument innehåller en klausul om sekretess? (Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_15_Bonusavtal, Avtal_11_Distansarbetsavtal)
+    slutsats: Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_11_Distansarbetsavtal
+
+    evidens Avtal_05_Konsultavtal:18: 8. Sekretess Konsulten ska hålla Konfidentiell information hemlig under avtalstiden och i [fem (5)] år därefter. Konsulten ska ålägga eventuella underkonsulter samma skyldighet. Lagen (2018:558) om företagshemligheter gä
+    evidens Avtal_05_Konsultavtal:21: 10.1 Konsulten ansvarar för skada som Konsulten orsakar Beställaren genom vårdslöshet. Ansvaret är begränsat till [100 %] av det totala arvodet under avtalet, dock inte vid uppsåt, grov vårdslöshet eller brott mot sekret
+    evidens Avtal_06_Sekretessavtal_ensidigt_NDA:0: Avtal 6 – Sekretessavtal ensidigt (NDA) När används det: När bara den ena parten lämnar ut konfidentiell information, t.ex. när en kund, leverantör eller möjlig partner får ta del av Bolagets uppgifter. Avtalsdatum (tids
+    evidens Avtal_06_Sekretessavtal_ensidigt_NDA:12: 5. Återlämnande På Utlämnande Parts begäran, och senast när diskussionerna avslutas, ska Mottagaren återlämna eller förstöra all Konfidentiell Information, inklusive kopior. Mottagaren ska bekräfta detta skriftligen. Kop
+    evidens Avtal_06_Sekretessavtal_ensidigt_NDA:17: 8. Giltighetstid Avtalet gäller från undertecknandet. Sekretesskyldigheten gäller i [fem (5)] år från det att informationen lämnades ut. För företagshemligheter gäller den så länge informationen utgör en företagshemlighe
+    evidens Avtal_06_Sekretessavtal_ensidigt_NDA:5: 3.2 Konfidentiell Information omfattar inte information som Mottagaren kan visa a) var eller blev allmänt tillgänglig på annat sätt än genom brott mot detta avtal; b) redan fanns hos Mottagaren utan sekretesskyldighet nä
+    evidens Avtal_11_Distansarbetsavtal:17: 6. Informationssäkerhet och sekretess 
+
+=== 16 [korsdokument] Vilka av dessa dokument innehåller en klausul om automatisk förlängning? (Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_02_Provanstallningsavtal, Avtal_13_Avgangsvederlagsavtal)
+    slutsats: Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende
+
+    evidens Avtal_17_Hyresavtal_lokal:33: 13. Tvister Svensk lag gäller. Tvister om villkor vid förlängning prövas av hyresnämnden enligt jordabalken. Övriga tvister prövas av allmän domstol, [Ort] tingsrätt. 
+    evidens Avtal_17_Hyresavtal_lokal:9: 4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget. 
+    evidens Avtal_20_Arrendeavtal_lagenhetsarrende:7: 4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget. 
+
+=== 17 [korsdokument] Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_15_Bonusavtal, Avtal_02_Provanstallningsavtal)
+    slutsats: Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal
+
+    evidens Avtal_01_Tillsvidareanstallningsavtal:30: 12. Uppsägning 
+    evidens Avtal_01_Tillsvidareanstallningsavtal:31: 12.1 Uppsägningstiden följer 11 § LAS. För Arbetstagaren är den en (1) månad. För Arbetsgivaren är den en (1) månad, och förlängs efter sammanlagd anställningstid hos Arbetsgivaren enligt följande: Anställningstid Uppsäg
+    evidens Avtal_01_Tillsvidareanstallningsavtal:32: 12.2 [Alternativ: Parterna avtalar om en ömsesidig uppsägningstid på [antal] månader. Det gäller dock inte om LAS ger en längre uppsägningstid.] 
+    evidens Avtal_01_Tillsvidareanstallningsavtal:33: 12.3 Uppsägning ska vara skriftlig. 
+    evidens Avtal_02_Provanstallningsavtal:18: 9. Villkor efter övergång Om anställningen övergår i en tillsvidareanställning gäller uppsägningstid enligt 11 § LAS, eller den längre tid som parterna har avtalat. I övrigt gäller detta avtal i tillämpliga delar. 
+    evidens Avtal_02_Provanstallningsavtal:7: 4.1 Båda parter får avbryta provanställningen före provtidens utgång [utan uppsägningstid / med [två veckors] varsel]. 
+    evidens Avtal_05_Konsultavtal:24: 11. Uppsägning och hävning 
+    evidens Avtal_05_Konsultavtal:25: 11.1 Båda parter får säga upp avtalet med [30] dagars uppsägningstid. 
+
+=== 18 [resonemang/syntes] Hur lång är uppsägningstiden enligt Avtal_01_Tillsvidareanstallningsavtal?
+    slutsats: 1 månad
+
+    evidens Avtal_01_Tillsvidareanstallningsavtal:31: 12.1 Uppsägningstiden följer 11 § LAS. För Arbetstagaren är den en (1) månad. För Arbetsgivaren är den en (1) månad, och förlängs efter sammanlagd anställningstid hos Arbetsgivaren enligt följande: Anställningstid Uppsäg
+
+=== 19 [resonemang/syntes] Hur lång är uppsägningstiden enligt Avtal_11_Distansarbetsavtal?
+    slutsats: 1 månads
+
+    evidens Avtal_11_Distansarbetsavtal:24: 8.2 Båda parter kan säga upp avtalet med [en (1)] månads uppsägningstid. Arbetet utförs därefter på ordinarie arbetsplats. Anställningen påverkas inte. 
+
+=== 20 [resonemang/syntes] Vilket av dessa dokument har längst uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning, Avtal_11_Distansarbetsavtal)
+    slutsats: Avtal_01_Tillsvidareanstallningsavtal
+
+    evidens Avtal_01_Tillsvidareanstallningsavtal:31: 12.1 Uppsägningstiden följer 11 § LAS. För Arbetstagaren är den en (1) månad. För Arbetsgivaren är den en (1) månad, och förlängs efter sammanlagd anställningstid hos Arbetsgivaren enligt följande: Anställningstid Uppsäg
+    evidens Avtal_03_Visstidsanstallning:7: 3.2 [Ömsesidig uppsägningsrätt: Båda parter får säga upp anställningen i förtid med [en (1) månads] uppsägningstid.] 
+    evidens Avtal_11_Distansarbetsavtal:24: 8.2 Båda parter kan säga upp avtalet med [en (1)] månads uppsägningstid. Arbetet utförs därefter på ordinarie arbetsplats. Anställningen påverkas inte. 
+
+=== 21 [resonemang/syntes] Vilket av dessa dokument har längst uppsägningstid? (Avtal_03_Visstidsanstallning, Avtal_11_Distansarbetsavtal, Avtal_18_Hyresavtal_bostad)
+    slutsats: Avtal_18_Hyresavtal_bostad
+
+    evidens Avtal_03_Visstidsanstallning:7: 3.2 [Ömsesidig uppsägningsrätt: Båda parter får säga upp anställningen i förtid med [en (1) månads] uppsägningstid.] 
+    evidens Avtal_11_Distansarbetsavtal:24: 8.2 Båda parter kan säga upp avtalet med [en (1)] månads uppsägningstid. Arbetet utförs därefter på ordinarie arbetsplats. Anställningen påverkas inte. 
+    evidens Avtal_18_Hyresavtal_bostad:5: 4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen. 
+
+=== 22 [resonemang/syntes] Vilket av dessa dokument har längst uppsägningstid? (Avtal_11_Distansarbetsavtal, Avtal_18_Hyresavtal_bostad, Avtal_22_Kontorshotell_coworking)
+    slutsats: Avtal_18_Hyresavtal_bostad
+
+    evidens Avtal_11_Distansarbetsavtal:24: 8.2 Båda parter kan säga upp avtalet med [en (1)] månads uppsägningstid. Arbetet utförs därefter på ordinarie arbetsplats. Anställningen påverkas inte. 
+    evidens Avtal_18_Hyresavtal_bostad:5: 4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen. 
+    evidens Avtal_22_Kontorshotell_coworking:8: 4.2 Avtalet kan sägas upp av båda parter med [en (1)] månads uppsägningstid, dock tidigast till den första avtalsperiodens slut. 
+
+=== 23 [resonemang/syntes] Vilket av dessa dokument har längst uppsägningstid? (Avtal_18_Hyresavtal_bostad, Avtal_22_Kontorshotell_coworking, Avtal_28_Aktieagaravtal)
+    slutsats: Avtal_28_Aktieagaravtal
+
+    evidens Avtal_18_Hyresavtal_bostad:5: 4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen. 
+    evidens Avtal_22_Kontorshotell_coworking:8: 4.2 Avtalet kan sägas upp av båda parter med [en (1)] månads uppsägningstid, dock tidigast till den första avtalsperiodens slut. 
+    evidens Avtal_28_Aktieagaravtal:27: 9.1 Om Erik Lindqvists anställning i Bolaget upphör inom [fyra (4)] år från detta avtals undertecknande har Petra Sandell och Bolaget rätt att köpa [en andel av] Erik Lindqvists Aktier enligt följande: a) Good leaver (an
+
+=== 24 [resonemang/syntes] Vilket av dessa dokument har längst uppsägningstid? (Avtal_22_Kontorshotell_coworking, Avtal_28_Aktieagaravtal, Avtal_29_Samarbetsavtal)
+    slutsats: Avtal_28_Aktieagaravtal
+
+    evidens Avtal_22_Kontorshotell_coworking:8: 4.2 Avtalet kan sägas upp av båda parter med [en (1)] månads uppsägningstid, dock tidigast till den första avtalsperiodens slut. 
+    evidens Avtal_28_Aktieagaravtal:27: 9.1 Om Erik Lindqvists anställning i Bolaget upphör inom [fyra (4)] år från detta avtals undertecknande har Petra Sandell och Bolaget rätt att köpa [en andel av] Erik Lindqvists Aktier enligt följande: a) Good leaver (an
+    evidens Avtal_29_Samarbetsavtal:22: 12.1 Avtalet gäller från och med 2021-09-01 och tills vidare, med en ömsesidig uppsägningstid på [tre (3)] månader. 
+
+=== 25 [korsdokument] Vilka av dessa dokument innehåller en klausul om force majeure? (Avtal_30_Ramavtal_tjanster, Avtal_31_Leveransavtal, Avtal_15_Bonusavtal, Avtal_03_Visstidsanstallning)
+    slutsats: Avtal_30_Ramavtal_tjanster, Avtal_31_Leveransavtal
+
+    evidens Avtal_30_Ramavtal_tjanster:43: 14. Force majeure En part är befriad från sina skyldigheter om fullgörandet förhindras av omständigheter som parten inte rimligen kunde förutse eller råda över, t.ex. krig, myndighetsbeslut, naturkatastrof, omfattande cy
+    evidens Avtal_31_Leveransavtal:12: 5.1 Om Leverantören är försenad och förseningen inte beror på Köparen eller på force majeure har Köparen rätt till vite med [0,5] procent av värdet av den försenade delen för varje påbörjad vecka. Vitet är högst [10] pro
+    evidens Avtal_31_Leveransavtal:30: 11. Force majeure Force majeure enligt ramavtalet gäller. Brist på komponenter hos tillverkaren utgör force majeure endast om Leverantören inte kunnat anskaffa varor av motsvarande kvalitet från annan källa till skälig k
+
+=== 26 [korsdokument] Vilka av dessa dokument innehåller en klausul om skadestånd? (Avtal_32_Inkopsavtal, Avtal_47_Programvarulicensavtal, Avtal_15_Bonusavtal, Avtal_02_Provanstallningsavtal)
+    slutsats: Avtal_32_Inkopsavtal, Avtal_47_Programvarulicensavtal
+
+    evidens Avtal_32_Inkopsavtal:25: 8.1 Leverantören ansvarar för skada som Produkterna orsakar på person eller egendom, enligt produktansvarslagen (1992:18) och allmänna skadeståndsrättsliga regler, och ska ha en produktansvarsförsäkring. 
+    evidens Avtal_47_Programvarulicensavtal:20: 8. Intrång i tredje mans rätt Licensgivaren ska försvara DevBrains och ersätta DevBrains för kostnader och skadestånd vid krav från tredje man om att Programvaran gör intrång i immateriella rättigheter. DevBrains ska uta
+
+=== 27 [korsdokument] Vilka av dessa dokument innehåller en klausul om tillämplig lag? (Avtal_32_Inkopsavtal, Avtal_02_Provanstallningsavtal, Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_15_Bonusavtal)
+    slutsats: Avtal_32_Inkopsavtal, Avtal_02_Provanstallningsavtal
+
+    evidens Avtal_02_Provanstallningsavtal:19: 10. Tvister och tillämplig lag Svensk lag gäller. Tvister prövas enligt lagen (1974:371) om rättegången i arbetstvister. 
+    evidens Avtal_32_Inkopsavtal:31: 10. Tillämplig lag och tvister Köplagen (1990:931) gäller i övrigt. Tvister avgörs av Stockholms tingsrätt. 
+
+=== 28 [korsdokument] Vilka av dessa dokument innehåller en klausul om överlåtelse? (Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_11_Distansarbetsavtal)
+    slutsats: Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende
+
+    evidens Avtal_17_Hyresavtal_lokal:22: 8. Andrahandsupplåtelse och överlåtelse Hyresgästen får inte hyra ut Lokalen i andra hand eller överlåta hyresrätten utan Hyresvärdens skriftliga samtycke. Hyresnämnden kan i vissa fall lämna tillstånd i stället (12 kap.
+    evidens Avtal_20_Arrendeavtal_lagenhetsarrende:17: 9. Överlåtelse och underupplåtelse Arrendatorn får inte överlåta arrenderätten eller upplåta Arrendestället i andra hand utan Jordägarens skriftliga samtycke. 
+
+=== 29 [korsdokument] Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_17_Hyresavtal_lokal, Avtal_15_Bonusavtal, Avtal_03_Visstidsanstallning)
+    slutsats: Avtal_01_Tillsvidareanstallningsavtal, Avtal_17_Hyresavtal_lokal, Avtal_03_Visstidsanstallning
+
+    evidens Avtal_01_Tillsvidareanstallningsavtal:30: 12. Uppsägning 
+    evidens Avtal_01_Tillsvidareanstallningsavtal:31: 12.1 Uppsägningstiden följer 11 § LAS. För Arbetstagaren är den en (1) månad. För Arbetsgivaren är den en (1) månad, och förlängs efter sammanlagd anställningstid hos Arbetsgivaren enligt följande: Anställningstid Uppsäg
+    evidens Avtal_01_Tillsvidareanstallningsavtal:32: 12.2 [Alternativ: Parterna avtalar om en ömsesidig uppsägningstid på [antal] månader. Det gäller dock inte om LAS ger en längre uppsägningstid.] 
+    evidens Avtal_01_Tillsvidareanstallningsavtal:33: 12.3 Uppsägning ska vara skriftlig. 
+    evidens Avtal_03_Visstidsanstallning:6: 3.1 Anställningen upphör utan föregående uppsägning när den avtalade tiden löper ut. 
+    evidens Avtal_03_Visstidsanstallning:7: 3.2 [Ömsesidig uppsägningsrätt: Båda parter får säga upp anställningen i förtid med [en (1) månads] uppsägningstid.] 
+    evidens Avtal_17_Hyresavtal_lokal:7: 4. Hyrestid och uppsägning 
+
+=== 30 [resonemang/syntes] Hur lång är uppsägningstiden enligt Avtal_03_Visstidsanstallning?
+    slutsats: 1 månads
+
+    evidens Avtal_03_Visstidsanstallning:7: 3.2 [Ömsesidig uppsägningsrätt: Båda parter får säga upp anställningen i förtid med [en (1) månads] uppsägningstid.] 
+
+=== 31 [resonemang/syntes] Hur lång är uppsägningstiden enligt Avtal_18_Hyresavtal_bostad?
+    slutsats: 3 månader
+
+    evidens Avtal_18_Hyresavtal_bostad:5: 4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen. 
+
+=== 32 [resonemang/syntes] Hur lång är uppsägningstiden enligt Avtal_22_Kontorshotell_coworking?
+    slutsats: 1 månads
+
+    evidens Avtal_22_Kontorshotell_coworking:8: 4.2 Avtalet kan sägas upp av båda parter med [en (1)] månads uppsägningstid, dock tidigast till den första avtalsperiodens slut. 

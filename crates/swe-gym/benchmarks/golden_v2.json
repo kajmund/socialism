@@ -1,0 +1,473 @@
+{
+  "version": 1,
+  "questions": [
+    {
+      "id": "g2-01",
+      "category": "evidenssökning",
+      "question": "Innehåller Avtal_05_Konsultavtal en klausul om uppsägningstid?",
+      "documents": [
+        "Avtal_05_Konsultavtal"
+      ],
+      "evidence": [
+        "Avtal_05_Konsultavtal:24",
+        "Avtal_05_Konsultavtal:25"
+      ],
+      "conclusion": "ja",
+      "conclusion_evidence": "Avtal_05_Konsultavtal innehåller 2 chunk(ar) med klausulen"
+    },
+    {
+      "id": "g2-02",
+      "category": "evidenssökning",
+      "question": "Innehåller Avtal_06_Sekretessavtal_ensidigt_NDA en klausul om sekretess?",
+      "documents": [
+        "Avtal_06_Sekretessavtal_ensidigt_NDA"
+      ],
+      "evidence": [
+        "Avtal_06_Sekretessavtal_ensidigt_NDA:0",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA:12",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA:17",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA:5"
+      ],
+      "conclusion": "ja",
+      "conclusion_evidence": "Avtal_06_Sekretessavtal_ensidigt_NDA innehåller 4 chunk(ar) med klausulen"
+    },
+    {
+      "id": "g2-03",
+      "category": "evidenssökning",
+      "question": "Innehåller Avtal_17_Hyresavtal_lokal en klausul om automatisk förlängning?",
+      "documents": [
+        "Avtal_17_Hyresavtal_lokal"
+      ],
+      "evidence": [
+        "Avtal_17_Hyresavtal_lokal:33",
+        "Avtal_17_Hyresavtal_lokal:9"
+      ],
+      "conclusion": "ja",
+      "conclusion_evidence": "Avtal_17_Hyresavtal_lokal innehåller 2 chunk(ar) med klausulen"
+    },
+    {
+      "id": "g2-04",
+      "category": "evidenssökning",
+      "question": "Innehåller Avtal_30_Ramavtal_tjanster en klausul om force majeure?",
+      "documents": [
+        "Avtal_30_Ramavtal_tjanster"
+      ],
+      "evidence": [
+        "Avtal_30_Ramavtal_tjanster:43"
+      ],
+      "conclusion": "ja",
+      "conclusion_evidence": "Avtal_30_Ramavtal_tjanster innehåller 1 chunk(ar) med klausulen"
+    },
+    {
+      "id": "g2-05",
+      "category": "evidenssökning",
+      "question": "Innehåller Avtal_47_Programvarulicensavtal en klausul om skadestånd?",
+      "documents": [
+        "Avtal_47_Programvarulicensavtal"
+      ],
+      "evidence": [
+        "Avtal_47_Programvarulicensavtal:20"
+      ],
+      "conclusion": "ja",
+      "conclusion_evidence": "Avtal_47_Programvarulicensavtal innehåller 1 chunk(ar) med klausulen"
+    },
+    {
+      "id": "g2-06",
+      "category": "evidenssökning",
+      "question": "Innehåller Avtal_31_Leveransavtal en klausul om tillämplig lag?",
+      "documents": [
+        "Avtal_31_Leveransavtal"
+      ],
+      "evidence": [
+        "Avtal_31_Leveransavtal:31"
+      ],
+      "conclusion": "ja",
+      "conclusion_evidence": "Avtal_31_Leveransavtal innehåller 1 chunk(ar) med klausulen"
+    },
+    {
+      "id": "g2-07",
+      "category": "evidenssökning",
+      "question": "Innehåller Avtal_30_Ramavtal_tjanster en klausul om överlåtelse?",
+      "documents": [
+        "Avtal_30_Ramavtal_tjanster"
+      ],
+      "evidence": [
+        "Avtal_30_Ramavtal_tjanster:50"
+      ],
+      "conclusion": "ja",
+      "conclusion_evidence": "Avtal_30_Ramavtal_tjanster innehåller 1 chunk(ar) med klausulen"
+    },
+    {
+      "id": "g2-08",
+      "category": "evidenssökning",
+      "question": "Innehåller Avtal_15_Bonusavtal en klausul om sekretess?",
+      "documents": [
+        "Avtal_15_Bonusavtal"
+      ],
+      "evidence": [],
+      "conclusion": "nej",
+      "conclusion_evidence": "Avtal_15_Bonusavtal innehåller ingen sekretess-klausul"
+    },
+    {
+      "id": "g2-09",
+      "category": "evidenssökning",
+      "question": "Innehåller Avtal_11_Distansarbetsavtal en klausul om force majeure?",
+      "documents": [
+        "Avtal_11_Distansarbetsavtal"
+      ],
+      "evidence": [],
+      "conclusion": "nej",
+      "conclusion_evidence": "Avtal_11_Distansarbetsavtal innehåller ingen force majeure-klausul"
+    },
+    {
+      "id": "g2-10",
+      "category": "evidenssökning",
+      "question": "Innehåller Avtal_02_Provanstallningsavtal en klausul om automatisk förlängning?",
+      "documents": [
+        "Avtal_02_Provanstallningsavtal"
+      ],
+      "evidence": [],
+      "conclusion": "nej",
+      "conclusion_evidence": "Avtal_02_Provanstallningsavtal innehåller ingen automatisk förlängning-klausul"
+    },
+    {
+      "id": "g2-13",
+      "category": "korsdokument",
+      "question": "Vilka av dessa dokument innehåller en klausul om tillämplig lag? (Avtal_31_Leveransavtal, Avtal_51_Anvandarvillkor_webbplats_app, Avtal_15_Bonusavtal, Avtal_11_Distansarbetsavtal)",
+      "documents": [
+        "Avtal_31_Leveransavtal",
+        "Avtal_51_Anvandarvillkor_webbplats_app",
+        "Avtal_15_Bonusavtal",
+        "Avtal_11_Distansarbetsavtal"
+      ],
+      "evidence": [
+        "Avtal_31_Leveransavtal:31",
+        "Avtal_51_Anvandarvillkor_webbplats_app:25"
+      ],
+      "conclusion": "Avtal_31_Leveransavtal, Avtal_51_Anvandarvillkor_webbplats_app",
+      "conclusion_evidence": "2 av 4 dokument innehåller klausulen"
+    },
+    {
+      "id": "g2-14",
+      "category": "korsdokument",
+      "question": "Vilka av dessa dokument innehåller en klausul om överlåtelse? (Avtal_42_Factoringavtal, Avtal_30_Ramavtal_tjanster, Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_15_Bonusavtal)",
+      "documents": [
+        "Avtal_42_Factoringavtal",
+        "Avtal_30_Ramavtal_tjanster",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA",
+        "Avtal_15_Bonusavtal"
+      ],
+      "evidence": [
+        "Avtal_30_Ramavtal_tjanster:50",
+        "Avtal_42_Factoringavtal:5",
+        "Avtal_42_Factoringavtal:7"
+      ],
+      "conclusion": "Avtal_42_Factoringavtal, Avtal_30_Ramavtal_tjanster",
+      "conclusion_evidence": "2 av 4 dokument innehåller klausulen"
+    },
+    {
+      "id": "g2-15",
+      "category": "korsdokument",
+      "question": "Vilka av dessa dokument innehåller en klausul om sekretess? (Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_15_Bonusavtal, Avtal_11_Distansarbetsavtal)",
+      "documents": [
+        "Avtal_06_Sekretessavtal_ensidigt_NDA",
+        "Avtal_05_Konsultavtal",
+        "Avtal_15_Bonusavtal",
+        "Avtal_11_Distansarbetsavtal"
+      ],
+      "evidence": [
+        "Avtal_05_Konsultavtal:18",
+        "Avtal_05_Konsultavtal:21",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA:0",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA:12",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA:17",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA:5",
+        "Avtal_11_Distansarbetsavtal:17"
+      ],
+      "conclusion": "Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_11_Distansarbetsavtal",
+      "conclusion_evidence": "3 av 4 dokument innehåller klausulen"
+    },
+    {
+      "id": "g2-16",
+      "category": "korsdokument",
+      "question": "Vilka av dessa dokument innehåller en klausul om automatisk förlängning? (Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_02_Provanstallningsavtal, Avtal_13_Avgangsvederlagsavtal)",
+      "documents": [
+        "Avtal_17_Hyresavtal_lokal",
+        "Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "Avtal_02_Provanstallningsavtal",
+        "Avtal_13_Avgangsvederlagsavtal"
+      ],
+      "evidence": [
+        "Avtal_17_Hyresavtal_lokal:33",
+        "Avtal_17_Hyresavtal_lokal:9",
+        "Avtal_20_Arrendeavtal_lagenhetsarrende:7"
+      ],
+      "conclusion": "Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende",
+      "conclusion_evidence": "2 av 4 dokument innehåller klausulen"
+    },
+    {
+      "id": "g2-17",
+      "category": "korsdokument",
+      "question": "Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_15_Bonusavtal, Avtal_02_Provanstallningsavtal)",
+      "documents": [
+        "Avtal_05_Konsultavtal",
+        "Avtal_01_Tillsvidareanstallningsavtal",
+        "Avtal_15_Bonusavtal",
+        "Avtal_02_Provanstallningsavtal"
+      ],
+      "evidence": [
+        "Avtal_01_Tillsvidareanstallningsavtal:30",
+        "Avtal_01_Tillsvidareanstallningsavtal:31",
+        "Avtal_01_Tillsvidareanstallningsavtal:32",
+        "Avtal_01_Tillsvidareanstallningsavtal:33",
+        "Avtal_02_Provanstallningsavtal:18",
+        "Avtal_02_Provanstallningsavtal:7",
+        "Avtal_05_Konsultavtal:24",
+        "Avtal_05_Konsultavtal:25"
+      ],
+      "conclusion": "Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal",
+      "conclusion_evidence": "3 av 4 dokument innehåller klausulen"
+    },
+    {
+      "id": "g2-25",
+      "category": "korsdokument",
+      "question": "Vilka av dessa dokument innehåller en klausul om force majeure? (Avtal_30_Ramavtal_tjanster, Avtal_31_Leveransavtal, Avtal_15_Bonusavtal, Avtal_03_Visstidsanstallning)",
+      "documents": [
+        "Avtal_30_Ramavtal_tjanster",
+        "Avtal_31_Leveransavtal",
+        "Avtal_15_Bonusavtal",
+        "Avtal_03_Visstidsanstallning"
+      ],
+      "evidence": [
+        "Avtal_30_Ramavtal_tjanster:43",
+        "Avtal_31_Leveransavtal:12",
+        "Avtal_31_Leveransavtal:30"
+      ],
+      "conclusion": "Avtal_30_Ramavtal_tjanster, Avtal_31_Leveransavtal",
+      "conclusion_evidence": "2 av 4 dokument innehåller klausulen"
+    },
+    {
+      "id": "g2-26",
+      "category": "korsdokument",
+      "question": "Vilka av dessa dokument innehåller en klausul om skadestånd? (Avtal_32_Inkopsavtal, Avtal_47_Programvarulicensavtal, Avtal_15_Bonusavtal, Avtal_02_Provanstallningsavtal)",
+      "documents": [
+        "Avtal_32_Inkopsavtal",
+        "Avtal_47_Programvarulicensavtal",
+        "Avtal_15_Bonusavtal",
+        "Avtal_02_Provanstallningsavtal"
+      ],
+      "evidence": [
+        "Avtal_32_Inkopsavtal:25",
+        "Avtal_47_Programvarulicensavtal:20"
+      ],
+      "conclusion": "Avtal_32_Inkopsavtal, Avtal_47_Programvarulicensavtal",
+      "conclusion_evidence": "2 av 4 dokument innehåller klausulen"
+    },
+    {
+      "id": "g2-27",
+      "category": "korsdokument",
+      "question": "Vilka av dessa dokument innehåller en klausul om tillämplig lag? (Avtal_32_Inkopsavtal, Avtal_02_Provanstallningsavtal, Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_15_Bonusavtal)",
+      "documents": [
+        "Avtal_32_Inkopsavtal",
+        "Avtal_02_Provanstallningsavtal",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA",
+        "Avtal_15_Bonusavtal"
+      ],
+      "evidence": [
+        "Avtal_02_Provanstallningsavtal:19",
+        "Avtal_32_Inkopsavtal:31"
+      ],
+      "conclusion": "Avtal_32_Inkopsavtal, Avtal_02_Provanstallningsavtal",
+      "conclusion_evidence": "2 av 4 dokument innehåller klausulen"
+    },
+    {
+      "id": "g2-28",
+      "category": "korsdokument",
+      "question": "Vilka av dessa dokument innehåller en klausul om överlåtelse? (Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_11_Distansarbetsavtal)",
+      "documents": [
+        "Avtal_17_Hyresavtal_lokal",
+        "Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "Avtal_06_Sekretessavtal_ensidigt_NDA",
+        "Avtal_11_Distansarbetsavtal"
+      ],
+      "evidence": [
+        "Avtal_17_Hyresavtal_lokal:22",
+        "Avtal_20_Arrendeavtal_lagenhetsarrende:17"
+      ],
+      "conclusion": "Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende",
+      "conclusion_evidence": "2 av 4 dokument innehåller klausulen"
+    },
+    {
+      "id": "g2-29",
+      "category": "korsdokument",
+      "question": "Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_17_Hyresavtal_lokal, Avtal_15_Bonusavtal, Avtal_03_Visstidsanstallning)",
+      "documents": [
+        "Avtal_01_Tillsvidareanstallningsavtal",
+        "Avtal_17_Hyresavtal_lokal",
+        "Avtal_15_Bonusavtal",
+        "Avtal_03_Visstidsanstallning"
+      ],
+      "evidence": [
+        "Avtal_01_Tillsvidareanstallningsavtal:30",
+        "Avtal_01_Tillsvidareanstallningsavtal:31",
+        "Avtal_01_Tillsvidareanstallningsavtal:32",
+        "Avtal_01_Tillsvidareanstallningsavtal:33",
+        "Avtal_03_Visstidsanstallning:6",
+        "Avtal_03_Visstidsanstallning:7",
+        "Avtal_17_Hyresavtal_lokal:7"
+      ],
+      "conclusion": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_17_Hyresavtal_lokal, Avtal_03_Visstidsanstallning",
+      "conclusion_evidence": "3 av 4 dokument innehåller klausulen"
+    },
+    {
+      "id": "g2-18",
+      "category": "resonemang/syntes",
+      "question": "Hur lång är uppsägningstiden enligt Avtal_01_Tillsvidareanstallningsavtal?",
+      "documents": [
+        "Avtal_01_Tillsvidareanstallningsavtal"
+      ],
+      "evidence": [
+        "Avtal_01_Tillsvidareanstallningsavtal:31"
+      ],
+      "conclusion": "1 månad",
+      "conclusion_evidence": "uppsägningstid 1 månad (chunk Avtal_01_Tillsvidareanstallningsavtal:31)"
+    },
+    {
+      "id": "g2-19",
+      "category": "resonemang/syntes",
+      "question": "Hur lång är uppsägningstiden enligt Avtal_11_Distansarbetsavtal?",
+      "documents": [
+        "Avtal_11_Distansarbetsavtal"
+      ],
+      "evidence": [
+        "Avtal_11_Distansarbetsavtal:24"
+      ],
+      "conclusion": "1 månads",
+      "conclusion_evidence": "uppsägningstid 1 månads (chunk Avtal_11_Distansarbetsavtal:24)"
+    },
+    {
+      "id": "g2-20",
+      "category": "resonemang/syntes",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning, Avtal_11_Distansarbetsavtal)",
+      "documents": [
+        "Avtal_01_Tillsvidareanstallningsavtal",
+        "Avtal_03_Visstidsanstallning",
+        "Avtal_11_Distansarbetsavtal"
+      ],
+      "evidence": [
+        "Avtal_01_Tillsvidareanstallningsavtal:31",
+        "Avtal_03_Visstidsanstallning:7",
+        "Avtal_11_Distansarbetsavtal:24"
+      ],
+      "conclusion": "Avtal_01_Tillsvidareanstallningsavtal",
+      "conclusion_evidence": "längst uppsägningstid: Avtal_01_Tillsvidareanstallningsavtal (1 månad), Avtal_01_Tillsvidareanstallningsavtal: 1 månad; Avtal_03_Visstidsanstallning: 1 månads; Avtal_11_Distansarbetsavtal: 1 månads"
+    },
+    {
+      "id": "g2-21",
+      "category": "resonemang/syntes",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_03_Visstidsanstallning, Avtal_11_Distansarbetsavtal, Avtal_18_Hyresavtal_bostad)",
+      "documents": [
+        "Avtal_03_Visstidsanstallning",
+        "Avtal_11_Distansarbetsavtal",
+        "Avtal_18_Hyresavtal_bostad"
+      ],
+      "evidence": [
+        "Avtal_03_Visstidsanstallning:7",
+        "Avtal_11_Distansarbetsavtal:24",
+        "Avtal_18_Hyresavtal_bostad:5"
+      ],
+      "conclusion": "Avtal_18_Hyresavtal_bostad",
+      "conclusion_evidence": "längst uppsägningstid: Avtal_18_Hyresavtal_bostad (3 månader), Avtal_03_Visstidsanstallning: 1 månads; Avtal_11_Distansarbetsavtal: 1 månads; Avtal_18_Hyresavtal_bostad: 3 månader"
+    },
+    {
+      "id": "g2-22",
+      "category": "resonemang/syntes",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_11_Distansarbetsavtal, Avtal_18_Hyresavtal_bostad, Avtal_22_Kontorshotell_coworking)",
+      "documents": [
+        "Avtal_11_Distansarbetsavtal",
+        "Avtal_18_Hyresavtal_bostad",
+        "Avtal_22_Kontorshotell_coworking"
+      ],
+      "evidence": [
+        "Avtal_11_Distansarbetsavtal:24",
+        "Avtal_18_Hyresavtal_bostad:5",
+        "Avtal_22_Kontorshotell_coworking:8"
+      ],
+      "conclusion": "Avtal_18_Hyresavtal_bostad",
+      "conclusion_evidence": "längst uppsägningstid: Avtal_18_Hyresavtal_bostad (3 månader), Avtal_11_Distansarbetsavtal: 1 månads; Avtal_18_Hyresavtal_bostad: 3 månader; Avtal_22_Kontorshotell_coworking: 1 månads"
+    },
+    {
+      "id": "g2-23",
+      "category": "resonemang/syntes",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_18_Hyresavtal_bostad, Avtal_22_Kontorshotell_coworking, Avtal_28_Aktieagaravtal)",
+      "documents": [
+        "Avtal_18_Hyresavtal_bostad",
+        "Avtal_22_Kontorshotell_coworking",
+        "Avtal_28_Aktieagaravtal"
+      ],
+      "evidence": [
+        "Avtal_18_Hyresavtal_bostad:5",
+        "Avtal_22_Kontorshotell_coworking:8",
+        "Avtal_28_Aktieagaravtal:27"
+      ],
+      "conclusion": "Avtal_28_Aktieagaravtal",
+      "conclusion_evidence": "längst uppsägningstid: Avtal_28_Aktieagaravtal (4 år), Avtal_18_Hyresavtal_bostad: 3 månader; Avtal_22_Kontorshotell_coworking: 1 månads; Avtal_28_Aktieagaravtal: 4 år"
+    },
+    {
+      "id": "g2-24",
+      "category": "resonemang/syntes",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_22_Kontorshotell_coworking, Avtal_28_Aktieagaravtal, Avtal_29_Samarbetsavtal)",
+      "documents": [
+        "Avtal_22_Kontorshotell_coworking",
+        "Avtal_28_Aktieagaravtal",
+        "Avtal_29_Samarbetsavtal"
+      ],
+      "evidence": [
+        "Avtal_22_Kontorshotell_coworking:8",
+        "Avtal_28_Aktieagaravtal:27",
+        "Avtal_29_Samarbetsavtal:22"
+      ],
+      "conclusion": "Avtal_28_Aktieagaravtal",
+      "conclusion_evidence": "längst uppsägningstid: Avtal_28_Aktieagaravtal (4 år), Avtal_22_Kontorshotell_coworking: 1 månads; Avtal_28_Aktieagaravtal: 4 år; Avtal_29_Samarbetsavtal: 3 månader"
+    },
+    {
+      "id": "g2-30",
+      "category": "resonemang/syntes",
+      "question": "Hur lång är uppsägningstiden enligt Avtal_03_Visstidsanstallning?",
+      "documents": [
+        "Avtal_03_Visstidsanstallning"
+      ],
+      "evidence": [
+        "Avtal_03_Visstidsanstallning:7"
+      ],
+      "conclusion": "1 månads",
+      "conclusion_evidence": "uppsägningstid 1 månads (chunk Avtal_03_Visstidsanstallning:7)"
+    },
+    {
+      "id": "g2-31",
+      "category": "resonemang/syntes",
+      "question": "Hur lång är uppsägningstiden enligt Avtal_18_Hyresavtal_bostad?",
+      "documents": [
+        "Avtal_18_Hyresavtal_bostad"
+      ],
+      "evidence": [
+        "Avtal_18_Hyresavtal_bostad:5"
+      ],
+      "conclusion": "3 månader",
+      "conclusion_evidence": "uppsägningstid 3 månader (chunk Avtal_18_Hyresavtal_bostad:5)"
+    },
+    {
+      "id": "g2-32",
+      "category": "resonemang/syntes",
+      "question": "Hur lång är uppsägningstiden enligt Avtal_22_Kontorshotell_coworking?",
+      "documents": [
+        "Avtal_22_Kontorshotell_coworking"
+      ],
+      "evidence": [
+        "Avtal_22_Kontorshotell_coworking:8"
+      ],
+      "conclusion": "1 månads",
+      "conclusion_evidence": "uppsägningstid 1 månads (chunk Avtal_22_Kontorshotell_coworking:8)"
+    }
+  ]
+}

@@ -1,0 +1,761 @@
+{
+  "jev-only": {
+    "coverage_mean": 0.751,
+    "correctness": 0.6,
+    "jev_calls": 720,
+    "llm_calls": 707,
+    "cost_milli": 7790000,
+    "rows": [
+      {
+        "id": "g2-01",
+        "coverage": 0.5,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-02",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-03",
+        "coverage": 0.5,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-04",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-05",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-06",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-07",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-08",
+        "coverage": 1.0,
+        "answer": "nej",
+        "correct": true
+      },
+      {
+        "id": "g2-09",
+        "coverage": 1.0,
+        "answer": "nej",
+        "correct": true
+      },
+      {
+        "id": "g2-10",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": false
+      },
+      {
+        "id": "g2-13",
+        "coverage": 1.0,
+        "answer": "Avtal_15_Bonusavtal, Avtal_31_Leveransavtal, Avtal_51_Anvandarvillkor_webbplats_app",
+        "correct": false
+      },
+      {
+        "id": "g2-14",
+        "coverage": 0.667,
+        "answer": "Avtal_30_Ramavtal_tjanster, Avtal_42_Factoringavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-15",
+        "coverage": 0.857,
+        "answer": "Avtal_05_Konsultavtal, Avtal_06_Sekretessavtal_ensidigt_NDA",
+        "correct": false
+      },
+      {
+        "id": "g2-16",
+        "coverage": 0.667,
+        "answer": "Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "correct": true
+      },
+      {
+        "id": "g2-17",
+        "coverage": 0.625,
+        "answer": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal, Avtal_05_Konsultavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-25",
+        "coverage": 1.0,
+        "answer": "Avtal_30_Ramavtal_tjanster, Avtal_31_Leveransavtal",
+        "correct": true
+      },
+      {
+        "id": "g2-26",
+        "coverage": 1.0,
+        "answer": "Avtal_32_Inkopsavtal, Avtal_47_Programvarulicensavtal",
+        "correct": true
+      },
+      {
+        "id": "g2-27",
+        "coverage": 1.0,
+        "answer": "Avtal_02_Provanstallningsavtal, Avtal_32_Inkopsavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-28",
+        "coverage": 1.0,
+        "answer": "Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "correct": true
+      },
+      {
+        "id": "g2-29",
+        "coverage": 0.714,
+        "answer": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning, Avtal_17_Hyresavtal_lokal",
+        "correct": false
+      },
+      {
+        "id": "g2-18",
+        "coverage": 1.0,
+        "answer": "1 månad",
+        "correct": true
+      },
+      {
+        "id": "g2-19",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      },
+      {
+        "id": "g2-20",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-21",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-22",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-23",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-24",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-30",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      },
+      {
+        "id": "g2-31",
+        "coverage": 1.0,
+        "answer": "3 månader",
+        "correct": true
+      },
+      {
+        "id": "g2-32",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      }
+    ]
+  },
+  "llm-only": {
+    "coverage_mean": 0.732,
+    "correctness": 0.6,
+    "jev_calls": 720,
+    "llm_calls": 707,
+    "cost_milli": 7790000,
+    "rows": [
+      {
+        "id": "g2-01",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-02",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-03",
+        "coverage": 0.5,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-04",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-05",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-06",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-07",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-08",
+        "coverage": 1.0,
+        "answer": "nej",
+        "correct": true
+      },
+      {
+        "id": "g2-09",
+        "coverage": 1.0,
+        "answer": "nej",
+        "correct": true
+      },
+      {
+        "id": "g2-10",
+        "coverage": 1.0,
+        "answer": "nej",
+        "correct": true
+      },
+      {
+        "id": "g2-13",
+        "coverage": 1.0,
+        "answer": "Avtal_15_Bonusavtal, Avtal_31_Leveransavtal, Avtal_51_Anvandarvillkor_webbplats_app",
+        "correct": false
+      },
+      {
+        "id": "g2-14",
+        "coverage": 0.667,
+        "answer": "Avtal_42_Factoringavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-15",
+        "coverage": 1.0,
+        "answer": "Avtal_05_Konsultavtal, Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_11_Distansarbetsavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-16",
+        "coverage": 0.667,
+        "answer": "Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "correct": true
+      },
+      {
+        "id": "g2-17",
+        "coverage": 0.375,
+        "answer": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-25",
+        "coverage": 0.667,
+        "answer": "Avtal_31_Leveransavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-26",
+        "coverage": 1.0,
+        "answer": "Avtal_32_Inkopsavtal, Avtal_47_Programvarulicensavtal",
+        "correct": true
+      },
+      {
+        "id": "g2-27",
+        "coverage": 0.5,
+        "answer": "Avtal_32_Inkopsavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-28",
+        "coverage": 1.0,
+        "answer": "Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "correct": true
+      },
+      {
+        "id": "g2-29",
+        "coverage": 0.571,
+        "answer": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning, Avtal_17_Hyresavtal_lokal",
+        "correct": false
+      },
+      {
+        "id": "g2-18",
+        "coverage": 1.0,
+        "answer": "1 månad",
+        "correct": true
+      },
+      {
+        "id": "g2-19",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      },
+      {
+        "id": "g2-20",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-21",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-22",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-23",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-24",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-30",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      },
+      {
+        "id": "g2-31",
+        "coverage": 1.0,
+        "answer": "3 månader",
+        "correct": true
+      },
+      {
+        "id": "g2-32",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      }
+    ]
+  },
+  "retrieval+jev": {
+    "coverage_mean": 0.751,
+    "correctness": 0.6,
+    "jev_calls": 720,
+    "llm_calls": 707,
+    "cost_milli": 7790000,
+    "rows": [
+      {
+        "id": "g2-01",
+        "coverage": 0.5,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-02",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-03",
+        "coverage": 0.5,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-04",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-05",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-06",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-07",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-08",
+        "coverage": 1.0,
+        "answer": "nej",
+        "correct": true
+      },
+      {
+        "id": "g2-09",
+        "coverage": 1.0,
+        "answer": "nej",
+        "correct": true
+      },
+      {
+        "id": "g2-10",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": false
+      },
+      {
+        "id": "g2-13",
+        "coverage": 1.0,
+        "answer": "Avtal_15_Bonusavtal, Avtal_31_Leveransavtal, Avtal_51_Anvandarvillkor_webbplats_app",
+        "correct": false
+      },
+      {
+        "id": "g2-14",
+        "coverage": 0.667,
+        "answer": "Avtal_30_Ramavtal_tjanster, Avtal_42_Factoringavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-15",
+        "coverage": 0.857,
+        "answer": "Avtal_05_Konsultavtal, Avtal_06_Sekretessavtal_ensidigt_NDA",
+        "correct": false
+      },
+      {
+        "id": "g2-16",
+        "coverage": 0.667,
+        "answer": "Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "correct": true
+      },
+      {
+        "id": "g2-17",
+        "coverage": 0.625,
+        "answer": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal, Avtal_05_Konsultavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-25",
+        "coverage": 1.0,
+        "answer": "Avtal_30_Ramavtal_tjanster, Avtal_31_Leveransavtal",
+        "correct": true
+      },
+      {
+        "id": "g2-26",
+        "coverage": 1.0,
+        "answer": "Avtal_32_Inkopsavtal, Avtal_47_Programvarulicensavtal",
+        "correct": true
+      },
+      {
+        "id": "g2-27",
+        "coverage": 1.0,
+        "answer": "Avtal_02_Provanstallningsavtal, Avtal_32_Inkopsavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-28",
+        "coverage": 1.0,
+        "answer": "Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "correct": true
+      },
+      {
+        "id": "g2-29",
+        "coverage": 0.714,
+        "answer": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning, Avtal_17_Hyresavtal_lokal",
+        "correct": false
+      },
+      {
+        "id": "g2-18",
+        "coverage": 1.0,
+        "answer": "1 månad",
+        "correct": true
+      },
+      {
+        "id": "g2-19",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      },
+      {
+        "id": "g2-20",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-21",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-22",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-23",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-24",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-30",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      },
+      {
+        "id": "g2-31",
+        "coverage": 1.0,
+        "answer": "3 månader",
+        "correct": true
+      },
+      {
+        "id": "g2-32",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      }
+    ]
+  },
+  "retrieval+jev+llm": {
+    "coverage_mean": 0.784,
+    "correctness": 0.6,
+    "jev_calls": 720,
+    "llm_calls": 707,
+    "cost_milli": 7790000,
+    "rows": [
+      {
+        "id": "g2-01",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-02",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-03",
+        "coverage": 0.5,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-04",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-05",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-06",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-07",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": true
+      },
+      {
+        "id": "g2-08",
+        "coverage": 1.0,
+        "answer": "nej",
+        "correct": true
+      },
+      {
+        "id": "g2-09",
+        "coverage": 1.0,
+        "answer": "nej",
+        "correct": true
+      },
+      {
+        "id": "g2-10",
+        "coverage": 1.0,
+        "answer": "ja",
+        "correct": false
+      },
+      {
+        "id": "g2-13",
+        "coverage": 1.0,
+        "answer": "Avtal_15_Bonusavtal, Avtal_31_Leveransavtal, Avtal_51_Anvandarvillkor_webbplats_app",
+        "correct": false
+      },
+      {
+        "id": "g2-14",
+        "coverage": 1.0,
+        "answer": "Avtal_30_Ramavtal_tjanster, Avtal_42_Factoringavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-15",
+        "coverage": 1.0,
+        "answer": "Avtal_05_Konsultavtal, Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_11_Distansarbetsavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-16",
+        "coverage": 0.667,
+        "answer": "Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "correct": true
+      },
+      {
+        "id": "g2-17",
+        "coverage": 0.625,
+        "answer": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal, Avtal_05_Konsultavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-25",
+        "coverage": 1.0,
+        "answer": "Avtal_30_Ramavtal_tjanster, Avtal_31_Leveransavtal",
+        "correct": true
+      },
+      {
+        "id": "g2-26",
+        "coverage": 1.0,
+        "answer": "Avtal_32_Inkopsavtal, Avtal_47_Programvarulicensavtal",
+        "correct": true
+      },
+      {
+        "id": "g2-27",
+        "coverage": 1.0,
+        "answer": "Avtal_02_Provanstallningsavtal, Avtal_32_Inkopsavtal",
+        "correct": false
+      },
+      {
+        "id": "g2-28",
+        "coverage": 1.0,
+        "answer": "Avtal_17_Hyresavtal_lokal, Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "correct": true
+      },
+      {
+        "id": "g2-29",
+        "coverage": 0.714,
+        "answer": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning, Avtal_17_Hyresavtal_lokal",
+        "correct": false
+      },
+      {
+        "id": "g2-18",
+        "coverage": 1.0,
+        "answer": "1 månad",
+        "correct": true
+      },
+      {
+        "id": "g2-19",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      },
+      {
+        "id": "g2-20",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-21",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-22",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-23",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-24",
+        "coverage": 0.0,
+        "answer": null,
+        "correct": false
+      },
+      {
+        "id": "g2-30",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      },
+      {
+        "id": "g2-31",
+        "coverage": 1.0,
+        "answer": "3 månader",
+        "correct": true
+      },
+      {
+        "id": "g2-32",
+        "coverage": 1.0,
+        "answer": "1 månads",
+        "correct": true
+      }
+    ]
+  },
+  "_invalid_answers": {
+    "LLM": 13
+  }
+}
