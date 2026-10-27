@@ -6,7 +6,6 @@ parser, or anchor system.
 
 from __future__ import annotations
 
-import asyncio
 import re
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -25,8 +24,9 @@ from app.database.models import (
 )
 from app.database.workspace_models import VoiceWorkspace, WorkspaceArtifact, WorkspaceSource
 from app.services.document_ingest_status import document_text_ready
-from app.services.overgraph.catalogs import require_knowledge
-from app.services.overgraph.model import TextUnitView
+from app.services.overgraph.labels import TEXT_UNIT
+from app.services.overgraph.model import GraphRecord, TextUnitView
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.research import text_unit_view
 from app.services.overgraph.text_units import load_text_units as load_version_units
 from app.services.workspace.service import require_source
@@ -175,8 +175,31 @@ async def _sections(session: AsyncSession, source_id: str) -> list[DocumentSecti
 async def _units(session: AsyncSession, source_id: str) -> list[TextUnitView]:
     version_ids = _current_versions().where(CanonicalDocumentRecord.source_object_id == source_id)
     ids = list((await session.scalars(version_ids)).all())
-    catalog = require_knowledge()
-    return await asyncio.to_thread(_load_units_for_versions, catalog, ids)
+    return await _load_owner_units(get_owner_runtime().require_client(), ids)
+
+
+async def _load_owner_units(client, version_ids: list[str]) -> list[TextUnitView]:
+    """Read a source's TextUnits through the Knowledge Owner with cursors."""
+    units: list[TextUnitView] = []
+    for version_id in version_ids:
+        cursor: int | None = None
+        while True:
+            page = await client.query_nodes(
+                TEXT_UNIT, props={"document_version_id": version_id},
+                limit=1000, after=cursor,
+            )
+            units.extend(
+                text_unit_view(GraphRecord(
+                    key=str(row["key"]), labels=tuple(row["labels"]),
+                    props=dict(row.get("props") or {}), engine_id=row.get("id"),
+                ))
+                for row in page["nodes"]
+            )
+            cursor = page.get("next_cursor")
+            if cursor is None:
+                break
+    units.sort(key=lambda unit: (unit.ordinal, unit.id))
+    return units
 
 
 def _load_units_for_versions(catalog, version_ids: list[str]) -> list[TextUnitView]:

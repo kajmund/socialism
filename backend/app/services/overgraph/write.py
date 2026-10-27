@@ -100,18 +100,34 @@ def upsert_entity_at_key(catalog: Catalog, proposed: NodeInput, key: str) -> Gra
     return _require(catalog, ENTITY, key)
 
 
-def upsert_entity(catalog: Catalog, proposed: NodeInput) -> GraphRecord:
+def _entity_identity(proposed: NodeInput) -> tuple[str, str]:
     namespaced(proposed.node_type)
     name = normalized(proposed.name)
     if proposed.identifier_namespace is not None:
         identity = f"{namespaced(proposed.identifier_namespace)}:{normalized(proposed.identifier or '')}"
     else:
         identity = weak_node_identity(proposed.context_key, name)
+    return name, identity
+
+
+def entity_key(proposed: NodeInput) -> str:
+    """Stable key for an entity, independent of who writes it."""
+    _name, identity = _entity_identity(proposed)
+    return stable_id(proposed.scope.scope_key, proposed.node_type, identity)
+
+
+def entity_nodes(proposed: NodeInput) -> tuple[str, tuple[dict[str, object], ...]]:
+    """Pure payload for an entity and its identifier alias.
+
+    Direct writes and the owner writer share this builder so identity and props
+    cannot drift between the two paths.
+    """
+    name, identity = _entity_identity(proposed)
     key = stable_id(proposed.scope.scope_key, proposed.node_type, identity)
-    catalog.upsert_node(
-        _labels(ENTITY, proposed.scope.scope_key),
-        key,
-        props={
+    nodes: list[dict[str, object]] = [{
+        "labels": _labels(ENTITY, proposed.scope.scope_key),
+        "key": key,
+        "props": {
             "scope_key": proposed.scope.scope_key,
             "node_type": proposed.node_type,
             "identity_key": identity,
@@ -119,21 +135,30 @@ def upsert_entity(catalog: Catalog, proposed: NodeInput) -> GraphRecord:
             "normalized_name": name,
             "attributes_json": json.dumps(proposed.attributes, ensure_ascii=False, sort_keys=True),
         },
-    )
+    }]
     if proposed.identifier_namespace is not None:
         alias = stable_id(
             proposed.scope.scope_key, namespaced(proposed.identifier_namespace),
             normalized(proposed.identifier or ""),
         )
-        catalog.upsert_node(
-            _labels(IDENTIFIER, proposed.scope.scope_key),
-            alias,
-            props={
+        nodes.append({
+            "labels": _labels(IDENTIFIER, proposed.scope.scope_key),
+            "key": alias,
+            "props": {
                 "scope_key": proposed.scope.scope_key,
                 "namespace": proposed.identifier_namespace,
                 "identifier": proposed.identifier,
                 "node_key": key,
             },
+        })
+    return key, tuple(nodes)
+
+
+def upsert_entity(catalog: Catalog, proposed: NodeInput) -> GraphRecord:
+    key, nodes = entity_nodes(proposed)
+    for node in nodes:
+        catalog.upsert_node(
+            node["labels"], str(node["key"]), props=dict(node["props"]),
         )
     return _require(catalog, ENTITY, key)
 
@@ -221,6 +246,13 @@ def fact_key(proposed: FactInput, catalog: Catalog | None = None) -> str:
     the deterministic assertion contract and is marked accordingly.
     """
     anchor = source_anchor(proposed, catalog)
+    return fact_key_from_anchor(proposed, anchor)
+
+
+def fact_key_from_anchor(
+    proposed: FactInput, anchor: tuple[str | None, str] | None,
+) -> str:
+    """Shared fact identity; callers with a resolved source anchor use this."""
     if anchor is None:
         return fact_identity(
             scope_key=proposed.scope.scope_key, source_id=proposed.source_id,
@@ -347,8 +379,16 @@ def write_fact(
     if contradiction_key:
         other = catalog.get_by_key(FACT, contradiction_key)
         if other is not None and other.engine_id is not None:
-            left, right = sorted((fact.engine_id, other.engine_id))
-            catalog.upsert_edge(left, right, CONTRADICTS)
+            # Fact-Fact CONTRADICTS is undirected; keep one canonical
+            # orientation (sorted keys) so direct and owner writers agree.
+            left_key, right_key = sorted((key, contradiction_key))
+            left = catalog.get_by_key(FACT, left_key)
+            right = catalog.get_by_key(FACT, right_key)
+            if (
+                left is not None and left.engine_id is not None
+                and right is not None and right.engine_id is not None
+            ):
+                catalog.upsert_edge(left.engine_id, right.engine_id, CONTRADICTS)
     # Re-read: attach_sources updated provenance after the write.
     return _require(catalog, FACT, key)
 

@@ -11,11 +11,35 @@ from tests.test_research_graph_v2_reuse import Embeddings, seed_fact
 
 @pytest.fixture(autouse=True)
 def offline_boundaries(monkeypatch):
-    def forbidden(*_args, **_kwargs):
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+
+    def local_owner_socket(sock, address):
+        # Only the configured single-writer owner socket is local infrastructure;
+        # every other connect (including other AF_UNIX paths) stays forbidden.
+        if getattr(sock, "family", None) != socket.AF_UNIX:
+            return False
+        client = get_owner_runtime().client
+        if client is None:
+            return False
+        target = str(client.socket_path)
+        raw = address.decode() if isinstance(address, bytes) else str(address)
+        return raw == target
+
+    def forbidden(sock, address, *args, **kwargs):
+        if local_owner_socket(sock, address):
+            return real_connect(sock, address, *args, **kwargs)
+        raise RuntimeError("research_reuse CI tests must mock every network boundary")
+
+    def forbidden_ex(sock, address, *args, **kwargs):
+        if local_owner_socket(sock, address):
+            return real_connect_ex(sock, address, *args, **kwargs)
         raise RuntimeError("research_reuse CI tests must mock every network boundary")
 
     monkeypatch.setattr(socket.socket, "connect", forbidden)
-    monkeypatch.setattr(socket.socket, "connect_ex", forbidden)
+    monkeypatch.setattr(socket.socket, "connect_ex", forbidden_ex)
     monkeypatch.setattr("app.services.research.composition.research_embeddings", Embeddings)
 
 

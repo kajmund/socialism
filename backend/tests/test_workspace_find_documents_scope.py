@@ -19,7 +19,6 @@ from app.database.models import CanonicalDocumentRecord, Kund, StoredObject, Use
 from app.schemas.workspace import WorkspaceDocumentSet, WorkspaceState
 from app.services.document_find.fixture import add_document, vector
 from app.services.document_find.types import FindResult, OpCounters
-from app.services.document_qa.tenants import TenantCatalogs, set_tenant_catalogs
 from app.services.workspace import tool_handlers as handlers
 from app.services.workspace.tool_handlers import ToolContext, find_documents
 from app.services.workspaces import create_client_workspace, ensure_company_workspace
@@ -30,14 +29,8 @@ USER_B = "user-2"
 
 
 @pytest.fixture
-def catalogs(tmp_path):
-    registry = TenantCatalogs(tmp_path / "tenants", dimension=DIM)
-    set_tenant_catalogs(registry)
-    try:
-        yield registry
-    finally:
-        set_tenant_catalogs(None)
-        registry.close()
+async def catalogs(owner_tenant_catalogs):
+    return await owner_tenant_catalogs(dimension=DIM)
 
 
 @pytest.fixture
@@ -257,7 +250,7 @@ async def test_empty_readable_scope_returns_honest_note_without_catalog(
     async def unexpected_embed(query: str):
         raise AssertionError("embedding must not be called")
 
-    monkeypatch.setattr(handlers, "_find_in_catalog", unexpected)
+    monkeypatch.setattr(handlers, "run_owner_find", unexpected)
     monkeypatch.setattr(handlers, "_find_query_embedding", unexpected_embed)
     async with factory() as session:
         result = await find_documents(
@@ -271,11 +264,11 @@ async def test_empty_readable_scope_returns_honest_note_without_catalog(
 
 
 @pytest.mark.asyncio
-async def test_catalog_search_runs_on_worker_thread_and_releases_db(
+async def test_find_owner_call_releases_db(
     tmp_path, monkeypatch,
 ):
-    """One-connection pool proves the handler neither blocks the loop nor
-    holds its connection while the (blocking) catalog search is pending."""
+    """One-connection pool proves the handler does not hold its connection
+    while the asynchronous Owner search is pending."""
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{tmp_path / 'thread.db'}",
         pool_size=1,
@@ -297,10 +290,10 @@ async def test_catalog_search_runs_on_worker_thread_and_releases_db(
     release = threading.Event()
     runner_ids: list[int] = []
 
-    def fake_find_in_catalog(*args, **kwargs):
+    async def fake_find(*args, **kwargs):
         runner_ids.append(threading.get_ident())
         entered.set()
-        assert release.wait(timeout=5)
+        assert await asyncio.to_thread(release.wait, 5)
         return FindResult(
             document_ids=("doc-1",),
             strategy="category",
@@ -308,13 +301,13 @@ async def test_catalog_search_runs_on_worker_thread_and_releases_db(
             counters=OpCounters(),
         )
 
-    monkeypatch.setattr(handlers, "_find_in_catalog", fake_find_in_catalog)
+    monkeypatch.setattr(handlers, "run_owner_find", fake_find)
+    monkeypatch.setattr(handlers, "tenant_owner_client", lambda _customer_id: object())
 
     async def fake_require(session, workspace_id, user):
         return SimpleNamespace(id=workspace_id, customer_id=1, owner_user_id=USER_A)
 
     monkeypatch.setattr(handlers, "require_workspace", fake_require)
-    main_ident = threading.get_ident()
     try:
         async with factory() as session:
             task = asyncio.create_task(find_documents(
@@ -329,6 +322,6 @@ async def test_catalog_search_runs_on_worker_thread_and_releases_db(
     finally:
         release.set()
         await engine.dispose()
-    assert runner_ids and runner_ids[0] != main_ident
+    assert runner_ids
     assert result["document_ids"] == ["doc-1"]
     assert result["source_ids"] == ["src-1"]

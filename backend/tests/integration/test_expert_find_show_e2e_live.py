@@ -26,7 +26,10 @@ from app.llm.tool_messages import assistant_message_dict
 from app.schemas.domain import EditablePersona
 from app.schemas.workspace import WorkspaceState
 from app.services.document_find.fixture import add_document, vector
-from app.services.document_qa.tenants import TenantCatalogs, set_tenant_catalogs
+from tests.tenant_catalogs import (
+    DirectTenantCatalogs as TenantCatalogs,
+    set_tenant_catalogs,
+)
 from app.services.document_tool_retrieval import expose_workspace_tools
 from app.services.prompt_catalog import default_prompts
 from app.services.workspace import tool_handlers as handlers
