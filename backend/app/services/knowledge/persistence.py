@@ -12,10 +12,8 @@ from app.database.models import (
     CanonicalDocumentRecord,
     DocumentSectionRecord,
     DocumentVersionRecord,
-    KnowledgeClaimTextUnit,
 )
 from app.serializers import utcnow
-from app.services.knowledge.claim_store import prune_unsupported_claims
 from app.services.knowledge.scope import (
     KnowledgeTenantScope,
     persist_scope_fields,
@@ -233,18 +231,6 @@ async def delete_canonical_document(session: AsyncSession, document_id: str) -> 
     unit_ids = await text_unit_ids_for_document_via_owner(
         client, document_id=document_id,
     )
-    if unit_ids:
-        links = list(
-            (
-                await session.execute(
-                    select(KnowledgeClaimTextUnit).where(
-                        KnowledgeClaimTextUnit.text_unit_id.in_(unit_ids)
-                    )
-                )
-            ).scalars().all()
-        )
-        for link in links:
-            await session.delete(link)
     version_ids = list(
         (
             await session.execute(
@@ -269,4 +255,3 @@ async def delete_canonical_document(session: AsyncSession, document_id: str) -> 
     )
     await session.delete(row)
     await session.flush()
-    await prune_unsupported_claims(session)
