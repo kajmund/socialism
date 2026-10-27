@@ -396,3 +396,24 @@ Per kategori (kombinationen): evidenssökning 0.95 täckning / 0.90 korrekthet �
 
 **Metodnot:** retrieval mäts som rankningskvalitet (frysta embeddings) — den besvarar inga frågor själv, den ordnar kandidaterna. Kostnadsmodell: JEV 1 coin/anrop, LLM 10 coins/anrop, retrieval = amorterad indexkostnad (rapporteras som embedding-tokens).
 
+## 21. Kedje-experimentet: förändrar en förmåga värdet av en annan?
+
+Granskningens invändning var korrekt: lika slutresultat ≠ lika marginalvärde — det sekventiella värdet (JEV:s fynd som indata till LLM-syntes) var omätt. Fem korsdokument-/syntesfrågor (g2-15, g2-17, g2-29, g2-20, g2-23), fyra kedjor per fråga, samma budget (240 coins, faktisk kostnad mäts):
+
+| Kedja | Kostnad (medel) | Täckning | Korrekthet |
+|---|---|---|---|
+| JEV → deterministisk assembler | 24 000 | 0.44 | 0.40 |
+| LLM → assembler | 234 000 | 0.39 | 0.40 |
+| JEV → LLM-syntes | 34 000 | 0.44 | 0.20 |
+| LLM → JEV → LLM | 21 600 | 0.22 | 0.20 |
+
+Per fråga är skillnaderna lärorika: g2-15 vinner bara LLM-klassificeringen (full täckning, 240k — JEV missar ett dokument); g2-17 och g2-29 vinner JEV+assemblern (24k, korrekt) medan LLM-syntesen tappar dokument; **g2-20/g2-23 (jämförelsefrågorna) misslyckas alla kedjor med täckning 0.00** — per-chunk-klassificeringen hittar inte evidenschunkarna alls.
+
+**Utslaget på granskningens beslutsträd: kedjorna skiljer sig inte i kvalitet på dessa frågor.** Där de skiljer sig ligger skillnaden i klassificeringssteget (JEV vs LLM per chunk), inte i syntessteget — LLM-syntesen slår aldrig den deterministiska assemblern givet samma evidens. Begränsningsanalysen, i ordning:
+
+1. **Frågorna:** jämförelsefrågornas totala kollaps (0.00) visar att per-chunk-prompten ("besvarar denna chunk frågan?") är fel primitiv för syntesfrågor — evidenschunkarna besvarar inte frågan var för sig. Frågegenereringen måste antingen rama klassificeringen som evidensrelevans eller byta hämtningsprimitive för syntesfrågor.
+2. **Syntesförmågan:** givet korrekt evidens var LLM-syntesen komplett på 1 av 3 korsdokumentfrågor — sämre än nyckelordsassemblern. Promptingen är naiv (ingen strukturerad utdata, ingen reasoning_effort) — synteskvalitet är en riktig spak som inte är mätt vid sitt bästa.
+3. **Utvärderingen:** strikt mängdlikhet straffar nära-missar (2 av 3 dokument = fel); partiell kredit skulle visa gradskillnader.
+
+**Slutsatsen:** marknaden är fortfarande inte differentierad, men nu vet vi exakt var differentieringen måste uppstå: i frågor där per-chunk-hämtning är fel primitiv och syntesen är det enda steget som kan svara — riskallokering, konsekvenser, motsägelser. Där skulle en billig JEV-undersökning + dyr LLM-syntes bli det genuina sekventiella budgetproblemet. Nästa frågegenerering prioriterar just de frågetyperna, med klassificeringsprompten omramad till evidensrelevans.
+
