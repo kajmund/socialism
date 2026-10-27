@@ -34,9 +34,14 @@ from app.services.overgraph.owner_client import (
     RECEIPT_LABEL,
     OwnerQueueFull,
     OwnerUnavailable,
+    MAX_REQUEST_BYTES,
     _record_sample,
     load_catalog_id,
     payload_hash as compute_payload_hash,
+)
+
+_WRITE_FAILURES = (
+    OverGraphError, OSError, OwnerProtocolError, RuntimeError, ValueError, KeyError, TypeError,
 )
 
 __all__ = [
@@ -110,7 +115,9 @@ class OvergraphOwner:
         if self.profile_lag:
             self._lag_monitor = LagMonitor(self.metrics)
             self._lag_monitor.start()
-        self._server = await asyncio.start_unix_server(self._handle, path=str(self.socket_path), limit=16 * 1024 * 1024)
+        self._server = await asyncio.start_unix_server(
+            self._handle, path=str(self.socket_path), limit=MAX_REQUEST_BYTES,
+        )
     async def close(self) -> None:
         self._closed = True
         if self._server is not None:
@@ -152,7 +159,15 @@ class OvergraphOwner:
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
     ) -> None:
         try:
-            line = await reader.readline()
+            try:
+                line = await reader.readline()
+            except ValueError:
+                self.metrics.rejected += 1
+                writer.write((json.dumps({
+                    "ok": False, "error": "request_too_large",
+                }) + "\n").encode())
+                await writer.drain()
+                return
             if not line:
                 return
             payload = json.loads(line)
@@ -198,7 +213,7 @@ class OvergraphOwner:
             self.metrics.queue_high_water = max(self.metrics.queue_high_water, self.queue.qsize())
             try:
                 response = await future
-            except Exception as exc:  # noqa: BLE001 - surfaced to the client
+            except _WRITE_FAILURES as exc:
                 response = {"ok": False, "error": str(exc)}
             writer.write((json.dumps(response) + "\n").encode())
             await writer.drain()
@@ -238,7 +253,7 @@ class OvergraphOwner:
                 if result.get("ok") and not result.get("duplicate"):
                     self.read_revision += 1
                 future.set_result(result)
-            except Exception as exc:  # noqa: BLE001 - surfaced to client
+            except _WRITE_FAILURES as exc:
                 if not future.done():
                     future.set_exception(exc)
             finally:

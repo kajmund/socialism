@@ -323,7 +323,6 @@ tests-max-lines = 1000
 "app/services/oasis_run.py:PLR0915" = 1
 "app/services/oasis_run.py:PLR1702" = 1
 "app/services/okf_corpus.py:E402" = 1
-"app/services/overgraph/owner.py:BLE001" = 2
 "app/services/overgraph/owner.py:C901" = 1
 "app/services/overgraph/owner.py:PLR0912" = 1
 "app/services/overgraph/owner.py:PLR0915" = 1

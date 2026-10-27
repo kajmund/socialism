@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from app.services.overgraph.owner import OwnerAlreadyActive, OwnerClient, OwnerProtocolError, OvergraphOwner
+from app.services.overgraph.owner import (
+    OwnerAlreadyActive,
+    OwnerClient,
+    OwnerProtocolError,
+    OvergraphOwner,
+)
+from app.services.overgraph.owner_client import MAX_REQUEST_BYTES
 
 
 @pytest.fixture
@@ -46,6 +53,46 @@ async def test_duplicate_mutation_id_is_not_reapplied(owner):
     assert conflict == {"ok": False, "error": "idempotency_conflict", "mutation_id": "same-id"}
     assert instance.catalog.get_by_key("Probe", "first") is not None
     assert instance.catalog.get_by_key("Probe", "second") is None
+
+
+async def test_large_mutation_payload_is_accepted(owner):
+    instance, client = owner
+    text = "x" * 70_000
+    result = await client.mutate("large-payload", {"upsert_nodes": [{
+        "labels": ["Probe", "owner-test"], "key": "large",
+        "props": {"text": text},
+    }]})
+    assert result["ok"] is True
+    assert instance.catalog.get_by_key("Probe", "large").props["text"] == text
+
+
+async def test_oversized_request_is_rejected_before_send(owner):
+    _instance, client = owner
+    with pytest.raises(OwnerProtocolError, match="request_too_large"):
+        await client._request({"type": "health", "pad": "x" * MAX_REQUEST_BYTES})
+
+
+async def test_oversized_stream_request_gets_structured_error(monkeypatch):
+    import app.services.overgraph.owner as owner_module
+
+    monkeypatch.setattr(owner_module, "MAX_REQUEST_BYTES", 1024)
+    root = Path(tempfile.mkdtemp(prefix="ogo-limit-"))
+    instance = OvergraphOwner(
+        root / "catalog", dimension=4, socket_path=root / "owner.sock",
+    )
+    await instance.start()
+    try:
+        reader, writer = await asyncio.open_unix_connection(str(instance.socket_path))
+        try:
+            writer.write(b'{"pad":"' + b"x" * 2048 + b'"}\n')
+            await writer.drain()
+            line = await asyncio.wait_for(reader.readline(), timeout=5)
+        finally:
+            writer.close()
+            await writer.wait_closed()
+        assert json.loads(line) == {"ok": False, "error": "request_too_large"}
+    finally:
+        await instance.close()
 
 
 async def test_second_owner_refuses_same_catalog(tmp_path: Path):

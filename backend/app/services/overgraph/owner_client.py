@@ -55,6 +55,7 @@ class MutationRequest:
 
 METRIC_SAMPLES = 1000
 RECEIPT_LABEL = "MutationReceipt"
+MAX_REQUEST_BYTES = 16 * 1024 * 1024
 
 
 def _record_sample(samples: list[float], started: float) -> None:
@@ -89,12 +90,15 @@ class OwnerClient:
     async def _request(self, payload: dict[str, Any]) -> dict[str, Any]:
         try:
             reader, writer = await asyncio.open_unix_connection(
-                str(self.socket_path), limit=16 * 1024 * 1024
+                str(self.socket_path), limit=MAX_REQUEST_BYTES
             )
         except (FileNotFoundError, ConnectionRefusedError, OSError) as exc:
             raise OwnerUnavailable(str(exc)) from exc
         try:
-            writer.write((json.dumps(payload) + "\n").encode())
+            encoded = (json.dumps(payload) + "\n").encode()
+            if len(encoded) > MAX_REQUEST_BYTES:
+                raise OwnerProtocolError("request_too_large")
+            writer.write(encoded)
             await writer.drain()
             line = await asyncio.wait_for(reader.readline(), timeout=self.timeout)
             if not line:
