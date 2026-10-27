@@ -8,6 +8,7 @@ from app.services.gemini_live import GeminiLiveVoiceProvider
 from app.services.live_voice import (
     LiveVoiceUnavailable,
     expert_live_voice,
+    expert_live_voice_model,
     get_live_voice_provider,
 )
 
@@ -34,3 +35,24 @@ def test_socialism_live_speech_uses_saved_elevenlabs_voice():
         match="socialism_live_speech_workspace_required",
     ):
         get_live_voice_provider("socialism")
+
+
+def test_expert_live_voice_model_uses_saved_openai_model_or_default(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(settings, "openai_native_model", "gpt-realtime-2.1")
+    persona = SimpleNamespace(
+        live_voice_provider="openai",
+        live_voice_model="gpt-realtime-2",
+    )
+    assert expert_live_voice_model(persona) == "gpt-realtime-2"
+    persona.live_voice_model = ""
+    assert expert_live_voice_model(persona) == "gpt-realtime-2.1"
+    persona.live_voice_model = "not-a-model"
+    with pytest.raises(ValueError, match="unknown_openai_model"):
+        expert_live_voice_model(persona)
+    persona = SimpleNamespace(
+        live_voice_provider="gemini",
+        live_voice_model="gpt-realtime-2",
+    )
+    assert expert_live_voice_model(persona) == ""

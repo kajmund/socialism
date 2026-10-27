@@ -199,6 +199,40 @@ def _open_runtime(root: Path) -> OverGraphRuntime:
     return runtime
 
 
+@dataclass
+class OwnerBinding:
+    """In-process single writer for the runtime this benchmark just opened."""
+
+    owner: Any
+    previous_client: Any
+
+
+async def open_owner_for_runtime(runtime: OverGraphRuntime) -> OwnerBinding:
+    """Research now publishes answers through the owner; benchmarks must too."""
+    from app.services.overgraph.owner import OwnerClient, OvergraphOwner
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+
+    root = Path(tempfile.mkdtemp(prefix="bench-owner-"))
+    owner = OvergraphOwner(
+        root / "lock",
+        dimension=runtime.knowledge.dimension,
+        socket_path=root / "owner.sock",
+        catalog=runtime.knowledge,
+    )
+    await owner.start()
+    state = get_owner_runtime()
+    binding = OwnerBinding(owner=owner, previous_client=state.client)
+    state.client = OwnerClient(owner.socket_path, catalog_id=owner.catalog_id)
+    return binding
+
+
+async def close_owner_binding(binding: OwnerBinding) -> None:
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+
+    get_owner_runtime().client = binding.previous_client
+    await binding.owner.close()
+
+
 async def _new_attempt(factory: async_sessionmaker[AsyncSession], question: str) -> str:
     async with factory.begin() as session:
         run = await create_run(
@@ -385,6 +419,7 @@ async def _measure_pair(
     pair_root = root / f"pair-{index + 1}"
     pair_root.mkdir(parents=True, exist_ok=True)
     runtime = _open_runtime(pair_root / "overgraph")
+    owner_binding = await open_owner_for_runtime(runtime)
     engine, factory = await _open_database(pair_root / "research.sqlite")
     source = RecordingSource("case_knowledge")
     registry = ResearchSourceRegistry()
@@ -401,6 +436,7 @@ async def _measure_pair(
         cold = await _run_attempt(harness, question=question, label="cold")
         warm = await _run_attempt(harness, question=question, label="warm")
     finally:
+        await close_owner_binding(owner_binding)
         runtime.close()
         await engine.dispose()
     return cold, warm

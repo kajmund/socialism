@@ -404,6 +404,7 @@ class ElevenLabsLiveVoiceProvider:
         initial_turn: str,
         tools: list[dict[str, Any]],
         voice: str | None = None,
+        model: str | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> PersonaLiveTokenOut:
         _, agent_id, configured_voice = _require_elevenlabs_config()

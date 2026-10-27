@@ -153,6 +153,7 @@ Still hardcoded (next slices): OASIS simulation prompts (intentionally Swedish).
 | `/tools` | Verktyg (flikar: konfigurationer, playground, cache, LLM) |
 | `/tools/configurations` | Konfigurationer (namn + språk + prompts + SSR-temperatur + grunddata) |
 | `/tools/configurations/new`, `/tools/configurations/:id/edit` | Skapa/redigera konfiguration |
+| `/tools/clause-ssr` | Klausulankare (Ja/Nej-verifieringskö) |
 | `/tools/playground` | Anchor-/SSR-kalibrering + prompt-iteration |
 | `/tools/cache` | Lista/rensa diskcachade SSR-ankarembeddings |
 | `/tools/memory` | Expertminnen (Mem0) per kund och expert |
