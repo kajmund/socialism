@@ -15,6 +15,22 @@ GEMINI_LIVE_VOICES = (
     "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
 )
 
+# OpenAI Realtime prebuilt voices. The name is the voice id.
+OPENAI_NATIVE_VOICES = (
+    "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse",
+    "marin", "cedar",
+)
+
+# OpenAI Realtime speech-to-speech models offered in the expert GUI, newest first.
+OPENAI_NATIVE_MODELS = (
+    "gpt-realtime-2.1",
+    "gpt-realtime-2.1-mini",
+    "gpt-realtime-2",
+    "gpt-realtime-1.5",
+    "gpt-realtime",
+    "gpt-realtime-mini",
+)
+
 
 class LiveVoiceUnavailable(RuntimeError):
     pass
@@ -32,6 +48,7 @@ class LiveVoiceProvider(Protocol):
         initial_turn: str,
         tools: list[dict[str, Any]],
         voice: str | None = None,
+        model: str | None = None,
         client: AsyncClient | None = None,
     ) -> PersonaLiveTokenOut: ...
 
@@ -45,9 +62,26 @@ def expert_live_voice(persona: Persona) -> tuple[str, str]:
         if voice not in GEMINI_LIVE_VOICES:
             raise ValueError("unknown_gemini_voice")
         return provider, voice
+    if provider == "openai":
+        voice = saved or settings.openai_native_voice
+        if voice not in OPENAI_NATIVE_VOICES:
+            raise ValueError("unknown_openai_voice")
+        return provider, voice
     if provider in {"elevenlabs", "socialism"}:
         return provider, saved or settings.elevenlabs_voice_id.strip()
     raise RuntimeError(f"unknown LIVE_VOICE_PROVIDER: {provider}")
+
+
+def expert_live_voice_model(persona: Persona) -> str:
+    """Saved OpenAI Realtime model, or the process default. Empty for other providers."""
+    provider = persona.live_voice_provider or settings.live_voice_provider
+    if provider != "openai":
+        return ""
+    saved = (persona.live_voice_model or "").strip()
+    model = saved or settings.openai_native_model
+    if model not in OPENAI_NATIVE_MODELS:
+        raise ValueError("unknown_openai_model")
+    return model
 
 
 def get_live_voice_provider(name: str | None = None) -> LiveVoiceProvider:
@@ -60,6 +94,10 @@ def get_live_voice_provider(name: str | None = None) -> LiveVoiceProvider:
         from app.services.gemini_live import GeminiLiveVoiceProvider
 
         return GeminiLiveVoiceProvider()
+    if chosen == "openai":
+        from app.services.openai_live import OpenAILiveVoiceProvider
+
+        return OpenAILiveVoiceProvider()
     if chosen == "elevenlabs":
         from app.services.elevenlabs_live import ElevenLabsLiveVoiceProvider
 
@@ -76,6 +114,7 @@ async def create_live_voice_session(
     tools: list[dict[str, Any]],
     provider: str | None = None,
     voice: str | None = None,
+    model: str | None = None,
     client: AsyncClient | None = None,
 ) -> PersonaLiveTokenOut:
     adapter = get_live_voice_provider(provider)
@@ -84,5 +123,6 @@ async def create_live_voice_session(
         initial_turn=initial_turn,
         tools=tools,
         voice=voice,
+        model=model,
         client=client,
     )

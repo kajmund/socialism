@@ -1,0 +1,173 @@
+{
+  "measurement": "live",
+  "note": "live Jev passage scores (System One) + live assessor model; baseline is the PR #420 input window applied locally",
+  "model": {
+    "jev": "jev-1.13.0",
+    "llm_provider": "cerebras",
+    "llm_calls_total": 0
+  },
+  "summary": {
+    "measurement": "live",
+    "note": "live Jev passage scores (System One) + live assessor model; baseline is the PR #420 input window applied locally",
+    "accuracy": {
+      "baseline": 0.25,
+      "experiment": 0.5
+    },
+    "false_sufficient_rate": {
+      "baseline": 1.0,
+      "experiment": 0.6666666666666666
+    },
+    "confusion": {
+      "true_sufficient": 1,
+      "false_sufficient": 2,
+      "true_insufficient": 1,
+      "false_insufficient": 0
+    },
+    "coverage": {
+      "baseline": 0.299418252369135,
+      "experiment": 1.0
+    },
+    "latency_ms": {
+      "baseline": 3.853354006423615,
+      "experiment": 17978.793499991298
+    },
+    "cost": {
+      "baseline": {
+        "jev_calls": 0,
+        "llm_calls": 4,
+        "input_chars": 119240
+      },
+      "experiment": {
+        "jev_calls": 1043,
+        "llm_calls": 0,
+        "input_chars": 1478044
+      }
+    },
+    "pr420_cerebras_baseline": {
+      "model": "cerebras gpt-oss-120b",
+      "input_chars_before": 567673,
+      "input_chars_after": 56443,
+      "output_cap_tokens": 8192
+    },
+    "cases": [
+      "tail_counterevidence",
+      "late_evidence",
+      "large_567k",
+      "short_sufficient"
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "tail_counterevidence",
+      "expected": "insufficient",
+      "baseline": {
+        "result": "sufficient",
+        "status": "sufficient",
+        "accurate": false,
+        "false_sufficient": true,
+        "coverage": 0.023713836399490776,
+        "latency_ms": 0.5023329867981374,
+        "jev_calls": 0,
+        "llm_calls": 1,
+        "input_chars": 1900,
+        "omitted_evidence": 0
+      },
+      "experiment": {
+        "result": "sufficient",
+        "status": "sufficient",
+        "accurate": false,
+        "false_sufficient": true,
+        "coverage": 1.0,
+        "latency_ms": 2725.3626249730587,
+        "jev_calls": 55,
+        "llm_calls": 0,
+        "input_chars": 80122,
+        "omitted_evidence": 0
+      }
+    },
+    {
+      "case_id": "late_evidence",
+      "expected": "insufficient",
+      "baseline": {
+        "result": "sufficient",
+        "status": "sufficient",
+        "accurate": false,
+        "false_sufficient": true,
+        "coverage": 0.06992351592441967,
+        "latency_ms": 11.916666990146041,
+        "jev_calls": 0,
+        "llm_calls": 1,
+        "input_chars": 58492,
+        "omitted_evidence": 17
+      },
+      "experiment": {
+        "result": "sufficient",
+        "status": "sufficient",
+        "accurate": false,
+        "false_sufficient": true,
+        "coverage": 1.0,
+        "latency_ms": 41495.704417000525,
+        "jev_calls": 589,
+        "llm_calls": 0,
+        "input_chars": 836514,
+        "omitted_evidence": 0
+      }
+    },
+    {
+      "case_id": "large_567k",
+      "expected": "insufficient",
+      "baseline": {
+        "result": "sufficient",
+        "status": "sufficient",
+        "accurate": false,
+        "false_sufficient": true,
+        "coverage": 0.10403565715262958,
+        "latency_ms": 2.9150830232538283,
+        "jev_calls": 0,
+        "llm_calls": 1,
+        "input_chars": 58400,
+        "omitted_evidence": 0
+      },
+      "experiment": {
+        "result": "insufficient",
+        "status": "uncertain",
+        "accurate": true,
+        "false_sufficient": false,
+        "coverage": 1.0,
+        "latency_ms": 27217.91133302031,
+        "jev_calls": 397,
+        "llm_calls": 0,
+        "input_chars": 561346,
+        "omitted_evidence": 0
+      }
+    },
+    {
+      "case_id": "short_sufficient",
+      "expected": "sufficient",
+      "baseline": {
+        "result": "sufficient",
+        "status": "sufficient",
+        "accurate": true,
+        "false_sufficient": false,
+        "coverage": 1.0,
+        "latency_ms": 0.07933302549645305,
+        "jev_calls": 0,
+        "llm_calls": 1,
+        "input_chars": 448,
+        "omitted_evidence": 0
+      },
+      "experiment": {
+        "result": "sufficient",
+        "status": "sufficient",
+        "accurate": true,
+        "false_sufficient": false,
+        "coverage": 1.0,
+        "latency_ms": 476.19562497129664,
+        "jev_calls": 2,
+        "llm_calls": 0,
+        "input_chars": 62,
+        "omitted_evidence": 0
+      }
+    }
+  ]
+}

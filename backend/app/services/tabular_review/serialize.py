@@ -51,6 +51,11 @@ def cell_out(cell: TabularReviewCell, *, include_candidates: bool = False) -> di
         "row_id": cell.row_id,
         "column_id": cell.column_id,
         "status": cell.status,
+        "no_hit_reason": (
+            (cell.source_json or {}).get("no_hit_reason")
+            if cell.status in {"no_hit", "unknown"}
+            else None
+        ),
         "similarity": cell.similarity,
         "text_unit_id": cell.text_unit_id,
         "exact_text": cell.exact_text,

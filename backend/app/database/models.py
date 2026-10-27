@@ -22,7 +22,6 @@ from app.database.base import Base
 from app.database.stored_objects import StoredObject as StoredObject
 from app.database.knowledge_observation import KnowledgeObservationRecord as KnowledgeObservationRecord
 
-
 class Kund(Base):
     """Customer (tenant) — hardest scoping level for library data."""
 
@@ -69,7 +68,6 @@ class Kund(Base):
     expert_profiles: Mapped[list["PanelExpertProfile"]] = relationship(back_populates="kund")
     execution_runs: Mapped[list["ExecutionRun"]] = relationship(back_populates="kund")
 
-
 class UserAccount(Base):
     """Roll + kund-koppling för en Supabase-autentiserad användare."""
 
@@ -97,7 +95,6 @@ class UserAccount(Base):
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     kund: Mapped[Kund | None] = relationship(back_populates="user_accounts")
-
 
 class Projekt(Base):
     """Project grouping within a customer (soft scope for runs, messages, grunddata)."""
@@ -153,6 +150,9 @@ class Persona(Base):
     tools: Mapped[list | None] = mapped_column(JSON, nullable=True)
     live_voice_provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
     live_voice: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    live_voice_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    stt_correction_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    stt_correction_timeout_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     avatar_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     avatar_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     updated_at: Mapped[datetime] = mapped_column(

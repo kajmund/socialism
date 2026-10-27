@@ -12,7 +12,6 @@ from app.database.workspace_models import VoiceWorkspace, WorkspaceReference, Wo
 from app.services.workspace.mark_author import marked_author
 from app.services.workspace.service import fingerprint, new_id, require_artifact, require_reference, require_source
 from app.services.workspace.research_links import sync_research_links
-from app.services.overgraph.research import knowledge_catalog, load_text_units
 from app.services.research.workspace_grounding import passages_allowed
 from app.services.research.models import ResearchContext
 from app.services.knowledge.models import KnowledgeScope
@@ -141,8 +140,12 @@ async def _graph_reference_stale(session: AsyncSession, workspace: VoiceWorkspac
     if version is None or document is None or version.scope_key not in scopes or document.scope_key != version.scope_key:
         raise HTTPException(status_code=404, detail="workspace_graph_source_not_found")
     unit_ids = ref.snapshot.get("supporting_text_unit_ids", [])
-    catalog = knowledge_catalog()
-    units = await catalog.run(load_text_units, catalog, list(unit_ids))
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+    from app.services.overgraph.research_owner import load_text_units_via_owner
+
+    units = await load_text_units_via_owner(
+        get_owner_runtime().require_client(), list(unit_ids),
+    )
     if not unit_ids or any(
         unit is None or unit.document_version_id != version.id or unit.scope_key != version.scope_key
         for unit in units

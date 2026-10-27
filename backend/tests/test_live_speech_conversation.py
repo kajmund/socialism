@@ -243,6 +243,38 @@ async def test_coordinator_times_out_tts_without_a_second_stream(
     assert types.count("audio.output.end") == 1
 
 
+async def test_coordinator_plays_replies_longer_than_the_tts_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Playback pacing is real time, so the timeout must not cap the reply length."""
+    chunks: list[bytes] = []
+
+    async def stream(_text: str):
+        # 0.1 s of 24 kHz 16-bit PCM per chunk, delivered instantly.
+        for _ in range(5):
+            yield b"\x00\x00" * 2400
+
+    async def emit_json(_event: dict) -> None:
+        return None
+
+    async def emit_audio(chunk: bytes) -> None:
+        chunks.append(chunk)
+
+    monkeypatch.setattr(
+        "app.services.live_speech_coordinator.settings.live_speech_tts_timeout_seconds",
+        0.05,
+    )
+    coordinator = SpeechResponseCoordinator(
+        stream=stream,
+        emit_json=emit_json,
+        emit_audio=emit_audio,
+        sample_rate=24_000,
+        next_sequence=lambda: 1,
+    )
+    await coordinator.play_main("Ett svar som tar längre tid att läsa upp.", "turn")
+    assert len(chunks) == 5
+
+
 async def test_runtime_does_not_barge_in_on_audio_start() -> None:
     events: list[dict] = []
 

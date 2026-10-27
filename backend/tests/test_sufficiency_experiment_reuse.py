@@ -6,6 +6,7 @@ from dataclasses import replace
 
 import pytest
 
+from app.config import settings
 from app.services.research.assessment import (
     group_evidence_for_review,
     sanitize_assessment_draft,
@@ -216,13 +217,17 @@ async def test_sanitize_blocks_invented_ids(client: ScriptedSufficiencyJev) -> N
     assert "invented-id" not in cleaned.need_assessments[0].supporting_evidence_ids
 
 
-async def test_live_measurement_is_explicitly_unavailable() -> None:
-    if live_measurement_status() == "available":
-        pytest.skip("live keys present; this environment is not asserting unavailable")
+async def test_live_measurement_reports_unavailable_without_keys(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "typesafe_api_key", "")
     report = await measure_live_models((short_sufficient(),))
     assert report.measurement == "unavailable"
     assert report.cases == ()
     assert "invented" in report.note or "missing" in report.note
+
+
+def test_live_measurement_never_substitutes_scripted_scores(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "cerebras_api_key", "")
+    assert live_measurement_status() == "unavailable"
 
 
 class _RecordingJev:

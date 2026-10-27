@@ -163,3 +163,85 @@ def hybrid_fact_hits(
     ]
     scored.sort(key=lambda hit: (-hit.score, hit.fact.id))
     return scored[:limit]
+
+
+async def _hydrate_via_owner(client, key: str, customer_id: int | None, now: datetime):
+    from app.services.overgraph.model import GraphRecord
+
+    response = await client.read([{"label": FACT, "key": key}])
+    props = response["values"].get(f"{FACT}:{key}")
+    if props is None:
+        return None
+    if str(props.get("scope_key") or "") not in visible_scope_keys(customer_id):
+        return None
+    if str(props.get("status") or "") != "active":
+        return None
+    view = fact_view(GraphRecord(
+        key=key, labels=(FACT,), props=dict(props),
+        engine_id=response["ids"].get(f"{FACT}:{key}"),
+    ))
+    if view.valid_at is not None and view.valid_at > now:
+        return None
+    if view.invalid_at is not None and now >= view.invalid_at:
+        return None
+    return view
+
+
+async def hybrid_fact_hits_via_owner(
+    client,
+    index: TextUnitIndex,
+    *,
+    customer_id: int | None,
+    query: str,
+    limit: int = 20,
+    dense_query: list[float] | None = None,
+    now: datetime | None = None,
+) -> list[ResearchFactHit]:
+    """Owner-backed equivalent of ``hybrid_fact_hits``; Tantivy stays the lexical side."""
+    from app.services.overgraph.research_owner import search_research_facts_via_owner
+
+    if not query.strip() or limit < 1:
+        raise ValueError("query and positive limit required")
+    moment = now or datetime.now(UTC)
+    budget = max(100, limit * 5)
+    tenants = tuple(visible_scope_keys(customer_id))
+    seen: set[str] = set()
+    lexical: list[GraphFactView] = []
+    for search in (index.search_fact_keys, index.search_subword_keys):
+        offset = 0
+        while len(lexical) < budget:
+            page = search(query, tenant_ids=tenants, limit=FACT_INDEX_PAGE, offset=offset)
+            if not page:
+                break
+            for hit in page:
+                if hit.key in seen:
+                    continue
+                seen.add(hit.key)
+                view = await _hydrate_via_owner(client, hit.key, customer_id, moment)
+                if view is not None:
+                    lexical.append(view)
+                    if len(lexical) == budget:
+                        break
+            offset += FACT_INDEX_PAGE
+            if len(page) < FACT_INDEX_PAGE:
+                break
+    dense = (
+        [] if dense_query is None
+        else [hit.fact for hit in await search_research_facts_via_owner(
+            client, customer_id, dense_query, budget,
+        )]
+    )
+    lexical_rank = _ranked(lexical)
+    dense_rank = _ranked(dense)
+    merged = {view.id: view for view in (*lexical, *dense)}
+    scored = [
+        ResearchFactHit(
+            view,
+            (1 / (RRF_K + lexical_rank[view.id]) if view.id in lexical_rank else 0.0)
+            + (1 / (RRF_K + dense_rank[view.id]) if view.id in dense_rank else 0.0),
+            0,
+        )
+        for view in merged.values()
+    ]
+    scored.sort(key=lambda hit: (-hit.score, hit.fact.id))
+    return scored[:limit]
