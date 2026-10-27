@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -362,6 +363,43 @@ def new_cache_rows(
     return rows
 
 
+class _PhaseTimer:
+    """Wall-clock phase profiler used by the Tabular Review benchmark harness."""
+
+    def __init__(self) -> None:
+        self._started = time.perf_counter()
+        self.profile: dict[str, float] = {}
+
+    def mark(self, name: str) -> None:
+        self.profile[name] = round(time.perf_counter() - self._started, 4)
+        self._started = time.perf_counter()
+
+
+async def _load_anchors_and_units(
+    owner,
+    catalog: Catalog | None,
+    inputs: ReviewInputs,
+    timer: _PhaseTimer,
+) -> tuple[dict[int, AnchorVectors], dict[str, list[TextUnit]]]:
+    """Load anchor vectors and document units, timing the two phases separately."""
+    if owner is not None:
+        anchors = await load_anchor_vectors_owner(owner, inputs.columns)
+        timer.mark("load_anchors")
+        units_by_document = {
+            document.document_id: await load_document_units_owner(owner, document)
+            for document in inputs.documents
+        }
+    else:
+        anchors = load_anchor_vectors(catalog, inputs.columns)
+        timer.mark("load_anchors")
+        units_by_document = {
+            document.document_id: load_document_units(catalog, document)
+            for document in inputs.documents
+        }
+    timer.mark("load_units")
+    return anchors, units_by_document
+
+
 async def fill_review(
     factory: SessionFactory,
     review_id: int,
@@ -369,28 +407,20 @@ async def fill_review(
     catalog: Catalog | None,
     embeddings_by_document: UnitEmbeddings,
     customer_id: int,
+    timings: dict[str, float] | None = None,
 ) -> ReviewInputs:
     """Score with the SQL connection released during embedding and ranking."""
+    timer = _PhaseTimer()
     async with factory() as session:
         review = await get_review(session, review_id)
         if review is None or review.customer_id != customer_id:
             raise ValueError("review_not_found")
         inputs = await load_inputs(session, review, embedding_model=settings.embedding_model)
         await session.commit()
+    timer.mark("load_inputs")
 
     owner = get_owner_runtime().client
-    if owner is not None:
-        anchors = await load_anchor_vectors_owner(owner, inputs.columns)
-        units_by_document = {
-            document.document_id: await load_document_units_owner(owner, document)
-            for document in inputs.documents
-        }
-    else:
-        anchors = load_anchor_vectors(catalog, inputs.columns)
-        units_by_document = {
-            document.document_id: load_document_units(catalog, document)
-            for document in inputs.documents
-        }
+    anchors, units_by_document = await _load_anchors_and_units(owner, catalog, inputs, timer)
     cache_keys = [
         key
         for document in inputs.documents
@@ -403,9 +433,11 @@ async def fill_review(
             embedding_model=inputs.embedding_model,
         )
     ]
+    timer.mark("cache_keys")
     async with factory() as session:
         cache = await cached_scores(session, cache_keys)
         await session.commit()
+    timer.mark("cache_lookup")
 
     missing = unscored_unit_ids(
         inputs,
@@ -416,6 +448,7 @@ async def fill_review(
     )
     if missing:
         raise RuntimeError(f"text unit embeddings missing: {', '.join(missing)}")
+    timer.mark("missing_check")
 
     decisions = score_inputs(
         inputs,
@@ -424,6 +457,7 @@ async def fill_review(
         anchors=anchors,
         cache=cache,
     )
+    timer.mark("score")
     fresh = new_cache_rows(
         inputs,
         units_by_document=units_by_document,
@@ -431,6 +465,7 @@ async def fill_review(
         anchors=anchors,
         existing=cache,
     )
+    timer.mark("cache_rows")
 
     async with factory() as session:
         review = await get_review(session, review_id)
@@ -452,4 +487,8 @@ async def fill_review(
         review.computed_at = utcnow()
         review.updated_at = utcnow()
         await session.commit()
+    timer.mark("persist")
+    timer.profile["total"] = round(sum(timer.profile.values()), 4)
+    if timings is not None:
+        timings.update(timer.profile)
     return inputs
