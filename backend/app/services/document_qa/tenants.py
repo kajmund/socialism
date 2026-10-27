@@ -1,4 +1,9 @@
-"""One OverGraph file database per tenant. Path comes from verified customer_id."""
+"""Offline/benchmark tenant catalog opener. Not used by backend request paths.
+
+The backend request paths open tenant catalogs only through a Tenant Knowledge
+Owner. This direct opener exists for offline maintenance and benchmark scripts
+that run outside the serving process.
+"""
 
 from __future__ import annotations
 

@@ -1,12 +1,12 @@
 """Workspace prompt catalog defaults; runtime loads their database records."""
 
 
-def _field(key: str, label: dict, defaults: dict) -> dict:
+def _field(key: str, label: dict, defaults: dict, *, hint: dict | None = None) -> dict:
     return {
         "key": key,
         "section": "chat",
         "label": label,
-        "hint": {
+        "hint": hint or {
             "sv": "Workspace och verifierat underlag.",
             "en": "Workspace and verified source material.",
         },
@@ -133,6 +133,32 @@ def workspace_prompt_fields() -> list[dict]:
                     "Do not present partial research as complete. "
                     "\n\nFrozen evidence:\n{evidence}"
                 ),
+            },
+        ),
+        _field(
+            "chat.expert.live_speech_correction",
+            {"sv": "STT-rättning i Live Speech", "en": "Live Speech STT correction"},
+            {
+                "sv": (
+                    "Du ser ett samtal följt av användarens senaste replik, som är en "
+                    "automatisk transkription av tal och kan innehålla felhörda ord. "
+                    "Rätta uppenbara fel så repliken blir korrekt svenska. Använd samtalet "
+                    "som kontext. Återskapa aldrig meningen — om transkriptet är begripligt "
+                    "lämnar du det oförändrat och sätter changed=false. Svara med JSON "
+                    "{\"corrected_text\": \"...\", \"changed\": true|false}."
+                ),
+                "en": (
+                    "You see a conversation followed by the user's latest utterance, which "
+                    "is an automatic transcription of speech and may contain misheard words. "
+                    "Repair obvious errors so the utterance reads as correct English. Use the "
+                    "conversation as context. Never rewrite the utterance — if it is already "
+                    "intelligible, leave it unchanged and set changed=false. Reply with JSON "
+                    "{\"corrected_text\": \"...\", \"changed\": true|false}."
+                ),
+            },
+            hint={
+                "sv": "Rättar felhörda ord med samtalet som kontext. Bara Socialism Live Speech.",
+                "en": "Repairs misheard words using the conversation as context. Socialism Live Speech only.",
             },
         ),
     ]

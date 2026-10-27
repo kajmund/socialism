@@ -132,6 +132,7 @@ async def test_openai_transcription_uses_transcription_intent(
     }
     audio = sent[0]["session"]["audio"]["input"]
     assert audio["transcription"]["model"] == "gpt-live-transcribe"
+    assert audio["transcription"]["delay"] == "low"
     assert audio["noise_reduction"] == {"type": "near_field"}
     assert audio["turn_detection"] is None
     assert "keywords" not in audio["transcription"]

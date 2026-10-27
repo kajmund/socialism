@@ -30,6 +30,7 @@ export type TabularReviewCell = {
   row_id: number
   column_id: number
   status: CellStatus
+  no_hit_reason: string | null
   similarity: number | null
   text_unit_id: string | null
   exact_text: string | null

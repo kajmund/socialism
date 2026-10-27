@@ -14,7 +14,6 @@ from app.services.document_qa.labels import (
     QUESTION,
     TEXT_UNIT,
 )
-from app.services.document_qa.writeback import QaOutbox
 from app.services.overgraph.catalogs import Catalog
 
 
@@ -36,12 +35,8 @@ def purge_document(
     catalog: Catalog,
     viewer: Viewer,
     document_id: str,
-    *,
-    outbox: QaOutbox | None = None,
 ) -> None:
     _require_document(viewer, document_id)
-    if outbox is not None:
-        outbox.drop_document(viewer.customer_id, document_id)
     row = catalog.get_by_key(CANONICAL_DOCUMENT, document_id)
     if row is None or row.engine_id is None:
         return

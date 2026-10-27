@@ -70,7 +70,8 @@ Optional dependency extra `oasis` (`camel-oasis`) — not installed by default (
 - `app.config.settings` is the single source of truth. Import settings where needed; never call `os.getenv` in app code, never call `load_dotenv`.
 - If a third-party SDK reads `os.environ` directly, add the mirror in `config.py` — don't sprinkle `setdefault` elsewhere.
 - Fail fast on startup when required env vars are missing.
-- Live voice (`POST /personas/{id}/live-token`) is selected with `LIVE_VOICE_PROVIDER=gemini|elevenlabs`. Missing keys/agent for the **selected** provider fail loud at mint (503). Do not fall back to the other provider. Audio never hits this API.
+- Live voice (`POST /personas/{id}/live-token`) is selected with `LIVE_VOICE_PROVIDER=gemini|elevenlabs|openai`. Missing keys/agent for the **selected** provider fail loud at mint (503). Do not fall back to the other provider. Audio never hits this API, except for `openai`: the browser connects to `/ws/openai-live` (our relay, `app/realtime/openai_live_relay.py`) because browsers cannot send the Realtime `Authorization` header; the relay authenticates upstream with the minted single-use client secret.
+- The workspace live-speech path (provider `socialism`, `/ws/live-speech`) runs a per-expert Cerebras STT correction between the offline second pass and the expert turn: `personas.stt_correction_enabled` / `stt_correction_timeout_seconds` (defaults in `LiveSpeechSettings`), prompt key `chat.expert.live_speech_correction`, structured decision `{corrected_text, changed}` in `app/services/live_speech_correction.py`.
 
 ## Prompts (database, not code)
 

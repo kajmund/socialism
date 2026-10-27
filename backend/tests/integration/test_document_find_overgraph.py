@@ -36,7 +36,7 @@ from app.services.document_find.fixture import (
     vector,
 )
 from app.services.document_find.taxonomy import EMPLOYMENT, LEASE
-from app.services.document_qa.tenants import TenantCatalogs
+from tests.tenant_catalogs import DirectTenantCatalogs as TenantCatalogs
 
 pytestmark = pytest.mark.integration
 

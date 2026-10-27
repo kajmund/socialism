@@ -4,8 +4,30 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class LiveSpeechSettings(BaseModel):
+    # The provider's streaming transcription model. "gpt-4o-transcribe" is
+    # accepted for the offline pass on some deployments; keep the streaming
+    # default on the model the Realtime intent has proven to accept.
     live_speech_stt_model: str = "gpt-live-transcribe"
+    # "low" trades accuracy for latency in the streaming pass; keep it as the
+    # proven default — the offline second pass covers the committed audio.
+    live_speech_stt_delay: Literal["low", "normal"] = "low"
     live_speech_noise_reduction: Literal["near_field", "far_field"] = "near_field"
+    # Keyword biasing distorts ordinary speech when the list is long. The cap
+    # and the extraction bar below keep the bias small and deliberate.
+    live_speech_stt_keyword_limit: int = Field(default=8, ge=1, le=24)
+    live_speech_stt_keyword_min_count: int = Field(default=3, ge=1, le=1000)
+    # Second offline transcription pass over the committed utterance. The
+    # streaming pass drives preview and barge-in; the offline pass is the
+    # canonical text for the LLM turn when it lands within the grace window.
+    live_speech_two_pass_enabled: bool = True
+    # Empty = reuse live_speech_stt_model (the model the provider accepts).
+    live_speech_offline_stt_model: str = ""
+    live_speech_offline_timeout_seconds: float = Field(default=10.0, gt=1, le=60)
+    live_speech_offline_grace_seconds: float = Field(default=1.0, ge=0, le=10)
+    # Context-aware STT correction (Cerebras) for the socialism live-speech path.
+    # Per-expert overrides live on the persona; these are the process defaults.
+    live_speech_correction_default_enabled: bool = True
+    live_speech_correction_default_timeout_seconds: float = Field(default=2.0, ge=0.5, le=10)
     live_speech_stt_timeout_seconds: float = Field(default=12.0, gt=1, le=120)
     live_speech_tts_model: str = "eleven_v4_turbo"
     live_speech_tts_output_format: str = "pcm_24000"

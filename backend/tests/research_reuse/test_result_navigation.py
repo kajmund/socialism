@@ -242,7 +242,7 @@ async def test_cycle_is_bounded_and_low_relevance_does_not_prune_other_seeds(reu
     from app.services.graph_v2.types import FactInput, SourceRef
     from app.services.overgraph.catalogs import require_knowledge
     from app.services.overgraph.labels import ENTITY, scope_label
-    from app.services.overgraph.questions import upsert_question_entity
+    from app.services.overgraph.questions import ensure_question_node
     from app.services.overgraph.write import write_fact
     from app.services.research.result_search import ResultSearch, _traverse
     from app.services.research.question_graph_sql import SqlQuestionEvidenceGraph
@@ -256,7 +256,7 @@ async def test_cycle_is_bounded_and_low_relevance_does_not_prune_other_seeds(reu
         )
     catalog = require_knowledge()
     scope = tenant_question_scope(1).tenant
-    other = upsert_question_entity(
+    other = await ensure_question_node(
         question_id=seed.id, display_text="Other 36 § branch", scope=scope,
     )
     answered = next(
