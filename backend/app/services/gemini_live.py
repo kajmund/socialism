@@ -131,6 +131,7 @@ class GeminiLiveVoiceProvider:
         initial_turn: str,
         tools: list[dict[str, Any]],
         voice: str | None = None,
+        model: str | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> PersonaLiveTokenOut:
         gemini_tools = openai_to_gemini_tools(tools)

@@ -260,6 +260,8 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(sme_ws.router)
     app.include_router(sme_group_voice_ws.router)
     app.include_router(live_speech.router)
+    from app.realtime.openai_live_relay import router as openai_live_relay_router
+    app.include_router(openai_live_relay_router)
     app.include_router(voice_workspaces.router)
     app.include_router(document_ingest_batches.router)
     app.include_router(document_properties.router)
