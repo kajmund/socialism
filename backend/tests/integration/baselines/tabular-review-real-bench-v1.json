@@ -1,0 +1,63 @@
+{
+  "kind": "real_synthetic_corpus",
+  "not_quality_measurement": true,
+  "note": "Synthetic provisional anchors; no human facit; no Jev. UI/first-row streaming not measured.",
+  "contracts": 35,
+  "text_units": 2377,
+  "ingest_seconds": 8.931,
+  "cold_fill_seconds": 12.059,
+  "warm_fill_seconds": 0.616,
+  "add_column_fill_seconds": 4.451,
+  "first_row_proxy_seconds": 0.038,
+  "first_row_proxy_note": "one contract x four columns, backend fill; not UI paint time",
+  "cold_profile": {
+    "load_inputs": 0.0065,
+    "load_anchors": 0.0016,
+    "load_units": 0.2596,
+    "cache_keys": 0.0136,
+    "cache_lookup": 0.0169,
+    "missing_check": 0.0003,
+    "score": 3.5213,
+    "cache_rows": 3.2831,
+    "persist": 4.9528,
+    "total": 12.0557
+  },
+  "warm_profile": {
+    "load_inputs": 0.0099,
+    "load_anchors": 0.0018,
+    "load_units": 0.2063,
+    "cache_keys": 0.0112,
+    "cache_lookup": 0.0621,
+    "missing_check": 0.0003,
+    "score": 0.0252,
+    "cache_rows": 0.0123,
+    "persist": 0.2855,
+    "total": 0.6146
+  },
+  "add_column_profile": {
+    "load_inputs": 0.0101,
+    "load_anchors": 0.002,
+    "load_units": 0.2027,
+    "cache_keys": 0.0138,
+    "cache_lookup": 0.1848,
+    "missing_check": 0.0003,
+    "score": 1.1657,
+    "cache_rows": 1.1959,
+    "persist": 1.673,
+    "total": 4.4483
+  },
+  "first_row_profile": {
+    "load_inputs": 0.0024,
+    "load_anchors": 0.002,
+    "load_units": 0.0105,
+    "cache_keys": 0.0008,
+    "cache_lookup": 0.0059,
+    "missing_check": 0.0,
+    "score": 0.0017,
+    "cache_rows": 0.0008,
+    "persist": 0.0136,
+    "total": 0.0377
+  },
+  "cache_rows": 9508,
+  "embedding_model": "text-embedding-3-large"
+}
