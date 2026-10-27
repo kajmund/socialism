@@ -66,6 +66,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Redigera panelkatalog](redigera-panelkatalog.md) — Sub-frågor, default-expertprofiler och förslag från underlag
 * [Konfigurera panelkatalog för Expertgranskning](konfigurera-panelkatalog-for-expertgranskning.md) — Sub-frågor för expertgranskningens panel
 * [Hantera SSR-ankare](hantera-ssr-ankare.md) — Skapa, testa och publicera ton- och stilankare för rapporter
+* [Granska klausulankare](granska-klausulankare.md) — Svara Ja eller Nej på klausuler för verifierade exempel
 * [Redigera grunddata](redigera-grunddata.md) — Kataloglistor och distriktskartor under en konfiguration
 * [Använda playground](anvanda-playground.md) — Kalibrera anchors, jämföra SSR och prova promptvarianter
 * [Prova bildreaktion i playground](prova-bildreaktion-i-playground.md) — Testa persona-reaktion och SSR på uppladdad bild
@@ -106,6 +107,10 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # Rättsunderlag
 
 * [Använda rättsunderlag](anvanda-rattsunderlag.md) — Spara utkast, sök källor och läs PM:et
+
+# Tabular Review
+
+* [Använda Tabular Review](tabular-review.md) — Jämför avtal mot SSR-kategorier och granska klausuler i originalet
 
 # Rapporter
 

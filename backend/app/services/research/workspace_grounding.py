@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord
 from app.services.knowledge.document_grounding import readable_document_passage
 from app.services.knowledge.shared_document_grounding import readable_shared_document_passage
-from app.services.overgraph.research import knowledge_catalog, load_text_units
 from app.services.research.models import ResearchContext, ResearchEvidence
 from app.services.workspaces import company_workspace_id
 
@@ -69,8 +68,12 @@ async def basis_workspace_allowed(
                 ids = [*ids, metadata["text_unit_id"]]
             if not ids:
                 return False
-            catalog = knowledge_catalog()
-            units = await catalog.run(load_text_units, catalog, list(set(ids)))
+            from app.services.overgraph.owner_runtime import get_owner_runtime
+            from app.services.overgraph.research_owner import load_text_units_via_owner
+
+            units = await load_text_units_via_owner(
+                get_owner_runtime().require_client(), list(set(ids)),
+            )
             if any(unit is None or unit.document_version_id != version_id for unit in units):
                 return False
             if not await passages_allowed(session, units, context):

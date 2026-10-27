@@ -1,5 +1,21 @@
 # Manual update log
 
+
+## 2026-10-26
+
+* **SME / live voice**: **Rensa chat** tar nu bort historiken ordentligt — meddelandena kommer inte tillbaka vid omladdning. Intervjuer och andra experters chattar lämnas orörda.
+* **Experter / live voice**: Per expert går det nu att slå på **Rätta STT-fel** (Socialism Live Speech) med egen tidsgräns — en Cerebras-modell ser samtalet och rättar uppenbara felhörningar innan experten svarar.
+* **Experter / live voice**: Nytt leverantörsval **OpenAI (röst till röst)** i kompositörens Live voice — experten hör talet direkt som ChatGPT:s röstläge och svarar med en av OpenAI:s röster. Under **Modell** väljer du OpenAI-modell per expert, med den nyaste tal-till-tal-modellen först.
+* **SME / live voice**: Nyckelordsbiasen i taligenkänningen är mindre aggressiv, och det du sagt kontrolleras en andra gång när du pratat klart — expertens svar bygger på den rättade texten även när webbläsaren hörde fel i farten.
+* **SME / live voice**: Långa upplästa svar avbryts inte längre med "Svaret kunde inte läsas upp" — uppläsningen får ta den tid svaret kräver, och tidsgränsen gäller nu bara tystnad från röstleverantören.
+
+
+## 2026-10-23
+
+* **Tabular Review**: Ny guide för den opt-in-tabell där avtal jämförs mot klausulankare. Cellen visar ordagrann klausul och similarity. Ingen träff betyder inte att klausulen saknas.
+* **Verktyg**: Ny flik **Klausulankare** där administratörer svarar Ja/Nej på klausuler. Svaren sparas. Ett Ja blir inte automatiskt ett aktivt ankare.
+
+
 ## 2026-10-20
 
 * **SME / live voice**: Korta bekräftelser som *mm*, *ja* och *precis* avbryter inte experten. *Stopp*, *nej* och *vänta* tystar uppläsningen direkt. Webbläsarens ekoreducering måste vara på.

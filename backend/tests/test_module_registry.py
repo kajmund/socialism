@@ -24,6 +24,7 @@ def test_module_registry_keys():
         "politik",
         "expertgranskning",
         "rattsunderlag",
+        "tabular_review",
     }
 
 
@@ -98,6 +99,7 @@ def test_module_routes_keep_existing_urls():
     assert "/panel/expert-profiles" in paths
     assert "/personas/suggest-from-underlag" in paths
     assert "/rattsunderlag/research" in paths
+    assert "/tabular-reviews" in paths
     assert "/runs" in paths
     assert "/personas" in paths
     assert "/populations" in paths
@@ -150,6 +152,13 @@ def test_module_manifest_shapes():  # noqa: PLR0915
     assert expert.sub_questions_provider is None
     assert expert.expert_defaults_provider is None
     assert expert.prompt_defaults_provider is not None
+
+    tabular = MODULE_REGISTRY["tabular_review"]
+    assert tabular.id == "tabular_review"
+    assert tabular.frontend_entry == "modules/tabular_review"
+    assert tabular.report_modes == frozenset()
+    assert tabular.report is None
+    assert tabular.prompt_defaults_provider is None
 
     ratts = MODULE_REGISTRY["rattsunderlag"]
     assert ratts.id == "rattsunderlag"

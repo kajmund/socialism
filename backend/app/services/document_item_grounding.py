@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import DocumentKnowledgeItem, StoredObject
 from app.services.knowledge.persistence import get_current_document_version
-from app.services.overgraph.catalogs import require_knowledge
-from app.services.overgraph.text_units import load_domain_text_units
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.owner_writer import load_text_units_via_owner
 
 
 async def validated_unit_ids(
@@ -23,13 +22,13 @@ async def validated_unit_ids(
         raise ValueError("Document knowledge source is outside customer scope")
     # CanonicalDocument.id == StoredObject.id for document knowledge items.
     version = await get_current_document_version(session, item.source_object_id)
-    units = (
-        await asyncio.to_thread(
-            load_domain_text_units, require_knowledge(), document_version_id=version.id,
+    if version is None:
+        units = []
+    else:
+        units = await load_text_units_via_owner(
+            get_owner_runtime().require_client(),
+            document_version_id=version.id,
         )
-        if version is not None
-        else []
-    )
     linked = set()
     for anchor in item.anchors:
         linked.update(supporting_text_unit_ids(

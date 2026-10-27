@@ -84,6 +84,9 @@ def serialize_library_persona(persona: Persona, pops: list[str]) -> LibraryPerso
         avatar_url=persona_avatar_url(persona),
         live_voice_provider=provider,  # type: ignore[arg-type]
         live_voice=voice,
+        live_voice_model=persona.live_voice_model,
+        stt_correction_enabled=persona.stt_correction_enabled,
+        stt_correction_timeout_seconds=persona.stt_correction_timeout_seconds,
     )
 
 

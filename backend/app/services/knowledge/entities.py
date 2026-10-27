@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 
 
 
@@ -13,8 +12,8 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.knowledge.graph_entity_mirror import entity_in_graph, mirror_entity
-from app.services.overgraph.catalogs import require_knowledge
+from app.services.knowledge import owner_graph_mirror
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.knowledge.scope import (
     SCOPE_CUSTOMER,
     KnowledgeScopeError,
@@ -120,22 +119,28 @@ async def persist_knowledge_entity_result(
     entity: KnowledgeEntity,
 ) -> tuple[KnowledgeEntity, bool]:
     """Write the node to OverGraph; identity is deterministic per scope/type/key."""
-    catalog = require_knowledge()
-    existing = await asyncio.to_thread(
-        entity_in_graph, catalog, scope_key=entity.scope.scope_key, entity_id=entity.id,
-    )
-    if (
-        existing is not None
-        and str(existing.props.get("scope_key") or "") != entity.scope.scope_key
-    ):
-        raise KnowledgeEntityError(
-            f"entity {entity.id} already exists in a different knowledge scope"
-        )
-    await asyncio.to_thread(mirror_entity, entity)
-    row = await asyncio.to_thread(catalog.get_by_key, "Entity", entity.id)
-    if row is None:
-        raise KnowledgeEntityError(f"entity {entity.id} was not written to OverGraph")
-    return _domain_from_graph(row, entity), existing is not None
+    owner = get_owner_runtime().require_client()
+    if owner is not None:
+        response = await owner.read([{"label": "Entity", "key": entity.id}])
+        props = response["values"].get(f"Entity:{entity.id}")
+        existing = None if props is None else type("Row", (), {"props": dict(props)})()
+        if (
+            existing is not None
+            and str(existing.props.get("scope_key") or "") != entity.scope.scope_key
+        ):
+            raise KnowledgeEntityError(
+                f"entity {entity.id} already exists in a different knowledge scope"
+            )
+        await owner_graph_mirror.mirror_entity(owner, entity)
+        row_response = await owner.read([{"label": "Entity", "key": entity.id}])
+        row_props = row_response["values"].get(f"Entity:{entity.id}")
+        if row_props is None:
+            raise KnowledgeEntityError(f"entity {entity.id} was not written to OverGraph")
+        from app.services.overgraph.model import GraphRecord
+
+        row = GraphRecord(key=entity.id, labels=("Entity",), props=dict(row_props))
+        return _domain_from_graph(row, entity), existing is not None
+
 
 
 def _domain_from_graph(row, entity: KnowledgeEntity) -> KnowledgeEntity:
@@ -163,8 +168,16 @@ async def lookup_knowledge_entity(
     """Same-scope identity only. Does not merge customer entities into shared."""
     resolved = require_persist_scope(scope=scope, customer_id=customer_id)
     identity = knowledge_entity_id(scope=resolved, entity_type=entity_type, key=key)
-    return entity_in_graph(
-        require_knowledge(), scope_key=resolved.scope_key, entity_id=identity,
+    owner = get_owner_runtime().require_client()
+    response = await owner.read([{"label": "Entity", "key": identity}])
+    props = response["values"].get(f"Entity:{identity}")
+    if props is None or str(props.get("scope_key") or "") != resolved.scope_key:
+        return None
+    from app.services.overgraph.model import GraphRecord
+
+    return GraphRecord(
+        key=identity, labels=("Entity",), props=dict(props),
+        engine_id=response["ids"].get(f"Entity:{identity}"),
     )
 
 

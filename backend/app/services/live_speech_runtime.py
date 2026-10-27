@@ -23,6 +23,11 @@ from app.services.live_speech_speculation import SpeculativeReader
 from app.services.live_speech_traces import forward_library_trace
 from app.services.live_speech_turn_run import run_voice_turn
 from app.services.live_speech_focus import focus_sources as _focus_sources
+from app.services.live_speech_correction import (
+    CORRECTION_PROMPT_KEY,
+    correct_transcript,
+)
+from app.services.live_speech_offline import MAX_UTTERANCE_BYTES, OfflineTranscriber
 from app.services.openai_live_transcription import (
     OpenAITranscriptionStream,
     TranscriptEvent,
@@ -61,6 +66,12 @@ class LiveSpeechRuntime:
             model_id=settings.live_speech_tts_model,
             output_format=settings.live_speech_tts_output_format,
             cache_dir=settings.tts_cache_dir, max_bytes=settings.tts_cache_max_bytes)
+        self._offline = OfflineTranscriber()
+        self._offline_task: asyncio.Task[str | None] | None = None
+        self._utterance_open = False
+        self._utterance_pcm: list[bytes] = []
+        self._utterance_samples = 0
+        self._correction_history: list[tuple[str, str]] = [(role, text) for role, text in scope.recent_turns][-6:]
         self._partials: dict[str, str] = {}
         self._revisions: dict[str, int] = {}
         self._turn_task: asyncio.Task[None] | None = None
@@ -129,9 +140,22 @@ class LiveSpeechRuntime:
         if len(frame) == 0 or len(frame) % 2 or len(frame) > 9600:
             raise ValueError("invalid_audio_frame")
         await self._stt.append(frame)
+        if (
+            self._utterance_open
+            and self._offline.enabled
+            and self._utterance_samples < MAX_UTTERANCE_BYTES
+        ):
+            self._utterance_pcm.append(frame)
+            self._utterance_samples += len(frame)
 
     async def audio_started(self, sequence: int) -> None:
         self._advance_audio_sequence(sequence)
+        if self._offline_task is not None:
+            self._offline_task.cancel()
+            self._offline_task = None
+        self._utterance_open = True
+        self._utterance_pcm = []
+        self._utterance_samples = 0
         self._speech_started_at = monotonic()
         self._commit_at = None
         self._first_partial_logged = False
@@ -157,12 +181,26 @@ class LiveSpeechRuntime:
         )
         self._cues.stop_listener()
         self._coordinator.drop_aside()
+        self._utterance_open = False
+        pcm = b"".join(self._utterance_pcm) if self._utterance_pcm else b""
+        self._utterance_pcm = []
+        self._utterance_samples = 0
+        if pcm and self._offline.enabled:
+            self._offline_task = asyncio.create_task(
+                self._offline.transcribe(pcm, self.scope.language)
+            )
         await self._stt.commit()
         if self._commit_timeout is not None:
             self._commit_timeout.cancel()
         self._commit_timeout = asyncio.create_task(self._await_final())
 
     async def cancel_audio(self) -> None:
+        if self._offline_task is not None:
+            self._offline_task.cancel()
+            self._offline_task = None
+        self._utterance_open = False
+        self._utterance_pcm = []
+        self._utterance_samples = 0
         await self._stt.clear()
         self._partials.clear()
         await self._state("listening")
@@ -238,6 +276,10 @@ class LiveSpeechRuntime:
         )
         await library_chat_broadcast.unsubscribe(self._on_library_event)
         await self._stt.close()
+        if self._offline_task is not None:
+            self._offline_task.cancel()
+            self._offline_task = None
+        await self._offline.aclose()
         await self._speculation.aclose()
         await self._emit_json(
             {
@@ -269,7 +311,14 @@ class LiveSpeechRuntime:
         if self._commit_timeout is not None:
             self._commit_timeout.cancel()
             self._commit_timeout = None
-        text = raw.strip()
+        final_event = ConversationEvent(
+            kind="user_final",
+            sequence=self._item_commit.get(item_id, self._commit_seq),
+            utterance_id=self._item_epoch.get(item_id, self._utterance_id),
+        )
+        if self._conversation.reject_reason(final_event) is not None:
+            return
+        text = await self._canonical_text(raw.strip())
         if not text:
             await self._error("empty_transcript", "No speech was transcribed", True)
             return
@@ -282,11 +331,6 @@ class LiveSpeechRuntime:
             self._metrics.add(
                 "provider.final_transcript", (self._final_at - self._commit_at) * 1000,
             )
-        final_event = ConversationEvent(
-            kind="user_final",
-            sequence=self._item_commit.get(item_id, self._commit_seq),
-            utterance_id=self._item_epoch.get(item_id, self._utterance_id),
-        )
         if self._conversation.reject_reason(final_event) is not None:
             return
         if self._cues.assistant_active() and await self._cues.classify_user_speech(
@@ -296,11 +340,75 @@ class LiveSpeechRuntime:
         self._pending_final = final_event
         await self._begin_turn(item_id, text)
 
+    async def _canonical_text(self, streaming: str) -> str:
+        chosen = await self._prefer_offline(streaming)
+        if chosen and self.scope.correction_enabled:
+            chosen = await self._correct(chosen)
+        return chosen
+
+    async def _prefer_offline(self, streaming: str) -> str:
+        """Offline second pass within the grace window; streaming text on failure."""
+        chosen = streaming
+        task = self._offline_task
+        self._offline_task = None
+        if task is None:
+            return chosen
+        try:
+            if not task.done():
+                offline = await asyncio.wait_for(
+                    asyncio.shield(task),
+                    timeout=settings.live_speech_offline_grace_seconds,
+                )
+            elif task.exception() is None:
+                offline = task.result()
+            else:
+                offline = None
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            offline = None
+        if self._commit_at is not None:
+            self._metrics.add(
+                "provider.offline_transcript", (monotonic() - self._commit_at) * 1000,
+            )
+        if offline and offline != chosen:
+            chosen = offline
+        return chosen
+
+    async def _correct(self, text: str) -> str:
+        """Context-aware Cerebras correction; keep text on failure."""
+        prompt = self.scope.prompts.get(CORRECTION_PROMPT_KEY, "")
+        if not prompt.strip():
+            logger.warning("live_speech.correction_prompt_missing")
+            return text
+        started = monotonic()
+        decision = await correct_transcript(
+            prompt,
+            self._correction_history,
+            text,
+            timeout=self.scope.correction_timeout,
+        )
+        self._metrics.add("provider.correction", (monotonic() - started) * 1000)
+        if (
+            decision is None
+            or not decision.changed
+            or not decision.corrected_text.strip()
+        ):
+            return text
+        logger.info("live_speech.correction_changed")
+        return decision.corrected_text.strip()
+
+    def note_turn(self, role: str, text: str) -> None:
+        stripped = text.strip()
+        if not stripped:
+            return
+        self._correction_history.append((role, stripped))
+        del self._correction_history[:-6]
+
     async def _begin_turn(self, item_id: str, text: str) -> None:
         if self._turn_task is not None and not self._turn_task.done():
             await self.cancel_turn(self._turn_id, "new_user_turn")
         turn_id = str(uuid4())
         self._turn_id = turn_id
+        self.note_turn("user", text)
         self._turn_cancel = asyncio.Event()
         pending = self._pending_final
         self._pending_final = None

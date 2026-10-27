@@ -5,8 +5,8 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.live_voice import (
-    LiveVoiceAudioOut as LiveVoiceAudioOut,
-    LiveVoiceOption as LiveVoiceOption,
+    LiveVoiceAudioOut as LiveVoiceAudioOut, LiveVoiceModelMixin as LiveVoiceModelMixin,
+    LiveVoiceOption as LiveVoiceOption, SttCorrectionMixin as SttCorrectionMixin,
     LiveVoiceProviderName as LiveVoiceProviderName,
     PersonaLiveMemoryRequest as PersonaLiveMemoryRequest,
     PersonaLiveTokenOut as PersonaLiveTokenOut,
@@ -70,7 +70,7 @@ class PersonaAnecdoteOut(BaseModel):
         return text
 
 
-class LibraryPersona(BaseModel):
+class LibraryPersona(LiveVoiceModelMixin, SttCorrectionMixin, BaseModel):
     id: str
     kind: PersonaKind = "persona"
     name: str
@@ -96,7 +96,7 @@ class PersonaAvatarOut(BaseModel):
     avatar_url: str | None = None
 
 
-class PersonaCreate(BaseModel):
+class PersonaCreate(LiveVoiceModelMixin, SttCorrectionMixin, BaseModel):
     id: str | None = None
     kind: PersonaKind = "persona"
     customer_id: int | None = None
@@ -133,7 +133,7 @@ class PersonaCreate(BaseModel):
         return self
 
 
-class PersonaUpdate(BaseModel):
+class PersonaUpdate(LiveVoiceModelMixin, SttCorrectionMixin, BaseModel):
     kind: PersonaKind | None = None
     name: str | None = None
     age: int | None = None

@@ -32,6 +32,12 @@ Experten sparas på den kund ditt konto tillhör. Samma experter syns i SME-chat
 
 Ändringen gäller efter **Spara**. Paneler som redan körts använder de verktyg som var valda när körningen startade.
 
+## Välj röst
+
+Under **Live voice** i kompositören väljer du leverantör för expertens röstsamtal: **Gemini**, **ElevenLabs**, **Socialism Live Speech** eller **OpenAI (röst till röst)**. Varje leverantör har sin egen röstlista. OpenAI-alternativet hör talet direkt, som ChatGPT:s röstläge, och svarar med en av OpenAI:s röster — och med den OpenAI-modell du väljer under **Modell**, där den nyaste tal-till-tal-modellen står först. Valet gäller röstsamtalet i chatten och sparas med experten.
+
+För **Socialism Live Speech** finns dessutom **Rätta STT-fel** med en tidsgräns i sekunder: efter att du pratat klart ser en Cerebras-modell det senaste svaret tillsammans med samtalet och rättar uppenbara felhörningar innan experten svarar. Avstängd tidsgräns behövs bara om du vill ha kortast möjliga svarstid. Inställningarna gäller bara den här experten.
+
 ## Chatt
 
 Chatten öppnas in-character. Du kan fortfarande byta till intervju. Varje läge behåller de senaste 40 meddelandena. När ett nytt kommer in försvinner det äldsta. **Fäll in profil** döljer kompetens- och bakgrundsfälten så chatten får mer plats. **Visa profil** tar fram dem igen. Experten använder bara de verktyg du valt. När ett verktyg behövs skriver experten först en kort egen mening om att hen tar reda på det. Uppslaget görs i bakgrunden. Resultatet vävs in i nästa svar, eller kommer som ett nytt meddelande om du inte skriver något mer. **Slå upp tidigare research** låter experten hämta fryst research som redan finns, utan att starta en ny research. Om en fråga ligger utanför expertens kompetens kan verktyget **Fråga en annan expert** hitta en kunnig kollega. Den första experten återger svaret i den pågående chatten och kollegan skriver samtidigt frågan och sitt svar i sin egen chatt. Om ingen kollega har rätt kompetens säger experten det. Om ett bolagsuppslag saknar organisationsnummer eller inte hittas fortsätter chatten — den avbryts inte.
