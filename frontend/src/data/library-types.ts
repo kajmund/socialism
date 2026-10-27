@@ -15,8 +15,11 @@ export type LibraryPersona = {
   profile: EditablePersona
   tools?: string[] | null
   avatar_url?: string | null
-  live_voice_provider: "gemini" | "elevenlabs" | "socialism"
+  live_voice_provider: "gemini" | "elevenlabs" | "openai" | "socialism"
   live_voice: string
+  live_voice_model: string | null
+  stt_correction_enabled: boolean | null
+  stt_correction_timeout_seconds: number | null
 }
 
 export type PopulationSummary = {

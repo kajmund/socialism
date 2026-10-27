@@ -115,6 +115,13 @@ class Settings(LiveSpeechSettings, BaseSettings):
     gemini_live_voice: str = "Algenib"
     gemini_live_token_ttl_seconds: int = Field(default=600, ge=60, le=1800)
     gemini_live_new_session_ttl_seconds: int = Field(default=60, ge=30, le=300)
+    openai_base_url: str = "https://api.openai.com"
+    openai_websocket_base_url: str = "wss://api.openai.com"
+    openai_native_model: str = "gpt-realtime-2.1"
+    openai_native_voice: str = "alloy"
+    openai_native_transcription_model: str = "gpt-4o-transcribe"
+    openai_native_token_ttl_seconds: int = Field(default=600, ge=10, le=7200)
+    openai_relay_base_url: str = "ws://localhost:8000"
     # Expert live voice. No automatic fallback between providers.
     live_voice_provider: LiveVoiceProviderName = "gemini"
     elevenlabs_api_key: str = Field(default="", repr=False)
@@ -487,7 +494,6 @@ class Settings(LiveSpeechSettings, BaseSettings):
         """Mirror DeepSeek into env vars CAMEL reads, including when the embeddings key is set."""
         os.environ["OPENAI_API_KEY"] = self.deepseek_api_key
         os.environ["OPENAI_COMPATIBLE_API_KEY"] = self.deepseek_api_key
-
 
 settings = Settings()
 # Mem0 reads this at import. Mirror the typed setting so the SDK does not own configuration.
