@@ -15,6 +15,8 @@ from app.services.clause_ssr.select import get_anchor_set
 from app.serializers import utcnow
 from app.services.knowledge.units import TextUnit
 from app.services.overgraph.catalogs import Catalog
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.owner_writer import load_text_units_via_owner
 from app.services.overgraph.text_units import load_domain_text_units
 from app.services.tabular_review.cache import ScoreCacheIdentity, score_cache_key
 from app.services.tabular_review.locators import source_locator
@@ -95,6 +97,73 @@ def load_document_units(catalog: Catalog, document: DocumentRow) -> list[TextUni
     return load_domain_text_units(catalog, document_version_id=document.document_version_id)
 
 
+async def load_anchor_vectors_owner(
+    client, columns: Sequence[ColumnSpec],
+) -> dict[int, AnchorVectors]:
+    from app.services.clause_ssr.labels import ANCHOR, VERIFICATION
+    from app.services.clause_ssr.types import LABEL_ANSWERS
+
+    loaded: dict[int, AnchorVectors] = {}
+    for spec in columns:
+        if spec.column_id is None:
+            continue
+        from app.services.clause_ssr import owner_select
+
+        anchor_set = await owner_select.get_anchor_set(client, spec.anchor_set_id)
+        if anchor_set.status != "active":
+            raise ValueError(f"anchor set {spec.anchor_set_id} is not active")
+        response = await client.read(
+            [{"label": ANCHOR, "key": member_id} for member_id in anchor_set.member_ids],
+            include_vectors=True,
+        )
+        verification_ids = []
+        for member_id in anchor_set.member_ids:
+            props = response["values"].get(f"{ANCHOR}:{member_id}") or {}
+            verification_id = str(props.get("verification_id") or "")
+            if verification_id:
+                verification_ids.append(verification_id)
+        verifications = await client.read([
+            {"label": VERIFICATION, "key": verification_id}
+            for verification_id in dict.fromkeys(verification_ids)
+        ])
+        vectors = []
+        statements = []
+        for member_id in anchor_set.member_ids:
+            props = response["values"].get(f"{ANCHOR}:{member_id}") or {}
+            if str(props.get("polarity") or "") != spec.polarity:
+                continue
+            verification = verifications["values"].get(
+                f"{VERIFICATION}:{props.get('verification_id')}"
+            )
+            if (
+                verification is None
+                or str(verification.get("status") or "") != "active"
+                or str(verification.get("answer") or "") not in LABEL_ANSWERS
+                or str(verification.get("polarity") or "") != spec.polarity
+            ):
+                continue
+            vector = response.get("vectors", {}).get(f"{ANCHOR}:{member_id}")
+            if not vector:
+                continue
+            vectors.append(tuple(float(value) for value in vector))
+            statements.append(str(props.get("question") or ""))
+        loaded[spec.column_id] = AnchorVectors(
+            anchor_set_id=anchor_set.id,
+            version=str(anchor_set.version),
+            pool_revision=_membership_revision(anchor_set.member_ids),
+            label=anchor_set.category,
+            vectors=tuple(vectors),
+            statements=tuple(statements),
+        )
+    return loaded
+
+
+async def load_document_units_owner(client, document: DocumentRow) -> list[TextUnit]:
+    return await load_text_units_via_owner(
+        client, document_version_id=document.document_version_id,
+    )
+
+
 def _identity(
     unit: TextUnit,
     spec: ColumnSpec,
@@ -154,6 +223,14 @@ def _decision_from_cache(
                 polarity=spec.polarity,
                 source=source_locator(unit),
             )
+        )
+    if not anchors.vectors:
+        return CellDecision(
+            status="no_hit",
+            selected=None,
+            candidates=(),
+            threshold=threshold,
+            no_hit_reason="no_active_anchors",
         )
     ranked = rank_candidates(scored, limit=DEFAULT_CANDIDATE_LIMIT)
     return decide_cell(
@@ -289,7 +366,7 @@ async def fill_review(
     factory: SessionFactory,
     review_id: int,
     *,
-    catalog: Catalog,
+    catalog: Catalog | None,
     embeddings_by_document: UnitEmbeddings,
     customer_id: int,
 ) -> ReviewInputs:
@@ -301,11 +378,19 @@ async def fill_review(
         inputs = await load_inputs(session, review, embedding_model=settings.embedding_model)
         await session.commit()
 
-    anchors = load_anchor_vectors(catalog, inputs.columns)
-    units_by_document = {
-        document.document_id: load_document_units(catalog, document)
-        for document in inputs.documents
-    }
+    owner = get_owner_runtime().client
+    if owner is not None:
+        anchors = await load_anchor_vectors_owner(owner, inputs.columns)
+        units_by_document = {
+            document.document_id: await load_document_units_owner(owner, document)
+            for document in inputs.documents
+        }
+    else:
+        anchors = load_anchor_vectors(catalog, inputs.columns)
+        units_by_document = {
+            document.document_id: load_document_units(catalog, document)
+            for document in inputs.documents
+        }
     cache_keys = [
         key
         for document in inputs.documents

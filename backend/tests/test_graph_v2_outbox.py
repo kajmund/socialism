@@ -19,7 +19,6 @@ from app.services.graph_v2.outbox import (
     process_graph_work,
 )
 from app.services.graph_v2.errors import JevMalformedResponseError, PermanentGraphError
-import app.services.graph_v2.outbox as graph_outbox
 from app.services.knowledge.claims import KnowledgeClaim
 from sqlalchemy.exc import DataError, IntegrityError, ProgrammingError
 from tests.text_unit_fakes import persisted_text_unit
@@ -85,7 +84,10 @@ async def test_malformed_jev_response_retries_graph_work(tmp_path, monkeypatch):
     async def malformed(*args, **kwargs):
         raise JevMalformedResponseError("semantic fact judge returned an invalid decision")
 
-    monkeypatch.setattr(graph_outbox, "write_legal_facts", malformed)
+    monkeypatch.setattr(
+        "app.services.graph_v2.owner_legal_writeback.write_legal_facts_via_owner",
+        malformed,
+    )
     assert await process_graph_work(factory, embedder=FakeEmbedder()) == {
         "completed": 0, "failed": 1,
     }
@@ -252,3 +254,46 @@ async def test_run_graph_ingest_loop_only_calls_ingest(monkeypatch):
     with pytest.raises(asyncio.CancelledError):
         await worker.run_graph_ingest_loop(object())
     assert calls == [10]
+
+
+async def test_legal_projection_uses_the_owner_in_owner_mode(tmp_path):
+    from app.services.knowledge.entities import KnowledgeEntity
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+
+    class OwnerEmbedder:
+        model = "test"
+        dimension = 32
+        provider_id = "test"
+
+        async def embed(self, texts):
+            return [[1.0] + [0.0] * 31 for _ in texts]
+
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/legal-owner.db")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory.begin() as session:
+        session.add(Kund(id=1, name="One", slug="one", available_modules=[]))
+        await persisted_text_unit(
+            session, text="Rätten beviljade anpassning.", id="unit-1",
+            customer_id=1, document_id="doc-1", document_version_id="ver-1", ordinal=0,
+        )
+        await enqueue_legal_graph(
+            session, customer_id=1, research_need_id="need-1",
+            claims=[KnowledgeClaim(
+                id="claim-1", customer_id=1, predicate="outcome.granted",
+                value={"value": True}, supporting_text_unit_ids=("unit-1",),
+            )],
+            entities=[KnowledgeEntity(
+                id="source-1", customer_id=1, entity_type="legal.source",
+                key="source-1", name="Tingsrätten", extra={},
+            )],
+        )
+    result = await process_graph_work(factory, embedder=OwnerEmbedder())
+    assert result == {"completed": 1, "failed": 0}
+    facts = await get_owner_runtime().require_client().list_nodes(
+        "Fact", props={"scope_key": "customer:1"},
+    )
+    assert len(facts) == 1
+    assert facts[0]["props"]["fact_text"].startswith("Tingsrätten — outcome.granted")
+    await engine.dispose()

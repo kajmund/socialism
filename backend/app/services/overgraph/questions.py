@@ -7,17 +7,18 @@ graph node is the anchor retrieval uses. Writing it here replaces the retired SQ
 
 from __future__ import annotations
 
-import asyncio
-
-from app.services.overgraph.answers import QUESTION_NS, QUESTION_TYPE
-from app.services.overgraph.catalogs import require_knowledge
-from app.services.overgraph.model import GraphRecord
-from app.services.overgraph.write import upsert_entity
 from app.services.graph_v2.types import NodeInput
+from app.services.overgraph.answers import QUESTION_NS, QUESTION_TYPE
+from app.services.overgraph.model import GraphRecord
+from app.services.overgraph.owner_graph import apply_batch
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.write import entity_nodes
 
 
-def upsert_question_entity(*, question_id: str, display_text: str, scope) -> GraphRecord:
-    return upsert_entity(require_knowledge(), NodeInput(
+async def ensure_question_node(*, question_id: str, display_text: str, scope) -> GraphRecord:
+    """Anchor the question in the knowledge catalog through the Owner."""
+    owner = get_owner_runtime().require_client()
+    key, nodes = entity_nodes(NodeInput(
         node_type=QUESTION_TYPE,
         name=display_text,
         scope=scope,
@@ -25,13 +26,13 @@ def upsert_question_entity(*, question_id: str, display_text: str, scope) -> Gra
         identifier=question_id,
         attributes={"canonical_question_id": question_id},
     ))
-
-
-async def ensure_question_node(*, question_id: str, display_text: str, scope) -> GraphRecord:
-    """Async wrapper so call sites can stay on the session-based signature."""
-    return await asyncio.to_thread(
-        upsert_question_entity,
-        question_id=question_id,
-        display_text=display_text,
-        scope=scope,
+    await apply_batch(owner, "research:question", nodes=[
+        {"labels": list(node["labels"]), "key": node["key"], "props": dict(node["props"])}
+        for node in nodes
+    ], edges=[])
+    response = await owner.read([{"label": "Entity", "key": key}])
+    return GraphRecord(
+        key=key, labels=("Entity",),
+        props=dict(response["values"].get(f"Entity:{key}") or {}),
+        engine_id=response["ids"].get(f"Entity:{key}"),
     )

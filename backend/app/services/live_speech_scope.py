@@ -21,3 +21,5 @@ class LiveSpeechScope:
     stt_prompt: str = ""
     stt_keywords: tuple[str, ...] = ()
     stt_base_keywords: tuple[str, ...] = ()
+    correction_enabled: bool = True
+    correction_timeout: float = 2.0

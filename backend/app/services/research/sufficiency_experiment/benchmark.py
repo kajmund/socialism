@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from time import perf_counter
 
-from app.jev.system import JevSystemOne
+from app.jev.system import HttpJevSystemOne, JevSystemOne
 from app.services.research.sufficiency_experiment.assessor import run_experiment
 from app.services.research.sufficiency_experiment.baseline import (
     PR420_INPUT_CHARS_AFTER,
@@ -117,7 +117,11 @@ async def measure_live_models(
     *,
     config: ExperimentConfig | None = None,
 ) -> BenchmarkReport:
-    """Honest live path. Does not substitute scripted scores when keys are missing."""
+    """Judge the same golden evidence with live Jev passages and the live assessor.
+
+    The baseline stays the PR #420 input window measured locally; it makes no
+    model call, so it is labelled as the budgeted encoder, not a Cerebras run.
+    """
     if not live_keys_configured():
         return BenchmarkReport(
             cases=(),
@@ -125,7 +129,20 @@ async def measure_live_models(
             note="TYPESAFE_API_KEY and/or CEREBRAS_API_KEY missing; no live scores invented",
             pr420=_pr420(),
         )
-    raise RuntimeError("live Jev/Cerebras measurement is not wired in this environment")
+    settings = config or ExperimentConfig()
+    client = HttpJevSystemOne()
+    rows = [
+        await _one(case, client, settings, measurement="live") for case in cases
+    ]
+    return BenchmarkReport(
+        cases=tuple(rows),
+        measurement="live",
+        note=(
+            "live Jev passage scores (System One) + live assessor model; "
+            "baseline is the PR #420 input window applied locally"
+        ),
+        pr420=_pr420(),
+    )
 
 
 async def _one(

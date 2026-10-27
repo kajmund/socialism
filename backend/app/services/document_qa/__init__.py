@@ -1,33 +1,42 @@
-"""Document Q&A in a per-tenant OverGraph. Retrieval is not wired to chat."""
+"""Document Q&A contracts plus test/offline direct helpers.
 
-from app.services.document_qa.access import QaPermissionError, QaStoreError, Viewer
-from app.services.document_qa.lifecycle import archive_document, purge_document
-from app.services.document_qa.outbox import enqueue_document_qa
-from app.services.document_qa.retrieve import cache_decision, exact_reuse, semantic_candidates
-from app.services.document_qa.review import review_answer, review_history
-from app.services.document_qa.store import persist
-from app.services.document_qa.tenants import TenantCatalogs
-from app.services.document_qa.types import AnalysisContract, AnswerPostWrite, QaWrite, SourceCite
-from app.services.document_qa.writeback import QaOutbox, persist_after_answer
+Request paths use the Owner-backed modules (``owner_qa``, ``owner_ingest``,
+``owner_find``, ``owner_qa_retrieve``). The direct helpers re-exported here are
+kept for unit tests and offline tooling and are loaded lazily so serving a
+request never imports a local tenant catalog writer.
+"""
 
-__all__ = [
-    "AnalysisContract",
-    "AnswerPostWrite",
-    "QaOutbox",
-    "QaPermissionError",
-    "QaStoreError",
-    "QaWrite",
-    "SourceCite",
-    "TenantCatalogs",
-    "Viewer",
-    "archive_document",
-    "cache_decision",
-    "enqueue_document_qa",
-    "exact_reuse",
-    "persist",
-    "persist_after_answer",
-    "purge_document",
-    "review_answer",
-    "review_history",
-    "semantic_candidates",
-]
+from __future__ import annotations
+
+from importlib import import_module
+from typing import Any
+
+_EXPORTS = {
+    "QaPermissionError": "access",
+    "QaStoreError": "access",
+    "Viewer": "access",
+    "AnalysisContract": "types",
+    "AnswerPostWrite": "types",
+    "QaWrite": "types",
+    "SourceCite": "types",
+    "archive_document": "lifecycle",
+    "purge_document": "lifecycle",
+    "enqueue_document_qa": "outbox",
+    "cache_decision": "retrieve",
+    "exact_reuse": "retrieve",
+    "semantic_candidates": "retrieve",
+    "review_answer": "review",
+    "review_history": "review",
+    "persist": "store",
+}
+
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name: str) -> Any:
+    module_name = _EXPORTS.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(f"{__name__}.{module_name}"), name)
+    globals()[name] = value
+    return value

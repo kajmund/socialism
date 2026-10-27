@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import re
 from collections import Counter
 from collections.abc import Iterable, Sequence
@@ -10,11 +9,12 @@ from collections.abc import Iterable, Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord, StoredObject
 from app.database.workspace_models import VoiceWorkspace
 from app.schemas.workspace import WorkspaceState
-from app.services.overgraph.catalogs import require_knowledge
-from app.services.overgraph.text_units import load_domain_text_units
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.owner_text_units import load_version_units
 from app.services.workspaces import resolve_readable_workspace_ids
 
 TRANSCRIPTION_PROMPT_KEY = "chat.expert.live_speech_transcription"
@@ -48,7 +48,7 @@ def keywords_from_text_units(
     texts: Iterable[str],
     *,
     base: Sequence[str] = (),
-    limit: int = 24,
+    limit: int | None = None,
 ) -> list[str]:
     counts: Counter[str] = Counter()
     surfaces: dict[str, str] = {}
@@ -62,11 +62,14 @@ def keywords_from_text_units(
             current = surfaces.get(key)
             if current is None or (word[:1].isupper() and not current[:1].isupper()):
                 surfaces[key] = word
+    # A generous bias list makes the decoder hear the list instead of the
+    # speech. Terms must recur, or be long enough to be deliberate names.
     ranked = [
         surfaces[key]
         for key, count in counts.most_common()
-        if count >= 2 or len(key) >= 10
+        if count >= settings.live_speech_stt_keyword_min_count or len(key) >= 12
     ]
+    cap = settings.live_speech_stt_keyword_limit if limit is None else limit
     chosen: list[str] = []
     seen: set[str] = set()
     for word in (*ranked, *base):
@@ -76,7 +79,7 @@ def keywords_from_text_units(
             continue
         seen.add(key)
         chosen.append(text)
-        if len(chosen) >= limit:
+        if len(chosen) >= cap:
             break
     return chosen
 
@@ -168,12 +171,10 @@ async def text_unit_texts(
             DocumentVersionRecord.superseded_at.is_(None),
         )
     )).all())
-    catalog = require_knowledge()
+    owner = get_owner_runtime().require_client()
     texts: list[str] = []
     for version_id in version_ids:
-        units = await asyncio.to_thread(
-            load_domain_text_units, catalog, document_version_id=version_id,
-        )
+        units = await load_version_units(owner, version_id)
         for unit in units:
             if len(texts) >= 300:
                 return texts

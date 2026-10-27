@@ -27,6 +27,16 @@ import {
   isVoiceToolWake,
   voiceToolWakeText,
 } from "@/components/chat/liveToolWake"
+import {
+  openaiRealtimeAudioMessage,
+  openaiRealtimeCloseMessage,
+  openaiRealtimeGreetingMessages,
+  openaiRealtimePongMessage,
+  openaiRealtimeToolResultMessage,
+  openaiRealtimeWakeMessages,
+  parseOpenAIRealtimeMessage,
+  updateOpenAIRealtimeTranscripts,
+} from "@/components/chat/openaiRealtimeProtocol"
 
 export type LiveVoiceState =
   | "idle"
@@ -93,7 +103,7 @@ type LiveVoiceAdapter = {
   toolResultMessages: (
     responses: Array<{ id: string; name: string; result: string; isError?: boolean }>,
   ) => string[]
-  wakeMessage: (result: string) => string
+  wakeMessages: (result: string) => string[]
   closeMessage: () => string | null
   pongMessage: (eventId: number) => string | null
   applyTranscript: (
@@ -129,7 +139,7 @@ const geminiLiveAdapter: LiveVoiceAdapter = {
   },
   audioMessage: liveAudioMessage,
   toolResultMessages: (responses) => [liveToolResponseMessage(responses)],
-  wakeMessage: (result) => liveClientContentMessage(voiceToolWakeText(result)),
+  wakeMessages: (result) => [liveClientContentMessage(voiceToolWakeText(result))],
   closeMessage: () => JSON.stringify({ realtimeInput: { audioStreamEnd: true } }),
   pongMessage: () => null,
   applyTranscript: (state, event) =>
@@ -173,7 +183,7 @@ const elevenlabsLiveAdapter: LiveVoiceAdapter = {
   },
   audioMessage: elevenLabsUserAudioMessage,
   toolResultMessages: elevenLabsToolResultMessage,
-  wakeMessage: (result) => elevenLabsUserTextMessage(voiceToolWakeText(result)),
+  wakeMessages: (result) => [elevenLabsUserTextMessage(voiceToolWakeText(result))],
   closeMessage: () => null,
   pongMessage: elevenLabsPongMessage,
   applyTranscript: (state, event) => ({
@@ -182,12 +192,30 @@ const elevenlabsLiveAdapter: LiveVoiceAdapter = {
   }),
 }
 
+const openaiLiveAdapter: LiveVoiceAdapter = {
+  ringOnOpen: false,
+  ringbackOnReady: true,
+  // The backend relay authenticates the session; the browser only streams events.
+  openMessages: () => [],
+  afterReadyMessages: (session) =>
+    openaiRealtimeGreetingMessages(session.initial_turn),
+  parse: parseOpenAIRealtimeMessage,
+  audioMessage: openaiRealtimeAudioMessage,
+  toolResultMessages: openaiRealtimeToolResultMessage,
+  wakeMessages: (result) => openaiRealtimeWakeMessages(voiceToolWakeText(result)),
+  closeMessage: openaiRealtimeCloseMessage,
+  pongMessage: openaiRealtimePongMessage,
+  applyTranscript: updateOpenAIRealtimeTranscripts,
+}
+
 function adapterFor(provider: PersonaLiveSession["provider"]): LiveVoiceAdapter {
   switch (provider) {
     case "gemini":
       return geminiLiveAdapter
     case "elevenlabs":
       return elevenlabsLiveAdapter
+    case "openai":
+      return openaiLiveAdapter
     default: {
       const exhaustive: never = provider
       throw new Error(`Unsupported live voice provider: ${String(exhaustive)}`)
@@ -257,7 +285,11 @@ class LiveVoiceSessionImpl implements LiveVoiceSession {
       this.microphone = microphone
       const session = await this.options.getSession()
       if (generation !== this.generation) return
-      if (session.provider !== "gemini" && session.provider !== "elevenlabs") {
+      if (
+        session.provider !== "gemini" &&
+        session.provider !== "elevenlabs" &&
+        session.provider !== "openai"
+      ) {
         await this.fail("sessionFailed")
         return
       }
@@ -554,7 +586,7 @@ class LiveVoiceSessionImpl implements LiveVoiceSession {
     const wake = this.queuedWake
     this.queuedWake = null
     this.expectingWake = true
-    websocket.send(adapter.wakeMessage(wake))
+    for (const payload of adapter.wakeMessages(wake)) websocket.send(payload)
   }
 
   private enqueuePlayback(encoded: string): void {
