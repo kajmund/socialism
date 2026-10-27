@@ -46,9 +46,11 @@ async def _enable_module(factory) -> None:
         await session.commit()
 
 
-async def _clause_set(factory, *, label="uppsagning") -> str:
+async def _clause_set(
+    factory, *, label="uppsagning", customer_id: int = TEST_CUSTOMER_ID
+) -> str:
     catalog = require_knowledge()
-    scope = customer_scope(TEST_CUSTOMER_ID)
+    scope = customer_scope(customer_id)
     classification = upsert_classification(
         catalog,
         scope=scope,
@@ -213,6 +215,69 @@ async def test_create_run_lock_approve_and_missed_hit(client_db, review_embedder
 async def test_user_without_module_is_denied(user_client):
     res = await user_client.get("/tabular-reviews")
     assert res.status_code == 403
+
+
+async def test_foreign_anchor_set_is_rejected(client_db, user_token):
+    client, factory = client_db
+    await _enable_module(factory)
+    await _document(factory, doc_id="doc-1", title="Avtal")
+    async with factory() as session:
+        if await session.get(Kund, 2) is None:
+            session.add(Kund(id=2, name="Other", slug="other", available_modules=[]))
+            await session.commit()
+    catalog = require_knowledge()
+    other_scope = customer_scope(2)
+    view = text_unit_view(
+        text="Uppsägning enligt avtal.",
+        id="unit-doc-c2",
+        document_id="doc-c2",
+        document_version_id="ver-doc-c2",
+        customer_id=2,
+        locator="§1",
+        page_start=1,
+        page_end=1,
+    )
+    upsert_text_unit(
+        catalog,
+        replace(text_unit_write(view), embedding=tuple(_vec(1.0))),
+    )
+    classification = upsert_classification(
+        catalog,
+        scope=other_scope,
+        slug="uppsagning",
+        question="Är det här en uppsägningsklausul?",
+        category="uppsagning",
+    )
+    verification = record_decision(
+        catalog,
+        scope=other_scope,
+        classification_id=classification.id,
+        unit_id="unit-doc-c2",
+        reviewer_id="admin-2",
+        answer="yes",
+    )
+    embedding = EmbeddingSpec(model="test", revision="v1", dimension=RESEARCH_TEST_DIM)
+    promote_anchor(catalog, verification.id, scope=other_scope, embedding=embedding)
+    foreign_set_id = build_anchor_set(
+        catalog, scope=other_scope, category="uppsagning", embedding=embedding
+    ).id
+    client.headers["Authorization"] = f"Bearer {user_token}"
+    created = await client.post(
+        "/tabular-reviews",
+        json={
+            "name": "Foreign anchors",
+            "document_ids": ["doc-1"],
+            "columns": [
+                {
+                    "title": "Uppsägning",
+                    "anchor_set_id": foreign_set_id,
+                    "label": "uppsagning",
+                }
+            ],
+        },
+    )
+    assert created.status_code == 404, created.text
+    assert created.json()["detail"] == "anchor_set_not_found"
 
 
 async def test_module_user_lists_clause_anchors_without_admin_api(client_db, user_token):

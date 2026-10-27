@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.auth.dependencies import get_current_user
 from app.database.models import UserAccount
 from app.services.clause_ssr import owner_select
+from app.services.knowledge.scope import customer_scope
+from app.services.overgraph.isolation import can_reference
 from app.database.session import get_session
 from app.database.tabular_review import TabularReview, TabularReviewCell, TabularReviewVerificationLabel
 from app.schemas.tabular_review import (
@@ -68,10 +70,18 @@ async def _gated_review(session: AsyncSession, user: UserAccount, review_id: int
     return kund, review
 
 
-async def _validate_clause_column(anchor_set_id: str, label: str) -> None:
-    anchor_set = await owner_select.get_anchor_set(
-        get_owner_runtime().require_client(), anchor_set_id,
-    )
+async def _validate_clause_column(
+    anchor_set_id: str, label: str, *, customer_id: int
+) -> None:
+    scope = customer_scope(customer_id)
+    try:
+        anchor_set = await owner_select.get_anchor_set(
+            get_owner_runtime().require_client(), anchor_set_id
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="anchor_set_not_found") from exc
+    if not can_reference(scope, anchor_set.scope_key):
+        raise HTTPException(status_code=404, detail="anchor_set_not_found")
     if anchor_set.status != "active":
         raise HTTPException(status_code=400, detail="anchor_set_not_active")
     if anchor_set.category != label:
@@ -136,7 +146,9 @@ async def create_tabular_review(
         if body.document_ids:
             await set_documents(session, review, body.document_ids)
         for index, column in enumerate(body.columns):
-            await _validate_clause_column(column.anchor_set_id, column.label)
+            await _validate_clause_column(
+                column.anchor_set_id, column.label, customer_id=kund.id
+            )
             await add_column(
                 session,
                 review,
@@ -215,6 +227,9 @@ async def add_review_column(
 ) -> dict:
     kund, review = await _gated_review(session, user, review_id)
     try:
+        await _validate_clause_column(
+            body.anchor_set_id, body.label, customer_id=kund.id
+        )
         await add_column(
             session,
             review,
@@ -273,7 +288,7 @@ async def run_tabular_review(
             embeddings_by_document=embeddings,
             customer_id=kund.id,
         )
-    except RuntimeError as exc:
+    except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     async with factory() as loaded_session:
         loaded = await require_review(loaded_session, review_id, customer_id=kund.id)
