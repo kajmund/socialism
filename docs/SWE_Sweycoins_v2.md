@@ -417,3 +417,24 @@ Per fråga är skillnaderna lärorika: g2-15 vinner bara LLM-klassificeringen (f
 
 **Slutsatsen:** marknaden är fortfarande inte differentierad, men nu vet vi exakt var differentieringen måste uppstå: i frågor där per-chunk-hämtning är fel primitiv och syntesen är det enda steget som kan svara — riskallokering, konsekvenser, motsägelser. Där skulle en billig JEV-undersökning + dyr LLM-syntes bli det genuina sekventiella budgetproblemet. Nästa frågegenerering prioriterar just de frågetyperna, med klassificeringsprompten omramad till evidensrelevans.
 
+## 22. Tre kedjor, orakel-test och separata signaler
+
+Granskningens experiment, genomfört: statisk (JEV → syntes), iterativ (JEV → gap-analys → retrieval → JEV → syntes) och adaptiv (budgetstyrd regel över samma primitiver), plus **orakel-testet** (LLM får allt facit-evidens direkt) som skiljer syntes- från upptäcktsflaskhalsen. Separata signaler: informationsvärde (upptäckte gap-steget nytt facit-evidens?), täckningsdelta och slutlig korrekthet.
+
+**Uppmätt (5 frågor):**
+
+| Fråga | Initial täckning | Info-värde | Orakel-syntes | Statisk | Iterativ | Adaptiv |
+|---|---|---|---|---|---|---|
+| g2-15 | 0.86 | 0 | ✗ | ✗ | ✗ | ✗ |
+| g2-17 | 0.62 | 0 | ✓ | ✓ | ✓ | ✓ |
+| g2-29 | 0.71 | 0 | ✗ | ✗ | ✗ | ✗ |
+| g2-20 | 0.00 | 0 | ✓ | ✗ | ✗ | ✗ |
+| g2-23 | 0.00 | 0 | ✗ | ✗ | ✗ | ✗ |
+
+**De två viktigaste fynden:**
+
+1. **Orakel-testet bryter isär flaskhalsarna per fråga.** g2-17 fungerar ända igenom (enda frågan där allt stämmer); g2-20 har syntesen intakt (orakel ✓) men upptäckten kollapsar (0.00) — *upptäcktsflaskhals*; g2-15/g2-29/g2-23 har syntesen som bindande begränsning (orakel ✗ trots komplett evidens) — *syntesflaskhals*. Det är exakt den diagnos granskningen bad om: vi vet nu per fråga om nästa investering ska gå till bättre hämtning eller bättre syntes.
+2. **Iterativa kedjans informationsvärde = 0 på alla fem.** Mekanismen fungerar — gap-analysen identifierar riktiga saknade delar (g2-15: "Avtal_11_Distansarbetsavtal sekretessklausul", precis det JEV missat), retrieval hämtar, JEV verifierar ett nytt fynd — men det nya fyndet var aldrig facit-evidens. Kedjorna *påverkar* nu varandra (gap-analysen omdefinierar sökuppgiften), men frågorna belönar det ännu inte: facit-gapen är antingen redan täckta eller bortom per-chunk-klassificeringen.
+
+**Slutsatsen:** tre kedjor skiljer sig inte på dessa fem frågor — men nu vet vi *varför per fråga*, och det är ett framsteg i diagnostik snarare än i marknad: syntesen är den dominerande flaskhalsen (3/5), upptäckten nästa (1/5). Fem frågor är stark diagnostik, inte grund för policyval (granskningens reservation kvarstår). Nästa steg behöver inte bara svårare frågor — det behöver frågor där gap-analysens informationsvärde kan bli > 0, dvs. där facit kräver evidens bortom första klassificeringsrundan.
+
