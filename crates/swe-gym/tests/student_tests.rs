@@ -15,7 +15,7 @@ fn student_features_are_facit_free() {
     // The feature vector is built from the observation interface only —
     // no answer key, no terminal quality. Structural pin: the feature
     // count is fixed and every feature comes from `Observation`.
-    assert_eq!(FEATURE_COUNT, 11);
+    assert_eq!(FEATURE_COUNT, 15);
     let obs = swe_gym::env::Observation {
         question_id: "x".into(),
         qtype: 1,
@@ -31,6 +31,10 @@ fn student_features_are_facit_free() {
         pool_total: 400,
         pool_extension_yielded: 1,
         zero_hit_streak: 2,
+        next_rank_bp: 3_500,
+        docs_remaining: 12,
+        docs_with_hits: 4,
+        new_doc_hit: 1,
         statuses: [swe_gym::env::Status::Active; 3],
         spent_milli: [1_000, 20_000, 0],
         steps: 5,

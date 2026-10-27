@@ -108,28 +108,40 @@ fn exploration_experiment_pinned_verdict_no_improvement() {
         let b = eval_frozen(&mut env, &mut b_student, held);
         let c = eval_frozen(&mut env, &mut c_student, held);
 
-        // Pinned per-fold results (measured, then frozen). The verdict is
-        // mixed and recorded honestly: the epsilon student B beats the
-        // teacher on two held-out questions (notice-period, liability-cap)
-        // by being more patient where the teacher's stall rule stops too
-        // early on gappy evidence — and regresses on two others. Coverage
-        // is never degraded. Acceptance criterion (beat the teacher on at
-        // least one unseen question without coverage loss): PASS, 2/5.
+        // Pinned per-fold results (measured, then frozen) with the
+        // 15-feature interface (docs 18). The honest finding: the
+        // win/regression pattern is UNSTABLE under observation-feature
+        // changes — with the improved marginal-utility observations the
+        // earlier patience wins disappeared and a regression now also
+        // degrades quality on carveout. Five questions cannot resolve
+        // which signals help; the dataset path (docs 15) is the fix.
         let key = held.id.as_str();
         assert_eq!(a.net, net(key, &A_NET), "{key}: teacher net drifted");
         assert_eq!(b.net, net(key, &B_NET), "{key}: B net drifted");
         assert_eq!(c.net, net(key, &C_NET), "{key}: C net drifted");
-        assert!(b.quality >= a.quality, "{key}: B must not degrade quality");
-        assert!(c.quality >= a.quality, "{key}: C must not degrade quality");
+        assert_eq!(
+            b.quality,
+            net_quality(key, &B_QUALITY),
+            "{key}: B quality drifted"
+        );
         if b.net > a.net || c.net > a.net {
             wins += 1;
         }
     }
-    assert_eq!(
-        wins, 2,
-        "pinned verdict: 2/5 folds beat the teacher (B arm)"
-    );
+    assert_eq!(wins, 0, "pinned verdict: 0/5 with the 15-feature interface");
 }
+
+fn net_quality(key: &str, table: &[(&str, f64); 5]) -> f64 {
+    table.iter().find(|(k, _)| *k == key).unwrap().1
+}
+
+const B_QUALITY: [(&str, f64); 5] = [
+    ("auto-renewal", 0.85),
+    ("notice-period", 0.6923076923076923),
+    ("liability-cap", 0.5),
+    ("confidentiality", 1.00),
+    ("liability-secrecy-carveout", 0.5714285714285714), // quality degraded by the B regression
+];
 
 fn net(key: &str, table: &[(&str, i64); 5]) -> i64 {
     table.iter().find(|(k, _)| *k == key).unwrap().1
@@ -143,11 +155,11 @@ const A_NET: [(&str, i64); 5] = [
     ("liability-secrecy-carveout", 79_000),
 ];
 const B_NET: [(&str, i64); 5] = [
-    ("auto-renewal", 58_000),    // regression (-6k, same quality)
-    ("notice-period", 58_000),   // WIN: +9.8k, quality 1.00 vs 0.69
-    ("liability-cap", 34_765),   // WIN: +5.8k, quality 0.62 vs 0.50
-    ("confidentiality", 63_000), // regression (-16k, same quality)
-    ("liability-secrecy-carveout", 79_000),
+    ("auto-renewal", 58_000),  // regression (-6k, same quality)
+    ("notice-period", 48_231), // matches the teacher
+    ("liability-cap", 29_000), // matches the teacher
+    ("confidentiality", 79_000),
+    ("liability-secrecy-carveout", 46_143), // regression, quality 0.57
 ];
 const C_NET: [(&str, i64); 5] = [
     ("auto-renewal", 64_000),
@@ -178,6 +190,10 @@ fn directed_exploration_rates_decisive_states_higher() {
         pool_total: 400,
         pool_extension_yielded: yield_,
         zero_hit_streak: streak,
+        next_rank_bp: 2_000,
+        docs_remaining: 10,
+        docs_with_hits: 3,
+        new_doc_hit: 0,
         statuses: [swe_gym::env::Status::Active; 3],
         spent_milli: [1_000, 10_000, 0],
         steps: 4,
@@ -188,4 +204,43 @@ fn directed_exploration_rates_decisive_states_higher() {
         decisive > calm + 0.2,
         "decisive states must be explored more (calm {calm:.2} vs decisive {decisive:.2})"
     );
+}
+
+#[test]
+fn policy_selection_never_touches_held_out_outcomes() {
+    // The leakage audit: for every fold, the improved student is built
+    // ONLY from the other four questions' trajectories — the held-out
+    // question's id must never appear in the training or exploration
+    // inputs. Structural, not statistical: asserts the data partition.
+    let source = include_str!("../benchmarks/real_trajectories_v1.json");
+    let trajectories = load_dataset(source).unwrap();
+    let questions =
+        load_real_bench("benchmarks/bench_real_v2.json", "benchmarks/real_fixtures").unwrap();
+    for held in &questions {
+        let train_qs: Vec<_> = questions
+            .iter()
+            .filter(|q| q.id != held.id)
+            .cloned()
+            .collect();
+        let teacher_traj: Vec<_> = trajectories
+            .iter()
+            .filter(|t| t.question_id != held.id)
+            .cloned()
+            .collect();
+        assert!(
+            teacher_traj.iter().all(|t| t.question_id != held.id),
+            "{}: held-out trajectory leaked into teacher data",
+            held.id
+        );
+        let mut env = RealEnv::new(REAL_BASE_REWARD_MILLI);
+        let mut eps = EpsilonTeacherPolicy::new(0.10, 7);
+        let eps_traj = run_exploration(&mut env, &mut eps, &train_qs, 20, "explore-epsilon", 7);
+        assert!(
+            eps_traj.iter().all(|t| t.question_id != held.id),
+            "{}: held-out id leaked into exploration data",
+            held.id
+        );
+        // And the improved student is trained only on those inputs.
+        let _student = improved_student(&teacher_traj, &eps_traj);
+    }
 }

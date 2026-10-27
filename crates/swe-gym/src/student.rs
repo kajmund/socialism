@@ -15,7 +15,7 @@ use crate::env::{Action, Observation};
 
 // Feature vector over the facit-free interface. Every field is
 // observable at decision time; nothing here touches the answer key.
-pub const FEATURE_COUNT: usize = 11;
+pub const FEATURE_COUNT: usize = 15;
 
 pub fn features(obs: &Observation) -> [f64; FEATURE_COUNT] {
     let pool_ratio = if obs.pool_total == 0 {
@@ -35,6 +35,10 @@ pub fn features(obs: &Observation) -> [f64; FEATURE_COUNT] {
         obs.spent_milli[1] as f64 / 100_000.0,
         obs.pool_extension_yielded as f64,
         obs.zero_hit_streak as f64 / 5.0,
+        obs.next_rank_bp as f64 / 10_000.0,
+        obs.docs_remaining as f64 / 20.0,
+        obs.docs_with_hits as f64 / 10.0,
+        obs.new_doc_hit as f64,
     ]
 }
 

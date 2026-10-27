@@ -50,6 +50,13 @@ pub fn observable_qtype(chunk_count: usize) -> u8 {
     }
 }
 
+/// Document prefix of a chunk id ("Avtal_47_Programvarulicensavtal:25"
+/// -> "Avtal_47_Programvarulicensavtal"): the facit-free document
+/// provenance encoded in the corpus chunk ids.
+fn doc_prefix(chunk_id: &str) -> &str {
+    chunk_id.split(':').next().unwrap_or(chunk_id)
+}
+
 /// One real question for the budget manager: the facit-free view plus
 /// the facit (evaluator only, same split as bench.rs).
 #[derive(Clone)]
@@ -237,6 +244,10 @@ impl RealEnv {
             pool_total: q.chunks.len() as u32,
             pool_extension_yielded: 0,
             zero_hit_streak: 0,
+            next_rank_bp: 0,
+            docs_remaining: 0,
+            docs_with_hits: 0,
+            new_doc_hit: 0,
             statuses: [Status::Idle; STRATEGY_COUNT],
             spent_milli: [0; STRATEGY_COUNT],
             steps: 0,
@@ -370,6 +381,41 @@ impl RealEnv {
                 obs.pool_scanned = self.pool_cursor as u32;
                 obs.pool_extension_yielded = (self.found.len() > self.extension_baseline) as u8;
                 obs.zero_hit_streak = self.zero_streak;
+                // Rank progress: the next candidate's position in the
+                // ranked list — the facit-free similarity-decay proxy.
+                obs.next_rank_bp = if chunks.is_empty() {
+                    0
+                } else {
+                    (10_000 * self.verify_cursor as u64 / chunks.len() as u64) as u32
+                };
+                // Document provenance, from chunk-id prefixes.
+                let order: &[String] = if !scan_order.is_empty() {
+                    &scan_order
+                } else {
+                    &chunks
+                };
+                let mut remaining_docs = std::collections::HashSet::new();
+                for chunk in order.iter().take(self.pool_cursor).skip(self.verify_cursor) {
+                    remaining_docs.insert(doc_prefix(chunk));
+                }
+                obs.docs_remaining = remaining_docs.len().min(255) as u8;
+                let hit_docs: std::collections::HashSet<&str> =
+                    self.found.iter().map(|c| doc_prefix(c)).collect();
+                obs.docs_with_hits = hit_docs.len().min(255) as u8;
+                obs.new_doc_hit = if new_evidence > 0 {
+                    let before = hit_docs.len();
+                    let mut extended = hit_docs;
+                    extended.extend(
+                        order
+                            .iter()
+                            .take(self.verify_cursor)
+                            .skip(self.verify_cursor.saturating_sub(64))
+                            .map(|c| doc_prefix(c)),
+                    );
+                    (extended.len() > before) as u8
+                } else {
+                    0
+                };
                 obs.spent_milli[s] += spent;
                 obs.remaining_milli -= spent;
                 obs.bracket = budget_bracket(obs.remaining_milli);
