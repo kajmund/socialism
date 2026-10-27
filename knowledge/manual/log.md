@@ -1,14 +1,14 @@
 # Manual update log
 
-
 ## 2026-10-26
 
+* **Expertpaneler**: Guiden för detaljsidan beskriver **Generera expert** och **Ta bort panel**.
+* **Tabular Review**: Guiden täcker listan, kolumnhantering och sök/statusfilter.
 * **SME / live voice**: **Rensa chat** tar nu bort historiken ordentligt — meddelandena kommer inte tillbaka vid omladdning. Intervjuer och andra experters chattar lämnas orörda.
 * **Experter / live voice**: Per expert går det nu att slå på **Rätta STT-fel** (Socialism Live Speech) med egen tidsgräns — en Cerebras-modell ser samtalet och rättar uppenbara felhörningar innan experten svarar.
 * **Experter / live voice**: Nytt leverantörsval **OpenAI (röst till röst)** i kompositörens Live voice — experten hör talet direkt som ChatGPT:s röstläge och svarar med en av OpenAI:s röster. Under **Modell** väljer du OpenAI-modell per expert, med den nyaste tal-till-tal-modellen först.
 * **SME / live voice**: Nyckelordsbiasen i taligenkänningen är mindre aggressiv, och det du sagt kontrolleras en andra gång när du pratat klart — expertens svar bygger på den rättade texten även när webbläsaren hörde fel i farten.
 * **SME / live voice**: Långa upplästa svar avbryts inte längre med "Svaret kunde inte läsas upp" — uppläsningen får ta den tid svaret kräver, och tidsgränsen gäller nu bara tystnad från röstleverantören.
-
 
 ## 2026-10-23
 
