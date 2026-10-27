@@ -18,7 +18,7 @@ export type ShellNavSection = {
   beforeShared?: boolean
 }
 
-const NAV_MODULE_ORDER = ["politik", "dd", "expertgranskning", "rattsunderlag"] as const
+const NAV_MODULE_ORDER = ["politik", "dd", "expertgranskning", "rattsunderlag", "tabular_review"] as const
 
 function sortManifestsForNav(manifests: ModuleManifest[]): ModuleManifest[] {
   return [...manifests].sort((a, b) => {

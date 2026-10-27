@@ -1,6 +1,5 @@
-"""Publish assessed, frozen answer episodes directly into Graph v2."""
+"""Publish assessed, frozen answer episodes through the Overgraph owner."""
 
-import asyncio
 import hashlib
 import json
 from datetime import UTC, datetime
@@ -12,19 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database.models import DocumentVersionRecord, EvidenceSet, KnowledgeQuestionRow
-from app.services.graph_v2.types import FactInput, NodeInput, SourceRef
 from app.services.knowledge.scope import require_persist_scope
-from app.services.overgraph.catalogs import require_knowledge
-from app.services.overgraph.labels import FACT
-from app.services.overgraph.write import fact_key, upsert_entity
-from app.services.overgraph.publish import AnswerPublish, publish_answer_fact
-from app.services.overgraph.answers import (
-    QUESTION_NS,
-    QUESTION_TYPE,
-    ANSWER_PREDICATE as GRAPH_ANSWER_PREDICATE,
-    answer_facts,
-    current_fact,
-    entity_attributes,
+from app.services.overgraph.owner_facts import publish_answer_via_owner
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.publish import AnswerPublish
+from app.services.overgraph.answers import ANSWER_PREDICATE as GRAPH_ANSWER_PREDICATE
+from app.services.overgraph.answers_owner import (
+    answer_facts_via_owner,
+    current_facts_via_owner,
+    entity_attributes_via_owner,
 )
 from app.services.research.graph_grounding import (
     fact_is_current,
@@ -72,71 +67,33 @@ async def publish_answer(
             sort_keys=True,
         ).encode()
     ).hexdigest()
-    catalog = require_knowledge()
-    source = upsert_entity(catalog, NodeInput(
-        node_type=QUESTION_TYPE,
-        name=question.display_text,
-        scope=scope,
-        identifier_namespace=QUESTION_NS,
-        identifier=question.id,
-        attributes={"canonical_question_id": question.id},
-    ))
-    target = upsert_entity(catalog, NodeInput(
-        node_type=ANSWER_TYPE,
-        name=question.display_text,
-        scope=scope,
-        identifier_namespace="research.answer_id",
-        identifier=identity,
-        attributes={
-            "basis": payload,
-            "assessment": assessment,
-            "evidence_set_id": evidence_set_id,
-        },
-    ))
-    proposed = FactInput(
-        source_id=source.key,
-        target_id=target.key,
-        scope=scope,
-        predicate=ANSWER_PREDICATE,
-        fact_text=question.display_text,
-        sources=(SourceRef("episode", evidence_set_id),),
-        occurrence_key=identity,
-        attributes={
-            "knowledge_module": context.scope.module,
-            "knowledge_case_id": context.scope.case_id,
-            "workspace_id": context.scope.workspace_id,
-            "document_version_ids": list(context.scope.allowed_document_version_ids or ()),
-            "answer_status": "sufficient" if assessment.get("sufficient") else "partial",
-        },
-    )
-    # Answers have no TextUnit anchor: identity is the explicit episode contract.
-    fact_id = await asyncio.to_thread(fact_key, proposed, catalog)
-    dependencies = {
-        ref for item in basis for ref in item.metadata.get("graph_fact_ids", [])
-        if catalog.get_by_key(FACT, ref) is not None
+    attributes = {
+        "knowledge_module": context.scope.module,
+        "knowledge_case_id": context.scope.case_id,
+        "workspace_id": context.scope.workspace_id,
+        "document_version_ids": list(context.scope.allowed_document_version_ids or ()),
+        "answer_status": "sufficient" if assessment.get("sufficient") else "partial",
     }
-    publish_answer_fact(
-        catalog,
+    # Answers have no TextUnit anchor: identity is the explicit episode contract.
+    # The owner writer resolves the question/answer entity keys from the same
+    # shared identity builders the direct path used and commits one mutation.
+    dependency_candidates = tuple(sorted({
+        ref for item in basis for ref in item.metadata.get("graph_fact_ids", [])
+    }))
+    return await publish_answer_via_owner(
+        get_owner_runtime().require_client(),
         AnswerPublish(
             question_id=question.id,
             question_text=question.display_text,
             scope=scope,
             identity=identity,
             evidence_set_id=evidence_set_id,
-            fact_id=fact_id,
-            attributes={
-                "knowledge_module": context.scope.module,
-                "knowledge_case_id": context.scope.case_id,
-                "workspace_id": context.scope.workspace_id,
-                "document_version_ids": list(context.scope.allowed_document_version_ids or ()),
-                "answer_status": "sufficient" if assessment.get("sufficient") else "partial",
-            },
+            attributes=attributes,
             basis=payload,
             assessment=assessment,
-            dependency_ids=tuple(sorted(dependencies)),
+            dependency_ids=dependency_candidates,
         ),
     )
-    return fact_id
 
 
 async def lookup_answers(
@@ -149,10 +106,9 @@ async def lookup_answers(
     if not need.knowledge_question_id:
         return []
     scopes = ("shared", f"customer:{context.scope.customer_id}")
-    catalog = require_knowledge()
-    facts = await catalog.run(
-        _answer_candidates, catalog, need.knowledge_question_id,
-        context.scope.customer_id, now,
+    client = get_owner_runtime().require_client()
+    facts = await _answer_candidates_for(
+        client, need.knowledge_question_id, context.scope.customer_id, now,
     )
     evidence = []
     seen = set()
@@ -161,7 +117,7 @@ async def lookup_answers(
             continue
         if not fact_is_current(fact, now) or not _context_matches(fact, context):
             continue
-        target = await catalog.run(entity_attributes, catalog, fact.target_id)
+        target = await _answer_target_for(client, fact.target_id)
         if target is None or target.node_type != ANSWER_TYPE:
             continue
         if target.scope_key != fact.scope_key:
@@ -169,7 +125,9 @@ async def lookup_answers(
         basis = BASIS.validate_python(target.attributes.get("basis"))
         if not await basis_workspace_allowed(session, basis, context):
             continue
-        if not await _current_basis(session, basis, fact.scope_key, now):
+        if not await _current_basis(
+            session, basis, fact.scope_key, now, client=client,
+        ):
             continue
         for item in basis:
             ref = str(item.metadata.get("reuse", {}).get("evidence_ref") or item.evidence_id)
@@ -182,17 +140,23 @@ async def lookup_answers(
     return evidence
 
 
+async def _answer_candidates_for(client, question_id, customer_id, now):
+    return await answer_facts_via_owner(
+        client, question_id, customer_id, now=now,
+    )
+
+
+async def _answer_target_for(client, target_id):
+    return await entity_attributes_via_owner(client, target_id)
+
+
 def _context_matches(fact, context: ResearchContext) -> bool:
     return manifest_matches(fact, context) and fact.attributes.get("knowledge_module") == context.scope.module and (
         fact.attributes.get("knowledge_case_id") == context.scope.case_id
     )
 
 
-def _answer_candidates(catalog, question_id, customer_id, now):
-    return answer_facts(catalog, question_id, customer_id, now=now)
-
-
-async def _current_basis(session, basis, scope_key, now) -> bool:
+async def _current_basis(session, basis, scope_key, now, *, client) -> bool:
     max_age = settings.research_knowledge_freshness_max_age_seconds
     for item in basis:
         stamp = (
@@ -211,10 +175,10 @@ async def _current_basis(session, basis, scope_key, now) -> bool:
         for item in basis
         if item.metadata.get("document_version_id")
     )
-    catalog = require_knowledge()
-    for fact_id in fact_ids:
-        if not await catalog.run(current_fact, catalog, fact_id, scope_key, now):
-            return False
+    if not await current_facts_via_owner(
+        client, sorted(fact_ids), scope_key, now,
+    ):
+        return False
     versions = (await session.execute(select(
         DocumentVersionRecord.id, DocumentVersionRecord.scope_key, DocumentVersionRecord.superseded_at,
         DocumentVersionRecord.valid_from, DocumentVersionRecord.valid_to,

@@ -20,7 +20,7 @@ dependencies = [
     "mem0ai==2.0.20",
     "openai==2.48.0",
     # Embedded graph + hybrid vector engine; not something we write in <30 lines.
-    "overgraph==0.17.0",
+    "overgraph==0.17.1",
     # Embedded fulltext engine (BM25 + Swedish analysis) for the derived search index.
     "tantivy==0.26.2",
     "pdfplumber==0.11.9",
@@ -139,7 +139,7 @@ app-max-lines = 500
 tests-max-lines = 1000
 
 [tool.socialism.maintainability.module-baseline]
-"app/api/anchor_sets.py" = 637
+"app/api/anchor_sets.py" = 630
 "app/api/dd.py" = 502
 "app/api/execution.py" = 1347
 "app/api/personas.py" = 1126
@@ -153,6 +153,7 @@ tests-max-lines = 1000
 "app/schemas/domain.py" = 1415
 "app/seed.py" = 1340
 "app/services/anchor_pool.py" = 556
+"app/services/clause_ssr/repository.py" = 590
 "app/services/dd/allabolag.py" = 908
 "app/services/dd/research.py" = 823
 "app/services/execution/service.py" = 1534
@@ -250,6 +251,8 @@ tests-max-lines = 1000
 "app/services/catalog_items.py:PLR0911" = 1
 "app/services/catalog_store.py:BLE001" = 1
 "app/services/catalog_store.py:C901" = 1
+"app/services/clause_ssr/repository.py:C901" = 1
+"app/services/clause_ssr/repository.py:PLR0912" = 1
 "app/services/customer_scope.py:C901" = 1
 "app/services/customer_scope.py:PLR0911" = 1
 "app/services/customer_scope.py:PLR0912" = 1
@@ -320,6 +323,9 @@ tests-max-lines = 1000
 "app/services/oasis_run.py:PLR0915" = 1
 "app/services/oasis_run.py:PLR1702" = 1
 "app/services/okf_corpus.py:E402" = 1
+"app/services/overgraph/owner.py:C901" = 1
+"app/services/overgraph/owner.py:PLR0912" = 1
+"app/services/overgraph/owner.py:PLR0915" = 1
 "app/services/panel/attempt_execution.py:C901" = 1
 "app/services/panel/attempt_execution.py:PLR0912" = 1
 "app/services/panel/attempt_execution.py:PLR0915" = 1
@@ -379,7 +385,9 @@ tests-max-lines = 1000
 "app/services/research/execution.py:PLR0913" = 6
 "app/services/research/execution.py:PLR0915" = 1
 "app/services/research/fast_controller.py:BLE001" = 2
+"app/services/research/fast_controller.py:F401" = 1
 "app/services/research/fast_controller.py:PLR0913" = 1
+"app/services/research/fast_state.py:F401" = 1
 "app/services/research/fast_state.py:PLR0913" = 1
 "app/services/research/followup.py:PLR0913" = 1
 "app/services/research/models.py:PLR0913" = 1

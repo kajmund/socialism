@@ -24,6 +24,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       word_addin: ${{ steps.filter.outputs.word_addin }}
       knowledge: ${{ steps.filter.outputs.knowledge }}
+      swe_gym: ${{ steps.filter.outputs.swe_gym }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -39,6 +40,7 @@ jobs:
           frontend=false
           word_addin=false
           knowledge=false
+          swe_gym=false
 
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             backend=true
@@ -48,6 +50,9 @@ jobs:
           else
             while IFS= read -r path; do
               case "$path" in
+                crates/swe-gym/*)
+                  swe_gym=true
+                  ;;
                 backend/*|integrations/*|data/*|crates/*)
                   backend=true
                   ;;
@@ -79,7 +84,30 @@ jobs:
             echo "frontend=$frontend"
             echo "word_addin=$word_addin"
             echo "knowledge=$knowledge"
+            echo "swe_gym=$swe_gym"
           } >> "$GITHUB_OUTPUT"
+
+  swe-gym:
+    name: Swe-gym tests
+    needs: changes
+    if: needs.changes.outputs.swe_gym == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crates/swe-gym
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.83.0
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/swe-gym
+      - name: Format check
+        run: cargo fmt --check
+      - name: Tests
+        run: cargo test
 
   backend:
     name: Backend tests (${{ matrix.group }}/4)
@@ -319,7 +347,7 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [changes, backend, research-reuse, swe-runtime, postgres-schema, frontend, word-addin, knowledge]
+    needs: [changes, backend, research-reuse, swe-runtime, postgres-schema, frontend, word-addin, knowledge, swe-gym]
     runs-on: ubuntu-latest
     steps:
       - name: Require all jobs
@@ -332,15 +360,16 @@ jobs:
           frontend="${{ needs.frontend.result }}"
           word_addin="${{ needs.word-addin.result }}"
           knowledge="${{ needs.knowledge.result }}"
+          swe_gym="${{ needs.swe-gym.result }}"
 
           if [ "$changes" != "success" ]; then
             echo "Change detection failed: changes=$changes"
             exit 1
           fi
 
-          for result in "$backend" "$research_reuse" "$swe_runtime" "$postgres_schema" "$frontend" "$word_addin" "$knowledge"; do
+          for result in "$backend" "$research_reuse" "$swe_runtime" "$postgres_schema" "$frontend" "$word_addin" "$knowledge" "$swe_gym"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              echo "Required jobs: backend=$backend research-reuse=$research_reuse swe-runtime=$swe_runtime postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge"
+              echo "Required jobs: backend=$backend research-reuse=$research_reuse swe-runtime=$swe_runtime postgres-schema=$postgres_schema frontend=$frontend word-addin=$word_addin knowledge=$knowledge swe-gym=$swe_gym"
               exit 1
             fi
           done

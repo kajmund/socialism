@@ -2,8 +2,7 @@
 
 Initial ResearchNeed rows execute concurrently with a bounded limit.
 Each need persists its own evidence before the Attempt-level barrier
-freezes the EvidenceSet. Follow-up waves can later seed more
-ResearchNeedExecution rows while the Attempt is still researching.
+freezes the EvidenceSet. Follow-up waves can later seed more rows.
 """
 
 from __future__ import annotations
@@ -75,6 +74,7 @@ from app.services.execution.service import (
 )
 from app.services.research.workspace_context import research_context_from_run
 from app.services.research.answer_review import complete_research_freeze
+from app.services.research.failure_reason import safe_failure_reason
 from app.services.research.assessment import (
     AssessableEvidence,
     ProgrammaticResearchAssessor,
@@ -250,6 +250,7 @@ async def fail_incomplete_research(
     *,
     attempt_id: str,
     evidence_set_id: str | None = None,
+    reason: str | None = None,
 ) -> None:
     """Fail-close created or researching research. No-op for terminal Attempt."""
     attempt = await get_attempt(session, attempt_id)
@@ -269,18 +270,18 @@ async def fail_incomplete_research(
         attempt = await get_attempt(session, attempt_id)
         if attempt.status in {"created", "researching"}:
             await fail_attempt(session, attempt_id)
-            await emit_research_failed(session, attempt_id=attempt_id)
+            await emit_research_failed(session, attempt_id=attempt_id, reason=reason)
         await session.commit()
         await progress.publish_committed()
 
 
 async def _fail_claimed_research(
-    session: AsyncSession,
-    *,
-    attempt_id: str,
-    evidence_set_id: str | None,
+    session: AsyncSession, *, attempt_id: str, evidence_set_id: str | None,
+    reason: str | None = None,
 ) -> None:
-    await fail_incomplete_research(session, attempt_id=attempt_id, evidence_set_id=evidence_set_id)
+    await fail_incomplete_research(
+        session, attempt_id=attempt_id, evidence_set_id=evidence_set_id, reason=reason,
+    )
 
 
 async def _retrieve_need(
@@ -300,8 +301,6 @@ async def _retrieve_need(
             await retrieve_session.commit()
             return evidence
     raise ResearchExecutionError("ResearchRouter is required")
-
-
 
 
 async def execute_one_need(  # noqa: PLR0913
@@ -1208,6 +1207,7 @@ async def execute_attempt_research(  # noqa: C901, PLR0912, PLR0913, PLR0915
                     fail_session,
                     attempt_id=attempt_id,
                     evidence_set_id=evidence_set_id,
+                    reason=safe_failure_reason(exc),
                 )
             await _refresh_caller_state(session, attempt_id, evidence_set_id)
         if isinstance(exc, Exception):

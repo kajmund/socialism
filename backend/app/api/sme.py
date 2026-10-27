@@ -235,6 +235,25 @@ async def clear_panel_messages(
     await session.commit()
 
 
+@router.delete("/experts/{expert_id}/messages", status_code=204)
+async def clear_expert_messages(
+    expert_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> None:
+    """Clear an expert's character chat. Interviews and run-scoped rows stay."""
+    customer_id = await _require_sme_customer(session, user)
+    expert = await session.get(Persona, expert_id)
+    if expert is None or expert.customer_id != customer_id:
+        raise HTTPException(status_code=404, detail="expert_not_found")
+    await session.execute(delete(PersonaMessage).where(
+        PersonaMessage.persona_id == expert_id,
+        PersonaMessage.mode == EXPERT_CHAT_MODE,
+        PersonaMessage.run_id.is_(None),
+    ))
+    await session.commit()
+
+
 async def _require_panel(
     session: AsyncSession,
     panel_id: int,

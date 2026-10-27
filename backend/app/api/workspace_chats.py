@@ -22,8 +22,8 @@ from app.schemas.workspace_chat import (
 )
 from app.services import jobs as jobs_service
 from app.services.object_storage import MAX_UNDERLAG_BYTES, ObjectStorageError, get_object
-from app.services.overgraph.catalogs import require_knowledge
-from app.services.overgraph.research import load_text_units
+from app.services.overgraph.owner_runtime import get_owner_runtime
+from app.services.overgraph.owner_text_units import get_unit
 from app.services.stored_objects import serialize_underlag, upload_underlag
 from app.services.underlag_schemas import UnderlagOut
 from app.services.workspace_chat_turn import workspace_chat_turn
@@ -237,9 +237,7 @@ async def get_source(
 ):
     chat = await require_chat(session, user, chat_id, customer_id)
     source = await require_chat_file(session, user, chat, object_id)
-    catalog = require_knowledge()
-    loaded = await catalog.run(load_text_units, catalog, [text_unit_id])
-    unit = loaded[0] if loaded else None
+    unit = await get_unit(get_owner_runtime().require_client(), text_unit_id)
     version = await session.get(DocumentVersionRecord, document_version_id)
     document = await session.get(CanonicalDocumentRecord, unit.document_id) if unit else None
     if (

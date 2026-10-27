@@ -77,6 +77,16 @@ async def _scope(start: SessionStart, user: UserAccount) -> LiveSpeechScope:
         voice_id = (expert.live_voice or "").strip() or settings.elevenlabs_voice_id
         if not voice_id:
             raise HTTPException(status_code=503, detail="live_speech_tts_not_configured")
+        correction_enabled = (
+            settings.live_speech_correction_default_enabled
+            if expert.stt_correction_enabled is None
+            else expert.stt_correction_enabled
+        )
+        correction_timeout = (
+            settings.live_speech_correction_default_timeout_seconds
+            if expert.stt_correction_timeout_seconds is None
+            else expert.stt_correction_timeout_seconds
+        )
         state = WorkspaceState.model_validate(workspace.state)
         state.expert_id = start.expert_id
         recent_turns = await recent_interview_turns(session, start.expert_id)
@@ -108,6 +118,8 @@ async def _scope(start: SessionStart, user: UserAccount) -> LiveSpeechScope:
         stt_prompt=prompts.get(TRANSCRIPTION_PROMPT_KEY, ""),
         stt_keywords=tuple(keywords_from_text_units(texts, base=base_keywords)),
         stt_base_keywords=tuple(base_keywords),
+        correction_enabled=correction_enabled,
+        correction_timeout=correction_timeout,
     )
 
 

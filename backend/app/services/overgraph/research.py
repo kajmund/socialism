@@ -17,9 +17,11 @@ from app.services.overgraph.labels import (
     OBJECT,
     SUBJECT,
     TEXT_UNIT,
+    scope_label,
     visible_scope_keys,
 )
 from app.services.overgraph.model import GraphFactView, TextUnitWrite
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.answers import QUESTION_NS, QUESTION_TYPE, find_question
 from app.services.overgraph.views import (
     fact_view,
@@ -55,17 +57,22 @@ class ResearchFactWrite:
     target_key: str | None = None
 
 
-def mark_scope_index(catalog: Catalog, scope_key: str) -> None:
-    catalog.upsert_node(
-        [ENTITY, f"scope.{scope_key.replace(':', '.')}"],
-        f"{INDEX_PREFIX}{scope_key}",
-        props={
+def scope_index_node(scope_key: str) -> dict[str, Any]:
+    return {
+        "labels": [ENTITY, scope_label(scope_key)],
+        "key": f"{INDEX_PREFIX}{scope_key}",
+        "props": {
             "scope_key": scope_key,
             "node_type": "research.index",
             "name": "index",
             "has_text_unit_facts": 1,
         },
-    )
+    }
+
+
+def mark_scope_index(catalog: Catalog, scope_key: str) -> None:
+    node = scope_index_node(scope_key)
+    catalog.upsert_node(node["labels"], node["key"], props=node["props"])
 
 
 def drop_scope_index(catalog: Catalog, scope_key: str) -> None:
@@ -208,6 +215,13 @@ def _entity_key(catalog: Catalog, proposed: NodeInput, key: str | None) -> str:
 
 
 def persist_research_fact(catalog: Catalog, proposed: ResearchFactWrite) -> GraphFactView:
+    """Legacy direct write; live research paths go through the owner.
+
+    Production answer publication uses ``owner_facts.publish_answer_via_owner``
+    and decomposition uses ``write_fact_via_owner``. This helper has no app
+    caller and only remains for older engine tests until ticket 51 removes the
+    direct write surface.
+    """
     source_key = _entity_key(catalog, proposed.source, proposed.source_key)
     target_key = _entity_key(catalog, proposed.target, proposed.target_key)
     upsert_text_unit(catalog, proposed.unit)
@@ -379,20 +393,17 @@ async def lookup_candidates(
     dense_query: list[float],
     bound: int,
 ) -> list[ResearchFactHit]:
-    catalog = require_knowledge()
+    from app.services.overgraph.research_owner import collect_research_hits_via_owner
 
-    def work() -> list[ResearchFactHit]:
-        return collect_research_hits(
-            catalog,
-            customer_id=customer_id,
-            question_id=question_id,
-            dense_query=dense_query,
-            bound=bound,
-        )
-
-    return await catalog.run(work)
+    return await collect_research_hits_via_owner(
+        get_owner_runtime().require_client(), customer_id=customer_id,
+        question_id=question_id, dense_query=dense_query, bound=bound,
+    )
 
 
 async def graph_has_supported_facts(customer_id: int | None) -> bool:
-    catalog = require_knowledge()
-    return await catalog.run(has_supported_facts, catalog, customer_id)
+    from app.services.overgraph.research_owner import has_supported_facts_via_owner
+
+    return await has_supported_facts_via_owner(
+        get_owner_runtime().require_client(), customer_id,
+    )

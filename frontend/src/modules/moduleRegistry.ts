@@ -7,12 +7,14 @@ import {
 } from "@/modules/manifest"
 import { politikManifest } from "@/modules/politik/manifest"
 import { rattsunderlagManifest } from "@/modules/rattsunderlag/manifest"
+import { tabularReviewManifest } from "@/modules/tabularReview/manifest"
 
 export const MODULE_REGISTRY: Record<string, ModuleManifest> = {
   dd: ddManifest,
   politik: politikManifest,
   expertgranskning: expertgranskningManifest,
   rattsunderlag: rattsunderlagManifest,
+  tabular_review: tabularReviewManifest,
 }
 
 export function manifestsForIds(ids: readonly string[]): ModuleManifest[] {

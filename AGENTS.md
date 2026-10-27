@@ -13,9 +13,71 @@ This file is the source of truth for any coding agent (Claude Code, Cursor, Code
 - Increasing pool size/timeouts or adding a fallback is not a fix. Correct transaction ownership and release connections on success, failure and cancellation.
 - When adding or changing a path that combines database access and external calls, include a focused regression test proving another client can acquire a connection while the external call is pending. Prefer a one-connection pool so accidental retention fails visibly.
 
+## Overgraph ownership (permanent architecture rule)
+
+Every active Overgraph catalog has exactly one authoritative Owner. Ownership is
+logical per catalog; process placement is separate (initially one Owner process
+per active catalog). Backend processes, workers and experts must not open or
+write an Owner-owned catalog directly. No silent fallback to local catalog
+access.
+
+- The catalog is the isolation boundary. Shared knowledge, tenant knowledge,
+  memory, workflow and cache are separate catalogs when their data/lifecycles
+  require it. Route by catalog and enforce access before graph operations; do not
+  add a generic tenant filter inside the graph.
+- Use the same Owner protocol, transactions, lifecycle and routing for every
+  catalog type. Different catalog types may have semantic repositories, not
+  different Owner implementations.
+- Owner owns catalog lifecycle, authoritative graph operations, bounded queries
+  and vector search, atomic mutations/durability, generations and change
+  history. Backend/SWE/Jev/experts own workflows, routing, business logic,
+  reasoning and orchestration. Owner is not an agent/workflow engine.
+- Overgraph is authoritative for graph knowledge stored there. Tantivy, caches
+  and projections are derived and rebuildable. SQL is for application metadata,
+  document administration and orchestration, not a competing clause/document
+  understanding store.
+- Knowledge changes publish nodes/relations, provenance, generations and derived
+  index change records atomically where applicable. Failed mutations and
+  duplicate replays must not create new changes.
+- Derived indexes must not produce misleading evidence: validate stale
+  candidates against Owner (document version, fact status, validity), fail
+  explicitly on lag, and keep generation/checkpoints durable.
+- One Owner serializes writes per catalog; reads may run in parallel under
+  verified guarantees. Keep `read_write` + four read workers as default and
+  `--lock-mode global` as diagnostic fallback. No multiple writing Owners.
+- No unnecessary backward compatibility: the project has no customers. Remove
+  legacy/duplicated paths once migration is verified.
+- Reuse existing Owner functionality before building new stores, queues, index
+  processes or abstraction layers.
+- `write_paths_ready` is per catalog type/function, not a false global guarantee;
+  do not set it true until every relevant production path has a runtime
+  acceptance test with direct catalog access forbidden.
+
+Full decision record: [docs/architecture/catalog-owner-routing.md](docs/architecture/catalog-owner-routing.md).
+
 ## Product
 
 **Socialism** — internal tool for political messaging simulation and due diligence against AI agent populations (personas grounded in local context). Swedish UI by default.
+
+## Reuse before new (mandatory for coding agents)
+
+**This is a permanent standard. Every spec, experiment, and implementation must follow it before adding abstractions.**
+
+1. Inventory existing code, tests, interfaces, workflows, and related patterns.
+2. Write a reuse-vs-new matrix (existing counterpart, reuse/extend/new, justification if new).
+3. Default to extending SWE, Jev, assessment, quality, and `loop_control`. New frameworks, wrappers, parallel runners, or duplicated domain models need an explicit documented reason.
+4. Prove the reused path with a real integration test that invokes the existing primitive.
+5. Keep mocked/scripted benchmarks separate from live model measurements. Do not present scripted scores as model quality.
+
+Full standard: [docs/architecture/reuse-before-new.md](docs/architecture/reuse-before-new.md). Example matrix: [docs/architecture/evidence-sufficiency-reuse-audit.md](docs/architecture/evidence-sufficiency-reuse-audit.md).
+
+## Execution policy (workflow-first)
+
+**Deterministic first, Jev second, reusable typed subworkflows third, bounded narrative agent only when Jev says it is necessary and deterministic quality gates permit.** Agent tools are allowlisted typed workflows — not generic search or database tools. Strict prompts, schemas, provenance, budgets, and recursion limits. Do not silently truncate evidence.
+
+This is the execution policy for new orchestration. Today's production evidence-sufficiency assessor stays on the PR #420 budgeted Cerebras path. The complete-EvidenceSet assessor is an opt-in experiment.
+
+Full policy: [docs/architecture/workflow-first-execution.md](docs/architecture/workflow-first-execution.md). Reuse audit: [docs/architecture/evidence-sufficiency-reuse-audit.md](docs/architecture/evidence-sufficiency-reuse-audit.md). Experiment: [docs/guides/evidence-sufficiency-experiment.md](docs/guides/evidence-sufficiency-experiment.md).
 
 ## Stack
 
@@ -46,6 +108,7 @@ socialism/
 │   └── manual/         # Swedish operator guides
 ├── backend/            # FastAPI service (see backend/AGENTS.md); SWD 1.0 parser + runtime adapter in app/swe/
 ├── crates/swe-native/  # SWE in-memory Rust/PyO3 kernel (`swe_native`)
+├── crates/swe-gym/     # standalone experiment, governed by its own AGENTS.md
 ├── frontend/           # React SPA (see frontend/AGENTS.md)
 └── word-addin/         # Word desktop task pane (expertgranskning)
 ```
@@ -56,7 +119,7 @@ Keep audiences separate:
 
 | Location | Audience | Contents |
 | -------- | -------- | -------- |
-| `docs/` | Developers / agents shipping code | Setup, architecture, engineering notes |
+| `docs/` | Developers / agents shipping code | Setup, architecture, engineering notes. Execution policy: [docs/architecture/workflow-first-execution.md](docs/architecture/workflow-first-execution.md) |
 | `knowledge/manual/` | Operators using the Swedish UI | OKF how-to guides (`type: guide`) |
 
 Rules for agents:
