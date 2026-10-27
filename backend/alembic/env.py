@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, pool
 from alembic import context
 from app.database import document_ingest_batches as document_ingest_batches  # noqa: F401
 from app.database import models  # noqa: F401 — register models on metadata
+from app.database import tabular_review as tabular_review  # noqa: F401
 from app.database.base import Base
 from app.migration_config import MigrationSettings
 

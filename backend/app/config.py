@@ -115,6 +115,13 @@ class Settings(LiveSpeechSettings, BaseSettings):
     gemini_live_voice: str = "Algenib"
     gemini_live_token_ttl_seconds: int = Field(default=600, ge=60, le=1800)
     gemini_live_new_session_ttl_seconds: int = Field(default=60, ge=30, le=300)
+    openai_base_url: str = "https://api.openai.com"
+    openai_websocket_base_url: str = "wss://api.openai.com"
+    openai_native_model: str = "gpt-realtime-2.1"
+    openai_native_voice: str = "alloy"
+    openai_native_transcription_model: str = "gpt-4o-transcribe"
+    openai_native_token_ttl_seconds: int = Field(default=600, ge=10, le=7200)
+    openai_relay_base_url: str = "ws://localhost:8000"
     # Expert live voice. No automatic fallback between providers.
     live_voice_provider: LiveVoiceProviderName = "gemini"
     elevenlabs_api_key: str = Field(default="", repr=False)
@@ -132,6 +139,15 @@ class Settings(LiveSpeechSettings, BaseSettings):
     image_cache_dir: str = "data/image_cache"
     # Embedded OverGraph catalogs (knowledge 3072, memory 1536).
     overgraph_dir: str = "data/overgraph"
+    # External single-writer owner socket. Empty leaves graph writes unavailable
+    # rather than falling back to a direct catalog writer.
+    overgraph_owner_socket: str = ""
+    overgraph_owner_catalog_id: str = ""
+    # Tenant Knowledge Owner routes as ``customer_id=socket`` entries. Empty
+    # means no tenant owner is configured; tenant access then fails explicitly.
+    overgraph_tenant_owner_sockets: str = ""
+    # Memory Owner socket. Empty keeps the legacy local memory catalog open.
+    overgraph_memory_owner_socket: str = ""
     # Persistent expert memory history in the configured Supabase Postgres database.
     mem0_collection_name: str = "expert_memories"
     mem0_embedding_model: str = "text-embedding-3-small"
@@ -478,7 +494,6 @@ class Settings(LiveSpeechSettings, BaseSettings):
         """Mirror DeepSeek into env vars CAMEL reads, including when the embeddings key is set."""
         os.environ["OPENAI_API_KEY"] = self.deepseek_api_key
         os.environ["OPENAI_COMPATIBLE_API_KEY"] = self.deepseek_api_key
-
 
 settings = Settings()
 # Mem0 reads this at import. Mirror the typed setting so the SDK does not own configuration.

@@ -114,15 +114,28 @@ def _edges(db: Any, node_id: int, direction: str) -> list[dict[str, Any]]:
     return rows
 
 
+def node_preview(key: str, props: dict[str, Any]) -> str:
+    return _preview(props, key)
+
+
+def node_summary(
+    *, id: int, key: str, labels: list[str], props: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "id": int(id),
+        "key": str(key),
+        "labels": [str(label) for label in labels],
+        "weight": 1.0,
+        "preview": node_preview(str(key), props),
+    }
+
+
 def _node_summary(view: Any) -> dict[str, Any]:
     props = view.props if isinstance(view.props, dict) else {}
-    return {
-        "id": int(view.id),
-        "key": str(view.key),
-        "labels": [str(label) for label in view.labels],
-        "weight": float(view.weight),
-        "preview": _preview(props, str(view.key)),
-    }
+    return node_summary(
+        id=int(view.id), key=str(view.key),
+        labels=[str(label) for label in view.labels], props=props,
+    )
 
 
 def _matches(view: Any, needle: str) -> bool:

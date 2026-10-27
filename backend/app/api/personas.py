@@ -345,13 +345,13 @@ async def create_persona_live_token(
         profile, EXPERT_CHAT_MODE, prompts=prompts, area_block=area_block,
         extra_system=extra_system, profile_kind="expert",
     )
-    provider_name, voice, tool_specs = voice_for_token(persona)
+    provider_name, voice, model, tool_specs = voice_for_token(persona)
     await session.rollback()
     try:
         return await create_live_voice_session(
             system_instruction,
             initial_turn=initial_turn,
-            tools=tool_specs, provider=provider_name, voice=voice,
+            tools=tool_specs, provider=provider_name, voice=voice, model=model,
         )
     except LiveVoiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -577,7 +577,7 @@ async def create_persona(  # noqa: PLR0912
         quote=quote,
         origin=body.origin,
         profile=profile.model_dump(),
-        tools=resolve_chat_tools(body.tools, kind=body.kind), live_voice_provider=body.live_voice_provider, live_voice=body.live_voice,
+        tools=resolve_chat_tools(body.tools, kind=body.kind), live_voice_provider=body.live_voice_provider, live_voice=body.live_voice, live_voice_model=body.live_voice_model, stt_correction_enabled=body.stt_correction_enabled, stt_correction_timeout_seconds=body.stt_correction_timeout_seconds,
         updated_at=utcnow(),
     )
     session.add(persona)

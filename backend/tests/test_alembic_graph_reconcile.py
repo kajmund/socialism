@@ -95,8 +95,14 @@ def test_head_drops_unused_graph_revalidation_queues(tmp_path: Path, monkeypatch
     } <= after
     assert "graph_fact_question_dependencies" not in after
     assert ScriptDirectory.from_config(config).get_current_head() == (
-        "192_drop_graph_tables"
+        "195_stt_correction"
     )
+    assert {
+        "tabular_reviews",
+        "tabular_review_columns",
+        "tabular_review_rows",
+        "tabular_review_cells",
+    } <= after
 
 
 def test_existing_text_units_are_preserved_when_the_sql_mirror_is_dropped(
@@ -185,7 +191,8 @@ def test_fresh_database_upgrades_to_head_without_a_parity_approval(
     assert "graph_facts" not in names
     assert "knowledge_claims" not in names
     assert {"graph_ingest_work", "knowledge_answer_reviews", "graph_embedding_cache"} <= names
-    assert ScriptDirectory.from_config(config).get_current_head() == "192_drop_graph_tables"
+    assert ScriptDirectory.from_config(config).get_current_head() == "195_stt_correction"
+    assert {"tabular_reviews", "tabular_review_columns", "tabular_review_cells"} <= names
 
 
 def test_upgrade_refuses_to_drop_the_mirror_when_sql_has_rows(

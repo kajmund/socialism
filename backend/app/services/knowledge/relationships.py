@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -16,7 +15,8 @@ from app.database.models import (
 )
 from app.services.knowledge.claims import SUPPORTED_BY
 from app.services.knowledge.events import EDGE_ADDED, record_graph_event, utc_now
-from app.services.knowledge.graph_relationship_mirror import mirror_relationship
+from app.services.knowledge import owner_graph_mirror
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.knowledge.scope import (
     SCOPE_CUSTOMER,
     shared_scope,
@@ -25,7 +25,6 @@ from app.services.knowledge.scope import (
     require_persist_scope,
     scope_from_row,
 )
-from app.services.overgraph.catalogs import require_knowledge
 from app.services.overgraph.labels import CONTRADICTS as GRAPH_CONTRADICTS
 from app.services.overgraph.labels import (
     CLAIM,
@@ -37,7 +36,6 @@ from app.services.overgraph.labels import (
     visible_scope_keys,
 )
 
-from app.services.overgraph.research import load_text_units
 
 _EDGE_LABELS = (SUPPORTS, GRAPH_CONTRADICTS, LINKED)
 KIND_LABEL = {"entity": ENTITY, "claim": CLAIM, "text_unit": TEXT_UNIT,
@@ -181,54 +179,37 @@ async def persist_knowledge_relationship_result(
 ) -> tuple[KnowledgeRelationship, bool]:
     """Write the edge to OverGraph; the graph edge is authoritative."""
     await _assert_endpoint_scopes(session, edge)
-    existing = await _existing_edge_in_graph(edge)
-    if existing is not None:
-        _reject_superseded_extra(existing)
-    merged = await asyncio.to_thread(mirror_relationship, edge)
-    if not merged.mappable:
-        raise KnowledgeRelationshipError(
-            f"relationship {edge.id} has an endpoint missing from the graph "
-            f"({edge.from_kind}:{edge.from_id} -> {edge.to_kind}:{edge.to_id})"
-        )
-    if merged.created:
-        await record_graph_event(
-            session,
-            scope=edge.scope,
-            event_type=EDGE_ADDED,
-            node_kind="relationship",
-            node_id=edge.id,
-            related_id=edge.to_id,
-            payload={
-                "relation": edge.relation,
-                "from_kind": edge.from_kind,
-                "from_id": edge.from_id,
-                "to_kind": edge.to_kind,
-                "to_id": edge.to_id,
-            },
-            created_at=utc_now(),
-        )
-    row = await asyncio.to_thread(_read_edge, edge)
-    stored = replace(
-        edge,
-        id=row.props.get("relation_id") or edge.id if row is not None else edge.id,
-        extra=dict(row.props.get("extra") or {}) if row is not None else dict(edge.extra or {}),
-    )
-    return stored, not merged.created
-
-
-async def _existing_edge_in_graph(edge: KnowledgeRelationship):
-    return await asyncio.to_thread(_read_edge, edge)
-
-
-def _read_edge(edge: KnowledgeRelationship):
-    from app.services.knowledge.graph_relationship_mirror import edge_in_graph
-
-    return edge_in_graph(require_knowledge(), edge)
-
-
-def _reject_superseded_extra(row) -> None:
-    if bool(row.props.get("superseded")):
-        raise KnowledgeRelationshipError("relationship is superseded")
+    owner = get_owner_runtime().require_client()
+    if owner is not None:
+        existing_props = await owner_graph_mirror._read_edge(owner, edge)
+        if existing_props is not None and bool(existing_props.get("superseded")):
+            raise KnowledgeRelationshipError("relationship is superseded")
+        merged = await owner_graph_mirror.mirror_relationship(owner, edge)
+        if not merged.mappable:
+            raise KnowledgeRelationshipError(
+                f"relationship {edge.id} has an endpoint missing from the graph "
+                f"({edge.from_kind}:{edge.from_id} -> {edge.to_kind}:{edge.to_id})"
+            )
+        if merged.created:
+            await record_graph_event(
+                session,
+                scope=edge.scope,
+                event_type=EDGE_ADDED,
+                node_kind="relationship",
+                node_id=edge.id,
+                related_id=edge.to_id,
+                payload={
+                    "relation": edge.relation,
+                    "from_kind": edge.from_kind,
+                    "from_id": edge.from_id,
+                    "to_kind": edge.to_kind,
+                    "to_id": edge.to_id,
+                },
+                created_at=utc_now(),
+            )
+        stored_props = await owner_graph_mirror._read_edge(owner, edge) or {}
+        stored_extra = stored_props.get("extra") or {}
+        return replace(edge, extra=dict(stored_extra)), not merged.created
 
 
 def merge_relationship_extra(
@@ -257,40 +238,38 @@ async def relationships_touching(
     node_id: str,
 ) -> list[KnowledgeRelationship]:
     """Edges touching a node, read from OverGraph and filtered by tenant visibility."""
-    catalog = require_knowledge()
+    owner = get_owner_runtime().require_client()
     visible = {*visible_scope_keys(customer_id)}
-    node = catalog.get_by_key(ENTITY if kind == "entity" else KIND_LABEL[kind], node_id)
-    if node is None or node.engine_id is None:
+    response = await owner.read([
+        {"label": ENTITY if kind == "entity" else KIND_LABEL[kind], "key": node_id},
+    ])
+    label = ENTITY if kind == "entity" else KIND_LABEL[kind]
+    node_props = response["values"].get(f"{label}:{node_id}")
+    node_id_int = response["ids"].get(f"{label}:{node_id}")
+    if node_props is None or node_id_int is None:
         return []
-    if str(node.props.get("scope_key") or "") not in visible:
+    if str(node_props.get("scope_key") or "") not in visible:
         return []
     edges: list[KnowledgeRelationship] = []
     for direction in ("outgoing", "incoming"):
-        for neighbour_id in catalog.neighbors(node.engine_id, direction=direction):
-            neighbour = catalog.get(neighbour_id)
-            if neighbour is None:
+        for row in await owner.neighbors(
+            int(node_id_int), direction=direction, labels=_EDGE_LABELS, limit=200,
+        ):
+            neighbour_scope = str((row.get("props") or {}).get("scope_key") or "")
+            if neighbour_scope not in visible:
                 continue
-            scope_key = str(neighbour.props.get("scope_key") or "")
-            if scope_key not in visible:
-                continue
-            source = node.engine_id if direction == "outgoing" else neighbour_id
-            target = neighbour_id if direction == "outgoing" else node.engine_id
-            for label in _EDGE_LABELS:
-                edge = catalog.get_edge_by_triple(source, target, label)
-                if edge is None:
-                    continue
-                edges.append(
-                    KnowledgeRelationship(
-                        id=f"{source}->{target}:{label}",
-                        customer_id=customer_id,
-                        relation=str(edge.props.get("relation") or label),
-                        from_kind=kind,
-                        from_id=node_id,
-                        to_kind=kind,
-                        to_id=str(neighbour.key),
-                        extra=dict(edge.props.get("extra") or {}),
-                    )
-                )
+            edge_label = str(row.get("label") or "")
+            edge_props = dict(row.get("edge_props") or {})
+            edges.append(KnowledgeRelationship(
+                id=f"{node_id_int}->{row.get('node_id')}:{edge_label}",
+                customer_id=customer_id,
+                relation=str(edge_props.get("relation") or edge_label),
+                from_kind=kind,
+                from_id=node_id,
+                to_kind=kind,
+                to_id=str(row.get("key") or ""),
+                extra=dict(edge_props.get("extra") or {}),
+            ))
     return edges
 
 
@@ -327,15 +306,6 @@ async def _assert_endpoint_scopes(
         raise KnowledgeRelationshipError(str(exc)) from exc
 
 
-def entity_in_graph_scoped(node_id: str):
-    """Entity node without a scope filter (caller compares scopes explicitly)."""
-    from app.services.overgraph.labels import ENTITY
-
-    catalog = require_knowledge()
-    row = catalog.get_by_key(ENTITY, node_id)
-    return row
-
-
 def scope_from_props(props) -> KnowledgeTenantScope | None:
     scope_key = str(props.get("scope_key") or "")
     if not scope_key:
@@ -352,18 +322,23 @@ async def _endpoint_scope(
     kind: str,
     node_id: str,
 ) -> KnowledgeTenantScope | None:
+    owner = get_owner_runtime().require_client()
     if kind == "entity":
-        node = entity_in_graph_scoped(node_id)
-        return scope_from_props(node.props) if node is not None else None
-    if kind == "claim":
-        node = require_knowledge().get_by_key(CLAIM, node_id)
-        return scope_from_props(node.props) if node is not None else None
+        from app.services.overgraph.labels import ENTITY
+
+        response = await owner.read([{"label": ENTITY, "key": node_id}])
+        props = response["values"].get(f"{ENTITY}:{node_id}")
+        return scope_from_props(props) if props is not None else None
+    elif kind == "claim":
+        response = await owner.read([{"label": CLAIM, "key": node_id}])
+        props = response["values"].get(f"{CLAIM}:{node_id}")
+        return scope_from_props(props) if props is not None else None
     elif kind == "document":
         row = await session.get(CanonicalDocumentRecord, node_id)
     elif kind == "text_unit":
-        catalog = require_knowledge()
-        loaded = await catalog.run(load_text_units, catalog, [node_id])
-        row = loaded[0] if loaded else None
+        from app.services.overgraph.owner_text_units import get_unit
+
+        row = await get_unit(owner, node_id)
     else:
         return None
     if row is None:

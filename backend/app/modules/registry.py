@@ -13,6 +13,7 @@ from app.api import (
     playground,
     rattsunderlag,
     runs,
+    tabular_reviews,
 )
 from app.modules.manifest import ModuleManifest, SpindoctorBinding
 from app.modules.report_binding import ReportBinding, UnknownReportModeError
@@ -139,6 +140,17 @@ MODULE_REGISTRY: dict[str, ModuleManifest] = {
             context_builder=build_rattsunderlag_spindoctor_context_from_source,
             supports_interview=False,
         ),
+    ),
+    "tabular_review": ModuleManifest(
+        id="tabular_review",
+        name="Tabular Review",
+        icon="▦",
+        router=tabular_reviews.router,
+        prompt_namespace="tabular_review",
+        frontend_entry="modules/tabular_review",
+        components=frozenset(),
+        report_modes=frozenset(),
+        report=None,
     ),
 }
 
