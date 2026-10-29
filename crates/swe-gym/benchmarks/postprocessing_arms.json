@@ -1,0 +1,182 @@
+{
+  "A_nuvarande": {
+    "false_resolved": 5,
+    "correct_resolved": 40,
+    "wrongly_rejected": 0,
+    "resolved_to_insufficient": 0,
+    "answer_correct": 40,
+    "answer_wrong": 5,
+    "false_cases": [
+      {
+        "case_id": "g5-01",
+        "need": "Avtalspart",
+        "wrong": [
+          "hyresgästen"
+        ]
+      },
+      {
+        "case_id": "g5-04",
+        "need": "Belopp",
+        "wrong": [
+          "kronor"
+        ]
+      },
+      {
+        "case_id": "g5-10",
+        "need": "Datum",
+        "wrong": [
+          "2023-02-01"
+        ]
+      },
+      {
+        "case_id": "g5-45",
+        "need": "Belopp",
+        "wrong": [
+          "sjuttiofem tusen kronor"
+        ]
+      },
+      {
+        "case_id": "g5-47",
+        "need": "Ersättning",
+        "wrong": [
+          "ersättning"
+        ]
+      }
+    ]
+  },
+  "B_+normalisering": {
+    "false_resolved": 5,
+    "correct_resolved": 40,
+    "wrongly_rejected": 0,
+    "resolved_to_insufficient": 0,
+    "answer_correct": 40,
+    "answer_wrong": 5,
+    "false_cases": [
+      {
+        "case_id": "g5-01",
+        "need": "Avtalspart",
+        "wrong": [
+          "hyresgästen"
+        ]
+      },
+      {
+        "case_id": "g5-04",
+        "need": "Belopp",
+        "wrong": [
+          "kronor"
+        ]
+      },
+      {
+        "case_id": "g5-10",
+        "need": "Datum",
+        "wrong": [
+          "2023-02-01"
+        ]
+      },
+      {
+        "case_id": "g5-45",
+        "need": "Belopp",
+        "wrong": [
+          "sjuttiofem tusen kronor"
+        ]
+      },
+      {
+        "case_id": "g5-47",
+        "need": "Ersättning",
+        "wrong": [
+          "ersättning"
+        ]
+      }
+    ]
+  },
+  "C_+typkontroll": {
+    "false_resolved": 5,
+    "correct_resolved": 40,
+    "wrongly_rejected": 0,
+    "resolved_to_insufficient": 0,
+    "answer_correct": 40,
+    "answer_wrong": 5,
+    "false_cases": [
+      {
+        "case_id": "g5-01",
+        "need": "Avtalspart",
+        "wrong": [
+          "hyresgästen"
+        ]
+      },
+      {
+        "case_id": "g5-04",
+        "need": "Belopp",
+        "wrong": [
+          "kronor"
+        ]
+      },
+      {
+        "case_id": "g5-10",
+        "need": "Datum",
+        "wrong": [
+          "2023-02-01"
+        ]
+      },
+      {
+        "case_id": "g5-45",
+        "need": "Belopp",
+        "wrong": [
+          "sjuttiofem tusen kronor"
+        ]
+      },
+      {
+        "case_id": "g5-47",
+        "need": "Ersättning",
+        "wrong": [
+          "ersättning"
+        ]
+      }
+    ]
+  },
+  "D_+entydighet": {
+    "false_resolved": 5,
+    "correct_resolved": 40,
+    "wrongly_rejected": 0,
+    "resolved_to_insufficient": 0,
+    "answer_correct": 40,
+    "answer_wrong": 5,
+    "false_cases": [
+      {
+        "case_id": "g5-01",
+        "need": "Avtalspart",
+        "wrong": [
+          "hyresgästen"
+        ]
+      },
+      {
+        "case_id": "g5-04",
+        "need": "Belopp",
+        "wrong": [
+          "kronor"
+        ]
+      },
+      {
+        "case_id": "g5-10",
+        "need": "Datum",
+        "wrong": [
+          "2023-02-01"
+        ]
+      },
+      {
+        "case_id": "g5-45",
+        "need": "Belopp",
+        "wrong": [
+          "sjuttiofem tusen kronor"
+        ]
+      },
+      {
+        "case_id": "g5-47",
+        "need": "Ersättning",
+        "wrong": [
+          "ersättning"
+        ]
+      }
+    ]
+  }
+}

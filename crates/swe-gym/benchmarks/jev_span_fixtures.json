@@ -112,6 +112,17 @@
       "ts": 1793296109
     },
     {
+      "key": "039ac5bf6588b1a8",
+      "case_id": "g5-03",
+      "span": "nio (9) månader",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793299448
+    },
+    {
       "key": "03e794698dda27b6",
       "case_id": "g5-04",
       "span": "kronor",
@@ -209,6 +220,17 @@
       "choice": "ERSÄTTNING",
       "score_bp": null,
       "ts": 1793298098
+    },
+    {
+      "key": "071a4f05d725cbc2",
+      "case_id": "g5-12",
+      "span": "ett (1) år",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793299489
     },
     {
       "key": "073bf3e0aaf77a8e",
@@ -420,6 +442,17 @@
       "ts": 1793296109
     },
     {
+      "key": "0df3b00f9b2d04e2",
+      "case_id": "g5-03",
+      "span": "tre (3) år",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793299488
+    },
+    {
       "key": "0e0f28e22b2dab04",
       "case_id": "g5-37",
       "span": "två månaders",
@@ -451,6 +484,17 @@
       "choice": "VILLKOR",
       "score_bp": null,
       "ts": 1793297083
+    },
+    {
+      "key": "0ec61f01e4fb8836",
+      "case_id": "g5-12",
+      "span": "tre (3) månader",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793299450
     },
     {
       "key": "0ede4c75beb82cb2",
@@ -737,6 +781,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296083
+    },
+    {
+      "key": "168783d1310401b2",
+      "case_id": "g5-24",
+      "span": "en (1) månad",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793299453
     },
     {
       "key": "16e08700b4b1bc44",
@@ -1278,6 +1333,17 @@
       "ts": 1793294516
     },
     {
+      "key": "27880855f16d034a",
+      "case_id": "g5-13",
+      "span": "14 dagar",
+      "clause": "7.2 Båda parter får säga upp avtalet med omedelbar verkan om motparten väsentligt bryter mot avtalet och inte vidtar rättelse inom [14] dagar efter skriftlig anmodan.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793299490
+    },
+    {
       "key": "2865a530ef34ecd2",
       "case_id": "g5-42",
       "span": "omständigheter som inte rimligen kunnat förutses",
@@ -1696,6 +1762,17 @@
       "ts": 1793296121
     },
     {
+      "key": "33e8c729580111d7",
+      "case_id": "g5-20",
+      "span": "tre (3) månader",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299452
+    },
+    {
       "key": "34698ba73f03f765",
       "case_id": "g5-16",
       "span": "inom 30 dagar",
@@ -1782,6 +1859,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296103
+    },
+    {
+      "key": "362e56b8370f31b6",
+      "case_id": "g5-08",
+      "span": "sex (6) månader",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299448
     },
     {
       "key": "3667f184ad428411",
@@ -2057,6 +2145,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296060
+    },
+    {
+      "key": "3dc8d07848f52f58",
+      "case_id": "g5-20",
+      "span": "tre (3) månader",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793299452
     },
     {
       "key": "3dd6632f8a62a072",
@@ -2607,6 +2706,17 @@
       "choice": "FÖRLÄNGNING",
       "score_bp": null,
       "ts": 1793297075
+    },
+    {
+      "key": "4d0a694846fc1569",
+      "case_id": "g5-15",
+      "span": "sex (6) månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299451
     },
     {
       "key": "4d3c857816db8f0d",
@@ -3368,6 +3478,17 @@
       "ts": 1793294511
     },
     {
+      "key": "6430d56767d1cc7d",
+      "case_id": "g5-10",
+      "span": "en (1) månad",
+      "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299449
+    },
+    {
       "key": "64bf416b9669d6db",
       "case_id": "g5-33",
       "span": "ligger utanför partens kontroll",
@@ -3456,6 +3577,17 @@
       "ts": 1793297083
     },
     {
+      "key": "67491da57828efbb",
+      "case_id": "g5-08",
+      "span": "ett (1) år",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793299449
+    },
+    {
       "key": "67f315cfe6eb9338",
       "case_id": "g5-34",
       "span": "dess dotterbolag",
@@ -3487,6 +3619,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296060
+    },
+    {
+      "key": "69132be096f7f30a",
+      "case_id": "g5-03",
+      "span": "nio (9) månader",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793299488
     },
     {
       "key": "69160e8d3038d5c6",
@@ -3896,6 +4039,17 @@
       "ts": 1793296061
     },
     {
+      "key": "72c2a9f4408604f1",
+      "case_id": "g5-14",
+      "span": "90 dagar",
+      "clause": "7.3 DevBrains ska avhjälpa fel som har rapporterats inom [90] dagar efter godkännandet utan extra kostnad (garantitid).",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793299490
+    },
+    {
       "key": "72ecac331793e05c",
       "case_id": "g5-37",
       "span": "två månaders",
@@ -3927,6 +4081,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296106
+    },
+    {
+      "key": "73ad405a2b20d480",
+      "case_id": "g5-11",
+      "span": "14 dagar",
+      "clause": "9. Avflyttning\nNär avtalet upphör ska DevBrains lämna arbetsplatserna tömda och städade och återlämna alla passerkort. Egendom som lämnas kvar får Leverantören efter [14] dagar omhänderta på DevBrains bekostnad.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299449
     },
     {
       "key": "74182eec4be42a05",
@@ -4026,6 +4191,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294506
+    },
+    {
+      "key": "763d1a6d62e3a946",
+      "case_id": "g5-12",
+      "span": "ett (1) år",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793299450
     },
     {
       "key": "765462c5bae8502c",
@@ -4259,6 +4435,17 @@
       "ts": 1793296125
     },
     {
+      "key": "7b3609a80fd1a2f9",
+      "case_id": "g5-20",
+      "span": "tre (3) månader",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793299491
+    },
+    {
       "key": "7b5c1c46d1e74336",
       "case_id": "g5-37",
       "span": "två månaders varsel",
@@ -4325,6 +4512,17 @@
       "ts": 1793296093
     },
     {
+      "key": "7dee420f3de23dde",
+      "case_id": "g5-12",
+      "span": "tre (3) månader",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793299490
+    },
+    {
       "key": "7dff59ab21522fa0",
       "case_id": "g5-03",
       "span": "nio (9)] månader",
@@ -4380,6 +4578,17 @@
       "ts": 1793297069
     },
     {
+      "key": "80b0e6ecb31e5002",
+      "case_id": "g5-15",
+      "span": "sex (6) månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793299451
+    },
+    {
       "key": "8103f64ee42724f8",
       "case_id": "g5-25",
       "span": "inom 30 dagar",
@@ -4389,6 +4598,17 @@
       "choice": "FÖRSENING",
       "score_bp": null,
       "ts": 1793297098
+    },
+    {
+      "key": "81058d2967855007",
+      "case_id": "g5-24",
+      "span": "en (1) månad",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793299491
     },
     {
       "key": "8167967a77a2656c",
@@ -4677,6 +4897,17 @@
       "ts": 1793296072
     },
     {
+      "key": "890a247cb5aecef3",
+      "case_id": "g5-11",
+      "span": "14 dagar",
+      "clause": "9. Avflyttning\nNär avtalet upphör ska DevBrains lämna arbetsplatserna tömda och städade och återlämna alla passerkort. Egendom som lämnas kvar får Leverantören efter [14] dagar omhänderta på DevBrains bekostnad.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793299489
+    },
+    {
       "key": "89271d5aa46d636e",
       "case_id": "g5-47",
       "span": "månadsarvoden",
@@ -4686,6 +4917,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296109
+    },
+    {
+      "key": "892921b70bed4b2c",
+      "case_id": "g5-13",
+      "span": "14 dagar",
+      "clause": "7.2 Båda parter får säga upp avtalet med omedelbar verkan om motparten väsentligt bryter mot avtalet och inte vidtar rättelse inom [14] dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299450
     },
     {
       "key": "897953cb6de8ff22",
@@ -4730,6 +4972,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294513
+    },
+    {
+      "key": "8b3633f71ab228c6",
+      "case_id": "g5-22",
+      "span": "tre (3) månader",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793299491
     },
     {
       "key": "8bc06389f73b13f0",
@@ -5425,6 +5678,17 @@
       "ts": 1793297075
     },
     {
+      "key": "9e680ace266a3dd8",
+      "case_id": "g5-15",
+      "span": "tolv (12) månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299451
+    },
+    {
       "key": "9ea5fc18054e7bd4",
       "case_id": "g5-24",
       "span": "tolv (12) månader",
@@ -5865,6 +6129,17 @@
       "ts": 1793296059
     },
     {
+      "key": "a81eb972a56848be",
+      "case_id": "g5-24",
+      "span": "en (1) månad",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299453
+    },
+    {
       "key": "a8696e3c7ad9273e",
       "case_id": "g5-03",
       "span": "tre (3)] år",
@@ -5885,6 +6160,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296118
+    },
+    {
+      "key": "a8b4d2564aa59bbf",
+      "case_id": "g5-15",
+      "span": "tolv (12) månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793299490
     },
     {
       "key": "a8ecc0c5a312d09d",
@@ -6030,6 +6316,17 @@
       "ts": 1793297078
     },
     {
+      "key": "acf2a55cc94adc5f",
+      "case_id": "g5-15",
+      "span": "sex (6) månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793299490
+    },
+    {
       "key": "ad5879235c7cb140",
       "case_id": "g5-07",
       "span": "DevBrains AB",
@@ -6129,6 +6426,17 @@
       "ts": 1793297106
     },
     {
+      "key": "afc6322ed0ba60a0",
+      "case_id": "g5-03",
+      "span": "nio (9) månader",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299448
+    },
+    {
       "key": "afdb19c6d1b1fe39",
       "case_id": "g5-15",
       "span": "[tolv (12)] månader",
@@ -6149,6 +6457,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294507
+    },
+    {
+      "key": "b07d7094545fef6d",
+      "case_id": "g5-12",
+      "span": "ett (1) år",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299450
     },
     {
       "key": "b0e883c3ca057781",
@@ -6888,6 +7207,17 @@
       "ts": 1793294516
     },
     {
+      "key": "c66d9780ce2e8237",
+      "case_id": "g5-19",
+      "span": "24 månader",
+      "clause": "6.2 Leverantören lämnar en garanti om minst [24] månader för datorer och skärmar, och den längre tillverkargaranti som gäller för respektive Produkt.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299451
+    },
+    {
       "key": "c67835bef97182aa",
       "case_id": "g5-01",
       "span": "DevBrains AB",
@@ -6987,6 +7317,28 @@
       "ts": 1793298096
     },
     {
+      "key": "c97496306b6f5aa2",
+      "case_id": "g5-08",
+      "span": "sex (6) månader",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793299489
+    },
+    {
+      "key": "c9edbd4dd28db8d8",
+      "case_id": "g5-10",
+      "span": "en (1) månad",
+      "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793299489
+    },
+    {
       "key": "ca53729c8308959c",
       "case_id": "g5-20",
       "span": "tre (3)] månader",
@@ -6996,6 +7348,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296125
+    },
+    {
+      "key": "ca6110def60b0a5a",
+      "case_id": "g5-03",
+      "span": "tre (3) år",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299448
     },
     {
       "key": "ca7973863e703b4a",
@@ -7328,6 +7691,17 @@
       "ts": 1793297073
     },
     {
+      "key": "d3590488527a26a7",
+      "case_id": "g5-12",
+      "span": "tre (3) månader",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299450
+    },
+    {
       "key": "d364af67177eef82",
       "case_id": "g5-46",
       "span": "förnyat för en tid av ett år",
@@ -7359,6 +7733,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296101
+    },
+    {
+      "key": "d3e28d764e3ed8fb",
+      "case_id": "g5-14",
+      "span": "90 dagar",
+      "clause": "7.3 DevBrains ska avhjälpa fel som har rapporterats inom [90] dagar efter godkännandet utan extra kostnad (garantitid).",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299450
     },
     {
       "key": "d43e2c94eaaa518a",
@@ -7491,6 +7876,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294494
+    },
+    {
+      "key": "d738893a12db751f",
+      "case_id": "g5-08",
+      "span": "ett (1) år",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299449
     },
     {
       "key": "d7a3964136568949",
@@ -7790,6 +8186,17 @@
       "ts": 1793294515
     },
     {
+      "key": "e1ed01cf8ca76ded",
+      "case_id": "g5-22",
+      "span": "tre (3) månader",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793299452
+    },
+    {
       "key": "e202ca73b4142f8e",
       "case_id": "g5-22",
       "span": "2025-12-31",
@@ -7823,6 +8230,17 @@
       "ts": 1793296098
     },
     {
+      "key": "e31b9999c1c2a18a",
+      "case_id": "g5-08",
+      "span": "sex (6) månader",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793299449
+    },
+    {
       "key": "e37b37152a2beba4",
       "case_id": "g5-04",
       "span": "[Belopp]",
@@ -7832,6 +8250,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296087
+    },
+    {
+      "key": "e3a7d1321ed8d20b",
+      "case_id": "g5-03",
+      "span": "tre (3) år",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793299448
     },
     {
       "key": "e40eda9ba24250b3",
@@ -7887,6 +8316,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296067
+    },
+    {
+      "key": "e565280fd25d9b91",
+      "case_id": "g5-22",
+      "span": "tre (3) månader",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793299452
     },
     {
       "key": "e65dbb479163124f",
@@ -8406,6 +8846,17 @@
       "ts": 1793296092
     },
     {
+      "key": "f519789da2f03714",
+      "case_id": "g5-08",
+      "span": "ett (1) år",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793299489
+    },
+    {
       "key": "f576dd10c51d4345",
       "case_id": "g5-06",
       "span": "tre (3) månader",
@@ -8470,6 +8921,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793297067
+    },
+    {
+      "key": "f71ff528cc69f9f7",
+      "case_id": "g5-15",
+      "span": "tolv (12) månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793299451
     },
     {
       "key": "f757681fa6027b7d",
@@ -8734,6 +9196,17 @@
       "choice": "BELOPP",
       "score_bp": null,
       "ts": 1793297113
+    },
+    {
+      "key": "fc8950121a2c8b1b",
+      "case_id": "g5-19",
+      "span": "24 månader",
+      "clause": "6.2 Leverantören lämnar en garanti om minst [24] månader för datorer och skärmar, och den längre tillverkargaranti som gäller för respektive Produkt.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793299491
     },
     {
       "key": "fc92d521fd5cd170",

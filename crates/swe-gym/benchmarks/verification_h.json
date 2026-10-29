@@ -1,34 +1,34 @@
 {
   "H1_typ_accepteras": {
     "unique_recall": "5/27",
-    "precision": 0.2,
-    "fp": 16,
-    "correctly_resolved": 16,
-    "false_resolved": 12,
+    "precision": 0.15,
+    "fp": 17,
+    "correctly_resolved": 15,
+    "false_resolved": 13,
     "dropouts": {
       "typ": 21,
       "relation": 1,
       "relevans": 0
     },
-    "jev_calls": 15
+    "jev_calls": 0
   },
   "H2_konfliktkontroll": {
     "unique_recall": "17/27",
-    "precision": 0.617,
-    "fp": 23,
-    "correctly_resolved": 22,
-    "false_resolved": 18,
+    "precision": 0.607,
+    "fp": 24,
+    "correctly_resolved": 21,
+    "false_resolved": 19,
     "dropouts": {
       "typ": 9,
       "relation": 1,
       "relevans": 0
     },
-    "jev_calls": 0
+    "jev_calls": 27
   },
   "D_recomputed": {
     "unique_recall": "22/27",
-    "fp": 16,
-    "correctly_resolved": 31,
-    "false_resolved": 14
+    "fp": 17,
+    "correctly_resolved": 30,
+    "false_resolved": 15
   }
 }

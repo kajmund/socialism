@@ -300,6 +300,40 @@ spann (typer godkänns aldrig automatiskt), JEV arm D gör det enda behovsspecif
 beslutet, och SWE:s evidens- och operationskontrakt härleder behovsstatus. Nästa experiment:
 falskt RESOLVED med det rättade kontraktet (normalisering + typkontroll), inte fler modeller.
 
+## D9. Efterbehandlingsarmarna — och ytterligare ett guld-fynd
+
+Samma frysta population och JEV-beslut; endast kontraktets efterbehandling ändrad
+(A nuvarande / B + kanonisk spann-normalisering / C + behovsspecifik typkontroll /
+D + entydighet). Under körningen hittades och åtgärdades **ytterligare två guld-defekter**:
+
+1. **Bracket-buggen i guld-generatorn:** `str.strip("[]")` lämnade interna "]"-tecken
+   ("nio (9)] månader") — de åtta "gräns-artefakterna" från D8 var delvis guld-fel, inte
+   verifieringsfel. Fixad (alla brackets bort); guld regenererades och de nya spannen
+   verifierades (16 nya frysta svar).
+2. **Typ-överbreddhet i korpus-guldet:** korpusklausulernas guldspann ärvde generatorns
+   etikettlogik — "tre (3) år" i en uppsägningsklausul märktes som NOTICE_PERIOD trots att
+   det är en förlängningsperiod. JEV avvisade den korrekt (NO) — guldet var fel, inte
+   verifieraren. Fix (relationsmedveten guldtypning) är identifierad och är nästa steg
+   innan slutsiffrorna kan läsas slutgiltigt.
+
+**Dagens arm-siffror (med kända guld-fel kvar):** alla fyra armar visar samma 5 överlevare —
+C:s typkontroll och D:s entydighet är inerta på dem eftersom deras kontraktstyper är ANY och
+inga konflikter finns. Överlevarna är de äkta semantiska grannarna:
+
+| Fall | Felaktigt godkänt | Kan påverka ett svar? |
+|---|---|---|
+| g5-01 [Avtalspart] | "hyresgästen" (roll, inte partsnamn) | **Ja** — svaret kan namnge en roll i stället för en part |
+| g5-04/45 [Belopp] | "kronor" / "sjuttiofem tusen kronor" (generiskt/fel belopp) | Ja — fel belopp i slutsatsen |
+| g5-10 [Datum] | "2023-02-01" (fel datum) | Ja — fel datum |
+| g5-47 [Ersättning] | "ersättning" (generisk term) | Möjligen — underbestämt svar |
+
+**Svaret på milstolpefrågan i sin första form:** efter att guld-defekterna räknats bort
+återstår **fem behov där ett semantiskt felgodkännande kan passera grinden och påverka ett
+svar** — inga av dem fångas av dagens deterministiska kontrakt (typ ANY, inga konflikter).
+Det är JEV:s återstående semantiska osäkerhet, mätbar och ärligt redovisad. Nästa steg:
+rätta guldtypningen, köra om armarna, och därefter följa de fem fallen genom SWE:s
+operationsgrind till faktiska svar — exakt den fråga granskningen satte som nästa milstolpe.
+
 ## E2. Rekommendationen, omformulerad per beslut
 
 **Utvärdera GLiNER2 som en behovsstyrd, valbar kandidatgenerator i SWE:s Investigation-lager** —
