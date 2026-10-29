@@ -1,0 +1,32 @@
+=== g4-01 [EVALUATE_VALUE_TYPE] Hur lång är uppsägningstiden enligt Avtal_81_VD_anstallningsavtal?
+    slutsats: 6 månader (12 månader avser konkurrensbegränsning, inte uppsägningstid)
+
+    evidens Avtal_81_VD_anstallningsavtal:18: '7.1 Avtalet gäller tills vidare. Ömsesidig uppsägningstid är sex (6) månader.\n'
+    evidens Avtal_81_VD_anstallningsavtal:25: '8.3 Under tolv (12) månader efter anställningens upphörande får VD inte ta anställning i eller driva verksamhet som konkurrerar med Bolaget. Bolaget b'
+
+=== g4-02 [APPLY_CONDITION] Hur länge gäller hyresförhållandet enligt Avtal_18_Hyresavtal_bostad?
+    slutsats: beror på valt alternativ: A tills vidare (3 månaders uppsägningstid) eller B bestämd tid
+
+    evidens Avtal_18_Hyresavtal_bostad:5: '4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parte'
+    evidens Avtal_18_Hyresavtal_bostad:6: '4.2 Alternativ B – bestämd tid: Hyresförhållandet gäller från den [2023-06-01] till och med den [Datum]. [Om hyrestiden är längre än tre månader upphö'
+
+=== g4-03 [RESOLVE_ANNEX] Vilka priser gäller enligt Avtal_32_Inkopsavtal?
+    slutsats: avstå: Bilaga 2 saknas i korpusen
+
+    evidens Avtal_32_Inkopsavtal:7: '3.1 Priserna framgår av Bilaga 2. DevBrains får [Belopp/procent] procent rabatt på Leverantörens ordinarie listpris för produkter utanför Bilaga 2.\n'
+
+=== g4-04 [VERIFY_ABSENCE] Innehåller Avtal_15_Bonusavtal en klausul om force majeure?
+    slutsats: nej
+
+
+=== g4-05 [SYNTHESIZE_RISK] Vilken part bär den ekonomiska risken vid förtida uppsägning enligt Avtal_81_VD_anstallningsavtal?
+    slutsats: Bolaget bär ekonomisk risk vid uppsägning (avgångsvederlag om 6 månadslöner), utom vid väsentligt avtalsbrott (omedelbar verkan utan vederlag)
+
+    evidens Avtal_81_VD_anstallningsavtal:18: '7.1 Avtalet gäller tills vidare. Ömsesidig uppsägningstid är sex (6) månader.\n'
+    evidens Avtal_81_VD_anstallningsavtal:19: '7.2 Om Bolaget säger upp avtalet har VD dessutom rätt till avgångsvederlag motsvarande [sex (6)] fasta månadslöner. Avgångsvederlag utgår inte om VD s'
+    evidens Avtal_81_VD_anstallningsavtal:20: '7.3 Om VD i väsentlig mån bryter mot detta avtal får Bolaget avsluta anställningen med omedelbar verkan.\n'
+
+=== g4-06 [APPLY_EXCEPTION] Förlängs avtalet automatiskt enligt Avtal_20_Arrendeavtal_lagenhetsarrende?
+    slutsats: ja, med ett (1) år i taget, OM ingen part säger upp senast sex (6) månader före utgång
+
+    evidens Avtal_20_Arrendeavtal_lagenhetsarrende:7: '4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.\n'

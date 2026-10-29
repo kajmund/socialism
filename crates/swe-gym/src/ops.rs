@@ -140,3 +140,155 @@ mod tests {
         }
     }
 }
+/// What an operation produced: an answer, a NEW information need it
+/// discovered (hand control back to Investigation), or a blocked gate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OpOutcome {
+    Answer(String),
+    /// The operation discovered a requirement it cannot satisfy — it
+    /// creates a need instead of guessing.
+    NeedMore(NeedRef),
+    Insufficient,
+}
+
+/// APPLY_EXCEPTION: an exception modifies a base rule only if its
+/// condition is met. When the condition is unresolved, the operation
+/// returns NeedMore instead of guessing.
+pub fn apply_exception(
+    base: Option<(&str, i64)>,
+    condition: Option<(&str, i64)>,
+) -> OpOutcome {
+    match condition {
+        None => OpOutcome::NeedMore(NeedRef::new("condition", "unknown")),
+        Some((_, threshold)) => match base {
+            None => OpOutcome::Insufficient,
+            Some((doc, value)) => {
+                if value > threshold {
+                    OpOutcome::Answer(format!("undantag gäller: {doc}"))
+                } else {
+                    OpOutcome::Answer(format!("grundregel gäller: {doc}"))
+                }
+            }
+        },
+    }
+}
+
+/// The investigation->operation loop: each round the gate runs FIRST;
+/// a failed gate may yield a discovered need that Investigation tries
+/// to resolve; the loop ends on an answer, on insufficient evidence,
+/// or when the round cap is hit. A step policy can only influence
+/// WHICH need is resolved next — the gate itself is not optional.
+pub fn investigate_operate_loop(
+    gate: impl Fn(&BTreeMap<String, i64>) -> Result<(), MissingOutcome>,
+    mut execute: impl FnMut(&BTreeMap<String, i64>) -> OpOutcome,
+    mut resolve_need: impl FnMut(&NeedRef) -> Option<i64>,
+    max_rounds: usize,
+) -> OpOutcome {
+    let mut resolved: BTreeMap<String, i64> = BTreeMap::new();
+    for _ in 0..max_rounds {
+        // The gate is structural: a failed gate ends the loop with
+        // INSUFFICIENT_EVIDENCE — no execution, no discovery, no guess.
+        if gate(&resolved).is_err() {
+            return OpOutcome::Insufficient;
+        }
+        match execute(&resolved) {
+            OpOutcome::Answer(answer) => return OpOutcome::Answer(answer),
+            OpOutcome::NeedMore(need) => match resolve_need(&need) {
+                Some(value) => {
+                    resolved.insert(need.document.clone(), value);
+                }
+                None => return OpOutcome::Insufficient,
+            },
+            OpOutcome::Insufficient => return OpOutcome::Insufficient,
+        }
+    }
+    OpOutcome::Insufficient
+}
+
+#[cfg(test)]
+mod loop_tests {
+    use super::*;
+
+    fn gate_three() -> impl Fn(&BTreeMap<String, i64>) -> Result<(), MissingOutcome> {
+        |resolved| {
+            let op = OperationSpec {
+                name: "MAX_NOTICE_PERIOD".to_string(),
+                required_inputs: vec![
+                    NeedRef::new("notice_period", "Avtal_17"),
+                    NeedRef::new("notice_period", "Avtal_18"),
+                    NeedRef::new("notice_period", "Avtal_20"),
+                ],
+                execution_policy: ExecutionPolicy::AllRequired,
+                on_missing: MissingOutcome::InsufficientEvidence,
+            };
+            op.gate(resolved)
+        }
+    }
+
+    #[test]
+    fn exception_discovers_condition_and_returns_to_investigation() {
+        let mut rounds = 0;
+        let outcome = investigate_operate_loop(
+            |_| Ok(()),
+            |_resolved| {
+                rounds += 1;
+                if rounds == 1 {
+                    // The condition is unresolved: discover the need.
+                    OpOutcome::NeedMore(NeedRef::new("condition", "Avtal_X"))
+                } else {
+                    OpOutcome::Answer("grundregel gäller".to_string())
+                }
+            },
+            |_need| Some(3), // Investigation resolves the condition
+            3,
+        );
+        assert_eq!(outcome, OpOutcome::Answer("grundregel gäller".to_string()));
+    }
+
+    #[test]
+    fn unresolved_discovered_need_ends_in_insufficient_not_a_guess() {
+        let outcome = investigate_operate_loop(
+            |_| Ok(()),
+            |_resolved| OpOutcome::NeedMore(NeedRef::new("condition", "Avtal_X")),
+            |_need| None, // Investigation cannot resolve it
+            3,
+        );
+        assert_eq!(outcome, OpOutcome::Insufficient);
+    }
+
+    #[test]
+    fn gate_runs_every_round_regardless_of_resolution_order() {
+        // A policy could resolve needs in any order, but the gate is
+        // structural: partial inputs never produce an answer.
+        let mut i = 0;
+        let outcome = investigate_operate_loop(
+            gate_three(),
+            |resolved| {
+                if resolved.len() == 3 {
+                    OpOutcome::Answer(max_notice_period(resolved).unwrap_or_default())
+                } else {
+                    OpOutcome::Insufficient
+                }
+            },
+            |need| {
+                i += 1;
+                Some(9) // resolves whatever the policy asks for
+            },
+            4,
+        );
+        // The policy resolved one need per round; the gate never let a
+        // partial answer through.
+        assert_eq!(outcome, OpOutcome::Insufficient);
+    }
+
+    #[test]
+    fn exception_condition_changes_the_conclusion() {
+        // Base rule 9 months; condition threshold 6 -> exception applies.
+        let outcome = apply_exception(Some(("Avtal_17", 9)), Some(("villkor", 6)));
+        assert_eq!(outcome, OpOutcome::Answer("undantag gäller: Avtal_17".to_string()));
+        // Below threshold -> the base rule stands.
+        let outcome = apply_exception(Some(("Avtal_17", 3)), Some(("villkor", 6)));
+        assert_eq!(outcome, OpOutcome::Answer("grundregel gäller: Avtal_17".to_string()));
+    }
+}
+

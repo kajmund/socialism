@@ -601,3 +601,29 @@ g3-06:s mekanism, exakt: tre dokument fick värden, men ett av dem var inte blan
 
 **Om en lärd policy:** mönstret fortsätter — varje förståelse minskar residualen. Operationskontraktet tog bort nästa felklass. Kvar: extraction-gap (2/13), och frågetyper vars operationer kräver resonemang (APPLY_EXCEPTION med juridiska avvägningar). Nästa steg: ett större, oberoende testset med nya avtalsformuleringar och komplexare beroenden — och en lärd policy först när en enkel regel verkligen inte räcker.
 
+## 31. Arkitekturfrys, bryt-testset och operationer som upptäcker behov
+
+**Arkitekturen fryses i fyra lager** (inga fler abstraktioner förrän generaliseringen är prövad):
+
+| Lager | Ansvar |
+|---|---|
+| SWE Core | Workflows, parallellism, iteration, återupptagning |
+| Investigation | Identifierar behov, hämtar och verifierar evidens |
+| Operations | Kontrollerar beroenden, utför typade operationer |
+| Sweycoins/Gym | Mäter kostnad och kvalitet, utvärderar strategier |
+
+**Operationsslingan** är implementerad i craten: en operation kan returnera `NeedMore(NeedRef)` i stället för att gissa — `APPLY_EXCEPTION` upptäcker att undantagets villkor kräver en definition i en annan klausul, skapar ett nytt behov och lämnar tillbaka kontrollen till Investigation. Slingan: **undersökning → operation → nytt behov → undersökning → operation → svar**, med grinden körd strukturellt varje runda. Nio enhetstester täcker: grinden blockerar partiella indata, ett upptäckt behov som löses ger svar, ett som inte kan lösas slutar i INSUFFICIENT_EVIDENCE utan gissning, och undantaget ändrar slutsatsen. **RL-gränsen är nu explicit:** en eventuell lärd policy får bara välja *vilket* tillåtet steg som utförs härnäst — operationskontrakt och evidenskrav kan den aldrig åsidosätta. Lärande kan förbättra effektiviteten, aldrig ändra vad som räknas som giltigt svar.
+
+**Bryt-testsetet** (`golden_v4`, 6 fall, deterministiskt facit + verifikationslogg):
+
+| Fall | Operation | Vad det försöker slå sönder |
+|---|---|---|
+| g4-01 | EVALUATE_VALUE_TYPE | Två tidsvärden i samma dokument — 12 månader är konkurrensbegränsning, inte uppsägningstid |
+| g4-02 | APPLY_CONDITION | Alternativ A/B: svaret beror på ett val — operationen upptäcker behovet och avstår om det inte kan lösas |
+| g4-03 | RESOLVE_ANNEX | "Framgår av Bilaga 2" med bilagan utanför korpusen — avstå utan gissning |
+| g4-04 | VERIFY_ABSENCE | Klausul saknas — frågan kräver ett nej |
+| g4-05 | SYNTHESIZE_RISK | Resonemangsoperation med tre indata — får bara köras när alla är RESOLVED |
+| g4-06 | APPLY_EXCEPTION | Automatisk förlängning om inte uppsagd — svaret måste bära villkoret |
+
+**Ärligt protokoll:** äkta samma-fakta-motsägelser (två klausuler som påstår olika uppsägningstider) saknas i denna korpus — motsägelsetestet skjuts till rikare dokument. Därmed har motorn tagit nästa steg i granskningens riktning: från att veta vilka fakta en fråga kräver från början, till att kunna **upptäcka vad den behöver lära sig under själva problemlösningen**.
+

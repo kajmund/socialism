@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "questions": [
+    {
+      "id": "g4-01",
+      "operation": "EVALUATE_VALUE_TYPE",
+      "question": "Hur lång är uppsägningstiden enligt Avtal_81_VD_anstallningsavtal?",
+      "evidence": [
+        "Avtal_81_VD_anstallningsavtal:18",
+        "Avtal_81_VD_anstallningsavtal:25"
+      ],
+      "conclusion": "6 månader (12 månader avser konkurrensbegränsning, inte uppsägningstid)",
+      "note": "fälla: två tidsvärden i samma dokument — operationen måste skilja faktatyper"
+    },
+    {
+      "id": "g4-02",
+      "operation": "APPLY_CONDITION",
+      "question": "Hur länge gäller hyresförhållandet enligt Avtal_18_Hyresavtal_bostad?",
+      "evidence": [
+        "Avtal_18_Hyresavtal_bostad:5",
+        "Avtal_18_Hyresavtal_bostad:6"
+      ],
+      "conclusion": "beror på valt alternativ: A tills vidare (3 månaders uppsägningstid) eller B bestämd tid",
+      "note": "villkor: operationen upptäcker behovet 'vilket alternativ gäller?' och ska avstå om det inte kan lösas"
+    },
+    {
+      "id": "g4-03",
+      "operation": "RESOLVE_ANNEX",
+      "question": "Vilka priser gäller enligt Avtal_32_Inkopsavtal?",
+      "evidence": [
+        "Avtal_32_Inkopsavtal:7"
+      ],
+      "conclusion": "avstå: Bilaga 2 saknas i korpusen",
+      "note": "bilagebehov: operationen skapar ett nytt beroende som inte kan lösas — avstå utan att gissa"
+    },
+    {
+      "id": "g4-04",
+      "operation": "VERIFY_ABSENCE",
+      "question": "Innehåller Avtal_15_Bonusavtal en klausul om force majeure?",
+      "evidence": [],
+      "conclusion": "nej",
+      "note": "saknat faktum: frågan kräver ett nej, inte en gissning"
+    },
+    {
+      "id": "g4-05",
+      "operation": "SYNTHESIZE_RISK",
+      "question": "Vilken part bär den ekonomiska risken vid förtida uppsägning enligt Avtal_81_VD_anstallningsavtal?",
+      "evidence": [
+        "Avtal_81_VD_anstallningsavtal:18",
+        "Avtal_81_VD_anstallningsavtal:19",
+        "Avtal_81_VD_anstallningsavtal:20"
+      ],
+      "conclusion": "Bolaget bär ekonomisk risk vid uppsägning (avgångsvederlag om 6 månadslöner), utom vid väsentligt avtalsbrott (omedelbar verkan utan vederlag)",
+      "note": "resonemangsoperation: får bara köras när alla tre indata är RESOLVED — grinden får inte kringgås"
+    },
+    {
+      "id": "g4-06",
+      "operation": "APPLY_EXCEPTION",
+      "question": "Förlängs avtalet automatiskt enligt Avtal_20_Arrendeavtal_lagenhetsarrende?",
+      "evidence": [
+        "Avtal_20_Arrendeavtal_lagenhetsarrende:7"
+      ],
+      "conclusion": "ja, med ett (1) år i taget, OM ingen part säger upp senast sex (6) månader före utgång",
+      "note": "undantagsregel: slutsatsen är villkorad — svaret måste bära villkoret"
+    }
+  ]
+}
