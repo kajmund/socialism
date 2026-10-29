@@ -1,0 +1,431 @@
+{
+  "facit": "crates/swe-gym/benchmarks/blindtest_facit_v1.json",
+  "facit_provenance": "Gold-review-v3 procedure: annotated by agent (Team Lead) 2026-10-29 by READING the extracted PDF text of three real contracts outside the corpus (Sponsoravtal NKK 2017, Anställningsavtal Erik Fremred AB signerat 2020-05-04, Konsulttjänst Avtal Ateles/Erik Fremred AB 2020-06-01). The regex generator and GLiNER2 outputs were NOT consulted; spans are exact substrings of the extracted text (whitespace and diacritics verbatim, canonicalized only for comparison). Clause selection rule: every clause in the three documents expressing an available concept type (uppsägningstid, ansvarstak, ersättning/belopp, tidsfrister/datum, parter). Excluded with this record: condition-precedent clauses (Sponsoravtal p.5, Konsulttjänst 3.1), percent rates (Konsulttjänst 5.2, tjänstepension), indefinite term (Tillsvidare), work-time extent (40 timmar/vecka) — no matching frozen label type. The Konsulttjänst PDF embeds whitespace artifacts (e.g. 'upps ä gningstid'); clause texts are reproduced verbatim, line breaks normalized to spaces. Frozen BEFORE the first run; version 1.",
+  "prompt_version": "span-need-contrast-v1",
+  "model": "jev-1.13.0",
+  "candidates_reused": false,
+  "unique_verified": 9,
+  "unique_total": 13,
+  "false_resolved_need_ids": [
+    "bt-03-n1"
+  ],
+  "ambiguous_need_ids": [
+    "bt-17-n1"
+  ],
+  "needs_total": 20,
+  "needs_solved_s2": 14,
+  "strategies": {
+    "baseline": {
+      "needs": 0
+    },
+    "s1": {
+      "needs": 14,
+      "gliner_runs": 20,
+      "jev_calls": 47
+    },
+    "s2": {
+      "needs": 14,
+      "gliner_runs": 19,
+      "jev_calls": 45
+    }
+  },
+  "per_question_type": {
+    "ersättning": {
+      "unique_total": 4,
+      "unique_survived": 4,
+      "needs": 5,
+      "solved": 4,
+      "false_resolved": 0
+    },
+    "tidsfrister": {
+      "unique_total": 8,
+      "unique_survived": 4,
+      "needs": 9,
+      "solved": 5,
+      "false_resolved": 1
+    },
+    "parter": {
+      "unique_total": 1,
+      "unique_survived": 1,
+      "needs": 3,
+      "solved": 3,
+      "false_resolved": 0
+    },
+    "uppsägningsvillkor": {
+      "unique_total": 0,
+      "unique_survived": 0,
+      "needs": 2,
+      "solved": 1,
+      "false_resolved": 0
+    },
+    "ansvarsbegränsning": {
+      "unique_total": 0,
+      "unique_survived": 0,
+      "needs": 1,
+      "solved": 1,
+      "false_resolved": 0
+    }
+  },
+  "per_case": [
+    {
+      "case_id": "bt-01",
+      "need_id": "bt-01-n1",
+      "question_type": "ersättning",
+      "verdict": "resolved",
+      "gold": [
+        "5 000 kr"
+      ],
+      "gliner_candidates": [
+        "5 000 kr"
+      ],
+      "approved": [
+        "5 000 kr"
+      ],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-02",
+      "need_id": "bt-02-n1",
+      "question_type": "tidsfrister",
+      "verdict": "unsolved",
+      "gold": [
+        "12 maj"
+      ],
+      "gliner_candidates": [
+        "12 maj"
+      ],
+      "approved": [],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-03",
+      "need_id": "bt-03-n1",
+      "question_type": "tidsfrister",
+      "verdict": "false_resolved",
+      "gold": [
+        "30 dagar"
+      ],
+      "gliner_candidates": [
+        "30 dagar"
+      ],
+      "approved": [],
+      "extracted_same_type": [
+        "inom 30 dagar"
+      ],
+      "competing": [
+        "inom 30 dagar"
+      ]
+    },
+    {
+      "case_id": "bt-04",
+      "need_id": "bt-04-n1",
+      "question_type": "ersättning",
+      "verdict": "resolved",
+      "gold": [
+        "500 kr"
+      ],
+      "gliner_candidates": [
+        "500 kr"
+      ],
+      "approved": [
+        "500 kr"
+      ],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-05",
+      "need_id": "bt-05-n1",
+      "question_type": "parter",
+      "verdict": "resolved",
+      "gold": [
+        "norrköpings kappsimningsklubb"
+      ],
+      "gliner_candidates": [
+        "nkk",
+        "norrköpings kappsimningsklubb",
+        "sponsor"
+      ],
+      "approved": [
+        "nkk",
+        "norrköpings kappsimningsklubb"
+      ],
+      "extracted_same_type": [],
+      "competing": [
+        "nkk"
+      ]
+    },
+    {
+      "case_id": "bt-06",
+      "need_id": "bt-06-n1",
+      "question_type": "tidsfrister",
+      "verdict": "unsolved",
+      "gold": [
+        "10-11 juni",
+        "30 juni-2 juli"
+      ],
+      "gliner_candidates": [
+        "10-11 juni",
+        "30 juni-2 juli"
+      ],
+      "approved": [],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-07",
+      "need_id": "bt-07-n1",
+      "question_type": "tidsfrister",
+      "verdict": "resolved",
+      "gold": [
+        "2020-08-01"
+      ],
+      "gliner_candidates": [
+        "2020-08-01"
+      ],
+      "approved": [
+        "2020-08-01"
+      ],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-08",
+      "need_id": "bt-08-n1",
+      "question_type": "ersättning",
+      "verdict": "resolved",
+      "gold": [
+        "120 000kr",
+        "45 000kr"
+      ],
+      "gliner_candidates": [
+        "120 000kr",
+        "45 000kr"
+      ],
+      "approved": [
+        "120 000kr",
+        "45 000kr"
+      ],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-09",
+      "need_id": "bt-09-n1",
+      "question_type": "uppsägningsvillkor",
+      "verdict": "unsolved",
+      "gold": [
+        "enligt las"
+      ],
+      "gliner_candidates": [
+        "las"
+      ],
+      "approved": [],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-10",
+      "need_id": "bt-10-n1",
+      "question_type": "tidsfrister",
+      "verdict": "resolved",
+      "gold": [
+        "30 dagar"
+      ],
+      "gliner_candidates": [
+        "30 dagar"
+      ],
+      "approved": [
+        "30 dagar"
+      ],
+      "extracted_same_type": [
+        "semester 30 dagar"
+      ],
+      "competing": [
+        "semester 30 dagar"
+      ]
+    },
+    {
+      "case_id": "bt-11",
+      "need_id": "bt-11-n1",
+      "question_type": "parter",
+      "verdict": "resolved",
+      "gold": [
+        "erik fremred aktiebolag"
+      ],
+      "gliner_candidates": [],
+      "approved": [
+        "erik fremred aktiebolag"
+      ],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-12",
+      "need_id": "bt-12-n1",
+      "question_type": "ansvarsbegränsning",
+      "verdict": "resolved",
+      "gold": [
+        "begr ä nsat till arvodet f ö r tj ä nsten"
+      ],
+      "gliner_candidates": [],
+      "approved": [
+        "begr ä nsat till arvodet f ö r tj ä nsten"
+      ],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-13",
+      "need_id": "bt-13-n1",
+      "question_type": "tidsfrister",
+      "verdict": "resolved",
+      "gold": [
+        "12 m å nader"
+      ],
+      "gliner_candidates": [
+        "12 m å naderna"
+      ],
+      "approved": [
+        "12 m å nader",
+        "12 m å naderna"
+      ],
+      "extracted_same_type": [],
+      "competing": [
+        "12 m å naderna"
+      ]
+    },
+    {
+      "case_id": "bt-14",
+      "need_id": "bt-14-n1",
+      "question_type": "tidsfrister",
+      "verdict": "resolved",
+      "gold": [
+        "30 dagar"
+      ],
+      "gliner_candidates": [
+        "30 dagar"
+      ],
+      "approved": [],
+      "extracted_same_type": [
+        "30 dagar"
+      ],
+      "competing": []
+    },
+    {
+      "case_id": "bt-15",
+      "need_id": "bt-15-n1",
+      "question_type": "ersättning",
+      "verdict": "resolved",
+      "gold": [
+        "840 kr/h"
+      ],
+      "gliner_candidates": [],
+      "approved": [
+        "840 kr/h"
+      ],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-16",
+      "need_id": "bt-16-n1",
+      "question_type": "uppsägningsvillkor",
+      "verdict": "resolved",
+      "gold": [
+        "2 veckor"
+      ],
+      "gliner_candidates": [
+        "2 veckors",
+        "6 månader"
+      ],
+      "approved": [
+        "2 veckor",
+        "2 veckors"
+      ],
+      "extracted_same_type": [],
+      "competing": [
+        "2 veckors"
+      ]
+    },
+    {
+      "case_id": "bt-17",
+      "need_id": "bt-17-n1",
+      "question_type": "tidsfrister",
+      "verdict": "ambiguous",
+      "gold": [
+        "6 månader"
+      ],
+      "gliner_candidates": [
+        "2 veckors",
+        "6 månader"
+      ],
+      "approved": [
+        "2 veckors",
+        "6 månader"
+      ],
+      "extracted_same_type": [
+        "i 6 månader"
+      ],
+      "competing": [
+        "2 veckors",
+        "i 6 månader"
+      ]
+    },
+    {
+      "case_id": "bt-18",
+      "need_id": "bt-18-n1",
+      "question_type": "tidsfrister",
+      "verdict": "resolved",
+      "gold": [
+        "2021 - 01 - 01"
+      ],
+      "gliner_candidates": [
+        "2021 - 01 - 01"
+      ],
+      "approved": [
+        "2021 - 01 - 01"
+      ],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-19",
+      "need_id": "bt-19-n1",
+      "question_type": "ersättning",
+      "verdict": "unsolved",
+      "gold": [
+        "100 dagars konsulters ä ttning"
+      ],
+      "gliner_candidates": [],
+      "approved": [],
+      "extracted_same_type": [],
+      "competing": []
+    },
+    {
+      "case_id": "bt-20",
+      "need_id": "bt-20-n1",
+      "question_type": "parter",
+      "verdict": "resolved",
+      "gold": [
+        "ateles consulting ab",
+        "erik fremred aktiebolag"
+      ],
+      "gliner_candidates": [
+        "556616 – 3910",
+        "559085-5473",
+        "riksdalergatan 29, 603 79 norrköping"
+      ],
+      "approved": [
+        "ateles consulting ab",
+        "erik fremred aktiebolag"
+      ],
+      "extracted_same_type": [],
+      "competing": []
+    }
+  ],
+  "jev_new_calls": 0,
+  "scope_note": "answer-level contamination not measured at clause level; follow-through step after this run (D10 procedure)"
+}
