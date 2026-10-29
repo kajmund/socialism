@@ -1,0 +1,174 @@
+[
+  {
+    "case_id": "g5-01",
+    "need": "Avtalspart",
+    "wrong_approved": [
+      "Hyresgästen"
+    ],
+    "classes": [
+      "korrekt faktum som inte räcker: hyresgästen"
+    ],
+    "deterministic_relation": "ANNAT",
+    "contract_could_catch": false
+  },
+  {
+    "case_id": "g5-02",
+    "need": "Datum",
+    "wrong_approved": [
+      "2023-01-31",
+      "2020-02-01"
+    ],
+    "classes": [
+      "gräns-artefakt: samma faktum, brackets/whitespace skiljer — deterministisk normalisering fångar",
+      "gräns-artefakt: samma faktum, brackets/whitespace skiljer — deterministisk normalisering fångar"
+    ],
+    "deterministic_relation": "ANNAT",
+    "contract_could_catch": true
+  },
+  {
+    "case_id": "g5-03",
+    "need": "Uppsägningstid",
+    "wrong_approved": [
+      "[nio (9)] månader"
+    ],
+    "classes": [
+      "gräns-artefakt: samma faktum, brackets/whitespace skiljer — deterministisk normalisering fångar"
+    ],
+    "deterministic_relation": "UPPSÄGNING",
+    "contract_could_catch": true
+  },
+  {
+    "case_id": "g5-04",
+    "need": "Belopp",
+    "wrong_approved": [
+      "kronor"
+    ],
+    "classes": [
+      "korrekt faktum som inte räcker: kronor"
+    ],
+    "deterministic_relation": "ANNAT",
+    "contract_could_catch": false
+  },
+  {
+    "case_id": "g5-06",
+    "need": "Datum",
+    "wrong_approved": [
+      "2023-06-01"
+    ],
+    "classes": [
+      "gräns-artefakt: samma faktum, brackets/whitespace skiljer — deterministisk normalisering fångar"
+    ],
+    "deterministic_relation": "UPPSÄGNING",
+    "contract_could_catch": true
+  },
+  {
+    "case_id": "g5-10",
+    "need": "Datum",
+    "wrong_approved": [
+      "2023-02-01",
+      "2023-07-31"
+    ],
+    "classes": [
+      "korrekt faktum som inte räcker: 2023-02-01",
+      "gräns-artefakt: samma faktum, brackets/whitespace skiljer — deterministisk normalisering fångar"
+    ],
+    "deterministic_relation": "FÖRLÄNGNING",
+    "contract_could_catch": true
+  },
+  {
+    "case_id": "g5-12",
+    "need": "Uppsägningstid",
+    "wrong_approved": [
+      "[tre (3)] månader"
+    ],
+    "classes": [
+      "gräns-artefakt: samma faktum, brackets/whitespace skiljer — deterministisk normalisering fångar"
+    ],
+    "deterministic_relation": "UPPSÄGNING",
+    "contract_could_catch": true
+  },
+  {
+    "case_id": "g5-15",
+    "need": "Uppsägningstid",
+    "wrong_approved": [
+      "[sex (6)] månader"
+    ],
+    "classes": [
+      "gräns-artefakt: samma faktum, brackets/whitespace skiljer — deterministisk normalisering fångar"
+    ],
+    "deterministic_relation": "UPPSÄGNING",
+    "contract_could_catch": true
+  },
+  {
+    "case_id": "g5-24",
+    "need": "Uppsägningstid",
+    "wrong_approved": [
+      "[en (1)] månad"
+    ],
+    "classes": [
+      "gräns-artefakt: samma faktum, brackets/whitespace skiljer — deterministisk normalisering fångar"
+    ],
+    "deterministic_relation": "UPPSÄGNING",
+    "contract_could_catch": true
+  },
+  {
+    "case_id": "g5-31",
+    "need": "Förlängning",
+    "wrong_approved": [
+      "ett år"
+    ],
+    "classes": [
+      "rätt spann, fel informationsbehov: ej tidsperiod"
+    ],
+    "deterministic_relation": "FÖRLÄNGNING",
+    "contract_could_catch": false
+  },
+  {
+    "case_id": "g5-37",
+    "need": "Uppsägningstid",
+    "wrong_approved": [
+      "två månaders"
+    ],
+    "classes": [
+      "rätt spann, fel informationsbehov: ej tidsperiod"
+    ],
+    "deterministic_relation": "UPPSÄGNING",
+    "contract_could_catch": false
+  },
+  {
+    "case_id": "g5-45",
+    "need": "Belopp",
+    "wrong_approved": [
+      "sjuttiofem tusen kronor"
+    ],
+    "classes": [
+      "korrekt faktum som inte räcker: sjuttiofem tusen kronor"
+    ],
+    "deterministic_relation": "ANNAT",
+    "contract_could_catch": false
+  },
+  {
+    "case_id": "g5-46",
+    "need": "Förlängning",
+    "wrong_approved": [
+      "ett år"
+    ],
+    "classes": [
+      "rätt spann, fel informationsbehov: ej tidsperiod"
+    ],
+    "deterministic_relation": "FÖRLÄNGNING",
+    "contract_could_catch": false
+  },
+  {
+    "case_id": "g5-47",
+    "need": "Ersättning",
+    "wrong_approved": [
+      "ersättning"
+    ],
+    "classes": [
+      "korrekt faktum som inte räcker: ersättning"
+    ],
+    "deterministic_relation": "ANNAT",
+    "contract_could_catch": false
+  }
+]

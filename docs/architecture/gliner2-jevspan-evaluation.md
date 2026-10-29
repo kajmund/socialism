@@ -274,6 +274,32 @@ felaktigt värde (fel-typ-spann godkänt) — inte bara ett godkänt spann som r
 **Kostnad:** 272 nya JEV-anrop totalt över E/F/G (E tyngst med hela trestegskedjan); omkörningen
 efter fixturen kostade 0 anrop — deterministisk omräkning fungerar.
 
+## D8. De 14 falskt lösta — undersökta, klassificerade
+
+**Metodfrågan besvarad:** grupperna är ömsesidigt uteslutande (0 behov i båda). Nyansen
+protokollförd: alla 14 har sina guldfakta godkända — risken är att slutsatsen använder ett
+felaktigt godkänt spann, inte att fakta saknas.
+
+**Felklasserna (arm D:s 14 falskt lösta):**
+
+| Klass | Antal | Hantering |
+|---|---|---|
+| **Gräns-artefakt** (samma faktum, bara brackets/whitespace: "[nio (9)] månader" vs "nio (9) månader") | **8** | Determininistisk spann-normalisering — inte ett verifieringsfel alls |
+| Typkrock (datum/part godkänt för tidsperiodsbehov) | 3–4 | Deterministisk typkontroll i kontraktet |
+| Korrekt faktum som inte räcker (äkta irrelevanta fakta: datum, belopp, "ersättning") | 3–4 | JEV:s semantiska osäkerhet — mätbar, hanteras av operationens entydighetskrav |
+
+**Beslut 2 får sin första data:** ~8 av 14 är inte verifieringsfel utan **kontraktsfel**
+(normaliseringen som redan finns i corpus-pipelinen användes inte i utvärderingen); ~4 fångas
+av en deterministisk typkontroll i behovskontraktet; **~3–4 är äkta JEV-semantisk osäkerhet**.
+Enligt granskningens regel rättar vi kontraktet — ingen ny modell — och accepterar den
+återstående mätbara osäkerheten, som operationens befintliga entydighetskrav (flera
+motstridiga värden → INSUFFICIENT_EVIDENCE) redan är byggt för att hantera.
+
+**Frysning:** GLiNER2/JEV-kombinationen fryses här: befintlig generator + GLiNER2 föreslår
+spann (typer godkänns aldrig automatiskt), JEV arm D gör det enda behovsspecifika kontrastiva
+beslutet, och SWE:s evidens- och operationskontrakt härleder behovsstatus. Nästa experiment:
+falskt RESOLVED med det rättade kontraktet (normalisering + typkontroll), inte fler modeller.
+
 ## E2. Rekommendationen, omformulerad per beslut
 
 **Utvärdera GLiNER2 som en behovsstyrd, valbar kandidatgenerator i SWE:s Investigation-lager** —
