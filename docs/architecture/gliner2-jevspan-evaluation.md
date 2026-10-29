@@ -334,6 +334,40 @@ Det är JEV:s återstående semantiska osäkerhet, mätbar och ärligt redovisad
 rätta guldtypningen, köra om armarna, och därefter följa de fem fallen genom SWE:s
 operationsgrind till faktiska svar — exakt den fråga granskningen satte som nästa milstolpe.
 
+## D10. Guldgranskning v3 och svarskontaminationen
+
+**Guldgranskningen (separat, frusen med version och proveniens):** sju korpusfall läste
+generatorns etikettlogik fel — förlängnings- och avtalstidsperioder märktes som NOTICE_PERIOD.
+Granskningen läser klausulen och behåller endast uppsägningsspannet i guldet; de övriga
+perioderna är fel-typ-distraktorer. Efter rättelsen läser JEV:s NO-svar på "tre (3) år" som
+**korrekta avvisanden** — facit var felet, inte verifieraren. Granskningen är oberoende av
+både regex-generatorns och JEV:s beslut (agentgranskning, protokollförd i
+`gold_review`/`provenance`).
+
+**Överlevarna efter rättelsen är oförändrat fem — och nu följda genom operationsgrafen med
+fyra separata händelser:**
+
+| Fall | (1) felaktigt RESOLVED | (2) passerar kontrakt | (3) slutsats påverkad | Klass |
+|---|---|---|---|---|
+| g5-01 PARTY | ja | ja | **ja** | generell: partsroll ≠ juridisk person → typat kontrakt |
+| g5-04 MONEY | ja | ja | **ja** | generell: belopp ska vara fullständigt värde → typat kontrakt |
+| g5-10 DATE | nej (evidenskontamination utan behovsupplösning) | ja | **ja** | semantiskt: operativt datum → JEV |
+| g5-45 MONEY | ja | ja | **ja** | semantiskt: operativt belopp → JEV |
+| g5-47 ERSÄTTNING | ja | ja | **ja** | semantiskt: generisk term vs konkret åtagande → JEV |
+
+**Svarskontamination: 5/5** — alla fem kan förvandla ett i övrigt korrekt underlag till en
+felaktig slutsats (kontrollfallet med enbart guldevidens ger rätt svar i samtliga).
+Klassdelningen svarar på granskningens fråga: **2/5 är generella regler som hör hemma i det
+typade evidenskontraktet** (en partsroll identifierar inte ensam en juridisk person; ett
+belopp måste vara ett fullständigt värde), **3/5 är juridisk betydelse som JEV eller en
+annan semantisk verifierare måste bära**. Inga specialregler för de fem exemplen — reglerna
+är klassformulerade.
+
+**Milstolpen nådd i sin första form:** vi mäter nu **answer contamination**, inte bara
+felklassificering — fyra händelser per fall, med kontrolljämförelse, helt offline från de
+frysta svaren. Nästa steg: införa de två kontraktsreglerna, köra om, och följa de tre
+semantiska fallen till slutsatser där JEV:s osäkerhet redovisas i stället för att döljas.
+
 ## E2. Rekommendationen, omformulerad per beslut
 
 **Utvärdera GLiNER2 som en behovsstyrd, valbar kandidatgenerator i SWE:s Investigation-lager** —

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "cases": [
     {
       "case_id": "g5-01",
@@ -50,13 +50,9 @@
           "span": "nio (9) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-03-s1"
-        },
-        {
-          "span": "tre (3) år",
-          "type": "NOTICE_PERIOD",
-          "span_id": "g5-03-s2"
         }
-      ]
+      ],
+      "review_note": "guldgranskning v3: förlängnings-/avtalstidsperioder borttagna ur guld — fel-typ-distraktorer, ej behovets fakta"
     },
     {
       "case_id": "g5-04",
@@ -145,13 +141,9 @@
           "span": "sex (6) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-08-s1"
-        },
-        {
-          "span": "ett (1) år",
-          "type": "NOTICE_PERIOD",
-          "span_id": "g5-08-s2"
         }
-      ]
+      ],
+      "review_note": "guldgranskning v3: förlängnings-/avtalstidsperioder borttagna ur guld — fel-typ-distraktorer, ej behovets fakta"
     },
     {
       "case_id": "g5-09",
@@ -228,16 +220,12 @@
       "need": "NOTICE_PERIOD",
       "gold": [
         {
-          "span": "ett (1) år",
-          "type": "NOTICE_PERIOD",
-          "span_id": "g5-12-s1"
-        },
-        {
           "span": "tre (3) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-12-s2"
         }
-      ]
+      ],
+      "review_note": "guldgranskning v3: förlängnings-/avtalstidsperioder borttagna ur guld — fel-typ-distraktorer, ej behovets fakta"
     },
     {
       "case_id": "g5-13",
@@ -290,16 +278,12 @@
       "need": "NOTICE_PERIOD",
       "gold": [
         {
-          "span": "tolv (12) månader",
-          "type": "NOTICE_PERIOD",
-          "span_id": "g5-15-s1"
-        },
-        {
           "span": "sex (6) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-15-s2"
         }
-      ]
+      ],
+      "review_note": "guldgranskning v3: förlängnings-/avtalstidsperioder borttagna ur guld — fel-typ-distraktorer, ej behovets fakta"
     },
     {
       "case_id": "g5-16",
@@ -385,16 +369,12 @@
       "need": "NOTICE_PERIOD",
       "gold": [
         {
-          "span": "ett (1) år",
-          "type": "NOTICE_PERIOD",
-          "span_id": "g5-20-s1"
-        },
-        {
           "span": "tre (3) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-20-s2"
         }
-      ]
+      ],
+      "review_note": "guldgranskning v3: förlängnings-/avtalstidsperioder borttagna ur guld — fel-typ-distraktorer, ej behovets fakta"
     },
     {
       "case_id": "g5-21",
@@ -423,16 +403,12 @@
       "need": "NOTICE_PERIOD",
       "gold": [
         {
-          "span": "ett (1) år",
-          "type": "NOTICE_PERIOD",
-          "span_id": "g5-22-s1"
-        },
-        {
           "span": "tre (3) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-22-s2"
         }
-      ]
+      ],
+      "review_note": "guldgranskning v3: förlängnings-/avtalstidsperioder borttagna ur guld — fel-typ-distraktorer, ej behovets fakta"
     },
     {
       "case_id": "g5-23",
@@ -461,21 +437,12 @@
       "need": "NOTICE_PERIOD",
       "gold": [
         {
-          "span": "tolv (12) månader",
-          "type": "NOTICE_PERIOD",
-          "span_id": "g5-24-s1"
-        },
-        {
-          "span": "tolv (12) månader",
-          "type": "NOTICE_PERIOD",
-          "span_id": "g5-24-s2"
-        },
-        {
           "span": "en (1) månad",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-24-s3"
         }
-      ]
+      ],
+      "review_note": "guldgranskning v3: förlängnings-/avtalstidsperioder borttagna ur guld — fel-typ-distraktorer, ej behovets fakta"
     },
     {
       "case_id": "g5-25",
@@ -856,5 +823,17 @@
         }
       ]
     }
-  ]
+  ],
+  "provenance": {
+    "gold_review": "agentgranskning 2026-10-29, oberoende av regex och JEV-beslut",
+    "changed_cases": [
+      "g5-03",
+      "g5-08",
+      "g5-12",
+      "g5-15",
+      "g5-20",
+      "g5-22",
+      "g5-24"
+    ]
+  }
 }
