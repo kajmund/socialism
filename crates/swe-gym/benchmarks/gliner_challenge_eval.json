@@ -1,0 +1,879 @@
+{
+  "unique_recall": {
+    "found_by_gliner_only": 6,
+    "total_gold": 76
+  },
+  "survival": {
+    "unique_verified": 6,
+    "unique_total": 6
+  },
+  "task_utility": {
+    "generator_only": 25,
+    "with_gliner2": 29,
+    "total_needs": 50
+  },
+  "gap_counts": {
+    "fullständigt fynd": 55,
+    "candidate-generation gap": 21
+  },
+  "cases": [
+    {
+      "case": "Avtal_17_Hyresavtal_lokal:1",
+      "spans": [
+        {
+          "span": "devbrains ab",
+          "type": "PARTY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "fastighets ab kvarnberget",
+          "type": "PARTY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_17_Hyresavtal_lokal:8",
+      "spans": [
+        {
+          "span": "[2020-02-01]",
+          "type": "DATE",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "[2023-01-31]",
+          "type": "DATE",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_17_Hyresavtal_lokal:9",
+      "spans": [
+        {
+          "span": "nio (9)] månader",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "tre (3)] år",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_17_Hyresavtal_lokal:11",
+      "spans": [
+        {
+          "span": "[belopp]",
+          "type": "MONEY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_18_Hyresavtal_bostad:1",
+      "spans": [
+        {
+          "span": "devbrains ab",
+          "type": "PARTY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "jonas ekholm",
+          "type": "PARTY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_18_Hyresavtal_bostad:5",
+      "spans": [
+        {
+          "span": "tre (3) månader",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": true,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "[2023-06-01]",
+          "type": "DATE",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_19_Andrahandsuthyrning_lokal:1",
+      "spans": [
+        {
+          "span": "devbrains ab",
+          "type": "PARTY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "ljusgård design ab",
+          "type": "PARTY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_20_Arrendeavtal_lagenhetsarrende:7",
+      "spans": [
+        {
+          "span": "sex (6)] månader",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": true,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "ett (1)] år",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": true,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_22_Kontorshotell_coworking:5",
+      "spans": [
+        {
+          "span": "[belopp]",
+          "type": "MONEY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_22_Kontorshotell_coworking:7",
+      "spans": [
+        {
+          "span": "en (1)] månad",
+          "type": "PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "[2023-07-31]",
+          "type": "DATE",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_22_Kontorshotell_coworking:25",
+      "spans": [
+        {
+          "span": "14] dagar",
+          "type": "PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "[14]",
+          "type": "MONEY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_25_Fastighetsservice_stadning:24",
+      "spans": [
+        {
+          "span": "ett (1)] år",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "tre (3)] månader",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_25_Fastighetsservice_stadning:25",
+      "spans": [
+        {
+          "span": "14] dagar",
+          "type": "PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "omedelbar verkan",
+          "type": "TERMINATION_CONDITION",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "[14]",
+          "type": "MONEY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_30_Ramavtal_tjanster:23",
+      "spans": [
+        {
+          "span": "90] dagar",
+          "type": "PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "[90]",
+          "type": "MONEY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_30_Ramavtal_tjanster:45",
+      "spans": [
+        {
+          "span": "tolv (12)] månader",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "sex (6)] månader",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_30_Ramavtal_tjanster:46",
+      "spans": [
+        {
+          "span": "inom 30 dagar",
+          "type": "PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "omedelbar verkan",
+          "type": "TERMINATION_CONDITION",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_30_Ramavtal_tjanster:52",
+      "spans": [
+        {
+          "span": "inom 30 dagar",
+          "type": "PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "[belopp]",
+          "type": "MONEY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_32_Inkopsavtal:13",
+      "spans": [
+        {
+          "span": "[belopp]",
+          "type": "MONEY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_32_Inkopsavtal:21",
+      "spans": [
+        {
+          "span": "24] månader",
+          "type": "PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "[24]",
+          "type": "MONEY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_32_Inkopsavtal:28",
+      "spans": [
+        {
+          "span": "ett (1) år",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "tre (3)] månader",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_32_Inkopsavtal:29",
+      "spans": [
+        {
+          "span": "inom 30 dagar",
+          "type": "PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "omedelbar verkan",
+          "type": "TERMINATION_CONDITION",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_34_Aterforsaljaravtal:30",
+      "spans": [
+        {
+          "span": "ett (1) år",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "tre (3)] månader",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_37_Allmanna_villkor_B2B:26",
+      "spans": [
+        {
+          "span": "[5]",
+          "type": "MONEY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "[50]",
+          "type": "MONEY",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_37_Allmanna_villkor_B2B:34",
+      "spans": [
+        {
+          "span": "tolv (12)] månader",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "tolv (12) månader",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": true,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "en (1)] månad",
+          "type": "NOTICE_PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "Avtal_37_Allmanna_villkor_B2B:35",
+      "spans": [
+        {
+          "span": "inom 30 dagar",
+          "type": "PERIOD",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "omedelbar verkan",
+          "type": "TERMINATION_CONDITION",
+          "generator": true,
+          "gliner2": false,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "hållas ekonomiskt skadeslös",
+          "type": "SEVERANCE",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "ett halvt års fast ersättning",
+          "type": "SEVERANCE_VALUE",
+          "generator": false,
+          "gliner2": true,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "upphör utan föregående underrättelse",
+          "type": "TERMINATION_CONDITION",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "får inte överstiga det årliga kontraktsvärdet",
+          "type": "LIABILITY_CAP",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "nittio dagar",
+          "type": "NOTICE_PERIOD",
+          "generator": false,
+          "gliner2": true,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "fortlöper samarbetet ytterligare ett år",
+          "type": "RENEWAL",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "två procent av kontraktsvärdet per påbörjad vecka",
+          "type": "PENALTY",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "ligger utanför partens kontroll",
+          "type": "EXCEPTION",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "uppdragstagaren",
+          "type": "PARTY",
+          "generator": false,
+          "gliner2": true,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "dess dotterbolag",
+          "type": "PARTY",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "niohundrafemtiotusen kronor",
+          "type": "MONEY",
+          "generator": false,
+          "gliner2": true,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "första dagen i andra kvartalet",
+          "type": "DATE",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "två månaders varsel",
+          "type": "NOTICE_PERIOD",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "kompensation motsvarande ett års ersättning",
+          "type": "SEVERANCE",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "vad som erlagts enligt avtalet under de senaste tolv månaderna",
+          "type": "LIABILITY_CAP",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "omedelbart ställa in sina åtaganden",
+          "type": "TERMINATION_CONDITION",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "en och en halv procent av fakturabeloppet",
+          "type": "PENALTY",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "omständigheter som inte rimligen kunnat förutses",
+          "type": "EXCEPTION",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "ett kvartal",
+          "type": "NOTICE_PERIOD",
+          "generator": false,
+          "gliner2": true,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "beställaren",
+          "type": "PARTY",
+          "generator": false,
+          "gliner2": true,
+          "jev_verdict": "YES",
+          "diagnosis": "fullständigt fynd"
+        },
+        {
+          "span": "dess koncernbolag",
+          "type": "PARTY",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "sjuttiofem tusen kronor per månad",
+          "type": "MONEY",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "förnyat för en tid av ett år",
+          "type": "RENEWAL",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "sex fasta månadsarvoden",
+          "type": "SEVERANCE_VALUE",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "indirekta förluster, utebliven vinst eller följdskador",
+          "type": "LIABILITY_CAP",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "avslutas med omedelbar effekt",
+          "type": "TERMINATION_CONDITION",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    },
+    {
+      "case": "manuell (illustrativ formulering)",
+      "spans": [
+        {
+          "span": "månadsskiftet efter undertecknandet",
+          "type": "DATE",
+          "generator": false,
+          "gliner2": false,
+          "jev_verdict": null,
+          "diagnosis": "candidate-generation gap"
+        }
+      ]
+    }
+  ]
+}
