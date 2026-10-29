@@ -21,7 +21,11 @@ fn load_golden() -> Vec<(String, String, Vec<String>)> {
         .iter()
         .map(|q| {
             let id = q.get("id").and_then(Json::as_str).unwrap().to_string();
-            let text = q.get("question").and_then(Json::as_str).unwrap().to_string();
+            let text = q
+                .get("question")
+                .and_then(Json::as_str)
+                .unwrap()
+                .to_string();
             let docs = q
                 .get("documents")
                 .and_then(Json::as_array)
@@ -64,8 +68,7 @@ fn main() {
     let llm_base = resolve_secret("CEREBRAS_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.cerebras.ai/v1".to_string());
 
-    let bench =
-        load_bench_file("benchmarks/bench_real_v2.json").expect("real bench must load");
+    let bench = load_bench_file("benchmarks/bench_real_v2.json").expect("real bench must load");
     let mut texts = std::collections::HashMap::new();
     for q in &bench.questions {
         for (chunk, text) in &q.texts {

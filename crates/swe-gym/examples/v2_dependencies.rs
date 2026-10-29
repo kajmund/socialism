@@ -8,7 +8,9 @@
 //! Run with: cargo run --example v2_dependencies
 
 use swe_gym::bench::load_bench_file;
-use swe_gym::provider::{resolve_secret, HttpJevProvider, HttpLlmProvider, RecordProvider, ResearchProvider};
+use swe_gym::provider::{
+    resolve_secret, HttpJevProvider, HttpLlmProvider, RecordProvider, ResearchProvider,
+};
 use swe_native::{parse_json_str, Json};
 
 fn cases() -> Vec<(String, String, Vec<String>)> {
@@ -21,7 +23,10 @@ fn cases() -> Vec<(String, String, Vec<String>)> {
         .map(|q| {
             (
                 q.get("id").and_then(Json::as_str).unwrap().to_string(),
-                q.get("question").and_then(Json::as_str).unwrap().to_string(),
+                q.get("question")
+                    .and_then(Json::as_str)
+                    .unwrap()
+                    .to_string(),
                 q.get("evidence")
                     .and_then(Json::as_array)
                     .unwrap()
@@ -72,14 +77,14 @@ fn evidence_text(chunks: &[String], texts: &std::collections::HashMap<String, St
 }
 
 fn main() {
-    let jev_key = resolve_secret("TYPESAFE_API_KEY", "../../backend/.env")
-        .expect("TYPESAFE_API_KEY saknas");
+    let jev_key =
+        resolve_secret("TYPESAFE_API_KEY", "../../backend/.env").expect("TYPESAFE_API_KEY saknas");
     let jev_base = resolve_secret("TYPESAFE_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.typesafe.ai".to_string());
     let jev_model = resolve_secret("JEV_MODEL", "../../backend/.env")
         .unwrap_or_else(|| "jev-latest".to_string());
-    let llm_key = resolve_secret("CEREBRAS_API_KEY", "../../backend/.env")
-        .expect("CEREBRAS_API_KEY saknas");
+    let llm_key =
+        resolve_secret("CEREBRAS_API_KEY", "../../backend/.env").expect("CEREBRAS_API_KEY saknas");
     let llm_base = resolve_secret("CEREBRAS_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.cerebras.ai/v1".to_string());
 
@@ -135,25 +140,43 @@ fn main() {
         .unwrap();
 
         let initial_hits: Vec<String> = {
-            let source = std::fs::read_to_string(format!(
-                "benchmarks/dependency_capture/{qid}-jev.json"
-            ))
-            .unwrap();
+            let source =
+                std::fs::read_to_string(format!("benchmarks/dependency_capture/{qid}-jev.json"))
+                    .unwrap();
             let json = parse_json_str(&source).unwrap();
             json.get("entries")
                 .and_then(Json::as_array)
                 .unwrap()
                 .iter()
                 .filter(|e| e.get("choice").and_then(Json::as_str) == Some("fynd"))
-                .map(|e| e.get("chunk_id").and_then(Json::as_str).unwrap().to_string())
+                .map(|e| {
+                    e.get("chunk_id")
+                        .and_then(Json::as_str)
+                        .unwrap()
+                        .to_string()
+                })
                 .collect()
         };
         let static_answer = synth
-            .analyze("deep", "static", &format!("Fråga: {question}\n\nEvidens:\n{}", evidence_text(&initial_hits, &texts)))
+            .analyze(
+                "deep",
+                "static",
+                &format!(
+                    "Fråga: {question}\n\nEvidens:\n{}",
+                    evidence_text(&initial_hits, &texts)
+                ),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
         let gap = cat_gap
-            .analyze("deep", "cat-gap", &format!("Fråga: {question}\n\nRedan funnen evidens:\n{}", evidence_text(&initial_hits, &texts)))
+            .analyze(
+                "deep",
+                "cat-gap",
+                &format!(
+                    "Fråga: {question}\n\nRedan funnen evidens:\n{}",
+                    evidence_text(&initial_hits, &texts)
+                ),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
 
@@ -183,23 +206,34 @@ fn main() {
         )
         .unwrap();
         let new_hits: Vec<String> = {
-            let source = std::fs::read_to_string(format!(
-                "benchmarks/dependency_capture/{qid}-newjev.json"
-            ))
-            .unwrap();
+            let source =
+                std::fs::read_to_string(format!("benchmarks/dependency_capture/{qid}-newjev.json"))
+                    .unwrap();
             let json = parse_json_str(&source).unwrap();
             json.get("entries")
                 .and_then(Json::as_array)
                 .unwrap()
                 .iter()
                 .filter(|e| e.get("choice").and_then(Json::as_str) == Some("fynd"))
-                .map(|e| e.get("chunk_id").and_then(Json::as_str).unwrap().to_string())
+                .map(|e| {
+                    e.get("chunk_id")
+                        .and_then(Json::as_str)
+                        .unwrap()
+                        .to_string()
+                })
                 .collect()
         };
         let mut all_hits = initial_hits.clone();
         all_hits.extend(new_hits.iter().cloned());
         let iterative_answer = synth
-            .analyze("deep", "iterative", &format!("Fråga: {question}\n\nEvidens:\n{}", evidence_text(&all_hits, &texts)))
+            .analyze(
+                "deep",
+                "iterative",
+                &format!(
+                    "Fråga: {question}\n\nEvidens:\n{}",
+                    evidence_text(&all_hits, &texts)
+                ),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
 
@@ -207,7 +241,12 @@ fn main() {
             "=== {qid}\nQUESTION: {question}\nSTATIC: {static_answer}\nGAP: {gap}\nNEW_HITS: {}\nITERATIVE: {iterative_answer}\n",
             new_hits.join(";")
         ));
-        println!("{qid}: {} kandidater, {} initiala fynd, {} nya fynd", candidates.len(), initial_hits.len(), new_hits.len());
+        println!(
+            "{qid}: {} kandidater, {} initiala fynd, {} nya fynd",
+            candidates.len(),
+            initial_hits.len(),
+            new_hits.len()
+        );
     }
     std::fs::write("benchmarks/dependency_capture/answers.txt", out.join("\n")).unwrap();
     println!("klart");

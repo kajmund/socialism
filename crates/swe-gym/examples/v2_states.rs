@@ -8,7 +8,9 @@
 //!
 //! Run with: cargo run --example v2_states
 
-use swe_gym::provider::{resolve_secret, HttpJevProvider, HttpLlmProvider, RecordProvider, ResearchProvider};
+use swe_gym::provider::{
+    resolve_secret, HttpJevProvider, HttpLlmProvider, RecordProvider, ResearchProvider,
+};
 use swe_native::{parse_json_str, Json};
 
 const K: usize = 8;
@@ -27,7 +29,10 @@ fn cases() -> Vec<(String, String)> {
         .map(|q| {
             (
                 q.get("id").and_then(Json::as_str).unwrap().to_string(),
-                q.get("question").and_then(Json::as_str).unwrap().to_string(),
+                q.get("question")
+                    .and_then(Json::as_str)
+                    .unwrap()
+                    .to_string(),
             )
         })
         .collect()
@@ -83,19 +88,24 @@ fn initial_hits(qid: &str) -> Vec<String> {
         .unwrap()
         .iter()
         .filter(|e| e.get("choice").and_then(Json::as_str) == Some("fynd"))
-        .map(|e| e.get("chunk_id").and_then(Json::as_str).unwrap().to_string())
+        .map(|e| {
+            e.get("chunk_id")
+                .and_then(Json::as_str)
+                .unwrap()
+                .to_string()
+        })
         .collect()
 }
 
 fn main() {
-    let jev_key = resolve_secret("TYPESAFE_API_KEY", "../../backend/.env")
-        .expect("TYPESAFE_API_KEY saknas");
+    let jev_key =
+        resolve_secret("TYPESAFE_API_KEY", "../../backend/.env").expect("TYPESAFE_API_KEY saknas");
     let jev_base = resolve_secret("TYPESAFE_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.typesafe.ai".to_string());
     let jev_model = resolve_secret("JEV_MODEL", "../../backend/.env")
         .unwrap_or_else(|| "jev-latest".to_string());
-    let llm_key = resolve_secret("CEREBRAS_API_KEY", "../../backend/.env")
-        .expect("CEREBRAS_API_KEY saknas");
+    let llm_key =
+        resolve_secret("CEREBRAS_API_KEY", "../../backend/.env").expect("CEREBRAS_API_KEY saknas");
     let llm_base = resolve_secret("CEREBRAS_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.cerebras.ai/v1".to_string());
 
@@ -138,7 +148,14 @@ fn main() {
                 break;
             }
             let gap_answer = gap
-                .analyze("deep", "gap", &format!("Fråga: {question}\n\nRedan funnen evidens:\n{}", evidence_text(&hits, &texts)))
+                .analyze(
+                    "deep",
+                    "gap",
+                    &format!(
+                        "Fråga: {question}\n\nRedan funnen evidens:\n{}",
+                        evidence_text(&hits, &texts)
+                    ),
+                )
                 .map(|a| a.choice)
                 .unwrap_or_else(|e| format!("FEL: {e}"));
             gap_calls += 1;
@@ -155,9 +172,21 @@ fn main() {
             if let Ok(json) = parse_json_str(&gap_clean) {
                 if let Some(list) = json.as_array() {
                     for item in list {
-                        let n = item.get("need").and_then(Json::as_str).unwrap_or("").to_string();
-                        let d = item.get("document").and_then(Json::as_str).unwrap_or("").to_string();
-                        let i = item.get("importance").and_then(Json::as_str).unwrap_or("EXPLORATORY").to_string();
+                        let n = item
+                            .get("need")
+                            .and_then(Json::as_str)
+                            .unwrap_or("")
+                            .to_string();
+                        let d = item
+                            .get("document")
+                            .and_then(Json::as_str)
+                            .unwrap_or("")
+                            .to_string();
+                        let i = item
+                            .get("importance")
+                            .and_then(Json::as_str)
+                            .unwrap_or("EXPLORATORY")
+                            .to_string();
                         if !n.is_empty() {
                             needs.push((n, d, i));
                         }
@@ -172,17 +201,13 @@ fn main() {
                     if i != "REQUIRED" {
                         return Vec::new();
                     }
-                    let concept = n
-                        .split(" för ")
-                        .next()
-                        .unwrap_or(n)
-                        .trim()
-                        .to_lowercase();
+                    let concept = n.split(" för ").next().unwrap_or(n).trim().to_lowercase();
                     hits.iter()
                         .filter(|c| {
                             (d.is_empty() || d == "null" || c.split(':').next() == Some(d.as_str()))
                                 && {
-                                    let text = texts.get(*c).cloned().unwrap_or_default().to_lowercase();
+                                    let text =
+                                        texts.get(*c).cloned().unwrap_or_default().to_lowercase();
                                     text.contains(&concept)
                                         || (concept.contains("upps") && text.contains("upps"))
                                 }
@@ -208,7 +233,11 @@ fn main() {
                     let concept = n.split(" för ").next().unwrap_or(n).trim().to_lowercase();
                     let mut targets: Vec<String> = if !d.is_empty() && d != "null" {
                         pool.iter()
-                            .filter(|c| c.split(':').next() == Some(d.as_str()) && !top_k.contains(*c) && !verified.contains(*c))
+                            .filter(|c| {
+                                c.split(':').next() == Some(d.as_str())
+                                    && !top_k.contains(*c)
+                                    && !verified.contains(*c)
+                            })
                             .cloned()
                             .collect()
                     } else {
@@ -216,7 +245,11 @@ fn main() {
                             .filter(|c| {
                                 !top_k.contains(*c)
                                     && !verified.contains(*c)
-                                    && texts.get(*c).unwrap().to_lowercase().contains(&n.to_lowercase())
+                                    && texts
+                                        .get(*c)
+                                        .unwrap()
+                                        .to_lowercase()
+                                        .contains(&n.to_lowercase())
                             })
                             .cloned()
                             .collect()
@@ -235,8 +268,11 @@ fn main() {
                             // whose text contains the asked-for fact.
                             let text_l = text.to_lowercase();
                             if a.choice == "fynd"
-                                && (d.is_empty() || d == "null" || chunk.split(':').next() == Some(d.as_str()))
-                                && (text_l.contains(&concept) || (concept.contains("upps") && text_l.contains("upps")))
+                                && (d.is_empty()
+                                    || d == "null"
+                                    || chunk.split(':').next() == Some(d.as_str()))
+                                && (text_l.contains(&concept)
+                                    || (concept.contains("upps") && text_l.contains("upps")))
                             {
                                 batch_hits.push(chunk.clone());
                                 hits.push(chunk.clone());
@@ -248,7 +284,11 @@ fn main() {
                         // widen once more for this need
                         let mut more: Vec<String> = if !d.is_empty() && d != "null" {
                             pool.iter()
-                                .filter(|c| c.split(':').next() == Some(d.as_str()) && !top_k.contains(*c) && !verified.contains(*c))
+                                .filter(|c| {
+                                    c.split(':').next() == Some(d.as_str())
+                                        && !top_k.contains(*c)
+                                        && !verified.contains(*c)
+                                })
                                 .cloned()
                                 .collect()
                         } else {
@@ -265,8 +305,11 @@ fn main() {
                                 verified.push(chunk.clone());
                                 let text_l = text.to_lowercase();
                                 if a.choice == "fynd"
-                                    && (d.is_empty() || d == "null" || chunk.split(':').next() == Some(d.as_str()))
-                                    && (text_l.contains(&concept) || (concept.contains("upps") && text_l.contains("upps")))
+                                    && (d.is_empty()
+                                        || d == "null"
+                                        || chunk.split(':').next() == Some(d.as_str()))
+                                    && (text_l.contains(&concept)
+                                        || (concept.contains("upps") && text_l.contains("upps")))
                                 {
                                     found.push(chunk.clone());
                                     hits.push(chunk.clone());
@@ -290,7 +333,14 @@ fn main() {
 
         let required_total = needs.iter().filter(|(_, _, i)| i == "REQUIRED").count();
         let required_resolved = (0..needs.len())
-            .filter(|ix| needs[*ix].2 == "REQUIRED" && !need_evidence.get(*ix).cloned().unwrap_or_default().is_empty())
+            .filter(|ix| {
+                needs[*ix].2 == "REQUIRED"
+                    && !need_evidence
+                        .get(*ix)
+                        .cloned()
+                        .unwrap_or_default()
+                        .is_empty()
+            })
             .count();
         if required_total > 0 && required_resolved == required_total {
             state = "READY_TO_SYNTHESIZE";
@@ -298,7 +348,11 @@ fn main() {
             state = "INSUFFICIENT_EVIDENCE";
         } else {
             // no REQUIRED needs at all: synthesize only if we have hits
-            state = if hits.is_empty() { "INSUFFICIENT_EVIDENCE" } else { "READY_TO_SYNTHESIZE" };
+            state = if hits.is_empty() {
+                "INSUFFICIENT_EVIDENCE"
+            } else {
+                "READY_TO_SYNTHESIZE"
+            };
         }
 
         let mut gate_answer = String::from("-");
@@ -306,15 +360,27 @@ fn main() {
         if state == "READY_TO_SYNTHESIZE" {
             let ev = evidence_text(&hits, &texts);
             gate_answer = synth
-                .analyze("deep", "gate-synthesis", &format!("Fråga: {question}\n\nEvidens:\n{ev}"))
+                .analyze(
+                    "deep",
+                    "gate-synthesis",
+                    &format!("Fråga: {question}\n\nEvidens:\n{ev}"),
+                )
                 .map(|a| a.choice)
                 .unwrap_or_else(|e| format!("FEL: {e}"));
             let m = matrix
-                .analyze("deep", "matrix", &format!("Fråga: {question}\n\nEvidens:\n{ev}"))
+                .analyze(
+                    "deep",
+                    "matrix",
+                    &format!("Fråga: {question}\n\nEvidens:\n{ev}"),
+                )
                 .map(|a| a.choice)
                 .unwrap_or_else(|e| format!("FEL: {e}"));
             matrix_conclusion = synth
-                .analyze("deep", "matrix-conclusion", &format!("Fråga: {question}\n\nStrukturerad evidensmatris:\n{m}"))
+                .analyze(
+                    "deep",
+                    "matrix-conclusion",
+                    &format!("Fråga: {question}\n\nStrukturerad evidensmatris:\n{m}"),
+                )
                 .map(|a| a.choice)
                 .unwrap_or_else(|e| format!("FEL: {e}"));
         }
@@ -330,7 +396,11 @@ fn main() {
             .enumerate()
             .map(|(ix, (n, d, i))| {
                 let ev = need_evidence.get(ix).cloned().unwrap_or_default();
-                let status = if i == "REQUIRED" && ev.is_empty() { "UNRESOLVED" } else { "RESOLVED" };
+                let status = if i == "REQUIRED" && ev.is_empty() {
+                    "UNRESOLVED"
+                } else {
+                    "RESOLVED"
+                };
                 format!("{n}|{d}|{i}|{status}|{}", ev.join(";"))
             })
             .collect();
@@ -339,7 +409,14 @@ fn main() {
             need_lines.join(" || "),
             hits.join(";")
         ));
-        println!("{qid}: {state}, behov {} ({} REQUIRED, {} lösta), {} JEV-anrop, {} gap-anrop", needs.len(), required_total, required_resolved, jv_spent, gap_calls);
+        println!(
+            "{qid}: {state}, behov {} ({} REQUIRED, {} lösta), {} JEV-anrop, {} gap-anrop",
+            needs.len(),
+            required_total,
+            required_resolved,
+            jv_spent,
+            gap_calls
+        );
     }
     std::fs::write("benchmarks/states_capture/answers.txt", out.join("\n")).unwrap();
     println!("klart");

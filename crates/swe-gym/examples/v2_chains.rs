@@ -18,8 +18,14 @@ fn golden_question(qid: &str) -> (String, String) {
     for q in json.get("questions").and_then(Json::as_array).unwrap() {
         if q.get("id").and_then(Json::as_str) == Some(qid) {
             return (
-                q.get("question").and_then(Json::as_str).unwrap().to_string(),
-                q.get("conclusion").and_then(Json::as_str).unwrap().to_string(),
+                q.get("question")
+                    .and_then(Json::as_str)
+                    .unwrap()
+                    .to_string(),
+                q.get("conclusion")
+                    .and_then(Json::as_str)
+                    .unwrap()
+                    .to_string(),
             );
         }
     }
@@ -27,8 +33,7 @@ fn golden_question(qid: &str) -> (String, String) {
 }
 
 fn bench_texts() -> std::collections::HashMap<String, String> {
-    let bench =
-        load_bench_file("benchmarks/bench_real_v2.json").expect("real bench must load");
+    let bench = load_bench_file("benchmarks/bench_real_v2.json").expect("real bench must load");
     let mut texts = std::collections::HashMap::new();
     for q in &bench.questions {
         for (chunk, text) in &q.texts {
@@ -39,15 +44,20 @@ fn bench_texts() -> std::collections::HashMap<String, String> {
 }
 
 fn jev_hits(qid: &str) -> Vec<String> {
-    let source = std::fs::read_to_string(format!("benchmarks/golden_v2_fixtures/{qid}-jev.json"))
-        .unwrap();
+    let source =
+        std::fs::read_to_string(format!("benchmarks/golden_v2_fixtures/{qid}-jev.json")).unwrap();
     let json = parse_json_str(&source).unwrap();
     json.get("entries")
         .and_then(Json::as_array)
         .unwrap()
         .iter()
         .filter(|e| e.get("choice").and_then(Json::as_str) == Some("fynd"))
-        .map(|e| e.get("chunk_id").and_then(Json::as_str).unwrap().to_string())
+        .map(|e| {
+            e.get("chunk_id")
+                .and_then(Json::as_str)
+                .unwrap()
+                .to_string()
+        })
         .collect()
 }
 
@@ -74,7 +84,11 @@ fn main() {
             "Du besvarar en juridisk fråga utifrån given evidens från avtalsdokument. Svara kort och exakt, utan motivering.",
         );
         let c_answer = synth
-            .analyze("deep", "chain-c", &format!("Fråga: {question}\n\nEvidens:\n{evidence_text}"))
+            .analyze(
+                "deep",
+                "chain-c",
+                &format!("Fråga: {question}\n\nEvidens:\n{evidence_text}"),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
 
@@ -107,7 +121,11 @@ fn main() {
             .collect::<Vec<_>>()
             .join("\n\n");
         let d_answer = synth
-            .analyze("deep", "chain-d-synth", &format!("Fråga: {question}\n\nEvidens:\n{d_evidence}"))
+            .analyze(
+                "deep",
+                "chain-d-synth",
+                &format!("Fråga: {question}\n\nEvidens:\n{d_evidence}"),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
 

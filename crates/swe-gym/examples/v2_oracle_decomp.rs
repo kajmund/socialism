@@ -21,7 +21,10 @@ fn golden() -> Vec<(String, String, Vec<String>)> {
         .map(|q| {
             (
                 q.get("id").and_then(Json::as_str).unwrap().to_string(),
-                q.get("question").and_then(Json::as_str).unwrap().to_string(),
+                q.get("question")
+                    .and_then(Json::as_str)
+                    .unwrap()
+                    .to_string(),
                 q.get("evidence")
                     .and_then(Json::as_array)
                     .unwrap()
@@ -53,14 +56,16 @@ fn jev_hits(qid: &str) -> Vec<String> {
         .unwrap()
         .iter()
         .filter(|e| e.get("choice").and_then(Json::as_str) == Some("fynd"))
-        .map(|e| e.get("chunk_id").and_then(Json::as_str).unwrap().to_string())
+        .map(|e| {
+            e.get("chunk_id")
+                .and_then(Json::as_str)
+                .unwrap()
+                .to_string()
+        })
         .collect()
 }
 
-fn evidence_text(
-    chunks: &[String],
-    texts: &std::collections::HashMap<String, String>,
-) -> String {
+fn evidence_text(chunks: &[String], texts: &std::collections::HashMap<String, String>) -> String {
     chunks
         .iter()
         .map(|c| format!("[{c}]\n{}", texts.get(c).cloned().unwrap_or_default()))
@@ -69,8 +74,8 @@ fn evidence_text(
 }
 
 fn main() {
-    let llm_key = resolve_secret("CEREBRAS_API_KEY", "../../backend/.env")
-        .expect("CEREBRAS_API_KEY saknas");
+    let llm_key =
+        resolve_secret("CEREBRAS_API_KEY", "../../backend/.env").expect("CEREBRAS_API_KEY saknas");
     let llm_base = resolve_secret("CEREBRAS_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.cerebras.ai/v1".to_string());
     let texts = bench_texts();
@@ -93,7 +98,11 @@ fn main() {
 
         // Categorized gap analysis for all five chain questions.
         let gap = cat_gap
-            .analyze("deep", "cat-gap", &format!("Fråga: {question}\n\nRedan funnen evidens:\n{initial_text}"))
+            .analyze(
+                "deep",
+                "cat-gap",
+                &format!("Fråga: {question}\n\nRedan funnen evidens:\n{initial_text}"),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
 
@@ -106,11 +115,19 @@ fn main() {
         // Oracle decomposition: matrix over ALL facit evidence.
         let full_text = evidence_text(&evidence, &texts);
         let m = matrix
-            .analyze("deep", "matrix", &format!("Fråga: {question}\n\nEvidens:\n{full_text}"))
+            .analyze(
+                "deep",
+                "matrix",
+                &format!("Fråga: {question}\n\nEvidens:\n{full_text}"),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
         let m_concl = synth
-            .analyze("deep", "matrix-conclusion", &format!("Fråga: {question}\n\nStrukturerad evidensmatris:\n{m}"))
+            .analyze(
+                "deep",
+                "matrix-conclusion",
+                &format!("Fråga: {question}\n\nStrukturerad evidensmatris:\n{m}"),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
         out.push(format!("MATRIX: {m}\nMATRIX_CONCLUSION: {m_concl}\n"));

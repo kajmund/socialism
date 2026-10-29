@@ -8,7 +8,9 @@
 //! Run with: cargo run --example v2_milestone
 
 use swe_gym::bench::load_bench_file;
-use swe_gym::provider::{resolve_secret, HttpJevProvider, HttpLlmProvider, RecordProvider, ResearchProvider};
+use swe_gym::provider::{
+    resolve_secret, HttpJevProvider, HttpLlmProvider, RecordProvider, ResearchProvider,
+};
 use swe_native::{parse_json_str, Json};
 
 const K: usize = 8;
@@ -25,7 +27,10 @@ fn cases() -> Vec<(String, String)> {
         .map(|q| {
             (
                 q.get("id").and_then(Json::as_str).unwrap().to_string(),
-                q.get("question").and_then(Json::as_str).unwrap().to_string(),
+                q.get("question")
+                    .and_then(Json::as_str)
+                    .unwrap()
+                    .to_string(),
             )
         })
         .collect()
@@ -80,19 +85,24 @@ fn hits_of(qid: &str, which: &str) -> Vec<String> {
         .unwrap()
         .iter()
         .filter(|e| e.get("choice").and_then(Json::as_str) == Some("fynd"))
-        .map(|e| e.get("chunk_id").and_then(Json::as_str).unwrap().to_string())
+        .map(|e| {
+            e.get("chunk_id")
+                .and_then(Json::as_str)
+                .unwrap()
+                .to_string()
+        })
         .collect()
 }
 
 fn main() {
-    let jev_key = resolve_secret("TYPESAFE_API_KEY", "../../backend/.env")
-        .expect("TYPESAFE_API_KEY saknas");
+    let jev_key =
+        resolve_secret("TYPESAFE_API_KEY", "../../backend/.env").expect("TYPESAFE_API_KEY saknas");
     let jev_base = resolve_secret("TYPESAFE_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.typesafe.ai".to_string());
     let jev_model = resolve_secret("JEV_MODEL", "../../backend/.env")
         .unwrap_or_else(|| "jev-latest".to_string());
-    let llm_key = resolve_secret("CEREBRAS_API_KEY", "../../backend/.env")
-        .expect("CEREBRAS_API_KEY saknas");
+    let llm_key =
+        resolve_secret("CEREBRAS_API_KEY", "../../backend/.env").expect("CEREBRAS_API_KEY saknas");
     let llm_base = resolve_secret("CEREBRAS_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.cerebras.ai/v1".to_string());
 
@@ -130,9 +140,11 @@ fn main() {
             let _ = jev_rec.analyze("scan", chunk, &text);
             let _ = llm_rec.analyze("deep", chunk, &text);
         }
-        std::fs::write(&initial_path, jev_rec.to_fixture_with("swe-gym-milestone", &question))
-            .unwrap();
-
+        std::fs::write(
+            &initial_path,
+            jev_rec.to_fixture_with("swe-gym-milestone", &question),
+        )
+        .unwrap();
 
         let initial_hits: Vec<String> = {
             let source =
@@ -144,7 +156,12 @@ fn main() {
                 .unwrap()
                 .iter()
                 .filter(|e| e.get("choice").and_then(Json::as_str) == Some("fynd"))
-                .map(|e| e.get("chunk_id").and_then(Json::as_str).unwrap().to_string())
+                .map(|e| {
+                    e.get("chunk_id")
+                        .and_then(Json::as_str)
+                        .unwrap()
+                        .to_string()
+                })
                 .collect()
         };
         let hits_in = |pool_subset: &[String]| -> Vec<String> {
@@ -157,18 +174,39 @@ fn main() {
 
         // Static: top-K hits.
         let static_answer = synth
-            .analyze("deep", "static", &format!("Fråga: {question}\n\nEvidens:\n{}", evidence_text(&hits_in(&top_k), &texts)))
+            .analyze(
+                "deep",
+                "static",
+                &format!(
+                    "Fråga: {question}\n\nEvidens:\n{}",
+                    evidence_text(&hits_in(&top_k), &texts)
+                ),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
         // K-expansion: top-(K+delta) hits.
         let kexp_answer = synth
-            .analyze("deep", "kexp", &format!("Fråga: {question}\n\nEvidens:\n{}", evidence_text(&hits_in(&top_kd), &texts)))
+            .analyze(
+                "deep",
+                "kexp",
+                &format!(
+                    "Fråga: {question}\n\nEvidens:\n{}",
+                    evidence_text(&hits_in(&top_kd), &texts)
+                ),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
 
         // Iterative: structured gap -> need-targeted retrieval.
         let gap_answer = gap
-            .analyze("deep", "gap", &format!("Fråga: {question}\n\nRedan funnen evidens:\n{}", evidence_text(&hits_in(&top_k), &texts)))
+            .analyze(
+                "deep",
+                "gap",
+                &format!(
+                    "Fråga: {question}\n\nRedan funnen evidens:\n{}",
+                    evidence_text(&hits_in(&top_k), &texts)
+                ),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
 
@@ -190,7 +228,11 @@ fn main() {
         if let Ok(json) = needs_json {
             if let Some(list) = json.as_array() {
                 for item in list {
-                    let need = item.get("need").and_then(Json::as_str).unwrap_or("").to_string();
+                    let need = item
+                        .get("need")
+                        .and_then(Json::as_str)
+                        .unwrap_or("")
+                        .to_string();
                     let doc = item
                         .get("document")
                         .and_then(Json::as_str)
@@ -247,8 +289,15 @@ fn main() {
                     }
                 }
             }
-            let status = if resolved.is_empty() { "UNRESOLVED" } else { "RESOLVED" };
-            need_lines.push(format!("{need}|{doc}|{imp}|{status}|{}", resolved.join(";")));
+            let status = if resolved.is_empty() {
+                "UNRESOLVED"
+            } else {
+                "RESOLVED"
+            };
+            need_lines.push(format!(
+                "{need}|{doc}|{imp}|{status}|{}",
+                resolved.join(";")
+            ));
         }
         std::fs::write(
             format!("benchmarks/milestone_capture/{qid}-needjev.json"),
@@ -257,7 +306,14 @@ fn main() {
         .unwrap();
 
         let iterative_answer = synth
-            .analyze("deep", "iterative", &format!("Fråga: {question}\n\nEvidens:\n{}", evidence_text(&all_hits, &texts)))
+            .analyze(
+                "deep",
+                "iterative",
+                &format!(
+                    "Fråga: {question}\n\nEvidens:\n{}",
+                    evidence_text(&all_hits, &texts)
+                ),
+            )
             .map(|a| a.choice)
             .unwrap_or_else(|e| format!("FEL: {e}"));
 
@@ -265,7 +321,12 @@ fn main() {
             "=== {qid}\nQUESTION: {question}\nSTATIC: {static_answer}\nKEXP: {kexp_answer}\nGAP: {gap_content}\nNEEDS: {}\nITERATIVE: {iterative_answer}\n",
             need_lines.join(" || ")
         ));
-        println!("{qid}: top-{K} fynd {}, behov {}, iterativa fynd {}", hits_in(&top_k).len(), needs.len(), all_hits.len());
+        println!(
+            "{qid}: top-{K} fynd {}, behov {}, iterativa fynd {}",
+            hits_in(&top_k).len(),
+            needs.len(),
+            all_hits.len()
+        );
     }
     std::fs::write("benchmarks/milestone_capture/answers.txt", out.join("\n")).unwrap();
     println!("klart");
