@@ -1,0 +1,29 @@
+=== g4-01
+QUESTION: Hur lång är uppsägningstiden enligt Avtal_81_VD_anstallningsavtal?
+VERDICTS: Avtal_81_VD_anstallningsavtal:18=fynd;Avtal_81_VD_anstallningsavtal:25=inget;Avtal_81_VD_anstallningsavtal:1=inget;Avtal_81_VD_anstallningsavtal:28=inget;Avtal_81_VD_anstallningsavtal:9=inget;Avtal_81_VD_anstallningsavtal:3=inget;Avtal_81_VD_anstallningsavtal:19=inget;Avtal_81_VD_anstallningsavtal:20=inget
+RISK: -
+
+=== g4-02
+QUESTION: Hur länge gäller hyresförhållandet enligt Avtal_18_Hyresavtal_bostad?
+VERDICTS: Avtal_18_Hyresavtal_bostad:5=fynd;Avtal_18_Hyresavtal_bostad:6=fynd;Avtal_18_Hyresavtal_bostad:22=inget;Avtal_18_Hyresavtal_bostad:18=inget;Avtal_18_Hyresavtal_bostad:12=inget;Avtal_18_Hyresavtal_bostad:13=inget;Avtal_18_Hyresavtal_bostad:15=inget;Avtal_18_Hyresavtal_bostad:11=inget
+RISK: -
+
+=== g4-03
+QUESTION: Vilka priser gäller enligt Avtal_32_Inkopsavtal?
+VERDICTS: Avtal_32_Inkopsavtal:7=fynd;Avtal_32_Inkopsavtal:22=inget;Avtal_32_Inkopsavtal:4=inget;Avtal_32_Inkopsavtal:32=inget;Avtal_32_Inkopsavtal:19=inget;Avtal_32_Inkopsavtal:15=inget;Avtal_32_Inkopsavtal:1=inget;Avtal_32_Inkopsavtal:26=inget
+RISK: -
+
+=== g4-04
+QUESTION: Innehåller Avtal_15_Bonusavtal en klausul om force majeure?
+VERDICTS: 
+RISK: -
+
+=== g4-05
+QUESTION: Vilken part bär den ekonomiska risken vid förtida uppsägning enligt Avtal_81_VD_anstallningsavtal?
+VERDICTS: Avtal_81_VD_anstallningsavtal:18=inget;Avtal_81_VD_anstallningsavtal:19=fynd;Avtal_81_VD_anstallningsavtal:20=inget;Avtal_81_VD_anstallningsavtal:1=inget;Avtal_81_VD_anstallningsavtal:28=inget;Avtal_81_VD_anstallningsavtal:25=fynd;Avtal_81_VD_anstallningsavtal:9=inget;Avtal_81_VD_anstallningsavtal:3=inget
+RISK: FEL: invalid LLM answer "**EKONOMISK" (content: "**Ekonomisk risk vid förtida uppsägning**\n\n- **Om Bolaget säger upp avtalet utan saklig grund** – Bolaget bär den ekonomiska risken. Enligt\u{202f}[Avtal_81_VD_anstallningsavtal:19] ska VD få ett avgångsvederlag motsvarande sex (6) fasta månadslöner. Detta innebär en kostnad för Bolaget vid en förtida, icke‑orsakad uppsägning.  \n\n- **Om VD själv säger upp sig** – VD bär den ekonomiska risken. Enligt samma paragraf ([Avtal_81_VD_anstallningsavtal:19]) utgår avgångsvederlag inte när VD själv säger upp sig, så VD förlorar den framtida lönen utan någon ersättning.  \n\n- **Om Bolaget säger upp avtalet på grund av VD:s väsentliga brott** – Bolaget bär ingen ekonomisk risk. Enligt\u{202f}[Avtal_81_VD_anstallningsavtal:19] utgår avgångsvederlag när uppsägning sker på grund av VD:s väsentliga avtalsbrott, och enligt\u{202f}[Avtal_81_VD_anstallningsavtal:20] kan Bolaget avsluta anställningen med omedelbar verkan.  \n\n**Sammanfattning**  \nDen ekonomiska risken ligger hos den part som initierar en förtida uppsägning utan saklig grund: Bolaget vid icke‑orsakad uppsägning, VD vid egen uppsägning. Vid uppsägning på grund av VD:s väsentliga brott bär ingen part någon extra ekonomisk börda.")
+
+=== g4-06
+QUESTION: Förlängs avtalet automatiskt enligt Avtal_20_Arrendeavtal_lagenhetsarrende?
+VERDICTS: Avtal_20_Arrendeavtal_lagenhetsarrende:7=fynd;Avtal_20_Arrendeavtal_lagenhetsarrende:11=inget;Avtal_20_Arrendeavtal_lagenhetsarrende:6=inget;Avtal_20_Arrendeavtal_lagenhetsarrende:1=inget;Avtal_20_Arrendeavtal_lagenhetsarrende:12=inget;Avtal_20_Arrendeavtal_lagenhetsarrende:5=inget;Avtal_20_Arrendeavtal_lagenhetsarrende:3=inget;Avtal_20_Arrendeavtal_lagenhetsarrende:8=inget
+RISK: -

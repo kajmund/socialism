@@ -185,6 +185,10 @@ pub fn investigate_operate_loop(
     max_rounds: usize,
 ) -> OpOutcome {
     let mut resolved: BTreeMap<String, i64> = BTreeMap::new();
+    // The loop guard: a need that was already requested must not be
+    // re-requested — identical NeedMore twice ends the loop instead of
+    // spinning forever.
+    let mut seen: Vec<NeedRef> = Vec::new();
     for _ in 0..max_rounds {
         // The gate is structural: a failed gate ends the loop with
         // INSUFFICIENT_EVIDENCE — no execution, no discovery, no guess.
@@ -193,12 +197,18 @@ pub fn investigate_operate_loop(
         }
         match execute(&resolved) {
             OpOutcome::Answer(answer) => return OpOutcome::Answer(answer),
-            OpOutcome::NeedMore(need) => match resolve_need(&need) {
-                Some(value) => {
-                    resolved.insert(need.document.clone(), value);
+            OpOutcome::NeedMore(need) => {
+                if seen.contains(&need) {
+                    return OpOutcome::Insufficient;
                 }
-                None => return OpOutcome::Insufficient,
-            },
+                seen.push(need.clone());
+                match resolve_need(&need) {
+                    Some(value) => {
+                        resolved.insert(need.document.clone(), value);
+                    }
+                    None => return OpOutcome::Insufficient,
+                }
+            }
             OpOutcome::Insufficient => return OpOutcome::Insufficient,
         }
     }
@@ -278,6 +288,17 @@ mod loop_tests {
         );
         // The policy resolved one need per round; the gate never let a
         // partial answer through.
+        assert_eq!(outcome, OpOutcome::Insufficient);
+    }
+
+    #[test]
+    fn identical_needmore_twice_ends_the_loop() {
+        let outcome = investigate_operate_loop(
+            |_| Ok(()),
+            |_resolved| OpOutcome::NeedMore(NeedRef::new("condition", "Avtal_X")),
+            |_need| Some(3), // resolves, but the operation asks again
+            5,
+        );
         assert_eq!(outcome, OpOutcome::Insufficient);
     }
 

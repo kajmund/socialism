@@ -627,3 +627,20 @@ g3-06:s mekanism, exakt: tre dokument fick värden, men ett av dem var inte blan
 
 **Ärligt protokoll:** äkta samma-fakta-motsägelser (två klausuler som påstår olika uppsägningstider) saknas i denna korpus — motsägelsetestet skjuts till rikare dokument. Därmed har motorn tagit nästa steg i granskningens riktning: från att veta vilka fakta en fråga kräver från början, till att kunna **upptäcka vad den behöver lära sig under själva problemlösningen**.
 
+## 32. g4-körningen: fyra dimensioner, felen klassificerade — inga regeljusteringar
+
+Körningen gjordes utan att reglerna justerats på utfallet. 40 JEV-anrop + 1 fångad LLM-syntes (grinden blockerade den — den kördes aldrig). Fyra dimensioner, separata:
+
+| Fall | Evidens | Kontrollflöde | Slutsats | Ekonomi |
+|---|---|---|---|---|
+| g4-01 EVALUATE_VALUE_TYPE | fällan neutraliserad (12-månadersklausulen klassificerades korrekt som ej evidens) | READY | **rätt: 6 månader** | 8 JEV |
+| g4-02 APPLY_CONDITION | ✓ | NeedMore → INSUFFICIENT | **rätt avstående** | 8 JEV |
+| g4-03 RESOLVE_ANNEX | ✓ | NeedMore → INSUFFICIENT | **rätt avstående** | 8 JEV |
+| g4-04 VERIFY_ABSENCE | frånvarofråga | **VERIFIED_ABSENT** (21 chunkar, deterministiskt) | **rätt: nej** | 0 JEV, 21 chunkar |
+| g4-05 SYNTHESIZE_RISK | ✗ 1/3 indata verifierade | INSUFFICIENT (grinden blockerade korrekt) | syntesen kördes aldrig | 8 JEV, LLM 0 |
+| g4-06 APPLY_EXCEPTION | ✓ | NeedMore upptäckt i klausulen → villkoret löst | **rätt: villkorat ja** | 8 JEV |
+
+**Korrekta svar 2/6, korrekta avståenden 3/6, misslyckade 1/6** — redovisade separat så att ett system som avstår på allt inte ser tillförlitligt ut utan att vara användbart.
+
+**Felklassificeringen:** det enda misslyckandet (g4-05) ligger på **evidensnivån** — verifieraren kände inte igen 2/3 riskklausuler (avgångsvederlag, omedelbar verkan) som relevanta. Kontrollflödet gjorde sedan exakt rätt sak: grinden blockerade syntesen i stället för att köra på partiella indata. Inga oändliga NeedMore-slingor (skyddet i craten). Slutsatsen för nästa investering: felet är en **igenkänningsgeneraliseringsfråga** — verifieringssignalen är kalibrerad mot uppsägningsparafraser, och riskklausuler är en ny entitetstyp. Om detta återkommer i ett större oberoende testset har vi plötsligt ett konkret, mätbart sätt att avgöra om en träningsbar extraktionsmodell (GLiNER2-riktningen) faktiskt behövs — precis den koppling granskningen pekade på. Vi reparerar inte g4-05 direkt; vi låter nästa testset visa om felet generaliserar eller är en artefakt av mall-korpusen.
+
