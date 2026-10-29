@@ -544,3 +544,22 @@ Baslinjen är precisionssäker men blind; kombinationen "förtydligat fynd OCH e
 
 **Nivå 2 och 3 återstår:** sekvensvärde (varje åtgärd skapar ett nytt tillstånd — fungerar extraktion→kontext-JEV bättre än omvänd ordning?) och beslutspolicy (fasta heuristiker vs kostnadsmedveten greedy vs lärd). Nästa milstolpe: SWE väljer mellan informationsanskaffning, omvalidering och stopp på denna tillståndskorpus och slår både statisk retrieval och en fast valideringsstrategi i kostnadsjusterad korrekthet. Först då finns data som motiverar en lärande Sweycoin-förvaltare.
 
+## 28. Nivå 2: sekvensvärde, fyr-gap-taxonomin och kostnadsmodellen
+
+**Fyr-gap-klassificeringen** (härledd ur observerbara signaler; facit används bara för att klassificera, inte av policyn): av de 13 falskt negativa är **0 retrieval-gap, 11 recognition-gap, 2 extraction-gap, 0 reasoning-gap** i tillståndskorpusen — reasoning-gap finns på fallnivå (g3-08/11/12: alla fakta på plats, slutsatsen ändå fel). De observerbara signalerna som skiljer gapen åt: extraherbart värde → recognition-gap-kandidat; fynd utan värde → extraction-gap; ej hämtad chunk → retrieval-gap; READY men fel svar → reasoning-gap.
+
+**Nivå 2 — kontrafaktiskt beslutsträd med tidigt stopp** (92 NONE-tillstånd):
+
+| Strategi | Återfunna | Falska positiva | Kostnad |
+|---|---|---|---|
+| **Extrahera först, kontext-JEV vid behov** | 11/13 | 5/79 | **78 000** |
+| Kontext-JEV först, extrahera vid behov | 11/13 | 5/79 | 92 000 |
+| Förtydligad JEV först | 11/13 | **3/79** | 92 000 |
+| Stopp utan investering | 0/13 | 0/79 | 0 |
+
+Granskningens hypotes bekräftad: **den enkla regeln vinner** — extrahera först, verifiera bara när extraktionen är osäker — samma återvinning till 15 % lägre kostnad än båda JEV-först-strategierna. Ärligheten i bilden: förtydligad-först har färre falska positiva (3 vs 5) — den billiga extraktorns överträffar på äkta negativa är priset för dess noll-marginalkostnad, och det redovisas separat, inte gömt i kostnadssiffran.
+
+**Kostnadsmodellens fyra begrepp:** ~8 400 per återfunnet är ett **allokerat medel** (totalsvep över alla 92 NONE-tillstånd / 11 träffar) — inte marginalkostnaden. Marginalkostnaden är 1 coin per JEV-anrop och 0 för extraktion (redan hämtad text, lokalt). Ackumulerad kostnad per tillstånd är sunk. Förväntad kostnad kommer från de kalibrerade signalerna (P(faktum | extraherbart värde) ≈ 0.86). En policy som lär sig på allokerade medel i stället för marginalkostnader skulle dra fel ekonomiska slutsatser — därför separeras begreppen.
+
+**Det arkitektoniska svaret på granskningens viktigaste poäng:** ja — använd regeln. Sweycoins ska inte bevisa att RL behövs; det ska upptäcka den billigaste tillförlitliga vägen. Datan säger: deterministisk extraktion löser recognition-gapen (11/13) gratis, kontext-JEV täcker extraction-gapen där extraktorn är osäker, och en lärd policy behövs först för residualen — FP-avvägningen, extraction-gapen och sekvensvalet i nivå 3. Det är ett starkare arkitektoniskt resultat än att tvinga in maskininlärning där en regel räcker.
+
