@@ -1,0 +1,66 @@
+{
+  "redacted": true,
+  "redaction_note": "Redacted for the public repository: contract documents, clause texts, span values and identifying names are not committed. Contract text is represented by SHA-256 digests (canonical form); the full frozen artifacts and the source documents are kept locally outside the repository.",
+  "candidates_canon_sha256": {
+    "bt-01": [
+      "504731691312174965055a8a1178b4511ab7451760a5ab3828b4893e9904131e"
+    ],
+    "bt-02": [
+      "cb57c8dd0a383d87ef53823dc3ceee25f8b18ab0264c6e2de60bd1c0bee372e1"
+    ],
+    "bt-03": [
+      "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+    ],
+    "bt-04": [
+      "2db02bc08368723be8f4c1cc752653ad9154af94fa4fe3eb704c96ae9103b094"
+    ],
+    "bt-05": [
+      "fb0fb69afadce40fbc93c796ca2f818ab0e54991425c1251f41eced0fa151877",
+      "ce811aebb8ac25e9347a6415c69059ed587f22fb59d759f6a1692a5fff44bea6",
+      "13d853006f71ed7b6b092b7ec45dbdddcba22fbec5d04e0fb2b5fdb5b2704ce7"
+    ],
+    "bt-06": [
+      "1d6667034b7d8dc32723dddff50731b83c6b95a8c9cb9b5b3cd2a98de21763a6",
+      "eb314edf59b91ee4c8cb11fca018571174af7f9ffd7b091bf840d131a077481c"
+    ],
+    "bt-07": [
+      "cd796651d2e67bb25d6212341f8934f22332ddf6c82b4fa2ff25bb1790e90d98"
+    ],
+    "bt-08": [
+      "6d62c2000d13b250595520f370668df188af2a720d97bfcf78a62a135f5f7b97",
+      "ea6956bba77156ed4815e59f7c100e438de032192448aae9243dcfd8388079f1"
+    ],
+    "bt-09": [
+      "02d5d0522a76608d64a5d329e13a2f8627e935efca8d77a73ca0f523a7410c7f"
+    ],
+    "bt-10": [
+      "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+    ],
+    "bt-11": [],
+    "bt-12": [],
+    "bt-13": [
+      "eaba156ca388121e883491e1b1fb3d62d94e1670e5ed1c654698c3b5ba66f92a"
+    ],
+    "bt-14": [
+      "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+    ],
+    "bt-15": [],
+    "bt-16": [
+      "dbe2ba193cb83e8be494b09952886168c1ba9b700d286b5eec44717261213dee",
+      "69de1b4d50771277e28a0e1f7d61c01811634db1cdbcf26a35e70d0b5b2599e7"
+    ],
+    "bt-17": [
+      "dbe2ba193cb83e8be494b09952886168c1ba9b700d286b5eec44717261213dee",
+      "69de1b4d50771277e28a0e1f7d61c01811634db1cdbcf26a35e70d0b5b2599e7"
+    ],
+    "bt-18": [
+      "af30fd1339e8adad7e5c6a6f00df4f90cdc85fbd0cb187e3f40fd313b55c5ec4"
+    ],
+    "bt-19": [],
+    "bt-20": [
+      "da1d1d7108510d0b5f6ac0115c988ef764f091670ca132f87fc5aa03215a3dc7",
+      "c3f39f3f1cf3db4f77d39887230bb26f5eb9706b727e91a656d9a33b7779aece",
+      "80efd1941e3502a452ba34ea10fed5438b8c08a8f93fda2a66c0833ae7477f97"
+    ]
+  }
+}

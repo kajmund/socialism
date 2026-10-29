@@ -35,8 +35,51 @@ milstolpe: ett blindtest på helt nya, verkliga avtal. Ingen åtgärd här är p
   integrera GLiNER2 som **valbar förmåga i Investigation**.
 - Håller den inte → marginalnyttan är begränsad till testmaterialet; ingen integration.
 
-## Nuvarande status (oförändrad tills vidare)
+## Nuvarande status (uppdaterad 2026-10-29 — blindtest v1 utfört)
 
-Experimentellt bevisad marginalnytta på testmaterialet (6 unika spann, 6/6 JEV-överlevnad,
-+4 lösta behov på utmaningssetet). **Ingen verifierad generalisering. Ingen
-produktionsintegration.** GLiNER2 förblir experimentell och valbar.
+**Blindtest v1 — första ärliga generaliseringsmätningen, körningen gjordes en gång
+enligt protokollet.** Material: tre verkliga avtal utanför korpusen (Sponsoravtal klubben
+2017, ett anställningsavtal (2020), Konsulttjänst Avtal
+konsultbolaget 2020-06-01), 20 klausulfall med oberoende facit
+(guldgransknings-v3-proceduren, fruset före körningen). Runner:
+`crates/swe-gym/tools/run_blindtest.py`; artefakter: `blindtest_facit_v1.json`,
+`blindtest_facit_v1_eval.json`, `blindtest_facit_v1_candidates.json`.
+
+| Mått | Resultat |
+|---|---|
+| Lösta behov, baslinje (extraktor + JEV) | **0/20** — korpus-regexerna träffar nästan ingenting på nya dokument |
+| Lösta behov, frusen kombination (S2) | **14/20** — 19 GLiNER2-inferenser + 45 JEV-anrop |
+| Unik kandidattäckning (generator missar, GLiNER2 hittar) | 13 spann, **9/13 JEV-överlevnad** |
+| Falskt RESOLVED per need_id | 1 (bt-03 — gräns-artefakt: extraktorn hittade rätt värde med fel gräns, "en dagfrist" vs "en dagfrist") |
+| AMBIGUOUS (korrekt återhållet) | 1 (bt-17 — två konkurrerande värden i samma roll) |
+| Reproducerbarhet | omkörning återskapade alla aggregat med 0 nya JEV-anrop |
+
+**Per frågetyp:** ersättning 4/5, parter 3/3, ansvarsbegränsning 1/1, tidsfrister 5/9
+(datum utan sifferformat — "ett ordformsdatum", "ett datumintervall", "ett datumintervall" — löses inte),
+uppsägningsvillkor 1/2 ("ett veckotal" ✓; "en laghänvisning" — laghänvisning i stället för
+tidsperiod — löses inte).
+
+**Beslutsunderlag:** kombinationen håller på nya dokument — 0→14 lösta behov — men
+ojämnt per frågetyp, på tre dokument. Detta är underlag för beslutet att börja integrera
+GLiNER2 som valbar förmåga i Investigation, **inte** beslutet i sig. Öppna punkter inför
+det beslutet: (1) större dokumentset för säkrare per-typ-siffror, (2) svarsnivå-
+kontaminationen (D10-proceduren) är ännu inte följd på blindtestet, (3) gräns-artefakt-
+klassen ("en dagfrist") och datum-formaten är kandidater till nästa kontraktsversion —
+ett separat experiment enligt protokollets princip 5. **Ingen produktionsintegration.
+GLiNER2 förblir experimentell och valbar.**
+
+## Slutsatser som ska dokumenteras (frysta med resultatet, inga regeländringar)
+
+1. **Baslinjens 0/20 är ett eget fynd.** Den deterministiska kandidatgeneratorns täckning
+   är starkt anpassad till mallkorpusens formuleringar (brackets-belopp, hårdkodade
+   partsnamn, korpus-nyckelord). På verkliga avtal kollapsar den nästan helt. Detta är
+   lika viktigt som hybridens 14/20: det förklarar *varför* GLiNER2 behövs och var
+   generaliseringsgränsen faktiskt går.
+2. **"en laghänvisning" (bt-09) ska inte tolkas som en missad tidsperiod.** Det är ett nytt
+   informationsbehov som kräver en extern rättskälla — en annan uppgift än NER, och
+   inget GLiNER2 förväntas extrahera som ett numeriskt värde. Facit och siffror är
+   frusna som de uppstod; tolkningen bokförs här och hör hemma i D10-uppföljningen
+   (klass "korrekt avstående / nytt behov"), inte som en regeländring i blindtestet.
+3. **Om bt-03 ("en dagfrist") är ett semantiskt fel eller enbart en
+   spannavgränsningsskillnad avgörs i D10-uppföljningen** på samtliga 20 fall — inte
+   här, och inte i facit.

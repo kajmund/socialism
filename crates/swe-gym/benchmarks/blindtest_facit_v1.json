@@ -1,0 +1,438 @@
+{
+  "version": 1,
+  "name": "blindtest-v1",
+  "redacted": true,
+  "redaction_note": "Redacted for the public repository: contract documents, clause texts, span values and identifying names are not committed. Contract text is represented by SHA-256 digests (canonical form); the full frozen artifacts and the source documents are kept locally outside the repository.",
+  "provenance": "Gold-review-v3 procedure: annotated by reading the extracted text of three real contracts outside the test corpus; the regex generator and the GLiNER2 outputs were not consulted. One need per case with its concept type. Documents and clause texts are kept outside the repository.",
+  "material": [
+    {
+      "document": "konsulttjanst-doc",
+      "description": "konsulttjänstavtal (2020)"
+    },
+    {
+      "document": "foeretagsavtal-doc",
+      "description": "företags-/sponsoravtal (2017)"
+    },
+    {
+      "document": "anstallning-doc",
+      "description": "anställningsavtal (2020)"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "bt-01",
+      "document": "foeretagsavtal-doc",
+      "question_type": "ersättning",
+      "clause_sha256": "6e4c292e5fdffe250e17810136fedf353ba1707f9d9ebcd3507686ea0067d7cf",
+      "clause_chars": 166,
+      "needs": [
+        {
+          "need_id": "bt-01-n1",
+          "type": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-01-s1",
+          "type": "MONEY",
+          "span_canon_sha256": "504731691312174965055a8a1178b4511ab7451760a5ab3828b4893e9904131e"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-02",
+      "document": "foeretagsavtal-doc",
+      "question_type": "tidsfrister",
+      "clause_sha256": "fe13ff501e31b7fe1d13aeec8c2a8d0f155d7fa1fb3e21b401cd834e1ce07f13",
+      "clause_chars": 61,
+      "needs": [
+        {
+          "need_id": "bt-02-n1",
+          "type": "DATE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-02-s1",
+          "type": "DATE",
+          "span_canon_sha256": "cb57c8dd0a383d87ef53823dc3ceee25f8b18ab0264c6e2de60bd1c0bee372e1"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-03",
+      "document": "foeretagsavtal-doc",
+      "question_type": "tidsfrister",
+      "clause_sha256": "dc5b1e7b5fa3dd62015d9f7d4e0bd9805eebf41f922f0a1cd731dc047fd7383d",
+      "clause_chars": 77,
+      "needs": [
+        {
+          "need_id": "bt-03-n1",
+          "type": "PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-03-s1",
+          "type": "PERIOD",
+          "span_canon_sha256": "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-04",
+      "document": "foeretagsavtal-doc",
+      "question_type": "ersättning",
+      "clause_sha256": "8923019ca5ae72fb749b85a596cd43b45e47270cd26144ff03c1f7c83b29d5cf",
+      "clause_chars": 78,
+      "needs": [
+        {
+          "need_id": "bt-04-n1",
+          "type": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-04-s1",
+          "type": "MONEY",
+          "span_canon_sha256": "2db02bc08368723be8f4c1cc752653ad9154af94fa4fe3eb704c96ae9103b094"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-05",
+      "document": "foeretagsavtal-doc",
+      "question_type": "parter",
+      "clause_sha256": "ace692ef6b4f9364fd8756739ee54345d305c65afc8e0d91a65f03f0c4c2757c",
+      "clause_chars": 133,
+      "needs": [
+        {
+          "need_id": "bt-05-n1",
+          "type": "PARTY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-05-s1",
+          "type": "PARTY",
+          "span_canon_sha256": "ce811aebb8ac25e9347a6415c69059ed587f22fb59d759f6a1692a5fff44bea6"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-06",
+      "document": "foeretagsavtal-doc",
+      "question_type": "tidsfrister",
+      "clause_sha256": "6e4c292e5fdffe250e17810136fedf353ba1707f9d9ebcd3507686ea0067d7cf",
+      "clause_chars": 166,
+      "needs": [
+        {
+          "need_id": "bt-06-n1",
+          "type": "DATE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-06-s1",
+          "type": "DATE",
+          "span_canon_sha256": "1d6667034b7d8dc32723dddff50731b83c6b95a8c9cb9b5b3cd2a98de21763a6"
+        },
+        {
+          "span_id": "bt-06-s2",
+          "type": "DATE",
+          "span_canon_sha256": "eb314edf59b91ee4c8cb11fca018571174af7f9ffd7b091bf840d131a077481c"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-07",
+      "document": "anstallning-doc",
+      "question_type": "tidsfrister",
+      "clause_sha256": "de49eb71284fadcd4c7bb2f7c0f8051a5c42c8ead6a4b00ebac59dedce03bf76",
+      "clause_chars": 24,
+      "needs": [
+        {
+          "need_id": "bt-07-n1",
+          "type": "DATE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-07-s1",
+          "type": "DATE",
+          "span_canon_sha256": "cd796651d2e67bb25d6212341f8934f22332ddf6c82b4fa2ff25bb1790e90d98"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-08",
+      "document": "anstallning-doc",
+      "question_type": "ersättning",
+      "clause_sha256": "bda0af191694717d13d0b40bc108818b6d21e3f98404a92bd2fd8a96644acd56",
+      "clause_chars": 72,
+      "needs": [
+        {
+          "need_id": "bt-08-n1",
+          "type": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-08-s1",
+          "type": "MONEY",
+          "span_canon_sha256": "ea6956bba77156ed4815e59f7c100e438de032192448aae9243dcfd8388079f1"
+        },
+        {
+          "span_id": "bt-08-s2",
+          "type": "MONEY",
+          "span_canon_sha256": "6d62c2000d13b250595520f370668df188af2a720d97bfcf78a62a135f5f7b97"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-09",
+      "document": "anstallning-doc",
+      "question_type": "uppsägningsvillkor",
+      "clause_sha256": "154b1a96227238089bbcca9b2cc6346486739f0e3f0bf8e816084730a955f337",
+      "clause_chars": 25,
+      "needs": [
+        {
+          "need_id": "bt-09-n1",
+          "type": "NOTICE_PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-09-s1",
+          "type": "NOTICE_PERIOD",
+          "span_canon_sha256": "1b889f715dbf66d36a7b0f292e9178c4b1d8b9c02d1116484f25d8ea02e31019"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-10",
+      "document": "anstallning-doc",
+      "question_type": "tidsfrister",
+      "clause_sha256": "fefbcfadb85879d39ef99506f8541e607ff2b396503dd3b61b76a3de26adcb1d",
+      "clause_chars": 24,
+      "needs": [
+        {
+          "need_id": "bt-10-n1",
+          "type": "PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-10-s1",
+          "type": "PERIOD",
+          "span_canon_sha256": "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-11",
+      "document": "anstallning-doc",
+      "question_type": "parter",
+      "clause_sha256": "518df5fd608285f48924e89c42ccfc754129416c389ad8d83bc07d56afd55c47",
+      "clause_chars": 39,
+      "needs": [
+        {
+          "need_id": "bt-11-n1",
+          "type": "PARTY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-11-s1",
+          "type": "PARTY",
+          "span_canon_sha256": "c8724b1ce2337a5a6c7c717aef9bc4480e3e7fc6255c5e87df2d98c06af0b1e3"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-12",
+      "document": "konsulttjanst-doc",
+      "question_type": "ansvarsbegränsning",
+      "clause_sha256": "ebba2ce1db137f39ca2497edf56114a7d123a6f149ed47cf9f528e36f64391e0",
+      "clause_chars": 768,
+      "needs": [
+        {
+          "need_id": "bt-12-n1",
+          "type": "LIABILITY_CAP"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-12-s1",
+          "type": "LIABILITY_CAP",
+          "span_canon_sha256": "9a360bbc3987e0fe6a6289848df1d4b4ecca1332e7f51e3bbe507eb55ba458d7"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-13",
+      "document": "konsulttjanst-doc",
+      "question_type": "tidsfrister",
+      "clause_sha256": "ebba2ce1db137f39ca2497edf56114a7d123a6f149ed47cf9f528e36f64391e0",
+      "clause_chars": 768,
+      "needs": [
+        {
+          "need_id": "bt-13-n1",
+          "type": "PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-13-s1",
+          "type": "PERIOD",
+          "span_canon_sha256": "a224d9acb8e0a612e1b11c825736177215fd46ef176f0f04fd5dbf6f7233f6e9"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-14",
+      "document": "konsulttjanst-doc",
+      "question_type": "tidsfrister",
+      "clause_sha256": "426ee92a3962a0bd2c16bfeaec16a93d339ad43a48665a563ba20d2f7a17ecda",
+      "clause_chars": 29,
+      "needs": [
+        {
+          "need_id": "bt-14-n1",
+          "type": "PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-14-s1",
+          "type": "PERIOD",
+          "span_canon_sha256": "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-15",
+      "document": "konsulttjanst-doc",
+      "question_type": "ersättning",
+      "clause_sha256": "2dfb383d37a88a4cb5cef54e537746a64c12817ff7b3a5d36202c1056ff38188",
+      "clause_chars": 21,
+      "needs": [
+        {
+          "need_id": "bt-15-n1",
+          "type": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-15-s1",
+          "type": "MONEY",
+          "span_canon_sha256": "9086bd4a61027c7621dcd165fb0a564043237079645fbf026be749d508fe160a"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-16",
+      "document": "konsulttjanst-doc",
+      "question_type": "uppsägningsvillkor",
+      "clause_sha256": "90372dba803a5ca094f54d88d4d6103b157b36a7cb84ed9f9486c225532e8495",
+      "clause_chars": 85,
+      "needs": [
+        {
+          "need_id": "bt-16-n1",
+          "type": "NOTICE_PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-16-s1",
+          "type": "NOTICE_PERIOD",
+          "span_canon_sha256": "ae24f72ba356aa03160086e537973bade538f519f9fc5143fd6357bbf35934e6"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-17",
+      "document": "konsulttjanst-doc",
+      "question_type": "tidsfrister",
+      "clause_sha256": "90372dba803a5ca094f54d88d4d6103b157b36a7cb84ed9f9486c225532e8495",
+      "clause_chars": 85,
+      "needs": [
+        {
+          "need_id": "bt-17-n1",
+          "type": "PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-17-s1",
+          "type": "PERIOD",
+          "span_canon_sha256": "69de1b4d50771277e28a0e1f7d61c01811634db1cdbcf26a35e70d0b5b2599e7"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-18",
+      "document": "konsulttjanst-doc",
+      "question_type": "tidsfrister",
+      "clause_sha256": "9a877cc779b81b1b36cfa04894f5eac0c99d71bff473cf4707217b1f5d71eeab",
+      "clause_chars": 27,
+      "needs": [
+        {
+          "need_id": "bt-18-n1",
+          "type": "DATE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-18-s1",
+          "type": "DATE",
+          "span_canon_sha256": "af30fd1339e8adad7e5c6a6f00df4f90cdc85fbd0cb187e3f40fd313b55c5ec4"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-19",
+      "document": "konsulttjanst-doc",
+      "question_type": "ersättning",
+      "clause_sha256": "6810448a5269cbec60db6fbbafe6b1182c7a2a37f51d949ad9ed1ae37627823f",
+      "clause_chars": 896,
+      "needs": [
+        {
+          "need_id": "bt-19-n1",
+          "type": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-19-s1",
+          "type": "MONEY",
+          "span_canon_sha256": "9f9775551249342963f9282bbfdc96217839368c35c3793dd04833b1d2a0e858"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-20",
+      "document": "konsulttjanst-doc",
+      "question_type": "parter",
+      "clause_sha256": "eb82636d87c49da323244a96d6a4c85e214c4930e0124aa274223f24a5ffbcb3",
+      "clause_chars": 233,
+      "needs": [
+        {
+          "need_id": "bt-20-n1",
+          "type": "PARTY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-20-s1",
+          "type": "PARTY",
+          "span_canon_sha256": "a4264259333587f1f37da5dc1d2ad7e725cb76e72e4475fb1fbbe8b763f84c99"
+        },
+        {
+          "span_id": "bt-20-s2",
+          "type": "PARTY",
+          "span_canon_sha256": "c8724b1ce2337a5a6c7c717aef9bc4480e3e7fc6255c5e87df2d98c06af0b1e3"
+        }
+      ]
+    }
+  ]
+}
