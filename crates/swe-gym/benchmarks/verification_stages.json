@@ -1,0 +1,44 @@
+{
+  "E_full_jev": {
+    "unique_recall": "16/27",
+    "precision": 0.667,
+    "fp": 16,
+    "correctly_resolved_needs": 26,
+    "false_resolved_needs": 13,
+    "solved_needs": 39,
+    "dropouts": {
+      "typ": 10,
+      "relation": 0,
+      "relevans": 1
+    },
+    "new_jev_calls": 0
+  },
+  "F_dettyp_jevrel": {
+    "unique_recall": "16/27",
+    "precision": 0.646,
+    "fp": 23,
+    "correctly_resolved_needs": 23,
+    "false_resolved_needs": 16,
+    "solved_needs": 39,
+    "dropouts": {
+      "typ": 10,
+      "relation": 1,
+      "relevans": 0
+    },
+    "new_jev_calls": 0
+  },
+  "G_maxdet": {
+    "unique_recall": "2/27",
+    "precision": 0.613,
+    "fp": 12,
+    "correctly_resolved_needs": 19,
+    "false_resolved_needs": 8,
+    "solved_needs": 27,
+    "dropouts": {
+      "typ": 25,
+      "relation": 0,
+      "relevans": 0
+    },
+    "new_jev_calls": 0
+  }
+}
