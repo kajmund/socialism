@@ -163,6 +163,29 @@ saknade riskklausulspannen** som fällde g4-05. Chunk 20 ("omedelbar verkan") sp
 denna körning. Det är en verklig, partiell lösning av en verklig begränsning — men 1/3 kvarstår,
 och det är precis vad nästa körning ska mäta med exakta offsets.
 
+## D3. Utmaningssetet: unik täckning, verifieringsöverlevnad, uppgiftsnytta
+
+50 manuellt annoterade klausuler (25 korpus + 25 omskrivna formuleringar utan nyckelord),
+76 guldspann, annoterade oberoende av regex och GLiNER2 (agent-författade, granskningsbara —
+proveniens protokollförd i `benchmarks/gliner_challenge.json`).
+
+| Mätning | Resultat |
+|---|---|
+| 1. Unik kandidat-recall | **6/76** korrekta spann som generatorn missar |
+| 2. Verifieringsöverlevnad | **6/6** unika spann godkända av JEV |
+| 3. Faktisk uppgiftsnytta | **25/50 → 29/50** behov lösta med GLiNER2 tillagd |
+
+Diagnos per guldspann: 55 fullständiga fynd, 21 candidate-generation gap, **0
+verification gap**. De unika spannen avvisas alltså inte av verifieraren — felet ligger
+uppströms i kandidatgenereringen, precis där hybriden sätter in.
+
+**Den avgörande frågan är nu besvarad:** GLiNER2 tillför information som Socialisms befintliga
+generator inte hittar (6 korrekta spann), dessa överlever JEV-verifieringen (6/6), och fyra
+tidigare olösta REQUIRED-behov blir lösta (25 → 29 av 50). Bidraget är marginellt, mätt och
+verkligt — inte en dominerande ersättning. Kostnaden: en CPU-inferens per klausul (~1 s) +
+sex JEV-verifikationer. g4-05-statusen kvarstår som tidigare: 2 av 3 spann är diagnostiska
+tecken, inte ett löst behov — utmaningssetets siffror är nu det primära underlaget.
+
 ## E2. Rekommendationen, omformulerad per beslut
 
 **Utvärdera GLiNER2 som en behovsstyrd, valbar kandidatgenerator i SWE:s Investigation-lager** —
