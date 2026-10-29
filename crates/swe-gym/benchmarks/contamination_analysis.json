@@ -1,0 +1,76 @@
+[
+  {
+    "case_id": "g5-01",
+    "need": "PARTY",
+    "event1_wrongly_resolved": true,
+    "event2_passes_contract": true,
+    "event3_conclusion_affected": true,
+    "control_conclusion": [
+      "devbrains ab",
+      "fastighets ab kvarnberget"
+    ],
+    "contaminated_conclusion": [
+      "devbrains ab",
+      "fastighets ab kvarnberget",
+      "hyresgästen"
+    ],
+    "class": "generell regel: en partsroll identifierar inte ensam en juridisk person -> typat kontrakt"
+  },
+  {
+    "case_id": "g5-04",
+    "need": "MONEY",
+    "event1_wrongly_resolved": true,
+    "event2_passes_contract": true,
+    "event3_conclusion_affected": true,
+    "control_conclusion": [],
+    "contaminated_conclusion": [],
+    "class": "generell regel: ett belopp ska vara ett fullständigt värde -> typat kontrakt"
+  },
+  {
+    "case_id": "g5-10",
+    "need": "DATE",
+    "event1_wrongly_resolved": false,
+    "event2_passes_contract": true,
+    "event3_conclusion_affected": true,
+    "control_conclusion": [
+      "[2023-07-31]",
+      "en (1) månad"
+    ],
+    "contaminated_conclusion": [
+      "2023-02-01",
+      "2023-07-31",
+      "[2023-07-31]"
+    ],
+    "class": "semantiskt: vilket datum som är operativt -> JEV:s ansvar"
+  },
+  {
+    "case_id": "g5-45",
+    "need": "MONEY",
+    "event1_wrongly_resolved": true,
+    "event2_passes_contract": true,
+    "event3_conclusion_affected": true,
+    "control_conclusion": [
+      "sjuttiofem tusen kronor per månad"
+    ],
+    "contaminated_conclusion": [
+      "sjuttiofem tusen kronor",
+      "sjuttiofem tusen kronor per månad"
+    ],
+    "class": "semantiskt: vilket belopp som är det operativa -> JEV:s ansvar"
+  },
+  {
+    "case_id": "g5-47",
+    "need": "SEVERANCE_VALUE",
+    "event1_wrongly_resolved": true,
+    "event2_passes_contract": true,
+    "event3_conclusion_affected": true,
+    "control_conclusion": [
+      "sex fasta månadsarvoden"
+    ],
+    "contaminated_conclusion": [
+      "ersättning",
+      "sex fasta månadsarvoden"
+    ],
+    "class": "semantiskt: generisk term vs konkret åtagande -> JEV:s ansvar"
+  }
+]

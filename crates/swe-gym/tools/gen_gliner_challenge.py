@@ -133,6 +133,36 @@ def main():
             assert g["span_id"] not in span_ids, f"dubblett span_id {g['span_id']}"
             span_ids.add(g["span_id"])
 
+    # --- Gold review v3 (proveniens: agentgranskning 2026-10-29) ----------
+    # Sju korpusfall läste generatorns etikettlogik fel: förlängnings- och
+    # avtalstidsperioder märktes som NOTICE_PERIOD. Granskningen läser
+    # klausulen och behåller ENDAST uppsägningsspannet i guldet; de övriga
+    # perioderna är fel-typ-distraktorer (de finns kvar i populationen).
+    review = {
+        "g5-03": ["nio (9) månader"],   # 'förlängs med [tre (3)] år' = RENEWAL, ej NOTICE
+        "g5-08": ["sex (6) månader"],   # 'förlängs med [ett (1)] år' = RENEWAL
+        "g5-12": ["tre (3) månader"],   # 'förlängs med [ett (1)] år' = RENEWAL
+        "g5-15": ["sex (6) månader"],   # 'förlängs med [tolv (12)] månader' = RENEWAL
+        "g5-20": ["tre (3) månader"],   # 'förlängs med ett (1) år' = RENEWAL
+        "g5-22": ["tre (3) månader"],   # 'förlängs med ett (1) år' = RENEWAL
+        "g5-24": ["en (1) månad"],      # 'löper på tolv (12) månader' = AVTALSTID,
+    }                                   #  'förlängs med tolv (12)' = RENEWAL
+    for case in challenge["cases"]:
+        if case["case_id"] in review:
+            keep = review[case["case_id"]]
+            case["gold"] = [
+                g for g in case["gold"] if g["span"] in keep
+            ]
+            case["review_note"] = (
+                "guldgranskning v3: förlängnings-/avtalstidsperioder borttagna "
+                "ur guld — fel-typ-distraktorer, ej behovets fakta"
+            )
+    challenge["version"] = 3
+    challenge["provenance"] = {
+        "gold_review": "agentgranskning 2026-10-29, oberoende av regex och JEV-beslut",
+        "changed_cases": sorted(review.keys()),
+    }
+
     json.dump(challenge, open(OUT, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     n_corpus = sum(1 for c in challenge["cases"] if c["kind"] == "corpus")
     n_para = len(challenge["cases"]) - n_corpus
