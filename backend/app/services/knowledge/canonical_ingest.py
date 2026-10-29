@@ -27,6 +27,7 @@ from app.services.knowledge.persistence import (
     get_canonical_document_by_identity,
     get_current_document_version,
     persist_segmented_document,
+    write_segmented_document_text_units,
 )
 from app.services.knowledge.provider import KnowledgeVectorStoreError
 from app.services.overgraph.owner_runtime import get_owner_runtime
@@ -172,11 +173,14 @@ async def persist_extracted_source(
         scope=persist_scope,
         source_object_id=identity.source_object_id,
         segmented=segmented,
+        materialize_graph=False,
     )
     version_row = written.version
     version_id = version_row.id
-    segmented = await persisted_segment(session, segmented, version_row)
     await session.commit()
+    if not written.reused_current:
+        await write_segmented_document_text_units(segmented, persist_scope)
+    segmented = await persisted_segment(session, segmented, version_row)
     units = list(segmented.text_units)
     if written.reused_current and not units:
         raise RuntimeError(f"reused document {resolved.document_id} has no current TextUnits")
