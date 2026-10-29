@@ -1,0 +1,160 @@
+{
+  "g3-01": {
+    "operation": "MAX_NOTICE_PERIOD",
+    "required_inputs": [
+      "Avtal_17_Hyresavtal_lokal",
+      "Avtal_18_Hyresavtal_bostad",
+      "Avtal_20_Arrendeavtal_lagenhetsarrende"
+    ],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": "Avtal_17_Hyresavtal_lokal",
+    "facit": "Avtal_17_Hyresavtal_lokal",
+    "correct": true,
+    "static_correct": false,
+    "jv_calls": 2
+  },
+  "g3-02": {
+    "operation": "MAX_NOTICE_PERIOD",
+    "required_inputs": [
+      "Avtal_18_Hyresavtal_bostad",
+      "Avtal_20_Arrendeavtal_lagenhetsarrende",
+      "Avtal_25_Fastighetsservice_stadning"
+    ],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": "Avtal_25_Fastighetsservice_stadning",
+    "facit": "Avtal_25_Fastighetsservice_stadning",
+    "correct": true,
+    "static_correct": false,
+    "jv_calls": 3
+  },
+  "g3-03": {
+    "operation": "MAX_NOTICE_PERIOD",
+    "required_inputs": [
+      "Avtal_20_Arrendeavtal_lagenhetsarrende",
+      "Avtal_25_Fastighetsservice_stadning",
+      "Avtal_30_Ramavtal_tjanster"
+    ],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": "Avtal_25_Fastighetsservice_stadning",
+    "facit": "Avtal_25_Fastighetsservice_stadning",
+    "correct": true,
+    "static_correct": false,
+    "jv_calls": 3
+  },
+  "g3-04": {
+    "operation": "MAX_NOTICE_PERIOD",
+    "required_inputs": [
+      "Avtal_25_Fastighetsservice_stadning",
+      "Avtal_30_Ramavtal_tjanster",
+      "Avtal_32_Inkopsavtal"
+    ],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": "Avtal_25_Fastighetsservice_stadning",
+    "facit": "Avtal_25_Fastighetsservice_stadning",
+    "correct": true,
+    "static_correct": false,
+    "jv_calls": 3
+  },
+  "g3-05": {
+    "operation": "MAX_NOTICE_PERIOD",
+    "required_inputs": [
+      "Avtal_30_Ramavtal_tjanster",
+      "Avtal_32_Inkopsavtal",
+      "Avtal_34_Aterforsaljaravtal"
+    ],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": "Avtal_30_Ramavtal_tjanster",
+    "facit": "Avtal_30_Ramavtal_tjanster",
+    "correct": true,
+    "static_correct": false,
+    "jv_calls": 3
+  },
+  "g3-06": {
+    "operation": "MAX_NOTICE_PERIOD",
+    "required_inputs": [
+      "Avtal_32_Inkopsavtal",
+      "Avtal_34_Aterforsaljaravtal",
+      "Avtal_37_Allmanna_villkor_B"
+    ],
+    "missing_inputs": [
+      "Avtal_37_Allmanna_villkor_B"
+    ],
+    "gate": "INSUFFICIENT_EVIDENCE",
+    "answer": null,
+    "facit": "Avtal_32_Inkopsavtal",
+    "correct": null,
+    "static_correct": true,
+    "jv_calls": 3
+  },
+  "g3-07": {
+    "operation": "NO_OP/EXTRACT",
+    "required_inputs": [],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": null,
+    "facit": "'12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs' + '9. Försäljningsmål\\nMålet är att Återförsäljaren ska sälja minst [antal] nya abon'",
+    "correct": null,
+    "static_correct": false,
+    "jv_calls": 1
+  },
+  "g3-08": {
+    "operation": "NO_OP/EXTRACT",
+    "required_inputs": [],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": null,
+    "facit": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBr",
+    "correct": null,
+    "static_correct": false,
+    "jv_calls": 1
+  },
+  "g3-09": {
+    "operation": "NO_OP/EXTRACT",
+    "required_inputs": [],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": null,
+    "facit": "2. Lokalen\n",
+    "correct": null,
+    "static_correct": false,
+    "jv_calls": 0
+  },
+  "g3-10": {
+    "operation": "NO_OP/EXTRACT",
+    "required_inputs": [],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": null,
+    "facit": "2.1 Fastighet: [Fastighetsbeteckning], adress [Adress], [Kommun].\n",
+    "correct": null,
+    "static_correct": false,
+    "jv_calls": 0
+  },
+  "g3-11": {
+    "operation": "NO_OP/EXTRACT",
+    "required_inputs": [],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": null,
+    "facit": "2.2 Lokalen omfattar cirka [antal] kvm på plan [X], lokal nr [Nr], enligt ritning i Bilaga 1 (\"Lokalen\"). Avvikelser frå",
+    "correct": null,
+    "static_correct": false,
+    "jv_calls": 0
+  },
+  "g3-12": {
+    "operation": "NO_OP/EXTRACT",
+    "required_inputs": [],
+    "missing_inputs": [],
+    "gate": "READY",
+    "answer": null,
+    "facit": "2.3 Gemensamma utrymmen: [entré, toalett, pentry, cykelrum]. Parkering: [antal] platser [ingår / mot särskild avgift].\n",
+    "correct": null,
+    "static_correct": false,
+    "jv_calls": 0
+  }
+}

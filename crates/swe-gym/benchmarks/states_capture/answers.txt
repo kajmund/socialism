@@ -1,0 +1,95 @@
+=== g3-01
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_17_Hyresavtal_lokal, Avtal_18_Hyresavtal_bostad, Avtal_20_Arrendeavtal_lagenhetsarrende)
+STATE: INSUFFICIENT_EVIDENCE
+NEEDS: uppsägningstid för Avtal_17_Hyresavtal_lokal|Avtal_17_Hyresavtal_lokal|REQUIRED|UNRESOLVED| || uppsägningstid för Avtal_18_Hyresavtal_bostad|Avtal_18_Hyresavtal_bostad|REQUIRED|UNRESOLVED| || uppsägningstid för Avtal_20_Arrendeavtal_lagenhetsarrende|Avtal_20_Arrendeavtal_lagenhetsarrende|REQUIRED|UNRESOLVED|
+HITS: 
+GATE_SYNTH: -
+MATRIX_CONCLUSION: -
+
+=== g3-02
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_18_Hyresavtal_bostad, Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_25_Fastighetsservice_stadning)
+STATE: INSUFFICIENT_EVIDENCE
+NEEDS: Uppsägningstid för Avtal_25_Fastighetsservice_stadning|Avtal_25_Fastighetsservice_stadning|REQUIRED|UNRESOLVED|
+HITS: Avtal_18_Hyresavtal_bostad:5;Avtal_20_Arrendeavtal_lagenhetsarrende:7
+GATE_SYNTH: -
+MATRIX_CONCLUSION: -
+
+=== g3-03
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_25_Fastighetsservice_stadning, Avtal_30_Ramavtal_tjanster)
+STATE: INSUFFICIENT_EVIDENCE
+NEEDS: uppsägningstid|Avtal_25_Fastighetsservice_stadning|REQUIRED|UNRESOLVED| || uppsägningstid|Avtal_30_Ramavtal_tjanster|REQUIRED|UNRESOLVED|
+HITS: Avtal_20_Arrendeavtal_lagenhetsarrende:7
+GATE_SYNTH: -
+MATRIX_CONCLUSION: -
+
+=== g3-04
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_25_Fastighetsservice_stadning, Avtal_30_Ramavtal_tjanster, Avtal_32_Inkopsavtal)
+STATE: INSUFFICIENT_EVIDENCE
+NEEDS: uppsägningstid|Avtal_25_Fastighetsservice_stadning|REQUIRED|UNRESOLVED| || uppsägningstid|Avtal_30_Ramavtal_tjanster|REQUIRED|UNRESOLVED| || uppsägningstid|Avtal_32_Inkopsavtal|REQUIRED|UNRESOLVED|
+HITS: 
+GATE_SYNTH: -
+MATRIX_CONCLUSION: -
+
+=== g3-05
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_30_Ramavtal_tjanster, Avtal_32_Inkopsavtal, Avtal_34_Aterforsaljaravtal)
+STATE: INSUFFICIENT_EVIDENCE
+NEEDS: Uppsägningstid för Avtal_30_Ramavtal_tjanster|Avtal_30_Ramavtal_tjanster|REQUIRED|UNRESOLVED| || Uppsägningstid för Avtal_32_Inkopsavtal|Avtal_32_Inkopsavtal|REQUIRED|UNRESOLVED|
+HITS: Avtal_34_Aterforsaljaravtal:24
+GATE_SYNTH: -
+MATRIX_CONCLUSION: -
+
+=== g3-06
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_32_Inkopsavtal, Avtal_34_Aterforsaljaravtal, Avtal_37_Allmanna_villkor_B2B)
+STATE: READY_TO_SYNTHESIZE
+NEEDS: Uppsägningstid för Avtal_37_Allmanna_villkor_B2B|Avtal_37_Allmanna_villkor_B2B|SUPPORTING|RESOLVED|
+HITS: Avtal_32_Inkopsavtal:28;Avtal_34_Aterforsaljaravtal:24
+GATE_SYNTH: FEL: invalid LLM answer "AVTAL_32_INKOPSAVTAL" (content: "Avtal_32_Inkopsavtal och Avtal_34_Aterforsaljaravtal har lika lång uppsägningstid (tre\u{202f}(3) månader).")
+MATRIX_CONCLUSION: FEL: invalid LLM answer "AVTAL_32_INKOPSAVTAL" (content: "Avtal_32_Inkopsavtal och Avtal_34_Aterforsaljaravtal.")
+
+=== g3-07
+QUESTION: Hur länge kan Avtal_34_Aterforsaljaravtal som längst vara bindande?
+STATE: INSUFFICIENT_EVIDENCE
+NEEDS: Maximal total binding period of Avtal_34_Aterforsaljaravtal|Avtal_34_Aterforsaljaravtal|REQUIRED|UNRESOLVED|
+HITS: Avtal_34_Aterforsaljaravtal:30
+GATE_SYNTH: -
+MATRIX_CONCLUSION: -
+
+=== g3-08
+QUESTION: Vad gäller enligt Avtal_17_Hyresavtal_lokal i 1. Parter?
+STATE: READY_TO_SYNTHESIZE
+NEEDS: 
+HITS: Avtal_17_Hyresavtal_lokal:1
+GATE_SYNTH: FEL: invalid LLM answer "ENLIGT" (content: "Enligt Avtal_17_Hyresavtal_lokal är parterna Fastighets\u{202f}AB\u{202f}Kvarnberget (Hyresvärd) och DevBrains\u{202f}AB (Hyresgäst).")
+MATRIX_CONCLUSION: FEL: invalid LLM answer "ENLIGT" (content: "Enligt Avtal_17_Hyresavtal_lokal är parterna:\n\n- **Hyresvärd:** Fastighets AB Kvarnberget  \n- **Hyresgäst:** DevBrains AB")
+
+=== g3-09
+QUESTION: Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2. Lokalen?
+STATE: INSUFFICIENT_EVIDENCE
+NEEDS: Full text of section 2 (Lokalen) including all sub‑clauses|Avtal_17_Hyresavtal_lokal|REQUIRED|UNRESOLVED| || Concrete values for the placeholders in 2.2 (antal kvm, plan X, lokal nr Nr)|Avtal_17_Hyresavtal_lokal|REQUIRED|UNRESOLVED|
+HITS: Avtal_17_Hyresavtal_lokal:4;Avtal_17_Hyresavtal_lokal:19;Avtal_17_Hyresavtal_lokal:3
+GATE_SYNTH: -
+MATRIX_CONCLUSION: -
+
+=== g3-10
+QUESTION: Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.1 Fastighet: [Fastighetsbeteckning], adress [Adr?
+STATE: INSUFFICIENT_EVIDENCE
+NEEDS: Innehållet i 2.1 Fastighet i Avtal_17_Hyresavtal_lokal|Avtal_17_Hyresavtal_lokal|REQUIRED|UNRESOLVED| || Fastighetsbeteckning och adress för den aktuella lokalen||SUPPORTING|RESOLVED|
+HITS: 
+GATE_SYNTH: -
+MATRIX_CONCLUSION: -
+
+=== g3-11
+QUESTION: Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.2 Lokalen omfattar cirka [antal] kvm på plan [X]?
+STATE: READY_TO_SYNTHESIZE
+NEEDS: 
+HITS: Avtal_17_Hyresavtal_lokal:4
+GATE_SYNTH: FEL: invalid LLM answer "LOKALEN" (content: "Lokalen är cirka [antal]\u{202f}kvm på plan [X] (lokal nr\u{202f}[Nr]) enligt ritning i Bilaga\u{202f}1, och avvikelser i ytan påverkar inte hyran såvida de inte är väsentliga.")
+MATRIX_CONCLUSION: FEL: invalid LLM answer "ENLIGT" (content: "Enligt Avtal\u{202f}17\u{202f}Hyresavtal\u{202f}lokal omfattar lokalen cirka\u{202f}[antal]\u{202f}kvm på plan\u{202f}[X]; avvikelser som inte är väsentliga påverkar inte hyran.")
+
+=== g3-12
+QUESTION: Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.3 Gemensamma utrymmen: [entré, toalett, pentry, ?
+STATE: READY_TO_SYNTHESIZE
+NEEDS: 
+HITS: Avtal_17_Hyresavtal_lokal:5
+GATE_SYNTH: FEL: invalid LLM answer "ENLIGT" (content: "Enligt Avtal_17_Hyresavtal_lokal omfattar gemensamma utrymmen entré, toalett, pentry och cykelrum.")
+MATRIX_CONCLUSION: FEL: invalid LLM answer "GEMENSAMMA" (content: "Gemensamma utrymmen omfattar entré, toalett, pentry och cykelrum.")

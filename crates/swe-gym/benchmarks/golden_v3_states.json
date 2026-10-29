@@ -1,0 +1,243 @@
+{
+  "g3-01": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "needs": [
+      {
+        "need": "uppsägningstid för Avtal_17_Hyresavtal_lokal",
+        "document": "Avtal_17_Hyresavtal_lokal",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      },
+      {
+        "need": "uppsägningstid för Avtal_18_Hyresavtal_bostad",
+        "document": "Avtal_18_Hyresavtal_bostad",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      },
+      {
+        "need": "uppsägningstid för Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "document": "Avtal_20_Arrendeavtal_lagenhetsarrende",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      }
+    ],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  },
+  "g3-02": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "needs": [
+      {
+        "need": "Uppsägningstid för Avtal_25_Fastighetsservice_stadning",
+        "document": "Avtal_25_Fastighetsservice_stadning",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      }
+    ],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  },
+  "g3-03": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "needs": [
+      {
+        "need": "uppsägningstid",
+        "document": "Avtal_25_Fastighetsservice_stadning",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      },
+      {
+        "need": "uppsägningstid",
+        "document": "Avtal_30_Ramavtal_tjanster",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      }
+    ],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  },
+  "g3-04": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "needs": [
+      {
+        "need": "uppsägningstid",
+        "document": "Avtal_25_Fastighetsservice_stadning",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      },
+      {
+        "need": "uppsägningstid",
+        "document": "Avtal_30_Ramavtal_tjanster",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      },
+      {
+        "need": "uppsägningstid",
+        "document": "Avtal_32_Inkopsavtal",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      }
+    ],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  },
+  "g3-05": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "needs": [
+      {
+        "need": "Uppsägningstid för Avtal_30_Ramavtal_tjanster",
+        "document": "Avtal_30_Ramavtal_tjanster",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      },
+      {
+        "need": "Uppsägningstid för Avtal_32_Inkopsavtal",
+        "document": "Avtal_32_Inkopsavtal",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      }
+    ],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  },
+  "g3-06": {
+    "state": "READY_TO_SYNTHESIZE",
+    "needs": [
+      {
+        "need": "Uppsägningstid för Avtal_37_Allmanna_villkor_B2B",
+        "document": "Avtal_37_Allmanna_villkor_B2B",
+        "importance": "SUPPORTING",
+        "status": "RESOLVED",
+        "evidence": []
+      }
+    ],
+    "contradictions": [],
+    "static_correct": true,
+    "baseline_iterative_correct": true,
+    "gate_llm_correct": true,
+    "matrix_llm_correct": true,
+    "deterministic_correct": true
+  },
+  "g3-07": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "needs": [
+      {
+        "need": "Maximal total binding period of Avtal_34_Aterforsaljaravtal",
+        "document": "Avtal_34_Aterforsaljaravtal",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      }
+    ],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  },
+  "g3-08": {
+    "state": "READY_TO_SYNTHESIZE",
+    "needs": [],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  },
+  "g3-09": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "needs": [
+      {
+        "need": "Full text of section 2 (Lokalen) including all sub‑clauses",
+        "document": "Avtal_17_Hyresavtal_lokal",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      },
+      {
+        "need": "Concrete values for the placeholders in 2.2 (antal kvm, plan X, lokal nr Nr)",
+        "document": "Avtal_17_Hyresavtal_lokal",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      }
+    ],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  },
+  "g3-10": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "needs": [
+      {
+        "need": "Innehållet i 2.1 Fastighet i Avtal_17_Hyresavtal_lokal",
+        "document": "Avtal_17_Hyresavtal_lokal",
+        "importance": "REQUIRED",
+        "status": "UNRESOLVED",
+        "evidence": []
+      }
+    ],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  },
+  "g3-11": {
+    "state": "READY_TO_SYNTHESIZE",
+    "needs": [],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  },
+  "g3-12": {
+    "state": "READY_TO_SYNTHESIZE",
+    "needs": [],
+    "contradictions": [],
+    "static_correct": false,
+    "baseline_iterative_correct": false,
+    "gate_llm_correct": false,
+    "matrix_llm_correct": false,
+    "deterministic_correct": false
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "measurement": "counterfactual_replay",
+  "note": "Frozen live scores with each trap's signal passage forced to a contradiction; duplicate scores are unchanged. Not a live run.",
+  "source_trace": "tests/integration/baselines/sufficiency-contradiction-trace-v1.json",
+  "source_trace_sha256": "67f2f5806023dee3dbfeb1dfb11bcce44a129ce5a218e781e45cb9aae5930d5b",
+  "forced_contradiction_score": 0.95,
+  "cases": [
+    {
+      "case_id": "tail_counterevidence",
+      "forced_passage_ids": [
+        "evidence-0:p53"
+      ],
+      "forced_contradiction_score": 0.95,
+      "duplicate_scores": [
+        0.61
+      ],
+      "conflicts": [
+        {
+          "conflict_id": "research_1:evidence-0:p53",
+          "need_id": "research_1",
+          "status": "unresolved",
+          "sides": [
+            {
+              "evidence_id": "evidence-0",
+              "passage_id": "evidence-0:p53",
+              "claim_id": null,
+              "source_id": "source-evidence-0"
+            }
+          ],
+          "resolution": null,
+          "flagged_by": "jev_passage_screen"
+        }
+      ],
+      "unresolved_conflicts": [
+        "research_1:evidence-0:p53"
+      ],
+      "gate_allows_sufficient": false,
+      "status": "uncertain",
+      "draft_result": "insufficient"
+    },
+    {
+      "case_id": "late_evidence",
+      "forced_passage_ids": [
+        "evidence-48:p0"
+      ],
+      "forced_contradiction_score": 0.95,
+      "duplicate_scores": [
+        0.89
+      ],
+      "conflicts": [
+        {
+          "conflict_id": "research_1:evidence-48:p0",
+          "need_id": "research_1",
+          "status": "unresolved",
+          "sides": [
+            {
+              "evidence_id": "evidence-48",
+              "passage_id": "evidence-48:p0",
+              "claim_id": null,
+              "source_id": "source-evidence-48"
+            }
+          ],
+          "resolution": null,
+          "flagged_by": "jev_passage_screen"
+        }
+      ],
+      "unresolved_conflicts": [
+        "research_1:evidence-48:p0"
+      ],
+      "gate_allows_sufficient": false,
+      "status": "uncertain",
+      "draft_result": "insufficient"
+    },
+    {
+      "case_id": "large_567k",
+      "forced_passage_ids": [
+        "evidence-0:p11"
+      ],
+      "forced_contradiction_score": 0.95,
+      "duplicate_scores": [
+        0.94
+      ],
+      "conflicts": [
+        {
+          "conflict_id": "research_1:evidence-0:p11",
+          "need_id": "research_1",
+          "status": "unresolved",
+          "sides": [
+            {
+              "evidence_id": "evidence-0",
+              "passage_id": "evidence-0:p11",
+              "claim_id": null,
+              "source_id": "source-evidence-0"
+            }
+          ],
+          "resolution": null,
+          "flagged_by": "jev_passage_screen"
+        }
+      ],
+      "unresolved_conflicts": [
+        "research_1:evidence-0:p11"
+      ],
+      "gate_allows_sufficient": false,
+      "status": "uncertain",
+      "draft_result": "insufficient"
+    },
+    {
+      "case_id": "short_sufficient",
+      "forced_passage_ids": [],
+      "forced_contradiction_score": 0.95,
+      "duplicate_scores": [
+        0.17
+      ],
+      "conflicts": [],
+      "unresolved_conflicts": [],
+      "gate_allows_sufficient": true,
+      "status": "sufficient",
+      "draft_result": "sufficient"
+    }
+  ]
+}

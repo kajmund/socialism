@@ -21,6 +21,7 @@ from app.services.research.sufficiency_experiment.baseline import (
     baseline_view,
 )
 from app.services.research.sufficiency_experiment.golden import GoldenCase
+from app.services.research.sufficiency_experiment.trace import case_trace
 from app.services.research.sufficiency_experiment.types import ExperimentConfig, ExperimentReport
 
 
@@ -44,6 +45,7 @@ class CaseReport:
     expected: str
     baseline: PathMetrics
     experiment: PathMetrics
+    trace: dict[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -99,10 +101,18 @@ async def run_benchmark(
     client: JevSystemOne,
     config: ExperimentConfig | None = None,
     measurement: str = "scripted",
+    include_trace: bool = False,
 ) -> BenchmarkReport:
     settings = config or ExperimentConfig()
     rows = [
-        await _one(case, client, settings, measurement=measurement) for case in cases
+        await _one(
+            case,
+            client,
+            settings,
+            measurement=measurement,
+            include_trace=include_trace,
+        )
+        for case in cases
     ]
     return BenchmarkReport(
         cases=tuple(rows),
@@ -116,6 +126,7 @@ async def measure_live_models(
     cases: Sequence[GoldenCase],
     *,
     config: ExperimentConfig | None = None,
+    include_trace: bool = False,
 ) -> BenchmarkReport:
     """Judge the same golden evidence with live Jev passages and the live assessor.
 
@@ -132,7 +143,8 @@ async def measure_live_models(
     settings = config or ExperimentConfig()
     client = HttpJevSystemOne()
     rows = [
-        await _one(case, client, settings, measurement="live") for case in cases
+        await _one(case, client, settings, measurement="live", include_trace=include_trace)
+        for case in cases
     ]
     return BenchmarkReport(
         cases=tuple(rows),
@@ -151,6 +163,7 @@ async def _one(
     config: ExperimentConfig,
     *,
     measurement: str,
+    include_trace: bool,
 ) -> CaseReport:
     started = perf_counter()
     view = baseline_view(case.evidence)
@@ -162,12 +175,14 @@ async def _one(
         client=client,
         config=config,
         live_measurement=measurement,
+        counterparts=case.counterparts,
     )
     return CaseReport(
         case_id=case.case_id,
         expected=case.expected,
         baseline=_baseline_metrics(case, view, baseline_result, baseline_ms),
         experiment=_experiment_metrics(case, report),
+        trace=case_trace(case, report, config) if include_trace else None,
     )
 
 

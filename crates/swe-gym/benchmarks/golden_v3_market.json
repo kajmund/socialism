@@ -1,0 +1,992 @@
+{
+  "states": [
+    {
+      "qid": "g3-01",
+      "chunk": "Avtal_17_Hyresavtal_lokal:9",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "9 månader"
+    },
+    {
+      "qid": "g3-01",
+      "chunk": "Avtal_18_Hyresavtal_bostad:5",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "3 månader"
+    },
+    {
+      "qid": "g3-01",
+      "chunk": "Avtal_20_Arrendeavtal_lagenhetsarrende:7",
+      "baseline": "ej bedömd",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "6 månader"
+    },
+    {
+      "qid": "g3-01",
+      "chunk": "Avtal_17_Hyresavtal_lokal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-01",
+      "chunk": "Avtal_18_Hyresavtal_bostad:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-01",
+      "chunk": "Avtal_20_Arrendeavtal_lagenhetsarrende:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-01",
+      "chunk": "Avtal_18_Hyresavtal_bostad:6",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-01",
+      "chunk": "Avtal_22_Kontorshotell_coworking:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-01",
+      "chunk": "Avtal_18_Hyresavtal_bostad:22",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-02",
+      "chunk": "Avtal_18_Hyresavtal_bostad:5",
+      "baseline": "fynd",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "3 månader"
+    },
+    {
+      "qid": "g3-02",
+      "chunk": "Avtal_20_Arrendeavtal_lagenhetsarrende:7",
+      "baseline": "fynd",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "6 månader"
+    },
+    {
+      "qid": "g3-02",
+      "chunk": "Avtal_25_Fastighetsservice_stadning:24",
+      "baseline": "ej bedömd",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "1 år"
+    },
+    {
+      "qid": "g3-02",
+      "chunk": "Avtal_18_Hyresavtal_bostad:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-02",
+      "chunk": "Avtal_25_Fastighetsservice_stadning:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-02",
+      "chunk": "Avtal_20_Arrendeavtal_lagenhetsarrende:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-02",
+      "chunk": "Avtal_25_Fastighetsservice_stadning:23",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-02",
+      "chunk": "Avtal_18_Hyresavtal_bostad:22",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-02",
+      "chunk": "Avtal_18_Hyresavtal_bostad:6",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-02",
+      "chunk": "Avtal_17_Hyresavtal_lokal:9",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": "9 månader"
+    },
+    {
+      "qid": "g3-03",
+      "chunk": "Avtal_20_Arrendeavtal_lagenhetsarrende:7",
+      "baseline": "fynd",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "6 månader"
+    },
+    {
+      "qid": "g3-03",
+      "chunk": "Avtal_25_Fastighetsservice_stadning:24",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "1 år"
+    },
+    {
+      "qid": "g3-03",
+      "chunk": "Avtal_30_Ramavtal_tjanster:45",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "12 månader"
+    },
+    {
+      "qid": "g3-03",
+      "chunk": "Avtal_25_Fastighetsservice_stadning:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-03",
+      "chunk": "Avtal_20_Arrendeavtal_lagenhetsarrende:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-03",
+      "chunk": "Avtal_30_Ramavtal_tjanster:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-03",
+      "chunk": "Avtal_30_Ramavtal_tjanster:44",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-03",
+      "chunk": "Avtal_25_Fastighetsservice_stadning:23",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-03",
+      "chunk": "Avtal_32_Inkopsavtal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-03",
+      "chunk": "Avtal_17_Hyresavtal_lokal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-04",
+      "chunk": "Avtal_25_Fastighetsservice_stadning:24",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "1 år"
+    },
+    {
+      "qid": "g3-04",
+      "chunk": "Avtal_30_Ramavtal_tjanster:45",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "12 månader"
+    },
+    {
+      "qid": "g3-04",
+      "chunk": "Avtal_32_Inkopsavtal:28",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "1 år"
+    },
+    {
+      "qid": "g3-04",
+      "chunk": "Avtal_32_Inkopsavtal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-04",
+      "chunk": "Avtal_25_Fastighetsservice_stadning:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-04",
+      "chunk": "Avtal_30_Ramavtal_tjanster:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-04",
+      "chunk": "Avtal_30_Ramavtal_tjanster:44",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-04",
+      "chunk": "Avtal_25_Fastighetsservice_stadning:23",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-04",
+      "chunk": "Avtal_32_Inkopsavtal:27",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-04",
+      "chunk": "Avtal_64_Byraavtal_reklam:21",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-05",
+      "chunk": "Avtal_30_Ramavtal_tjanster:45",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "12 månader"
+    },
+    {
+      "qid": "g3-05",
+      "chunk": "Avtal_32_Inkopsavtal:28",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "1 år"
+    },
+    {
+      "qid": "g3-05",
+      "chunk": "Avtal_34_Aterforsaljaravtal:30",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "1 år"
+    },
+    {
+      "qid": "g3-05",
+      "chunk": "Avtal_32_Inkopsavtal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-05",
+      "chunk": "Avtal_30_Ramavtal_tjanster:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-05",
+      "chunk": "Avtal_34_Aterforsaljaravtal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-05",
+      "chunk": "Avtal_34_Aterforsaljaravtal:29",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-05",
+      "chunk": "Avtal_30_Ramavtal_tjanster:44",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-05",
+      "chunk": "Avtal_32_Inkopsavtal:27",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-06",
+      "chunk": "Avtal_32_Inkopsavtal:28",
+      "baseline": "fynd",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "1 år"
+    },
+    {
+      "qid": "g3-06",
+      "chunk": "Avtal_34_Aterforsaljaravtal:30",
+      "baseline": "inget",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "1 år"
+    },
+    {
+      "qid": "g3-06",
+      "chunk": "Avtal_37_Allmanna_villkor_B2B:34",
+      "baseline": "ej bedömd",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "12 månader"
+    },
+    {
+      "qid": "g3-06",
+      "chunk": "Avtal_32_Inkopsavtal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-06",
+      "chunk": "Avtal_34_Aterforsaljaravtal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-06",
+      "chunk": "Avtal_34_Aterforsaljaravtal:29",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-06",
+      "chunk": "Avtal_49_IT_drift_hostingavtal:23",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-06",
+      "chunk": "Avtal_32_Inkopsavtal:27",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-06",
+      "chunk": "Avtal_32_Inkopsavtal:5",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-07",
+      "chunk": "Avtal_34_Aterforsaljaravtal:24",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": true,
+      "value": null
+    },
+    {
+      "qid": "g3-07",
+      "chunk": "Avtal_34_Aterforsaljaravtal:30",
+      "baseline": "fynd",
+      "clarified": "fynd",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": "1 år"
+    },
+    {
+      "qid": "g3-07",
+      "chunk": "Avtal_34_Aterforsaljaravtal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-07",
+      "chunk": "Avtal_50_Support_underhallsavtal:19",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-07",
+      "chunk": "Avtal_34_Aterforsaljaravtal:29",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-07",
+      "chunk": "Avtal_52_Licensavtal_varumarke:22",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-07",
+      "chunk": "Avtal_34_Aterforsaljaravtal:28",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": "3 år"
+    },
+    {
+      "qid": "g3-07",
+      "chunk": "Avtal_34_Aterforsaljaravtal:32",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-08",
+      "chunk": "Avtal_17_Hyresavtal_lokal:1",
+      "baseline": "fynd",
+      "clarified": "inget",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": null
+    },
+    {
+      "qid": "g3-08",
+      "chunk": "Avtal_17_Hyresavtal_lokal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-08",
+      "chunk": "Avtal_17_Hyresavtal_lokal:4",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-08",
+      "chunk": "Avtal_17_Hyresavtal_lokal:33",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-08",
+      "chunk": "Avtal_17_Hyresavtal_lokal:19",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-08",
+      "chunk": "Avtal_17_Hyresavtal_lokal:9",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": "9 månader"
+    },
+    {
+      "qid": "g3-08",
+      "chunk": "Avtal_17_Hyresavtal_lokal:34",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-08",
+      "chunk": "Avtal_17_Hyresavtal_lokal:27",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-09",
+      "chunk": "Avtal_17_Hyresavtal_lokal:2",
+      "baseline": "ej bedömd",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": true,
+      "value": null
+    },
+    {
+      "qid": "g3-09",
+      "chunk": "Avtal_17_Hyresavtal_lokal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-09",
+      "chunk": "Avtal_17_Hyresavtal_lokal:31",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-09",
+      "chunk": "Avtal_17_Hyresavtal_lokal:6",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-09",
+      "chunk": "Avtal_19_Andrahandsuthyrning_lokal:17",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-09",
+      "chunk": "Avtal_17_Hyresavtal_lokal:27",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-09",
+      "chunk": "Avtal_17_Hyresavtal_lokal:22",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-10",
+      "chunk": "Avtal_17_Hyresavtal_lokal:3",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": true,
+      "value": null
+    },
+    {
+      "qid": "g3-10",
+      "chunk": "Avtal_17_Hyresavtal_lokal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-10",
+      "chunk": "Avtal_17_Hyresavtal_lokal:4",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-10",
+      "chunk": "Avtal_79_Hyresavtal_lokal_Goteborg:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-10",
+      "chunk": "Avtal_17_Hyresavtal_lokal:1",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-10",
+      "chunk": "Avtal_17_Hyresavtal_lokal:19",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-10",
+      "chunk": "Avtal_17_Hyresavtal_lokal:34",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-10",
+      "chunk": "Avtal_17_Hyresavtal_lokal:33",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-11",
+      "chunk": "Avtal_17_Hyresavtal_lokal:4",
+      "baseline": "fynd",
+      "clarified": "inget",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": null
+    },
+    {
+      "qid": "g3-11",
+      "chunk": "Avtal_19_Andrahandsuthyrning_lokal:3",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-11",
+      "chunk": "Avtal_17_Hyresavtal_lokal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-11",
+      "chunk": "Avtal_17_Hyresavtal_lokal:19",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-11",
+      "chunk": "Avtal_17_Hyresavtal_lokal:11",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-11",
+      "chunk": "Avtal_17_Hyresavtal_lokal:3",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-11",
+      "chunk": "Avtal_79_Hyresavtal_lokal_Goteborg:18",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-11",
+      "chunk": "Avtal_17_Hyresavtal_lokal:5",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-12",
+      "chunk": "Avtal_17_Hyresavtal_lokal:5",
+      "baseline": "fynd",
+      "clarified": "inget",
+      "context": "fynd",
+      "facit_evidence": true,
+      "value": null
+    },
+    {
+      "qid": "g3-12",
+      "chunk": "Avtal_17_Hyresavtal_lokal:4",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-12",
+      "chunk": "Avtal_17_Hyresavtal_lokal:19",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-12",
+      "chunk": "Avtal_17_Hyresavtal_lokal:0",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-12",
+      "chunk": "Avtal_17_Hyresavtal_lokal:18",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-12",
+      "chunk": "Avtal_17_Hyresavtal_lokal:6",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-12",
+      "chunk": "Avtal_17_Hyresavtal_lokal:31",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    },
+    {
+      "qid": "g3-12",
+      "chunk": "Avtal_17_Hyresavtal_lokal:28",
+      "baseline": "inget",
+      "clarified": "inget",
+      "context": "inget",
+      "facit_evidence": false,
+      "value": null
+    }
+  ],
+  "actions": {
+    "accept NONE": {
+      "recovered": 0,
+      "false_positives": 0,
+      "cost": 92000,
+      "cost_per_recovered": Infinity
+    },
+    "clarified JEV": {
+      "recovered": 11,
+      "false_positives": 3,
+      "cost": 92000,
+      "cost_per_recovered": 8363.636363636364
+    },
+    "context JEV": {
+      "recovered": 11,
+      "false_positives": 2,
+      "cost": 92000,
+      "cost_per_recovered": 8363.636363636364
+    },
+    "deterministic extraction": {
+      "recovered": 11,
+      "false_positives": 3,
+      "cost": 92000,
+      "cost_per_recovered": 8363.636363636364
+    }
+  },
+  "signals": {
+    "baseline fynd": {
+      "precision": 1.0,
+      "recall": 0.32
+    },
+    "clarified fynd": {
+      "precision": 0.86,
+      "recall": 0.76
+    },
+    "context fynd": {
+      "precision": 0.92,
+      "recall": 0.88
+    },
+    "extraherbart värde": {
+      "precision": 0.86,
+      "recall": 0.76
+    },
+    "fynd OCH värde": {
+      "precision": 0.95,
+      "recall": 0.76
+    }
+  },
+  "uncertainty": {
+    "verification": 11,
+    "epistemic": 2
+  }
+}

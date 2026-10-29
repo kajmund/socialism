@@ -85,6 +85,7 @@ def test_one_supporting_passage_is_not_enough_when_completeness_is_missing() -> 
             )
         ],
         config=config,
+        evidence_by_id={},
         source_types_present=("case_knowledge",),
     )
     assert row.sufficient is False
@@ -119,12 +120,17 @@ def test_contradiction_is_uncertain_not_final_insufficient() -> None:
             ),
         ],
         config=config,
+        evidence_by_id={},
         source_types_present=("case_knowledge",),
     )
     assert row.sufficient is False
     assert row.status == "uncertain"
     assert row.unresolved_conflicts
     assert row.contradictions == ("p1",)
+    conflict = row.conflicts[0]
+    assert conflict.status == "unresolved"
+    assert conflict.has_unknown_counterpart is True
+    assert conflict.resolution is None
 
 
 def test_five_duplicates_are_one_independence_key() -> None:
@@ -145,6 +151,7 @@ def test_five_duplicates_are_one_independence_key() -> None:
         need,
         rows,
         config=config,
+        evidence_by_id={},
         source_types_present=("case_knowledge",),
     )
     assert row.sufficient is False
@@ -169,6 +176,7 @@ def test_unknown_source_types_are_uncertain() -> None:
             )
         ],
         config=config,
+        evidence_by_id={},
     )
     assert row.unknown_requirements is True
     assert row.status == "uncertain"
@@ -178,4 +186,4 @@ def test_unknown_source_types_are_uncertain() -> None:
 def test_missing_need_evaluations_fail_loudly() -> None:
     plan = ResearchPlan(needs=[_need(source_types=["case_knowledge"])])
     with pytest.raises(ValueError, match="no passage evaluations"):
-        aggregate_plan(plan, [], config=ExperimentConfig())
+        aggregate_plan(plan, [], config=ExperimentConfig(), evidence_by_id={})

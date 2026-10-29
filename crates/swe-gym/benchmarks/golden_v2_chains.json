@@ -1,0 +1,201 @@
+{
+  "g2-15": {
+    "question": "Vilka av dessa dokument innehåller en klausul om sekretess? (Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_15_Bonusavtal, Avtal_11_Distansarbetsavtal)",
+    "category": "korsdokument",
+    "facit": "Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_11_Distansarbetsavtal",
+    "facit_requires_aggregation": true,
+    "chains": {
+      "jev->assembler": {
+        "cost": 24000,
+        "coverage": 0.857,
+        "conclusion": [
+          "Avtal_05_Konsultavtal",
+          "Avtal_06_Sekretessavtal_ensidigt_NDA"
+        ],
+        "correct": false
+      },
+      "llm->assembler": {
+        "cost": 240000,
+        "coverage": 1.0,
+        "conclusion": [
+          "Avtal_05_Konsultavtal",
+          "Avtal_06_Sekretessavtal_ensidigt_NDA",
+          "Avtal_11_Distansarbetsavtal"
+        ],
+        "correct": true
+      },
+      "jev->llm": {
+        "cost": 34000,
+        "coverage": 0.857,
+        "conclusion": [
+          "Avtal_05_Konsultavtal",
+          "Avtal_06_Sekretessavtal"
+        ],
+        "correct": false
+      },
+      "llm->jev->llm": {
+        "cost": 25000,
+        "coverage": 0.714,
+        "conclusion": [
+          "Avtal_05_Konsultavtal",
+          "Avtal_06_Sekretessavtal"
+        ],
+        "correct": false
+      }
+    }
+  },
+  "g2-17": {
+    "question": "Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_15_Bonusavtal, Avtal_02_Provanstallningsavtal)",
+    "category": "korsdokument",
+    "facit": "Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal",
+    "facit_requires_aggregation": true,
+    "chains": {
+      "jev->assembler": {
+        "cost": 24000,
+        "coverage": 0.625,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_02_Provanstallningsavtal",
+          "Avtal_05_Konsultavtal"
+        ],
+        "correct": true
+      },
+      "llm->assembler": {
+        "cost": 240000,
+        "coverage": 0.375,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_02_Provanstallningsavtal"
+        ],
+        "correct": false
+      },
+      "jev->llm": {
+        "cost": 34000,
+        "coverage": 0.625,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_02_Provanstallningsavtal",
+          "Avtal_05_Konsultavtal"
+        ],
+        "correct": true
+      },
+      "llm->jev->llm": {
+        "cost": 23000,
+        "coverage": 0.375,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_02_Provanstallningsavtal",
+          "Avtal_05_Konsultavtal"
+        ],
+        "correct": true
+      }
+    }
+  },
+  "g2-29": {
+    "question": "Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_17_Hyresavtal_lokal, Avtal_15_Bonusavtal, Avtal_03_Visstidsanstallning)",
+    "category": "korsdokument",
+    "facit": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_17_Hyresavtal_lokal, Avtal_03_Visstidsanstallning",
+    "facit_requires_aggregation": true,
+    "chains": {
+      "jev->assembler": {
+        "cost": 24000,
+        "coverage": 0.714,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_03_Visstidsanstallning",
+          "Avtal_17_Hyresavtal_lokal"
+        ],
+        "correct": true
+      },
+      "llm->assembler": {
+        "cost": 240000,
+        "coverage": 0.571,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_03_Visstidsanstallning",
+          "Avtal_17_Hyresavtal_lokal"
+        ],
+        "correct": true
+      },
+      "jev->llm": {
+        "cost": 34000,
+        "coverage": 0.714,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_03_Visstidsanstallning"
+        ],
+        "correct": false
+      },
+      "llm->jev->llm": {
+        "cost": 20000,
+        "coverage": 0.0,
+        "conclusion": [],
+        "correct": false
+      }
+    }
+  },
+  "g2-20": {
+    "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning, Avtal_11_Distansarbetsavtal)",
+    "category": "resonemang/syntes",
+    "facit": "Avtal_01_Tillsvidareanstallningsavtal",
+    "facit_requires_aggregation": true,
+    "chains": {
+      "jev->assembler": {
+        "cost": 24000,
+        "coverage": 0.0,
+        "conclusion": null,
+        "correct": false
+      },
+      "llm->assembler": {
+        "cost": 240000,
+        "coverage": 0.0,
+        "conclusion": null,
+        "correct": false
+      },
+      "jev->llm": {
+        "cost": 34000,
+        "coverage": 0.0,
+        "conclusion": null,
+        "correct": false
+      },
+      "llm->jev->llm": {
+        "cost": 20000,
+        "coverage": 0.0,
+        "conclusion": null,
+        "correct": false
+      }
+    }
+  },
+  "g2-23": {
+    "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_18_Hyresavtal_bostad, Avtal_22_Kontorshotell_coworking, Avtal_28_Aktieagaravtal)",
+    "category": "resonemang/syntes",
+    "facit": "Avtal_28_Aktieagaravtal",
+    "facit_requires_aggregation": true,
+    "chains": {
+      "jev->assembler": {
+        "cost": 24000,
+        "coverage": 0.0,
+        "conclusion": null,
+        "correct": false
+      },
+      "llm->assembler": {
+        "cost": 210000,
+        "coverage": 0.0,
+        "conclusion": null,
+        "correct": false
+      },
+      "jev->llm": {
+        "cost": 34000,
+        "coverage": 0.0,
+        "conclusion": null,
+        "correct": false
+      },
+      "llm->jev->llm": {
+        "cost": 20000,
+        "coverage": 0.0,
+        "conclusion": null,
+        "correct": false
+      }
+    }
+  }
+}

@@ -1,0 +1,421 @@
+{
+  "measurement": "b0_gap_review",
+  "note": "Shadow only: the gap review does not affect the A3 verdict. One live run; gap facit is late_evidence only (the one case A3 did not solve by contradiction detection).",
+  "recorded_at": "2026-10-23T07:31:22.573657+00:00",
+  "llm_model": "gpt-oss-120b",
+  "config": {
+    "jev_concurrency": 8,
+    "jev_timeout_seconds": 5.0,
+    "jev_model": "jev-latest",
+    "max_passage_chars": 1500,
+    "max_narrative_depth": 1,
+    "max_jev_calls": 2000,
+    "max_steps": 2000,
+    "max_depth": 6,
+    "timeout_seconds": 1800,
+    "support_threshold": 0.6,
+    "contradict_threshold": 0.6,
+    "max_tool_calls": 8,
+    "max_narrative_input_chars": 12000,
+    "min_claim_chars": 20,
+    "max_claim_chars": 500,
+    "min_claim_words": 4,
+    "max_claims_per_need": 200,
+    "max_pairs_per_need": 40,
+    "embedding_neighbors": 3,
+    "pair_strategy": "deterministic",
+    "route_authority": true,
+    "legacy_duplicate_resolution": false,
+    "pair_judgement": true,
+    "pair_jev_concurrency": 8,
+    "pair_jev_timeout_seconds": 5.0,
+    "gap_review_enabled": true,
+    "max_gap_input_chars": 12000,
+    "max_pair_state_chars": 6000,
+    "max_pair_jev_calls": 200
+  },
+  "metrics": {
+    "gap_true_positive": 1,
+    "gap_false_negative": 0,
+    "gap_false_positive": 9,
+    "cases_flagged": 10,
+    "gap_errors": 0
+  },
+  "rows": [
+    {
+      "case_id": "tail_counterevidence",
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "decision_correct": true,
+      "contradiction_detected": true,
+      "evidence_coverage_complete": true,
+      "a3_jev_calls": 56,
+      "gap": {
+        "needs_more_evidence": true,
+        "missing_evidence": [
+          "Evidence that clarifies whether NJA 2005 s. 142 applies 36 § avtalslagen or not, i.e., additional case knowledge resolving the contradiction between claim evidence-0:p0:c0 and claim evidence-0:p53:c57"
+        ],
+        "questions": [
+          "Vilka avgöranden har tillämpat 36 § avtalslagen?"
+        ],
+        "suggested_workflows": [
+          "evaluate_passages"
+        ],
+        "cited_claim_ids": [
+          "evidence-0:p0:c0",
+          "evidence-0:p53:c57"
+        ],
+        "rationale": "The aggregation reports an unresolved material contradiction between two claims concerning the application of §36 of the Contracts Act. Because the conflict is not shown to be inapplicable, additional evidence is required to resolve it. The outstanding need asks for cases that have applied §36, which directly relates to the contradictory claims. To address this gap, the next appropriate step is to run the 'evaluate_passages' workflow, which can examine the passages supporting each claim and seek further evidence to resolve the conflict.",
+        "latency_ms": 831.8609169800766,
+        "input_chars": 1365,
+        "model": "gpt-oss-120b",
+        "error": null
+      },
+      "gap_needs_more_evidence": true,
+      "gap_error": null
+    },
+    {
+      "case_id": "late_evidence",
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "decision_correct": true,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": false,
+      "a3_jev_calls": 629,
+      "gap": {
+        "needs_more_evidence": true,
+        "missing_evidence": [
+          "Full case texts for each cited decision to confirm application of 36 § avtalslagen"
+        ],
+        "questions": [
+          "Are there any contradictory claims regarding the application of 36 § avtalslagen?",
+          "Do we have sufficient evidence to confirm that each listed decision indeed applies 36 § avtalslagen?"
+        ],
+        "suggested_workflows": [
+          "evaluate_passages",
+          "segment_passages",
+          "quality_gate"
+        ],
+        "cited_claim_ids": [
+          "evidence-0:p0:c0",
+          "evidence-1:p0:c0",
+          "evidence-2:p0:c0",
+          "evidence-3:p0:c0",
+          "evidence-4:p0:c0",
+          "evidence-5:p0:c0",
+          "evidence-6:p0:c0",
+          "evidence-7:p0:c0",
+          "evidence-8:p0:c0",
+          "evidence-9:p0:c0",
+          "evidence-10:p0:c0",
+          "evidence-11:p0:c0",
+          "evidence-12:p0:c0",
+          "evidence-13:p0:c0",
+          "evidence-14:p0:c0",
+          "evidence-15:p0:c0",
+          "evidence-16:p0:c0",
+          "evidence-17:p0:c0",
+          "evidence-18:p0:c0",
+          "evidence-19:p0:c0",
+          "evidence-20:p0:c0",
+          "evidence-21:p0:c0",
+          "evidence-22:p0:c0",
+          "evidence-23:p0:c0",
+          "evidence-24:p0:c0",
+          "evidence-25:p0:c0",
+          "evidence-26:p0:c0",
+          "evidence-27:p0:c0",
+          "evidence-28:p0:c0",
+          "evidence-29:p0:c0",
+          "evidence-30:p0:c0",
+          "evidence-31:p0:c0",
+          "evidence-32:p0:c0",
+          "evidence-33:p0:c0",
+          "evidence-34:p0:c0",
+          "evidence-35:p0:c0",
+          "evidence-36:p0:c0",
+          "evidence-37:p0:c0",
+          "evidence-38:p0:c0",
+          "evidence-39:p0:c0",
+          "evidence-40:p0:c0",
+          "evidence-41:p0:c0",
+          "evidence-42:p0:c0",
+          "evidence-43:p0:c0",
+          "evidence-44:p0:c0",
+          "evidence-45:p0:c0",
+          "evidence-46:p0:c0",
+          "evidence-47:p0:c0"
+        ],
+        "rationale": "The aggregation for need research_1 is marked as sufficient, but the overall coverage gate is not complete and the conflict_candidate level is incomplete due to many candidate pairs being omitted because of budget constraints. While many claims assert that the decisions apply § 36 of the Contracts Act, the system lacks full case texts to verify each claim, and there is a counter‑claim (evidence‑48) stating a decision does NOT apply the provision. Therefore additional evidence (full case documents) and further processing of passage pairs are required to resolve remaining uncertainties and to pass the quality gate.",
+        "latency_ms": 1380.8301669778302,
+        "input_chars": 11197,
+        "model": "gpt-oss-120b",
+        "error": null
+      },
+      "gap_needs_more_evidence": true,
+      "gap_error": null
+    },
+    {
+      "case_id": "large_567k",
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "decision_correct": true,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "a3_jev_calls": 397,
+      "gap": {
+        "needs_more_evidence": true,
+        "missing_evidence": [
+          "relevance evidence for research_1",
+          "factual support evidence for research_1"
+        ],
+        "questions": [
+          "Vilka avgöranden har tillämpat 36 § avtalslagen?"
+        ],
+        "suggested_workflows": [
+          "evaluate_passages",
+          "segment_passages"
+        ],
+        "cited_claim_ids": [],
+        "rationale": "The aggregation shows that the mandatory obligations for need research_1 (relevance and factual support) are insufficiently verified. No claims have been provided, and the coverage gates are complete, indicating that the workflow has progressed but lacks the required evidence to substantiate the need. To obtain the missing relevance and factual support evidence, the next logical steps are to evaluate passages and segment them for further analysis. These workflows are allowed and will generate the needed evidence.",
+        "latency_ms": 601.9706249935552,
+        "input_chars": 979,
+        "model": "gpt-oss-120b",
+        "error": null
+      },
+      "gap_needs_more_evidence": true,
+      "gap_error": null
+    },
+    {
+      "case_id": "short_sufficient",
+      "expected": "sufficient",
+      "draft": "sufficient",
+      "decision_correct": true,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "a3_jev_calls": 2,
+      "gap": {
+        "needs_more_evidence": true,
+        "missing_evidence": [
+          "additional case citations that applied 36 § avtalslagen"
+        ],
+        "questions": [
+          "Vilka avgöranden har tillämpat 36 § avtalslagen?"
+        ],
+        "suggested_workflows": [
+          "evaluate_passages",
+          "quality_gate",
+          "segment_passages"
+        ],
+        "cited_claim_ids": [
+          "evidence-0:p0:c0"
+        ],
+        "rationale": "Only a single claim (NJA 2005 s. 142) is currently provided for the need. The aggregation marks the need as sufficient, but without reviewing broader evidence we cannot confirm that all relevant decisions have been identified. Therefore more evidence (additional cases citing §36) is required, and the next steps should focus on evaluating the relevance of existing passages and applying quality checks before further segmentation.",
+        "latency_ms": 575.3817500080913,
+        "input_chars": 1050,
+        "model": "gpt-oss-120b",
+        "error": null
+      },
+      "gap_needs_more_evidence": true,
+      "gap_error": null
+    },
+    {
+      "case_id": "duplicate_contradiction",
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "decision_correct": true,
+      "contradiction_detected": true,
+      "evidence_coverage_complete": true,
+      "a3_jev_calls": 4,
+      "gap": {
+        "needs_more_evidence": true,
+        "missing_evidence": [],
+        "questions": [
+          "Hur kan den materialkonflikt som identifierats mellan claim dup-contra:p0:c0 (\"MOTBEVIS: detta avgörande tillämpar inte 36 § avtalslagen.\") och claim dup-support:p0:c0 (\"Högsta domstolen tillämpar 36 § avtalslagen i NJA 2005 s. 142.\") lösas?",
+          "Vilka avgöranden har tillämpat 36 § avtalslagen? (research_1)"
+        ],
+        "suggested_workflows": [
+          "evaluate_passages",
+          "segment_passages",
+          "aggregate_need"
+        ],
+        "cited_claim_ids": [
+          "dup-contra:p0:c0",
+          "dup-support:p0:c0"
+        ],
+        "rationale": "The aggregation reports an unresolved material contradiction (research_1) between the two claims concerning the applicability of 36 § avtalslagen. The conflict candidate has not been measured, indicating that additional evidence or analysis is required to determine which claim (if either) is correct. No specific missing evidence IDs are provided in the current state, so the missing_evidence list is empty, but the need for further evidence is clear. To address the gap, the workflow should evaluate the existing passages, possibly segment them for finer analysis, and aggregate any additional need‑driven evidence. These steps will help resolve the open questions and allow the conflict to be measured.",
+        "latency_ms": 869.2094999714755,
+        "input_chars": 1503,
+        "model": "gpt-oss-120b",
+        "error": null
+      },
+      "gap_needs_more_evidence": true,
+      "gap_error": null
+    },
+    {
+      "case_id": "independent_contradiction",
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "decision_correct": true,
+      "contradiction_detected": true,
+      "evidence_coverage_complete": true,
+      "a3_jev_calls": 4,
+      "gap": {
+        "needs_more_evidence": true,
+        "missing_evidence": [
+          "Evidence that clarifies whether the cited decision applies §36 of the Contracts Act or not (e.g., additional passages, judicial commentary, or authoritative analysis)"
+        ],
+        "questions": [
+          "Vilka avgöranden har tillämpat 36 § avtalslagen?"
+        ],
+        "suggested_workflows": [
+          "evaluate_passages",
+          "segment_passages",
+          "aggregate_need"
+        ],
+        "cited_claim_ids": [
+          "ind-support:p0:c0",
+          "ind-contra:p0:c0"
+        ],
+        "rationale": "The aggregation shows an unresolved material contradiction between the support claim (ind-support:p0:c0) asserting that the Supreme Court applied §36 and the contra claim (ind-contra:p0:c0) asserting the opposite. Because the conflict is still present, more evidence is required to determine which claim is accurate and thereby answer the research question. The allowed workflows that can generate or evaluate additional passages to resolve this conflict are 'evaluate_passages', 'segment_passages', and subsequently 'aggregate_need' to update the need with clarified evidence.",
+        "latency_ms": 566.8965830118395,
+        "input_chars": 1499,
+        "model": "gpt-oss-120b",
+        "error": null
+      },
+      "gap_needs_more_evidence": true,
+      "gap_error": null
+    },
+    {
+      "case_id": "compatible_periods",
+      "expected": "sufficient",
+      "draft": "insufficient",
+      "decision_correct": false,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "a3_jev_calls": 4,
+      "gap": {
+        "needs_more_evidence": true,
+        "missing_evidence": [
+          "research_1:relevance",
+          "research_1:factual_support"
+        ],
+        "questions": [
+          "Vilka avgöranden har tillämpat 36 § avtalslagen?"
+        ],
+        "suggested_workflows": [
+          "aggregate_need",
+          "evaluate_passages",
+          "segment_passages"
+        ],
+        "cited_claim_ids": [
+          "period-old:p0:c0",
+          "period-new:p0:c0"
+        ],
+        "rationale": "The aggregation reports insufficient support for the mandatory obligations of need research_1, specifically lacking relevance and factual support evidence. The only available claims address termination periods and do not answer the question about which decisions have applied §36 of the contracts law. Therefore additional evidence is required, and the allowed workflows that can gather or evaluate such evidence are suggested.",
+        "latency_ms": 484.0805829735473,
+        "input_chars": 1310,
+        "model": "gpt-oss-120b",
+        "error": null
+      },
+      "gap_needs_more_evidence": true,
+      "gap_error": null
+    },
+    {
+      "case_id": "compatible_entities",
+      "expected": "sufficient",
+      "draft": "insufficient",
+      "decision_correct": false,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "a3_jev_calls": 4,
+      "gap": {
+        "needs_more_evidence": true,
+        "missing_evidence": [
+          "research_1:relevance",
+          "research_1:factual_support"
+        ],
+        "questions": [
+          "Vilka avgöranden har tillämpat 36 § avtalslagen?"
+        ],
+        "suggested_workflows": [
+          "evaluate_passages",
+          "segment_passages",
+          "aggregate_need"
+        ],
+        "cited_claim_ids": [
+          "entity-a:p0:c0",
+          "entity-b:p0:c0"
+        ],
+        "rationale": "The aggregation indicates that the mandatory obligations for need research_1 (relevance and factual support) are not verified. Therefore additional evidence is required to establish the relevance of the need and factual backing. The existing claims (entity-a:p0:c0 and entity-b:p0:c0) do not address this need. To fill the gap, the workflow should evaluate passages for relevance/factual support and possibly segment passages or aggregate further evidence. Hence more evidence is needed, the key question remains open, and the suggested workflows aim to obtain the missing evidence.",
+        "latency_ms": 571.6105409665033,
+        "input_chars": 1286,
+        "model": "gpt-oss-120b",
+        "error": null
+      },
+      "gap_needs_more_evidence": true,
+      "gap_error": null
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "decision_correct": true,
+      "contradiction_detected": false,
+      "evidence_coverage_complete": true,
+      "a3_jev_calls": 2,
+      "gap": {
+        "needs_more_evidence": true,
+        "missing_evidence": [
+          "research_1:factual_support"
+        ],
+        "questions": [
+          "Vilka avgöranden har tillämpat 36 § avtalslagen?"
+        ],
+        "suggested_workflows": [
+          "aggregate_need"
+        ],
+        "cited_claim_ids": [],
+        "rationale": "The aggregation reports that the mandatory factual support for need research_1 is insufficient. The core question for research_1 remains unanswered and no supporting evidence has been provided. Therefore more evidence is required, specifically factual support identified as research_1:factual_support. The next appropriate step from the allow‑listed workflows is to run the 'aggregate_need' workflow to locate or generate the needed evidence. No existing claim IDs directly address this need, so the cited_claim_ids list is empty.",
+        "latency_ms": 665.5034589930438,
+        "input_chars": 1279,
+        "model": "gpt-oss-120b",
+        "error": null
+      },
+      "gap_needs_more_evidence": true,
+      "gap_error": null
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "expected": "insufficient",
+      "draft": "insufficient",
+      "decision_correct": true,
+      "contradiction_detected": true,
+      "evidence_coverage_complete": false,
+      "a3_jev_calls": 49,
+      "gap": {
+        "needs_more_evidence": true,
+        "missing_evidence": [],
+        "questions": [
+          "Vilka avgöranden har tillämpat 36 § avtalslagen?"
+        ],
+        "suggested_workflows": [
+          "evaluate_passages",
+          "quality_gate",
+          "aggregate_need"
+        ],
+        "cited_claim_ids": [
+          "tail-claims:p0:c0",
+          "tail-claims:p7:c4"
+        ],
+        "rationale": "The aggregation reports material contradictions (e.g., research_1:tail-claims:p0:c0|tail-claims:p7:c4) that are unresolved and the status is uncertain. The only claim referencing §36 is tail-claims:p0:c0, but the conflicting claim tail-claims:p7:c4 is absent from the provided claim set, indicating missing evidence. Therefore additional evaluation of passages and quality gating is required before the need can be satisfied.",
+        "latency_ms": 684.9997499957681,
+        "input_chars": 11838,
+        "model": "gpt-oss-120b",
+        "error": null
+      },
+      "gap_needs_more_evidence": true,
+      "gap_error": null
+    }
+  ]
+}

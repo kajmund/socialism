@@ -1,0 +1,434 @@
+{
+  "measurement": "pair_recall",
+  "note": "Candidate generation only; no Jev calls. Embedding strategies report their embedding calls separately.",
+  "gold": "tests/integration/baselines/pair-gold-v1.json",
+  "embedding_model": "text-embedding-3-large",
+  "config": {
+    "max_pairs_per_need": 40,
+    "embedding_neighbors": 3,
+    "max_claims_per_need": 200
+  },
+  "summary": {
+    "deterministic": {
+      "cases": 5,
+      "mean_recall_before_budget": 1.0,
+      "mean_recall_at_budget": 1.0,
+      "selected_pairs": 44,
+      "embedding_calls": 0
+    },
+    "embeddings": {
+      "cases": 5,
+      "mean_recall_before_budget": 1.0,
+      "mean_recall_at_budget": 0.8,
+      "selected_pairs": 48,
+      "embedding_calls": 5
+    },
+    "hybrid": {
+      "cases": 5,
+      "mean_recall_before_budget": 1.0,
+      "mean_recall_at_budget": 1.0,
+      "selected_pairs": 48,
+      "embedding_calls": 5
+    }
+  },
+  "cases": [
+    {
+      "case_id": "duplicate_contradiction",
+      "negative_control": false,
+      "claims": 3,
+      "strategies": {
+        "deterministic": {
+          "input_claims": 3,
+          "candidate_pairs": 1,
+          "selected_pairs": 1,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "dup-contra:p0:c0|dup-support:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "deterministic"
+              ]
+            }
+          ],
+          "latency_ms": 0.167,
+          "embedding_calls": 0,
+          "embedding_texts": 0
+        },
+        "embeddings": {
+          "input_claims": 3,
+          "candidate_pairs": 3,
+          "selected_pairs": 3,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "dup-contra:p0:c0|dup-support:p0:c0",
+              "rank": 2,
+              "selected": true,
+              "sources": [
+                "embeddings"
+              ]
+            }
+          ],
+          "latency_ms": 5937.162,
+          "embedding_calls": 1,
+          "embedding_texts": 3
+        },
+        "hybrid": {
+          "input_claims": 3,
+          "candidate_pairs": 3,
+          "selected_pairs": 3,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "dup-contra:p0:c0|dup-support:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "deterministic",
+                "embeddings"
+              ]
+            }
+          ],
+          "latency_ms": 911.703,
+          "embedding_calls": 1,
+          "embedding_texts": 3
+        }
+      }
+    },
+    {
+      "case_id": "independent_contradiction",
+      "negative_control": false,
+      "claims": 3,
+      "strategies": {
+        "deterministic": {
+          "input_claims": 3,
+          "candidate_pairs": 1,
+          "selected_pairs": 1,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "ind-contra:p0:c0|ind-support:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "deterministic"
+              ]
+            }
+          ],
+          "latency_ms": 0.044,
+          "embedding_calls": 0,
+          "embedding_texts": 0
+        },
+        "embeddings": {
+          "input_claims": 3,
+          "candidate_pairs": 3,
+          "selected_pairs": 3,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "ind-contra:p0:c0|ind-support:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "embeddings"
+              ]
+            }
+          ],
+          "latency_ms": 458.397,
+          "embedding_calls": 1,
+          "embedding_texts": 3
+        },
+        "hybrid": {
+          "input_claims": 3,
+          "candidate_pairs": 3,
+          "selected_pairs": 3,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "ind-contra:p0:c0|ind-support:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "deterministic",
+                "embeddings"
+              ]
+            }
+          ],
+          "latency_ms": 261.532,
+          "embedding_calls": 1,
+          "embedding_texts": 3
+        }
+      }
+    },
+    {
+      "case_id": "compatible_periods",
+      "negative_control": false,
+      "claims": 2,
+      "strategies": {
+        "deterministic": {
+          "input_claims": 2,
+          "candidate_pairs": 1,
+          "selected_pairs": 1,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "period-new:p0:c0|period-old:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "deterministic"
+              ]
+            }
+          ],
+          "latency_ms": 0.048,
+          "embedding_calls": 0,
+          "embedding_texts": 0
+        },
+        "embeddings": {
+          "input_claims": 2,
+          "candidate_pairs": 1,
+          "selected_pairs": 1,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "period-new:p0:c0|period-old:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "embeddings"
+              ]
+            }
+          ],
+          "latency_ms": 537.627,
+          "embedding_calls": 1,
+          "embedding_texts": 2
+        },
+        "hybrid": {
+          "input_claims": 2,
+          "candidate_pairs": 1,
+          "selected_pairs": 1,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "period-new:p0:c0|period-old:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "deterministic",
+                "embeddings"
+              ]
+            }
+          ],
+          "latency_ms": 281.486,
+          "embedding_calls": 1,
+          "embedding_texts": 2
+        }
+      }
+    },
+    {
+      "case_id": "compatible_entities",
+      "negative_control": false,
+      "claims": 2,
+      "strategies": {
+        "deterministic": {
+          "input_claims": 2,
+          "candidate_pairs": 1,
+          "selected_pairs": 1,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "entity-a:p0:c0|entity-b:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "deterministic"
+              ]
+            }
+          ],
+          "latency_ms": 0.04,
+          "embedding_calls": 0,
+          "embedding_texts": 0
+        },
+        "embeddings": {
+          "input_claims": 2,
+          "candidate_pairs": 1,
+          "selected_pairs": 1,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "entity-a:p0:c0|entity-b:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "embeddings"
+              ]
+            }
+          ],
+          "latency_ms": 261.675,
+          "embedding_calls": 1,
+          "embedding_texts": 2
+        },
+        "hybrid": {
+          "input_claims": 2,
+          "candidate_pairs": 1,
+          "selected_pairs": 1,
+          "omitted_by_budget": 0,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "entity-a:p0:c0|entity-b:p0:c0",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "deterministic",
+                "embeddings"
+              ]
+            }
+          ],
+          "latency_ms": 258.315,
+          "embedding_calls": 1,
+          "embedding_texts": 2
+        }
+      }
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "negative_control": false,
+      "claims": 180,
+      "strategies": {
+        "deterministic": {
+          "input_claims": 180,
+          "candidate_pairs": 15757,
+          "selected_pairs": 40,
+          "omitted_by_budget": 15717,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "tail-claims:p0:c0|tail-claims:p7:c4",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "deterministic"
+              ]
+            }
+          ],
+          "latency_ms": 148.609,
+          "embedding_calls": 0,
+          "embedding_texts": 0
+        },
+        "embeddings": {
+          "input_claims": 180,
+          "candidate_pairs": 344,
+          "selected_pairs": 40,
+          "omitted_by_budget": 304,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 0.0,
+          "facit": [
+            {
+              "pair_id": "tail-claims:p0:c0|tail-claims:p7:c4",
+              "rank": 340,
+              "selected": false,
+              "sources": [
+                "embeddings"
+              ]
+            }
+          ],
+          "latency_ms": 8099.688,
+          "embedding_calls": 1,
+          "embedding_texts": 180
+        },
+        "hybrid": {
+          "input_claims": 180,
+          "candidate_pairs": 15759,
+          "selected_pairs": 40,
+          "omitted_by_budget": 15719,
+          "recall_before_budget": 1.0,
+          "recall_at_budget": 1.0,
+          "facit": [
+            {
+              "pair_id": "tail-claims:p0:c0|tail-claims:p7:c4",
+              "rank": 1,
+              "selected": true,
+              "sources": [
+                "deterministic",
+                "embeddings"
+              ]
+            }
+          ],
+          "latency_ms": 7973.105,
+          "embedding_calls": 1,
+          "embedding_texts": 180
+        }
+      }
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "negative_control": true,
+      "claims": 2,
+      "strategies": {
+        "deterministic": {
+          "input_claims": 2,
+          "candidate_pairs": 0,
+          "selected_pairs": 0,
+          "omitted_by_budget": 0,
+          "recall_before_budget": null,
+          "recall_at_budget": null,
+          "facit": [],
+          "latency_ms": 0.036,
+          "embedding_calls": 0,
+          "embedding_texts": 0
+        },
+        "embeddings": {
+          "input_claims": 2,
+          "candidate_pairs": 1,
+          "selected_pairs": 1,
+          "omitted_by_budget": 0,
+          "recall_before_budget": null,
+          "recall_at_budget": null,
+          "facit": [],
+          "latency_ms": 218.971,
+          "embedding_calls": 1,
+          "embedding_texts": 2
+        },
+        "hybrid": {
+          "input_claims": 2,
+          "candidate_pairs": 1,
+          "selected_pairs": 1,
+          "omitted_by_budget": 0,
+          "recall_before_budget": null,
+          "recall_at_budget": null,
+          "facit": [],
+          "latency_ms": 242.284,
+          "embedding_calls": 1,
+          "embedding_texts": 2
+        }
+      }
+    }
+  ]
+}

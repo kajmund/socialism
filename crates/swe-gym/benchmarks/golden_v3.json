@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "questions": [
+    {
+      "id": "g3-01",
+      "doc": "Avtal_17_Hyresavtal_lokal",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_17_Hyresavtal_lokal, Avtal_18_Hyresavtal_bostad, Avtal_20_Arrendeavtal_lagenhetsarrende)",
+      "evidence": [
+        "Avtal_17_Hyresavtal_lokal:9",
+        "Avtal_18_Hyresavtal_bostad:5",
+        "Avtal_20_Arrendeavtal_lagenhetsarrende:7"
+      ],
+      "conclusion": "Avtal_17_Hyresavtal_lokal",
+      "positive": true,
+      "note": "korsdokumentberoende: slutsatsen kräver evidens från alla tre dokumenten"
+    },
+    {
+      "id": "g3-02",
+      "doc": "Avtal_18_Hyresavtal_bostad",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_18_Hyresavtal_bostad, Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_25_Fastighetsservice_stadning)",
+      "evidence": [
+        "Avtal_18_Hyresavtal_bostad:5",
+        "Avtal_20_Arrendeavtal_lagenhetsarrende:7",
+        "Avtal_25_Fastighetsservice_stadning:24"
+      ],
+      "conclusion": "Avtal_25_Fastighetsservice_stadning",
+      "positive": true,
+      "note": "korsdokumentberoende: slutsatsen kräver evidens från alla tre dokumenten"
+    },
+    {
+      "id": "g3-03",
+      "doc": "Avtal_20_Arrendeavtal_lagenhetsarrende",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_20_Arrendeavtal_lagenhetsarrende, Avtal_25_Fastighetsservice_stadning, Avtal_30_Ramavtal_tjanster)",
+      "evidence": [
+        "Avtal_20_Arrendeavtal_lagenhetsarrende:7",
+        "Avtal_25_Fastighetsservice_stadning:24",
+        "Avtal_30_Ramavtal_tjanster:45"
+      ],
+      "conclusion": "Avtal_25_Fastighetsservice_stadning",
+      "positive": true,
+      "note": "korsdokumentberoende: slutsatsen kräver evidens från alla tre dokumenten"
+    },
+    {
+      "id": "g3-04",
+      "doc": "Avtal_25_Fastighetsservice_stadning",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_25_Fastighetsservice_stadning, Avtal_30_Ramavtal_tjanster, Avtal_32_Inkopsavtal)",
+      "evidence": [
+        "Avtal_25_Fastighetsservice_stadning:24",
+        "Avtal_30_Ramavtal_tjanster:45",
+        "Avtal_32_Inkopsavtal:28"
+      ],
+      "conclusion": "Avtal_25_Fastighetsservice_stadning",
+      "positive": true,
+      "note": "korsdokumentberoende: slutsatsen kräver evidens från alla tre dokumenten"
+    },
+    {
+      "id": "g3-05",
+      "doc": "Avtal_30_Ramavtal_tjanster",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_30_Ramavtal_tjanster, Avtal_32_Inkopsavtal, Avtal_34_Aterforsaljaravtal)",
+      "evidence": [
+        "Avtal_30_Ramavtal_tjanster:45",
+        "Avtal_32_Inkopsavtal:28",
+        "Avtal_34_Aterforsaljaravtal:30"
+      ],
+      "conclusion": "Avtal_30_Ramavtal_tjanster",
+      "positive": true,
+      "note": "korsdokumentberoende: slutsatsen kräver evidens från alla tre dokumenten"
+    },
+    {
+      "id": "g3-06",
+      "doc": "Avtal_32_Inkopsavtal",
+      "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_32_Inkopsavtal, Avtal_34_Aterforsaljaravtal, Avtal_37_Allmanna_villkor_B2B)",
+      "evidence": [
+        "Avtal_32_Inkopsavtal:28",
+        "Avtal_34_Aterforsaljaravtal:30",
+        "Avtal_37_Allmanna_villkor_B2B:34"
+      ],
+      "conclusion": "Avtal_32_Inkopsavtal",
+      "positive": true,
+      "note": "korsdokumentberoende: slutsatsen kräver evidens från alla tre dokumenten"
+    },
+    {
+      "id": "g3-07",
+      "doc": "Avtal_34_Aterforsaljaravtal",
+      "question": "Hur länge kan Avtal_34_Aterforsaljaravtal som längst vara bindande?",
+      "evidence": [
+        "Avtal_34_Aterforsaljaravtal:24",
+        "Avtal_34_Aterforsaljaravtal:30"
+      ],
+      "conclusion": "'12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs' + '9. Försäljningsmål\\nMålet är att Återförsäljaren ska sälja minst [antal] nya abon'",
+      "positive": true,
+      "note": "intern kedja: förlängningsklausulen villkoras av uppsägningsklausulen"
+    },
+    {
+      "id": "g3-08",
+      "doc": "Avtal_17_Hyresavtal_lokal",
+      "question": "Vad gäller enligt Avtal_17_Hyresavtal_lokal i 1. Parter?",
+      "evidence": [
+        "Avtal_17_Hyresavtal_lokal:1"
+      ],
+      "conclusion": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBr",
+      "positive": false,
+      "note": "negativ kontroll: svaret är självständigt — extra retrieval tillför inget"
+    },
+    {
+      "id": "g3-09",
+      "doc": "Avtal_17_Hyresavtal_lokal",
+      "question": "Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2. Lokalen?",
+      "evidence": [
+        "Avtal_17_Hyresavtal_lokal:2"
+      ],
+      "conclusion": "2. Lokalen\n",
+      "positive": false,
+      "note": "negativ kontroll: svaret är självständigt — extra retrieval tillför inget"
+    },
+    {
+      "id": "g3-10",
+      "doc": "Avtal_17_Hyresavtal_lokal",
+      "question": "Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.1 Fastighet: [Fastighetsbeteckning], adress [Adr?",
+      "evidence": [
+        "Avtal_17_Hyresavtal_lokal:3"
+      ],
+      "conclusion": "2.1 Fastighet: [Fastighetsbeteckning], adress [Adress], [Kommun].\n",
+      "positive": false,
+      "note": "negativ kontroll: svaret är självständigt — extra retrieval tillför inget"
+    },
+    {
+      "id": "g3-11",
+      "doc": "Avtal_17_Hyresavtal_lokal",
+      "question": "Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.2 Lokalen omfattar cirka [antal] kvm på plan [X]?",
+      "evidence": [
+        "Avtal_17_Hyresavtal_lokal:4"
+      ],
+      "conclusion": "2.2 Lokalen omfattar cirka [antal] kvm på plan [X], lokal nr [Nr], enligt ritning i Bilaga 1 (\"Lokalen\"). Avvikelser frå",
+      "positive": false,
+      "note": "negativ kontroll: svaret är självständigt — extra retrieval tillför inget"
+    },
+    {
+      "id": "g3-12",
+      "doc": "Avtal_17_Hyresavtal_lokal",
+      "question": "Vad gäller enligt Avtal_17_Hyresavtal_lokal i 2.3 Gemensamma utrymmen: [entré, toalett, pentry, ?",
+      "evidence": [
+        "Avtal_17_Hyresavtal_lokal:5"
+      ],
+      "conclusion": "2.3 Gemensamma utrymmen: [entré, toalett, pentry, cykelrum]. Parkering: [antal] platser [ingår / mot särskild avgift].\n",
+      "positive": false,
+      "note": "negativ kontroll: svaret är självständigt — extra retrieval tillför inget"
+    }
+  ]
+}

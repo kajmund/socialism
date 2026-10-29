@@ -1,0 +1,50 @@
+{
+  "before": {
+    "correct": 25,
+    "wrong": 7,
+    "abstained": 18
+  },
+  "after": {
+    "correct": 25,
+    "wrong": 5,
+    "abstained": 20
+  },
+  "removed_wrong": [
+    "g5-01"
+  ],
+  "blocked_correct": [
+    "g5-36"
+  ],
+  "semantic_survivors": [
+    [
+      "g5-31",
+      [
+        "ett år"
+      ]
+    ],
+    [
+      "g5-37",
+      [
+        "två månaders"
+      ]
+    ],
+    [
+      "g5-45",
+      [
+        "sjuttiofem tusen kronor"
+      ]
+    ],
+    [
+      "g5-46",
+      [
+        "ett år"
+      ]
+    ],
+    [
+      "g5-47",
+      [
+        "ersättning"
+      ]
+    ]
+  ]
+}

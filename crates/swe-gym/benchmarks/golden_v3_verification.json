@@ -1,0 +1,122 @@
+{
+  "g3-01": {
+    "state": "READY_TO_SYNTHESIZE",
+    "signal": "clarified",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": true,
+    "deterministic_answer": "Avtal_17_Hyresavtal_lokal",
+    "iterative_cost": 21000,
+    "kexp_cost": 26000
+  },
+  "g3-02": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "signal": "baseline",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  },
+  "g3-03": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "signal": "baseline",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  },
+  "g3-04": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "signal": "baseline",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  },
+  "g3-05": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "signal": "baseline",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  },
+  "g3-06": {
+    "state": "READY_TO_SYNTHESIZE",
+    "signal": "baseline",
+    "static_correct": true,
+    "kexp_correct": true,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  },
+  "g3-07": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "signal": "baseline",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  },
+  "g3-08": {
+    "state": "READY_TO_SYNTHESIZE",
+    "signal": "baseline",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  },
+  "g3-09": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "signal": "baseline",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  },
+  "g3-10": {
+    "state": "INSUFFICIENT_EVIDENCE",
+    "signal": "baseline",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  },
+  "g3-11": {
+    "state": "READY_TO_SYNTHESIZE",
+    "signal": "baseline",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  },
+  "g3-12": {
+    "state": "READY_TO_SYNTHESIZE",
+    "signal": "baseline",
+    "static_correct": false,
+    "kexp_correct": false,
+    "iterative_deterministic_correct": false,
+    "deterministic_answer": null,
+    "iterative_cost": 18000,
+    "kexp_cost": 26000
+  }
+}

@@ -1,0 +1,429 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "chunk": "Avtal_67_Evenemangsavtal:18",
+      "text": "9. Personuppgifter\nAnläggningen behandlar namn och kostuppgifter om deltagarna som personuppgiftsansvarig för logi och servering, och raderar specialkostuppgifter senast 30 dagar efter evenemanget.\n",
+      "gold": [
+        {
+          "type": "PERIOD",
+          "span": "senast 30 dagar"
+        }
+      ],
+      "need_labels": [
+        "Tidsperiod"
+      ]
+    },
+    {
+      "chunk": "Avtal_31_Leveransavtal:27",
+      "text": "10. Ansvarsbegränsning\n",
+      "gold": [
+        {
+          "type": "LIABILITY_CAP",
+          "span": "Ansvarsbegränsning"
+        }
+      ],
+      "need_labels": [
+        "Ansvarstak"
+      ]
+    },
+    {
+      "chunk": "Avtal_05_Konsultavtal:33",
+      "text": "15. Underskrifter\n[Ort], 2021-04-12\n[Ort], 2021-04-12\nFör DevBrains AB\nFör Konsulten\n______________________\n______________________\nErik Lindqvist, VD\nMikael Strand\nBilaga 1: Uppdragsbeskrivning (omfattning, leveranser, tidsplan, kontaktpersoner)",
+      "gold": [
+        {
+          "type": "PARTY",
+          "span": "DevBrains AB"
+        }
+      ],
+      "need_labels": [
+        "Avtalspart"
+      ]
+    },
+    {
+      "chunk": "Avtal_48_Mjukvaruutvecklingsavtal:1",
+      "text": "1. Parter\nLeverantör: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"DevBrains\").\nBeställare: Vindö Vårdcenter AB, org.nr [Organisationsnummer], [Adress] (\"Beställaren\").\n",
+      "gold": [
+        {
+          "type": "PARTY",
+          "span": "DevBrains AB"
+        }
+      ],
+      "need_labels": [
+        "Avtalspart"
+      ]
+    },
+    {
+      "chunk": "Avtal_25_Fastighetsservice_stadning:25",
+      "text": "7.2 Båda parter får säga upp avtalet med omedelbar verkan om motparten väsentligt bryter mot avtalet och inte vidtar rättelse inom [14] dagar efter skriftlig anmodan.\n",
+      "gold": [
+        {
+          "type": "PERIOD",
+          "span": "14] dagar"
+        },
+        {
+          "type": "TERMINATION_CONDITION",
+          "span": "omedelbar verkan"
+        },
+        {
+          "type": "MONEY",
+          "span": "[14]"
+        }
+      ],
+      "need_labels": [
+        "Belopp",
+        "Tidsperiod",
+        "Uppsägningsvillkor"
+      ]
+    },
+    {
+      "chunk": "Avtal_57_Penetrationstest:1",
+      "text": "1. Parter\nBeställare: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"DevBrains\").\nLeverantör: Säkerhetslabbet Kustvakt AB, org.nr [Organisationsnummer], [Adress] (\"Leverantören\").\n",
+      "gold": [
+        {
+          "type": "PARTY",
+          "span": "DevBrains AB"
+        }
+      ],
+      "need_labels": [
+        "Avtalspart"
+      ]
+    },
+    {
+      "chunk": "Avtal_28_Aktieagaravtal:19",
+      "text": "7. Utdelningspolicy\nBolagets vinstmedel ska i första hand återinvesteras i verksamheten. Utdelning får lämnas när Bolaget har en soliditet på minst [30] procent och en tillfredsställande likviditet, med beaktande av försiktighetsregeln i 17 kap. 3 § aktiebolagslagen.\n",
+      "gold": [
+        {
+          "type": "MONEY",
+          "span": "[30]"
+        }
+      ],
+      "need_labels": [
+        "Belopp"
+      ]
+    },
+    {
+      "chunk": "Avtal_33_Agentavtal:29",
+      "text": "10. Konkurrensförbud efter avtalets upphörande\nUnder [tolv (12)] månader efter avtalets upphörande får Agenten inte inom Distriktet sälja tjänster som konkurrerar med Tjänsten till kunder som Agenten har bearbetat för Huvudmannens räkning under de senaste [tolv] månaderna.\n",
+      "gold": [
+        {
+          "type": "PERIOD",
+          "span": "tolv (12)] månader"
+        }
+      ],
+      "need_labels": [
+        "Tidsperiod"
+      ]
+    },
+    {
+      "chunk": "Avtal_91_Inkramsoverlatelse:10",
+      "text": "4.1 Köpeskillingen är [Belopp] kronor exklusive moms, fördelad på inventarier [Belopp] kronor och goodwill [Belopp] kronor.\n",
+      "gold": [
+        {
+          "type": "MONEY",
+          "span": "[Belopp]"
+        },
+        {
+          "type": "MONEY",
+          "span": "[Belopp]"
+        },
+        {
+          "type": "MONEY",
+          "span": "[Belopp]"
+        }
+      ],
+      "need_labels": [
+        "Belopp"
+      ]
+    },
+    {
+      "chunk": "Avtal_78_Uppdragsavtal_juridiskt_ombud:11",
+      "text": "5.4 Fakturering sker månadsvis med specifikation av utfört arbete. Betalningsvillkor: 30 dagar.\n",
+      "gold": [
+        {
+          "type": "PERIOD",
+          "span": "30 dagar"
+        }
+      ],
+      "need_labels": [
+        "Tidsperiod"
+      ]
+    },
+    {
+      "chunk": "Avtal_05_Konsultavtal:27",
+      "text": "12. Värvningsförbud\nUnder avtalstiden och [tolv (12)] månader därefter får Konsulten inte direkt anlitas av Beställarens kund Fjällvik Logistik AB för likartade tjänster utan Beställarens skriftliga samtycke. Konsulten får inte heller aktivt värva Beställarens anställda. [Se även avtal 9.]\n",
+      "gold": [
+        {
+          "type": "NOTICE_PERIOD",
+          "span": "tolv (12)] månader"
+        }
+      ],
+      "need_labels": [
+        "Uppsägningstid"
+      ]
+    },
+    {
+      "chunk": "Avtal_46_SaaS_avtal:19",
+      "text": "8.2 Avgiften faktureras kvartalsvis i förskott. Betalningsvillkor: 30 dagar netto.\n",
+      "gold": [
+        {
+          "type": "PERIOD",
+          "span": "30 dagar"
+        }
+      ],
+      "need_labels": [
+        "Tidsperiod"
+      ]
+    },
+    {
+      "chunk": "Avtal_77_Redovisningsuppdrag:22",
+      "text": "7.4 Byrån har en ansvarsförsäkring med ett försäkringsbelopp om minst [Belopp] kronor.\n",
+      "gold": [
+        {
+          "type": "MONEY",
+          "span": "[Belopp]"
+        }
+      ],
+      "need_labels": [
+        "Belopp"
+      ]
+    },
+    {
+      "chunk": "Avtal_32_Inkopsavtal:14",
+      "text": "4.4 Vid försening som inte beror på DevBrains har DevBrains rätt att avbeställa den försenade delen av Ordern utan kostnad, och därutöver rätt till ersättning för skäliga merkostnader för ersättningsköp, högst [Belopp] kronor per Order.\n",
+      "gold": [
+        {
+          "type": "MONEY",
+          "span": "[Belopp]"
+        }
+      ],
+      "need_labels": [
+        "Belopp"
+      ]
+    },
+    {
+      "chunk": "Avtal_59_Agilt_IT_konsultavtal:7",
+      "text": "4.1 Arbetet bedrivs enligt Scrum med sprintar om två (2) veckor. DevBrains utser produktägare (Oskar Nyström) och ansvarar för produktbackloggen och prioriteringen.\n",
+      "gold": [
+        {
+          "type": "PERIOD",
+          "span": "två (2) veckor"
+        }
+      ],
+      "need_labels": [
+        "Tidsperiod"
+      ]
+    },
+    {
+      "chunk": "Avtal_13_Avgangsvederlagsavtal:1",
+      "text": "1. Parter\nArbetsgivare: DevBrains AB, org.nr [Organisationsnummer] (\"Arbetsgivaren\").\nArbetstagare: Johanna Wiklund, pers.nr [Personnummer] (\"Arbetstagaren\").\n",
+      "gold": [
+        {
+          "type": "PARTY",
+          "span": "DevBrains AB"
+        }
+      ],
+      "need_labels": [
+        "Avtalspart"
+      ]
+    },
+    {
+      "chunk": "Avtal_34_Aterforsaljaravtal:34",
+      "text": "15. Underskrifter\nStockholm, 2024-05-02\n[Ort], 2024-05-02\nFör DevBrains AB\nFör Granlunds Möbelhandel AB\n______________________\n______________________\nErik Lindqvist, VD\nSofia Granlund, VD\nBilagor: 1 Återförsäljarprislista, 2 Supportnivåer",
+      "gold": [
+        {
+          "type": "PARTY",
+          "span": "DevBrains AB"
+        }
+      ],
+      "need_labels": [
+        "Avtalspart"
+      ]
+    },
+    {
+      "chunk": "Avtal_49_IT_drift_hostingavtal:17",
+      "text": "5.1 Avgifterna framgår av Bilaga 3. Fasta avgifter faktureras månadsvis i förskott och rörliga avgifter (förbrukning) månadsvis i efterskott. Betalningsvillkor: 30 dagar netto.\n",
+      "gold": [
+        {
+          "type": "PERIOD",
+          "span": "30 dagar"
+        }
+      ],
+      "need_labels": [
+        "Tidsperiod"
+      ]
+    },
+    {
+      "chunk": "Avtal_69_Kundavtal_B2C_villkor:6",
+      "text": "3.1 Flow Hem finns som en gratisversion med begränsade funktioner och som Premium, som kostar [Belopp] kronor per månad eller [Belopp] kronor per år. Alla priser anges inklusive moms.\n",
+      "gold": [
+        {
+          "type": "MONEY",
+          "span": "[Belopp]"
+        },
+        {
+          "type": "MONEY",
+          "span": "[Belopp]"
+        }
+      ],
+      "need_labels": [
+        "Belopp"
+      ]
+    },
+    {
+      "chunk": "Avtal_37_Allmanna_villkor_B2B:27",
+      "text": "10. Ansvarsbegränsning\n",
+      "gold": [
+        {
+          "type": "LIABILITY_CAP",
+          "span": "Ansvarsbegränsning"
+        }
+      ],
+      "need_labels": [
+        "Ansvarstak"
+      ]
+    },
+    {
+      "chunk": "Avtal_60_Pilotavtal_PoC:24",
+      "text": "15. Underskrifter\nStockholm, 2023-10-16\n[Ort], 2023-10-16\nFör DevBrains AB\nFör Granlunds Möbelhandel AB\n______________________\n______________________\nErik Lindqvist, VD\nSofia Granlund, VD\nBilaga 1: Personuppgiftsbiträdesavtal",
+      "gold": [
+        {
+          "type": "PARTY",
+          "span": "DevBrains AB"
+        }
+      ],
+      "need_labels": [
+        "Avtalspart"
+      ]
+    },
+    {
+      "chunk": "Avtal_48_Mjukvaruutvecklingsavtal:27",
+      "text": "11. Garanti\nDevBrains ska utan kostnad avhjälpa fel som rapporteras inom sex (6) månader efter godkännandet.\n",
+      "gold": [
+        {
+          "type": "PERIOD",
+          "span": "sex (6) månader"
+        }
+      ],
+      "need_labels": [
+        "Tidsperiod"
+      ]
+    },
+    {
+      "chunk": "Avtal_31_Leveransavtal:32",
+      "text": "13. Underskrifter\nStockholm, 2022-03-01\n[Ort], 2022-03-01\nFör DevBrains AB\nFör Fjällvik Logistik AB\n______________________\n______________________\nErik Lindqvist, VD\nAnnika Rudberg, IT-chef\nBilaga 1: Teknisk specifikation och konfiguration",
+      "gold": [
+        {
+          "type": "PARTY",
+          "span": "DevBrains AB"
+        }
+      ],
+      "need_labels": [
+        "Avtalspart"
+      ]
+    },
+    {
+      "chunk": "Avtal_03_Visstidsanstallning:11",
+      "text": "7. Lön\nMånadslön: [Belopp] kronor. [Alternativ: timlön [Belopp] kr.]\n",
+      "gold": [
+        {
+          "type": "MONEY",
+          "span": "[Belopp]"
+        },
+        {
+          "type": "MONEY",
+          "span": "[Belopp]"
+        }
+      ],
+      "need_labels": [
+        "Belopp"
+      ]
+    },
+    {
+      "chunk": "Avtal_03_Visstidsanstallning:7",
+      "text": "3.2 [Ömsesidig uppsägningsrätt: Båda parter får säga upp anställningen i förtid med [en (1) månads] uppsägningstid.]\n",
+      "gold": [
+        {
+          "type": "NOTICE_PERIOD",
+          "span": "en (1) månads"
+        }
+      ],
+      "need_labels": [
+        "Uppsägningstid"
+      ]
+    },
+    {
+      "chunk": "Avtal_37_Allmanna_villkor_B2B:23",
+      "text": "8. Sekretess\nParterna ska hålla konfidentiell information om den andra parten hemlig under avtalstiden och i tre (3) år därefter.\n",
+      "gold": [
+        {
+          "type": "NOTICE_PERIOD",
+          "span": "tre (3) år"
+        }
+      ],
+      "need_labels": [
+        "Uppsägningstid"
+      ]
+    },
+    {
+      "chunk": "Avtal_18_Hyresavtal_bostad:22",
+      "text": "12. Underskrifter\n[Ort], 2023-06-01\n[Ort], 2023-06-01\nHyresvärd\nHyresgäst\n______________________\n______________________\nErik Lindqvist, VD\nJonas Ekholm\nBilagor: 1 Samtycke till andrahandsupplåtelse, 2 Inventarielista, 3 Besiktningsprotokoll, [4 Särskild överenskommelse om avstående från besittningsskydd (om tillämpligt)]",
+      "gold": [
+        {
+          "type": "PARTY",
+          "span": "Jonas Ekholm"
+        }
+      ],
+      "need_labels": [
+        "Avtalspart"
+      ]
+    },
+    {
+      "chunk": "Avtal_29_Samarbetsavtal:0",
+      "text": "Avtal 29 – Samarbetsavtal\nNär används det: När två företag vill samarbeta, t.ex. genom att erbjuda gemensamma lösningar, hänvisa kunder till varandra eller marknadsföra sig tillsammans, utan att bilda ett gemensamt bolag.\nAvtalsdatum (tidslinje): 2021-09-01 – DevBrains och designbyrån Ljusgård Design AB inleder ett samarbete om gemensamma app-erbjudanden till kunder.\n",
+      "gold": [
+        {
+          "type": "PARTY",
+          "span": "Ljusgård Design AB"
+        }
+      ],
+      "need_labels": [
+        "Avtalspart"
+      ]
+    },
+    {
+      "chunk": "Avtal_47_Programvarulicensavtal:14",
+      "text": "6.1 Årlig licens- och underhållsavgift: [Belopp] kronor per användare exklusive moms, faktureras årsvis i förskott med 30 dagars betalningsvillkor.\n",
+      "gold": [
+        {
+          "type": "MONEY",
+          "span": "[Belopp]"
+        }
+      ],
+      "need_labels": [
+        "Belopp"
+      ]
+    },
+    {
+      "chunk": "Avtal_47_Programvarulicensavtal:25",
+      "text": "12.1 Avtalet gäller från och med 2023-02-01 i tolv (12) månader och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast två (2) månader före avtalsårets utgång.\n",
+      "gold": [
+        {
+          "type": "NOTICE_PERIOD",
+          "span": "tolv (12) månader"
+        },
+        {
+          "type": "NOTICE_PERIOD",
+          "span": "tolv (12) månader"
+        },
+        {
+          "type": "NOTICE_PERIOD",
+          "span": "två (2) månader"
+        }
+      ],
+      "need_labels": [
+        "Uppsägningstid"
+      ]
+    }
+  ]
+}

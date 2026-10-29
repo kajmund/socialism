@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from app.jev.system import JevClientError, JevSystemOne, parse_noul
 from app.services.research.assessment import AssessableEvidence
@@ -46,6 +46,8 @@ def quality_inputs(evidence: Sequence[AssessableEvidence]) -> dict[str, QualityE
 def evaluation_jobs(
     needs: Sequence[ResearchNeed],
     passages: Sequence[EvidencePassage],
+    *,
+    counterparts: Mapping[str, tuple[str, ...]] | None = None,
 ) -> list[dict[str, object]]:
     jobs: list[dict[str, object]] = []
     for need in needs:
@@ -63,6 +65,9 @@ def evaluation_jobs(
                     "content_hash": passage.content_hash,
                     "start": passage.start,
                     "end": passage.end,
+                    "counterpart_passage_ids": (
+                        counterparts.get(passage.passage_id, ()) if counterparts else ()
+                    ),
                 }
             )
     return jobs
@@ -130,6 +135,7 @@ async def evaluate_job(
         scores=scores,
         independence_key=key,
         error=error,
+        counterpart_passage_ids=tuple(job.get("counterpart_passage_ids", ())),
     )
 
 

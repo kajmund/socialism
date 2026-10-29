@@ -11,12 +11,16 @@ from app.services.research.fast_controller import (
 )
 from app.services.research.sufficiency_experiment.types import (
     ExperimentConfig,
+    ExperimentStatus,
     NeedAggregation,
-    PassageEvaluation,
     QualityDecision,
     RouteChoice,
     RouteDecision,
 )
+
+SUFFICIENT_THRESHOLD = 0.9
+INCOMPLETE_THRESHOLD = 0.85
+CONFIDENCE_THRESHOLD = 0.8
 
 ROUTE_CRITERIA = (
     "FINISH: no remaining applicable subworkflow; emit current status",
@@ -42,15 +46,60 @@ def map_jev_outcome(
     return "UNCERTAIN"
 
 
+def authoritative_outcome(
+    *,
+    answerable_now: float,
+    material_gap: float,
+    contradiction: float,
+    confidence: float,
+) -> str:
+    """Four-signal authority. follow_up/additional never veto sufficient."""
+    risk_ceiling = 1.0 - SUFFICIENT_THRESHOLD
+    if (
+        confidence >= CONFIDENCE_THRESHOLD
+        and answerable_now >= SUFFICIENT_THRESHOLD
+        and material_gap <= risk_ceiling
+        and contradiction <= risk_ceiling
+    ):
+        return "sufficient"
+    if confidence >= CONFIDENCE_THRESHOLD and (
+        material_gap >= INCOMPLETE_THRESHOLD
+        or answerable_now <= (1.0 - INCOMPLETE_THRESHOLD)
+    ):
+        return "insufficient"
+    return "uncertain"
+
+
+def map_route_outcome(
+    final_outcome: str,
+    quality: QualityDecision,
+) -> RouteChoice:
+    if quality.applicable_subworkflows:
+        return "RUN_SUBWORKFLOW"
+    if quality.allows_sufficient:
+        return "FINISH"
+    if quality.escalate_permitted:
+        return "ESCALATE_NARRATIVE"
+    return "FINISH"
+
+
 def validate_route(
     choice: RouteChoice,
     quality: QualityDecision,
     *,
     evidence_ids: Sequence[str],
     jev_outcome: str | None,
+    jev_answers: Sequence[tuple[str, float]] = (),
+    final_outcome: str | None = None,
 ) -> RouteDecision:
     rejection = None
-    if choice == "FINISH" and quality.allows_sufficient is False and jev_outcome == "sufficient":
+    if choice == "FINISH" and final_outcome is None:
+        rejection = "FINISH without final outcome"
+    if (
+        choice == "FINISH"
+        and final_outcome == "sufficient"
+        and quality.allows_sufficient is False
+    ):
         rejection = "FINISH_sufficient rejected: obligations or coverage incomplete"
     if choice == "ESCALATE_NARRATIVE" and quality.applicable_subworkflows:
         rejection = "subworkflow still applies; narrative is not allowed"
@@ -77,6 +126,8 @@ def validate_route(
         valid=valid,
         jev_outcome=jev_outcome,
         rejection=rejection,
+        jev_answers=tuple(jev_answers),
+        final_outcome=final_outcome,  # type: ignore[arg-type]
     )
 
 
@@ -110,14 +161,35 @@ async def decide_route(
         follow_up_change=follow_up,
         additional_source=additional,
         confidence=confidence,
-        sufficient_threshold=0.9,
-        incomplete_threshold=0.85,
-        confidence_threshold=0.8,
+        sufficient_threshold=SUFFICIENT_THRESHOLD,
+        incomplete_threshold=INCOMPLETE_THRESHOLD,
+        confidence_threshold=CONFIDENCE_THRESHOLD,
     )
-    proposed = map_jev_outcome(outcome, quality, aggregations)
+    final_outcome = authoritative_outcome(
+        answerable_now=answerable,
+        material_gap=gap,
+        contradiction=contradiction,
+        confidence=confidence,
+    )
+    proposed = map_route_outcome(final_outcome, quality)
     cited = [item for row in aggregations for item in row.supporting_evidence_ids]
     cited.extend(item for row in aggregations for item in row.contradictions)
-    return validate_route(proposed, quality, evidence_ids=cited, jev_outcome=outcome)
+    answers = (
+        ("answerable_now", answerable),
+        ("material_gap", gap),
+        ("contradiction", contradiction),
+        ("follow_up_change", follow_up),
+        ("additional_source", additional),
+        ("confidence", confidence),
+    )
+    return validate_route(
+        proposed,
+        quality,
+        evidence_ids=cited,
+        jev_outcome=outcome,
+        jev_answers=answers,
+        final_outcome=final_outcome,
+    )
 
 
 def route_state(
@@ -156,32 +228,45 @@ def route_state(
     }
 
 
-def resolve_conflict(
-    aggregations: Sequence[NeedAggregation],
-    evaluations: Sequence[PassageEvaluation],
-    *,
-    config: ExperimentConfig,
-) -> tuple[str, ...]:
-    """Address a conflict only when every contradicting passage is a duplicate.
 
-    Does not drop evidence and does not majority-vote remaining contradictions.
-    """
-    duplicates = {
-        row.passage_id
-        for row in evaluations
-        if row.scores.likely_duplicate_or_redundant >= config.support_threshold
-    }
-    addressed: list[str] = []
-    for row in aggregations:
-        for obligation in row.unresolved_conflicts:
-            contradicting = next(
-                (
-                    state.contradicting_passage_ids
-                    for state in row.obligation_states
-                    if state.obligation_id == obligation
-                ),
-                (),
-            )
-            if contradicting and all(item in duplicates for item in contradicting):
-                addressed.append(obligation)
-    return tuple(addressed)
+def status_from_route(
+    route: RouteDecision | None,
+    quality: QualityDecision | None,
+    aggregations: Sequence[NeedAggregation],
+) -> tuple[ExperimentStatus, str | None]:
+    """Final status from an explicit route outcome. No implicit consent."""
+    if route is None:
+        return "failed", "route_missing"
+    if route.choice == "FINISH":
+        return _finish_status(route, quality, aggregations)
+    if route.choice == "UNCERTAIN":
+        return (
+            ("insufficient", route.rejection)
+            if route.rejection
+            else ("uncertain", None)
+        )
+    return "uncertain", None
+
+
+def _finish_status(
+    route: RouteDecision,
+    quality: QualityDecision | None,
+    aggregations: Sequence[NeedAggregation],
+) -> tuple[ExperimentStatus, str | None]:
+    if route.final_outcome is None:
+        return "failed", "route_invalid"
+    if route.final_outcome == "sufficient":
+        allowed = bool(
+            route.valid
+            and quality is not None
+            and quality.allows_sufficient
+            and all(row.sufficient for row in aggregations)
+        )
+        return (
+            ("sufficient", None)
+            if allowed
+            else ("insufficient", "route_sufficient_rejected")
+        )
+    if route.final_outcome == "insufficient":
+        return "insufficient", None
+    return "uncertain", None

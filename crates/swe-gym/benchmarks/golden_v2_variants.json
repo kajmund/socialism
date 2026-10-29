@@ -1,0 +1,199 @@
+{
+  "g2-15": {
+    "question": "Vilka av dessa dokument innehåller en klausul om sekretess? (Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_15_Bonusavtal, Avtal_11_Distansarbetsavtal)",
+    "facit": "Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_11_Distansarbetsavtal",
+    "initial_coverage": 0.857,
+    "final_coverage": 0.857,
+    "info_gain": 0,
+    "oracle_synthesis_correct": false,
+    "oracle_conclusion": [
+      "Avtal_05_Konsultavtal",
+      "Avtal_06_Sekretessavtal",
+      "Avtal_11_Distansarbetsavtal"
+    ],
+    "variants": {
+      "static": {
+        "correct": false,
+        "conclusion": [
+          "Avtal_05_Konsultavtal",
+          "Avtal_06_Sekretessavtal"
+        ],
+        "cost": 34000,
+        "coverage": 0.8571428571428571
+      },
+      "iterative": {
+        "correct": false,
+        "conclusion": [
+          "Avtal_05_Konsultavtal",
+          "Avtal_06_Sekretessavtal",
+          "Avtal_11_Distansarbetsavtal"
+        ],
+        "cost": 56000,
+        "coverage": 0.8571428571428571,
+        "info_gain": 0
+      },
+      "adaptive": {
+        "correct": false,
+        "conclusion": [
+          "Avtal_05_Konsultavtal",
+          "Avtal_06_Sekretessavtal"
+        ],
+        "cost": 42000,
+        "coverage": 0.8571428571428571,
+        "info_gain": 0
+      }
+    }
+  },
+  "g2-17": {
+    "question": "Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_15_Bonusavtal, Avtal_02_Provanstallningsavtal)",
+    "facit": "Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal",
+    "initial_coverage": 0.625,
+    "final_coverage": 0.625,
+    "info_gain": 0,
+    "oracle_synthesis_correct": true,
+    "oracle_conclusion": [
+      "Avtal_01_Tillsvidareanstallningsavtal",
+      "Avtal_02_Provanstallningsavtal",
+      "Avtal_05_Konsultavtal"
+    ],
+    "variants": {
+      "static": {
+        "correct": true,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_02_Provanstallningsavtal",
+          "Avtal_05_Konsultavtal"
+        ],
+        "cost": 34000,
+        "coverage": 0.625
+      },
+      "iterative": {
+        "correct": true,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_02_Provanstallningsavtal",
+          "Avtal_05_Konsultavtal"
+        ],
+        "cost": 56000,
+        "coverage": 0.625,
+        "info_gain": 0
+      },
+      "adaptive": {
+        "correct": true,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_02_Provanstallningsavtal",
+          "Avtal_05_Konsultavtal"
+        ],
+        "cost": 42000,
+        "coverage": 0.625,
+        "info_gain": 0
+      }
+    }
+  },
+  "g2-29": {
+    "question": "Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_17_Hyresavtal_lokal, Avtal_15_Bonusavtal, Avtal_03_Visstidsanstallning)",
+    "facit": "Avtal_01_Tillsvidareanstallningsavtal, Avtal_17_Hyresavtal_lokal, Avtal_03_Visstidsanstallning",
+    "initial_coverage": 0.714,
+    "final_coverage": 0.714,
+    "info_gain": 0,
+    "oracle_synthesis_correct": false,
+    "oracle_conclusion": [
+      "Avtal_01_Tillsvidareanstallningsavtal",
+      "Avtal_03_Visstidsanstallning"
+    ],
+    "variants": {
+      "static": {
+        "correct": false,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_03_Visstidsanstallning"
+        ],
+        "cost": 34000,
+        "coverage": 0.7142857142857143
+      },
+      "iterative": {
+        "correct": false,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_03_Visstidsanstallning"
+        ],
+        "cost": 56000,
+        "coverage": 0.7142857142857143,
+        "info_gain": 0
+      },
+      "adaptive": {
+        "correct": false,
+        "conclusion": [
+          "Avtal_01_Tillsvidareanstallningsavtal",
+          "Avtal_03_Visstidsanstallning"
+        ],
+        "cost": 42000,
+        "coverage": 0.7142857142857143,
+        "info_gain": 0
+      }
+    }
+  },
+  "g2-20": {
+    "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning, Avtal_11_Distansarbetsavtal)",
+    "facit": "Avtal_01_Tillsvidareanstallningsavtal",
+    "initial_coverage": 0.0,
+    "final_coverage": 0.0,
+    "info_gain": 0,
+    "oracle_synthesis_correct": true,
+    "oracle_conclusion": "Avtal_01_Tillsvidareanstallningsavtal",
+    "variants": {
+      "static": {
+        "correct": false,
+        "conclusion": null,
+        "cost": 34000,
+        "coverage": 0.0
+      },
+      "iterative": {
+        "correct": false,
+        "conclusion": null,
+        "cost": 56000,
+        "coverage": 0.0,
+        "info_gain": 0
+      },
+      "adaptive": {
+        "correct": false,
+        "conclusion": null,
+        "cost": 42000,
+        "coverage": 0.0,
+        "info_gain": 0
+      }
+    }
+  },
+  "g2-23": {
+    "question": "Vilket av dessa dokument har längst uppsägningstid? (Avtal_18_Hyresavtal_bostad, Avtal_22_Kontorshotell_coworking, Avtal_28_Aktieagaravtal)",
+    "facit": "Avtal_28_Aktieagaravtal",
+    "initial_coverage": 0.0,
+    "final_coverage": 0.0,
+    "info_gain": 0,
+    "oracle_synthesis_correct": false,
+    "oracle_conclusion": "Avtal_18_Hyresavtal",
+    "variants": {
+      "static": {
+        "correct": false,
+        "conclusion": null,
+        "cost": 34000,
+        "coverage": 0.0
+      },
+      "iterative": {
+        "correct": false,
+        "conclusion": null,
+        "cost": 56000,
+        "coverage": 0.0,
+        "info_gain": 0
+      },
+      "adaptive": {
+        "correct": false,
+        "conclusion": null,
+        "cost": 42000,
+        "coverage": 0.0,
+        "info_gain": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,841 @@
+{
+  "measurement": "b1b_gap_hardening",
+  "recorded_at": "2026-10-23T07:50:58.041537+00:00",
+  "llm_model": "gpt-oss-120b",
+  "protocol": {
+    "purpose": "last bounded test of narrative gap detection",
+    "continue_to_B2": [
+      "incremental_verified_gap_yield >= 1 (narrative finds a true gap the deterministic baseline misses)",
+      "narrative false positives <= deterministic false positives + 1",
+      "valid_report_rate >= 0.9",
+      "unsupported_anchor_rate == 0",
+      "marginal cost per useful gap reported"
+    ],
+    "retire_if_match": "incremental yield == 0 and quality is not better than the deterministic baseline",
+    "end_branch_if_worse": "narrative has lower precision or more false positives than the baseline"
+  },
+  "note": "Shadow only; five synthetic cases use scripted Jev and are labelled jev=scripted.",
+  "config": {
+    "jev_concurrency": 8,
+    "jev_timeout_seconds": 5.0,
+    "jev_model": "jev-latest",
+    "max_passage_chars": 1500,
+    "max_narrative_depth": 1,
+    "max_jev_calls": 2000,
+    "max_steps": 2000,
+    "max_depth": 6,
+    "timeout_seconds": 1800,
+    "support_threshold": 0.6,
+    "contradict_threshold": 0.6,
+    "max_tool_calls": 8,
+    "max_narrative_input_chars": 12000,
+    "min_claim_chars": 20,
+    "max_claim_chars": 500,
+    "min_claim_words": 4,
+    "max_claims_per_need": 200,
+    "max_pairs_per_need": 40,
+    "embedding_neighbors": 3,
+    "pair_strategy": "deterministic",
+    "route_authority": true,
+    "legacy_duplicate_resolution": false,
+    "pair_judgement": true,
+    "pair_jev_concurrency": 8,
+    "pair_jev_timeout_seconds": 5.0,
+    "gap_review_enabled": true,
+    "max_gap_input_chars": 12000,
+    "max_pair_state_chars": 6000,
+    "max_pair_jev_calls": 200
+  },
+  "scores": {
+    "narrative": {
+      "true_positive": 4,
+      "false_positive": 6,
+      "false_negative": 0,
+      "true_negative": 2
+    },
+    "deterministic": {
+      "true_positive": 4,
+      "false_positive": 5,
+      "false_negative": 0,
+      "true_negative": 3
+    }
+  },
+  "metrics": {
+    "classified_cases": 12,
+    "excluded_neutral_cases": [
+      "tail_counterevidence",
+      "large_567k",
+      "unknown_counterpart",
+      "tail_claim_contradiction"
+    ],
+    "gap_precision": 0.4,
+    "gap_recall": 1.0,
+    "valid_report_rate": 0.917,
+    "unsupported_anchor_rate": 0.125,
+    "false_workflow_proposal_rate": 0.875,
+    "incremental_gap_yield": 0,
+    "incremental_gap_ids": [],
+    "marginal_cost_per_useful_gap": null
+  },
+  "decision": "END_NARRATIVE_BRANCH",
+  "cost": {
+    "llm_calls": 16,
+    "gap_latency_ms": 10021.1,
+    "gap_input_chars": 46043,
+    "a3_jev_calls": 1170,
+    "deterministic_llm_calls": 0
+  },
+  "rows": [
+    {
+      "case_id": "late_evidence",
+      "facit": "positive",
+      "jev": "live",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap_1",
+            "need_id": "research_1",
+            "missing": "Conflict‑candidate pair coverage is incomplete because the pair‑budget was omitted, leaving a large number of candidate pairs un‑examined (1136 omitted, 35 claims omitted).",
+            "observations": [
+              "coverage level \"conflict_candidate\" shows status \"incomplete\" with reason \"pair_budget_omitted\"",
+              "omitted_claim_count is 35 and a list of omitted_claim_ids is provided",
+              "pairs object reports 1136 candidates omitted by budget"
+            ],
+            "suggested_workflow": "aggregate_need",
+            "anchors": [
+              "coverage:pair_budget_omitted"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 722.4015829851851,
+        "input_chars": 11785,
+        "rationale": "The supplied metadata explicitly records a budget‑related omission at the conflict‑candidate level, demonstrating a concrete evidence gap that can be addressed by re‑aggregating the need to generate the missing pair candidates."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:uncompared_pairs",
+            "need_id": "research_1",
+            "missing": "candidate fact pairs were omitted by the pair budget",
+            "observations": [
+              "pair_budget_omitted"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "coverage:pair_budget_omitted"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 629
+    },
+    {
+      "case_id": "missing_source_type",
+      "facit": "positive",
+      "jev": "live",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap_1",
+            "need_id": "research_1",
+            "missing": "Verified support for the mandatory completeness obligation on Swedish law (research_1:completeness:swedish_law)",
+            "observations": [
+              "Aggregation entry reports \"Mandatory obligations lack verified support: research_1:completeness:swedish_law\" with status insufficient",
+              "Coverage gate reports overall completeness but no concrete evidence anchor confirms the completeness requirement for the need"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 706.9870000123046,
+        "input_chars": 1310,
+        "rationale": "The supplied aggregation explicitly flags the completeness obligation for the need as insufficient, indicating a concrete evidence gap. An aggregation anchor for the need is available, satisfying the requirement for a VERIFIED_GAP. The appropriate next step is to run the \"evaluate_passages\" workflow to locate or generate the missing verified evidence."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:completeness:swedish_law",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 2
+    },
+    {
+      "case_id": "short_sufficient",
+      "facit": "negative",
+      "jev": "live",
+      "a3_draft": "sufficient",
+      "a3_status": "sufficient",
+      "narrative": {
+        "raw_verdict": "NO_GAP_FOUND",
+        "validated_verdict": "NO_GAP_FOUND",
+        "errors": [],
+        "gaps": [],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 321.60220795776695,
+        "input_chars": 1231,
+        "rationale": "All required evidence for need research_1 is present. The aggregation for the need is marked as sufficient, and both claim and aggregation anchors are provided. Coverage reports all pipeline levels (ingestion, passage, claim) as complete. No concrete missing evidence is identified from the supplied metadata."
+      },
+      "deterministic": {
+        "verdict": "NO_GAP_FOUND",
+        "gaps": []
+      },
+      "a3_jev_calls": 2
+    },
+    {
+      "case_id": "compatible_periods",
+      "facit": "negative",
+      "jev": "live",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap_001",
+            "need_id": "research_1",
+            "missing": "Relevance and factual_support obligations for need research_1 are not verified by any evidence anchor.",
+            "observations": [
+              "Aggregation entry reports missing_or_weak: Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support"
+            ],
+            "suggested_workflow": "quality_gate",
+            "anchors": [
+              "aggregation:research_1",
+              "claim:period-old:p0:c0",
+              "claim:period-new:p0:c0",
+              "pair:period-new:p0:c0|period-old:p0:c0"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 641.162458981853,
+        "input_chars": 1658,
+        "rationale": "The supplied aggregation explicitly states that the mandatory obligations of relevance and factual support for need research_1 are missing or weak. This concrete statement, together with the available anchors (claims, pair, and aggregation) provides verifiable evidence of the gap, satisfying the criteria for a VERIFIED_GAP."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 4
+    },
+    {
+      "case_id": "compatible_entities",
+      "facit": "negative",
+      "jev": "live",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap-001",
+            "need_id": "research_1",
+            "missing": "Verified relevance and factual support for the claims associated with need research_1",
+            "observations": [
+              "Aggregation entry reports missing_or_weak mandatory obligations for research_1: relevance",
+              "Aggregation entry reports missing_or_weak mandatory obligations for research_1: factual_support"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 598.2779579935595,
+        "input_chars": 1626,
+        "rationale": "The supplied aggregation explicitly marks the mandatory obligations of relevance and factual_support for need research_1 as missing or weak. An anchor (aggregation:research_1) directly documents this deficiency, satisfying the requirement for a VERIFIED_GAP. The appropriate next step is to run the \"evaluate_passages\" workflow to assess and acquire the necessary evidence."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 4
+    },
+    {
+      "case_id": "duplicate_contradiction",
+      "facit": "negative",
+      "jev": "live",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap_1",
+            "need_id": "research_1",
+            "missing": "Resolution of the contradictory claims (dup-support:p0:c0 vs dup-contra:p0:c0) – either a decision on applicability or an explicit marking of the pair as inapplicable.",
+            "observations": [
+              "Aggregation reports that material contradictions are unresolved and not shown inapplicable.",
+              "A pair anchor dup-contra:p0:c0|dup-support:p0:c0 is present but no resolution or applicability decision is provided.",
+              "The aggregation status for need research_1 is marked as \"uncertain\"."
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "pair:dup-contra:p0:c0|dup-support:p0:c0"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 711.658374988474,
+        "input_chars": 1929,
+        "rationale": "The aggregation explicitly flags an unresolved contradiction between two claims for need research_1, and no evidence or decision indicating which claim should be accepted (or that the pair is inapplicable) is present. This concrete lack of resolution is captured by the available pair anchor, satisfying the criteria for a VERIFIED_GAP."
+      },
+      "deterministic": {
+        "verdict": "NO_GAP_FOUND",
+        "gaps": []
+      },
+      "a3_jev_calls": 4
+    },
+    {
+      "case_id": "independent_contradiction",
+      "facit": "negative",
+      "jev": "live",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap_001",
+            "need_id": "research_1",
+            "missing": "Resolution of contradictory claims (ind-contra:p0:c0 vs ind-support:p0:c0) so that the aggregation can be marked complete and not uncertain.",
+            "observations": [
+              "Aggregations entry reports missing_or_weak: \"Material contradictions are unresolved and not shown inapplicable.\"",
+              "Unresolved_conflicts list contains \"research_1:ind-contra:p0:c0|ind-support:p0:c0\""
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "pair:ind-contra:p0:c0|ind-support:p0:c0"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 704.1317920084111,
+        "input_chars": 1925,
+        "rationale": "The supplied metadata explicitly flags an unresolved conflict between two claims for need research_1. This contradiction is reflected in the aggregation status (uncertain) and the missing_or_weak flag, indicating a concrete evidence gap. A valid anchor (the pair representing the conflict) is available, allowing a targeted workflow to evaluate the passages and resolve the discrepancy."
+      },
+      "deterministic": {
+        "verdict": "NO_GAP_FOUND",
+        "gaps": []
+      },
+      "a3_jev_calls": 4
+    },
+    {
+      "case_id": "tail_counterevidence",
+      "facit": "neutral",
+      "jev": "live",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap_001",
+            "need_id": "research_1",
+            "missing": "Resolution of contradictory claims about whether 36 § avtalslagen applies in the cited decisions",
+            "observations": [
+              "Unresolved conflict pair listed in aggregation (evidence-0:p0:c0|evidence-0:p53:c57)",
+              "Coverage report shows conflict_candidate level \"not_measured\"",
+              "Aggregation metadata states \"Material contradictions are unresolved and not shown inapplicable\""
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "pair:evidence-0:p0:c0|evidence-0:p53:c57"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 576.5145000186749,
+        "input_chars": 1717,
+        "rationale": "The provided material contains two opposing claims (one asserting applicability of 36 § avtalslagen and another denying it) that are linked as an unresolved conflict pair. The coverage data indicates that the conflict‑candidate level has not been measured, and the aggregation explicitly notes that contradictions remain unresolved. This concrete gap is supported by the pair anchor, satisfying the criteria for a VERIFIED_GAP."
+      },
+      "deterministic": {
+        "verdict": "NO_GAP_FOUND",
+        "gaps": []
+      },
+      "a3_jev_calls": 56
+    },
+    {
+      "case_id": "large_567k",
+      "facit": "neutral",
+      "jev": "live",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "UNDETERMINED",
+        "errors": [
+          "invalid anchor on gap_001",
+          "VERIFIED_GAP without valid anchor: gap_001"
+        ],
+        "gaps": [
+          {
+            "gap_id": "gap_001",
+            "need_id": "research_1",
+            "missing": "Verified support for mandatory obligations relevance and factual_support",
+            "observations": [
+              "Aggregation reports missing_or_weak for research_1: relevance and factual_support, indicating that the mandatory obligations lack verified evidence."
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "coverage:missing_or_weak"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [
+          "gap_001"
+        ],
+        "latency_ms": 710.2901660255156,
+        "input_chars": 1084,
+        "rationale": "The supplied aggregation metadata explicitly flags a missing_or_weak condition for the mandatory obligations relevance and factual_support of need research_1. This concrete indication of insufficient evidence constitutes a verified evidence gap. A valid anchor is provided via the coverage tag (coverage:missing_or_weak). The appropriate next step is to run the evaluate_passages workflow to obtain and verify the required evidence."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 397
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "facit": "neutral",
+      "jev": "live",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap_001",
+            "need_id": "research_1",
+            "missing": "Verified factual support for the mandatory obligation (research_1:factual_support) is absent",
+            "observations": [
+              "Mandatory obligations lack verified support: research_1:factual_support (status: insufficient)"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "claim:unknown-contra:p0:c0",
+              "claim:unknown-contra:p0:c1"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 666.2442079978064,
+        "input_chars": 1544,
+        "rationale": "The aggregation summary explicitly flags that the mandatory factual support for need research_1 is insufficient. The only anchors available are two claims (c0 and c1) that lack any verified evidence (evidence_id is \"unknown-contra\"). No other evidence anchors provide the required factual support, confirming a concrete evidence gap that can be addressed by evaluating passages for verifiable sources."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 2
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "facit": "neutral",
+      "jev": "live",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap_1",
+            "need_id": "research_1",
+            "missing": "Unresolved contradictory claims for the same legal question – the system has identified pairs of claims that conflict (e.g., p0:c0 vs p7:c4 and p1:c11 vs p7:c4) but has not marked any as inapplicable or resolved them.",
+            "observations": [
+              "aggregation entry reports \"missing_or_weak\": \"Material contradictions are unresolved and not shown inapplicable.\"",
+              "unresolved_conflicts list contains \"research_1:tail-claims:p0:c0|tail-claims:p7:c4\" and \"research_1:tail-claims:p1:c11|tail-claims:p7:c4\""
+            ],
+            "suggested_workflow": "quality_gate",
+            "anchors": [
+              "pair:tail-claims:p0:c0|tail-claims:p7:c4",
+              "pair:tail-claims:p1:c11|tail-claims:p7:c4"
+            ]
+          },
+          {
+            "gap_id": "gap_2",
+            "need_id": "research_1",
+            "missing": "Large portion of claim‑pair candidates omitted due to budget limits, leaving the conflict‑candidate layer incomplete and preventing discovery of additional contradictions.",
+            "observations": [
+              "coverage level \"conflict_candidate\" is marked \"incomplete\" with reason \"pair_budget_omitted\"",
+              "\"omitted_claim_count\": 167 and \"pairs\" shows 15 717 candidates but only 157 omitted by budget"
+            ],
+            "suggested_workflow": "aggregate_need",
+            "anchors": [
+              "coverage:pair_budget_omitted"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 937.9637909587473,
+        "input_chars": 11811,
+        "rationale": "The supplied metadata explicitly lists unresolved claim pairs and a budget‑driven omission of many claim pairs, both backed by concrete anchors. These indicate tangible evidence gaps that can be addressed by the allowed workflows."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:uncompared_pairs",
+            "need_id": "research_1",
+            "missing": "candidate fact pairs were omitted by the pair budget",
+            "observations": [
+              "pair_budget_omitted"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "coverage:pair_budget_omitted"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 49
+    },
+    {
+      "case_id": "semantic_gap_synonyms",
+      "facit": "positive",
+      "jev": "scripted",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap-001",
+            "need_id": "research_1",
+            "missing": "Verified evidence for mandatory obligations (relevance and factual support) is missing for need research_1",
+            "observations": [
+              "aggregations entry reports missing_or_weak: Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+              "coverage reports gate_complete=true but does not provide evidence for the mandatory obligations",
+              "no omitted_claims indicate that claims exist but are not tied to verified relevance/factual support"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "claim:semantic_gap_synonyms-0:p0:c0",
+              "claim:semantic_gap_synonyms-1:p0:c0",
+              "aggregation:research_1"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 469.37537495978177,
+        "input_chars": 1646,
+        "rationale": "The supplied aggregation metadata explicitly flags a lack of verified support for the mandatory obligations (relevance and factual support) for need research_1. This concrete gap is anchored by the claim and aggregation identifiers already present in the material, satisfying the requirement for a VERIFIED_GAP verdict."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 3
+    },
+    {
+      "case_id": "semantic_gap_hours",
+      "facit": "positive",
+      "jev": "scripted",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap_001",
+            "need_id": "research_1",
+            "missing": "Verified factual support for the claims that answer the closing‑time question",
+            "observations": [
+              "Aggregation entry reports mandatory obligations lack verified support for research_1 (relevance, factual_support)",
+              "Two claims are present (semantic_gap_hours-0:p0:c0 and semantic_gap_hours-1:p0:c0) but no evidence‑verification anchors are supplied",
+              "Coverage shows gate_complete but does not include verification of factual correctness"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "claim:semantic_gap_hours-0:p0:c0",
+              "claim:semantic_gap_hours-1:p0:c0",
+              "pair:semantic_gap_hours-0:p0:c0|semantic_gap_hours-1:p0:c0"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 631.9478339864872,
+        "input_chars": 1788,
+        "rationale": "The supplied metadata explicitly flags missing or weak mandatory obligations (relevance and factual_support) for need research_1. While claims exist, there are no anchors demonstrating verified factual backing for those claims, constituting a concrete evidence gap that can be addressed by the allowed workflow evaluate_passages."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 4
+    },
+    {
+      "case_id": "clean_consistent_pair",
+      "facit": "negative",
+      "jev": "scripted",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "SUSPECTED_GAP",
+        "validated_verdict": "UNDETERMINED",
+        "errors": [
+          "invalid anchor on gap_1"
+        ],
+        "gaps": [
+          {
+            "gap_id": "gap_1",
+            "need_id": "research_1",
+            "missing": "verified support for mandatory obligations ‘relevance’ and ‘factual_support’",
+            "observations": [
+              "aggregation entry reports missing_or_weak: Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "coverage:relevance_and_factual_support_not_verified"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [
+          "gap_1"
+        ],
+        "latency_ms": 551.030750037171,
+        "input_chars": 1810,
+        "rationale": "The aggregation metadata explicitly flags that the mandatory obligations of relevance and factual support for need research_1 are missing or weak. No supplied claim, pair, or aggregation anchors demonstrate that these obligations have been satisfied, indicating a gap that should be investigated by evaluating the passages for relevance and factual accuracy."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 4
+    },
+    {
+      "case_id": "clean_single_short",
+      "facit": "negative",
+      "jev": "scripted",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap_1",
+            "need_id": "research_1",
+            "missing": "verified support for the mandatory obligations of relevance and factual‑support for the claim answering the need",
+            "observations": [
+              "Aggregation reports missing_or_weak: Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "claim:clean_single_short-0:p0:c0",
+              "aggregation:research_1"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 526.9447499886155,
+        "input_chars": 1343,
+        "rationale": "The supplied aggregation explicitly flags that the mandatory obligations (relevance and factual support) for need research_1 are missing or weak. No evidence anchors confirming those obligations are present; only a claim anchor exists, which by itself does not provide the required verification. Therefore a concrete evidence gap is identified, and the allowed workflow ‘evaluate_passages’ can be used to locate and verify supporting passages."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 2
+    },
+    {
+      "case_id": "clean_scope_difference",
+      "facit": "negative",
+      "jev": "scripted",
+      "a3_draft": "insufficient",
+      "a3_status": "uncertain",
+      "narrative": {
+        "raw_verdict": "VERIFIED_GAP",
+        "validated_verdict": "VERIFIED_GAP",
+        "errors": [],
+        "gaps": [
+          {
+            "gap_id": "gap-001",
+            "need_id": "research_1",
+            "missing": "Verified relevance and factual support for the mandatory obligations of need research_1",
+            "observations": [
+              "Aggregation entry reports missing_or_weak for mandatory obligations: research_1:relevance, research_1:factual_support",
+              "Claims and pair are present but no evidence linking them to relevance or factual support for the need"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "claim:clean_scope_difference-0:p0:c0",
+              "pair:clean_scope_difference-0:p0:c0|clean_scope_difference-1:p0:c0"
+            ]
+          }
+        ],
+        "unsupported_anchor_gaps": [],
+        "latency_ms": 544.5371249807067,
+        "input_chars": 1836,
+        "rationale": "The supplied aggregation explicitly flags a lack of verified support for the relevance and factual support obligations of need research_1. Although claims and a pair exist, none are anchored to those specific obligations, and no other evidence is provided. This concrete gap is supported by the aggregation metadata, and the available claim/pair anchors serve as entry points for further evaluation via the allowed 'evaluate_passages' workflow."
+      },
+      "deterministic": {
+        "verdict": "VERIFIED_GAP",
+        "gaps": [
+          {
+            "gap_id": "deterministic:research_1:obligations",
+            "need_id": "research_1",
+            "missing": "Mandatory obligations lack verified support: research_1:relevance, research_1:factual_support",
+            "observations": [
+              "aggregation_not_sufficient"
+            ],
+            "suggested_workflow": "evaluate_passages",
+            "anchors": [
+              "aggregation:research_1"
+            ]
+          }
+        ]
+      },
+      "a3_jev_calls": 4
+    }
+  ]
+}
