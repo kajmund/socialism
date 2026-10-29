@@ -3687,6 +3687,17 @@
       "ts": 1793296080
     },
     {
+      "key": "562b07edcb94ee68",
+      "case_id": "bt-02",
+      "span": "12 maj",
+      "clause": "Sponsorsim. Skylt skall vara NKK tillhanda senast den 12 maj.",
+      "prompt_version": "span-date-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793311505
+    },
+    {
       "key": "5643f79490f464cf",
       "case_id": "g5-06",
       "span": "[2023-06-01]",
@@ -3795,6 +3806,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294509
+    },
+    {
+      "key": "5835b76eafca93e7",
+      "case_id": "bt-18",
+      "span": "2021 - 01 - 01",
+      "clause": "Startdatum:  2021 - 01 - 01",
+      "prompt_version": "span-date-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793311506
     },
     {
       "key": "58981c5311b61894",
@@ -4312,6 +4334,17 @@
       "choice": "TIDSPERIOD",
       "score_bp": null,
       "ts": 1793297115
+    },
+    {
+      "key": "656eee114894f9ae",
+      "case_id": "bt-06",
+      "span": "10-11 juni",
+      "clause": "Ni som garanterar ett minimibelopp på 5 000 kr kommer även att få er skylt exponerad vid DM i simning 10-11 juni samt på NUSS som går i Norrköping den 30 juni-2 juli.",
+      "prompt_version": "span-date-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793311506
     },
     {
       "key": "65962f54a890db68",
@@ -8439,6 +8472,17 @@
       "ts": 1793308872
     },
     {
+      "key": "be7df2cd3385afcb",
+      "case_id": "bt-07",
+      "span": "2020-08-01",
+      "clause": "Tillträdesdag 2020-08-01",
+      "prompt_version": "span-date-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793311506
+    },
+    {
       "key": "bea3d77773e371e2",
       "case_id": "g5-17",
       "span": "[Belopp]",
@@ -9119,6 +9163,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296078
+    },
+    {
+      "key": "cfdee3e43552915d",
+      "case_id": "bt-06",
+      "span": "30 juni-2 juli",
+      "clause": "Ni som garanterar ett minimibelopp på 5 000 kr kommer även att få er skylt exponerad vid DM i simning 10-11 juni samt på NUSS som går i Norrköping den 30 juni-2 juli.",
+      "prompt_version": "span-date-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793311506
     },
     {
       "key": "d01047098d7fa64e",

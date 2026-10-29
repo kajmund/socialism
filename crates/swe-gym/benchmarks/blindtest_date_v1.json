@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "prompt_version": "span-date-v1",
+  "new_calls": 5,
+  "rows": [
+    {
+      "case_id": "bt-02",
+      "solved": true,
+      "gold": [
+        "12 maj"
+      ],
+      "approved": [
+        "12 maj"
+      ]
+    },
+    {
+      "case_id": "bt-06",
+      "solved": true,
+      "gold": [
+        "10-11 juni",
+        "30 juni-2 juli"
+      ],
+      "approved": [
+        "10-11 juni",
+        "30 juni-2 juli"
+      ]
+    },
+    {
+      "case_id": "bt-07",
+      "solved": true,
+      "gold": [
+        "2020-08-01"
+      ],
+      "approved": [
+        "2020-08-01"
+      ]
+    },
+    {
+      "case_id": "bt-18",
+      "solved": true,
+      "gold": [
+        "2021 - 01 - 01"
+      ],
+      "approved": [
+        "2021 - 01 - 01"
+      ]
+    }
+  ]
+}
