@@ -1,0 +1,622 @@
+{
+  "g5-01": {
+    "hyresgästen": {
+      "raw": "Hyresgästen",
+      "label": "Avtalspart"
+    },
+    "hyresvärden": {
+      "raw": "Hyresvärden",
+      "label": "Avtalspart"
+    },
+    "devbrains ab": {
+      "raw": "DevBrains AB",
+      "label": null
+    },
+    "fastighets ab kvarnberget": {
+      "raw": "Fastighets AB Kvarnberget",
+      "label": null
+    }
+  },
+  "g5-02": {
+    "2023-01-31": {
+      "raw": "2023-01-31",
+      "label": "Datum"
+    },
+    "2020-02-01": {
+      "raw": "2020-02-01",
+      "label": "Datum"
+    },
+    "[2020-02-01]": {
+      "raw": "[2020-02-01]",
+      "label": null
+    },
+    "[2023-01-31]": {
+      "raw": "[2023-01-31]",
+      "label": null
+    }
+  },
+  "g5-03": {
+    "[tre (3)] år": {
+      "raw": "[tre (3)] år",
+      "label": "Uppsägningstid"
+    },
+    "[nio (9)] månader": {
+      "raw": "[nio (9)] månader",
+      "label": "Uppsägningstid"
+    },
+    "nio (9)] månader": {
+      "raw": "nio (9)] månader",
+      "label": null
+    },
+    "tre (3)] år": {
+      "raw": "tre (3)] år",
+      "label": null
+    }
+  },
+  "g5-04": {
+    "kronor": {
+      "raw": "kronor",
+      "label": "Belopp"
+    },
+    "[belopp]": {
+      "raw": "[Belopp]",
+      "label": null
+    }
+  },
+  "g5-05": {
+    "devbrains ab": {
+      "raw": "DevBrains AB",
+      "label": null
+    },
+    "jonas ekholm": {
+      "raw": "Jonas Ekholm",
+      "label": null
+    }
+  },
+  "g5-06": {
+    "tre (3) månader": {
+      "raw": "tre (3) månader",
+      "label": "Uppsägningstid"
+    },
+    "2023-06-01": {
+      "raw": "2023-06-01",
+      "label": "Datum"
+    },
+    "[2023-06-01]": {
+      "raw": "[2023-06-01]",
+      "label": null
+    }
+  },
+  "g5-07": {
+    "devbrains ab, org.nr": {
+      "raw": "DevBrains AB, org.nr",
+      "label": "Avtalspart"
+    },
+    "ljusgård design ab, org.nr": {
+      "raw": "Ljusgård Design AB, org.nr",
+      "label": "Avtalspart"
+    },
+    "devbrains ab": {
+      "raw": "DevBrains AB",
+      "label": null
+    },
+    "ljusgård design ab": {
+      "raw": "Ljusgård Design AB",
+      "label": null
+    }
+  },
+  "g5-08": {
+    "sex (6)] månader": {
+      "raw": "sex (6)] månader",
+      "label": "Uppsägningstid"
+    },
+    "ett (1)] år": {
+      "raw": "ett (1)] år",
+      "label": "Uppsägningstid"
+    }
+  },
+  "g5-09": {
+    "belopp": {
+      "raw": "Belopp",
+      "label": "Belopp"
+    },
+    "kr/tim": {
+      "raw": "kr/tim",
+      "label": "Belopp"
+    },
+    "[belopp]": {
+      "raw": "[Belopp]",
+      "label": null
+    }
+  },
+  "g5-10": {
+    "månad": {
+      "raw": "månad",
+      "label": "Tidsperiod"
+    },
+    "2023-02-01": {
+      "raw": "2023-02-01",
+      "label": "Datum"
+    },
+    "2023-07-31": {
+      "raw": "2023-07-31",
+      "label": "Datum"
+    },
+    "en (1)] månad": {
+      "raw": "en (1)] månad",
+      "label": null
+    },
+    "[2023-07-31]": {
+      "raw": "[2023-07-31]",
+      "label": null
+    }
+  },
+  "g5-11": {
+    "[14] dagar": {
+      "raw": "[14] dagar",
+      "label": "Tidsperiod"
+    },
+    "14] dagar": {
+      "raw": "14] dagar",
+      "label": null
+    },
+    "[14]": {
+      "raw": "[14]",
+      "label": null
+    }
+  },
+  "g5-12": {
+    "2024-06-30": {
+      "raw": "2024-06-30",
+      "label": "Uppsägningstid"
+    },
+    "2023-07-01": {
+      "raw": "2023-07-01",
+      "label": "Uppsägningstid"
+    },
+    "[tre (3)] månader": {
+      "raw": "[tre (3)] månader",
+      "label": "Uppsägningstid"
+    },
+    "ett (1)] år": {
+      "raw": "ett (1)] år",
+      "label": null
+    },
+    "tre (3)] månader": {
+      "raw": "tre (3)] månader",
+      "label": null
+    }
+  },
+  "g5-13": {
+    "[14] dagar": {
+      "raw": "[14] dagar",
+      "label": "Tidsperiod"
+    },
+    "7.2": {
+      "raw": "7.2",
+      "label": "Uppsägningsvillkor"
+    },
+    "avtalet": {
+      "raw": "avtalet",
+      "label": "Uppsägningsvillkor"
+    },
+    "14] dagar": {
+      "raw": "14] dagar",
+      "label": null
+    },
+    "omedelbar verkan": {
+      "raw": "omedelbar verkan",
+      "label": null
+    },
+    "[14]": {
+      "raw": "[14]",
+      "label": null
+    }
+  },
+  "g5-14": {
+    "extra kostnad": {
+      "raw": "extra kostnad",
+      "label": "Belopp"
+    },
+    "[90] dagar": {
+      "raw": "[90] dagar",
+      "label": "Tidsperiod"
+    },
+    "90] dagar": {
+      "raw": "90] dagar",
+      "label": null
+    },
+    "[90]": {
+      "raw": "[90]",
+      "label": null
+    }
+  },
+  "g5-15": {
+    "2024-05-02": {
+      "raw": "2024-05-02",
+      "label": "Uppsägningstid"
+    },
+    "[sex (6)] månader": {
+      "raw": "[sex (6)] månader",
+      "label": "Uppsägningstid"
+    },
+    "2021-05-03": {
+      "raw": "2021-05-03",
+      "label": "Uppsägningstid"
+    },
+    "[tolv (12)] månader": {
+      "raw": "[tolv (12)] månader",
+      "label": "Uppsägningstid"
+    },
+    "tolv (12)] månader": {
+      "raw": "tolv (12)] månader",
+      "label": null
+    },
+    "sex (6)] månader": {
+      "raw": "sex (6)] månader",
+      "label": null
+    }
+  },
+  "g5-16": {
+    "30 dagar": {
+      "raw": "30 dagar",
+      "label": "Tidsperiod"
+    },
+    "15.2": {
+      "raw": "15.2",
+      "label": "Uppsägningsvillkor"
+    },
+    "inom 30 dagar": {
+      "raw": "inom 30 dagar",
+      "label": null
+    },
+    "omedelbar verkan": {
+      "raw": "omedelbar verkan",
+      "label": null
+    }
+  },
+  "g5-17": {
+    "kronor": {
+      "raw": "kronor",
+      "label": "Belopp"
+    },
+    "30 dagar": {
+      "raw": "30 dagar",
+      "label": "Tidsperiod"
+    },
+    "inom 30 dagar": {
+      "raw": "inom 30 dagar",
+      "label": null
+    },
+    "[belopp]": {
+      "raw": "[Belopp]",
+      "label": null
+    }
+  },
+  "g5-18": {
+    "[belopp] kronor": {
+      "raw": "[Belopp] kronor",
+      "label": "Belopp"
+    },
+    "[belopp]": {
+      "raw": "[Belopp]",
+      "label": null
+    }
+  },
+  "g5-19": {
+    "[24] månader": {
+      "raw": "[24] månader",
+      "label": "Tidsperiod"
+    },
+    "24] månader": {
+      "raw": "24] månader",
+      "label": null
+    },
+    "[24]": {
+      "raw": "[24]",
+      "label": null
+    }
+  },
+  "g5-20": {
+    "2022-04-04": {
+      "raw": "2022-04-04",
+      "label": "Uppsägningstid"
+    },
+    "2024-04-03": {
+      "raw": "2024-04-03",
+      "label": "Uppsägningstid"
+    },
+    "ett (1) år": {
+      "raw": "ett (1) år",
+      "label": null
+    },
+    "tre (3)] månader": {
+      "raw": "tre (3)] månader",
+      "label": null
+    }
+  },
+  "g5-21": {
+    "30 dagar": {
+      "raw": "30 dagar",
+      "label": "Tidsperiod"
+    },
+    "9.2": {
+      "raw": "9.2",
+      "label": "Uppsägningsvillkor"
+    },
+    "inom 30 dagar": {
+      "raw": "inom 30 dagar",
+      "label": null
+    },
+    "omedelbar verkan": {
+      "raw": "omedelbar verkan",
+      "label": null
+    }
+  },
+  "g5-22": {
+    "2025-12-31": {
+      "raw": "2025-12-31",
+      "label": "Uppsägningstid"
+    },
+    "2024-05-02": {
+      "raw": "2024-05-02",
+      "label": "Uppsägningstid"
+    },
+    "ett (1) år": {
+      "raw": "ett (1) år",
+      "label": null
+    },
+    "tre (3)] månader": {
+      "raw": "tre (3)] månader",
+      "label": null
+    }
+  },
+  "g5-23": {
+    "[5]": {
+      "raw": "[5]",
+      "label": null
+    },
+    "[50]": {
+      "raw": "[50]",
+      "label": null
+    }
+  },
+  "g5-24": {
+    "[tolv (12)] månader": {
+      "raw": "[tolv (12)] månader",
+      "label": "Uppsägningstid"
+    },
+    "tolv (12) månader": {
+      "raw": "tolv (12) månader",
+      "label": "Uppsägningstid"
+    },
+    "[en (1)] månad": {
+      "raw": "[en (1)] månad",
+      "label": "Uppsägningstid"
+    },
+    "tolv (12)] månader": {
+      "raw": "tolv (12)] månader",
+      "label": null
+    },
+    "en (1)] månad": {
+      "raw": "en (1)] månad",
+      "label": null
+    }
+  },
+  "g5-25": {
+    "30 dagar": {
+      "raw": "30 dagar",
+      "label": "Tidsperiod"
+    },
+    "inom 30 dagar": {
+      "raw": "inom 30 dagar",
+      "label": null
+    },
+    "omedelbar verkan": {
+      "raw": "omedelbar verkan",
+      "label": null
+    }
+  },
+  "g5-26": {
+    "hållas ekonomiskt skadeslös": {
+      "raw": "hållas ekonomiskt skadeslös",
+      "label": null
+    }
+  },
+  "g5-27": {
+    "ett halvt års fast ersättning": {
+      "raw": "ett halvt års fast ersättning",
+      "label": "Ersättning"
+    }
+  },
+  "g5-28": {
+    "upphör utan föregående underrättelse": {
+      "raw": "upphör utan föregående underrättelse",
+      "label": null
+    }
+  },
+  "g5-29": {
+    "får inte överstiga det årliga kontraktsvärdet": {
+      "raw": "får inte överstiga det årliga kontraktsvärdet",
+      "label": null
+    }
+  },
+  "g5-30": {
+    "nittio dagar": {
+      "raw": "nittio dagar",
+      "label": "Uppsägningstid"
+    }
+  },
+  "g5-31": {
+    "ett år": {
+      "raw": "ett år",
+      "label": "Förlängning"
+    },
+    "fortlöper samarbetet ytterligare ett år": {
+      "raw": "fortlöper samarbetet ytterligare ett år",
+      "label": null
+    }
+  },
+  "g5-32": {
+    "två procent av kontraktsvärdet per påbörjad vecka": {
+      "raw": "två procent av kontraktsvärdet per påbörjad vecka",
+      "label": null
+    }
+  },
+  "g5-33": {
+    "ligger utanför partens kontroll": {
+      "raw": "ligger utanför partens kontroll",
+      "label": null
+    }
+  },
+  "g5-34": {
+    "uppdragstagaren": {
+      "raw": "Uppdragstagaren",
+      "label": "Avtalspart"
+    },
+    "dotterbolag": {
+      "raw": "dotterbolag",
+      "label": "Avtalspart"
+    },
+    "dess dotterbolag": {
+      "raw": "dess dotterbolag",
+      "label": null
+    }
+  },
+  "g5-35": {
+    "niohundrafemtiotusen kronor": {
+      "raw": "niohundrafemtiotusen kronor",
+      "label": "Belopp"
+    }
+  },
+  "g5-36": {
+    "andra kvartalet": {
+      "raw": "andra kvartalet",
+      "label": "Datum"
+    },
+    "första dagen": {
+      "raw": "första dagen",
+      "label": "Datum"
+    },
+    "första dagen i andra kvartalet": {
+      "raw": "första dagen i andra kvartalet",
+      "label": null
+    }
+  },
+  "g5-37": {
+    "två månaders": {
+      "raw": "två månaders",
+      "label": "Uppsägningstid"
+    },
+    "två månaders varsel": {
+      "raw": "två månaders varsel",
+      "label": null
+    }
+  },
+  "g5-38": {
+    "kompensation motsvarande ett års ersättning": {
+      "raw": "kompensation motsvarande ett års ersättning",
+      "label": null
+    }
+  },
+  "g5-39": {
+    "vad som erlagts enligt avtalet under de senaste tolv månaderna": {
+      "raw": "vad som erlagts enligt avtalet under de senaste tolv månaderna",
+      "label": null
+    }
+  },
+  "g5-40": {
+    "omedelbart ställa in sina åtaganden": {
+      "raw": "omedelbart ställa in sina åtaganden",
+      "label": null
+    }
+  },
+  "g5-41": {
+    "en och en halv procent av fakturabeloppet": {
+      "raw": "en och en halv procent av fakturabeloppet",
+      "label": null
+    }
+  },
+  "g5-42": {
+    "omständigheter som inte rimligen kunnat förutses": {
+      "raw": "omständigheter som inte rimligen kunnat förutses",
+      "label": null
+    }
+  },
+  "g5-43": {
+    "ett kvartal": {
+      "raw": "ett kvartal",
+      "label": "Uppsägningstid"
+    }
+  },
+  "g5-44": {
+    "beställaren": {
+      "raw": "Beställaren",
+      "label": "Avtalspart"
+    },
+    "koncernbolag": {
+      "raw": "koncernbolag",
+      "label": "Avtalspart"
+    },
+    "dess koncernbolag": {
+      "raw": "dess koncernbolag",
+      "label": null
+    }
+  },
+  "g5-45": {
+    "sjuttiofem tusen kronor": {
+      "raw": "sjuttiofem tusen kronor",
+      "label": "Belopp"
+    },
+    "sjuttiofem tusen kronor per månad": {
+      "raw": "sjuttiofem tusen kronor per månad",
+      "label": null
+    }
+  },
+  "g5-46": {
+    "ett år": {
+      "raw": "ett år",
+      "label": "Förlängning"
+    },
+    "förnyat för en tid av ett år": {
+      "raw": "förnyat för en tid av ett år",
+      "label": null
+    }
+  },
+  "g5-47": {
+    "ersättning": {
+      "raw": "ersättning",
+      "label": "Ersättning"
+    },
+    "månadsarvoden": {
+      "raw": "månadsarvoden",
+      "label": "Ersättning"
+    },
+    "sex fasta månadsarvoden": {
+      "raw": "sex fasta månadsarvoden",
+      "label": null
+    }
+  },
+  "g5-48": {
+    "indirekta förluster, utebliven vinst eller följdskador": {
+      "raw": "indirekta förluster, utebliven vinst eller följdskador",
+      "label": null
+    }
+  },
+  "g5-49": {
+    "avslutas med omedelbar effekt": {
+      "raw": "avslutas med omedelbar effekt",
+      "label": null
+    }
+  },
+  "g5-50": {
+    "månadsskiftet": {
+      "raw": "månadsskiftet",
+      "label": "Datum"
+    },
+    "månadsskiftet efter undertecknandet": {
+      "raw": "månadsskiftet efter undertecknandet",
+      "label": null
+    }
+  }
+}

@@ -200,6 +200,17 @@
       "ts": 1793297084
     },
     {
+      "key": "06c4848c60c77de3",
+      "case_id": "g5-47",
+      "span": "månadsarvoden",
+      "clause": "Vid förtida upphörande äger konsulten rätt till ersättning motsvarande sex fasta månadsarvoden.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "ERSÄTTNING",
+      "score_bp": null,
+      "ts": 1793298098
+    },
+    {
       "key": "073bf3e0aaf77a8e",
       "case_id": "g5-02",
       "span": "2020-02-01",
@@ -748,6 +759,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294507
+    },
+    {
+      "key": "187e5e55f534b654",
+      "case_id": "g5-15",
+      "span": "2021-05-03",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793298096
     },
     {
       "key": "18947a9aed0d4ea9",
@@ -1729,6 +1751,17 @@
       "ts": 1793296076
     },
     {
+      "key": "357c30fc31deb1e7",
+      "case_id": "g5-36",
+      "span": "andra kvartalet",
+      "clause": "Avtalet träder i kraft den första dagen i andra kvartalet.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793298097
+    },
+    {
       "key": "3590e1a3802f6a51",
       "case_id": "g5-20",
       "span": "ett (1) år",
@@ -2125,6 +2158,17 @@
       "ts": 1793297073
     },
     {
+      "key": "41042a4cdd68e694",
+      "case_id": "g5-50",
+      "span": "månadsskiftet",
+      "clause": "Samarbetet inleds vid månadsskiftet efter undertecknandet.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793298098
+    },
+    {
       "key": "41a73cd4a27e3c59",
       "case_id": "g5-36",
       "span": "andra kvartalet",
@@ -2354,6 +2398,28 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296123
+    },
+    {
+      "key": "47a0f9b8b681e804",
+      "case_id": "g5-22",
+      "span": "2024-05-02",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793298097
+    },
+    {
+      "key": "4803301ce0cb90ec",
+      "case_id": "g5-20",
+      "span": "2024-04-03",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793298097
     },
     {
       "key": "48cb0a2c55ac8c9d",
@@ -5370,6 +5436,17 @@
       "ts": 1793297097
     },
     {
+      "key": "9f1263c5c08081f9",
+      "case_id": "g5-15",
+      "span": "2024-05-02",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793298096
+    },
+    {
       "key": "9fe287a231c8865a",
       "case_id": "g5-14",
       "span": "[90]",
@@ -5907,6 +5984,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296113
+    },
+    {
+      "key": "aab2628fb4feff3b",
+      "case_id": "g5-47",
+      "span": "månadsarvoden",
+      "clause": "Vid förtida upphörande äger konsulten rätt till ersättning motsvarande sex fasta månadsarvoden.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793298098
     },
     {
       "key": "aabb67fa57880960",
@@ -6888,6 +6976,17 @@
       "ts": 1793296086
     },
     {
+      "key": "c9385190e9361f9d",
+      "case_id": "g5-14",
+      "span": "extra kostnad",
+      "clause": "7.3 DevBrains ska avhjälpa fel som har rapporterats inom [90] dagar efter godkännandet utan extra kostnad (garantitid).",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BETALNING",
+      "score_bp": null,
+      "ts": 1793298096
+    },
+    {
       "key": "ca53729c8308959c",
       "case_id": "g5-20",
       "span": "tre (3)] månader",
@@ -6908,6 +7007,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296090
+    },
+    {
+      "key": "cb63ae3759b5df65",
+      "case_id": "g5-27",
+      "span": "ett halvt års fast ersättning",
+      "clause": "Arbetsgivaren svarar för ett belopp motsvarande ett halvt års fast ersättning.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793298097
     },
     {
       "key": "cb8569a9400c4720",
@@ -7680,6 +7790,17 @@
       "ts": 1793294515
     },
     {
+      "key": "e202ca73b4142f8e",
+      "case_id": "g5-22",
+      "span": "2025-12-31",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793298097
+    },
+    {
       "key": "e211ed1addb7f8aa",
       "case_id": "g5-03",
       "span": "[nio (9)] månader",
@@ -7788,6 +7909,17 @@
       "choice": "TIDSPERIOD",
       "score_bp": null,
       "ts": 1793297068
+    },
+    {
+      "key": "e6b40e06c018309a",
+      "case_id": "g5-12",
+      "span": "2024-06-30",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793298095
     },
     {
       "key": "e849ce2808cb6481",
@@ -7975,6 +8107,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296120
+    },
+    {
+      "key": "eeed1e9c71f70bd9",
+      "case_id": "g5-12",
+      "span": "2023-07-01",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793298096
     },
     {
       "key": "ef04a1501d569715",
@@ -8406,6 +8549,17 @@
       "ts": 1793296136
     },
     {
+      "key": "f8793c44e3411138",
+      "case_id": "g5-47",
+      "span": "ersättning",
+      "clause": "Vid förtida upphörande äger konsulten rätt till ersättning motsvarande sex fasta månadsarvoden.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793298098
+    },
+    {
       "key": "f8e2a8f4ff477e38",
       "case_id": "g5-06",
       "span": "tre (3) månader",
@@ -8613,6 +8767,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296131
+    },
+    {
+      "key": "fde612680533ee16",
+      "case_id": "g5-20",
+      "span": "2022-04-04",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793298096
     },
     {
       "key": "fe2af8d3db9413cc",
