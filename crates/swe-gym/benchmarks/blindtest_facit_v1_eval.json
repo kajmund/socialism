@@ -1,0 +1,194 @@
+{
+  "facit": "crates/swe-gym/benchmarks/blindtest_facit_v1.json",
+  "prompt_version": "span-need-contrast-v1",
+  "model": "jev-1.13.0",
+  "candidates_reused": false,
+  "unique_verified": 9,
+  "unique_total": 13,
+  "false_resolved_need_ids": [
+    "bt-03-n1"
+  ],
+  "ambiguous_need_ids": [
+    "bt-17-n1"
+  ],
+  "needs_total": 20,
+  "needs_solved_s2": 14,
+  "strategies": {
+    "baseline": {
+      "needs": 0
+    },
+    "s1": {
+      "needs": 14,
+      "gliner_runs": 20,
+      "jev_calls": 47
+    },
+    "s2": {
+      "needs": 14,
+      "gliner_runs": 19,
+      "jev_calls": 45
+    }
+  },
+  "per_question_type": {
+    "ersättning": {
+      "unique_total": 4,
+      "unique_survived": 4,
+      "needs": 5,
+      "solved": 4,
+      "false_resolved": 0
+    },
+    "tidsfrister": {
+      "unique_total": 8,
+      "unique_survived": 4,
+      "needs": 9,
+      "solved": 5,
+      "false_resolved": 1
+    },
+    "parter": {
+      "unique_total": 1,
+      "unique_survived": 1,
+      "needs": 3,
+      "solved": 3,
+      "false_resolved": 0
+    },
+    "uppsägningsvillkor": {
+      "unique_total": 0,
+      "unique_survived": 0,
+      "needs": 2,
+      "solved": 1,
+      "false_resolved": 0
+    },
+    "ansvarsbegränsning": {
+      "unique_total": 0,
+      "unique_survived": 0,
+      "needs": 1,
+      "solved": 1,
+      "false_resolved": 0
+    }
+  },
+  "scope_note": "answer-level contamination not measured at clause level; follow-through step after this run (D10 procedure)",
+  "facit_provenance": "Redacted: see blindtest_facit_v1.json.",
+  "redacted": true,
+  "redaction_note": "Redacted for the public repository: contract documents, clause texts, span values and identifying names are not committed. Contract text is represented by SHA-256 digests (canonical form); the full frozen artifacts and the source documents are kept locally outside the repository.",
+  "per_case": [
+    {
+      "case_id": "bt-01",
+      "need_id": "bt-01-n1",
+      "question_type": "ersättning",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-02",
+      "need_id": "bt-02-n1",
+      "question_type": "tidsfrister",
+      "verdict": "unsolved"
+    },
+    {
+      "case_id": "bt-03",
+      "need_id": "bt-03-n1",
+      "question_type": "tidsfrister",
+      "verdict": "false_resolved"
+    },
+    {
+      "case_id": "bt-04",
+      "need_id": "bt-04-n1",
+      "question_type": "ersättning",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-05",
+      "need_id": "bt-05-n1",
+      "question_type": "parter",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-06",
+      "need_id": "bt-06-n1",
+      "question_type": "tidsfrister",
+      "verdict": "unsolved"
+    },
+    {
+      "case_id": "bt-07",
+      "need_id": "bt-07-n1",
+      "question_type": "tidsfrister",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-08",
+      "need_id": "bt-08-n1",
+      "question_type": "ersättning",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-09",
+      "need_id": "bt-09-n1",
+      "question_type": "uppsägningsvillkor",
+      "verdict": "unsolved"
+    },
+    {
+      "case_id": "bt-10",
+      "need_id": "bt-10-n1",
+      "question_type": "tidsfrister",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-11",
+      "need_id": "bt-11-n1",
+      "question_type": "parter",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-12",
+      "need_id": "bt-12-n1",
+      "question_type": "ansvarsbegränsning",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-13",
+      "need_id": "bt-13-n1",
+      "question_type": "tidsfrister",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-14",
+      "need_id": "bt-14-n1",
+      "question_type": "tidsfrister",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-15",
+      "need_id": "bt-15-n1",
+      "question_type": "ersättning",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-16",
+      "need_id": "bt-16-n1",
+      "question_type": "uppsägningsvillkor",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-17",
+      "need_id": "bt-17-n1",
+      "question_type": "tidsfrister",
+      "verdict": "ambiguous"
+    },
+    {
+      "case_id": "bt-18",
+      "need_id": "bt-18-n1",
+      "question_type": "tidsfrister",
+      "verdict": "resolved"
+    },
+    {
+      "case_id": "bt-19",
+      "need_id": "bt-19-n1",
+      "question_type": "ersättning",
+      "verdict": "unsolved"
+    },
+    {
+      "case_id": "bt-20",
+      "need_id": "bt-20-n1",
+      "question_type": "parter",
+      "verdict": "resolved"
+    }
+  ]
+}
