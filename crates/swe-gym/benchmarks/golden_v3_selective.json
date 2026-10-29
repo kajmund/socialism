@@ -1,0 +1,9 @@
+{
+  "rule": "semantic: doc match + termination context + unambiguous value",
+  "full": {
+    "recovered": 11,
+    "false_positives": 1,
+    "cost": 12000
+  },
+  "extraction_epsilon": 1
+}
