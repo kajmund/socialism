@@ -449,3 +449,29 @@ billiga deterministiska första undersökningen). Parallellkörning med befintli
 möjlig när recall väger tyngre än lägsta kostnad — vilken strategi som är bäst avgör mätningen.
 Ingen fine-tuning innan behovsstyrningen och den unika täckningen är mätta på ett större,
 oberoende testset med guld bortom regex-räckvidden.
+
+## F. Frysning och beslut (slutdokument)
+
+**Experimentet fryses som referens** med följande manifest (alla artefakter committade):
+
+| Artefakt | Fryst värde |
+|---|---|
+| Golden-version | `gliner_challenge.json` v3 (guldgranskning 2026-10-29, proveniens i filen) |
+| Kandidatpopulation | `gliner_candidates_v2.json` (spann + GLiNER2-etiketter, en lokal körning) |
+| JEV-fixtur | `jev_span_fixtures.json` — alla promptversioner, kandidater, modell, score, tidsstämpel |
+| Promptversioner | span-verify-v1, span-need-v1, span-need-ctx-v1, span-need-contrast-v1 (arm D), span-operative-role-v1 (D2), stage-type/relation/relevance-v1 |
+| Kostnader | D: 1 JEV-anrop/kandidat (fryst); E/F/G totalt 272; D2 131 nya; återspelning 0 |
+| Modell | JEV: `jev-latest`; GLiNER2: `fastino/gliner2.5-multi-v1` (CPU, isolerad venv) |
+
+**Beslutsprotokoll** (varje förkastat alternativ med mätdata): JevSpan som paket — nej (överlapp
+dokumenterat i A); GLiNER2 som typklassificerare — nej (H1 5/27, H2 17/27 mot D 22/27);
+uppdelad verifiering E/F/G — nej (typsteget blev recall-flaskhals); D2-prompt — nej
+(8 kontaminerade mot D:s 7, beslutsgränsen flyttas bara). **Behållna:** GLiNER2 som
+behovsstyrd, valbar spann-förslagsgivare; JEV arm D som det enda behovsspecifika kontrastiva
+beslutet; evidenskontraktets typkontroll, kanonisk normalisering och VERIFIED/AMBIGUOUS/
+REJECTED. GLiNER2 förblir **experimentell och valbar — inte generellt påslagen i Research**.
+
+**Slutord:** experimentet är lyckat inte genom perfekt precision utan genom en avgränsad
+lösning med uppmätt marginalnytta, dokumenterade begränsningar och tydliga
+användningsvillkor — och framför allt genom att vi nu vet vad vi inte behöver bygga.
+
