@@ -9,7 +9,9 @@
 //! Run with: cargo run --example v2_variants
 
 use swe_gym::bench::load_bench_file;
-use swe_gym::provider::{resolve_secret, HttpJevProvider, HttpLlmProvider, RecordProvider, ResearchProvider};
+use swe_gym::provider::{
+    resolve_secret, HttpJevProvider, HttpLlmProvider, RecordProvider, ResearchProvider,
+};
 use swe_native::{parse_json_str, Json};
 
 const QUESTIONS: [&str; 5] = ["g2-15", "g2-17", "g2-29", "g2-20", "g2-23"];
@@ -24,7 +26,10 @@ fn golden() -> Vec<(String, String, Vec<String>)> {
         .map(|q| {
             (
                 q.get("id").and_then(Json::as_str).unwrap().to_string(),
-                q.get("question").and_then(Json::as_str).unwrap().to_string(),
+                q.get("question")
+                    .and_then(Json::as_str)
+                    .unwrap()
+                    .to_string(),
                 q.get("evidence")
                     .and_then(Json::as_array)
                     .unwrap()
@@ -56,7 +61,12 @@ fn jev_hits(qid: &str) -> Vec<String> {
         .unwrap()
         .iter()
         .filter(|e| e.get("choice").and_then(Json::as_str) == Some("fynd"))
-        .map(|e| e.get("chunk_id").and_then(Json::as_str).unwrap().to_string())
+        .map(|e| {
+            e.get("chunk_id")
+                .and_then(Json::as_str)
+                .unwrap()
+                .to_string()
+        })
         .collect()
 }
 
@@ -74,7 +84,11 @@ fn ranks(qid: &str) -> Vec<String> {
         .collect()
 }
 
-fn evidence_text(question: &str, evidence: &[String], texts: &std::collections::HashMap<String, String>) -> String {
+fn evidence_text(
+    question: &str,
+    evidence: &[String],
+    texts: &std::collections::HashMap<String, String>,
+) -> String {
     evidence
         .iter()
         .map(|c| format!("[{c}]\n{}", texts.get(c).cloned().unwrap_or_default()))
@@ -83,14 +97,14 @@ fn evidence_text(question: &str, evidence: &[String], texts: &std::collections::
 }
 
 fn main() {
-    let jev_key = resolve_secret("TYPESAFE_API_KEY", "../../backend/.env")
-        .expect("TYPESAFE_API_KEY saknas");
+    let jev_key =
+        resolve_secret("TYPESAFE_API_KEY", "../../backend/.env").expect("TYPESAFE_API_KEY saknas");
     let jev_base = resolve_secret("TYPESAFE_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.typesafe.ai".to_string());
     let jev_model = resolve_secret("JEV_MODEL", "../../backend/.env")
         .unwrap_or_else(|| "jev-latest".to_string());
-    let llm_key = resolve_secret("CEREBRAS_API_KEY", "../../backend/.env")
-        .expect("CEREBRAS_API_KEY saknas");
+    let llm_key =
+        resolve_secret("CEREBRAS_API_KEY", "../../backend/.env").expect("CEREBRAS_API_KEY saknas");
     let llm_base = resolve_secret("CEREBRAS_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.cerebras.ai/v1".to_string());
 
@@ -127,7 +141,10 @@ fn main() {
         let static_answer = synth(
             &synth_provider,
             "static",
-            &format!("Fråga: {question}\n\nEvidens:\n{}", evidence_text(&question, &static_hits, &texts)),
+            &format!(
+                "Fråga: {question}\n\nEvidens:\n{}",
+                evidence_text(&question, &static_hits, &texts)
+            ),
         );
 
         // 2. Iterative: gap analysis -> new candidates -> JEV -> synthesis.
@@ -158,8 +175,16 @@ fn main() {
             while let Some(pos) = rest.find("Avtal_") {
                 let tail = &rest[pos..];
                 let end = tail
-                    .find(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == 'å'
-                        || ch == 'ä' || ch == 'ö' || ch == 'Å' || ch == 'Ä' || ch == 'Ö'))
+                    .find(|ch: char| {
+                        !(ch.is_ascii_alphanumeric()
+                            || ch == '_'
+                            || ch == 'å'
+                            || ch == 'ä'
+                            || ch == 'ö'
+                            || ch == 'Å'
+                            || ch == 'Ä'
+                            || ch == 'Ö')
+                    })
                     .unwrap_or(tail.len());
                 let name = &tail[..end];
                 if name.starts_with("Avtal_") && name.matches('_').count() >= 2 {
@@ -181,7 +206,9 @@ fn main() {
             texts
                 .keys()
                 .filter(|c| {
-                    named_docs.iter().any(|d| c.split(':').next() == Some(d.as_str()))
+                    named_docs
+                        .iter()
+                        .any(|d| c.split(':').next() == Some(d.as_str()))
                         && !initial_hits.contains(*c)
                 })
                 .cloned()
@@ -215,17 +242,21 @@ fn main() {
         )
         .unwrap();
         let new_hits: Vec<String> = {
-            let source = std::fs::read_to_string(format!(
-                "benchmarks/variant_capture/{qid}-newjev.json"
-            ))
-            .unwrap();
+            let source =
+                std::fs::read_to_string(format!("benchmarks/variant_capture/{qid}-newjev.json"))
+                    .unwrap();
             let json = parse_json_str(&source).unwrap();
             json.get("entries")
                 .and_then(Json::as_array)
                 .unwrap()
                 .iter()
                 .filter(|e| e.get("choice").and_then(Json::as_str) == Some("fynd"))
-                .map(|e| e.get("chunk_id").and_then(Json::as_str).unwrap().to_string())
+                .map(|e| {
+                    e.get("chunk_id")
+                        .and_then(Json::as_str)
+                        .unwrap()
+                        .to_string()
+                })
                 .collect()
         };
         let mut all_hits = initial_hits.clone();
@@ -233,7 +264,10 @@ fn main() {
         let iterative_answer = synth(
             &synth_provider,
             "iterative",
-            &format!("Fråga: {question}\n\nEvidens:\n{}", evidence_text(&question, &all_hits, &texts)),
+            &format!(
+                "Fråga: {question}\n\nEvidens:\n{}",
+                evidence_text(&question, &all_hits, &texts)
+            ),
         );
 
         // 3. Adaptive: budget-driven rule over the same primitives.
@@ -266,21 +300,31 @@ fn main() {
         let adaptive_answer = synth(
             &synth_provider,
             "adaptive",
-            &format!("Fråga: {question}\n\nEvidens:\n{}", evidence_text(&question, &adaptive_hits, &texts)),
+            &format!(
+                "Fråga: {question}\n\nEvidens:\n{}",
+                evidence_text(&question, &adaptive_hits, &texts)
+            ),
         );
 
         // 4. Oracle: synthesis given ALL facit evidence directly.
         let oracle_answer = synth(
             &synth_provider,
             "oracle",
-            &format!("Fråga: {question}\n\nEvidens:\n{}", evidence_text(&question, &evidence, &texts)),
+            &format!(
+                "Fråga: {question}\n\nEvidens:\n{}",
+                evidence_text(&question, &evidence, &texts)
+            ),
         );
 
         out.push(format!(
             "=== {qid}\nQUESTION: {question}\nGAP: {gap_answer}\nNEW_HITS: {}\nSTATIC: {static_answer}\nITERATIVE: {iterative_answer}\nADAPTIVE: {adaptive_answer}\nORACLE: {oracle_answer}\n",
             new_hits.join(";")
         ));
-        println!("{qid}: varianter + orakel fångade ({} nya kandidater, {} nya fynd)", new_candidates.len(), new_hits.len());
+        println!(
+            "{qid}: varianter + orakel fångade ({} nya kandidater, {} nya fynd)",
+            new_candidates.len(),
+            new_hits.len()
+        );
     }
     std::fs::write("benchmarks/variant_capture/answers.txt", out.join("\n")).unwrap();
     println!("klart");

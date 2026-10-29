@@ -21,7 +21,10 @@ fn cases() -> Vec<(String, String, Vec<String>)> {
         .map(|q| {
             (
                 q.get("id").and_then(Json::as_str).unwrap().to_string(),
-                q.get("question").and_then(Json::as_str).unwrap().to_string(),
+                q.get("question")
+                    .and_then(Json::as_str)
+                    .unwrap()
+                    .to_string(),
                 q.get("evidence")
                     .and_then(Json::as_array)
                     .unwrap()
@@ -71,15 +74,19 @@ fn baseline_verdict(qid: &str, chunk: &str) -> String {
     let json = parse_json_str(&source).unwrap();
     for e in json.get("entries").and_then(Json::as_array).unwrap() {
         if e.get("chunk_id").and_then(Json::as_str) == Some(chunk) {
-            return e.get("choice").and_then(Json::as_str).unwrap_or("okänd").to_string();
+            return e
+                .get("choice")
+                .and_then(Json::as_str)
+                .unwrap_or("okänd")
+                .to_string();
         }
     }
     "ej bedömd".to_string()
 }
 
 fn main() {
-    let jev_key = resolve_secret("TYPESAFE_API_KEY", "../../backend/.env")
-        .expect("TYPESAFE_API_KEY saknas");
+    let jev_key =
+        resolve_secret("TYPESAFE_API_KEY", "../../backend/.env").expect("TYPESAFE_API_KEY saknas");
     let jev_base = resolve_secret("TYPESAFE_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.typesafe.ai".to_string());
     let jev_model = resolve_secret("JEV_MODEL", "../../backend/.env")
@@ -105,7 +112,8 @@ fn main() {
 
         let baseline_prompt = format!("{question} Classify only the candidate `text` field. YES only if the candidate text itself contains evidence RELEVANT to answering the question — a text can be necessary evidence without answering the question alone. NO if it does not. If the candidate text is not enough to decide, choose UNCERTAIN.");
         let clarified_prompt = format!("{baseline_prompt} Olika formuleringar är ekvivalenta: 'sägs upp senast X månader före utgång' betyder 'har X månaders uppsägningstid', och 'förlängs om det inte sägs upp' rör också uppsägningstiden.");
-        let clarified = HttpJevProvider::new(&jev_key, &jev_base, &jev_model).with_instructions(&clarified_prompt);
+        let clarified = HttpJevProvider::new(&jev_key, &jev_base, &jev_model)
+            .with_instructions(&clarified_prompt);
 
         for chunk in &states {
             let text = texts.get(chunk).cloned().unwrap_or_default();
@@ -122,7 +130,10 @@ fn main() {
                 .analyze("scan", "market-context", &context_text)
                 .map(|a| a.choice)
                 .unwrap_or_else(|e| format!("FEL: {e}"));
-            out.push(format!("{qid}|{chunk}|{}|{clar}|{ctx}", baseline_verdict(&qid, chunk)));
+            out.push(format!(
+                "{qid}|{chunk}|{}|{clar}|{ctx}",
+                baseline_verdict(&qid, chunk)
+            ));
             total_states += 1;
             if total_states % 20 == 0 {
                 println!("{total_states} tillstånd...");

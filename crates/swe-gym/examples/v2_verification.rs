@@ -36,8 +36,8 @@ fn bench_texts() -> std::collections::HashMap<String, String> {
 }
 
 fn main() {
-    let jev_key = resolve_secret("TYPESAFE_API_KEY", "../../backend/.env")
-        .expect("TYPESAFE_API_KEY saknas");
+    let jev_key =
+        resolve_secret("TYPESAFE_API_KEY", "../../backend/.env").expect("TYPESAFE_API_KEY saknas");
     let jev_base = resolve_secret("TYPESAFE_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.typesafe.ai".to_string());
     let jev_model = resolve_secret("JEV_MODEL", "../../backend/.env")
@@ -47,8 +47,10 @@ fn main() {
     let baseline_prompt = format!("{QUESTION} Classify only the candidate `text` field. YES only if the candidate text itself contains evidence RELEVANT to answering the question — a text can be necessary evidence without answering the question alone. NO if it does not. If the candidate text is not enough to decide, choose UNCERTAIN.");
     let clarified_prompt = format!("{baseline_prompt} Olika formuleringar är ekvivalenta: 'sägs upp senast X månader före utgång' betyder 'har X månaders uppsägningstid', och 'förlängs om det inte sägs upp' rör också uppsägningstiden.");
 
-    let baseline = HttpJevProvider::new(&jev_key, &jev_base, &jev_model).with_instructions(&baseline_prompt);
-    let clarified = HttpJevProvider::new(&jev_key, &jev_base, &jev_model).with_instructions(&clarified_prompt);
+    let baseline =
+        HttpJevProvider::new(&jev_key, &jev_base, &jev_model).with_instructions(&baseline_prompt);
+    let clarified =
+        HttpJevProvider::new(&jev_key, &jev_base, &jev_model).with_instructions(&clarified_prompt);
 
     let mut entries: Vec<String> = Vec::new();
     for chunk in CHUNKS {
@@ -86,10 +88,7 @@ fn main() {
             repeats.push(format!("rep{}={r}", i + 1));
         }
 
-        entries.push(format!(
-            "{chunk}|{base}|{clar}|{ctx}|{}",
-            repeats.join(";")
-        ));
+        entries.push(format!("{chunk}|{base}|{clar}|{ctx}|{}", repeats.join(";")));
         println!("{chunk}: bas={base} klar={clar} kontext={ctx}");
     }
     std::fs::write("benchmarks/verification_signal.txt", entries.join("\n")).unwrap();
