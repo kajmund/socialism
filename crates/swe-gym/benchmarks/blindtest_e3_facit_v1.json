@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "name": "blindtest-e3-v1",
+  "roles": {
+    "bt-01": "MONEY",
+    "bt-02": "DEADLINE",
+    "bt-03": "DEADLINE",
+    "bt-04": "MONEY",
+    "bt-05": "PARTY",
+    "bt-06": "EVENT",
+    "bt-07": "EVENT",
+    "bt-08": "MONEY",
+    "bt-09": "NOTICE",
+    "bt-10": "SEMESTER",
+    "bt-11": "PARTY",
+    "bt-12": "LIABILITY",
+    "bt-13": "MONEY",
+    "bt-14": "DEADLINE",
+    "bt-15": "MONEY",
+    "bt-16": "NOTICE",
+    "bt-17": "DURATION",
+    "bt-18": "EVENT",
+    "bt-19": "MONEY",
+    "bt-20": "PARTY"
+  },
+  "redacted": true,
+  "redaction_note": "Redacted for the public repository: contract documents, clause texts, span values and identifying names are not committed. Contract text is represented by SHA-256 digests (canonical form); the full frozen artifacts and the source documents are kept locally outside the repository.",
+  "provenance": "Operational roles per need, annotated from the case questions independent of generator/model output."
+}
