@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "canonical_rule": {
+    "leading_stripped": [
+      "de",
+      "den",
+      "det",
+      "en",
+      "ett",
+      "i",
+      "inom",
+      "senast",
+      "under"
+    ],
+    "genitive_normalized": {
+      "dagars": "dagar",
+      "veckors": "veckor",
+      "månaders": "månader",
+      "års": "år",
+      "timmars": "timmar"
+    }
+  },
+  "rows": [
+    {
+      "case_id": "bt-01",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-02",
+      "verdict": "unsolved",
+      "old_verdict": "unsolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-03",
+      "verdict": "resolved",
+      "old_verdict": "false_resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-04",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-05",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": [
+        "nkk"
+      ]
+    },
+    {
+      "case_id": "bt-06",
+      "verdict": "unsolved",
+      "old_verdict": "unsolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-07",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-08",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-09",
+      "verdict": "unsolved",
+      "old_verdict": "unsolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-10",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": [
+        "semester 30 dagar"
+      ]
+    },
+    {
+      "case_id": "bt-11",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-12",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-13",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": [
+        "12 m å naderna"
+      ]
+    },
+    {
+      "case_id": "bt-14",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-15",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-16",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-17",
+      "verdict": "resolved",
+      "old_verdict": "ambiguous",
+      "competing": [
+        "2 veckor"
+      ]
+    },
+    {
+      "case_id": "bt-18",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-19",
+      "verdict": "unsolved",
+      "old_verdict": "unsolved",
+      "competing": []
+    },
+    {
+      "case_id": "bt-20",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing": []
+    }
+  ],
+  "flips": [
+    "bt-03: false_resolved -> resolved",
+    "bt-17: ambiguous -> resolved"
+  ]
+}
