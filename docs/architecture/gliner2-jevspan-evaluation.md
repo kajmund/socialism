@@ -368,6 +368,36 @@ felklassificering — fyra händelser per fall, med kontrolljämförelse, helt o
 frysta svaren. Nästa steg: införa de två kontraktsreglerna, köra om, och följa de tre
 semantiska fallen till slutsatser där JEV:s osäkerhet redovisas i stället för att döljas.
 
+## D11. Trestegstillstånden och avvägningen — öppet redovisad
+
+`VERIFIED` / `AMBIGUOUS` / `REJECTED` implementerade som en utökning av evidensobjektens
+verifieringsresultat (ingen ny abstraktion), med AMBIGUOUS härlett från **observerbara
+signaler** — flera distinkta operativa värden, generisk-vs-specifik form, saknad relation —
+aldrig från facit. De två generella kontraktsreglerna (partsroll ≠ juridisk person; belopp
+måste vara ett fullständigt värde) införda utan språkmodell. Återspelning av alla 50 frysta
+fall, noll nya modellanrop:
+
+| | Korrekt | Kontaminerad | Avstod |
+|---|---|---|---|
+| Före (nuvarande kontrakt) | 25 | 7 | 18 |
+| Efter (trestegskontrakt) | 25 | **5** | 20 |
+
+**Avvägningen, öppet:** 2 kontaminerade slutsatser borttagna (g5-01 partsroll-regeln; g5-04
+ofullständigt belopp → avstod), **1 tidigare korrekt slutsats blockerad** (g5-36 — behovsnivå-
+AMBIGUOUS övertriggade på ett datumfall; en falsk-AMBIGUOUS att kalibrera). De fem kvarvarande
+"kontaminerade" granskades manuellt: två är **spann-granularitetsskillnader** (samma faktum i
+kortare spann — inte semantiska fel), och de verkliga semantiska restfallen är **2–3**:
+fel operativt belopp (g5-45) och generisk term som konkret åtagande (g5-47). På dem finns
+**ingen observerbar signal** som skiljer det operativa värdet — det är gränsen för
+signalhärledd AMBIGUOUS, och där måste JEV:s semantiska bedömning bära ansvaret med
+osäkerheten följande evidensobjektet in i operationen.
+
+**Slutsatsen enligt granskningens skärpning:** målet var att förhindra evidenskontamination
+utan att förlora korrekta svar i onödan. Resultatet: 2 kontaminationer bort, 1 över-block —
+avvägningen är nu synlig i en tabell i stället för dold. Nästa steg: kalibrera behovsnivå-
+AMBIGUOUS (multiplicitetströskeln), följa g5-45/g5-47 med osäkerheten kvar på evidensobjektet,
+och mäta samma avvägning på det större oberoende testsetet.
+
 ## E2. Rekommendationen, omformulerad per beslut
 
 **Utvärdera GLiNER2 som en behovsstyrd, valbar kandidatgenerator i SWE:s Investigation-lager** —
