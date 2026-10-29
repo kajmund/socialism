@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "counts": {
+    "correct_answer": 10,
+    "incorrect_abstention": 3,
+    "correct_answer_boundary_variant": 5,
+    "correct_abstention_external_need": 1,
+    "correct_abstention": 1
+  },
+  "redacted": true,
+  "redaction_note": "Redacted for the public repository: contract documents, clause texts, span values and identifying names are not committed. Contract text is represented by SHA-256 digests (canonical form); the full frozen artifacts and the source documents are kept locally outside the repository.",
+  "rows": [
+    {
+      "case_id": "bt-01",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "answerable": true,
+      "expected_sha256": "97fdb7969d81ffffe40facc2c5b3c9fab14f20ea1e865249d070b6da2745a43d",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-02",
+      "verdict": "unsolved",
+      "class": "incorrect_abstention",
+      "answerable": true,
+      "expected_sha256": "d646bfbafbfaf454a4ffcf41e8d149d5af01286d4655398aa8da2d16f0178a5f",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-03",
+      "verdict": "false_resolved",
+      "class": "correct_answer_boundary_variant",
+      "answerable": true,
+      "expected_sha256": "05317e1ca6aa750e24d4681ccda861099ad41895f46fd668ad695b972ae9bf4c",
+      "competing_canon_sha256": [
+        "5912fdf6ee09d405c28001bfd7a8418060fe689c722e066164176e9a706da099"
+      ],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-04",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "answerable": true,
+      "expected_sha256": "bbe5dbfc4a4647117c5d7f332253eef3c05b8e6a811288eb4d6a52009d737395",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-05",
+      "verdict": "resolved",
+      "class": "correct_answer_boundary_variant",
+      "answerable": true,
+      "expected_sha256": "4b185a697ac8cf384f2842c76c286d24436c0081c38f76bceaf1addc3dbd800d",
+      "competing_canon_sha256": [
+        "fb0fb69afadce40fbc93c796ca2f818ab0e54991425c1251f41eced0fa151877"
+      ],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-06",
+      "verdict": "unsolved",
+      "class": "incorrect_abstention",
+      "answerable": true,
+      "expected_sha256": "42acedde36d27b382eee34142d7950357349b16bb17d063aa78cebedbd2bf4d6",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-07",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "answerable": true,
+      "expected_sha256": "50655397b9733a303bb7180c5e5f1856cfac0fb6fb2d6bb467eafedcc7fede84",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-08",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "answerable": true,
+      "expected_sha256": "b6472d01e3ee417e8496f9fd7afa55230a6b55db623a47b5684c27ee2cd22784",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-09",
+      "verdict": "unsolved",
+      "class": "correct_abstention_external_need",
+      "answerable": false,
+      "expected_sha256": "7509f112095d51b8a3c540559b77d898da60378eacadf74f1bf2aab48ee59b05",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-10",
+      "verdict": "resolved",
+      "class": "correct_answer_boundary_variant",
+      "answerable": true,
+      "expected_sha256": "dcf17ed6fc4bc9143f2fda07c0d95f1a9566c7ac7b3ccc385988dd514ee3c0c3",
+      "competing_canon_sha256": [
+        "ed6958a8d7574a5bd62649e6af53e662fa4b0783e7bf69a751422387d2c1c931"
+      ],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-11",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "answerable": true,
+      "expected_sha256": "0c4828884907cd4c2c01456608c60d5a624199eb7c42d0e2703859a3fd9482bb",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-12",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "answerable": true,
+      "expected_sha256": "093e5146ec1ffbd979e9865f2da911417fbba3145b231fe146351d8c07e630cd",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-13",
+      "verdict": "resolved",
+      "class": "correct_answer_boundary_variant",
+      "answerable": true,
+      "expected_sha256": "3a02159a91a78c5947026f494a3bfdf52bf6c62f3d8f6da9a9d81154effb2dfb",
+      "competing_canon_sha256": [
+        "eaba156ca388121e883491e1b1fb3d62d94e1670e5ed1c654698c3b5ba66f92a"
+      ],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-14",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "answerable": true,
+      "expected_sha256": "5db9615c54d706e98a24bdb2688254b156607658ab06465117fdd2dcb0faa02d",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-15",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "answerable": true,
+      "expected_sha256": "1f0b7e3b6017c349120bddee815e5fe5cd18a6a685db4e86e8e08a1e36f77a40",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-16",
+      "verdict": "resolved",
+      "class": "correct_answer_boundary_variant",
+      "answerable": true,
+      "expected_sha256": "7d58e36b5b63eb3cc34c3f773886ce80b761cdcc0fbe0feeca3ce72c48ce6681",
+      "competing_canon_sha256": [
+        "dbe2ba193cb83e8be494b09952886168c1ba9b700d286b5eec44717261213dee"
+      ],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-17",
+      "verdict": "ambiguous",
+      "class": "correct_abstention",
+      "answerable": true,
+      "expected_sha256": "2f1f9a4bfceedd23b362562a4585e8b922aeab9dd728ff21afe285b8176633fc",
+      "competing_canon_sha256": [
+        "dbe2ba193cb83e8be494b09952886168c1ba9b700d286b5eec44717261213dee",
+        "b8c34abb48808afba39a1a27a58aa489c284dd6c9117216b7ecb95a011151ffb"
+      ],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-18",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "answerable": true,
+      "expected_sha256": "ba84b709135d473575bbd7569a3f69051cf353ee0dc8e62e1e2e5fa9933cecd7",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-19",
+      "verdict": "unsolved",
+      "class": "incorrect_abstention",
+      "answerable": true,
+      "expected_sha256": "09ffce7c7617e483d44d3f91cf8605e4fb55c2f5f010e21d464b06a97c041ec9",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    },
+    {
+      "case_id": "bt-20",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "answerable": true,
+      "expected_sha256": "1b72613c14c9d6ec5fac5bafaa8ea6919d31aaa705453e6fa51205f2883aa50a",
+      "competing_canon_sha256": [],
+      "note": "[redacted]"
+    }
+  ]
+}
