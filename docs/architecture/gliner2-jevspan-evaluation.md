@@ -186,6 +186,31 @@ verkligt — inte en dominerande ersättning. Kostnaden: en CPU-inferens per kla
 sex JEV-verifikationer. g4-05-statusen kvarstår som tidigare: 2 av 3 spann är diagnostiska
 tecken, inte ett löst behov — utmaningssetets siffror är nu det primära underlaget.
 
+## D4. Fixtur, unika identiteter — och verifierarens diskriminering mätt
+
+**Bevarandekravet verkställt:** utmaningssetet har nu unika `case_id` (50) och `span_id` (81
+separata annoterade förekomster — inga normaliserade textnycklar). Regressionstester
+(`tools/test_challenge.py`) verifierar identiteterna och fixturformatet. Varje JEV-verifikation
+fryses med kandidat, klausul, prompt-version, modell, utslag, score och tidsstämpel i
+`benchmarks/jev_span_fixtures.json` — omräkningar återanvänder frysta svar deterministiskt
+(130 nya anrop denna körning; framtida körningar av samma utvärderingslogik betalar inget).
+
+**Och körningen avslöjade det granskningen befarade:** med en generell span-prompt
+("utgör spannet ett juridiskt sakförhållande?") godkänner JEV **50 av 50 icke-guldspann** —
+verifieraren diskriminerar inte alls på denna formulering. Det förändrar tolkningen av den
+tidigare 6/6-överlevnaden: de unika spannen godkändes, men det gjorde allt annat också.
+**JEV:s verifieringsprecision är därmed fortfarande inte bevisad — den är nu mätt, och den är
+~0 med en generell prompt.** Slutsatsen: verifieringen måste vara behovsspecifik
+("utgör spannet en uppsägningstid?" med det aktuella behovets faktatyp), exakt som
+behovsstyrningen gjorde för GLiNER2. Fixturens prompt-versioner gör att nästa körning lägger
+till de behovsspecifika svaren utan att betala för de redan frysta.
+
+**Strategijämförelsen (samma kostnadsdefinition, alla anrop räknade):** S1 (GLiNER2 överallt)
+50 inferenser + 140 JEV-anrop; S2 (GLiNER2 endast vid kvarstående gap) 25 inferenser + 44
+JEV-anrop — **halva kostnaden för samma täckning**, vilket stödjer S2 som favorit. Men båda
+siffrorna är villkorade av verifierarens bristande diskriminering och ska inte ligga till grund
+för något beslut innan den behovsspecifika verifieringen är mätt.
+
 ## E2. Rekommendationen, omformulerad per beslut
 
 **Utvärdera GLiNER2 som en behovsstyrd, valbar kandidatgenerator i SWE:s Investigation-lager** —
