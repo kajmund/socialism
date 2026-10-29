@@ -47,7 +47,7 @@ def spans_of(text):
             pass
         else:
             continue
-        span = m.group(0).strip().strip("[]")
+        span = re.sub(r"[\[\]]", "", m.group(0)).strip()
         label = "NOTICE_PERIOD" if TERM_RE.search(text) else "PERIOD"
         spans.append((label, span))
     if "avgångsvederlag" in text.lower():

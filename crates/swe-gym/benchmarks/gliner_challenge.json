@@ -47,12 +47,12 @@
       "need": "NOTICE_PERIOD",
       "gold": [
         {
-          "span": "nio (9)] månader",
+          "span": "nio (9) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-03-s1"
         },
         {
-          "span": "tre (3)] år",
+          "span": "tre (3) år",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-03-s2"
         }
@@ -142,12 +142,12 @@
       "need": "NOTICE_PERIOD",
       "gold": [
         {
-          "span": "sex (6)] månader",
+          "span": "sex (6) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-08-s1"
         },
         {
-          "span": "ett (1)] år",
+          "span": "ett (1) år",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-08-s2"
         }
@@ -190,7 +190,7 @@
       "need": "DATE",
       "gold": [
         {
-          "span": "en (1)] månad",
+          "span": "en (1) månad",
           "type": "PERIOD",
           "span_id": "g5-10-s1"
         },
@@ -209,7 +209,7 @@
       "need": "MONEY",
       "gold": [
         {
-          "span": "14] dagar",
+          "span": "14 dagar",
           "type": "PERIOD",
           "span_id": "g5-11-s1"
         },
@@ -228,12 +228,12 @@
       "need": "NOTICE_PERIOD",
       "gold": [
         {
-          "span": "ett (1)] år",
+          "span": "ett (1) år",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-12-s1"
         },
         {
-          "span": "tre (3)] månader",
+          "span": "tre (3) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-12-s2"
         }
@@ -247,7 +247,7 @@
       "need": "MONEY",
       "gold": [
         {
-          "span": "14] dagar",
+          "span": "14 dagar",
           "type": "PERIOD",
           "span_id": "g5-13-s1"
         },
@@ -271,7 +271,7 @@
       "need": "MONEY",
       "gold": [
         {
-          "span": "90] dagar",
+          "span": "90 dagar",
           "type": "PERIOD",
           "span_id": "g5-14-s1"
         },
@@ -290,12 +290,12 @@
       "need": "NOTICE_PERIOD",
       "gold": [
         {
-          "span": "tolv (12)] månader",
+          "span": "tolv (12) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-15-s1"
         },
         {
-          "span": "sex (6)] månader",
+          "span": "sex (6) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-15-s2"
         }
@@ -366,7 +366,7 @@
       "need": "MONEY",
       "gold": [
         {
-          "span": "24] månader",
+          "span": "24 månader",
           "type": "PERIOD",
           "span_id": "g5-19-s1"
         },
@@ -390,7 +390,7 @@
           "span_id": "g5-20-s1"
         },
         {
-          "span": "tre (3)] månader",
+          "span": "tre (3) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-20-s2"
         }
@@ -428,7 +428,7 @@
           "span_id": "g5-22-s1"
         },
         {
-          "span": "tre (3)] månader",
+          "span": "tre (3) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-22-s2"
         }
@@ -461,7 +461,7 @@
       "need": "NOTICE_PERIOD",
       "gold": [
         {
-          "span": "tolv (12)] månader",
+          "span": "tolv (12) månader",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-24-s1"
         },
@@ -471,7 +471,7 @@
           "span_id": "g5-24-s2"
         },
         {
-          "span": "en (1)] månad",
+          "span": "en (1) månad",
           "type": "NOTICE_PERIOD",
           "span_id": "g5-24-s3"
         }

@@ -44,12 +44,12 @@
       "raw": "[nio (9)] månader",
       "label": "Uppsägningstid"
     },
-    "nio (9)] månader": {
-      "raw": "nio (9)] månader",
+    "nio (9) månader": {
+      "raw": "nio (9) månader",
       "label": null
     },
-    "tre (3)] år": {
-      "raw": "tre (3)] år",
+    "tre (3) år": {
+      "raw": "tre (3) år",
       "label": null
     }
   },
@@ -74,13 +74,13 @@
     }
   },
   "g5-06": {
-    "tre (3) månader": {
-      "raw": "tre (3) månader",
-      "label": "Uppsägningstid"
-    },
     "2023-06-01": {
       "raw": "2023-06-01",
       "label": "Datum"
+    },
+    "tre (3) månader": {
+      "raw": "tre (3) månader",
+      "label": "Uppsägningstid"
     },
     "[2023-06-01]": {
       "raw": "[2023-06-01]",
@@ -113,6 +113,14 @@
     "ett (1)] år": {
       "raw": "ett (1)] år",
       "label": "Uppsägningstid"
+    },
+    "sex (6) månader": {
+      "raw": "sex (6) månader",
+      "label": null
+    },
+    "ett (1) år": {
+      "raw": "ett (1) år",
+      "label": null
     }
   },
   "g5-09": {
@@ -142,8 +150,8 @@
       "raw": "2023-07-31",
       "label": "Datum"
     },
-    "en (1)] månad": {
-      "raw": "en (1)] månad",
+    "en (1) månad": {
+      "raw": "en (1) månad",
       "label": null
     },
     "[2023-07-31]": {
@@ -156,8 +164,8 @@
       "raw": "[14] dagar",
       "label": "Tidsperiod"
     },
-    "14] dagar": {
-      "raw": "14] dagar",
+    "14 dagar": {
+      "raw": "14 dagar",
       "label": null
     },
     "[14]": {
@@ -178,12 +186,12 @@
       "raw": "[tre (3)] månader",
       "label": "Uppsägningstid"
     },
-    "ett (1)] år": {
-      "raw": "ett (1)] år",
+    "ett (1) år": {
+      "raw": "ett (1) år",
       "label": null
     },
-    "tre (3)] månader": {
-      "raw": "tre (3)] månader",
+    "tre (3) månader": {
+      "raw": "tre (3) månader",
       "label": null
     }
   },
@@ -200,8 +208,8 @@
       "raw": "avtalet",
       "label": "Uppsägningsvillkor"
     },
-    "14] dagar": {
-      "raw": "14] dagar",
+    "14 dagar": {
+      "raw": "14 dagar",
       "label": null
     },
     "omedelbar verkan": {
@@ -222,8 +230,8 @@
       "raw": "[90] dagar",
       "label": "Tidsperiod"
     },
-    "90] dagar": {
-      "raw": "90] dagar",
+    "90 dagar": {
+      "raw": "90 dagar",
       "label": null
     },
     "[90]": {
@@ -248,12 +256,12 @@
       "raw": "[tolv (12)] månader",
       "label": "Uppsägningstid"
     },
-    "tolv (12)] månader": {
-      "raw": "tolv (12)] månader",
+    "tolv (12) månader": {
+      "raw": "tolv (12) månader",
       "label": null
     },
-    "sex (6)] månader": {
-      "raw": "sex (6)] månader",
+    "sex (6) månader": {
+      "raw": "sex (6) månader",
       "label": null
     }
   },
@@ -308,8 +316,8 @@
       "raw": "[24] månader",
       "label": "Tidsperiod"
     },
-    "24] månader": {
-      "raw": "24] månader",
+    "24 månader": {
+      "raw": "24 månader",
       "label": null
     },
     "[24]": {
@@ -330,8 +338,8 @@
       "raw": "ett (1) år",
       "label": null
     },
-    "tre (3)] månader": {
-      "raw": "tre (3)] månader",
+    "tre (3) månader": {
+      "raw": "tre (3) månader",
       "label": null
     }
   },
@@ -366,8 +374,8 @@
       "raw": "ett (1) år",
       "label": null
     },
-    "tre (3)] månader": {
-      "raw": "tre (3)] månader",
+    "tre (3) månader": {
+      "raw": "tre (3) månader",
       "label": null
     }
   },
@@ -394,12 +402,8 @@
       "raw": "[en (1)] månad",
       "label": "Uppsägningstid"
     },
-    "tolv (12)] månader": {
-      "raw": "tolv (12)] månader",
-      "label": null
-    },
-    "en (1)] månad": {
-      "raw": "en (1)] månad",
+    "en (1) månad": {
+      "raw": "en (1) månad",
       "label": null
     }
   },
