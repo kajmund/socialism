@@ -1,7 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
   "cases": [
     {
+      "case_id": "g5-01",
       "kind": "corpus",
       "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
       "source": "Avtal_17_Hyresavtal_lokal:1",
@@ -9,15 +10,18 @@
       "gold": [
         {
           "span": "DevBrains AB",
-          "type": "PARTY"
+          "type": "PARTY",
+          "span_id": "g5-01-s1"
         },
         {
           "span": "Fastighets AB Kvarnberget",
-          "type": "PARTY"
+          "type": "PARTY",
+          "span_id": "g5-01-s2"
         }
       ]
     },
     {
+      "case_id": "g5-02",
       "kind": "corpus",
       "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
       "source": "Avtal_17_Hyresavtal_lokal:8",
@@ -25,15 +29,18 @@
       "gold": [
         {
           "span": "[2020-02-01]",
-          "type": "DATE"
+          "type": "DATE",
+          "span_id": "g5-02-s1"
         },
         {
           "span": "[2023-01-31]",
-          "type": "DATE"
+          "type": "DATE",
+          "span_id": "g5-02-s2"
         }
       ]
     },
     {
+      "case_id": "g5-03",
       "kind": "corpus",
       "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
       "source": "Avtal_17_Hyresavtal_lokal:9",
@@ -41,15 +48,18 @@
       "gold": [
         {
           "span": "nio (9)] månader",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-03-s1"
         },
         {
           "span": "tre (3)] år",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-03-s2"
         }
       ]
     },
     {
+      "case_id": "g5-04",
       "kind": "corpus",
       "clause": "5.1 Årshyran är [Belopp] kronor exklusive moms (cirka [Belopp] kr/kvm).",
       "source": "Avtal_17_Hyresavtal_lokal:11",
@@ -57,15 +67,18 @@
       "gold": [
         {
           "span": "[Belopp]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-04-s1"
         },
         {
           "span": "[Belopp]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-04-s2"
         }
       ]
     },
     {
+      "case_id": "g5-05",
       "kind": "corpus",
       "clause": "1. Parter\nHyresvärd: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: Jonas Ekholm, pers.nr [Personnummer], [Adress] (\"Hyresgästen\").",
       "source": "Avtal_18_Hyresavtal_bostad:1",
@@ -73,15 +86,18 @@
       "gold": [
         {
           "span": "DevBrains AB",
-          "type": "PARTY"
+          "type": "PARTY",
+          "span_id": "g5-05-s1"
         },
         {
           "span": "Jonas Ekholm",
-          "type": "PARTY"
+          "type": "PARTY",
+          "span_id": "g5-05-s2"
         }
       ]
     },
     {
+      "case_id": "g5-06",
       "kind": "corpus",
       "clause": "4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen.",
       "source": "Avtal_18_Hyresavtal_bostad:5",
@@ -89,15 +105,18 @@
       "gold": [
         {
           "span": "tre (3) månader",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-06-s1"
         },
         {
           "span": "[2023-06-01]",
-          "type": "DATE"
+          "type": "DATE",
+          "span_id": "g5-06-s2"
         }
       ]
     },
     {
+      "case_id": "g5-07",
       "kind": "corpus",
       "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
       "source": "Avtal_19_Andrahandsuthyrning_lokal:1",
@@ -105,15 +124,18 @@
       "gold": [
         {
           "span": "DevBrains AB",
-          "type": "PARTY"
+          "type": "PARTY",
+          "span_id": "g5-07-s1"
         },
         {
           "span": "Ljusgård Design AB",
-          "type": "PARTY"
+          "type": "PARTY",
+          "span_id": "g5-07-s2"
         }
       ]
     },
     {
+      "case_id": "g5-08",
       "kind": "corpus",
       "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
       "source": "Avtal_20_Arrendeavtal_lagenhetsarrende:7",
@@ -121,15 +143,18 @@
       "gold": [
         {
           "span": "sex (6)] månader",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-08-s1"
         },
         {
           "span": "ett (1)] år",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-08-s2"
         }
       ]
     },
     {
+      "case_id": "g5-09",
       "kind": "corpus",
       "clause": "3. Tjänster\nTjänst\nOmfattning\nPris per månad (exkl. moms)\nFasta arbetsplatser\n[antal] platser i [rum nr / öppet landskap]\n[Belopp]\nFlexplatser\n[antal] platser\n[Belopp]\nMötesrum\n[antal] timmar per månad ingår, därefter [Belopp] kr/tim\nIngår / [Belopp]\nPostadress och reception\nIngår\nIngår\nInternet och skrivare\nIngår, utskrifter över [antal] sidor debiteras\nIngår\nKaffe, frukt, städning\nIngår\nIngår",
       "source": "Avtal_22_Kontorshotell_coworking:5",
@@ -137,23 +162,28 @@
       "gold": [
         {
           "span": "[Belopp]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-09-s1"
         },
         {
           "span": "[Belopp]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-09-s2"
         },
         {
           "span": "[Belopp]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-09-s3"
         },
         {
           "span": "[Belopp]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-09-s4"
         }
       ]
     },
     {
+      "case_id": "g5-10",
       "kind": "corpus",
       "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
       "source": "Avtal_22_Kontorshotell_coworking:7",
@@ -161,15 +191,18 @@
       "gold": [
         {
           "span": "en (1)] månad",
-          "type": "PERIOD"
+          "type": "PERIOD",
+          "span_id": "g5-10-s1"
         },
         {
           "span": "[2023-07-31]",
-          "type": "DATE"
+          "type": "DATE",
+          "span_id": "g5-10-s2"
         }
       ]
     },
     {
+      "case_id": "g5-11",
       "kind": "corpus",
       "clause": "9. Avflyttning\nNär avtalet upphör ska DevBrains lämna arbetsplatserna tömda och städade och återlämna alla passerkort. Egendom som lämnas kvar får Leverantören efter [14] dagar omhänderta på DevBrains bekostnad.",
       "source": "Avtal_22_Kontorshotell_coworking:25",
@@ -177,15 +210,18 @@
       "gold": [
         {
           "span": "14] dagar",
-          "type": "PERIOD"
+          "type": "PERIOD",
+          "span_id": "g5-11-s1"
         },
         {
           "span": "[14]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-11-s2"
         }
       ]
     },
     {
+      "case_id": "g5-12",
       "kind": "corpus",
       "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
       "source": "Avtal_25_Fastighetsservice_stadning:24",
@@ -193,15 +229,18 @@
       "gold": [
         {
           "span": "ett (1)] år",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-12-s1"
         },
         {
           "span": "tre (3)] månader",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-12-s2"
         }
       ]
     },
     {
+      "case_id": "g5-13",
       "kind": "corpus",
       "clause": "7.2 Båda parter får säga upp avtalet med omedelbar verkan om motparten väsentligt bryter mot avtalet och inte vidtar rättelse inom [14] dagar efter skriftlig anmodan.",
       "source": "Avtal_25_Fastighetsservice_stadning:25",
@@ -209,19 +248,23 @@
       "gold": [
         {
           "span": "14] dagar",
-          "type": "PERIOD"
+          "type": "PERIOD",
+          "span_id": "g5-13-s1"
         },
         {
           "span": "omedelbar verkan",
-          "type": "TERMINATION_CONDITION"
+          "type": "TERMINATION_CONDITION",
+          "span_id": "g5-13-s2"
         },
         {
           "span": "[14]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-13-s3"
         }
       ]
     },
     {
+      "case_id": "g5-14",
       "kind": "corpus",
       "clause": "7.3 DevBrains ska avhjälpa fel som har rapporterats inom [90] dagar efter godkännandet utan extra kostnad (garantitid).",
       "source": "Avtal_30_Ramavtal_tjanster:23",
@@ -229,15 +272,18 @@
       "gold": [
         {
           "span": "90] dagar",
-          "type": "PERIOD"
+          "type": "PERIOD",
+          "span_id": "g5-14-s1"
         },
         {
           "span": "[90]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-14-s2"
         }
       ]
     },
     {
+      "case_id": "g5-15",
       "kind": "corpus",
       "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
       "source": "Avtal_30_Ramavtal_tjanster:45",
@@ -245,15 +291,18 @@
       "gold": [
         {
           "span": "tolv (12)] månader",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-15-s1"
         },
         {
           "span": "sex (6)] månader",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-15-s2"
         }
       ]
     },
     {
+      "case_id": "g5-16",
       "kind": "corpus",
       "clause": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.",
       "source": "Avtal_30_Ramavtal_tjanster:46",
@@ -261,15 +310,18 @@
       "gold": [
         {
           "span": "inom 30 dagar",
-          "type": "PERIOD"
+          "type": "PERIOD",
+          "span_id": "g5-16-s1"
         },
         {
           "span": "omedelbar verkan",
-          "type": "TERMINATION_CONDITION"
+          "type": "TERMINATION_CONDITION",
+          "span_id": "g5-16-s2"
         }
       ]
     },
     {
+      "case_id": "g5-17",
       "kind": "corpus",
       "clause": "18. Tvister\nSvensk lag gäller. Tvister ska i första hand lösas genom förhandling mellan parternas ledningar. Om tvisten inte har lösts inom 30 dagar ska den avgöras genom skiljeförfarande enligt SCC:s regler för förenklat skiljeförfarande, med säte i Stockholm. [Om tvisteföremålets värde understiger [Belopp] kronor avgörs tvisten i stället av Stockholms tingsrätt.]",
       "source": "Avtal_30_Ramavtal_tjanster:52",
@@ -277,15 +329,18 @@
       "gold": [
         {
           "span": "inom 30 dagar",
-          "type": "PERIOD"
+          "type": "PERIOD",
+          "span_id": "g5-17-s1"
         },
         {
           "span": "[Belopp]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-17-s2"
         }
       ]
     },
     {
+      "case_id": "g5-18",
       "kind": "corpus",
       "clause": "4.3 Leveransvillkor: DAP (Incoterms® 2020) DevBrains adress i Stockholm eller Göteborg, eller annan adress i Sverige som DevBrains anger. Fritt för Order över [Belopp] kronor; i övrigt betalar DevBrains en fraktavgift på [Belopp] kronor.",
       "source": "Avtal_32_Inkopsavtal:13",
@@ -293,15 +348,18 @@
       "gold": [
         {
           "span": "[Belopp]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-18-s1"
         },
         {
           "span": "[Belopp]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-18-s2"
         }
       ]
     },
     {
+      "case_id": "g5-19",
       "kind": "corpus",
       "clause": "6.2 Leverantören lämnar en garanti om minst [24] månader för datorer och skärmar, och den längre tillverkargaranti som gäller för respektive Produkt.",
       "source": "Avtal_32_Inkopsavtal:21",
@@ -309,15 +367,18 @@
       "gold": [
         {
           "span": "24] månader",
-          "type": "PERIOD"
+          "type": "PERIOD",
+          "span_id": "g5-19-s1"
         },
         {
           "span": "[24]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-19-s2"
         }
       ]
     },
     {
+      "case_id": "g5-20",
       "kind": "corpus",
       "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
       "source": "Avtal_32_Inkopsavtal:28",
@@ -325,15 +386,18 @@
       "gold": [
         {
           "span": "ett (1) år",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-20-s1"
         },
         {
           "span": "tre (3)] månader",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-20-s2"
         }
       ]
     },
     {
+      "case_id": "g5-21",
       "kind": "corpus",
       "clause": "9.2 Vardera parten får säga upp avtalet med omedelbar verkan vid väsentligt avtalsbrott som inte har rättats inom 30 dagar efter skriftlig anmodan.",
       "source": "Avtal_32_Inkopsavtal:29",
@@ -341,15 +405,18 @@
       "gold": [
         {
           "span": "inom 30 dagar",
-          "type": "PERIOD"
+          "type": "PERIOD",
+          "span_id": "g5-21-s1"
         },
         {
           "span": "omedelbar verkan",
-          "type": "TERMINATION_CONDITION"
+          "type": "TERMINATION_CONDITION",
+          "span_id": "g5-21-s2"
         }
       ]
     },
     {
+      "case_id": "g5-22",
       "kind": "corpus",
       "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
       "source": "Avtal_34_Aterforsaljaravtal:30",
@@ -357,15 +424,18 @@
       "gold": [
         {
           "span": "ett (1) år",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-22-s1"
         },
         {
           "span": "tre (3)] månader",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-22-s2"
         }
       ]
     },
     {
+      "case_id": "g5-23",
       "kind": "corpus",
       "clause": "9.2 DevBrains ska avhjälpa fel inom skälig tid. Om DevBrains inte uppfyller tillgänglighetsnivån i punkt 3.2 har Kunden rätt till en kreditering på [5] procent av månadsavgiften för varje påbörjad procentenhet under nivån, dock högst [50] procent av månadsavgiften. Detta är Kundens enda ersättning för bristande tillgänglighet.",
       "source": "Avtal_37_Allmanna_villkor_B2B:26",
@@ -373,15 +443,18 @@
       "gold": [
         {
           "span": "[5]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-23-s1"
         },
         {
           "span": "[50]",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-23-s2"
         }
       ]
     },
     {
+      "case_id": "g5-24",
       "kind": "corpus",
       "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
       "source": "Avtal_37_Allmanna_villkor_B2B:34",
@@ -389,19 +462,23 @@
       "gold": [
         {
           "span": "tolv (12)] månader",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-24-s1"
         },
         {
           "span": "tolv (12) månader",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-24-s2"
         },
         {
           "span": "en (1)] månad",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-24-s3"
         }
       ]
     },
     {
+      "case_id": "g5-25",
       "kind": "corpus",
       "clause": "12.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar efter skriftlig anmodan, eller om den andra parten blir insolvent.",
       "source": "Avtal_37_Allmanna_villkor_B2B:35",
@@ -409,15 +486,18 @@
       "gold": [
         {
           "span": "inom 30 dagar",
-          "type": "PERIOD"
+          "type": "PERIOD",
+          "span_id": "g5-25-s1"
         },
         {
           "span": "omedelbar verkan",
-          "type": "TERMINATION_CONDITION"
+          "type": "TERMINATION_CONDITION",
+          "span_id": "g5-25-s2"
         }
       ]
     },
     {
+      "case_id": "g5-26",
       "kind": "paraphrase",
       "clause": "Arbetstagaren ska hållas ekonomiskt skadeslös vid förtida avslut.",
       "source": "manuell (illustrativ formulering)",
@@ -425,11 +505,13 @@
       "gold": [
         {
           "span": "hållas ekonomiskt skadeslös",
-          "type": "SEVERANCE"
+          "type": "SEVERANCE",
+          "span_id": "g5-26-s1"
         }
       ]
     },
     {
+      "case_id": "g5-27",
       "kind": "paraphrase",
       "clause": "Arbetsgivaren svarar för ett belopp motsvarande ett halvt års fast ersättning.",
       "source": "manuell (illustrativ formulering)",
@@ -437,11 +519,13 @@
       "gold": [
         {
           "span": "ett halvt års fast ersättning",
-          "type": "SEVERANCE_VALUE"
+          "type": "SEVERANCE_VALUE",
+          "span_id": "g5-27-s1"
         }
       ]
     },
     {
+      "case_id": "g5-28",
       "kind": "paraphrase",
       "clause": "Anställningen upphör utan föregående underrättelse vid väsentligt avtalsbrott.",
       "source": "manuell (illustrativ formulering)",
@@ -449,11 +533,13 @@
       "gold": [
         {
           "span": "upphör utan föregående underrättelse",
-          "type": "TERMINATION_CONDITION"
+          "type": "TERMINATION_CONDITION",
+          "span_id": "g5-28-s1"
         }
       ]
     },
     {
+      "case_id": "g5-29",
       "kind": "paraphrase",
       "clause": "Parternas sammanlagda ansvar får inte överstiga det årliga kontraktsvärdet.",
       "source": "manuell (illustrativ formulering)",
@@ -461,11 +547,13 @@
       "gold": [
         {
           "span": "får inte överstiga det årliga kontraktsvärdet",
-          "type": "LIABILITY_CAP"
+          "type": "LIABILITY_CAP",
+          "span_id": "g5-29-s1"
         }
       ]
     },
     {
+      "case_id": "g5-30",
       "kind": "paraphrase",
       "clause": "Avtalet kan bringas att upphöra tidigast nittio dagar efter skriftligt meddelande.",
       "source": "manuell (illustrativ formulering)",
@@ -473,11 +561,13 @@
       "gold": [
         {
           "span": "nittio dagar",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-30-s1"
         }
       ]
     },
     {
+      "case_id": "g5-31",
       "kind": "paraphrase",
       "clause": "Om ingen part gör invändning fortlöper samarbetet ytterligare ett år.",
       "source": "manuell (illustrativ formulering)",
@@ -485,11 +575,13 @@
       "gold": [
         {
           "span": "fortlöper samarbetet ytterligare ett år",
-          "type": "RENEWAL"
+          "type": "RENEWAL",
+          "span_id": "g5-31-s1"
         }
       ]
     },
     {
+      "case_id": "g5-32",
       "kind": "paraphrase",
       "clause": "Vid försening utgår en ersättning om två procent av kontraktsvärdet per påbörjad vecka.",
       "source": "manuell (illustrativ formulering)",
@@ -497,11 +589,13 @@
       "gold": [
         {
           "span": "två procent av kontraktsvärdet per påbörjad vecka",
-          "type": "PENALTY"
+          "type": "PENALTY",
+          "span_id": "g5-32-s1"
         }
       ]
     },
     {
+      "case_id": "g5-33",
       "kind": "paraphrase",
       "clause": "Ersättningsskyldigheten bortfaller när hindret ligger utanför partens kontroll.",
       "source": "manuell (illustrativ formulering)",
@@ -509,11 +603,13 @@
       "gold": [
         {
           "span": "ligger utanför partens kontroll",
-          "type": "EXCEPTION"
+          "type": "EXCEPTION",
+          "span_id": "g5-33-s1"
         }
       ]
     },
     {
+      "case_id": "g5-34",
       "kind": "paraphrase",
       "clause": "Uppdragstagaren och dess dotterbolag är solidariskt förpliktade.",
       "source": "manuell (illustrativ formulering)",
@@ -521,15 +617,18 @@
       "gold": [
         {
           "span": "Uppdragstagaren",
-          "type": "PARTY"
+          "type": "PARTY",
+          "span_id": "g5-34-s1"
         },
         {
           "span": "dess dotterbolag",
-          "type": "PARTY"
+          "type": "PARTY",
+          "span_id": "g5-34-s2"
         }
       ]
     },
     {
+      "case_id": "g5-35",
       "kind": "paraphrase",
       "clause": "Det sammanlagda arvodet uppgår till niohundrafemtiotusen kronor exklusive mervärdesskatt.",
       "source": "manuell (illustrativ formulering)",
@@ -537,11 +636,13 @@
       "gold": [
         {
           "span": "niohundrafemtiotusen kronor",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-35-s1"
         }
       ]
     },
     {
+      "case_id": "g5-36",
       "kind": "paraphrase",
       "clause": "Avtalet träder i kraft den första dagen i andra kvartalet.",
       "source": "manuell (illustrativ formulering)",
@@ -549,11 +650,13 @@
       "gold": [
         {
           "span": "första dagen i andra kvartalet",
-          "type": "DATE"
+          "type": "DATE",
+          "span_id": "g5-36-s1"
         }
       ]
     },
     {
+      "case_id": "g5-37",
       "kind": "paraphrase",
       "clause": "Vardera parten äger rätt att frånträda avtalet med två månaders varsel.",
       "source": "manuell (illustrativ formulering)",
@@ -561,11 +664,13 @@
       "gold": [
         {
           "span": "två månaders varsel",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-37-s1"
         }
       ]
     },
     {
+      "case_id": "g5-38",
       "kind": "paraphrase",
       "clause": "Vid upphörande på bolagets initiativ utgår kompensation motsvarande ett års ersättning.",
       "source": "manuell (illustrativ formulering)",
@@ -573,11 +678,13 @@
       "gold": [
         {
           "span": "kompensation motsvarande ett års ersättning",
-          "type": "SEVERANCE"
+          "type": "SEVERANCE",
+          "span_id": "g5-38-s1"
         }
       ]
     },
     {
+      "case_id": "g5-39",
       "kind": "paraphrase",
       "clause": "Skadan är begränsad till vad som erlagts enligt avtalet under de senaste tolv månaderna.",
       "source": "manuell (illustrativ formulering)",
@@ -585,11 +692,13 @@
       "gold": [
         {
           "span": "vad som erlagts enligt avtalet under de senaste tolv månaderna",
-          "type": "LIABILITY_CAP"
+          "type": "LIABILITY_CAP",
+          "span_id": "g5-39-s1"
         }
       ]
     },
     {
+      "case_id": "g5-40",
       "kind": "paraphrase",
       "clause": "Båda parter får omedelbart ställa in sina åtaganden om motparten träder i likvidation.",
       "source": "manuell (illustrativ formulering)",
@@ -597,11 +706,13 @@
       "gold": [
         {
           "span": "omedelbart ställa in sina åtaganden",
-          "type": "TERMINATION_CONDITION"
+          "type": "TERMINATION_CONDITION",
+          "span_id": "g5-40-s1"
         }
       ]
     },
     {
+      "case_id": "g5-41",
       "kind": "paraphrase",
       "clause": "Den dröjsmålsdrabbade ska erlägga en och en halv procent av fakturabeloppet för varje påbörjad månad.",
       "source": "manuell (illustrativ formulering)",
@@ -609,11 +720,13 @@
       "gold": [
         {
           "span": "en och en halv procent av fakturabeloppet",
-          "type": "PENALTY"
+          "type": "PENALTY",
+          "span_id": "g5-41-s1"
         }
       ]
     },
     {
+      "case_id": "g5-42",
       "kind": "paraphrase",
       "clause": "Åtagandena vilar tillfälligt när fullgörelse hindras av omständigheter som inte rimligen kunnat förutses.",
       "source": "manuell (illustrativ formulering)",
@@ -621,11 +734,13 @@
       "gold": [
         {
           "span": "omständigheter som inte rimligen kunnat förutses",
-          "type": "EXCEPTION"
+          "type": "EXCEPTION",
+          "span_id": "g5-42-s1"
         }
       ]
     },
     {
+      "case_id": "g5-43",
       "kind": "paraphrase",
       "clause": "Uppsägning ska ske skriftligen med iakttagande av en uppsägningstid av ett kvartal.",
       "source": "manuell (illustrativ formulering)",
@@ -633,11 +748,13 @@
       "gold": [
         {
           "span": "ett kvartal",
-          "type": "NOTICE_PERIOD"
+          "type": "NOTICE_PERIOD",
+          "span_id": "g5-43-s1"
         }
       ]
     },
     {
+      "case_id": "g5-44",
       "kind": "paraphrase",
       "clause": "Beställaren jämte dess koncernbolag äger åberopa samtliga rättigheter enligt detta avtal.",
       "source": "manuell (illustrativ formulering)",
@@ -645,15 +762,18 @@
       "gold": [
         {
           "span": "Beställaren",
-          "type": "PARTY"
+          "type": "PARTY",
+          "span_id": "g5-44-s1"
         },
         {
           "span": "dess koncernbolag",
-          "type": "PARTY"
+          "type": "PARTY",
+          "span_id": "g5-44-s2"
         }
       ]
     },
     {
+      "case_id": "g5-45",
       "kind": "paraphrase",
       "clause": "Arvodet faktureras kvartalsvis i efterskott med ett belopp om sjuttiofem tusen kronor per månad.",
       "source": "manuell (illustrativ formulering)",
@@ -661,11 +781,13 @@
       "gold": [
         {
           "span": "sjuttiofem tusen kronor per månad",
-          "type": "MONEY"
+          "type": "MONEY",
+          "span_id": "g5-45-s1"
         }
       ]
     },
     {
+      "case_id": "g5-46",
       "kind": "paraphrase",
       "clause": "Har avtalet inte skriftligen avbeställts, anses det förnyat för en tid av ett år.",
       "source": "manuell (illustrativ formulering)",
@@ -673,11 +795,13 @@
       "gold": [
         {
           "span": "förnyat för en tid av ett år",
-          "type": "RENEWAL"
+          "type": "RENEWAL",
+          "span_id": "g5-46-s1"
         }
       ]
     },
     {
+      "case_id": "g5-47",
       "kind": "paraphrase",
       "clause": "Vid förtida upphörande äger konsulten rätt till ersättning motsvarande sex fasta månadsarvoden.",
       "source": "manuell (illustrativ formulering)",
@@ -685,11 +809,13 @@
       "gold": [
         {
           "span": "sex fasta månadsarvoden",
-          "type": "SEVERANCE_VALUE"
+          "type": "SEVERANCE_VALUE",
+          "span_id": "g5-47-s1"
         }
       ]
     },
     {
+      "case_id": "g5-48",
       "kind": "paraphrase",
       "clause": "Ingendera parten ansvarar för indirekta förluster, utebliven vinst eller följdskador.",
       "source": "manuell (illustrativ formulering)",
@@ -697,11 +823,13 @@
       "gold": [
         {
           "span": "indirekta förluster, utebliven vinst eller följdskador",
-          "type": "LIABILITY_CAP"
+          "type": "LIABILITY_CAP",
+          "span_id": "g5-48-s1"
         }
       ]
     },
     {
+      "case_id": "g5-49",
       "kind": "paraphrase",
       "clause": "Avtalet kan avslutas med omedelbar effekt om betalning uteblir trots skriftlig anmaning.",
       "source": "manuell (illustrativ formulering)",
@@ -709,11 +837,13 @@
       "gold": [
         {
           "span": "avslutas med omedelbar effekt",
-          "type": "TERMINATION_CONDITION"
+          "type": "TERMINATION_CONDITION",
+          "span_id": "g5-49-s1"
         }
       ]
     },
     {
+      "case_id": "g5-50",
       "kind": "paraphrase",
       "clause": "Samarbetet inleds vid månadsskiftet efter undertecknandet.",
       "source": "manuell (illustrativ formulering)",
@@ -721,7 +851,8 @@
       "gold": [
         {
           "span": "månadsskiftet efter undertecknandet",
-          "type": "DATE"
+          "type": "DATE",
+          "span_id": "g5-50-s1"
         }
       ]
     }

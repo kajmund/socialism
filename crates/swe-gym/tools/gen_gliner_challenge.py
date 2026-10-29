@@ -97,11 +97,13 @@ def main():
         print(f"WARN: bara {len(corpus_cases)} korpusklausuler", file=sys.stderr)
 
     challenge = {
-        "version": 1,
+        "version": 2,
         "cases": [],
     }
+    case_ids = set()
     for c in corpus_cases:
         challenge["cases"].append({
+            "case_id": None,  # assigned below
             "kind": "corpus",
             "clause": c["clause"],
             "source": c["source"],
@@ -110,6 +112,7 @@ def main():
         })
     for need, clause, gold in PARAPHRASES:
         challenge["cases"].append({
+            "case_id": None,
             "kind": "paraphrase",
             "clause": clause,
             "source": "manuell (illustrativ formulering)",
@@ -117,12 +120,25 @@ def main():
             "gold": [{"span": s, "type": t} for s, t in gold],
         })
 
+    # Unique, stable identities: case_id per clause, span_id per
+    # annotated occurrence — never normalized text as a key.
+    span_ids = set()
+    for i, case in enumerate(challenge["cases"], start=1):
+        cid = f"g5-{i:02d}"
+        assert cid not in case_ids, f"dubblett case_id {cid}"
+        case_ids.add(cid)
+        case["case_id"] = cid
+        for j, g in enumerate(case["gold"], start=1):
+            g["span_id"] = f"{cid}-s{j}"
+            assert g["span_id"] not in span_ids, f"dubblett span_id {g['span_id']}"
+            span_ids.add(g["span_id"])
+
     json.dump(challenge, open(OUT, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     n_corpus = sum(1 for c in challenge["cases"] if c["kind"] == "corpus")
     n_para = len(challenge["cases"]) - n_corpus
-    print(f"utmaningsset: {len(challenge['cases'])} klausuler "
+    print(f"utmaningsset v2: {len(challenge['cases'])} klausuler med unika case_id "
           f"({n_corpus} korpus, {n_para} omskrivna), "
-          f"{sum(len(c['gold']) for c in challenge['cases'])} guldspann, "
+          f"{len(span_ids)} guldspann med unika span_id, "
           f"annoterade oberoende av regex och GLiNER2 (agent-författade, granskningsbara)")
     print(f"skrivet: {OUT}")
 
