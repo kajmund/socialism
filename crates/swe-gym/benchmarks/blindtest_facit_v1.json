@@ -1,0 +1,402 @@
+{
+  "version": 1,
+  "name": "blindtest-v1",
+  "provenance": "Gold-review-v3 procedure: annotated by agent (Team Lead) 2026-10-29 by READING the extracted PDF text of three real contracts outside the corpus (Sponsoravtal NKK 2017, Anställningsavtal Erik Fremred AB signerat 2020-05-04, Konsulttjänst Avtal Ateles/Erik Fremred AB 2020-06-01). The regex generator and GLiNER2 outputs were NOT consulted; spans are exact substrings of the extracted text (whitespace and diacritics verbatim, canonicalized only for comparison). Clause selection rule: every clause in the three documents expressing an available concept type (uppsägningstid, ansvarstak, ersättning/belopp, tidsfrister/datum, parter). Excluded with this record: condition-precedent clauses (Sponsoravtal p.5, Konsulttjänst 3.1), percent rates (Konsulttjänst 5.2, tjänstepension), indefinite term (Tillsvidare), work-time extent (40 timmar/vecka) — no matching frozen label type. The Konsulttjänst PDF embeds whitespace artifacts (e.g. 'upps ä gningstid'); clause texts are reproduced verbatim, line breaks normalized to spaces. Frozen BEFORE the first run; version 1.",
+  "cases": [
+    {
+      "case_id": "bt-01",
+      "document": "foeretagsavtal-17",
+      "question_type": "ersättning",
+      "clause": "Ni som garanterar ett minimibelopp på 5 000 kr kommer även att få er skylt exponerad vid DM i simning 10-11 juni samt på NUSS som går i Norrköping den 30 juni-2 juli.",
+      "needs": [
+        {
+          "need_id": "bt-01-n1",
+          "type": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-01-s1",
+          "type": "MONEY",
+          "span": "5 000 kr"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-02",
+      "document": "foeretagsavtal-17",
+      "question_type": "tidsfrister",
+      "clause": "Sponsorsim. Skylt skall vara NKK tillhanda senast den 12 maj.",
+      "needs": [
+        {
+          "need_id": "bt-02-n1",
+          "type": "DATE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-02-s1",
+          "type": "DATE",
+          "span": "12 maj"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-03",
+      "document": "foeretagsavtal-17",
+      "question_type": "tidsfrister",
+      "clause": "4. Betalning erläggs av sponsorn inom 30 dagar efter erhållandet av fakturan.",
+      "needs": [
+        {
+          "need_id": "bt-03-n1",
+          "type": "PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-03-s1",
+          "type": "PERIOD",
+          "span": "30 dagar"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-04",
+      "document": "foeretagsavtal-17",
+      "question_type": "ersättning",
+      "clause": "(Sponsorn garanterar ett lägsta belopp på 500 kr, oavsett uppnådd simsträcka.)",
+      "needs": [
+        {
+          "need_id": "bt-04-n1",
+          "type": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-04-s1",
+          "type": "MONEY",
+          "span": "500 kr"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-05",
+      "document": "foeretagsavtal-17",
+      "question_type": "parter",
+      "clause": "Mellan ovanstående företag (nedan benämnd sponsor) och Norrköpings Kappsimningsklubb (nedan benämnd NKK) har följande avtal träffats:",
+      "needs": [
+        {
+          "need_id": "bt-05-n1",
+          "type": "PARTY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-05-s1",
+          "type": "PARTY",
+          "span": "Norrköpings Kappsimningsklubb"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-06",
+      "document": "foeretagsavtal-17",
+      "question_type": "tidsfrister",
+      "clause": "Ni som garanterar ett minimibelopp på 5 000 kr kommer även att få er skylt exponerad vid DM i simning 10-11 juni samt på NUSS som går i Norrköping den 30 juni-2 juli.",
+      "needs": [
+        {
+          "need_id": "bt-06-n1",
+          "type": "DATE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-06-s1",
+          "type": "DATE",
+          "span": "10-11 juni"
+        },
+        {
+          "span_id": "bt-06-s2",
+          "type": "DATE",
+          "span": "30 juni-2 juli"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-07",
+      "document": "anstallning-200504",
+      "question_type": "tidsfrister",
+      "clause": "Tillträdesdag 2020-08-01",
+      "needs": [
+        {
+          "need_id": "bt-07-n1",
+          "type": "DATE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-07-s1",
+          "type": "DATE",
+          "span": "2020-08-01"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-08",
+      "document": "anstallning-200504",
+      "question_type": "ersättning",
+      "clause": "Lön 45 000kr + 50% av fakturerat belopp över 120 000kr per kalendermånad",
+      "needs": [
+        {
+          "need_id": "bt-08-n1",
+          "type": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-08-s1",
+          "type": "MONEY",
+          "span": "45 000kr"
+        },
+        {
+          "span_id": "bt-08-s2",
+          "type": "MONEY",
+          "span": "120 000kr"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-09",
+      "document": "anstallning-200504",
+      "question_type": "uppsägningsvillkor",
+      "clause": "Uppsägningstid Enligt LAS",
+      "needs": [
+        {
+          "need_id": "bt-09-n1",
+          "type": "NOTICE_PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-09-s1",
+          "type": "NOTICE_PERIOD",
+          "span": "Enligt LAS"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-10",
+      "document": "anstallning-200504",
+      "question_type": "tidsfrister",
+      "clause": "Semester 30 dagar per år",
+      "needs": [
+        {
+          "need_id": "bt-10-n1",
+          "type": "PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-10-s1",
+          "type": "PERIOD",
+          "span": "30 dagar"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-11",
+      "document": "anstallning-200504",
+      "question_type": "parter",
+      "clause": "Namn på företag Erik Fremred Aktiebolag",
+      "needs": [
+        {
+          "need_id": "bt-11-n1",
+          "type": "PARTY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-11-s1",
+          "type": "PARTY",
+          "span": "Erik Fremred Aktiebolag"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-12",
+      "document": "konsulttjanst-ateles",
+      "question_type": "ansvarsbegränsning",
+      "clause": "4.1. Leverant ö rens  ansvar  f ö r  intr å ng  i  immateriell  r ä tt,  i  enlighet  med  IT  Tj ä nster,  g ä ller endast  p å  villkor  att  kunden  har  anv ä nt  resultatet  av  leverant ö rens  arbete  i enlighet  med  detta  avtal,  att  intr å nget  inte  beror  p å  ä ndringar  i  resultatet  av leverant ö rens  arbete  och  att  resultatet  av  leverant ö rens  arbete  inte  kombinerats med  produkter,  vilka  inte  skriftligen  godk ä nts  av  leverant ö ren.  Leverant ö rens ansvar  f ö r  intr å ng  i  immateriell  r ä tt  ska,  utom  vid  grov  v å rdsl ö shet  eller  upps å t, vara  begr ä nsat  till  arvodet  f ö r  Tj ä nsten  och  vid  l ö pande  arvode,  utg ö rs  arvodet  av arvodet  f ö r  de  senaste  12  m å naderna  f ö r  Tj ä nsten.",
+      "needs": [
+        {
+          "need_id": "bt-12-n1",
+          "type": "LIABILITY_CAP"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-12-s1",
+          "type": "LIABILITY_CAP",
+          "span": "begr ä nsat  till  arvodet  f ö r  Tj ä nsten"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-13",
+      "document": "konsulttjanst-ateles",
+      "question_type": "tidsfrister",
+      "clause": "4.1. Leverant ö rens  ansvar  f ö r  intr å ng  i  immateriell  r ä tt,  i  enlighet  med  IT  Tj ä nster,  g ä ller endast  p å  villkor  att  kunden  har  anv ä nt  resultatet  av  leverant ö rens  arbete  i enlighet  med  detta  avtal,  att  intr å nget  inte  beror  p å  ä ndringar  i  resultatet  av leverant ö rens  arbete  och  att  resultatet  av  leverant ö rens  arbete  inte  kombinerats med  produkter,  vilka  inte  skriftligen  godk ä nts  av  leverant ö ren.  Leverant ö rens ansvar  f ö r  intr å ng  i  immateriell  r ä tt  ska,  utom  vid  grov  v å rdsl ö shet  eller  upps å t, vara  begr ä nsat  till  arvodet  f ö r  Tj ä nsten  och  vid  l ö pande  arvode,  utg ö rs  arvodet  av arvodet  f ö r  de  senaste  12  m å naderna  f ö r  Tj ä nsten.",
+      "needs": [
+        {
+          "need_id": "bt-13-n1",
+          "type": "PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-13-s1",
+          "type": "PERIOD",
+          "span": "12  m å nader"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-14",
+      "document": "konsulttjanst-ateles",
+      "question_type": "tidsfrister",
+      "clause": "Betalningsvillkor:  30  dagar",
+      "needs": [
+        {
+          "need_id": "bt-14-n1",
+          "type": "PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-14-s1",
+          "type": "PERIOD",
+          "span": "30  dagar"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-15",
+      "document": "konsulttjanst-ateles",
+      "question_type": "ersättning",
+      "clause": "Timpriser:  840  kr/h",
+      "needs": [
+        {
+          "need_id": "bt-15-n1",
+          "type": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-15-s1",
+          "type": "MONEY",
+          "span": "840  kr/h"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-16",
+      "document": "konsulttjanst-ateles",
+      "question_type": "uppsägningsvillkor",
+      "clause": "Avtalets  l ä ngd:  Avtalet  gäller  i  6  månader  med  2  veckors  upps ä gningstid",
+      "needs": [
+        {
+          "need_id": "bt-16-n1",
+          "type": "NOTICE_PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-16-s1",
+          "type": "NOTICE_PERIOD",
+          "span": "2  veckor"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-17",
+      "document": "konsulttjanst-ateles",
+      "question_type": "tidsfrister",
+      "clause": "Avtalets  l ä ngd:  Avtalet  gäller  i  6  månader  med  2  veckors  upps ä gningstid",
+      "needs": [
+        {
+          "need_id": "bt-17-n1",
+          "type": "PERIOD"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-17-s1",
+          "type": "PERIOD",
+          "span": "6  månader"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-18",
+      "document": "konsulttjanst-ateles",
+      "question_type": "tidsfrister",
+      "clause": "Startdatum:  2021 - 01 - 01",
+      "needs": [
+        {
+          "need_id": "bt-18-n1",
+          "type": "DATE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-18-s1",
+          "type": "DATE",
+          "span": "2021 - 01 - 01"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-19",
+      "document": "konsulttjanst-ateles",
+      "question_type": "ersättning",
+      "clause": "Kunden  f ö rbinder  sig  att  inte  aktivt  rekrytera  eller  p å  annat  s ä tt  direkt  engagera hos  leverant ö ren  (eller  hos  underleverantör)  anst ä lld  person  som  under  den senaste  sexm å nadersperioden  deltagit  i  leverant ö rens  utf ö rande  av  uppdrag eller  tj ä nster  f ö r  Kunden.  Om  s å dan  person  s ö ker  anst ä llning  hos  kunden  och avtal  om  anst ä llning  tr ä ffas  utan  att  det  ä r  fr å ga  om  en  normal rekryteringsprocess  med  annonsering  i  press  eller  p å  Internet  fr å n  kundens  sida, ska  kunden  gottg ö ra  leverant ö ren  f ö r  rekrytering  och  utbildning  av  ny  person med  ett  belopp  motsvarande  100  dagars  konsulters ä ttning  p å  heltid  f ö r  den person  som  anst ä llts  av  kunden.  Leverant ö ren  f ö rpliktar  sig  att  inte  aktivt rekrytera  anst ä lld  hos  kunden  utan  kundens  skriftliga  medgivande.",
+      "needs": [
+        {
+          "need_id": "bt-19-n1",
+          "type": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-19-s1",
+          "type": "MONEY",
+          "span": "100  dagars  konsulters ä ttning"
+        }
+      ]
+    },
+    {
+      "case_id": "bt-20",
+      "document": "konsulttjanst-ateles",
+      "question_type": "parter",
+      "clause": "A. Ateles  Consulting  AB,  556616 – 3910,  Teknikringen  6,  583  30  Link ö ping  ( ” kunden ” , ” best ä llaren ” ) och B.   Erik  Fremred  Aktiebolag,  559085-5473,  Riksdalergatan  29,  603  79  Norrköping ( “ leverant ö ren ” )",
+      "needs": [
+        {
+          "need_id": "bt-20-n1",
+          "type": "PARTY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "bt-20-s1",
+          "type": "PARTY",
+          "span": "Ateles  Consulting  AB"
+        },
+        {
+          "span_id": "bt-20-s2",
+          "type": "PARTY",
+          "span": "Erik  Fremred  Aktiebolag"
+        }
+      ]
+    }
+  ]
+}

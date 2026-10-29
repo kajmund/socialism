@@ -178,6 +178,17 @@
       "ts": 1793297101
     },
     {
+      "key": "058a443592409ae7",
+      "case_id": "bt-05",
+      "span": "sponsor",
+      "clause": "Mellan ovanstående företag (nedan benämnd sponsor) och Norrköpings Kappsimningsklubb (nedan benämnd NKK) har följande avtal träffats:",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308868
+    },
+    {
       "key": "05cb06819aafed4b",
       "case_id": "g5-34",
       "span": "dess dotterbolag",
@@ -374,6 +385,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294501
+    },
+    {
+      "key": "0979d21a89c2741b",
+      "case_id": "bt-08",
+      "span": "45 000kr",
+      "clause": "Lön 45 000kr + 50% av fakturerat belopp över 120 000kr per kalendermånad",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308869
     },
     {
       "key": "09e4ccb89c65002d",
@@ -937,6 +959,17 @@
       "ts": 1793296103
     },
     {
+      "key": "17555f484662c657",
+      "case_id": "bt-01",
+      "span": "5 000 kr",
+      "clause": "Ni som garanterar ett minimibelopp på 5 000 kr kommer även att få er skylt exponerad vid DM i simning 10-11 juni samt på NUSS som går i Norrköping den 30 juni-2 juli.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308867
+    },
+    {
       "key": "17b7cf652c08a2f8",
       "case_id": "g5-19",
       "span": "[24] månader",
@@ -1210,6 +1243,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296079
+    },
+    {
+      "key": "1df682f1e443102a",
+      "case_id": "bt-13",
+      "span": "12 m å naderna",
+      "clause": "4.1. Leverant ö rens  ansvar  f ö r  intr å ng  i  immateriell  r ä tt,  i  enlighet  med  IT  Tj ä nster,  g ä ller endast  p å  villkor  att  kunden  har  anv ä nt  resultatet  av  leverant ö rens  arbete  i enlighet  med  detta  avtal,  att  intr å nget  inte  beror  p å  ä ndringar  i  resultatet  av leverant ö rens  arbete  och  att  resultatet  av  leverant ö rens  arbete  inte  kombinerats med  produkter,  vilka  inte  skriftligen  godk ä nts  av  leverant ö ren.  Leverant ö rens ansvar  f ö r  intr å ng  i  immateriell  r ä tt  ska,  utom  vid  grov  v å rdsl ö shet  eller  upps å t, vara  begr ä nsat  till  arvodet  f ö r  Tj ä nsten  och  vid  l ö pande  arvode,  utg ö rs  arvodet  av arvodet  f ö r  de  senaste  12  m å naderna  f ö r  Tj ä nsten.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308870
     },
     {
       "key": "1df686bb63dda9d6",
@@ -1542,6 +1586,17 @@
       "ts": 1793302598
     },
     {
+      "key": "257ced30d784c9bb",
+      "case_id": "bt-05",
+      "span": "norrköpings kappsimningsklubb",
+      "clause": "Mellan ovanstående företag (nedan benämnd sponsor) och Norrköpings Kappsimningsklubb (nedan benämnd NKK) har följande avtal träffats:",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308868
+    },
+    {
       "key": "25efe3c48b97fed9",
       "case_id": "g5-44",
       "span": "koncernbolag",
@@ -1861,6 +1916,17 @@
       "ts": 1793294504
     },
     {
+      "key": "2cd343b614805032",
+      "case_id": "g5-23",
+      "span": "5",
+      "clause": "9.2 DevBrains ska avhjälpa fel inom skälig tid. Om DevBrains inte uppfyller tillgänglighetsnivån i punkt 3.2 har Kunden rätt till en kreditering på [5] procent av månadsavgiften för varje påbörjad procentenhet under nivån, dock högst [50] procent av månadsavgiften. Detta är Kundens enda ersättning för bristande tillgänglighet.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793307203
+    },
+    {
       "key": "2cf77d198bbd1de6",
       "case_id": "g5-02",
       "span": "[2023-01-31]",
@@ -2103,6 +2169,17 @@
       "ts": 1793299452
     },
     {
+      "key": "33f4cb10479f9837",
+      "case_id": "g5-13",
+      "span": "14",
+      "clause": "7.2 Båda parter får säga upp avtalet med omedelbar verkan om motparten väsentligt bryter mot avtalet och inte vidtar rättelse inom [14] dagar efter skriftlig anmodan.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793307202
+    },
+    {
       "key": "34698ba73f03f765",
       "case_id": "g5-16",
       "span": "inom 30 dagar",
@@ -2244,6 +2321,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294510
+    },
+    {
+      "key": "3680c491d4fb2565",
+      "case_id": "g5-18",
+      "span": "belopp",
+      "clause": "4.3 Leveransvillkor: DAP (Incoterms® 2020) DevBrains adress i Stockholm eller Göteborg, eller annan adress i Sverige som DevBrains anger. Fritt för Order över [Belopp] kronor; i övrigt betalar DevBrains en fraktavgift på [Belopp] kronor.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793307202
     },
     {
       "key": "36d6308365be1583",
@@ -2873,6 +2961,17 @@
       "ts": 1793297102
     },
     {
+      "key": "465b198c2d2e866e",
+      "case_id": "bt-02",
+      "span": "12 maj",
+      "clause": "Sponsorsim. Skylt skall vara NKK tillhanda senast den 12 maj.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308867
+    },
+    {
       "key": "4683c9c62c1df758",
       "case_id": "g5-40",
       "span": "omedelbart ställa in sina åtaganden",
@@ -2972,6 +3071,17 @@
       "ts": 1793298097
     },
     {
+      "key": "48865625a9832fbe",
+      "case_id": "bt-16",
+      "span": "2 veckors",
+      "clause": "Avtalets  l ä ngd:  Avtalet  gäller  i  6  månader  med  2  veckors  upps ä gningstid",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308871
+    },
+    {
       "key": "48cb0a2c55ac8c9d",
       "case_id": "g5-44",
       "span": "koncernbolag",
@@ -2981,6 +3091,17 @@
       "choice": "PART",
       "score_bp": null,
       "ts": 1793297111
+    },
+    {
+      "key": "48fe3020739f52c1",
+      "case_id": "bt-04",
+      "span": "500 kr",
+      "clause": "(Sponsorn garanterar ett lägsta belopp på 500 kr, oavsett uppnådd simsträcka.)",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308868
     },
     {
       "key": "4917aa6ca9c7c3d8",
@@ -3014,6 +3135,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296120
+    },
+    {
+      "key": "49ad54f3172082fb",
+      "case_id": "bt-08",
+      "span": "120 000kr",
+      "clause": "Lön 45 000kr + 50% av fakturerat belopp över 120 000kr per kalendermånad",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308869
     },
     {
       "key": "49bc463579b126f7",
@@ -3313,6 +3445,17 @@
       "ts": 1793296088
     },
     {
+      "key": "520c08d9e90d5c4e",
+      "case_id": "bt-13",
+      "span": "12 m å nader",
+      "clause": "4.1. Leverant ö rens  ansvar  f ö r  intr å ng  i  immateriell  r ä tt,  i  enlighet  med  IT  Tj ä nster,  g ä ller endast  p å  villkor  att  kunden  har  anv ä nt  resultatet  av  leverant ö rens  arbete  i enlighet  med  detta  avtal,  att  intr å nget  inte  beror  p å  ä ndringar  i  resultatet  av leverant ö rens  arbete  och  att  resultatet  av  leverant ö rens  arbete  inte  kombinerats med  produkter,  vilka  inte  skriftligen  godk ä nts  av  leverant ö ren.  Leverant ö rens ansvar  f ö r  intr å ng  i  immateriell  r ä tt  ska,  utom  vid  grov  v å rdsl ö shet  eller  upps å t, vara  begr ä nsat  till  arvodet  f ö r  Tj ä nsten  och  vid  l ö pande  arvode,  utg ö rs  arvodet  av arvodet  f ö r  de  senaste  12  m å naderna  f ö r  Tj ä nsten.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308870
+    },
+    {
       "key": "521ad24f12ec3d46",
       "case_id": "g5-04",
       "span": "kronor",
@@ -3355,6 +3498,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296121
+    },
+    {
+      "key": "524f29e7f08fd73f",
+      "case_id": "bt-18",
+      "span": "2021 - 01 - 01",
+      "clause": "Startdatum:  2021 - 01 - 01",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308872
     },
     {
       "key": "525956f0fcb7b863",
@@ -3652,6 +3806,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793302603
+    },
+    {
+      "key": "589c792480232c4f",
+      "case_id": "bt-14",
+      "span": "30 dagar",
+      "clause": "Betalningsvillkor:  30  dagar",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308871
     },
     {
       "key": "59082283fb0af21a",
@@ -4006,6 +4171,17 @@
       "ts": 1793296136
     },
     {
+      "key": "62df924c561f9c9e",
+      "case_id": "g5-14",
+      "span": "90",
+      "clause": "7.3 DevBrains ska avhjälpa fel som har rapporterats inom [90] dagar efter godkännandet utan extra kostnad (garantitid).",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793307202
+    },
+    {
       "key": "6327b1b03abb8305",
       "case_id": "g5-44",
       "span": "Beställaren",
@@ -4312,6 +4488,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294518
+    },
+    {
+      "key": "69aff66774a6bb0a",
+      "case_id": "g5-23",
+      "span": "50",
+      "clause": "9.2 DevBrains ska avhjälpa fel inom skälig tid. Om DevBrains inte uppfyller tillgänglighetsnivån i punkt 3.2 har Kunden rätt till en kreditering på [5] procent av månadsavgiften för varje påbörjad procentenhet under nivån, dock högst [50] procent av månadsavgiften. Detta är Kundens enda ersättning för bristande tillgänglighet.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793307203
     },
     {
       "key": "69c96cb0c971d4f4",
@@ -4818,6 +5005,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296105
+    },
+    {
+      "key": "752672270c22dfff",
+      "case_id": "bt-20",
+      "span": "556616 – 3910",
+      "clause": "A. Ateles  Consulting  AB,  556616 – 3910,  Teknikringen  6,  583  30  Link ö ping  ( ” kunden ” , ” best ä llaren ” ) och B.   Erik  Fremred  Aktiebolag,  559085-5473,  Riksdalergatan  29,  603  79  Norrköping ( “ leverant ö ren ” )",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308873
     },
     {
       "key": "752b10892ef36319",
@@ -5392,6 +5590,17 @@
       "ts": 1793297094
     },
     {
+      "key": "823929f1beb18463",
+      "case_id": "bt-06",
+      "span": "10-11 juni",
+      "clause": "Ni som garanterar ett minimibelopp på 5 000 kr kommer även att få er skylt exponerad vid DM i simning 10-11 juni samt på NUSS som går i Norrköping den 30 juni-2 juli.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308868
+    },
+    {
       "key": "824d8e8685dc8748",
       "case_id": "g5-12",
       "span": "[tre (3)] månader",
@@ -5557,6 +5766,17 @@
       "ts": 1793296059
     },
     {
+      "key": "862d7b3d51f6048e",
+      "case_id": "bt-17",
+      "span": "6 månader",
+      "clause": "Avtalets  l ä ngd:  Avtalet  gäller  i  6  månader  med  2  veckors  upps ä gningstid",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308872
+    },
+    {
       "key": "86644eb3df255978",
       "case_id": "g5-13",
       "span": "[14]",
@@ -5643,6 +5863,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296082
+    },
+    {
+      "key": "87931fb6badc2794",
+      "case_id": "bt-10",
+      "span": "30 dagar",
+      "clause": "Semester 30 dagar per år",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308870
     },
     {
       "key": "88007f7c6b5129a5",
@@ -5808,6 +6039,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793299491
+    },
+    {
+      "key": "8b7eca63d93fb080",
+      "case_id": "bt-09",
+      "span": "las",
+      "clause": "Uppsägningstid Enligt LAS",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308869
     },
     {
       "key": "8bc06389f73b13f0",
@@ -6294,6 +6536,17 @@
       "ts": 1793302592
     },
     {
+      "key": "9430837b38dd0ac5",
+      "case_id": "bt-06",
+      "span": "30 juni-2 juli",
+      "clause": "Ni som garanterar ett minimibelopp på 5 000 kr kommer även att få er skylt exponerad vid DM i simning 10-11 juni samt på NUSS som går i Norrköping den 30 juni-2 juli.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308868
+    },
+    {
       "key": "943a9211e500d368",
       "case_id": "g5-14",
       "span": "[90] dagar",
@@ -6336,6 +6589,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294501
+    },
+    {
+      "key": "95172493251db36e",
+      "case_id": "bt-07",
+      "span": "2020-08-01",
+      "clause": "Tillträdesdag 2020-08-01",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308869
     },
     {
       "key": "95470264f56e2b36",
@@ -6558,6 +6822,17 @@
       "ts": 1793296117
     },
     {
+      "key": "9ad5628b71676db9",
+      "case_id": "bt-20",
+      "span": "559085-5473",
+      "clause": "A. Ateles  Consulting  AB,  556616 – 3910,  Teknikringen  6,  583  30  Link ö ping  ( ” kunden ” , ” best ä llaren ” ) och B.   Erik  Fremred  Aktiebolag,  559085-5473,  Riksdalergatan  29,  603  79  Norrköping ( “ leverant ö ren ” )",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308872
+    },
+    {
       "key": "9affa0c616ac8d54",
       "case_id": "g5-03",
       "span": "[tre (3)] år",
@@ -6712,6 +6987,17 @@
       "ts": 1793302601
     },
     {
+      "key": "a0533d71f8caaf4c",
+      "case_id": "g5-19",
+      "span": "24",
+      "clause": "6.2 Leverantören lämnar en garanti om minst [24] månader för datorer och skärmar, och den längre tillverkargaranti som gäller för respektive Produkt.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793307203
+    },
+    {
       "key": "a077c2ad7b8012e3",
       "case_id": "g5-24",
       "span": "[tolv (12)] månader",
@@ -6776,6 +7062,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296124
+    },
+    {
+      "key": "a18cc3284fa5835e",
+      "case_id": "g5-18",
+      "span": "belopp kronor",
+      "clause": "4.3 Leveransvillkor: DAP (Incoterms® 2020) DevBrains adress i Stockholm eller Göteborg, eller annan adress i Sverige som DevBrains anger. Fritt för Order över [Belopp] kronor; i övrigt betalar DevBrains en fraktavgift på [Belopp] kronor.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793307202
     },
     {
       "key": "a1a1d8dd0237fcde",
@@ -7075,6 +7372,17 @@
       "ts": 1793294503
     },
     {
+      "key": "a6dc60058b74ef2c",
+      "case_id": "g5-17",
+      "span": "belopp",
+      "clause": "18. Tvister\nSvensk lag gäller. Tvister ska i första hand lösas genom förhandling mellan parternas ledningar. Om tvisten inte har lösts inom 30 dagar ska den avgöras genom skiljeförfarande enligt SCC:s regler för förenklat skiljeförfarande, med säte i Stockholm. [Om tvisteföremålets värde understiger [Belopp] kronor avgörs tvisten i stället av Stockholms tingsrätt.]",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793307202
+    },
+    {
       "key": "a7106d4ebeaa11cc",
       "case_id": "g5-14",
       "span": "extra kostnad",
@@ -7218,6 +7526,17 @@
       "ts": 1793297107
     },
     {
+      "key": "a92fc6f45300f7ea",
+      "case_id": "bt-15",
+      "span": "840 kr/h",
+      "clause": "Timpriser:  840  kr/h",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308871
+    },
+    {
       "key": "a970f27b343458af",
       "case_id": "g5-26",
       "span": "hållas ekonomiskt skadeslös",
@@ -7284,6 +7603,17 @@
       "ts": 1793302612
     },
     {
+      "key": "aa9c2fa1fb7c00c3",
+      "case_id": "bt-17",
+      "span": "2 veckors",
+      "clause": "Avtalets  l ä ngd:  Avtalet  gäller  i  6  månader  med  2  veckors  upps ä gningstid",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308872
+    },
+    {
       "key": "aaa9d26fd4a2e1b3",
       "case_id": "g5-04",
       "span": "kronor",
@@ -7337,6 +7667,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793302612
+    },
+    {
+      "key": "abfacd5b67fb14d1",
+      "case_id": "bt-16",
+      "span": "2 veckor",
+      "clause": "Avtalets  l ä ngd:  Avtalet  gäller  i  6  månader  med  2  veckors  upps ä gningstid",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308871
     },
     {
       "key": "ace198703c01b781",
@@ -8087,6 +8428,17 @@
       "ts": 1793296083
     },
     {
+      "key": "be28dd0d2ce2c7e5",
+      "case_id": "bt-19",
+      "span": "100 dagars konsulters ä ttning",
+      "clause": "Kunden  f ö rbinder  sig  att  inte  aktivt  rekrytera  eller  p å  annat  s ä tt  direkt  engagera hos  leverant ö ren  (eller  hos  underleverantör)  anst ä lld  person  som  under  den senaste  sexm å nadersperioden  deltagit  i  leverant ö rens  utf ö rande  av  uppdrag eller  tj ä nster  f ö r  Kunden.  Om  s å dan  person  s ö ker  anst ä llning  hos  kunden  och avtal  om  anst ä llning  tr ä ffas  utan  att  det  ä r  fr å ga  om  en  normal rekryteringsprocess  med  annonsering  i  press  eller  p å  Internet  fr å n  kundens  sida, ska  kunden  gottg ö ra  leverant ö ren  f ö r  rekrytering  och  utbildning  av  ny  person med  ett  belopp  motsvarande  100  dagars  konsulters ä ttning  p å  heltid  f ö r  den person  som  anst ä llts  av  kunden.  Leverant ö ren  f ö rpliktar  sig  att  inte  aktivt rekrytera  anst ä lld  hos  kunden  utan  kundens  skriftliga  medgivande.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308872
+    },
+    {
       "key": "bea3d77773e371e2",
       "case_id": "g5-17",
       "span": "[Belopp]",
@@ -8351,6 +8703,17 @@
       "ts": 1793296110
     },
     {
+      "key": "c5ba40c7ab92770a",
+      "case_id": "bt-16",
+      "span": "6 månader",
+      "clause": "Avtalets  l ä ngd:  Avtalet  gäller  i  6  månader  med  2  veckors  upps ä gningstid",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308871
+    },
+    {
       "key": "c5ea26f7a1a88fea",
       "case_id": "g5-19",
       "span": "[24]",
@@ -8415,6 +8778,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793302611
+    },
+    {
+      "key": "c6fb7ce40903bf3f",
+      "case_id": "bt-05",
+      "span": "nkk",
+      "clause": "Mellan ovanstående företag (nedan benämnd sponsor) och Norrköpings Kappsimningsklubb (nedan benämnd NKK) har följande avtal träffats:",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308868
     },
     {
       "key": "c70fb1c614b218b8",
@@ -8714,6 +9088,17 @@
       "ts": 1793297105
     },
     {
+      "key": "cf55ff1e7d8df9a8",
+      "case_id": "bt-03",
+      "span": "30 dagar",
+      "clause": "4. Betalning erläggs av sponsorn inom 30 dagar efter erhållandet av fakturan.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308867
+    },
+    {
       "key": "cf6e3185d3a8c5b6",
       "case_id": "g5-10",
       "span": "en (1)] månad",
@@ -8954,6 +9339,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296086
+    },
+    {
+      "key": "d4ce9fe703c5d08c",
+      "case_id": "bt-20",
+      "span": "erik fremred aktiebolag",
+      "clause": "A. Ateles  Consulting  AB,  556616 – 3910,  Teknikringen  6,  583  30  Link ö ping  ( ” kunden ” , ” best ä llaren ” ) och B.   Erik  Fremred  Aktiebolag,  559085-5473,  Riksdalergatan  29,  603  79  Norrköping ( “ leverant ö ren ” )",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308873
     },
     {
       "key": "d4e85de9da23acc9",
@@ -9396,6 +9792,17 @@
       "ts": 1793297080
     },
     {
+      "key": "dfde6b0f728a2691",
+      "case_id": "bt-20",
+      "span": "ateles consulting ab",
+      "clause": "A. Ateles  Consulting  AB,  556616 – 3910,  Teknikringen  6,  583  30  Link ö ping  ( ” kunden ” , ” best ä llaren ” ) och B.   Erik  Fremred  Aktiebolag,  559085-5473,  Riksdalergatan  29,  603  79  Norrköping ( “ leverant ö ren ” )",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308873
+    },
+    {
       "key": "e050caa0b91694e5",
       "case_id": "g5-16",
       "span": "omedelbar verkan",
@@ -9506,6 +9913,17 @@
       "ts": 1793302616
     },
     {
+      "key": "e2ffea488d268d62",
+      "case_id": "bt-11",
+      "span": "erik fremred aktiebolag",
+      "clause": "Namn på företag Erik Fremred Aktiebolag",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308870
+    },
+    {
       "key": "e31b9999c1c2a18a",
       "case_id": "g5-08",
       "span": "sex (6) månader",
@@ -9515,6 +9933,17 @@
       "choice": "UPPSÄGNING",
       "score_bp": null,
       "ts": 1793299449
+    },
+    {
+      "key": "e3646ca3795a827a",
+      "case_id": "bt-12",
+      "span": "begr ä nsat till arvodet f ö r tj ä nsten",
+      "clause": "4.1. Leverant ö rens  ansvar  f ö r  intr å ng  i  immateriell  r ä tt,  i  enlighet  med  IT  Tj ä nster,  g ä ller endast  p å  villkor  att  kunden  har  anv ä nt  resultatet  av  leverant ö rens  arbete  i enlighet  med  detta  avtal,  att  intr å nget  inte  beror  p å  ä ndringar  i  resultatet  av leverant ö rens  arbete  och  att  resultatet  av  leverant ö rens  arbete  inte  kombinerats med  produkter,  vilka  inte  skriftligen  godk ä nts  av  leverant ö ren.  Leverant ö rens ansvar  f ö r  intr å ng  i  immateriell  r ä tt  ska,  utom  vid  grov  v å rdsl ö shet  eller  upps å t, vara  begr ä nsat  till  arvodet  f ö r  Tj ä nsten  och  vid  l ö pande  arvode,  utg ö rs  arvodet  av arvodet  f ö r  de  senaste  12  m å naderna  f ö r  Tj ä nsten.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793308870
     },
     {
       "key": "e37b37152a2beba4",
@@ -9594,6 +10023,17 @@
       "ts": 1793296067
     },
     {
+      "key": "e4d21053769571a2",
+      "case_id": "g5-04",
+      "span": "belopp",
+      "clause": "5.1 Årshyran är [Belopp] kronor exklusive moms (cirka [Belopp] kr/kvm).",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793307201
+    },
+    {
       "key": "e565280fd25d9b91",
       "case_id": "g5-22",
       "span": "tre (3) månader",
@@ -9603,6 +10043,17 @@
       "choice": "UPPSÄGNING",
       "score_bp": null,
       "ts": 1793299452
+    },
+    {
+      "key": "e5946761782a8274",
+      "case_id": "bt-09",
+      "span": "enligt las",
+      "clause": "Uppsägningstid Enligt LAS",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308869
     },
     {
       "key": "e5b2c582b9d55d60",
@@ -9671,6 +10122,17 @@
       "ts": 1793297064
     },
     {
+      "key": "e883923da36fb658",
+      "case_id": "g5-11",
+      "span": "14",
+      "clause": "9. Avflyttning\nNär avtalet upphör ska DevBrains lämna arbetsplatserna tömda och städade och återlämna alla passerkort. Egendom som lämnas kvar får Leverantören efter [14] dagar omhänderta på DevBrains bekostnad.",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793307201
+    },
+    {
       "key": "e8938b5c05beb609",
       "case_id": "g5-05",
       "span": "DevBrains AB",
@@ -9713,6 +10175,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294495
+    },
+    {
+      "key": "ea809524fd4b4a8f",
+      "case_id": "bt-20",
+      "span": "riksdalergatan 29, 603 79 norrköping",
+      "clause": "A. Ateles  Consulting  AB,  556616 – 3910,  Teknikringen  6,  583  30  Link ö ping  ( ” kunden ” , ” best ä llaren ” ) och B.   Erik  Fremred  Aktiebolag,  559085-5473,  Riksdalergatan  29,  603  79  Norrköping ( “ leverant ö ren ” )",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793308873
     },
     {
       "key": "eab35fa5fc9492e0",
