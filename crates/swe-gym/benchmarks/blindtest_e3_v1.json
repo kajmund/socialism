@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "need_roles": {
+    "bt-01": "MONEY",
+    "bt-02": "DEADLINE",
+    "bt-03": "DEADLINE",
+    "bt-04": "MONEY",
+    "bt-05": "PARTY",
+    "bt-06": "EVENT",
+    "bt-07": "EVENT",
+    "bt-08": "MONEY",
+    "bt-09": "NOTICE",
+    "bt-10": "SEMESTER",
+    "bt-11": "PARTY",
+    "bt-12": "LIABILITY",
+    "bt-13": "MONEY",
+    "bt-14": "DEADLINE",
+    "bt-15": "MONEY",
+    "bt-16": "NOTICE",
+    "bt-17": "DURATION",
+    "bt-18": "EVENT",
+    "bt-19": "MONEY",
+    "bt-20": "PARTY"
+  },
+  "redacted": true,
+  "redaction_note": "Redacted for the public repository: contract documents, clause texts, span values and identifying names are not committed. Contract text is represented by SHA-256 digests (canonical form); the full frozen artifacts and the source documents are kept locally outside the repository.",
+  "rows": [
+    {
+      "case_id": "bt-01",
+      "verdict": "resolved",
+      "need_role": "MONEY",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-02",
+      "verdict": "resolved",
+      "need_role": "DEADLINE",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-03",
+      "verdict": "resolved",
+      "need_role": "DEADLINE",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-04",
+      "verdict": "resolved",
+      "need_role": "MONEY",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-05",
+      "verdict": "resolved",
+      "need_role": "PARTY",
+      "competing_canon_sha256": [
+        "fb0fb69afadce40fbc93c796ca2f818ab0e54991425c1251f41eced0fa151877"
+      ],
+      "role_of_competing": {
+        "fb0fb69afadce40fbc93c796ca2f818ab0e54991425c1251f41eced0fa151877": null
+      }
+    },
+    {
+      "case_id": "bt-06",
+      "verdict": "resolved",
+      "need_role": "EVENT",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-07",
+      "verdict": "resolved",
+      "need_role": "EVENT",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-08",
+      "verdict": "resolved",
+      "need_role": "MONEY",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-09",
+      "verdict": "unsolved",
+      "need_role": "NOTICE",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-10",
+      "verdict": "resolved",
+      "need_role": "SEMESTER",
+      "competing_canon_sha256": [
+        "ed6958a8d7574a5bd62649e6af53e662fa4b0783e7bf69a751422387d2c1c931"
+      ],
+      "role_of_competing": {
+        "ed6958a8d7574a5bd62649e6af53e662fa4b0783e7bf69a751422387d2c1c931": null
+      }
+    },
+    {
+      "case_id": "bt-11",
+      "verdict": "resolved",
+      "need_role": "PARTY",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-12",
+      "verdict": "resolved",
+      "need_role": "LIABILITY",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-13",
+      "verdict": "resolved",
+      "need_role": "MONEY",
+      "competing_canon_sha256": [
+        "eaba156ca388121e883491e1b1fb3d62d94e1670e5ed1c654698c3b5ba66f92a"
+      ],
+      "role_of_competing": {
+        "eaba156ca388121e883491e1b1fb3d62d94e1670e5ed1c654698c3b5ba66f92a": "MONEY"
+      }
+    },
+    {
+      "case_id": "bt-14",
+      "verdict": "resolved",
+      "need_role": "DEADLINE",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-15",
+      "verdict": "resolved",
+      "need_role": "MONEY",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-16",
+      "verdict": "resolved",
+      "need_role": "NOTICE",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-17",
+      "verdict": "resolved",
+      "need_role": "DURATION",
+      "competing_canon_sha256": [],
+      "role_of_competing": {
+        "ae24f72ba356aa03160086e537973bade538f519f9fc5143fd6357bbf35934e6": "NOTICE"
+      }
+    },
+    {
+      "case_id": "bt-18",
+      "verdict": "resolved",
+      "need_role": "EVENT",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-19",
+      "verdict": "unsolved",
+      "need_role": "MONEY",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-20",
+      "verdict": "resolved",
+      "need_role": "PARTY",
+      "competing_canon_sha256": [],
+      "role_of_competing": {}
+    }
+  ]
+}
