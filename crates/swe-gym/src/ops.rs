@@ -154,10 +154,7 @@ pub enum OpOutcome {
 /// APPLY_EXCEPTION: an exception modifies a base rule only if its
 /// condition is met. When the condition is unresolved, the operation
 /// returns NeedMore instead of guessing.
-pub fn apply_exception(
-    base: Option<(&str, i64)>,
-    condition: Option<(&str, i64)>,
-) -> OpOutcome {
+pub fn apply_exception(base: Option<(&str, i64)>, condition: Option<(&str, i64)>) -> OpOutcome {
     match condition {
         None => OpOutcome::NeedMore(NeedRef::new("condition", "unknown")),
         Some((_, threshold)) => match base {
@@ -306,10 +303,15 @@ mod loop_tests {
     fn exception_condition_changes_the_conclusion() {
         // Base rule 9 months; condition threshold 6 -> exception applies.
         let outcome = apply_exception(Some(("Avtal_17", 9)), Some(("villkor", 6)));
-        assert_eq!(outcome, OpOutcome::Answer("undantag gäller: Avtal_17".to_string()));
+        assert_eq!(
+            outcome,
+            OpOutcome::Answer("undantag gäller: Avtal_17".to_string())
+        );
         // Below threshold -> the base rule stands.
         let outcome = apply_exception(Some(("Avtal_17", 3)), Some(("villkor", 6)));
-        assert_eq!(outcome, OpOutcome::Answer("grundregel gäller: Avtal_17".to_string()));
+        assert_eq!(
+            outcome,
+            OpOutcome::Answer("grundregel gäller: Avtal_17".to_string())
+        );
     }
 }
-

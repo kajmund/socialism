@@ -20,7 +20,10 @@ fn cases() -> Vec<(String, String, Vec<String>)> {
         .map(|q| {
             (
                 q.get("id").and_then(Json::as_str).unwrap().to_string(),
-                q.get("question").and_then(Json::as_str).unwrap().to_string(),
+                q.get("question")
+                    .and_then(Json::as_str)
+                    .unwrap()
+                    .to_string(),
                 q.get("evidence")
                     .and_then(Json::as_array)
                     .unwrap()
@@ -44,14 +47,14 @@ fn bench_texts() -> std::collections::HashMap<String, String> {
 }
 
 fn main() {
-    let jev_key = resolve_secret("TYPESAFE_API_KEY", "../../backend/.env")
-        .expect("TYPESAFE_API_KEY saknas");
+    let jev_key =
+        resolve_secret("TYPESAFE_API_KEY", "../../backend/.env").expect("TYPESAFE_API_KEY saknas");
     let jev_base = resolve_secret("TYPESAFE_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.typesafe.ai".to_string());
     let jev_model = resolve_secret("JEV_MODEL", "../../backend/.env")
         .unwrap_or_else(|| "jev-latest".to_string());
-    let llm_key = resolve_secret("CEREBRAS_API_KEY", "../../backend/.env")
-        .expect("CEREBRAS_API_KEY saknas");
+    let llm_key =
+        resolve_secret("CEREBRAS_API_KEY", "../../backend/.env").expect("CEREBRAS_API_KEY saknas");
     let llm_base = resolve_secret("CEREBRAS_BASE_URL", "../../backend/.env")
         .unwrap_or_else(|| "https://api.cerebras.ai/v1".to_string());
 
@@ -106,14 +109,25 @@ fn main() {
                 .collect::<Vec<_>>()
                 .join("\n\n");
             risk_answer = synth
-                .analyze("deep", "risk", &format!("Fråga: {question}\n\nVerifierad evidens:\n{ev}"))
+                .analyze(
+                    "deep",
+                    "risk",
+                    &format!("Fråga: {question}\n\nVerifierad evidens:\n{ev}"),
+                )
                 .map(|a| a.choice)
                 .unwrap_or_else(|e| format!("FEL: {e}"));
             total_llm += 1;
         }
 
-        out.push(format!("=== {qid}\nQUESTION: {question}\nVERDICTS: {}\nRISK: {risk_answer}\n", verdicts.join(";")));
-        println!("{qid}: {} kandidater, {} JEV totalt", candidates.len(), total_jv);
+        out.push(format!(
+            "=== {qid}\nQUESTION: {question}\nVERDICTS: {}\nRISK: {risk_answer}\n",
+            verdicts.join(";")
+        ));
+        println!(
+            "{qid}: {} kandidater, {} JEV totalt",
+            candidates.len(),
+            total_jv
+        );
     }
     std::fs::write("benchmarks/g4_capture/answers.txt", out.join("\n")).unwrap();
     println!("klart: {total_jv} JEV-anrop, {total_llm} LLM-anrop");
