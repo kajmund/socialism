@@ -482,3 +482,18 @@ Granskningens tre punkter implementerade:
 
 **Slutsatsen:** kedjan kan nu upptäcka behov, omvandla dem till rank-ordnad hämtning och hitta facit-evidens som den statiska kedjan aldrig såg. Det som återstår är att låta syntesen respektera behovsstatusen — då kan C4 och milstolpen falla utan att facit rör beslutsprocessen.
 
+## 25. Tre-tillståndsmodellen: grinden före syntesen
+
+Granskningens exekveringsmodell implementerad som **deterministisk kontrollogik** i SWE: INVESTIGATING → READY_TO_SYNTHESIZE → INSUFFICIENT_EVIDENCE. Syntesen anropas bara när grinden säger READY — modellen bestämmer aldrig själv när den ska vänta. RESOLVED kräver: rätt dokument, konkret TextUnit-referens, JEV-verifierat fynd (evidensrelevans-prompten) och motsägelsekontroll (flaggas i analysen). Fyra syntesvarianter: tidigare iterativa kedjan (baslinje), grind+LLM, grind+matris+LLM, grind+deterministisk assembler.
+
+**Uppmätt (12 fall):**
+
+- **A (slutar gissa):** grinden hindrade för tidiga svar i 3–4/12 fall — den tidigare kedjan svarade, grinden vägrade.
+- **B (undersöker tills löst):** READY_TO_SYNTHESIZE i 4/12 fall; övriga INSUFFICIENT trots 28–42 JEV-anrop per fall — behovsstatusen är nu den bindande begränsningen.
+- **C (rätt slutsats av komplett evidens):** g3-06 är grön ända igenom — READY, och alla tre syntesvarianterna (grind-LLM, matris-LLM, **deterministisk**) korrekta. Den deterministiska assembler-jämförelsen klarar uppgiften utan LLM-kostnad — den Sweycoin-vinst granskningen förutsåg, demonstrerad på ett fall.
+- **Milstolpen:** inte nådd — g3-06:s statiska kedja var redan rätt, så kriteriet "rätt där statisk är fel" saknar fortfarande sitt fall.
+
+**Svaret på granskningens diagnosfråga (g3-01):** fallet fallerar varken på för-tidig syntes (grinden blockerar nu korrekt) eller på jämförelseoperationen (den hinner aldrig köras) — **det fallerar på behovsstatusen**: JEV verifierar det ena dokumentets evidens ("säger upp senast [sex (6)] månader") som fynd, men svarar "inget" på de två andra dokumentens nästan identiskt formulerade klausuler. Grinden gör alltså rätt sak; verifieringssignalen är för bräcklig. Två åtgärder är identifierade: (1) RESOLVED baseras på fynd + dokumentmatch (JEV:s verifiering ÄR faktakontrollen) i stället för extra nyckelordskrav, och (2) verifieringssignalen behöver fler bedömningar per kandidat eller en tydligare evidensrelevans-prompt.
+
+**Arkitekturen (beroendegrafer):** behoven bildar nu en implicit graf — REQUIRED-behov per dokument → jämförelsenod → svar. Jämförelsenoden är deterministisk (normalisera värden, jämför) och kräver ingen LLM; riskallokering skulle ha en resonemangsnod. SWE kan därmed välja syntesförmåga utifrån den återstående operationen — nästa steg formaliserar grafen som data.
+
