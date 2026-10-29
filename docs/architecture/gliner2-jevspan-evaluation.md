@@ -136,3 +136,40 @@ g4-facit.
 
 **Acceptanskriterier** (specens §10): 1–2 täcks av A–B ovan; 3 av C; 4–5 av C+D; 6 av E —
 med slutgiltig rekommendation villkorad av D:s mätvärden.
+
+## D2. Fyra-armars-experimentet (30 oberoende chunkar)
+
+Testset: `benchmarks/gliner_testset.json` — 30 chunkar, 38 guldspann, behovsstyrda etikettspecar.
+Guldspannen är deterministiskt härledda (samma mekanism som den befintliga generatorn) — **den
+viktiga mätningsreservationen**: arm 0 mäts därför mot sitt eget facit, och "unik täckning" kan
+inte avgöras på detta guld.
+
+| Arm | Precision | Recall | F1 | tp/fp/fn |
+|---|---|---|---|---|
+| 0: befintlig generator | 1.00 | 1.00 | 1.00 | 33/0/0 |
+| 1: GLiNER2 generella etiketter | 0.15 | 0.48 | 0.23 | 16/89/17 |
+| 2: GLiNER2 **behovsstyrda** etiketter | **0.30** | 0.42 | 0.35 | 14/33/19 |
+| 3: union → JEV-verifiering | 0.50 | 1.00 | 0.67 | 33/33/0 |
+
+**Slutsatser:** (1) behovsstyrningen **dubblar precisionen** (0.15 → 0.30) mot generiska
+etiketter med måttligt recall-tapp (0.48 → 0.42) — granskningens hypotes bekräftad i riktning.
+(2) Unionen ger recall 1.00 men ingen unik täckning på detta guld — eftersom guldet är
+deterministiskt härlett. **Unik täckning kräver guldspann bortom den deterministiska extraktorns
+räckvidd** (omskrivna riskklausuler utan nyckelord) — nästa steg, inte mätt ännu.
+
+**g4-05 med GLiNER2-spann (det konkreta testet):** med behovsstyrda etiketter levererar GLiNER2
+kandidatspannen "avgångsvederlag" (chunk 19) och "sex (6) månader" (chunk 18) — **2 av de 3
+saknade riskklausulspannen** som fällde g4-05. Chunk 20 ("omedelbar verkan") spannades inte
+denna körning. Det är en verklig, partiell lösning av en verklig begränsning — men 1/3 kvarstår,
+och det är precis vad nästa körning ska mäta med exakta offsets.
+
+## E2. Rekommendationen, omformulerad per beslut
+
+**Utvärdera GLiNER2 som en behovsstyrd, valbar kandidatgenerator i SWE:s Investigation-lager** —
+där den kompletterar befintlig extraktion och återanvänder den selektiva JEV-verifieringen. Vi
+bestämmer inte i förväg att GLiNER2 alltid ska köras: SWE:s informationsbehov avgör både *vilka
+etiketter* den letar efter och *när* den kallas in (vid kvarstående REQUIRED-behov efter den
+billiga deterministiska första undersökningen). Parallellkörning med befintlig generator förblir
+möjlig när recall väger tyngre än lägsta kostnad — vilken strategi som är bäst avgör mätningen.
+Ingen fine-tuning innan behovsstyrningen och den unika täckningen är mätta på ett större,
+oberoende testset med guld bortom regex-räckvidden.
