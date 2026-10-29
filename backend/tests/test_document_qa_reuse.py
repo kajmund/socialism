@@ -24,9 +24,8 @@ from app.services.document_qa.from_workspace import (
     workspace_question,
 )
 from app.services.document_qa.store import persist
-from app.services.document_qa.tenants import TenantCatalogs, set_tenant_catalogs
 from app.services.document_qa.workspace_reuse import (
-    exact_hit_for_question,
+    exact_hit_for_question_owner,
     try_reuse_workspace_answer,
 )
 from app.services.knowledge.units import hash_text
@@ -87,13 +86,8 @@ def _job(**request):
 
 
 @pytest.fixture
-def catalogs(tmp_path):
-    registry = TenantCatalogs(tmp_path, dimension=DIM)
-    set_tenant_catalogs(registry)
-    try:
-        yield registry
-    finally:
-        set_tenant_catalogs(None)
+async def catalogs(owner_tenant_catalogs):
+    return await owner_tenant_catalogs(dimension=DIM)
 
 
 @pytest.fixture
@@ -129,19 +123,19 @@ async def _seed_chat(session):
     ))
 
 
-def test_answered_retrieved_evidence_is_an_exact_hit(catalogs):
+async def test_answered_retrieved_evidence_is_an_exact_hit(catalogs):
     persist(catalogs.open_for(1), Viewer(
         customer_id=1, workspace_id="ws-1",
         readable_document_ids=frozenset({"doc-1"}),
         readable_version_ids=frozenset({"ver-1"}),
     ), _write())
-    hit = exact_hit_for_question(catalogs.open_for(1), workspace_question(_job()))
+    hit = await exact_hit_for_question_owner(catalogs.client_for(1), workspace_question(_job()))
     assert hit is not None and hit.reuse == "exact"
     assert hit.answer.text == "Svar om uppsägning."
     assert hit.answer.review_status == "unreviewed"
 
 
-def test_not_found_retrieved_evidence_is_not_reused(catalogs):
+async def test_not_found_retrieved_evidence_is_not_reused(catalogs):
     persist(catalogs.open_for(1), Viewer(
         customer_id=1, workspace_id="ws-1",
         readable_document_ids=frozenset({"doc-1"}),
@@ -159,7 +153,9 @@ def test_not_found_retrieved_evidence_is_not_reused(catalogs):
         created_at="2026-10-11T10:00:00Z",
     ))
     job = _job(question="Finns karens?")
-    assert exact_hit_for_question(catalogs.open_for(1), workspace_question(job)) is None
+    assert await exact_hit_for_question_owner(
+        catalogs.client_for(1), workspace_question(job),
+    ) is None
 
 
 @pytest.mark.asyncio
@@ -188,12 +184,15 @@ async def test_try_reuse_delivers_without_research(factory, catalogs):
 
 
 @pytest.mark.asyncio
-async def test_try_reuse_skips_when_owner_is_missing(factory):
+async def test_try_reuse_fails_explicitly_when_owner_is_missing(factory):
+    from app.services.overgraph.owner import OwnerUnavailable
+
     async with factory() as session:
         await _seed_chat(session)
         session.add(_job())
         await session.commit()
-        assert await try_reuse_workspace_answer(session, "job-reuse-1") is None
+        with pytest.raises(OwnerUnavailable):
+            await try_reuse_workspace_answer(session, "job-reuse-1")
 
 
 @pytest.mark.asyncio

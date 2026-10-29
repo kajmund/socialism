@@ -17,7 +17,6 @@ from app.services.document_qa.kinds import DOCUMENT_CATALOG_WRITE
 from app.services.document_find.category_index import documents_for_type
 from app.services.document_find.taxonomy import LEASE
 from app.services.document_qa.labels import CANONICAL_DOCUMENT, HAS_VERSION, QUESTION, TEXT_UNIT
-from app.services.document_qa.tenants import TenantCatalogs, set_tenant_catalogs
 from app.services.graph_v2.outbox import process_graph_work
 from app.services.knowledge.units import hash_text
 from app.services.overgraph.labels import CONTAINS, DOCUMENT_VERSION
@@ -72,13 +71,8 @@ async def _seed(session, *, customer_id=1):
 
 
 @pytest.fixture
-def catalogs(tmp_path):
-    registry = TenantCatalogs(tmp_path, dimension=DIM)
-    set_tenant_catalogs(registry)
-    try:
-        yield registry
-    finally:
-        set_tenant_catalogs(None)
+async def catalogs(owner_tenant_catalogs):
+    return await owner_tenant_catalogs(dimension=DIM)
 
 
 @pytest.fixture
@@ -171,17 +165,20 @@ async def test_units_are_searchable_and_retry_is_idempotent(factory, catalogs):
 
 @pytest.mark.asyncio
 async def test_writeback_releases_the_only_connection(tmp_path, catalogs, monkeypatch):
-    from app.services.document_qa import catalog_write as write_mod
+    from app.services.document_qa.owner_ingest import persist_document_units
 
-    real = write_mod.write_document_units
     started = asyncio.Event()
 
-    async def blocked(catalog, *, document_id, units):
+    async def blocked(client, *, document_id, units):
         started.set()
         await asyncio.sleep(0.2)
-        return await real(catalog, document_id=document_id, units=units)
+        return await persist_document_units(
+            client, document_id=document_id, units=units,
+        )
 
-    monkeypatch.setattr("app.services.document_qa.catalog_apply.write_document_units", blocked)
+    monkeypatch.setattr(
+        "app.services.document_qa.catalog_apply.persist_document_units", blocked,
+    )
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{tmp_path}/catalog-one.db",
         pool_size=1, max_overflow=0, pool_timeout=0.3,
@@ -201,3 +198,37 @@ async def test_writeback_releases_the_only_connection(tmp_path, catalogs, monkey
         assert await session.scalar(text("SELECT 1")) == 1
     assert await task == {"completed": 1, "failed": 0}
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_owner_mode_catalog_write_uses_the_tenant_owner(
+    factory, tenant_owners, monkeypatch,
+):
+    from app.config import settings
+    from app.services.document_qa.owner_find import run_find
+    from app.services.document_find.request import FindRequest
+
+    client = await tenant_owners(1, dimension=DIM)
+    monkeypatch.setattr(settings, "overgraph_tenant_owner_sockets", "1=/tmp/tenant.sock")
+    async with factory() as session:
+        await _seed(session)
+        work_id = await enqueue_document_catalog(
+            session, customer_id=1, document_id="doc-1", document_version_id="ver-1",
+        )
+        await session.commit()
+    result = await process_graph_work(factory, limit=1, embedder=FakeEmbedder())
+    assert result == {"completed": 1, "failed": 0}
+    async with factory() as session:
+        row = await session.get(GraphIngestWork, work_id)
+        assert row.status == "completed"
+    found = await run_find(
+        client, FindRequest(customer_id=1, query="visa alla hyresavtal", mode="replace"),
+    )
+    assert found.document_ids == ("doc-1",)
+    read = await client.read([
+        {"label": CANONICAL_DOCUMENT, "key": "doc-1"},
+        {"label": TEXT_UNIT, "key": "unit-1"},
+    ], include_vectors=True)
+    assert read["values"][f"{CANONICAL_DOCUMENT}:doc-1"]["effective_type"] == LEASE
+    assert read["ids"][f"{TEXT_UNIT}:unit-1"] is not None
+

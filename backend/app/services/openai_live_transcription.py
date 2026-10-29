@@ -16,7 +16,6 @@ from websockets.exceptions import ConnectionClosedError
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-_KEYWORD_LIMIT = 24
 
 TranscriptCallback = Callable[["TranscriptEvent"], Awaitable[None]]
 
@@ -31,7 +30,7 @@ def clean_keywords(keywords: list[str]) -> list[str]:
             continue
         seen.add(key)
         cleaned.append(text[:48])
-        if len(cleaned) >= _KEYWORD_LIMIT:
+        if len(cleaned) >= settings.live_speech_stt_keyword_limit:
             break
     return cleaned
 
@@ -47,7 +46,7 @@ def transcription_session(
     transcription: dict[str, Any] = {
         "model": model,
         "languages": [language],
-        "delay": "low",
+        "delay": settings.live_speech_stt_delay,
     }
     if prompt.strip():
         transcription["prompt"] = prompt.strip()

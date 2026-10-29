@@ -1,6 +1,6 @@
 import { api } from "@/lib/api"
 
-export type AnchorKind = "tone" | "style"
+export type AnchorKind = "tone" | "style" | "clause"
 export type AnchorLocale = "sv" | "en"
 export type AnchorStatus = "draft" | "published"
 

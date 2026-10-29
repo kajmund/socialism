@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import CanonicalDocumentRecord, DocumentVersionRecord
 from app.services.lagen_nu.registration import LAGEN_NU_EVIDENCE_NATURES, LAGEN_NU_PROVIDER_ID
 from app.services.overgraph.model import GraphFactView, TextUnitView
-from app.services.overgraph.research import knowledge_catalog, supporting_units
 from app.services.research.models import (
     ResearchContext,
     ResearchError,
@@ -66,8 +65,12 @@ async def grounded_fact_evidence(
     if not fact.text_unit_refs:
         # Structural edges (e.g. decomposition) are traversal context, not evidence.
         return []
-    catalog = knowledge_catalog()
-    loaded = await catalog.run(supporting_units, catalog, fact)
+    from app.services.overgraph.owner_runtime import get_owner_runtime
+    from app.services.overgraph.research_owner import supporting_units_via_owner
+
+    loaded = await supporting_units_via_owner(
+        get_owner_runtime().require_client(), fact,
+    )
     if any(unit is None for unit in loaded):
         raise GraphResearchError(f"Graph fact {fact.id} has missing supporting TextUnits")
     units = sorted(
