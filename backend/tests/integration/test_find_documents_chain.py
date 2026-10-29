@@ -16,7 +16,6 @@ from app.schemas.workspace import WorkspaceDocumentSet, WorkspaceState
 from app.services.document_find.fixture import add_document, vector
 from app.services.document_find.id_map import source_ids_for_documents
 from app.services.document_find import FindRequest, run_find
-from app.services.document_qa.tenants import TenantCatalogs, set_tenant_catalogs
 from app.services.workspace import tool_handlers as handlers
 from app.services.workspace.tool_handlers import ToolContext, find_documents
 from app.services.workspaces import ensure_company_workspace
@@ -29,14 +28,8 @@ LEASE_FILLER = vector(0.1, 0.9)
 
 
 @pytest.fixture
-def catalogs(tmp_path):
-    registry = TenantCatalogs(tmp_path / "tenants", dimension=DIM)
-    set_tenant_catalogs(registry)
-    try:
-        yield registry
-    finally:
-        set_tenant_catalogs(None)
-        registry.close()
+async def catalogs(owner_tenant_catalogs):
+    return await owner_tenant_catalogs(dimension=DIM)
 
 
 @pytest.fixture

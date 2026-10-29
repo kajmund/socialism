@@ -1,0 +1,85 @@
+{
+ "id": "research-ordering-v1",
+ "label": "Scans-until-covered per ordering strategy on the five clause golds (fine ks 5..100). Reproduction identical to the frozen retrieval-*.json artifacts (drift check all strategies all questions).",
+ "db": "data/extra-overgraph-phase2",
+ "dense_model": "text-embedding-3-large",
+ "sparse_encoder": "lexical-tfidf-hash-v1",
+ "fusion_mode": "reciprocal_rank",
+ "units": 2548,
+ "ks": [
+  5,
+  10,
+  15,
+  20,
+  25,
+  30,
+  35,
+  40,
+  45,
+  50,
+  60,
+  70,
+  80,
+  90,
+  100
+ ],
+ "scans_none_means_not_reached_within_k100": true,
+ "questions": {
+  "auto-renewal": {
+   "relevant": 20,
+   "scans": {
+    "dense": null,
+    "sparse": 70,
+    "hybrid": 30,
+    "union_rrf": 70,
+    "union_pool": 30
+   }
+  },
+  "notice-period": {
+   "relevant": 13,
+   "scans": {
+    "dense": null,
+    "sparse": null,
+    "hybrid": null,
+    "union_rrf": null,
+    "union_pool": 90
+   }
+  },
+  "liability-cap": {
+   "relevant": 34,
+   "scans": {
+    "dense": null,
+    "sparse": 100,
+    "hybrid": 80,
+    "union_rrf": 100,
+    "union_pool": 80
+   }
+  },
+  "confidentiality": {
+   "relevant": 13,
+   "scans": {
+    "dense": 90,
+    "sparse": null,
+    "hybrid": null,
+    "union_rrf": null,
+    "union_pool": 90
+   }
+  },
+  "liability-secrecy-carveout": {
+   "relevant": 7,
+   "scans": {
+    "dense": 60,
+    "sparse": 10,
+    "hybrid": 15,
+    "union_rrf": 35,
+    "union_pool": 15
+   }
+  }
+ },
+ "decision_rule": {
+  "threshold": "hybrid beats sparse by >=2x on the median",
+  "outcome": "not met",
+  "note": "hybrid beats sparse >=2x on exactly one of five questions (auto-renewal 70->30); on carveout pure lexical wins outright (10 vs 15). No production change is proposed from this measurement."
+ },
+ "drift_check": "reproduction identical to frozen artifacts on recall@100 for all five strategies x five questions"
+}

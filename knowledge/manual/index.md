@@ -66,6 +66,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Redigera panelkatalog](redigera-panelkatalog.md) — Sub-frågor, default-expertprofiler och förslag från underlag
 * [Konfigurera panelkatalog för Expertgranskning](konfigurera-panelkatalog-for-expertgranskning.md) — Sub-frågor för expertgranskningens panel
 * [Hantera SSR-ankare](hantera-ssr-ankare.md) — Skapa, testa och publicera ton- och stilankare för rapporter
+* [Granska klausulankare](granska-klausulankare.md) — Svara Ja eller Nej på klausuler för verifierade exempel
 * [Redigera grunddata](redigera-grunddata.md) — Kataloglistor och distriktskartor under en konfiguration
 * [Använda playground](anvanda-playground.md) — Kalibrera anchors, jämföra SSR och prova promptvarianter
 * [Prova bildreaktion i playground](prova-bildreaktion-i-playground.md) — Testa persona-reaktion och SSR på uppladdad bild
@@ -82,7 +83,7 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 * [Skapa och redigera expert](skapa-och-redigera-expert.md) — Profil, chatt och vilka verktyg experten får använda
 * [Hantera expertpaneler](hantera-expertpaneler.md) — Lista, duplicera och ta bort sparade paneler
 * [Komponera en expertpanel](komponera-expertpanel.md) — Välj experter och spara panelen direkt
-* [Visa och redigera expertpanel](visa-och-redigera-expertpanel.md) — Medlemmar och lägg till från biblioteket
+* [Visa och redigera expertpanel](visa-och-redigera-expertpanel.md) — Medlemmar, generera expert från underlag och ta bort panel
 * [Hantera kampanjer](hantera-kampanjer.md) — Sök, öppna och ta bort Due Diligence-kampanjer
 * [Köra en Due Diligence-kampanj](kora-dd-kampanj.md) — Skapa kampanj, chatta fram bolag och köra Due Diligence per kandidat
 * [Byt namn på en Due Diligence-kampanj](byt-namn-pa-dd-kampanj.md) — Ändra kampanjens titel på fliken Översikt
@@ -106,6 +107,10 @@ Guider för dig som använder Socialism i webbläsaren. Teknisk setup och arkite
 # Rättsunderlag
 
 * [Använda rättsunderlag](anvanda-rattsunderlag.md) — Spara utkast, sök källor och läs PM:et
+
+# Tabular Review
+
+* [Använda Tabular Review](tabular-review.md) — Lista reviews, fyll tabellen, filtrera och granska klausuler i originalet
 
 # Rapporter
 

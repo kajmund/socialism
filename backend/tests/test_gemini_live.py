@@ -109,6 +109,7 @@ async def test_live_token_for_expert_uses_server_built_prompt(
         tools: list[dict[str, object]],
         provider: str | None = None,
         voice: str | None = None,
+        model: str | None = None,
         client: httpx.AsyncClient | None = None,
     ):
         captured.append(system_instruction)
@@ -184,6 +185,7 @@ async def test_live_token_enforces_customer_scope(
         tools: list[dict[str, object]],
         provider: str | None = None,
         voice: str | None = None,
+        model: str | None = None,
         client: httpx.AsyncClient | None = None,
     ):
         assert tools
@@ -228,6 +230,7 @@ async def test_live_token_endpoint_maps_google_failure_to_bad_gateway(
         tools: list[dict[str, object]],
         provider: str | None = None,
         voice: str | None = None,
+        model: str | None = None,
         client: httpx.AsyncClient | None = None,
     ):
         assert tools

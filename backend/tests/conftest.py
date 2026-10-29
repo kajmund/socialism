@@ -53,6 +53,9 @@ from app.services.panel.research import empty_research_structured
 from app.services.panel.synthesis import GenericPanelSynthesis
 from app.services.prompt_fields_store import clear_prompt_cache
 from app.services.ssr import clear_embedding_cache, set_embedder
+from app.services.overgraph.owner import OwnerClient, OvergraphOwner
+from app.services.overgraph.owner_registry import OwnerRegistry, OwnerRoute
+from app.services.overgraph.owner_runtime import get_owner_runtime
 from app.services.overgraph.catalogs import (
     OverGraphRuntime,
     get_runtime,
@@ -137,6 +140,91 @@ def research_overgraph(tmp_path):
     finally:
         if get_runtime() is runtime:
             set_runtime(None)
+
+
+@pytest.fixture(autouse=True)
+async def owner_writer_runtime(research_overgraph):
+    """Tests use the same catalog through a real in-process owner socket."""
+    root = Path(tempfile.mkdtemp(prefix="ogo-"))
+    socket_path = root / "owner.sock"
+    owner = OvergraphOwner(
+        root / "owner-catalog",
+        dimension=RESEARCH_TEST_DIM,
+        socket_path=socket_path,
+        catalog=research_overgraph,
+    )
+    await owner.start()
+    runtime = get_owner_runtime()
+    previous_client, previous_status = runtime.client, runtime.status
+    runtime.client = OwnerClient(socket_path, catalog_id=owner.catalog_id)
+    runtime.status = {
+        "status": "ready", "catalog_id": owner.catalog_id,
+        "dimension": RESEARCH_TEST_DIM, "write_paths_ready": False,
+    }
+    try:
+        yield
+    finally:
+        runtime.client = previous_client
+        runtime.status = previous_status
+        await owner.close()
+
+
+@pytest.fixture
+async def tenant_owners(monkeypatch):
+    """Start one in-process tenant Knowledge Owner per requested customer."""
+    import app.services.overgraph.owner_registry as owner_registry_module
+
+    registry = OwnerRegistry()
+    monkeypatch.setattr(owner_registry_module, "_registry", registry)
+    owners: dict[int, OvergraphOwner] = {}
+    roots: list[Path] = []
+
+    async def start(customer_id: int, *, dimension: int = 4) -> OwnerClient:
+        if customer_id in owners:
+            return registry.client_for("tenant_knowledge", customer_id=customer_id)
+        root = Path(tempfile.mkdtemp(prefix=f"tenant-owner-{customer_id}-"))
+        roots.append(root)
+        owner = OvergraphOwner(
+            root / "catalog", dimension=dimension, socket_path=root / "owner.sock",
+        )
+        await owner.start()
+        owners[customer_id] = owner
+        await registry.connect([OwnerRoute(
+            kind="tenant_knowledge", socket_path=owner.socket_path,
+            customer_id=customer_id,
+        )])
+        return registry.client_for("tenant_knowledge", customer_id=customer_id)
+
+    try:
+        yield start
+    finally:
+        for owner in owners.values():
+            await owner.close()
+        for root in roots:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.fixture
+async def owner_tenant_catalogs(monkeypatch):
+    """Tenant catalogs served by in-process Owners, with test seed handles."""
+    import app.services.overgraph.owner_registry as owner_registry_module
+    from tests.tenant_catalogs import close_tenant_catalogs, start_tenant_catalogs
+
+    started = []
+
+    async def factory(*, dimension: int, customers: tuple[int, ...] = (1, 2)):
+        catalogs = await start_tenant_catalogs(
+            dimension=dimension, customers=customers,
+        )
+        monkeypatch.setattr(owner_registry_module, "_registry", catalogs.registry)
+        started.append(catalogs)
+        return catalogs
+
+    try:
+        yield factory
+    finally:
+        for catalogs in started:
+            await close_tenant_catalogs(catalogs)
 
 
 class NoopExpertMemory:

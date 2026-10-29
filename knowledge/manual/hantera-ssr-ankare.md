@@ -12,7 +12,7 @@ tags: [grunddata]
 ## Öppna biblioteket
 
 1. Öppna **Verktyg** → **SSR-ankare** i menyn.
-2. Filtrera efter **typ** (Ton eller Stil) och **språk** (svenska eller engelska) om du vill begränsa listan.
+2. Filtrera efter **typ** (Ton, Stil eller Klausul) och **språk** (svenska eller engelska) om du vill begränsa listan. Klausulset används i Tabular Review, inte i rapporter.
 3. Växla mellan **Rutnät** och **Lista**.
 4. På varje kort ser du namn, typ, språk, version och om posten är **Utkast** eller **Publicerad**.
 
@@ -28,7 +28,7 @@ Etiketter för ton och stil delas mellan alla ankarset av samma typ och språk.
 ## Skapa nytt ankare
 
 1. Välj **+ Nytt ankarset**.
-2. Ange **namn**, **typ** (Ton eller Stil), **språk** och **version**. Typ och språk låses efter att ankaret skapats.
+2. Ange **namn**, **typ** (Ton, Stil eller Klausul), **språk** och **version**. Typ och språk låses efter att ankaret skapats. Klausulset kalibreras inte.
 3. På fliken **Ankare** väljer du **etikett** från ordlistan och fyller i **referensmening** — en rad per steg på skalan.
 4. Välj **Spara**. Du landar i redigeringsläget där flikarna **Kalibrering**, **Test**, **Ankarpool** och **Flaggade** blir tillgängliga.
 
