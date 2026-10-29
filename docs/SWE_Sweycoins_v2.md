@@ -583,3 +583,21 @@ Målet nått med marginal — FP 1 (mot taket 3), kostnad 12 000 (15 % av extrah
 
 **Beslutet enligt granskningens kriterier:** ja — målet är nått, vilket ger ytterligare ett argument för deterministisk policy. Residualen (extraction-gapen, g3-06:s partiella lösning, och valet *när* en grön signal inte räcker) är precis där en lärd policy kan motiveras. Extraktionens ε-kostnad (1 milli/chunk i CPU/latens) parametriseras och ändrar inga slutsatser på denna skala — men är nu en del av kostnadsmodellen inför miljoner TextUnits.
 
+## 30. Operationsgrafen: typade kontrakt före exekvering
+
+Granskningens omklassificering accepterad: g3-06 var inte ett resonemangsfel utan ett **beroendehanteringsfel** — jämförelsen kördes på partiella indata. Operationskontraktet är nu implementerat i craten (`src/ops.rs`): varje operation deklarerar `required_inputs`, `execution_policy: ALL_REQUIRED` och `on_missing: INSUFFICIENT_EVIDENCE` som **data**. Grinden härleder exekverbarheten ur kontraktet — aldrig ur vad som råkade bli RESOLVED. Två skydd: ett behov kan inte försvinna ur jämförelsen för att det aldrig löstes, och en operation kan inte degenerera till att jämföra ett enda värde. Fem enhetstester fångar regressionen (partiella indata blockeras, alla indata krävs, MAX exekverar bara efter grinden).
+
+**Fallnivå-verifieringen (frysta data + selektiva regeln):**
+
+| Fall | Operation | Indata | Grind | Svar |
+|---|---|---|---|---|
+| g3-01–g3-05 | MAX_NOTICE_PERIOD | 3/3 | READY | **samtliga fem korrekta** (tidigare fyra — g3-02 tillkom) |
+| g3-06 | MAX_NOTICE_PERIOD | 2 av 3 *namngivna* | INSUFFICIENT_EVIDENCE | avstår — **operationen kördes aldrig** |
+| g3-08–g3-12 (negativa) | — | — | — | avstår korrekt |
+
+g3-06:s mekanism, exakt: tre dokument fick värden, men ett av dem var inte bland frågans *namngivna* jämförelsedokument — kontraktet kräver just de namngivna, så ett saknas → grinden blockerar. Det är precis det allmänna kontraktets poäng: det fungerar även för `COMPARE`, `APPLY_EXCEPTION`, `EVALUATE_CONFLICT`, `SYNTHESIZE` — vissa deterministiska, andra modellkrävande, men alla med explicita indata och exekveringsvillkor.
+
+**Kostnadskonsistensen:** alla tre strategier redovisas nu i en enda enhet — marginella JEV-anrop × 1 coin: extrahera-först 78 anrop, förtydligad-först 92, selektiv 12. Extraktionens ε-kostnad redovisas separat (0 respektive 1 milli/chunk); allokerade och ackumulerade siffror blandas aldrig in i samma kolumn.
+
+**Om en lärd policy:** mönstret fortsätter — varje förståelse minskar residualen. Operationskontraktet tog bort nästa felklass. Kvar: extraction-gap (2/13), och frågetyper vars operationer kräver resonemang (APPLY_EXCEPTION med juridiska avvägningar). Nästa steg: ett större, oberoende testset med nya avtalsformuleringar och komplexare beroenden — och en lärd policy först när en enkel regel verkligen inte räcker.
+

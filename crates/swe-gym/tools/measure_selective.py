@@ -61,6 +61,27 @@ def all_durations(text):
     return out
 
 
+def SELECTIVE_RULE(s, texts, compared_docs):
+    """Clear value -> RESOLVED; uncertain -> context-JEV; else no.
+    Defined SEMANTICALLY (domain knowledge), not tuned on the data:
+    right document + termination clause context + unambiguous value."""
+    text = texts.get(s["chunk"], "")
+    dur = extract_duration(text)
+    if dur is None:
+        return "unresolved", 0
+    docs = compared_docs[s["qid"]]
+    doc_ok = s["chunk"].split(":")[0] in docs
+    context_ok = bool(TERM_RE.search(text))
+    unambiguous = len(set(all_durations(text))) <= 1
+    if doc_ok and context_ok and unambiguous:
+        return "resolved", 0  # deterministic, zero JEV calls
+    # Uncertain value — ambiguity, conflict or weak match: pay one
+    # context-JEV call before any RESOLVED.
+    if not (doc_ok and context_ok and unambiguous):
+        return "resolved" if s["context_jv"] == "fynd" else "unresolved", JEV_COST
+    return "unresolved", 0
+
+
 def main():
     golden = {q["id"]: q for q in json.load(open(GOLDEN, encoding="utf-8"))["questions"]}
     evidence_by_case = {q["id"]: set(q["evidence"]) for q in golden.values()}
@@ -86,24 +107,7 @@ def main():
     none_states = [s for s in states if baseline_by_qid[(s["qid"], s["chunk"])] == "inget"]
 
     def selective_rule(s):
-        """Clear value -> RESOLVED; uncertain -> context-JEV; else no.
-        Defined SEMANTICALLY (domain knowledge), not tuned on the data:
-        right document + termination clause context + unambiguous value."""
-        text = texts.get(s["chunk"], "")
-        dur = extract_duration(text)
-        if dur is None:
-            return "unresolved", 0
-        docs = compared_docs[s["qid"]]
-        doc_ok = s["chunk"].split(":")[0] in docs
-        context_ok = bool(TERM_RE.search(text))
-        unambiguous = len(set(all_durations(text))) <= 1
-        if doc_ok and context_ok and unambiguous:
-            return "resolved", 0  # deterministic, zero JEV calls
-        # Uncertain value — ambiguity, conflict or weak match: pay one
-        # context-JEV call before any RESOLVED.
-        if not (doc_ok and context_ok and unambiguous):
-            return "resolved" if s["context_jv"] == "fynd" else "unresolved", JEV_COST
-        return "unresolved", 0
+        return SELECTIVE_RULE(s, texts, compared_docs)
 
     def evaluate(subset):
         rec, fp, cost = 0, 0, 0

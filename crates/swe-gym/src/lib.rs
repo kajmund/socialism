@@ -14,6 +14,7 @@ pub mod env;
 pub mod explore;
 pub mod gen;
 pub mod ledger;
+pub mod ops;
 pub mod oracle;
 pub mod provider;
 pub mod real;
