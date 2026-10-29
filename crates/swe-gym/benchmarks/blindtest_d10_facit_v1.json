@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "name": "blindtest-d10-v1",
+  "redacted": true,
+  "redaction_note": "Redacted for the public repository: contract documents, clause texts, span values and identifying names are not committed. Contract text is represented by SHA-256 digests (canonical form); the full frozen artifacts and the source documents are kept locally outside the repository.",
+  "provenance": "Answer-level follow-up on blindtest-v1, annotated by reading the documents; the frozen blindtest case ids are referenced, the facit is not modified.",
+  "cases": {
+    "bt-01": {
+      "expected_sha256": "97fdb7969d81ffffe40facc2c5b3c9fab14f20ea1e865249d070b6da2745a43d",
+      "answerable": true
+    },
+    "bt-02": {
+      "expected_sha256": "d646bfbafbfaf454a4ffcf41e8d149d5af01286d4655398aa8da2d16f0178a5f",
+      "answerable": true
+    },
+    "bt-03": {
+      "expected_sha256": "05317e1ca6aa750e24d4681ccda861099ad41895f46fd668ad695b972ae9bf4c",
+      "answerable": true
+    },
+    "bt-04": {
+      "expected_sha256": "bbe5dbfc4a4647117c5d7f332253eef3c05b8e6a811288eb4d6a52009d737395",
+      "answerable": true
+    },
+    "bt-05": {
+      "expected_sha256": "4b185a697ac8cf384f2842c76c286d24436c0081c38f76bceaf1addc3dbd800d",
+      "answerable": true
+    },
+    "bt-06": {
+      "expected_sha256": "42acedde36d27b382eee34142d7950357349b16bb17d063aa78cebedbd2bf4d6",
+      "answerable": true
+    },
+    "bt-07": {
+      "expected_sha256": "50655397b9733a303bb7180c5e5f1856cfac0fb6fb2d6bb467eafedcc7fede84",
+      "answerable": true
+    },
+    "bt-08": {
+      "expected_sha256": "b6472d01e3ee417e8496f9fd7afa55230a6b55db623a47b5684c27ee2cd22784",
+      "answerable": true
+    },
+    "bt-09": {
+      "expected_sha256": "7509f112095d51b8a3c540559b77d898da60378eacadf74f1bf2aab48ee59b05",
+      "answerable": false
+    },
+    "bt-10": {
+      "expected_sha256": "dcf17ed6fc4bc9143f2fda07c0d95f1a9566c7ac7b3ccc385988dd514ee3c0c3",
+      "answerable": true
+    },
+    "bt-11": {
+      "expected_sha256": "0c4828884907cd4c2c01456608c60d5a624199eb7c42d0e2703859a3fd9482bb",
+      "answerable": true
+    },
+    "bt-12": {
+      "expected_sha256": "093e5146ec1ffbd979e9865f2da911417fbba3145b231fe146351d8c07e630cd",
+      "answerable": true
+    },
+    "bt-13": {
+      "expected_sha256": "3a02159a91a78c5947026f494a3bfdf52bf6c62f3d8f6da9a9d81154effb2dfb",
+      "answerable": true
+    },
+    "bt-14": {
+      "expected_sha256": "5db9615c54d706e98a24bdb2688254b156607658ab06465117fdd2dcb0faa02d",
+      "answerable": true
+    },
+    "bt-15": {
+      "expected_sha256": "1f0b7e3b6017c349120bddee815e5fe5cd18a6a685db4e86e8e08a1e36f77a40",
+      "answerable": true
+    },
+    "bt-16": {
+      "expected_sha256": "7d58e36b5b63eb3cc34c3f773886ce80b761cdcc0fbe0feeca3ce72c48ce6681",
+      "answerable": true
+    },
+    "bt-17": {
+      "expected_sha256": "2f1f9a4bfceedd23b362562a4585e8b922aeab9dd728ff21afe285b8176633fc",
+      "answerable": true
+    },
+    "bt-18": {
+      "expected_sha256": "ba84b709135d473575bbd7569a3f69051cf353ee0dc8e62e1e2e5fa9933cecd7",
+      "answerable": true
+    },
+    "bt-19": {
+      "expected_sha256": "09ffce7c7617e483d44d3f91cf8605e4fb55c2f5f010e21d464b06a97c041ec9",
+      "answerable": true
+    },
+    "bt-20": {
+      "expected_sha256": "1b72613c14c9d6ec5fac5bafaa8ea6919d31aaa705453e6fa51205f2883aa50a",
+      "answerable": true
+    }
+  }
+}
