@@ -563,3 +563,23 @@ Granskningens hypotes bekräftad: **den enkla regeln vinner** — extrahera för
 
 **Det arkitektoniska svaret på granskningens viktigaste poäng:** ja — använd regeln. Sweycoins ska inte bevisa att RL behövs; det ska upptäcka den billigaste tillförlitliga vägen. Datan säger: deterministisk extraktion löser recognition-gapen (11/13) gratis, kontext-JEV täcker extraction-gapen där extraktorn är osäker, och en lärd policy behövs först för residualen — FP-avvägningen, extraction-gapen och sekvensvalet i nivå 3. Det är ett starkare arkitektoniskt resultat än att tvinga in maskininlärning där en regel räcker.
 
+## 29. Selektiv verifieringsregel: extrahera först, RESOLVED bara när värdet är tydligt
+
+Granskningens hypotes testad: extraktorn första steget, men ett extraherat värde är en **kandidat** till RESOLVED — inte automatiskt verifierat. Regeln är definierad **semantiskt** (domänkunskap), inte anpassad till de fem kända falska positiva: RESOLVED gratis endast vid *rätt dokument + uppsägningsklausulkontext + entydigt värde*; annars en kontext-JEV (1 coin) innan RESOLVED.
+
+**Resultatet, mot målet (behåll 11/13, FP ≤ 3, behåll kostnadsfördelen):**
+
+| Strategi | Återfunna | FP | Kostnad |
+|---|---|---|---|
+| Extrahera först | 11/13 | 5 | 78 000 |
+| Förtydligad JEV först | 11/13 | 3 | 92 000 |
+| **Selektiv regel** | **11/13** | **1** | **12 000** |
+
+Målet nått med marginal — FP 1 (mot taket 3), kostnad 12 000 (15 % av extrahera-först). Mekanismen bakom FP-reduktionen: de falska positiva kom från **tvetydiga chunkar** (en klausul med två tidsangivelser — "9 månaders uppsägningstid" plus "3 års förlängning") — entydighetskontrollen skickar dem till kontext-JEV i stället för att acceptera dem gratis.
+
+**Felen mäts nu i tre nivåer:** kandidat (FP 1/79), behov (FRR 0.00 i alla fall — inget felaktigt RESOLVED-dokument), slutligt svar (g3-01, g3-03, g3-04, g3-05 korrekta deterministiskt; g3-06 fel — endast ett dokument löst, jämförelsen degenererade; de negativa kontrollerna avstår korrekt). g3-06 visar en reasoning-gap: alla signaler gröna på ett dokument räcker inte när grinden borde krävt alla tre.
+
+**Hållen-halvan-reservationen:** utvärderingshalvan (g3-07–12) innehåller bara 2 av de 13 falskt negativa tillstånden — regeln är semantiskt a priori, men generaliseringsbeviset är tunt (0/2 återfunna där). Ärligt protokollfört; fler tillstånd behövs för en starkare slutsats.
+
+**Beslutet enligt granskningens kriterier:** ja — målet är nått, vilket ger ytterligare ett argument för deterministisk policy. Residualen (extraction-gapen, g3-06:s partiella lösning, och valet *när* en grön signal inte räcker) är precis där en lärd policy kan motiveras. Extraktionens ε-kostnad (1 milli/chunk i CPU/latens) parametriseras och ändrar inga slutsatser på denna skala — men är nu en del av kostnadsmodellen inför miljoner TextUnits.
+
