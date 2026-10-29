@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "canonical_rule": {
+    "leading_stripped": [
+      "de",
+      "den",
+      "det",
+      "en",
+      "ett",
+      "i",
+      "inom",
+      "senast",
+      "under"
+    ],
+    "genitive_normalized": {
+      "dagars": "dagar",
+      "veckors": "veckor",
+      "månaders": "månader",
+      "års": "år",
+      "timmars": "timmar"
+    }
+  },
+  "redacted": true,
+  "redaction_note": "Redacted for the public repository: contract documents, clause texts, span values and identifying names are not committed. Contract text is represented by SHA-256 digests (canonical form); the full frozen artifacts and the source documents are kept locally outside the repository.",
+  "rows": [
+    {
+      "case_id": "bt-01",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-02",
+      "verdict": "unsolved",
+      "old_verdict": "unsolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-03",
+      "verdict": "resolved",
+      "old_verdict": "false_resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-04",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-05",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": [
+        "fb0fb69afadce40fbc93c796ca2f818ab0e54991425c1251f41eced0fa151877"
+      ]
+    },
+    {
+      "case_id": "bt-06",
+      "verdict": "unsolved",
+      "old_verdict": "unsolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-07",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-08",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-09",
+      "verdict": "unsolved",
+      "old_verdict": "unsolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-10",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": [
+        "ed6958a8d7574a5bd62649e6af53e662fa4b0783e7bf69a751422387d2c1c931"
+      ]
+    },
+    {
+      "case_id": "bt-11",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-12",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-13",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": [
+        "eaba156ca388121e883491e1b1fb3d62d94e1670e5ed1c654698c3b5ba66f92a"
+      ]
+    },
+    {
+      "case_id": "bt-14",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-15",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-16",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-17",
+      "verdict": "resolved",
+      "old_verdict": "ambiguous",
+      "competing_canon_sha256": [
+        "ae24f72ba356aa03160086e537973bade538f519f9fc5143fd6357bbf35934e6"
+      ]
+    },
+    {
+      "case_id": "bt-18",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-19",
+      "verdict": "unsolved",
+      "old_verdict": "unsolved",
+      "competing_canon_sha256": []
+    },
+    {
+      "case_id": "bt-20",
+      "verdict": "resolved",
+      "old_verdict": "resolved",
+      "competing_canon_sha256": []
+    }
+  ]
+}
