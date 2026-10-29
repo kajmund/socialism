@@ -398,6 +398,47 @@ avvägningen är nu synlig i en tabell i stället för dold. Nästa steg: kalibr
 AMBIGUOUS (multiplicitetströskeln), följa g5-45/g5-47 med osäkerheten kvar på evidensobjektet,
 och mäta samma avvägning på det större oberoende testsetet.
 
+## D12. Övergångsmatrisen, rätt AMBIGUOUS-nivå och den sista parade körningen
+
+**Bokföringsfrågan besvarad — övergångsmatris per fall (före → efter):**
+
+| Före → Efter | Fall |
+|---|---|
+| kontaminerad → korrekt | 1 (**g5-01** — partsroll-regeln konverterade en kontamination) |
+| kontaminerad → avstod | 2 (g5-04, g5-45) |
+| kontaminerad → kontaminerad | 4 (g5-31, g5-37, g5-46, g5-47) |
+| korrekt → avstod | 1 (**g5-36**) |
+| korrekt → korrekt | 24 · avstod → avstod 18 |
+
+Totalsiffran 25 förklaras exakt: g5-01:s konvertering kompenserade g5-36:s blockering.
+
+**g5-36:s verkliga orsak — inte AMBIGUOUS:** blockeringen kom från den deterministiska
+typkontrollen, som avvisade guldspannet "första dagen i andra kvartalet" för att det är ett
+**ord-datum** utan sifferdatum-mönster. Ingen tvetydighet fanns (endast ett värde godkänt).
+Fixen är generell: ordform-datum ("första dagen i andra kvartalet", "månadsskiftet") ska
+passera datumkontrollen. AMBIGUOUS-multipliciteten triggade korrekt bara på g5-45 (två
+konkurrerande belopp för samma operativa roll) — **nivån är rätt** med den skärpta
+definitionen: AMBIGUOUS härleds från konkurrerande kandidater till samma operativa roll,
+inte från att flera värden förekommer.
+
+**Den sista parade körningen — D mot D2** (samma kandidater, klausulkontext och en-JEV-anrop-
+budget; endast frågan ändrad, 131 nya frysta svar):
+
+| | Korrekt | Kontaminerad | Avstod |
+|---|---|---|---|
+| D (nuvarande) | 25 | **7** | 18 |
+| D2 (operativ roll) | 26 | **8** | 16 |
+
+**D2 minskar inte de semantiska felen** — den flyttar beslutsgränsen (2 färre avståenden,
+1 mer korrekt, 1 mer kontaminerad). D förblir den bästa testade formuleringen.
+
+**Slutsats och avslut:** Spår A fryses — GLiNER2 föreslår spann, befintlig generator
+kompletterar, JEV arm D verifierar. Spår B avslutas med denna körning: den återstående
+semantiska osäkerheten (operativ roll för belopp/datum, generisk term vs konkret åtagande)
+låter sig inte lösas av fler formuleringar, steg eller modeller till samma kostnad — den
+**behålls synlig i systemet** via AMBIGUOUS-tillståndet, som följer evidensobjektet in i
+operationen. Beslutsunderlaget för experimentets slutbeslut är nu komplett.
+
 ## E2. Rekommendationen, omformulerad per beslut
 
 **Utvärdera GLiNER2 som en behovsstyrd, valbar kandidatgenerator i SWE:s Investigation-lager** —
