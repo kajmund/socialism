@@ -35,6 +35,50 @@
       "ts": 1793296122
     },
     {
+      "key": "00c694b4ab27553e",
+      "case_id": "g5-49",
+      "span": "avslutas med omedelbar effekt",
+      "clause": "Avtalet kan avslutas med omedelbar effekt om betalning uteblir trots skriftlig anmaning.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297114
+    },
+    {
+      "key": "00f21c9ba6f81378",
+      "case_id": "g5-06",
+      "span": "tre (3) månader",
+      "clause": "4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297072
+    },
+    {
+      "key": "013d8041a27e5259",
+      "case_id": "g5-01",
+      "span": "Fastighets AB Kvarnberget",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297063
+    },
+    {
+      "key": "029d911ad46147f9",
+      "case_id": "g5-10",
+      "span": "2023-02-01",
+      "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297078
+    },
+    {
       "key": "02fc261821e04dd7",
       "case_id": "g5-17",
       "span": "kronor",
@@ -44,6 +88,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296097
+    },
+    {
+      "key": "035fb48af5bf0695",
+      "case_id": "g5-09",
+      "span": "belopp",
+      "clause": "3. Tjänster\nTjänst\nOmfattning\nPris per månad (exkl. moms)\nFasta arbetsplatser\n[antal] platser i [rum nr / öppet landskap]\n[Belopp]\nFlexplatser\n[antal] platser\n[Belopp]\nMötesrum\n[antal] timmar per månad ingår, därefter [Belopp] kr/tim\nIngår / [Belopp]\nPostadress och reception\nIngår\nIngår\nInternet och skrivare\nIngår, utskrifter över [antal] sidor debiteras\nIngår\nKaffe, frukt, städning\nIngår\nIngår",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297077
     },
     {
       "key": "037f6b6d9f1405a3",
@@ -101,6 +156,17 @@
       "ts": 1793294513
     },
     {
+      "key": "057741bc7f8a3b5a",
+      "case_id": "g5-31",
+      "span": "ett år",
+      "clause": "Om ingen part gör invändning fortlöper samarbetet ytterligare ett år.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297101
+    },
+    {
       "key": "05cb06819aafed4b",
       "case_id": "g5-34",
       "span": "dess dotterbolag",
@@ -123,6 +189,39 @@
       "ts": 1793294496
     },
     {
+      "key": "0695bbb245dd03bd",
+      "case_id": "g5-15",
+      "span": "[sex (6)] månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297084
+    },
+    {
+      "key": "073bf3e0aaf77a8e",
+      "case_id": "g5-02",
+      "span": "2020-02-01",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297065
+    },
+    {
+      "key": "07f3ad68f7a257a4",
+      "case_id": "g5-31",
+      "span": "fortlöper samarbetet ytterligare ett år",
+      "clause": "Om ingen part gör invändning fortlöper samarbetet ytterligare ett år.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297102
+    },
+    {
       "key": "08171a0ebaa11e74",
       "case_id": "g5-37",
       "span": "två månaders varsel",
@@ -132,6 +231,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296106
+    },
+    {
+      "key": "0819cc7c0d394883",
+      "case_id": "g5-43",
+      "span": "ett kvartal",
+      "clause": "Uppsägning ska ske skriftligen med iakttagande av en uppsägningstid av ett kvartal.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297109
+    },
+    {
+      "key": "087fd7970cc357d9",
+      "case_id": "g5-15",
+      "span": "[tolv (12)] månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297085
     },
     {
       "key": "09073d28caa20b53",
@@ -167,6 +288,28 @@
       "ts": 1793294501
     },
     {
+      "key": "09e4ccb89c65002d",
+      "case_id": "g5-34",
+      "span": "dess dotterbolag",
+      "clause": "Uppdragstagaren och dess dotterbolag är solidariskt förpliktade.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297103
+    },
+    {
+      "key": "0b1cac6f5e746197",
+      "case_id": "g5-34",
+      "span": "dotterbolag",
+      "clause": "Uppdragstagaren och dess dotterbolag är solidariskt förpliktade.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "ANSVAR",
+      "score_bp": null,
+      "ts": 1793297103
+    },
+    {
       "key": "0b45b0ec939afdf9",
       "case_id": "g5-09",
       "span": "kr/tim",
@@ -187,6 +330,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294498
+    },
+    {
+      "key": "0cbd0f12aac3c121",
+      "case_id": "g5-46",
+      "span": "förnyat för en tid av ett år",
+      "clause": "Har avtalet inte skriftligen avbeställts, anses det förnyat för en tid av ett år.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297113
     },
     {
       "key": "0cf18892b8a980bb",
@@ -233,6 +387,17 @@
       "ts": 1793294512
     },
     {
+      "key": "0d9e06412bd31040",
+      "case_id": "g5-24",
+      "span": "tolv (12) månader",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297097
+    },
+    {
       "key": "0dea94efd6e21517",
       "case_id": "g5-46",
       "span": "ett år",
@@ -242,6 +407,61 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296109
+    },
+    {
+      "key": "0e0f28e22b2dab04",
+      "case_id": "g5-37",
+      "span": "två månaders",
+      "clause": "Vardera parten äger rätt att frånträda avtalet med två månaders varsel.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297106
+    },
+    {
+      "key": "0e3197ba86385431",
+      "case_id": "g5-08",
+      "span": "sex (6)] månader",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297075
+    },
+    {
+      "key": "0e3e9f5ef2611b21",
+      "case_id": "g5-14",
+      "span": "extra kostnad",
+      "clause": "7.3 DevBrains ska avhjälpa fel som har rapporterats inom [90] dagar efter godkännandet utan extra kostnad (garantitid).",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "VILLKOR",
+      "score_bp": null,
+      "ts": 1793297083
+    },
+    {
+      "key": "0ede4c75beb82cb2",
+      "case_id": "g5-17",
+      "span": "inom 30 dagar",
+      "clause": "18. Tvister\nSvensk lag gäller. Tvister ska i första hand lösas genom förhandling mellan parternas ledningar. Om tvisten inte har lösts inom 30 dagar ska den avgöras genom skiljeförfarande enligt SCC:s regler för förenklat skiljeförfarande, med säte i Stockholm. [Om tvisteföremålets värde understiger [Belopp] kronor avgörs tvisten i stället av Stockholms tingsrätt.]",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297088
+    },
+    {
+      "key": "0fb27c8d21960060",
+      "case_id": "g5-05",
+      "span": "DevBrains AB",
+      "clause": "1. Parter\nHyresvärd: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: Jonas Ekholm, pers.nr [Personnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297070
     },
     {
       "key": "0fb72cf4af99e7b5",
@@ -275,6 +495,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296075
+    },
+    {
+      "key": "101d4106f87aa173",
+      "case_id": "g5-26",
+      "span": "hållas ekonomiskt skadeslös",
+      "clause": "Arbetstagaren ska hållas ekonomiskt skadeslös vid förtida avslut.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "ERSÄTTNING",
+      "score_bp": null,
+      "ts": 1793297099
     },
     {
       "key": "1034977c9a54eb01",
@@ -376,6 +607,28 @@
       "ts": 1793296093
     },
     {
+      "key": "139e9cad88f1017f",
+      "case_id": "g5-02",
+      "span": "[2020-02-01]",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297066
+    },
+    {
+      "key": "13c2ec221495a5d0",
+      "case_id": "g5-20",
+      "span": "tre (3)] månader",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297091
+    },
+    {
       "key": "1439210fdc12e8e5",
       "case_id": "g5-11",
       "span": "14] dagar",
@@ -387,6 +640,28 @@
       "ts": 1793296091
     },
     {
+      "key": "148420897cbcdd4a",
+      "case_id": "g5-42",
+      "span": "omständigheter som inte rimligen kunnat förutses",
+      "clause": "Åtagandena vilar tillfälligt när fullgörelse hindras av omständigheter som inte rimligen kunnat förutses.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UNDANTAG",
+      "score_bp": null,
+      "ts": 1793297108
+    },
+    {
+      "key": "14d041606a5d7341",
+      "case_id": "g5-24",
+      "span": "[en (1)] månad",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297095
+    },
+    {
       "key": "14dba49803d531b2",
       "case_id": "g5-03",
       "span": "[tre (3)] år",
@@ -396,6 +671,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296112
+    },
+    {
+      "key": "14e39d79977977e7",
+      "case_id": "g5-24",
+      "span": "en (1)] månad",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297096
     },
     {
       "key": "15397b83e492144a",
@@ -497,6 +783,28 @@
       "ts": 1793296071
     },
     {
+      "key": "1996f53930e89517",
+      "case_id": "g5-25",
+      "span": "omedelbar verkan",
+      "clause": "12.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar efter skriftlig anmodan, eller om den andra parten blir insolvent.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297099
+    },
+    {
+      "key": "19bc4f32fdac35f6",
+      "case_id": "g5-26",
+      "span": "hållas ekonomiskt skadeslös",
+      "clause": "Arbetstagaren ska hållas ekonomiskt skadeslös vid förtida avslut.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297099
+    },
+    {
       "key": "1a59678b8460f619",
       "case_id": "g5-22",
       "span": "ett (1) år",
@@ -539,6 +847,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296089
+    },
+    {
+      "key": "1ac68b4385e9808a",
+      "case_id": "g5-15",
+      "span": "tolv (12)] månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297085
     },
     {
       "key": "1b73d606887151c8",
@@ -695,6 +1014,28 @@
       "ts": 1793296091
     },
     {
+      "key": "2003b12660d0560c",
+      "case_id": "g5-34",
+      "span": "dess dotterbolag",
+      "clause": "Uppdragstagaren och dess dotterbolag är solidariskt förpliktade.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297103
+    },
+    {
+      "key": "205011b55932c6f5",
+      "case_id": "g5-11",
+      "span": "14] dagar",
+      "clause": "9. Avflyttning\nNär avtalet upphör ska DevBrains lämna arbetsplatserna tömda och städade och återlämna alla passerkort. Egendom som lämnas kvar får Leverantören efter [14] dagar omhänderta på DevBrains bekostnad.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297079
+    },
+    {
       "key": "20678c126bda6ce9",
       "case_id": "g5-12",
       "span": "ett (1)] år",
@@ -750,6 +1091,17 @@
       "ts": 1793294519
     },
     {
+      "key": "21dc80d5ce8f1e9e",
+      "case_id": "g5-46",
+      "span": "ett år",
+      "clause": "Har avtalet inte skriftligen avbeställts, anses det förnyat för en tid av ett år.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297113
+    },
+    {
       "key": "22fa0a3d40661f34",
       "case_id": "g5-01",
       "span": "Hyresvärden",
@@ -759,6 +1111,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294494
+    },
+    {
+      "key": "234031b213122631",
+      "case_id": "g5-46",
+      "span": "ett år",
+      "clause": "Har avtalet inte skriftligen avbeställts, anses det förnyat för en tid av ett år.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297112
     },
     {
       "key": "235316f0bea88ebe",
@@ -781,6 +1144,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294497
+    },
+    {
+      "key": "2431251343c57725",
+      "case_id": "g5-03",
+      "span": "tre (3)] år",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297069
+    },
+    {
+      "key": "24a6323d3801b657",
+      "case_id": "g5-33",
+      "span": "ligger utanför partens kontroll",
+      "clause": "Ersättningsskyldigheten bortfaller när hindret ligger utanför partens kontroll.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297103
     },
     {
       "key": "24a9efd75c2db52d",
@@ -849,6 +1234,17 @@
       "ts": 1793294510
     },
     {
+      "key": "276d37d4f3c67cc4",
+      "case_id": "g5-07",
+      "span": "Ljusgård Design AB",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297074
+    },
+    {
       "key": "277a04a27ad74b39",
       "case_id": "g5-37",
       "span": "två månaders varsel",
@@ -869,6 +1265,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296133
+    },
+    {
+      "key": "2913e12fcfa61813",
+      "case_id": "g5-01",
+      "span": "hyresgästen",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297064
     },
     {
       "key": "291eec69889c8450",
@@ -902,6 +1309,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294502
+    },
+    {
+      "key": "2991847dcfff4532",
+      "case_id": "g5-06",
+      "span": "[2023-06-01]",
+      "clause": "4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297072
     },
     {
       "key": "29d56edd4ffba2fd",
@@ -948,6 +1366,83 @@
       "ts": 1793296119
     },
     {
+      "key": "2aef164348a69558",
+      "case_id": "g5-12",
+      "span": "[tre (3)] månader",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297080
+    },
+    {
+      "key": "2b0757a805687e17",
+      "case_id": "g5-40",
+      "span": "omedelbart ställa in sina åtaganden",
+      "clause": "Båda parter får omedelbart ställa in sina åtaganden om motparten träder i likvidation.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "ANNAT",
+      "score_bp": null,
+      "ts": 1793297108
+    },
+    {
+      "key": "2b3da1c7a9042a03",
+      "case_id": "g5-30",
+      "span": "nittio dagar",
+      "clause": "Avtalet kan bringas att upphöra tidigast nittio dagar efter skriftligt meddelande.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297100
+    },
+    {
+      "key": "2bb7f7e577b3fea3",
+      "case_id": "g5-15",
+      "span": "sex (6)] månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297085
+    },
+    {
+      "key": "2bfa97a0b00ca55c",
+      "case_id": "g5-30",
+      "span": "nittio dagar",
+      "clause": "Avtalet kan bringas att upphöra tidigast nittio dagar efter skriftligt meddelande.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297100
+    },
+    {
+      "key": "2c017f6ab753845f",
+      "case_id": "g5-24",
+      "span": "[tolv (12)] månader",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297096
+    },
+    {
+      "key": "2c2cf18b9c982f6c",
+      "case_id": "g5-22",
+      "span": "tre (3)] månader",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297094
+    },
+    {
       "key": "2c2fdcb4c477f71a",
       "case_id": "g5-45",
       "span": "sjuttiofem tusen kronor per månad",
@@ -968,6 +1463,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296107
+    },
+    {
+      "key": "2ca8f9f7ca81e557",
+      "case_id": "g5-28",
+      "span": "upphör utan föregående underrättelse",
+      "clause": "Anställningen upphör utan föregående underrättelse vid väsentligt avtalsbrott.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297100
     },
     {
       "key": "2cb882f63c614354",
@@ -992,6 +1498,50 @@
       "ts": 1793296060
     },
     {
+      "key": "2dc96e574483d141",
+      "case_id": "g5-36",
+      "span": "första dagen i andra kvartalet",
+      "clause": "Avtalet träder i kraft den första dagen i andra kvartalet.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297106
+    },
+    {
+      "key": "2de319e6fbb3c3e9",
+      "case_id": "g5-45",
+      "span": "sjuttiofem tusen kronor per månad",
+      "clause": "Arvodet faktureras kvartalsvis i efterskott med ett belopp om sjuttiofem tusen kronor per månad.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297112
+    },
+    {
+      "key": "2de8e358faf12cdc",
+      "case_id": "g5-45",
+      "span": "sjuttiofem tusen kronor",
+      "clause": "Arvodet faktureras kvartalsvis i efterskott med ett belopp om sjuttiofem tusen kronor per månad.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297111
+    },
+    {
+      "key": "2e123a28fd748185",
+      "case_id": "g5-21",
+      "span": "omedelbar verkan",
+      "clause": "9.2 Vardera parten får säga upp avtalet med omedelbar verkan vid väsentligt avtalsbrott som inte har rättats inom 30 dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "VILLKOR",
+      "score_bp": null,
+      "ts": 1793297093
+    },
+    {
       "key": "2f541cb81049f83b",
       "case_id": "g5-38",
       "span": "kompensation motsvarande ett års ersättning",
@@ -1012,6 +1562,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296081
+    },
+    {
+      "key": "3016923e17e3f7da",
+      "case_id": "g5-07",
+      "span": "devbrains ab, org.nr",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297074
     },
     {
       "key": "30b7b6c49a993d26",
@@ -1047,6 +1608,28 @@
       "ts": 1793294502
     },
     {
+      "key": "3295777d332dad3c",
+      "case_id": "g5-44",
+      "span": "dess koncernbolag",
+      "clause": "Beställaren jämte dess koncernbolag äger åberopa samtliga rättigheter enligt detta avtal.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297110
+    },
+    {
+      "key": "32a0e8fda289dfab",
+      "case_id": "g5-07",
+      "span": "ljusgård design ab, org.nr",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297074
+    },
+    {
       "key": "3301d09c42431823",
       "case_id": "g5-19",
       "span": "24] månader",
@@ -1069,6 +1652,17 @@
       "ts": 1793294517
     },
     {
+      "key": "3374f33432cc8fd6",
+      "case_id": "g5-15",
+      "span": "sex (6)] månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297085
+    },
+    {
       "key": "33934223bed255aa",
       "case_id": "g5-15",
       "span": "tolv (12)] månader",
@@ -1080,6 +1674,17 @@
       "ts": 1793296121
     },
     {
+      "key": "34698ba73f03f765",
+      "case_id": "g5-16",
+      "span": "inom 30 dagar",
+      "clause": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297086
+    },
+    {
       "key": "34edf5837b807596",
       "case_id": "g5-14",
       "span": "90] dagar",
@@ -1089,6 +1694,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294503
+    },
+    {
+      "key": "3514775fc2aa79d4",
+      "case_id": "g5-10",
+      "span": "en (1)] månad",
+      "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297079
     },
     {
       "key": "351dff28dee7608e",
@@ -1135,6 +1751,17 @@
       "ts": 1793296103
     },
     {
+      "key": "3667f184ad428411",
+      "case_id": "g5-16",
+      "span": "inom 30 dagar",
+      "clause": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRSENING",
+      "score_bp": null,
+      "ts": 1793297087
+    },
+    {
       "key": "366ee03c4c561625",
       "case_id": "g5-22",
       "span": "tre (3)] månader",
@@ -1177,6 +1804,39 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296066
+    },
+    {
+      "key": "372670976d0b5304",
+      "case_id": "g5-15",
+      "span": "sex (6)] månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297085
+    },
+    {
+      "key": "37682e5c99e0ecc7",
+      "case_id": "g5-06",
+      "span": "2023-06-01",
+      "clause": "4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297072
+    },
+    {
+      "key": "384788f7f06edae1",
+      "case_id": "g5-24",
+      "span": "en (1)] månad",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297096
     },
     {
       "key": "388bcd6c46077f25",
@@ -1223,6 +1883,28 @@
       "ts": 1793296061
     },
     {
+      "key": "39b893ab0a3e1218",
+      "case_id": "g5-42",
+      "span": "omständigheter som inte rimligen kunnat förutses",
+      "clause": "Åtagandena vilar tillfälligt när fullgörelse hindras av omständigheter som inte rimligen kunnat förutses.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297109
+    },
+    {
+      "key": "39f4bf29b8deebbd",
+      "case_id": "g5-25",
+      "span": "30 dagar",
+      "clause": "12.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar efter skriftlig anmodan, eller om den andra parten blir insolvent.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297098
+    },
+    {
       "key": "3a6ee46b074bc72f",
       "case_id": "g5-35",
       "span": "niohundrafemtiotusen kronor",
@@ -1243,6 +1925,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296133
+    },
+    {
+      "key": "3ad20dba039d04aa",
+      "case_id": "g5-34",
+      "span": "Uppdragstagaren",
+      "clause": "Uppdragstagaren och dess dotterbolag är solidariskt förpliktade.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297104
     },
     {
       "key": "3b3ced378d521978",
@@ -1267,6 +1960,17 @@
       "ts": 1793296119
     },
     {
+      "key": "3b4b90c6bb877629",
+      "case_id": "g5-12",
+      "span": "2024-06-30",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297080
+    },
+    {
       "key": "3bbff33af6d0ff9b",
       "case_id": "g5-30",
       "span": "nittio dagar",
@@ -1287,6 +1991,28 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296070
+    },
+    {
+      "key": "3c5d58cfc7e57d22",
+      "case_id": "g5-28",
+      "span": "upphör utan föregående underrättelse",
+      "clause": "Anställningen upphör utan föregående underrättelse vid väsentligt avtalsbrott.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297100
+    },
+    {
+      "key": "3cb4122814b5a859",
+      "case_id": "g5-17",
+      "span": "30 dagar",
+      "clause": "18. Tvister\nSvensk lag gäller. Tvister ska i första hand lösas genom förhandling mellan parternas ledningar. Om tvisten inte har lösts inom 30 dagar ska den avgöras genom skiljeförfarande enligt SCC:s regler för förenklat skiljeförfarande, med säte i Stockholm. [Om tvisteföremålets värde understiger [Belopp] kronor avgörs tvisten i stället av Stockholms tingsrätt.]",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297087
     },
     {
       "key": "3d7fc8ad51414220",
@@ -1388,6 +2114,17 @@
       "ts": 1793296067
     },
     {
+      "key": "40b11c5fde05acfa",
+      "case_id": "g5-07",
+      "span": "devbrains ab, org.nr",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297073
+    },
+    {
       "key": "41a73cd4a27e3c59",
       "case_id": "g5-36",
       "span": "andra kvartalet",
@@ -1421,6 +2158,17 @@
       "ts": 1793296076
     },
     {
+      "key": "4279b2d5f3af265f",
+      "case_id": "g5-31",
+      "span": "fortlöper samarbetet ytterligare ett år",
+      "clause": "Om ingen part gör invändning fortlöper samarbetet ytterligare ett år.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297101
+    },
+    {
       "key": "42863d5baa5c0502",
       "case_id": "g5-13",
       "span": "omedelbar verkan",
@@ -1441,6 +2189,50 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294517
+    },
+    {
+      "key": "43128bf6291fd85b",
+      "case_id": "g5-16",
+      "span": "30 dagar",
+      "clause": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297086
+    },
+    {
+      "key": "43241e661dc967ac",
+      "case_id": "g5-09",
+      "span": "belopp",
+      "clause": "3. Tjänster\nTjänst\nOmfattning\nPris per månad (exkl. moms)\nFasta arbetsplatser\n[antal] platser i [rum nr / öppet landskap]\n[Belopp]\nFlexplatser\n[antal] platser\n[Belopp]\nMötesrum\n[antal] timmar per månad ingår, därefter [Belopp] kr/tim\nIngår / [Belopp]\nPostadress och reception\nIngår\nIngår\nInternet och skrivare\nIngår, utskrifter över [antal] sidor debiteras\nIngår\nKaffe, frukt, städning\nIngår\nIngår",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297077
+    },
+    {
+      "key": "433ec22a85af43ba",
+      "case_id": "g5-12",
+      "span": "tre (3)] månader",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297082
+    },
+    {
+      "key": "43b7f8413a793664",
+      "case_id": "g5-35",
+      "span": "niohundrafemtiotusen kronor",
+      "clause": "Det sammanlagda arvodet uppgår till niohundrafemtiotusen kronor exklusive mervärdesskatt.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297105
     },
     {
       "key": "43e2c51c9cfba230",
@@ -1487,6 +2279,39 @@
       "ts": 1793296119
     },
     {
+      "key": "45b5d2c951ad1094",
+      "case_id": "g5-03",
+      "span": "[tre (3)] år",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297068
+    },
+    {
+      "key": "45f1cc9805ddea6b",
+      "case_id": "g5-22",
+      "span": "2025-12-31",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297093
+    },
+    {
+      "key": "4659bdd661f39d27",
+      "case_id": "g5-32",
+      "span": "två procent av kontraktsvärdet per påbörjad vecka",
+      "clause": "Vid försening utgår en ersättning om två procent av kontraktsvärdet per påbörjad vecka.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297102
+    },
+    {
       "key": "4683c9c62c1df758",
       "case_id": "g5-40",
       "span": "omedelbart ställa in sina åtaganden",
@@ -1498,6 +2323,28 @@
       "ts": 1793296133
     },
     {
+      "key": "46fec33b095cd350",
+      "case_id": "g5-37",
+      "span": "två månaders varsel",
+      "clause": "Vardera parten äger rätt att frånträda avtalet med två månaders varsel.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297107
+    },
+    {
+      "key": "470f3b49c946211f",
+      "case_id": "g5-20",
+      "span": "tre (3)] månader",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297092
+    },
+    {
       "key": "4721dd97d8753db5",
       "case_id": "g5-17",
       "span": "kronor",
@@ -1507,6 +2354,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296123
+    },
+    {
+      "key": "48cb0a2c55ac8c9d",
+      "case_id": "g5-44",
+      "span": "koncernbolag",
+      "clause": "Beställaren jämte dess koncernbolag äger åberopa samtliga rättigheter enligt detta avtal.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297111
     },
     {
       "key": "4917aa6ca9c7c3d8",
@@ -1553,6 +2411,28 @@
       "ts": 1793296065
     },
     {
+      "key": "4a0cdd7ce4ccf5bf",
+      "case_id": "g5-46",
+      "span": "ett år",
+      "clause": "Har avtalet inte skriftligen avbeställts, anses det förnyat för en tid av ett år.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297112
+    },
+    {
+      "key": "4a878c7da43bb2a6",
+      "case_id": "g5-34",
+      "span": "Uppdragstagaren",
+      "clause": "Uppdragstagaren och dess dotterbolag är solidariskt förpliktade.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297104
+    },
+    {
       "key": "4aae0a159fd4d3e4",
       "case_id": "g5-26",
       "span": "hållas ekonomiskt skadeslös",
@@ -1562,6 +2442,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294512
+    },
+    {
+      "key": "4ab6fd205ea8e9a9",
+      "case_id": "g5-08",
+      "span": "sex (6)] månader",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297076
+    },
+    {
+      "key": "4ad5aaa3a7782367",
+      "case_id": "g5-02",
+      "span": "2023-01-31",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297066
     },
     {
       "key": "4ad85f658dd8fcf2",
@@ -1586,6 +2488,17 @@
       "ts": 1793296115
     },
     {
+      "key": "4b9488ba18ff905a",
+      "case_id": "g5-31",
+      "span": "fortlöper samarbetet ytterligare ett år",
+      "clause": "Om ingen part gör invändning fortlöper samarbetet ytterligare ett år.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297102
+    },
+    {
       "key": "4baef279abf03652",
       "case_id": "g5-12",
       "span": "2023-07-01",
@@ -1608,6 +2521,28 @@
       "ts": 1793296124
     },
     {
+      "key": "4c86d8bc61619db7",
+      "case_id": "g5-24",
+      "span": "tolv (12)] månader",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793297097
+    },
+    {
+      "key": "4cd15167acb0d4be",
+      "case_id": "g5-08",
+      "span": "ett (1)] år",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297075
+    },
+    {
       "key": "4d3c857816db8f0d",
       "case_id": "g5-05",
       "span": "DevBrains AB",
@@ -1617,6 +2552,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296062
+    },
+    {
+      "key": "4d5ba6f38493e3f3",
+      "case_id": "g5-44",
+      "span": "dess koncernbolag",
+      "clause": "Beställaren jämte dess koncernbolag äger åberopa samtliga rättigheter enligt detta avtal.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297110
     },
     {
       "key": "4d5f146f2b64b638",
@@ -1641,6 +2587,17 @@
       "ts": 1793296096
     },
     {
+      "key": "4df663a80d7cdbd4",
+      "case_id": "g5-20",
+      "span": "2022-04-04",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297090
+    },
+    {
       "key": "4e544cf31bf503d9",
       "case_id": "g5-04",
       "span": "[Belopp]",
@@ -1650,6 +2607,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296113
+    },
+    {
+      "key": "4e87cd7c3a89945a",
+      "case_id": "g5-25",
+      "span": "inom 30 dagar",
+      "clause": "12.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar efter skriftlig anmodan, eller om den andra parten blir insolvent.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297098
     },
     {
       "key": "4ef972e8365749f2",
@@ -1707,6 +2675,28 @@
       "ts": 1793296088
     },
     {
+      "key": "521ad24f12ec3d46",
+      "case_id": "g5-04",
+      "span": "kronor",
+      "clause": "5.1 Årshyran är [Belopp] kronor exklusive moms (cirka [Belopp] kr/kvm).",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297070
+    },
+    {
+      "key": "521cf3738ba3b473",
+      "case_id": "g5-14",
+      "span": "[90] dagar",
+      "clause": "7.3 DevBrains ska avhjälpa fel som har rapporterats inom [90] dagar efter godkännandet utan extra kostnad (garantitid).",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297083
+    },
+    {
       "key": "521dba021dca5145",
       "case_id": "g5-11",
       "span": "14] dagar",
@@ -1727,6 +2717,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296121
+    },
+    {
+      "key": "525956f0fcb7b863",
+      "case_id": "g5-12",
+      "span": "tre (3)] månader",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297081
     },
     {
       "key": "52941143635a5359",
@@ -1760,6 +2761,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296114
+    },
+    {
+      "key": "52f819f10b728eec",
+      "case_id": "g5-04",
+      "span": "kronor",
+      "clause": "5.1 Årshyran är [Belopp] kronor exklusive moms (cirka [Belopp] kr/kvm).",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297070
     },
     {
       "key": "5342abec9f91bff7",
@@ -1817,6 +2829,17 @@
       "ts": 1793296112
     },
     {
+      "key": "553432018e4a5139",
+      "case_id": "g5-35",
+      "span": "niohundrafemtiotusen kronor",
+      "clause": "Det sammanlagda arvodet uppgår till niohundrafemtiotusen kronor exklusive mervärdesskatt.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297104
+    },
+    {
       "key": "55958d72db2a8141",
       "case_id": "g5-15",
       "span": "sex (6)] månader",
@@ -1861,6 +2884,28 @@
       "ts": 1793296080
     },
     {
+      "key": "5643f79490f464cf",
+      "case_id": "g5-06",
+      "span": "[2023-06-01]",
+      "clause": "4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297072
+    },
+    {
+      "key": "56733e8af38ff079",
+      "case_id": "g5-01",
+      "span": "hyresgästen",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297064
+    },
+    {
       "key": "56fa4ca6a31bed8c",
       "case_id": "g5-01",
       "span": "Fastighets AB Kvarnberget",
@@ -1892,6 +2937,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296085
+    },
+    {
+      "key": "57c4b628b88d398b",
+      "case_id": "g5-01",
+      "span": "hyresvärden",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297064
     },
     {
       "key": "57ce540ede1333c5",
@@ -1936,6 +2992,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294498
+    },
+    {
+      "key": "596e9cf79464ff6f",
+      "case_id": "g5-19",
+      "span": "[24] månader",
+      "clause": "6.2 Leverantören lämnar en garanti om minst [24] månader för datorer och skärmar, och den längre tillverkargaranti som gäller för respektive Produkt.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297090
     },
     {
       "key": "5a10862a4e914dfe",
@@ -1993,6 +3060,28 @@
       "ts": 1793296069
     },
     {
+      "key": "5d1b46963e835f12",
+      "case_id": "g5-44",
+      "span": "koncernbolag",
+      "clause": "Beställaren jämte dess koncernbolag äger åberopa samtliga rättigheter enligt detta avtal.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297111
+    },
+    {
+      "key": "5d66d4855d4e9e83",
+      "case_id": "g5-34",
+      "span": "Uppdragstagaren",
+      "clause": "Uppdragstagaren och dess dotterbolag är solidariskt förpliktade.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297104
+    },
+    {
       "key": "5d697456fb3c4412",
       "case_id": "g5-25",
       "span": "omedelbar verkan",
@@ -2004,6 +3093,17 @@
       "ts": 1793296102
     },
     {
+      "key": "5daa390f6fd6c10a",
+      "case_id": "g5-06",
+      "span": "[2023-06-01]",
+      "clause": "4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297072
+    },
+    {
       "key": "5e73b46f65417f84",
       "case_id": "g5-15",
       "span": "2024-05-02",
@@ -2013,6 +3113,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296121
+    },
+    {
+      "key": "5ea7eeca06bcf7fa",
+      "case_id": "g5-34",
+      "span": "dotterbolag",
+      "clause": "Uppdragstagaren och dess dotterbolag är solidariskt förpliktade.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297103
     },
     {
       "key": "5f9f659c5537d219",
@@ -2035,6 +3146,28 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296068
+    },
+    {
+      "key": "5fc68a18d96c99ee",
+      "case_id": "g5-12",
+      "span": "tre (3)] månader",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297081
+    },
+    {
+      "key": "5fd09c0b1daaf57f",
+      "case_id": "g5-04",
+      "span": "[Belopp]",
+      "clause": "5.1 Årshyran är [Belopp] kronor exklusive moms (cirka [Belopp] kr/kvm).",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297069
     },
     {
       "key": "5fffa299125e6979",
@@ -2090,6 +3223,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296080
+    },
+    {
+      "key": "611e43ca5b6fe378",
+      "case_id": "g5-10",
+      "span": "[2023-07-31]",
+      "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793297079
     },
     {
       "key": "616e5e5168113e61",
@@ -2169,6 +3313,17 @@
       "ts": 1793296130
     },
     {
+      "key": "64ecd6ba67714c40",
+      "case_id": "g5-33",
+      "span": "ligger utanför partens kontroll",
+      "clause": "Ersättningsskyldigheten bortfaller när hindret ligger utanför partens kontroll.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "VILLKOR",
+      "score_bp": null,
+      "ts": 1793297102
+    },
+    {
       "key": "65108850798d0511",
       "case_id": "g5-10",
       "span": "2023-07-31",
@@ -2178,6 +3333,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296116
+    },
+    {
+      "key": "6567643d57699b65",
+      "case_id": "g5-50",
+      "span": "månadsskiftet",
+      "clause": "Samarbetet inleds vid månadsskiftet efter undertecknandet.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297115
     },
     {
       "key": "65962f54a890db68",
@@ -2191,6 +3357,17 @@
       "ts": 1793296072
     },
     {
+      "key": "65a454e3e4640bff",
+      "case_id": "g5-02",
+      "span": "2020-02-01",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297065
+    },
+    {
       "key": "66466fe8127834f4",
       "case_id": "g5-38",
       "span": "kompensation motsvarande ett års ersättning",
@@ -2200,6 +3377,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296132
+    },
+    {
+      "key": "66f7ffd5e3128937",
+      "case_id": "g5-13",
+      "span": "omedelbar verkan",
+      "clause": "7.2 Båda parter får säga upp avtalet med omedelbar verkan om motparten väsentligt bryter mot avtalet och inte vidtar rättelse inom [14] dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "VILLKOR",
+      "score_bp": null,
+      "ts": 1793297083
     },
     {
       "key": "67f315cfe6eb9338",
@@ -2235,6 +3423,17 @@
       "ts": 1793296060
     },
     {
+      "key": "69160e8d3038d5c6",
+      "case_id": "g5-45",
+      "span": "sjuttiofem tusen kronor per månad",
+      "clause": "Arvodet faktureras kvartalsvis i efterskott med ett belopp om sjuttiofem tusen kronor per månad.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297112
+    },
+    {
       "key": "691d1c61809978ef",
       "case_id": "g5-06",
       "span": "[2023-06-01]",
@@ -2257,6 +3456,17 @@
       "ts": 1793294518
     },
     {
+      "key": "6a99d706cafc2e46",
+      "case_id": "g5-01",
+      "span": "hyresvärden",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297064
+    },
+    {
       "key": "6b1b1d62116ec520",
       "case_id": "g5-03",
       "span": "nio (9)] månader",
@@ -2277,6 +3487,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296124
+    },
+    {
+      "key": "6b676828772701d5",
+      "case_id": "g5-21",
+      "span": "30 dagar",
+      "clause": "9.2 Vardera parten får säga upp avtalet med omedelbar verkan vid väsentligt avtalsbrott som inte har rättats inom 30 dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRSENING",
+      "score_bp": null,
+      "ts": 1793297092
     },
     {
       "key": "6b8a0ce515d14d76",
@@ -2312,6 +3533,28 @@
       "ts": 1793296073
     },
     {
+      "key": "6c5350ac5458b7ff",
+      "case_id": "g5-13",
+      "span": "14] dagar",
+      "clause": "7.2 Båda parter får säga upp avtalet med omedelbar verkan om motparten väsentligt bryter mot avtalet och inte vidtar rättelse inom [14] dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297082
+    },
+    {
+      "key": "6c95080f37bfb9a5",
+      "case_id": "g5-06",
+      "span": "2023-06-01",
+      "clause": "4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297071
+    },
+    {
       "key": "6c98a24f9a16c995",
       "case_id": "g5-40",
       "span": "omedelbart ställa in sina åtaganden",
@@ -2321,6 +3564,39 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296081
+    },
+    {
+      "key": "6c9c724f47aa898a",
+      "case_id": "g5-17",
+      "span": "[Belopp]",
+      "clause": "18. Tvister\nSvensk lag gäller. Tvister ska i första hand lösas genom förhandling mellan parternas ledningar. Om tvisten inte har lösts inom 30 dagar ska den avgöras genom skiljeförfarande enligt SCC:s regler för förenklat skiljeförfarande, med säte i Stockholm. [Om tvisteföremålets värde understiger [Belopp] kronor avgörs tvisten i stället av Stockholms tingsrätt.]",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297087
+    },
+    {
+      "key": "6ca7a5120b739e2d",
+      "case_id": "g5-45",
+      "span": "sjuttiofem tusen kronor per månad",
+      "clause": "Arvodet faktureras kvartalsvis i efterskott med ett belopp om sjuttiofem tusen kronor per månad.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297112
+    },
+    {
+      "key": "6d4ee4d19bb9fc22",
+      "case_id": "g5-16",
+      "span": "omedelbar verkan",
+      "clause": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297087
     },
     {
       "key": "6d9fb6d73dcc39e8",
@@ -2378,6 +3654,17 @@
       "ts": 1793296097
     },
     {
+      "key": "6f323f94adb95e15",
+      "case_id": "g5-09",
+      "span": "kr/tim",
+      "clause": "3. Tjänster\nTjänst\nOmfattning\nPris per månad (exkl. moms)\nFasta arbetsplatser\n[antal] platser i [rum nr / öppet landskap]\n[Belopp]\nFlexplatser\n[antal] platser\n[Belopp]\nMötesrum\n[antal] timmar per månad ingår, därefter [Belopp] kr/tim\nIngår / [Belopp]\nPostadress och reception\nIngår\nIngår\nInternet och skrivare\nIngår, utskrifter över [antal] sidor debiteras\nIngår\nKaffe, frukt, städning\nIngår\nIngår",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297078
+    },
+    {
       "key": "6f4ae2804f28305a",
       "case_id": "g5-21",
       "span": "9.2",
@@ -2389,6 +3676,39 @@
       "ts": 1793296074
     },
     {
+      "key": "6fcf26ba06176257",
+      "case_id": "g5-17",
+      "span": "kronor",
+      "clause": "18. Tvister\nSvensk lag gäller. Tvister ska i första hand lösas genom förhandling mellan parternas ledningar. Om tvisten inte har lösts inom 30 dagar ska den avgöras genom skiljeförfarande enligt SCC:s regler för förenklat skiljeförfarande, med säte i Stockholm. [Om tvisteföremålets värde understiger [Belopp] kronor avgörs tvisten i stället av Stockholms tingsrätt.]",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297088
+    },
+    {
+      "key": "6feda22370d1e5b5",
+      "case_id": "g5-18",
+      "span": "[belopp] kronor",
+      "clause": "4.3 Leveransvillkor: DAP (Incoterms® 2020) DevBrains adress i Stockholm eller Göteborg, eller annan adress i Sverige som DevBrains anger. Fritt för Order över [Belopp] kronor; i övrigt betalar DevBrains en fraktavgift på [Belopp] kronor.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297089
+    },
+    {
+      "key": "7026a519d759ed64",
+      "case_id": "g5-05",
+      "span": "DevBrains AB",
+      "clause": "1. Parter\nHyresvärd: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: Jonas Ekholm, pers.nr [Personnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297071
+    },
+    {
       "key": "7073ec111add008d",
       "case_id": "g5-15",
       "span": "[tolv (12)] månader",
@@ -2398,6 +3718,28 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296095
+    },
+    {
+      "key": "70766b36897998ce",
+      "case_id": "g5-05",
+      "span": "Jonas Ekholm",
+      "clause": "1. Parter\nHyresvärd: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: Jonas Ekholm, pers.nr [Personnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297071
+    },
+    {
+      "key": "709736f0670a256b",
+      "case_id": "g5-28",
+      "span": "upphör utan föregående underrättelse",
+      "clause": "Anställningen upphör utan föregående underrättelse vid väsentligt avtalsbrott.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "VILLKOR",
+      "score_bp": null,
+      "ts": 1793297100
     },
     {
       "key": "70a7b83e042b641a",
@@ -2422,6 +3764,50 @@
       "ts": 1793296127
     },
     {
+      "key": "7169159a86b83f78",
+      "case_id": "g5-02",
+      "span": "[2023-01-31]",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297067
+    },
+    {
+      "key": "71fb559b3d114b7d",
+      "case_id": "g5-39",
+      "span": "vad som erlagts enligt avtalet under de senaste tolv månaderna",
+      "clause": "Skadan är begränsad till vad som erlagts enligt avtalet under de senaste tolv månaderna.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297108
+    },
+    {
+      "key": "720f8254425f78ee",
+      "case_id": "g5-24",
+      "span": "tolv (12)] månader",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297097
+    },
+    {
+      "key": "7268a0ec4efc8a6a",
+      "case_id": "g5-01",
+      "span": "hyresvärden",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297065
+    },
+    {
       "key": "72afae0d54aa21f3",
       "case_id": "g5-20",
       "span": "2024-04-03",
@@ -2442,6 +3828,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296061
+    },
+    {
+      "key": "72ecac331793e05c",
+      "case_id": "g5-37",
+      "span": "två månaders",
+      "clause": "Vardera parten äger rätt att frånträda avtalet med två månaders varsel.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297107
+    },
+    {
+      "key": "7336a4057039bb6c",
+      "case_id": "g5-12",
+      "span": "[tre (3)] månader",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297080
     },
     {
       "key": "73a82c6bced851d2",
@@ -2475,6 +3883,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294517
+    },
+    {
+      "key": "74c1a2dfe2e2e5f4",
+      "case_id": "g5-01",
+      "span": "DevBrains AB",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297062
     },
     {
       "key": "75069cebec44e398",
@@ -2543,6 +3962,17 @@
       "ts": 1793294506
     },
     {
+      "key": "765462c5bae8502c",
+      "case_id": "g5-10",
+      "span": "månad",
+      "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297079
+    },
+    {
       "key": "7659f32db3154879",
       "case_id": "g5-44",
       "span": "dess koncernbolag",
@@ -2563,6 +3993,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294516
+    },
+    {
+      "key": "76718b75895dc5b1",
+      "case_id": "g5-14",
+      "span": "90] dagar",
+      "clause": "7.3 DevBrains ska avhjälpa fel som har rapporterats inom [90] dagar efter godkännandet utan extra kostnad (garantitid).",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297083
     },
     {
       "key": "7677464505bf53ec",
@@ -2598,6 +4039,28 @@
       "ts": 1793296065
     },
     {
+      "key": "76a83d5f43e9e734",
+      "case_id": "g5-36",
+      "span": "första dagen i andra kvartalet",
+      "clause": "Avtalet träder i kraft den första dagen i andra kvartalet.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297106
+    },
+    {
+      "key": "76a8755cfabd328f",
+      "case_id": "g5-07",
+      "span": "Ljusgård Design AB",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297074
+    },
+    {
       "key": "77a5cb235ef61e4f",
       "case_id": "g5-20",
       "span": "2024-04-03",
@@ -2620,6 +4083,17 @@
       "ts": 1793296104
     },
     {
+      "key": "783aa430f13ebabb",
+      "case_id": "g5-16",
+      "span": "15.2",
+      "clause": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297086
+    },
+    {
       "key": "78ce686eef33c7a0",
       "case_id": "g5-31",
       "span": "ett år",
@@ -2629,6 +4103,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294513
+    },
+    {
+      "key": "78d280af94d2fab7",
+      "case_id": "g5-17",
+      "span": "kronor",
+      "clause": "18. Tvister\nSvensk lag gäller. Tvister ska i första hand lösas genom förhandling mellan parternas ledningar. Om tvisten inte har lösts inom 30 dagar ska den avgöras genom skiljeförfarande enligt SCC:s regler för förenklat skiljeförfarande, med säte i Stockholm. [Om tvisteföremålets värde understiger [Belopp] kronor avgörs tvisten i stället av Stockholms tingsrätt.]",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297088
+    },
+    {
+      "key": "78e894147e022440",
+      "case_id": "g5-09",
+      "span": "[Belopp]",
+      "clause": "3. Tjänster\nTjänst\nOmfattning\nPris per månad (exkl. moms)\nFasta arbetsplatser\n[antal] platser i [rum nr / öppet landskap]\n[Belopp]\nFlexplatser\n[antal] platser\n[Belopp]\nMötesrum\n[antal] timmar per månad ingår, därefter [Belopp] kr/tim\nIngår / [Belopp]\nPostadress och reception\nIngår\nIngår\nInternet och skrivare\nIngår, utskrifter över [antal] sidor debiteras\nIngår\nKaffe, frukt, städning\nIngår\nIngår",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297076
     },
     {
       "key": "7925fd56bee3deec",
@@ -2697,6 +4193,28 @@
       "ts": 1793296125
     },
     {
+      "key": "7b5c1c46d1e74336",
+      "case_id": "g5-37",
+      "span": "två månaders varsel",
+      "clause": "Vardera parten äger rätt att frånträda avtalet med två månaders varsel.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297107
+    },
+    {
+      "key": "7bef2ea0bf371037",
+      "case_id": "g5-18",
+      "span": "[belopp] kronor",
+      "clause": "4.3 Leveransvillkor: DAP (Incoterms® 2020) DevBrains adress i Stockholm eller Göteborg, eller annan adress i Sverige som DevBrains anger. Fritt för Order över [Belopp] kronor; i övrigt betalar DevBrains en fraktavgift på [Belopp] kronor.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297090
+    },
+    {
       "key": "7bff811c597e6da2",
       "case_id": "g5-23",
       "span": "[5]",
@@ -2741,6 +4259,17 @@
       "ts": 1793296093
     },
     {
+      "key": "7dff59ab21522fa0",
+      "case_id": "g5-03",
+      "span": "nio (9)] månader",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297068
+    },
+    {
       "key": "7eabee75c899a91d",
       "case_id": "g5-50",
       "span": "månadsskiftet efter undertecknandet",
@@ -2750,6 +4279,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296110
+    },
+    {
+      "key": "7ebc34f1fc63efa7",
+      "case_id": "g5-07",
+      "span": "DevBrains AB",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297073
     },
     {
       "key": "7f640aaa15a3b924",
@@ -2763,6 +4303,39 @@
       "ts": 1793296110
     },
     {
+      "key": "8053b81289ce5dc1",
+      "case_id": "g5-04",
+      "span": "[Belopp]",
+      "clause": "5.1 Årshyran är [Belopp] kronor exklusive moms (cirka [Belopp] kr/kvm).",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297069
+    },
+    {
+      "key": "8103f64ee42724f8",
+      "case_id": "g5-25",
+      "span": "inom 30 dagar",
+      "clause": "12.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar efter skriftlig anmodan, eller om den andra parten blir insolvent.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRSENING",
+      "score_bp": null,
+      "ts": 1793297098
+    },
+    {
+      "key": "8167967a77a2656c",
+      "case_id": "g5-15",
+      "span": "tolv (12)] månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297086
+    },
+    {
       "key": "81680af5794c4956",
       "case_id": "g5-22",
       "span": "2025-12-31",
@@ -2772,6 +4345,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296126
+    },
+    {
+      "key": "8197c88bdf3eaede",
+      "case_id": "g5-22",
+      "span": "tre (3)] månader",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297094
     },
     {
       "key": "824d8e8685dc8748",
@@ -2816,6 +4400,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296109
+    },
+    {
+      "key": "83dcf4e3ca7d8730",
+      "case_id": "g5-21",
+      "span": "9.2",
+      "clause": "9.2 Vardera parten får säga upp avtalet med omedelbar verkan vid väsentligt avtalsbrott som inte har rättats inom 30 dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "VILLKOR",
+      "score_bp": null,
+      "ts": 1793297092
     },
     {
       "key": "8425dcc9db84d53b",
@@ -2906,6 +4501,28 @@
       "ts": 1793296059
     },
     {
+      "key": "86644eb3df255978",
+      "case_id": "g5-13",
+      "span": "[14]",
+      "clause": "7.2 Båda parter får säga upp avtalet med omedelbar verkan om motparten väsentligt bryter mot avtalet och inte vidtar rättelse inom [14] dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297082
+    },
+    {
+      "key": "868b2656af127d65",
+      "case_id": "g5-02",
+      "span": "[2020-02-01]",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297066
+    },
+    {
       "key": "86adfcb2036ac59f",
       "case_id": "g5-24",
       "span": "tolv (12)] månader",
@@ -2926,6 +4543,28 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296099
+    },
+    {
+      "key": "86d249a18492069b",
+      "case_id": "g5-12",
+      "span": "ett (1)] år",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297081
+    },
+    {
+      "key": "871bcfcd444a7343",
+      "case_id": "g5-48",
+      "span": "indirekta förluster, utebliven vinst eller följdskador",
+      "clause": "Ingendera parten ansvarar för indirekta förluster, utebliven vinst eller följdskador.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "ANNAT",
+      "score_bp": null,
+      "ts": 1793297114
     },
     {
       "key": "875d7e2b0884806c",
@@ -2994,6 +4633,17 @@
       "ts": 1793294507
     },
     {
+      "key": "89e81953062dcfc5",
+      "case_id": "g5-15",
+      "span": "[sex (6)] månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297084
+    },
+    {
       "key": "8ad69c7f78b2bfdd",
       "case_id": "g5-16",
       "span": "15.2",
@@ -3016,6 +4666,17 @@
       "ts": 1793294513
     },
     {
+      "key": "8bc06389f73b13f0",
+      "case_id": "g5-22",
+      "span": "2024-05-02",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297093
+    },
+    {
       "key": "8c21620cb324f13f",
       "case_id": "g5-03",
       "span": "tre (3)] år",
@@ -3027,6 +4688,17 @@
       "ts": 1793296087
     },
     {
+      "key": "8c380a869d4baf49",
+      "case_id": "g5-24",
+      "span": "[en (1)] månad",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297096
+    },
+    {
       "key": "8ca9220dc1d220e1",
       "case_id": "g5-33",
       "span": "ligger utanför partens kontroll",
@@ -3036,6 +4708,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294514
+    },
+    {
+      "key": "8ceaf8f5018545e6",
+      "case_id": "g5-44",
+      "span": "Beställaren",
+      "clause": "Beställaren jämte dess koncernbolag äger åberopa samtliga rättigheter enligt detta avtal.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297110
+    },
+    {
+      "key": "8d30830d24c1a5c1",
+      "case_id": "g5-02",
+      "span": "2023-01-31",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297065
     },
     {
       "key": "8d421f39fc0d2334",
@@ -3104,6 +4798,28 @@
       "ts": 1793294498
     },
     {
+      "key": "8f0cdbefed00bef1",
+      "case_id": "g5-01",
+      "span": "DevBrains AB",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297063
+    },
+    {
+      "key": "8f4ca4f03538c142",
+      "case_id": "g5-15",
+      "span": "[tolv (12)] månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297084
+    },
+    {
       "key": "8f4cc252788a05d7",
       "case_id": "g5-34",
       "span": "Uppdragstagaren",
@@ -3137,6 +4853,39 @@
       "ts": 1793294501
     },
     {
+      "key": "8fbc1bbcc52e720b",
+      "case_id": "g5-15",
+      "span": "2024-05-02",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297084
+    },
+    {
+      "key": "903f63bd64f3669b",
+      "case_id": "g5-23",
+      "span": "[50]",
+      "clause": "9.2 DevBrains ska avhjälpa fel inom skälig tid. Om DevBrains inte uppfyller tillgänglighetsnivån i punkt 3.2 har Kunden rätt till en kreditering på [5] procent av månadsavgiften för varje påbörjad procentenhet under nivån, dock högst [50] procent av månadsavgiften. Detta är Kundens enda ersättning för bristande tillgänglighet.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297094
+    },
+    {
+      "key": "906861dc7fd4d866",
+      "case_id": "g5-12",
+      "span": "ett (1)] år",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297081
+    },
+    {
       "key": "90a247a6f12bd34c",
       "case_id": "g5-09",
       "span": "kr/tim",
@@ -3146,6 +4895,39 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296115
+    },
+    {
+      "key": "90adb514a7afb752",
+      "case_id": "g5-01",
+      "span": "Fastighets AB Kvarnberget",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297063
+    },
+    {
+      "key": "90dce7a82fee9215",
+      "case_id": "g5-16",
+      "span": "omedelbar verkan",
+      "clause": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297087
+    },
+    {
+      "key": "915f921dc4704dd2",
+      "case_id": "g5-02",
+      "span": "2023-01-31",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297066
     },
     {
       "key": "917e64305a31bf1b",
@@ -3170,6 +4952,17 @@
       "ts": 1793294511
     },
     {
+      "key": "92b37689dbe8a036",
+      "case_id": "g5-09",
+      "span": "[Belopp]",
+      "clause": "3. Tjänster\nTjänst\nOmfattning\nPris per månad (exkl. moms)\nFasta arbetsplatser\n[antal] platser i [rum nr / öppet landskap]\n[Belopp]\nFlexplatser\n[antal] platser\n[Belopp]\nMötesrum\n[antal] timmar per månad ingår, därefter [Belopp] kr/tim\nIngår / [Belopp]\nPostadress och reception\nIngår\nIngår\nInternet och skrivare\nIngår, utskrifter över [antal] sidor debiteras\nIngår\nKaffe, frukt, städning\nIngår\nIngår",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297076
+    },
+    {
       "key": "92cb446675c6f53e",
       "case_id": "g5-05",
       "span": "DevBrains AB",
@@ -3192,6 +4985,28 @@
       "ts": 1793296066
     },
     {
+      "key": "9300daef35a4499d",
+      "case_id": "g5-24",
+      "span": "en (1)] månad",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297097
+    },
+    {
+      "key": "93120b6450e1b988",
+      "case_id": "g5-38",
+      "span": "kompensation motsvarande ett års ersättning",
+      "clause": "Vid upphörande på bolagets initiativ utgår kompensation motsvarande ett års ersättning.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297107
+    },
+    {
       "key": "932f96609c8cfc15",
       "case_id": "g5-46",
       "span": "ett år",
@@ -3212,6 +5027,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296082
+    },
+    {
+      "key": "9353e6a49381402f",
+      "case_id": "g5-36",
+      "span": "första dagen",
+      "clause": "Avtalet träder i kraft den första dagen i andra kvartalet.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297105
     },
     {
       "key": "937b7df7e42c7c69",
@@ -3291,6 +5117,17 @@
       "ts": 1793296118
     },
     {
+      "key": "96091e0592636cc3",
+      "case_id": "g5-01",
+      "span": "Fastighets AB Kvarnberget",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297063
+    },
+    {
       "key": "96b544a690ad9084",
       "case_id": "g5-11",
       "span": "[14] dagar",
@@ -3300,6 +5137,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294500
+    },
+    {
+      "key": "973c951ae045b5fe",
+      "case_id": "g5-25",
+      "span": "30 dagar",
+      "clause": "12.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar efter skriftlig anmodan, eller om den andra parten blir insolvent.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297098
     },
     {
       "key": "9746f1a3eeeaf087",
@@ -3324,6 +5172,17 @@
       "ts": 1793294498
     },
     {
+      "key": "9763769b9e6d49e6",
+      "case_id": "g5-03",
+      "span": "[tre (3)] år",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297068
+    },
+    {
       "key": "977e26743666da4e",
       "case_id": "g5-22",
       "span": "ett (1) år",
@@ -3333,6 +5192,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296126
+    },
+    {
+      "key": "97bc273bbd5adad1",
+      "case_id": "g5-21",
+      "span": "inom 30 dagar",
+      "clause": "9.2 Vardera parten får säga upp avtalet med omedelbar verkan vid väsentligt avtalsbrott som inte har rättats inom 30 dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRSENING",
+      "score_bp": null,
+      "ts": 1793297093
     },
     {
       "key": "981e26cb7401edfb",
@@ -3366,6 +5236,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296079
+    },
+    {
+      "key": "990a68055caf1585",
+      "case_id": "g5-19",
+      "span": "24] månader",
+      "clause": "6.2 Leverantören lämnar en garanti om minst [24] månader för datorer och skärmar, och den längre tillverkargaranti som gäller för respektive Produkt.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297090
     },
     {
       "key": "9a6c33836ed30b07",
@@ -3467,6 +5348,28 @@
       "ts": 1793296131
     },
     {
+      "key": "9df9d4d5ebf342ea",
+      "case_id": "g5-08",
+      "span": "sex (6)] månader",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297075
+    },
+    {
+      "key": "9ea5fc18054e7bd4",
+      "case_id": "g5-24",
+      "span": "tolv (12) månader",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793297097
+    },
+    {
       "key": "9fe287a231c8865a",
       "case_id": "g5-14",
       "span": "[90]",
@@ -3478,6 +5381,61 @@
       "ts": 1793294503
     },
     {
+      "key": "a077c2ad7b8012e3",
+      "case_id": "g5-24",
+      "span": "[tolv (12)] månader",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793297096
+    },
+    {
+      "key": "a07c4a45ba3ecee4",
+      "case_id": "g5-43",
+      "span": "ett kvartal",
+      "clause": "Uppsägning ska ske skriftligen med iakttagande av en uppsägningstid av ett kvartal.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297109
+    },
+    {
+      "key": "a07d4522a8d015c0",
+      "case_id": "g5-11",
+      "span": "[14]",
+      "clause": "9. Avflyttning\nNär avtalet upphör ska DevBrains lämna arbetsplatserna tömda och städade och återlämna alla passerkort. Egendom som lämnas kvar får Leverantören efter [14] dagar omhänderta på DevBrains bekostnad.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297079
+    },
+    {
+      "key": "a08e07a1336729dc",
+      "case_id": "g5-10",
+      "span": "[2023-07-31]",
+      "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297078
+    },
+    {
+      "key": "a0ceaabf5298aa75",
+      "case_id": "g5-10",
+      "span": "2023-07-31",
+      "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297078
+    },
+    {
       "key": "a13f0cc4114d69bd",
       "case_id": "g5-20",
       "span": "ett (1) år",
@@ -3487,6 +5445,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296124
+    },
+    {
+      "key": "a1a1d8dd0237fcde",
+      "case_id": "g5-20",
+      "span": "tre (3)] månader",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297091
     },
     {
       "key": "a20175df4d26f833",
@@ -3511,6 +5480,28 @@
       "ts": 1793296080
     },
     {
+      "key": "a234cb44651cd08f",
+      "case_id": "g5-19",
+      "span": "[24]",
+      "clause": "6.2 Leverantören lämnar en garanti om minst [24] månader för datorer och skärmar, och den längre tillverkargaranti som gäller för respektive Produkt.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297090
+    },
+    {
+      "key": "a24674326cdf8ba0",
+      "case_id": "g5-22",
+      "span": "ett (1) år",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297094
+    },
+    {
       "key": "a281b11354a53429",
       "case_id": "g5-19",
       "span": "[24]",
@@ -3531,6 +5522,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296129
+    },
+    {
+      "key": "a2cce97770910f28",
+      "case_id": "g5-02",
+      "span": "[2020-02-01]",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297066
     },
     {
       "key": "a2e5bebca3676e73",
@@ -3577,6 +5579,28 @@
       "ts": 1793296086
     },
     {
+      "key": "a3fb5ada1484d618",
+      "case_id": "g5-02",
+      "span": "2020-02-01",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297065
+    },
+    {
+      "key": "a400eb31992e25ab",
+      "case_id": "g5-44",
+      "span": "Beställaren",
+      "clause": "Beställaren jämte dess koncernbolag äger åberopa samtliga rättigheter enligt detta avtal.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297110
+    },
+    {
       "key": "a436a437ebabd692",
       "case_id": "g5-09",
       "span": "kr/tim",
@@ -3597,6 +5621,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296089
+    },
+    {
+      "key": "a47c3c28cab2df3c",
+      "case_id": "g5-50",
+      "span": "månadsskiftet efter undertecknandet",
+      "clause": "Samarbetet inleds vid månadsskiftet efter undertecknandet.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297115
     },
     {
       "key": "a4ad8d1da3e7c649",
@@ -3641,6 +5676,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296063
+    },
+    {
+      "key": "a58e8aece1719eff",
+      "case_id": "g5-18",
+      "span": "[Belopp]",
+      "clause": "4.3 Leveransvillkor: DAP (Incoterms® 2020) DevBrains adress i Stockholm eller Göteborg, eller annan adress i Sverige som DevBrains anger. Fritt för Order över [Belopp] kronor; i övrigt betalar DevBrains en fraktavgift på [Belopp] kronor.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297089
     },
     {
       "key": "a5fe583c3ccc1918",
@@ -3720,6 +5766,17 @@
       "ts": 1793294511
     },
     {
+      "key": "a76c2c7e774118ca",
+      "case_id": "g5-43",
+      "span": "ett kvartal",
+      "clause": "Uppsägning ska ske skriftligen med iakttagande av en uppsägningstid av ett kvartal.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297109
+    },
+    {
       "key": "a8135ee127772b6e",
       "case_id": "g5-01",
       "span": "Fastighets AB Kvarnberget",
@@ -3775,6 +5832,17 @@
       "ts": 1793296061
     },
     {
+      "key": "a9279b1a91f9e754",
+      "case_id": "g5-37",
+      "span": "två månaders varsel",
+      "clause": "Vardera parten äger rätt att frånträda avtalet med två månaders varsel.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297107
+    },
+    {
       "key": "a970f27b343458af",
       "case_id": "g5-26",
       "span": "hållas ekonomiskt skadeslös",
@@ -3784,6 +5852,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296077
+    },
+    {
+      "key": "a9d6fa1a206137a8",
+      "case_id": "g5-36",
+      "span": "första dagen i andra kvartalet",
+      "clause": "Avtalet träder i kraft den första dagen i andra kvartalet.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297106
     },
     {
       "key": "a9d75ea922437cb0",
@@ -3830,6 +5909,17 @@
       "ts": 1793296113
     },
     {
+      "key": "aabb67fa57880960",
+      "case_id": "g5-41",
+      "span": "en och en halv procent av fakturabeloppet",
+      "clause": "Den dröjsmålsdrabbade ska erlägga en och en halv procent av fakturabeloppet för varje påbörjad månad.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297108
+    },
+    {
       "key": "aaffcbd128dedd65",
       "case_id": "g5-22",
       "span": "2024-05-02",
@@ -3839,6 +5929,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296126
+    },
+    {
+      "key": "ace198703c01b781",
+      "case_id": "g5-10",
+      "span": "2023-07-31",
+      "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793297078
     },
     {
       "key": "ad5879235c7cb140",
@@ -3885,6 +5986,17 @@
       "ts": 1793296095
     },
     {
+      "key": "ae1315b353dd8060",
+      "case_id": "g5-20",
+      "span": "ett (1) år",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297091
+    },
+    {
       "key": "ae7a84ced61dd3c1",
       "case_id": "g5-31",
       "span": "fortlöper samarbetet ytterligare ett år",
@@ -3916,6 +6028,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294506
+    },
+    {
+      "key": "af308e90644d167e",
+      "case_id": "g5-37",
+      "span": "två månaders",
+      "clause": "Vardera parten äger rätt att frånträda avtalet med två månaders varsel.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297106
     },
     {
       "key": "afdb19c6d1b1fe39",
@@ -3984,6 +6107,28 @@
       "ts": 1793296135
     },
     {
+      "key": "b29130006b0b76f2",
+      "case_id": "g5-07",
+      "span": "Ljusgård Design AB",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297074
+    },
+    {
+      "key": "b2d9e4e4de938f82",
+      "case_id": "g5-12",
+      "span": "[tre (3)] månader",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297081
+    },
+    {
       "key": "b37b43f3e050fe9e",
       "case_id": "g5-02",
       "span": "[2020-02-01]",
@@ -4050,6 +6195,17 @@
       "ts": 1793294499
     },
     {
+      "key": "b57346e2706f6ee8",
+      "case_id": "g5-07",
+      "span": "DevBrains AB",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297073
+    },
+    {
       "key": "b5c0fd4f1e9238f1",
       "case_id": "g5-10",
       "span": "2023-02-01",
@@ -4059,6 +6215,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296116
+    },
+    {
+      "key": "b5f39fb026d61569",
+      "case_id": "g5-36",
+      "span": "andra kvartalet",
+      "clause": "Avtalet träder i kraft den första dagen i andra kvartalet.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297105
+    },
+    {
+      "key": "b6e7b0636aed6d79",
+      "case_id": "g5-07",
+      "span": "ljusgård design ab, org.nr",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297075
     },
     {
       "key": "b73cc41f22f4b246",
@@ -4072,6 +6250,17 @@
       "ts": 1793296126
     },
     {
+      "key": "b75205c48ca8893b",
+      "case_id": "g5-45",
+      "span": "sjuttiofem tusen kronor",
+      "clause": "Arvodet faktureras kvartalsvis i efterskott med ett belopp om sjuttiofem tusen kronor per månad.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297111
+    },
+    {
       "key": "b759f2e62febb138",
       "case_id": "g5-23",
       "span": "[5]",
@@ -4081,6 +6270,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296075
+    },
+    {
+      "key": "b850536a64627317",
+      "case_id": "g5-03",
+      "span": "[nio (9)] månader",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297067
     },
     {
       "key": "b86d59f9a183369e",
@@ -4103,6 +6303,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296129
+    },
+    {
+      "key": "b9621eb5a55ec7a7",
+      "case_id": "g5-47",
+      "span": "månadsarvoden",
+      "clause": "Vid förtida upphörande äger konsulten rätt till ersättning motsvarande sex fasta månadsarvoden.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297114
+    },
+    {
+      "key": "b978f4ec107543ec",
+      "case_id": "g5-05",
+      "span": "Jonas Ekholm",
+      "clause": "1. Parter\nHyresvärd: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: Jonas Ekholm, pers.nr [Personnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297071
     },
     {
       "key": "b9d3f3e526655b9c",
@@ -4160,6 +6382,39 @@
       "ts": 1793296130
     },
     {
+      "key": "bad016a5e676d248",
+      "case_id": "g5-03",
+      "span": "[nio (9)] månader",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297067
+    },
+    {
+      "key": "bb36e2115d562d49",
+      "case_id": "g5-02",
+      "span": "[2023-01-31]",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297066
+    },
+    {
+      "key": "bb60289d5f949eeb",
+      "case_id": "g5-03",
+      "span": "[nio (9)] månader",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297067
+    },
+    {
       "key": "bb878d1ade484fe6",
       "case_id": "g5-14",
       "span": "90] dagar",
@@ -4171,6 +6426,17 @@
       "ts": 1793296094
     },
     {
+      "key": "bb8d25241927103d",
+      "case_id": "g5-14",
+      "span": "[90]",
+      "clause": "7.3 DevBrains ska avhjälpa fel som har rapporterats inom [90] dagar efter godkännandet utan extra kostnad (garantitid).",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297083
+    },
+    {
       "key": "bbc761e194778432",
       "case_id": "g5-05",
       "span": "Jonas Ekholm",
@@ -4180,6 +6446,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296062
+    },
+    {
+      "key": "bbda00a6be7ae4ca",
+      "case_id": "g5-11",
+      "span": "[14] dagar",
+      "clause": "9. Avflyttning\nNär avtalet upphör ska DevBrains lämna arbetsplatserna tömda och städade och återlämna alla passerkort. Egendom som lämnas kvar får Leverantören efter [14] dagar omhänderta på DevBrains bekostnad.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297080
+    },
+    {
+      "key": "bc3588c32240f3e9",
+      "case_id": "g5-07",
+      "span": "ljusgård design ab, org.nr",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297075
     },
     {
       "key": "bc46cd9bd357cd02",
@@ -4215,6 +6503,28 @@
       "ts": 1793296104
     },
     {
+      "key": "bca9c60b40141795",
+      "case_id": "g5-18",
+      "span": "[belopp] kronor",
+      "clause": "4.3 Leveransvillkor: DAP (Incoterms® 2020) DevBrains adress i Stockholm eller Göteborg, eller annan adress i Sverige som DevBrains anger. Fritt för Order över [Belopp] kronor; i övrigt betalar DevBrains en fraktavgift på [Belopp] kronor.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297090
+    },
+    {
+      "key": "bd59502a7589f096",
+      "case_id": "g5-49",
+      "span": "avslutas med omedelbar effekt",
+      "clause": "Avtalet kan avslutas med omedelbar effekt om betalning uteblir trots skriftlig anmaning.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "VILLKOR",
+      "score_bp": null,
+      "ts": 1793297114
+    },
+    {
       "key": "bdc3d0004a378821",
       "case_id": "g5-17",
       "span": "inom 30 dagar",
@@ -4237,6 +6547,17 @@
       "ts": 1793296083
     },
     {
+      "key": "bea3d77773e371e2",
+      "case_id": "g5-17",
+      "span": "[Belopp]",
+      "clause": "18. Tvister\nSvensk lag gäller. Tvister ska i första hand lösas genom förhandling mellan parternas ledningar. Om tvisten inte har lösts inom 30 dagar ska den avgöras genom skiljeförfarande enligt SCC:s regler för förenklat skiljeförfarande, med säte i Stockholm. [Om tvisteföremålets värde understiger [Belopp] kronor avgörs tvisten i stället av Stockholms tingsrätt.]",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297088
+    },
+    {
       "key": "beb3919bbb8ca7f2",
       "case_id": "g5-20",
       "span": "2024-04-03",
@@ -4246,6 +6567,28 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793296073
+    },
+    {
+      "key": "bf3a9bc94f44a2fb",
+      "case_id": "g5-13",
+      "span": "avtalet",
+      "clause": "7.2 Båda parter får säga upp avtalet med omedelbar verkan om motparten väsentligt bryter mot avtalet och inte vidtar rättelse inom [14] dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "ANNAT",
+      "score_bp": null,
+      "ts": 1793297082
+    },
+    {
+      "key": "bfe2b94599422fb0",
+      "case_id": "g5-26",
+      "span": "hållas ekonomiskt skadeslös",
+      "clause": "Arbetstagaren ska hållas ekonomiskt skadeslös vid förtida avslut.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "VILLKOR",
+      "score_bp": null,
+      "ts": 1793297099
     },
     {
       "key": "c0115c2a4f6f74a7",
@@ -4259,6 +6602,17 @@
       "ts": 1793296094
     },
     {
+      "key": "c08bf3524f06134a",
+      "case_id": "g5-34",
+      "span": "dess dotterbolag",
+      "clause": "Uppdragstagaren och dess dotterbolag är solidariskt förpliktade.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297103
+    },
+    {
       "key": "c0a09d28d26a9e18",
       "case_id": "g5-41",
       "span": "en och en halv procent av fakturabeloppet",
@@ -4268,6 +6622,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296107
+    },
+    {
+      "key": "c0cda8b8eefe1008",
+      "case_id": "g5-42",
+      "span": "omständigheter som inte rimligen kunnat förutses",
+      "clause": "Åtagandena vilar tillfälligt när fullgörelse hindras av omständigheter som inte rimligen kunnat förutses.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "VILLKOR",
+      "score_bp": null,
+      "ts": 1793297108
     },
     {
       "key": "c21caa4f7445a8c0",
@@ -4292,6 +6657,39 @@
       "ts": 1793294502
     },
     {
+      "key": "c257db7ddb33160f",
+      "case_id": "g5-03",
+      "span": "nio (9)] månader",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297068
+    },
+    {
+      "key": "c2e51dc5cfeb6b52",
+      "case_id": "g5-09",
+      "span": "[Belopp]",
+      "clause": "3. Tjänster\nTjänst\nOmfattning\nPris per månad (exkl. moms)\nFasta arbetsplatser\n[antal] platser i [rum nr / öppet landskap]\n[Belopp]\nFlexplatser\n[antal] platser\n[Belopp]\nMötesrum\n[antal] timmar per månad ingår, därefter [Belopp] kr/tim\nIngår / [Belopp]\nPostadress och reception\nIngår\nIngår\nInternet och skrivare\nIngår, utskrifter över [antal] sidor debiteras\nIngår\nKaffe, frukt, städning\nIngår\nIngår",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297076
+    },
+    {
+      "key": "c36139f3ca78fb26",
+      "case_id": "g5-29",
+      "span": "får inte överstiga det årliga kontraktsvärdet",
+      "clause": "Parternas sammanlagda ansvar får inte överstiga det årliga kontraktsvärdet.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297100
+    },
+    {
       "key": "c36abc3e10b90e28",
       "case_id": "g5-25",
       "span": "30 dagar",
@@ -4312,6 +6710,50 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294504
+    },
+    {
+      "key": "c39ffea33cc5350c",
+      "case_id": "g5-17",
+      "span": "kronor",
+      "clause": "18. Tvister\nSvensk lag gäller. Tvister ska i första hand lösas genom förhandling mellan parternas ledningar. Om tvisten inte har lösts inom 30 dagar ska den avgöras genom skiljeförfarande enligt SCC:s regler för förenklat skiljeförfarande, med säte i Stockholm. [Om tvisteföremålets värde understiger [Belopp] kronor avgörs tvisten i stället av Stockholms tingsrätt.]",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297088
+    },
+    {
+      "key": "c3f4c1606f3a8b57",
+      "case_id": "g5-16",
+      "span": "30 dagar",
+      "clause": "15.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar från skriftlig anmodan, eller om den andra parten försätts i konkurs, inleder företagsrekonstruktion eller på annat sätt kan antas vara på obestånd.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297086
+    },
+    {
+      "key": "c48a548b13739e42",
+      "case_id": "g5-20",
+      "span": "ett (1) år",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297091
+    },
+    {
+      "key": "c5051e324f3b9c89",
+      "case_id": "g5-23",
+      "span": "[50]",
+      "clause": "9.2 DevBrains ska avhjälpa fel inom skälig tid. Om DevBrains inte uppfyller tillgänglighetsnivån i punkt 3.2 har Kunden rätt till en kreditering på [5] procent av månadsavgiften för varje påbörjad procentenhet under nivån, dock högst [50] procent av månadsavgiften. Detta är Kundens enda ersättning för bristande tillgänglighet.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "ERSÄTTNING",
+      "score_bp": null,
+      "ts": 1793297095
     },
     {
       "key": "c53410b84fb1ef42",
@@ -4356,6 +6798,50 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294516
+    },
+    {
+      "key": "c67835bef97182aa",
+      "case_id": "g5-01",
+      "span": "DevBrains AB",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297062
+    },
+    {
+      "key": "c6950eaadcee2768",
+      "case_id": "g5-20",
+      "span": "2024-04-03",
+      "clause": "9.1 Avtalet gäller från och med 2022-04-04 till och med 2024-04-03 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297091
+    },
+    {
+      "key": "c70fb1c614b218b8",
+      "case_id": "g5-27",
+      "span": "ett halvt års fast ersättning",
+      "clause": "Arbetsgivaren svarar för ett belopp motsvarande ett halvt års fast ersättning.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297099
+    },
+    {
+      "key": "c7cebe3152202821",
+      "case_id": "g5-07",
+      "span": "DevBrains AB",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297073
     },
     {
       "key": "c7daf89dac80d7af",
@@ -4424,6 +6910,17 @@
       "ts": 1793296090
     },
     {
+      "key": "cb8569a9400c4720",
+      "case_id": "g5-04",
+      "span": "kronor",
+      "clause": "5.1 Årshyran är [Belopp] kronor exklusive moms (cirka [Belopp] kr/kvm).",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297070
+    },
+    {
       "key": "cbf24f9347934006",
       "case_id": "g5-11",
       "span": "14] dagar",
@@ -4468,6 +6965,17 @@
       "ts": 1793294494
     },
     {
+      "key": "cc88d54caaa83af4",
+      "case_id": "g5-09",
+      "span": "belopp",
+      "clause": "3. Tjänster\nTjänst\nOmfattning\nPris per månad (exkl. moms)\nFasta arbetsplatser\n[antal] platser i [rum nr / öppet landskap]\n[Belopp]\nFlexplatser\n[antal] platser\n[Belopp]\nMötesrum\n[antal] timmar per månad ingår, därefter [Belopp] kr/tim\nIngår / [Belopp]\nPostadress och reception\nIngår\nIngår\nInternet och skrivare\nIngår, utskrifter över [antal] sidor debiteras\nIngår\nKaffe, frukt, städning\nIngår\nIngår",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297077
+    },
+    {
       "key": "cce6d8395b47d657",
       "case_id": "g5-24",
       "span": "[tolv (12)] månader",
@@ -4477,6 +6985,72 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294511
+    },
+    {
+      "key": "cd35988e580c31e8",
+      "case_id": "g5-30",
+      "span": "nittio dagar",
+      "clause": "Avtalet kan bringas att upphöra tidigast nittio dagar efter skriftligt meddelande.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297101
+    },
+    {
+      "key": "ce19dfd7fab27b8c",
+      "case_id": "g5-09",
+      "span": "kr/tim",
+      "clause": "3. Tjänster\nTjänst\nOmfattning\nPris per månad (exkl. moms)\nFasta arbetsplatser\n[antal] platser i [rum nr / öppet landskap]\n[Belopp]\nFlexplatser\n[antal] platser\n[Belopp]\nMötesrum\n[antal] timmar per månad ingår, därefter [Belopp] kr/tim\nIngår / [Belopp]\nPostadress och reception\nIngår\nIngår\nInternet och skrivare\nIngår, utskrifter över [antal] sidor debiteras\nIngår\nKaffe, frukt, städning\nIngår\nIngår",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297077
+    },
+    {
+      "key": "ce784e2526a42d96",
+      "case_id": "g5-25",
+      "span": "omedelbar verkan",
+      "clause": "12.2 Vardera parten får säga upp avtalet med omedelbar verkan om den andra parten väsentligt bryter mot avtalet och inte vidtar rättelse inom 30 dagar efter skriftlig anmodan, eller om den andra parten blir insolvent.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297098
+    },
+    {
+      "key": "ce92a60134913088",
+      "case_id": "g5-31",
+      "span": "ett år",
+      "clause": "Om ingen part gör invändning fortlöper samarbetet ytterligare ett år.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297101
+    },
+    {
+      "key": "cf37b69e0a38be7d",
+      "case_id": "g5-09",
+      "span": "kr/tim",
+      "clause": "3. Tjänster\nTjänst\nOmfattning\nPris per månad (exkl. moms)\nFasta arbetsplatser\n[antal] platser i [rum nr / öppet landskap]\n[Belopp]\nFlexplatser\n[antal] platser\n[Belopp]\nMötesrum\n[antal] timmar per månad ingår, därefter [Belopp] kr/tim\nIngår / [Belopp]\nPostadress och reception\nIngår\nIngår\nInternet och skrivare\nIngår, utskrifter över [antal] sidor debiteras\nIngår\nKaffe, frukt, städning\nIngår\nIngår",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297077
+    },
+    {
+      "key": "cf3a5bc2367e7a92",
+      "case_id": "g5-36",
+      "span": "första dagen",
+      "clause": "Avtalet träder i kraft den första dagen i andra kvartalet.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297105
     },
     {
       "key": "cf6e3185d3a8c5b6",
@@ -4543,6 +7117,17 @@
       "choice": "NO",
       "score_bp": null,
       "ts": 1793294509
+    },
+    {
+      "key": "d07ce77248729b7d",
+      "case_id": "g5-44",
+      "span": "Beställaren",
+      "clause": "Beställaren jämte dess koncernbolag äger åberopa samtliga rättigheter enligt detta avtal.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297109
     },
     {
       "key": "d08d7a30076fbb4b",
@@ -4622,6 +7207,28 @@
       "ts": 1793296135
     },
     {
+      "key": "d30ae43a4559721b",
+      "case_id": "g5-07",
+      "span": "devbrains ab, org.nr",
+      "clause": "1. Parter\nUthyrare (förstahandshyresgäst): DevBrains AB, org.nr [Organisationsnummer] (\"Uthyraren\").\nAndrahandshyresgäst: Ljusgård Design AB, org.nr [Organisationsnummer] (\"Andrahandshyresgästen\").",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297073
+    },
+    {
+      "key": "d364af67177eef82",
+      "case_id": "g5-46",
+      "span": "förnyat för en tid av ett år",
+      "clause": "Har avtalet inte skriftligen avbeställts, anses det förnyat för en tid av ett år.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297113
+    },
+    {
       "key": "d372b65e0c7d99f3",
       "case_id": "g5-31",
       "span": "fortlöper samarbetet ytterligare ett år",
@@ -4644,6 +7251,17 @@
       "ts": 1793296101
     },
     {
+      "key": "d43e2c94eaaa518a",
+      "case_id": "g5-23",
+      "span": "[5]",
+      "clause": "9.2 DevBrains ska avhjälpa fel inom skälig tid. Om DevBrains inte uppfyller tillgänglighetsnivån i punkt 3.2 har Kunden rätt till en kreditering på [5] procent av månadsavgiften för varje påbörjad procentenhet under nivån, dock högst [50] procent av månadsavgiften. Detta är Kundens enda ersättning för bristande tillgänglighet.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "ERSÄTTNING",
+      "score_bp": null,
+      "ts": 1793297095
+    },
+    {
       "key": "d4c0424ccb5904a9",
       "case_id": "g5-02",
       "span": "2023-01-31",
@@ -4653,6 +7271,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296086
+    },
+    {
+      "key": "d4e85de9da23acc9",
+      "case_id": "g5-05",
+      "span": "Jonas Ekholm",
+      "clause": "1. Parter\nHyresvärd: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: Jonas Ekholm, pers.nr [Personnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297071
     },
     {
       "key": "d4f739c3c0fff4e3",
@@ -4675,6 +7304,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294499
+    },
+    {
+      "key": "d50108f7a52ea9fe",
+      "case_id": "g5-45",
+      "span": "sjuttiofem tusen kronor",
+      "clause": "Arvodet faktureras kvartalsvis i efterskott med ett belopp om sjuttiofem tusen kronor per månad.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297111
     },
     {
       "key": "d510613ad13ed378",
@@ -4765,6 +7405,17 @@
       "ts": 1793294512
     },
     {
+      "key": "d93b162741198d34",
+      "case_id": "g5-44",
+      "span": "koncernbolag",
+      "clause": "Beställaren jämte dess koncernbolag äger åberopa samtliga rättigheter enligt detta avtal.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297111
+    },
+    {
       "key": "d94d73a628e931b5",
       "case_id": "g5-39",
       "span": "vad som erlagts enligt avtalet under de senaste tolv månaderna",
@@ -4787,6 +7438,28 @@
       "ts": 1793296068
     },
     {
+      "key": "d985a8b8144ab776",
+      "case_id": "g5-06",
+      "span": "2023-06-01",
+      "clause": "4.1 Alternativ A – tills vidare: Hyresförhållandet börjar den [2023-06-01] och gäller tills vidare. Uppsägningstiden är tre (3) månader för båda parter, räknat från månadsskiftet efter uppsägningen.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297072
+    },
+    {
+      "key": "d9bf0f25b278d86f",
+      "case_id": "g5-31",
+      "span": "ett år",
+      "clause": "Om ingen part gör invändning fortlöper samarbetet ytterligare ett år.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297101
+    },
+    {
       "key": "d9d152f0f7431f82",
       "case_id": "g5-02",
       "span": "2020-02-01",
@@ -4798,6 +7471,50 @@
       "ts": 1793296111
     },
     {
+      "key": "d9d65284bd742ad9",
+      "case_id": "g5-22",
+      "span": "tre (3)] månader",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297094
+    },
+    {
+      "key": "da73f13f6c51ac22",
+      "case_id": "g5-33",
+      "span": "ligger utanför partens kontroll",
+      "clause": "Ersättningsskyldigheten bortfaller när hindret ligger utanför partens kontroll.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UNDANTAG",
+      "score_bp": null,
+      "ts": 1793297102
+    },
+    {
+      "key": "dadaf5b0961c1af7",
+      "case_id": "g5-49",
+      "span": "avslutas med omedelbar effekt",
+      "clause": "Avtalet kan avslutas med omedelbar effekt om betalning uteblir trots skriftlig anmaning.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297115
+    },
+    {
+      "key": "db27875901b15024",
+      "case_id": "g5-18",
+      "span": "[Belopp]",
+      "clause": "4.3 Leveransvillkor: DAP (Incoterms® 2020) DevBrains adress i Stockholm eller Göteborg, eller annan adress i Sverige som DevBrains anger. Fritt för Order över [Belopp] kronor; i övrigt betalar DevBrains en fraktavgift på [Belopp] kronor.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "score_bp": null,
+      "ts": 1793297089
+    },
+    {
       "key": "db2b92525c0da70d",
       "case_id": "g5-27",
       "span": "ett halvt års fast ersättning",
@@ -4807,6 +7524,39 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294512
+    },
+    {
+      "key": "db55c09c786948c9",
+      "case_id": "g5-21",
+      "span": "inom 30 dagar",
+      "clause": "9.2 Vardera parten får säga upp avtalet med omedelbar verkan vid väsentligt avtalsbrott som inte har rättats inom 30 dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297092
+    },
+    {
+      "key": "db869df11c02c380",
+      "case_id": "g5-08",
+      "span": "ett (1)] år",
+      "clause": "4.2 Om inte någon av parterna säger upp avtalet senast [sex (6)] månader före arrendetidens utgång, förlängs avtalet med [ett (1)] år i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297075
+    },
+    {
+      "key": "dbecfdbb8709628e",
+      "case_id": "g5-15",
+      "span": "2021-05-03",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297083
     },
     {
       "key": "dc18f2ebb9795ef6",
@@ -4864,6 +7614,17 @@
       "ts": 1793296078
     },
     {
+      "key": "de8303a3194e6969",
+      "case_id": "g5-04",
+      "span": "[Belopp]",
+      "clause": "5.1 Årshyran är [Belopp] kronor exklusive moms (cirka [Belopp] kr/kvm).",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297069
+    },
+    {
       "key": "ded81e20a5e03f4a",
       "case_id": "g5-02",
       "span": "2023-01-31",
@@ -4884,6 +7645,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294518
+    },
+    {
+      "key": "dfc6f614f01f847a",
+      "case_id": "g5-12",
+      "span": "2023-07-01",
+      "clause": "7.1 Avtalet gäller från och med 2023-07-01 till och med 2024-06-30 och förlängs därefter med [ett (1)] år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297080
     },
     {
       "key": "e050caa0b91694e5",
@@ -4952,6 +7724,17 @@
       "ts": 1793296122
     },
     {
+      "key": "e41a41aaacdab9ea",
+      "case_id": "g5-13",
+      "span": "[14] dagar",
+      "clause": "7.2 Båda parter får säga upp avtalet med omedelbar verkan om motparten väsentligt bryter mot avtalet och inte vidtar rättelse inom [14] dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297082
+    },
+    {
       "key": "e43f20fcf5a75942",
       "case_id": "g5-03",
       "span": "[tre (3)] år",
@@ -4996,6 +7779,17 @@
       "ts": 1793296101
     },
     {
+      "key": "e6609f0cbd56d5c4",
+      "case_id": "g5-03",
+      "span": "nio (9)] månader",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297068
+    },
+    {
       "key": "e849ce2808cb6481",
       "case_id": "g5-45",
       "span": "sjuttiofem tusen kronor",
@@ -5005,6 +7799,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296108
+    },
+    {
+      "key": "e870033d520041e0",
+      "case_id": "g5-01",
+      "span": "hyresgästen",
+      "clause": "1. Parter\nHyresvärd: Fastighets AB Kvarnberget, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297064
+    },
+    {
+      "key": "e8938b5c05beb609",
+      "case_id": "g5-05",
+      "span": "DevBrains AB",
+      "clause": "1. Parter\nHyresvärd: DevBrains AB, org.nr [Organisationsnummer], [Adress] (\"Hyresvärden\").\nHyresgäst: Jonas Ekholm, pers.nr [Personnummer], [Adress] (\"Hyresgästen\").",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "PART",
+      "score_bp": null,
+      "ts": 1793297070
     },
     {
       "key": "e8acb237eeaf02bf",
@@ -5082,6 +7898,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296129
+    },
+    {
+      "key": "eba9b7af1d1e1dfb",
+      "case_id": "g5-17",
+      "span": "[Belopp]",
+      "clause": "18. Tvister\nSvensk lag gäller. Tvister ska i första hand lösas genom förhandling mellan parternas ledningar. Om tvisten inte har lösts inom 30 dagar ska den avgöras genom skiljeförfarande enligt SCC:s regler för förenklat skiljeförfarande, med säte i Stockholm. [Om tvisteföremålets värde understiger [Belopp] kronor avgörs tvisten i stället av Stockholms tingsrätt.]",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297087
     },
     {
       "key": "ebbe53422a8b42c4",
@@ -5205,6 +8032,39 @@
       "ts": 1793296115
     },
     {
+      "key": "efe3311c82c5f803",
+      "case_id": "g5-47",
+      "span": "sex fasta månadsarvoden",
+      "clause": "Vid förtida upphörande äger konsulten rätt till ersättning motsvarande sex fasta månadsarvoden.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297114
+    },
+    {
+      "key": "f00df15786913158",
+      "case_id": "g5-21",
+      "span": "30 dagar",
+      "clause": "9.2 Vardera parten får säga upp avtalet med omedelbar verkan vid väsentligt avtalsbrott som inte har rättats inom 30 dagar efter skriftlig anmodan.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297092
+    },
+    {
+      "key": "f02073e6a03b7bd1",
+      "case_id": "g5-44",
+      "span": "dess koncernbolag",
+      "clause": "Beställaren jämte dess koncernbolag äger åberopa samtliga rättigheter enligt detta avtal.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297110
+    },
+    {
       "key": "f04c1c40fe92dd5e",
       "case_id": "g5-45",
       "span": "sjuttiofem tusen kronor per månad",
@@ -5225,6 +8085,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296102
+    },
+    {
+      "key": "f08441c48e22e854",
+      "case_id": "g5-15",
+      "span": "[sex (6)] månader",
+      "clause": "15.1 Avtalet gäller från och med 2021-05-03 till och med 2024-05-02 och förlängs därefter med [tolv (12)] månader i taget, om det inte sägs upp senast [sex (6)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297084
     },
     {
       "key": "f1a584e518ae7246",
@@ -5291,6 +8162,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294505
+    },
+    {
+      "key": "f343409d56ffec9b",
+      "case_id": "g5-24",
+      "span": "[en (1)] månad",
+      "clause": "12.1 Abonnemang på SaaS-tjänster löper på [tolv (12)] månader från aktiveringen och förlängs därefter med tolv (12) månader i taget, om det inte sägs upp senast [en (1)] månad före avtalsperiodens utgång.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "UPPSÄGNING",
+      "score_bp": null,
+      "ts": 1793297095
     },
     {
       "key": "f358b13637030063",
@@ -5436,6 +8318,17 @@
       "ts": 1793296067
     },
     {
+      "key": "f6fd45da48e43834",
+      "case_id": "g5-02",
+      "span": "[2023-01-31]",
+      "clause": "4.1 Hyrestiden löper från och med den [2020-02-01] till och med den [2023-01-31].",
+      "prompt_version": "stage-relevance-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "score_bp": null,
+      "ts": 1793297067
+    },
+    {
       "key": "f757681fa6027b7d",
       "case_id": "g5-36",
       "span": "första dagen i andra kvartalet",
@@ -5524,6 +8417,28 @@
       "ts": 1793296062
     },
     {
+      "key": "f90202e029b7b4e0",
+      "case_id": "g5-35",
+      "span": "niohundrafemtiotusen kronor",
+      "clause": "Det sammanlagda arvodet uppgår till niohundrafemtiotusen kronor exklusive mervärdesskatt.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297104
+    },
+    {
+      "key": "f9160837bb56d5fb",
+      "case_id": "g5-10",
+      "span": "2023-02-01",
+      "clause": "4.1 Avtalet gäller från och med 2023-02-01 till och med [2023-07-31] och förlängs därefter med [en (1)] månad i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "AVTALSTID",
+      "score_bp": null,
+      "ts": 1793297078
+    },
+    {
       "key": "f98043fda400df00",
       "case_id": "g5-12",
       "span": "tre (3)] månader",
@@ -5568,6 +8483,28 @@
       "ts": 1793296134
     },
     {
+      "key": "fa70aa49e067906c",
+      "case_id": "g5-46",
+      "span": "förnyat för en tid av ett år",
+      "clause": "Har avtalet inte skriftligen avbeställts, anses det förnyat för en tid av ett år.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297113
+    },
+    {
+      "key": "fa7ee2f83b93dcde",
+      "case_id": "g5-18",
+      "span": "[Belopp]",
+      "clause": "4.3 Leveransvillkor: DAP (Incoterms® 2020) DevBrains adress i Stockholm eller Göteborg, eller annan adress i Sverige som DevBrains anger. Fritt för Order över [Belopp] kronor; i övrigt betalar DevBrains en fraktavgift på [Belopp] kronor.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297089
+    },
+    {
       "key": "fad42b7640f3350e",
       "case_id": "g5-24",
       "span": "en (1)] månad",
@@ -5577,6 +8514,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296127
+    },
+    {
+      "key": "faedb716ea2ecb71",
+      "case_id": "g5-03",
+      "span": "tre (3)] år",
+      "clause": "4.2 Avtalet ska sägas upp senast [nio (9)] månader före hyrestidens utgång. Annars förlängs det med [tre (3)] år i taget.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "FÖRLÄNGNING",
+      "score_bp": null,
+      "ts": 1793297069
     },
     {
       "key": "fb7a3061e4df0fd4",
@@ -5610,6 +8558,28 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793296100
+    },
+    {
+      "key": "fbe69ba11424f616",
+      "case_id": "g5-22",
+      "span": "ett (1) år",
+      "clause": "12.1 Avtalet gäller från och med 2024-05-02 till och med 2025-12-31 och förlängs därefter med ett (1) år i taget, om det inte sägs upp senast [tre (3)] månader före avtalstidens utgång.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "TIDSPERIOD",
+      "score_bp": null,
+      "ts": 1793297093
+    },
+    {
+      "key": "fc05d5b631776806",
+      "case_id": "g5-47",
+      "span": "ersättning",
+      "clause": "Vid förtida upphörande äger konsulten rätt till ersättning motsvarande sex fasta månadsarvoden.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297113
     },
     {
       "key": "fc92d521fd5cd170",
@@ -5656,6 +8626,17 @@
       "ts": 1793296097
     },
     {
+      "key": "fe4d85d0f1a0b558",
+      "case_id": "g5-23",
+      "span": "[5]",
+      "clause": "9.2 DevBrains ska avhjälpa fel inom skälig tid. Om DevBrains inte uppfyller tillgänglighetsnivån i punkt 3.2 har Kunden rätt till en kreditering på [5] procent av månadsavgiften för varje påbörjad procentenhet under nivån, dock högst [50] procent av månadsavgiften. Detta är Kundens enda ersättning för bristande tillgänglighet.",
+      "prompt_version": "stage-type-v1",
+      "model": "jev-1.13.0",
+      "choice": "BELOPP",
+      "score_bp": null,
+      "ts": 1793297095
+    },
+    {
       "key": "fec018d87aa3f517",
       "case_id": "g5-21",
       "span": "30 dagar",
@@ -5676,6 +8657,17 @@
       "choice": "YES",
       "score_bp": null,
       "ts": 1793294496
+    },
+    {
+      "key": "ff1878c822c59359",
+      "case_id": "g5-36",
+      "span": "första dagen",
+      "clause": "Avtalet träder i kraft den första dagen i andra kvartalet.",
+      "prompt_version": "stage-relation-v1",
+      "model": "jev-1.13.0",
+      "choice": "DATUM",
+      "score_bp": null,
+      "ts": 1793297105
     },
     {
       "key": "ff34b9172d240667",

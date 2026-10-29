@@ -240,6 +240,40 @@ verifieringen i stegen **entitetstyp → relation → evidensrelevans** (går in
 behovsstatuskedjan DISCOVERED → SUPPORTED → RESOLVED, utan nya lager). Nästa isolerade
 experiment mäter den uppdelningen över samma frysta population.
 
+## D6. Stegvis verifiering (E/F/G): typ → relation → relevans, med nedfallslogg
+
+Samma frysta population; arm D kvar som jämförelse. Varje kandidats nedfallspunkt loggas.
+Falskt RESOLVED räknas per unikt `need_id`: ett behov vars lösning skulle använda ett
+felaktigt värde (fel-typ-spann godkänt) — inte bara ett godkänt spann som råkar mappas.
+
+| Arm | Unik recall | Precision | FP | Rätt lösta | **Falskt lösta** | Nedfall (typ/rel/relevans) |
+|---|---|---|---|---|---|---|
+| D (jämförelse) | 22/27 | 0.79 | 16 | — | 14 (gammal def.) | — |
+| E full JEV-kedja | 16/27 | 0.67 | 16 | 26 | **13** | 10 / 0 / 1 |
+| F det-typ + JEV-rel | 16/27 | 0.65 | 23 | 23 | **16** | 10 / 1 / 0 |
+| G max-deterministiskt | 2/27 | 0.61 | 12 | 19 | **8** | **25** / 0 / 0 |
+
+**De viktigaste fynden:**
+
+1. **Nedfallsloggen pekar ut typsteget som recall-flaskhalsen** — 10 av 27 unika fynd dör i
+   typsteget (E/F), 25 i G. Relation och relevans dödar nästan ingenting (0–1). Förlusten
+   sitter alltså inte i den semantiska bedömningen utan i entitetstypsbestämningen.
+2. **Granskningens målbild är inte nådd:** inget steg uppnår D:s 45 lösta behov, och falskt
+   lösta förbättras bara marginellt (13–16) utom i G — som köper sina 8 med 26 färre lösta
+   behov. Avvägningen är mätt och ärlig: striktare kedjor betalar i recall.
+3. **Överraskningen — och en precisering av det återkommande mönstret:** F slog inte E.
+   Den deterministiska typdetektorn är sämre än JEV på omskrivna tidsuttryck ("ett kvartal",
+   "ett halvt år") — 10 unika fynd föll i typsteget just där. Mönstret från SWE-serien
+   preciseras: JEV är mest värdefull för det smala semantiska beslut vanlig kod *inte*
+   redan kan fatta — och entitetstyp för omskrivna juridiska uttryck är ett sådant beslut,
+   medan relationen (när kontexten är entydig) kan avgöras deterministiskt.
+4. **Nästa kandidat till typsteget:** GLiNER2:s egna etiketter — kandidaterna bär redan
+   GLiNER2:s typ, som inte begränsas av regex. Att använda den som typsignal skulle ta bort
+   både regex-taket och JEV-typ-anropen. Nästa arm testar det.
+
+**Kostnad:** 272 nya JEV-anrop totalt över E/F/G (E tyngst med hela trestegskedjan); omkörningen
+efter fixturen kostade 0 anrop — deterministisk omräkning fungerar.
+
 ## E2. Rekommendationen, omformulerad per beslut
 
 **Utvärdera GLiNER2 som en behovsstyrd, valbar kandidatgenerator i SWE:s Investigation-lager** —
