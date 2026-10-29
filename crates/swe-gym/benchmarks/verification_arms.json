@@ -1,0 +1,30 @@
+{
+  "A_generell": {
+    "unique_recall": "27/27",
+    "false_positives": 49,
+    "precision": 0.675,
+    "frr_needs": 30,
+    "solved_needs": 50
+  },
+  "B_behovsspecifik": {
+    "unique_recall": "24/27",
+    "false_positives": 21,
+    "precision": 0.761,
+    "frr_needs": 17,
+    "solved_needs": 47
+  },
+  "C_behovsspecifik_kontext": {
+    "unique_recall": "25/27",
+    "false_positives": 24,
+    "precision": 0.75,
+    "frr_needs": 19,
+    "solved_needs": 48
+  },
+  "D_behovsspecifik_kontrast": {
+    "unique_recall": "22/27",
+    "false_positives": 16,
+    "precision": 0.789,
+    "frr_needs": 14,
+    "solved_needs": 45
+  }
+}

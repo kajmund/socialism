@@ -211,6 +211,35 @@ JEV-anrop — **halva kostnaden för samma täckning**, vilket stödjer S2 som f
 siffrorna är villkorade av verifierarens bristande diskriminering och ska inte ligga till grund
 för något beslut innan den behovsspecifika verifieringen är mätt.
 
+## D5. Verifieringsarmarna: behovsspecifik JEV diskriminerar — med uppmätt avvägning
+
+Fyra armar över samma frysta kandidatpopulation (129 spann: GLiNER2-kandidater + guldspann +
+svåra förväxlingsdistraktorer), endast prompten ändrad. Nya promptversioner lades till i
+fixturen; den generella armens svar återanvändes (1 nytt anrop), resten nya (388 totalt).
+
+| Arm | Unik recall | FP | Precision | FRR | Lösta behov |
+|---|---|---|---|---|---|
+| A generell | 27/27 | 49 | 0.68 | 30 | 50/50 |
+| B behovsspecifik | 24/27 | 21 | 0.76 | 17 | 47/50 |
+| C behovsspecifik + kontext | 25/27 | 24 | 0.75 | 19 | 48/50 |
+| D behovsspecifik + **kontrast** | 22/27 | **16** | **0.79** | **14** | 45/50 |
+
+**Preciseringen bekräftad:** den generella armens precision är 0.68, inte 0 — 100 % FP på
+negativa betyder inte noll precision totalt, eftersom populationen innehåller många positiva.
+
+**Slutsatserna:** (1) behovsspecifik verifiering **diskriminerar** — FP 49 → 16, precision
+0.68 → 0.79, och de kontrastiva reglerna (per begreppstyp, inte per golden-fall) ger bäst
+precision och lägst FRR. Hybridens två komponenter fungerar nu tillsammans: GLiNER2 upptäcker,
+JEV avgör om fyndet uppfyller det specifika behovet. (2) **Avvägningen är mätt:** striktare
+verifiering kostar 5 unika fynd (22/27) och 5 lösta behov (45/50) — recall-vinster köps inte
+längre gratis. (3) **FRR halverades men är inte noll (14):** granskningens målbild "helst 0" är
+inte nådd — verifieringsuppgiften blandar fortfarande entitetstyp och evidensrelevans.
+
+**Beslutet enligt granskningens ram:** kompensera inte med fler JEV-anrop — dela upp
+verifieringen i stegen **entitetstyp → relation → evidensrelevans** (går in i den befintliga
+behovsstatuskedjan DISCOVERED → SUPPORTED → RESOLVED, utan nya lager). Nästa isolerade
+experiment mäter den uppdelningen över samma frysta population.
+
 ## E2. Rekommendationen, omformulerad per beslut
 
 **Utvärdera GLiNER2 som en behovsstyrd, valbar kandidatgenerator i SWE:s Investigation-lager** —
