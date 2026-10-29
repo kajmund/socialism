@@ -1,0 +1,301 @@
+{
+  "model": "fastino/gliner2.5-multi-v1",
+  "labels": [
+    "Uppsägningstid",
+    "Avgångsvederlag",
+    "Vite",
+    "Ansvarstak",
+    "Undantag",
+    "Konkurrensbegränsning",
+    "Belopp",
+    "Datum",
+    "Avtalspart"
+  ],
+  "results": {
+    "Avtal_81_VD_anstallningsavtal:18": {
+      "gold": [
+        [
+          "NOTICE_PERIOD",
+          "sex (6) månader"
+        ]
+      ],
+      "found": [
+        [
+          "Uppsägningstid",
+          "sex (6) månader",
+          0.0
+        ],
+        [
+          "Avgångsvederlag",
+          "7.1",
+          0.0
+        ]
+      ],
+      "tp": 1,
+      "fp": 1,
+      "fn": 0
+    },
+    "Avtal_81_VD_anstallningsavtal:25": {
+      "gold": [
+        [
+          "NON_COMPETE_PERIOD",
+          "tolv (12) månader"
+        ]
+      ],
+      "found": [
+        [
+          "Uppsägningstid",
+          "tolv (12) månader",
+          0.0
+        ],
+        [
+          "Undantag",
+          "ingen ersättningsskyldighet",
+          0.0
+        ],
+        [
+          "Konkurrensbegränsning",
+          "konkurrensbegränsningen",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "vd",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "vd",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "bolaget",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "bolaget",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "bolaget",
+          0.0
+        ]
+      ],
+      "tp": 1,
+      "fp": 4,
+      "fn": 0
+    },
+    "Avtal_18_Hyresavtal_bostad:5": {
+      "gold": [
+        [
+          "NOTICE_PERIOD",
+          "tre (3) månader"
+        ]
+      ],
+      "found": [
+        [
+          "Uppsägningstid",
+          "tre (3) månader",
+          0.0
+        ],
+        [
+          "Avgångsvederlag",
+          "tills vidare",
+          0.0
+        ],
+        [
+          "Avgångsvederlag",
+          "tills vidare",
+          0.0
+        ],
+        [
+          "Vite",
+          "hyresförhållandet",
+          0.0
+        ],
+        [
+          "Ansvarstak",
+          "alternativ a",
+          0.0
+        ],
+        [
+          "Datum",
+          "2023-06-01",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "båda parter",
+          0.0
+        ]
+      ],
+      "tp": 1,
+      "fp": 5,
+      "fn": 0
+    },
+    "Avtal_18_Hyresavtal_bostad:6": {
+      "gold": [
+        [
+          "NOTICE_PERIOD",
+          "tre månader"
+        ]
+      ],
+      "found": [
+        [
+          "Uppsägningstid",
+          "tre månader",
+          0.0
+        ],
+        [
+          "Uppsägningstid",
+          "tre månader",
+          0.0
+        ],
+        [
+          "Datum",
+          "[2023-06-01]",
+          0.0
+        ],
+        [
+          "Datum",
+          "[datum]",
+          0.0
+        ]
+      ],
+      "tp": 1,
+      "fp": 2,
+      "fn": 0
+    },
+    "Avtal_32_Inkopsavtal:7": {
+      "gold": [
+        [
+          "ANNEX_REF",
+          "Bilaga 2"
+        ]
+      ],
+      "found": [
+        [
+          "Ansvarstak",
+          "bilaga 2",
+          0.0
+        ],
+        [
+          "Ansvarstak",
+          "bilaga 2",
+          0.0
+        ],
+        [
+          "Belopp",
+          "procent",
+          0.0
+        ]
+      ],
+      "tp": 1,
+      "fp": 1,
+      "fn": 0
+    },
+    "Avtal_20_Arrendeavtal_lagenhetsarrende:7": {
+      "gold": [
+        [
+          "NOTICE_PERIOD",
+          "sex (6) månader"
+        ],
+        [
+          "RENEWAL_PERIOD",
+          "ett (1) år"
+        ]
+      ],
+      "found": [
+        [
+          "Avtalspart",
+          "parterna",
+          0.0
+        ]
+      ],
+      "tp": 0,
+      "fp": 1,
+      "fn": 2
+    },
+    "Avtal_81_VD_anstallningsavtal:19": {
+      "gold": [
+        [
+          "SEVERANCE",
+          "avgångsvederlag"
+        ],
+        [
+          "SEVERANCE_VALUE",
+          "sex (6) fasta månadslöner"
+        ]
+      ],
+      "found": [
+        [
+          "Uppsägningstid",
+          "månadslöner",
+          0.0
+        ],
+        [
+          "Avgångsvederlag",
+          "avgångsvederlag",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "vd",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "vd",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "vd",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "bolaget",
+          0.0
+        ],
+        [
+          "Avtalspart",
+          "bolaget",
+          0.0
+        ]
+      ],
+      "tp": 1,
+      "fp": 3,
+      "fn": 1
+    },
+    "Avtal_81_VD_anstallningsavtal:20": {
+      "gold": [
+        [
+          "TERMINATION_CONDITION",
+          "omedelbar verkan"
+        ]
+      ],
+      "found": [
+        [
+          "Uppsägningstid",
+          "7.3",
+          0.0
+        ],
+        [
+          "Uppsägningstid",
+          "omedelbar verkan",
+          0.0
+        ]
+      ],
+      "tp": 1,
+      "fp": 1,
+      "fn": 0
+    }
+  },
+  "precision": 0.28,
+  "recall": 0.7,
+  "f1": 0.4
+}

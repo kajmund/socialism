@@ -1,0 +1,19 @@
+{
+  "unique_verified": 6,
+  "unique_total": 6,
+  "jev_false_approvals": 50,
+  "needs_solved": 49,
+  "strategies": {
+    "baseline": 24,
+    "s1": {
+      "needs": 49,
+      "gliner_runs": 50,
+      "jev_calls": 140
+    },
+    "s2": {
+      "needs": 49,
+      "gliner_runs": 25,
+      "jev_calls": 44
+    }
+  }
+}

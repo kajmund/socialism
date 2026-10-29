@@ -1,0 +1,2508 @@
+{
+  "measurement": "pair_judgement",
+  "note": "Live Jev pair verdicts; pair generation is measured separately. False contradictions are counted on all judged pairs.",
+  "gold": "tests/integration/baselines/pair-gold-v1.json",
+  "reps": 2,
+  "config": {
+    "jev_model": "jev-latest",
+    "pair_strategy_default": "deterministic",
+    "max_pair_state_chars": 6000,
+    "max_pairs_per_need": 40
+  },
+  "summary": {
+    "deterministic": {
+      "runs": 10,
+      "mean_recall": 1.0,
+      "mean_precision": 1.0,
+      "false_contradictions": 0,
+      "uncertain": 0,
+      "unevaluated": 0,
+      "calls": 88,
+      "jev_latency_ms": 29892.51,
+      "mean_total_ms": 653.1567,
+      "embedding_calls": 0
+    },
+    "embeddings": {
+      "runs": 10,
+      "mean_recall": 0.6667,
+      "mean_precision": 0.5,
+      "false_contradictions": 4,
+      "uncertain": 0,
+      "unevaluated": 0,
+      "calls": 96,
+      "jev_latency_ms": 27675.642,
+      "mean_total_ms": 2200.1698,
+      "embedding_calls": 10
+    },
+    "hybrid": {
+      "runs": 10,
+      "mean_recall": 1.0,
+      "mean_precision": 0.6667,
+      "false_contradictions": 4,
+      "uncertain": 0,
+      "unevaluated": 0,
+      "calls": 96,
+      "jev_latency_ms": 28971.924,
+      "mean_total_ms": 2022.4554,
+      "embedding_calls": 10
+    }
+  },
+  "workflow_timing": [
+    {
+      "case_id": "duplicate_contradiction",
+      "total_ms": 739.482,
+      "jev_latency_ms": 695.013,
+      "orchestration_ms": 44.469,
+      "jev_calls": 4,
+      "passage_calls": 2,
+      "pair_calls": 1,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": true,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                2
+              ],
+              [
+                "found_with_excerpt",
+                2
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                155
+              ],
+              [
+                "judged_chars",
+                155
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                3
+              ],
+              [
+                "extracted",
+                3
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "complete",
+            "control": "process_and_facit",
+            "counts": [
+              [
+                "selected",
+                1
+              ],
+              [
+                "judged",
+                1
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                0
+              ],
+              [
+                "facit_expected",
+                1
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "independent_contradiction",
+      "total_ms": 723.477,
+      "jev_latency_ms": 779.443,
+      "orchestration_ms": 0.0,
+      "jev_calls": 4,
+      "passage_calls": 2,
+      "pair_calls": 1,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": true,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                2
+              ],
+              [
+                "found_with_excerpt",
+                2
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                151
+              ],
+              [
+                "judged_chars",
+                151
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                3
+              ],
+              [
+                "extracted",
+                3
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "complete",
+            "control": "process_and_facit",
+            "counts": [
+              [
+                "selected",
+                1
+              ],
+              [
+                "judged",
+                1
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                0
+              ],
+              [
+                "facit_expected",
+                1
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "compatible_periods",
+      "total_ms": 795.072,
+      "jev_latency_ms": 783.616,
+      "orchestration_ms": 11.456,
+      "jev_calls": 4,
+      "passage_calls": 2,
+      "pair_calls": 1,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": true,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                2
+              ],
+              [
+                "found_with_excerpt",
+                2
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                88
+              ],
+              [
+                "judged_chars",
+                88
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                2
+              ],
+              [
+                "extracted",
+                2
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "complete",
+            "control": "process_and_facit",
+            "counts": [
+              [
+                "selected",
+                1
+              ],
+              [
+                "judged",
+                1
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                0
+              ],
+              [
+                "facit_expected",
+                1
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "compatible_entities",
+      "total_ms": 681.15,
+      "jev_latency_ms": 667.081,
+      "orchestration_ms": 14.068,
+      "jev_calls": 4,
+      "passage_calls": 2,
+      "pair_calls": 1,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": true,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                2
+              ],
+              [
+                "found_with_excerpt",
+                2
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                80
+              ],
+              [
+                "judged_chars",
+                80
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                2
+              ],
+              [
+                "extracted",
+                2
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "complete",
+            "control": "process_and_facit",
+            "counts": [
+              [
+                "selected",
+                1
+              ],
+              [
+                "judged",
+                1
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                0
+              ],
+              [
+                "facit_expected",
+                1
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "total_ms": 2296.221,
+      "jev_latency_ms": 14023.006,
+      "orchestration_ms": 0.0,
+      "jev_calls": 49,
+      "passage_calls": 8,
+      "pair_calls": 40,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": false,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                1
+              ],
+              [
+                "found_with_excerpt",
+                1
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                10693
+              ],
+              [
+                "judged_chars",
+                10693
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                180
+              ],
+              [
+                "extracted",
+                180
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "incomplete",
+            "control": "process_and_facit",
+            "counts": [
+              [
+                "selected",
+                40
+              ],
+              [
+                "judged",
+                40
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                15717
+              ],
+              [
+                "facit_expected",
+                1
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [
+              "pair_budget_omitted"
+            ],
+            "note": "",
+            "gate_complete": false
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "total_ms": 457.905,
+      "jev_latency_ms": 203.924,
+      "orchestration_ms": 253.982,
+      "jev_calls": 2,
+      "passage_calls": 1,
+      "pair_calls": 0,
+      "draft_result": "insufficient",
+      "coverage_gate_complete": true,
+      "coverage": {
+        "levels": [
+          {
+            "level": "ingestion",
+            "status": "complete",
+            "control": "provided_evidenceset",
+            "counts": [
+              [
+                "provided",
+                1
+              ],
+              [
+                "found_with_excerpt",
+                1
+              ],
+              [
+                "found_without_excerpt",
+                0
+              ],
+              [
+                "not_found",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "Upstream ingestion is outside the provided EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "passage",
+            "status": "complete",
+            "control": "character_cover",
+            "counts": [
+              [
+                "source_chars",
+                89
+              ],
+              [
+                "judged_chars",
+                89
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "claim",
+            "status": "complete",
+            "control": "candidate_status",
+            "counts": [
+              [
+                "candidates",
+                2
+              ],
+              [
+                "extracted",
+                2
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unprocessed",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "",
+            "gate_complete": true
+          },
+          {
+            "level": "conflict_candidate",
+            "status": "not_applicable",
+            "control": "process",
+            "counts": [
+              [
+                "selected",
+                0
+              ],
+              [
+                "judged",
+                0
+              ],
+              [
+                "uncertain",
+                0
+              ],
+              [
+                "unevaluated",
+                0
+              ],
+              [
+                "omitted_by_budget",
+                0
+              ],
+              [
+                "facit_expected",
+                0
+              ],
+              [
+                "facit_missing",
+                0
+              ]
+            ],
+            "reasons": [],
+            "note": "No claim pair exists for this EvidenceSet.",
+            "gate_complete": true
+          },
+          {
+            "level": "narrative",
+            "status": "not_applicable",
+            "control": "none",
+            "counts": [],
+            "reasons": [],
+            "note": "Variant B is not implemented; no narrative review ran.",
+            "gate_complete": true
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "duplicate_contradiction",
+      "negative_control": false,
+      "runs": [
+        {
+          "rep": 0,
+          "strategy": "deterministic",
+          "selection_ms": 0.119,
+          "evaluation_ms": 318.858,
+          "total_ms": 318.977,
+          "selected_pairs": 1,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 1,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "false_contradictions": [],
+            "recall": 1.0,
+            "precision": 1.0,
+            "calls": 1,
+            "jev_latency_ms": 318.718,
+            "max_state_chars": 793,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "embeddings",
+          "selection_ms": 708.597,
+          "evaluation_ms": 256.806,
+          "total_ms": 965.404,
+          "selected_pairs": 3,
+          "embedding_calls": 1,
+          "embedding_texts": 3,
+          "coverage": {
+            "total": 3,
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 2,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "dup-contra:p0:c0|dup-support:p0:c0",
+              "dup-contra:p0:c1|dup-support:p0:c0"
+            ],
+            "false_contradictions": [
+              "dup-contra:p0:c1|dup-support:p0:c0"
+            ],
+            "recall": 1.0,
+            "precision": 0.5,
+            "calls": 3,
+            "jev_latency_ms": 673.518,
+            "max_state_chars": 793,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "hybrid",
+          "selection_ms": 1.602,
+          "evaluation_ms": 271.802,
+          "total_ms": 273.404,
+          "selected_pairs": 3,
+          "embedding_calls": 1,
+          "embedding_texts": 3,
+          "coverage": {
+            "total": 3,
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 2,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "dup-contra:p0:c0|dup-support:p0:c0",
+              "dup-contra:p0:c1|dup-support:p0:c0"
+            ],
+            "false_contradictions": [
+              "dup-contra:p0:c1|dup-support:p0:c0"
+            ],
+            "recall": 1.0,
+            "precision": 0.5,
+            "calls": 3,
+            "jev_latency_ms": 742.596,
+            "max_state_chars": 793,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "deterministic",
+          "selection_ms": 0.06,
+          "evaluation_ms": 226.694,
+          "total_ms": 226.754,
+          "selected_pairs": 1,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 1,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "false_contradictions": [],
+            "recall": 1.0,
+            "precision": 1.0,
+            "calls": 1,
+            "jev_latency_ms": 226.577,
+            "max_state_chars": 793,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "embeddings",
+          "selection_ms": 1.448,
+          "evaluation_ms": 302.638,
+          "total_ms": 304.086,
+          "selected_pairs": 3,
+          "embedding_calls": 1,
+          "embedding_texts": 3,
+          "coverage": {
+            "total": 3,
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 2,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "dup-contra:p0:c0|dup-support:p0:c0",
+              "dup-contra:p0:c1|dup-support:p0:c0"
+            ],
+            "false_contradictions": [
+              "dup-contra:p0:c1|dup-support:p0:c0"
+            ],
+            "recall": 1.0,
+            "precision": 0.5,
+            "calls": 3,
+            "jev_latency_ms": 717.218,
+            "max_state_chars": 793,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "hybrid",
+          "selection_ms": 3.4,
+          "evaluation_ms": 315.496,
+          "total_ms": 318.896,
+          "selected_pairs": 3,
+          "embedding_calls": 1,
+          "embedding_texts": 3,
+          "coverage": {
+            "total": 3,
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "dup-contra:p0:c0|dup-support:p0:c0"
+            ],
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 2,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "dup-contra:p0:c0|dup-support:p0:c0",
+              "dup-contra:p0:c1|dup-support:p0:c0"
+            ],
+            "false_contradictions": [
+              "dup-contra:p0:c1|dup-support:p0:c0"
+            ],
+            "recall": 1.0,
+            "precision": 0.5,
+            "calls": 3,
+            "jev_latency_ms": 801.65,
+            "max_state_chars": 793,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "independent_contradiction",
+      "negative_control": false,
+      "runs": [
+        {
+          "rep": 0,
+          "strategy": "deterministic",
+          "selection_ms": 0.064,
+          "evaluation_ms": 228.942,
+          "total_ms": 229.007,
+          "selected_pairs": 1,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 1,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "false_contradictions": [],
+            "recall": 1.0,
+            "precision": 1.0,
+            "calls": 1,
+            "jev_latency_ms": 228.797,
+            "max_state_chars": 789,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "embeddings",
+          "selection_ms": 379.055,
+          "evaluation_ms": 322.477,
+          "total_ms": 701.532,
+          "selected_pairs": 3,
+          "embedding_calls": 1,
+          "embedding_texts": 3,
+          "coverage": {
+            "total": 3,
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 2,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "ind-contra:p0:c0|ind-support:p0:c0",
+              "ind-contra:p0:c1|ind-support:p0:c0"
+            ],
+            "false_contradictions": [
+              "ind-contra:p0:c1|ind-support:p0:c0"
+            ],
+            "recall": 1.0,
+            "precision": 0.5,
+            "calls": 3,
+            "jev_latency_ms": 798.031,
+            "max_state_chars": 789,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "hybrid",
+          "selection_ms": 1.514,
+          "evaluation_ms": 271.232,
+          "total_ms": 272.746,
+          "selected_pairs": 3,
+          "embedding_calls": 1,
+          "embedding_texts": 3,
+          "coverage": {
+            "total": 3,
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 2,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "ind-contra:p0:c0|ind-support:p0:c0",
+              "ind-contra:p0:c1|ind-support:p0:c0"
+            ],
+            "false_contradictions": [
+              "ind-contra:p0:c1|ind-support:p0:c0"
+            ],
+            "recall": 1.0,
+            "precision": 0.5,
+            "calls": 3,
+            "jev_latency_ms": 736.254,
+            "max_state_chars": 789,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "deterministic",
+          "selection_ms": 0.058,
+          "evaluation_ms": 197.337,
+          "total_ms": 197.395,
+          "selected_pairs": 1,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 1,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "false_contradictions": [],
+            "recall": 1.0,
+            "precision": 1.0,
+            "calls": 1,
+            "jev_latency_ms": 197.224,
+            "max_state_chars": 789,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "embeddings",
+          "selection_ms": 1.399,
+          "evaluation_ms": 270.442,
+          "total_ms": 271.842,
+          "selected_pairs": 3,
+          "embedding_calls": 1,
+          "embedding_texts": 3,
+          "coverage": {
+            "total": 3,
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 2,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "ind-contra:p0:c0|ind-support:p0:c0",
+              "ind-contra:p0:c1|ind-support:p0:c0"
+            ],
+            "false_contradictions": [
+              "ind-contra:p0:c1|ind-support:p0:c0"
+            ],
+            "recall": 1.0,
+            "precision": 0.5,
+            "calls": 3,
+            "jev_latency_ms": 716.578,
+            "max_state_chars": 789,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "hybrid",
+          "selection_ms": 1.432,
+          "evaluation_ms": 303.471,
+          "total_ms": 304.903,
+          "selected_pairs": 3,
+          "embedding_calls": 1,
+          "embedding_texts": 3,
+          "coverage": {
+            "total": 3,
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "facit_contradiction_pairs": [
+              "ind-contra:p0:c0|ind-support:p0:c0"
+            ],
+            "judged": 3,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 2,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "ind-contra:p0:c0|ind-support:p0:c0",
+              "ind-contra:p0:c1|ind-support:p0:c0"
+            ],
+            "false_contradictions": [
+              "ind-contra:p0:c1|ind-support:p0:c0"
+            ],
+            "recall": 1.0,
+            "precision": 0.5,
+            "calls": 3,
+            "jev_latency_ms": 796.608,
+            "max_state_chars": 789,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "compatible_periods",
+      "negative_control": false,
+      "runs": [
+        {
+          "rep": 0,
+          "strategy": "deterministic",
+          "selection_ms": 0.044,
+          "evaluation_ms": 234.621,
+          "total_ms": 234.665,
+          "selected_pairs": 1,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "period-new:p0:c0|period-old:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 234.517,
+            "max_state_chars": 742,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "embeddings",
+          "selection_ms": 266.068,
+          "evaluation_ms": 203.715,
+          "total_ms": 469.783,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "period-new:p0:c0|period-old:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 203.595,
+            "max_state_chars": 742,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "hybrid",
+          "selection_ms": 0.589,
+          "evaluation_ms": 197.288,
+          "total_ms": 197.877,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "period-new:p0:c0|period-old:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 197.099,
+            "max_state_chars": 742,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "deterministic",
+          "selection_ms": 0.058,
+          "evaluation_ms": 232.365,
+          "total_ms": 232.423,
+          "selected_pairs": 1,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "period-new:p0:c0|period-old:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 232.242,
+            "max_state_chars": 742,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "embeddings",
+          "selection_ms": 0.641,
+          "evaluation_ms": 201.924,
+          "total_ms": 202.565,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "period-new:p0:c0|period-old:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 201.634,
+            "max_state_chars": 742,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "hybrid",
+          "selection_ms": 0.645,
+          "evaluation_ms": 229.956,
+          "total_ms": 230.6,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "period-new:p0:c0|period-old:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 229.802,
+            "max_state_chars": 742,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "compatible_entities",
+      "negative_control": false,
+      "runs": [
+        {
+          "rep": 0,
+          "strategy": "deterministic",
+          "selection_ms": 0.042,
+          "evaluation_ms": 234.769,
+          "total_ms": 234.811,
+          "selected_pairs": 1,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "entity-a:p0:c0|entity-b:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 234.669,
+            "max_state_chars": 668,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "embeddings",
+          "selection_ms": 232.788,
+          "evaluation_ms": 205.367,
+          "total_ms": 438.156,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "entity-a:p0:c0|entity-b:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 205.229,
+            "max_state_chars": 668,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "hybrid",
+          "selection_ms": 0.532,
+          "evaluation_ms": 241.755,
+          "total_ms": 242.287,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "entity-a:p0:c0|entity-b:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 241.617,
+            "max_state_chars": 668,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "deterministic",
+          "selection_ms": 0.06,
+          "evaluation_ms": 207.133,
+          "total_ms": 207.193,
+          "selected_pairs": 1,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "entity-a:p0:c0|entity-b:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 206.986,
+            "max_state_chars": 668,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "embeddings",
+          "selection_ms": 0.579,
+          "evaluation_ms": 202.395,
+          "total_ms": 202.974,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "entity-a:p0:c0|entity-b:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 202.26,
+            "max_state_chars": 668,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "hybrid",
+          "selection_ms": 0.551,
+          "evaluation_ms": 222.987,
+          "total_ms": 223.539,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "entity-a:p0:c0|entity-b:p0:c0"
+            ],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 1,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 222.824,
+            "max_state_chars": 668,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "negative_control": false,
+      "runs": [
+        {
+          "rep": 0,
+          "strategy": "deterministic",
+          "selection_ms": 151.677,
+          "evaluation_ms": 1639.933,
+          "total_ms": 1791.609,
+          "selected_pairs": 40,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 40,
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "facit_contradiction_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 1,
+              "COMPATIBLE": 39,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "false_contradictions": [],
+            "recall": 1.0,
+            "precision": 1.0,
+            "calls": 40,
+            "jev_latency_ms": 11676.188,
+            "max_state_chars": 3614,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "embeddings",
+          "selection_ms": 7943.018,
+          "evaluation_ms": 1637.595,
+          "total_ms": 9580.613,
+          "selected_pairs": 40,
+          "embedding_calls": 1,
+          "embedding_texts": 180,
+          "coverage": {
+            "total": 40,
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "facit_contradiction_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 40,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": 0.0,
+            "precision": null,
+            "calls": 40,
+            "jev_latency_ms": 12110.462,
+            "max_state_chars": 3642,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "hybrid",
+          "selection_ms": 7358.702,
+          "evaluation_ms": 1737.95,
+          "total_ms": 9096.652,
+          "selected_pairs": 40,
+          "embedding_calls": 1,
+          "embedding_texts": 180,
+          "coverage": {
+            "total": 40,
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "facit_contradiction_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 1,
+              "COMPATIBLE": 39,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "false_contradictions": [],
+            "recall": 1.0,
+            "precision": 1.0,
+            "calls": 40,
+            "jev_latency_ms": 12753.477,
+            "max_state_chars": 3642,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "deterministic",
+          "selection_ms": 89.266,
+          "evaluation_ms": 2769.467,
+          "total_ms": 2858.733,
+          "selected_pairs": 40,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 40,
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "facit_contradiction_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 1,
+              "COMPATIBLE": 39,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "false_contradictions": [],
+            "recall": 1.0,
+            "precision": 1.0,
+            "calls": 40,
+            "jev_latency_ms": 16336.592,
+            "max_state_chars": 3614,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "embeddings",
+          "selection_ms": 7266.028,
+          "evaluation_ms": 1598.715,
+          "total_ms": 8864.743,
+          "selected_pairs": 40,
+          "embedding_calls": 1,
+          "embedding_texts": 180,
+          "coverage": {
+            "total": 40,
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "facit_contradiction_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 40,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": 0.0,
+            "precision": null,
+            "calls": 40,
+            "jev_latency_ms": 11847.117,
+            "max_state_chars": 3642,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "hybrid",
+          "selection_ms": 7382.669,
+          "evaluation_ms": 1680.981,
+          "total_ms": 9063.65,
+          "selected_pairs": 40,
+          "embedding_calls": 1,
+          "embedding_texts": 180,
+          "coverage": {
+            "total": 40,
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "facit_contradiction_pairs": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "judged": 40,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 1,
+              "COMPATIBLE": 39,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [
+              "tail-claims:p0:c0|tail-claims:p7:c4"
+            ],
+            "false_contradictions": [],
+            "recall": 1.0,
+            "precision": 1.0,
+            "calls": 40,
+            "jev_latency_ms": 12249.997,
+            "max_state_chars": 3642,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "negative_control": true,
+      "runs": [
+        {
+          "rep": 0,
+          "strategy": "deterministic",
+          "selection_ms": 2.572,
+          "evaluation_ms": 0.032,
+          "total_ms": 2.603,
+          "selected_pairs": 0,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 0,
+            "judged": 0,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [],
+            "facit_contradiction_pairs": [],
+            "judged": 0,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 0,
+            "jev_latency_ms": 0,
+            "max_state_chars": 0,
+            "models": []
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "embeddings",
+          "selection_ms": 243.585,
+          "evaluation_ms": 244.131,
+          "total_ms": 487.716,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 243.918,
+            "max_state_chars": 812,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 0,
+          "strategy": "hybrid",
+          "selection_ms": 0.545,
+          "evaluation_ms": 239.648,
+          "total_ms": 240.193,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 239.522,
+            "max_state_chars": 812,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "deterministic",
+          "selection_ms": 0.042,
+          "evaluation_ms": 0.009,
+          "total_ms": 0.051,
+          "selected_pairs": 0,
+          "embedding_calls": 0,
+          "embedding_texts": 0,
+          "coverage": {
+            "total": 0,
+            "judged": 0,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [],
+            "facit_contradiction_pairs": [],
+            "judged": 0,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 0,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 0,
+            "jev_latency_ms": 0,
+            "max_state_chars": 0,
+            "models": []
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "embeddings",
+          "selection_ms": 0.512,
+          "evaluation_ms": 253.293,
+          "total_ms": 253.805,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 253.17,
+            "max_state_chars": 812,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        },
+        {
+          "rep": 1,
+          "strategy": "hybrid",
+          "selection_ms": 0.608,
+          "evaluation_ms": 212.232,
+          "total_ms": 212.84,
+          "selected_pairs": 1,
+          "embedding_calls": 1,
+          "embedding_texts": 2,
+          "coverage": {
+            "total": 1,
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "complete": true
+          },
+          "metrics": {
+            "facit_candidate_pairs": [],
+            "facit_contradiction_pairs": [],
+            "judged": 1,
+            "uncertain": 0,
+            "unevaluated": 0,
+            "unevaluated_reasons": [],
+            "verdicts": {
+              "CONTRADICTS": 0,
+              "COMPATIBLE": 1,
+              "SCOPE_DIFFERENCE": 0,
+              "INSUFFICIENT": 0
+            },
+            "detected_contradictions": [],
+            "false_contradictions": [],
+            "recall": null,
+            "precision": null,
+            "calls": 1,
+            "jev_latency_ms": 212.108,
+            "max_state_chars": 812,
+            "models": [
+              "jev-1.14.0"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

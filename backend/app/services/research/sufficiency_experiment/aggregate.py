@@ -1,11 +1,20 @@
-"""Obligation aggregation. One supporting passage is never enough."""
+"""Obligation aggregation with typed conflict records.
+
+One supporting passage is never enough, and a conflict is never resolved by a
+duplicate score. Unresolved or unknown-counterpart conflicts keep the need
+uncertain; only a motivated `resolved` or `not_applicable` record clears one.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
+from app.services.research.assessment import AssessableEvidence
 from app.services.research.models import ResearchNeed, ResearchPlan
-from app.services.research.sufficiency_experiment.obligations import obligations_for_need
+from app.services.research.sufficiency_experiment.conflicts import build_conflicts
+from app.services.research.sufficiency_experiment.obligations import (
+    obligations_for_need,
+)
 from app.services.research.sufficiency_experiment.types import (
     EvidenceObligation,
     ExperimentConfig,
@@ -21,10 +30,15 @@ def aggregate_need(
     rows: Sequence[PassageEvaluation],
     *,
     config: ExperimentConfig,
-    addressed_conflicts: Sequence[str] = (),
+    evidence_by_id: Mapping[str, AssessableEvidence],
     source_types_present: Sequence[str] = (),
 ) -> NeedAggregation:
     declared = obligations_for_need(need)
+    conflicts = build_conflicts(need.id, rows, evidence_by_id, config=config)
+    contradictions = _contradictions(rows, config)
+    unresolved = tuple(
+        item.conflict_id for item in conflicts if item.status == "unresolved"
+    )
     if not declared:
         return NeedAggregation(
             research_need_id=need.id,
@@ -32,27 +46,16 @@ def aggregate_need(
             sufficient=False,
             obligation_states=(),
             supporting_evidence_ids=(),
-            contradictions=_contradictions(rows, config),
-            unresolved_conflicts=(),
+            contradictions=contradictions,
+            unresolved_conflicts=unresolved,
             missing_or_weak="Unknown evidence obligations; never sufficient.",
             unknown_requirements=True,
+            conflicts=conflicts,
         )
     states = [
-        _state(
-            item,
-            rows,
-            config=config,
-            addressed_conflicts=addressed_conflicts,
-            source_types_present=source_types_present,
-        )
+        _state(item, rows, config=config, source_types_present=source_types_present)
         for item in declared
     ]
-    contradictions = _contradictions(rows, config)
-    unresolved = tuple(
-        state.obligation_id
-        for state in states
-        if state.contradicting_passage_ids and not state.addressed
-    )
     supporting = tuple(
         dict.fromkeys(
             row.evidence_id
@@ -72,6 +75,7 @@ def aggregate_need(
         unresolved_conflicts=unresolved,
         missing_or_weak=_missing(states, unresolved),
         unknown_requirements=False,
+        conflicts=conflicts,
     )
 
 
@@ -80,8 +84,8 @@ def aggregate_plan(
     rows: Sequence[PassageEvaluation],
     *,
     config: ExperimentConfig,
-    addressed_conflicts: Sequence[str] = (),
-    source_types_by_id: dict[str, tuple[str, ...]] | None = None,
+    evidence_by_id: Mapping[str, AssessableEvidence],
+    source_types_by_id: Mapping[str, Sequence[str]] | None = None,
 ) -> list[NeedAggregation]:
     indexed: dict[str, list[PassageEvaluation]] = {need.id: [] for need in plan.needs}
     for row in rows:
@@ -97,7 +101,7 @@ def aggregate_plan(
             need,
             indexed[need.id],
             config=config,
-            addressed_conflicts=addressed_conflicts,
+            evidence_by_id=evidence_by_id,
             source_types_present=present.get(need.id, ()),
         )
         for need in plan.needs
@@ -109,7 +113,6 @@ def _state(
     rows: Sequence[PassageEvaluation],
     *,
     config: ExperimentConfig,
-    addressed_conflicts: Sequence[str],
     source_types_present: Sequence[str],
 ) -> ObligationState:
     contradicting = _contradictions(rows, config)
@@ -125,8 +128,6 @@ def _state(
         )
     elif obligation.kind == "factual_support":
         verified = len(keys) >= obligation.min_independent_sources
-        if contradicting and obligation.obligation_id not in addressed_conflicts:
-            verified = False
     else:
         source = obligation.obligation_id.split("completeness:")[-1]
         verified = source in source_types_present
@@ -136,7 +137,6 @@ def _state(
         verified=verified,
         independent_support=len(keys),
         contradicting_passage_ids=contradicting,
-        addressed=obligation.obligation_id in addressed_conflicts,
     )
 
 
@@ -161,7 +161,7 @@ def _status(verified: bool, unresolved: Sequence[str]) -> ExperimentStatus:
 
 def _missing(states: Sequence[ObligationState], unresolved: Sequence[str]) -> str:
     if unresolved:
-        return "Material contradictions are preserved and not yet addressed."
+        return "Material contradictions are unresolved and not shown inapplicable."
     unmet = [state.obligation_id for state in states if not state.verified]
     if unmet:
         return "Mandatory obligations lack verified support: " + ", ".join(unmet)

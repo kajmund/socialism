@@ -18,7 +18,6 @@ ALLOWED_WORKFLOWS = frozenset(
         "evaluate_passages",
         "aggregate_need",
         "quality_gate",
-        "resolve_conflict",
     }
 )
 FORBIDDEN_TOOLS = frozenset(

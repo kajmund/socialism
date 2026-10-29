@@ -1,0 +1,38 @@
+{
+  "sequences": {
+    "extrahera först, kontext-JEV vid behov": {
+      "recovered": 11,
+      "false_positives": 5,
+      "marginal_cost": 78000,
+      "cost_per_recovered": 7090.909090909091,
+      "stopped_first_step": 14
+    },
+    "kontext-JEV först, extrahera vid behov": {
+      "recovered": 11,
+      "false_positives": 5,
+      "marginal_cost": 92000,
+      "cost_per_recovered": 8363.636363636364,
+      "stopped_first_step": 13
+    },
+    "förtydligad JEV först, stoppa annars": {
+      "recovered": 11,
+      "false_positives": 3,
+      "marginal_cost": 92000,
+      "cost_per_recovered": 8363.636363636364,
+      "stopped_first_step": 14
+    },
+    "stopp utan investering": {
+      "recovered": 0,
+      "false_positives": 0,
+      "marginal_cost": 0,
+      "cost_per_recovered": Infinity,
+      "stopped_first_step": 0
+    }
+  },
+  "gaps": {
+    "retrieval": 0,
+    "recognition": 11,
+    "extraction": 2,
+    "reasoning": 0
+  }
+}

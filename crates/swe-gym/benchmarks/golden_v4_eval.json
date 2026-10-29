@@ -1,0 +1,50 @@
+{
+  "g4-01": {
+    "evidence_ok": false,
+    "control": "READY",
+    "conclusion": "6 månader",
+    "correct": true,
+    "jev_calls": 8,
+    "llm_calls": 0
+  },
+  "g4-02": {
+    "evidence_ok": true,
+    "control": "NeedMore('vilket alternativ gäller?') -> INSUFFICIENT",
+    "conclusion": null,
+    "correct": true,
+    "jev_calls": 8,
+    "llm_calls": 0
+  },
+  "g4-03": {
+    "evidence_ok": true,
+    "control": "NeedMore(Bilaga) -> INSUFFICIENT",
+    "conclusion": null,
+    "correct": true,
+    "jev_calls": 8,
+    "llm_calls": 0
+  },
+  "g4-04": {
+    "evidence_ok": "N/A (frånvarofråga)",
+    "control": "VERIFIED_ABSENT (21 chunkar sökta)",
+    "conclusion": "nej",
+    "correct": true,
+    "jev_calls": 21,
+    "llm_calls": 0
+  },
+  "g4-05": {
+    "evidence_ok": false,
+    "control": "INSUFFICIENT (1/3 indata)",
+    "conclusion": null,
+    "correct": null,
+    "jev_calls": 8,
+    "llm_calls": 0
+  },
+  "g4-06": {
+    "evidence_ok": true,
+    "control": "NeedMore upptäckt i samma klausul -> READY (villkoret löst)",
+    "conclusion": "villkorat ja",
+    "correct": true,
+    "jev_calls": 8,
+    "llm_calls": 0
+  }
+}

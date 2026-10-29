@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "description": "Frozen candidate-pair ground truth for A3. claim ids are deterministic_segment occurrences; pairs are sorted claim-id pairs. candidate_pairs must be proposed by a strategy; contradiction_pairs are the Jev-evaluation facit. unknown_counterpart is a negative control and is excluded from recall aggregates.",
+  "cases": [
+    {
+      "case_id": "duplicate_contradiction",
+      "negative_control": false,
+      "candidate_pairs": [
+        ["dup-contra:p0:c0", "dup-support:p0:c0"]
+      ],
+      "contradiction_pairs": [
+        ["dup-contra:p0:c0", "dup-support:p0:c0"]
+      ]
+    },
+    {
+      "case_id": "independent_contradiction",
+      "negative_control": false,
+      "candidate_pairs": [
+        ["ind-contra:p0:c0", "ind-support:p0:c0"]
+      ],
+      "contradiction_pairs": [
+        ["ind-contra:p0:c0", "ind-support:p0:c0"]
+      ]
+    },
+    {
+      "case_id": "compatible_periods",
+      "negative_control": false,
+      "candidate_pairs": [
+        ["period-new:p0:c0", "period-old:p0:c0"]
+      ],
+      "contradiction_pairs": []
+    },
+    {
+      "case_id": "compatible_entities",
+      "negative_control": false,
+      "candidate_pairs": [
+        ["entity-a:p0:c0", "entity-b:p0:c0"]
+      ],
+      "contradiction_pairs": []
+    },
+    {
+      "case_id": "tail_claim_contradiction",
+      "negative_control": false,
+      "candidate_pairs": [
+        ["tail-claims:p0:c0", "tail-claims:p7:c4"]
+      ],
+      "contradiction_pairs": [
+        ["tail-claims:p0:c0", "tail-claims:p7:c4"]
+      ]
+    },
+    {
+      "case_id": "unknown_counterpart",
+      "negative_control": true,
+      "candidate_pairs": [],
+      "contradiction_pairs": []
+    }
+  ]
+}

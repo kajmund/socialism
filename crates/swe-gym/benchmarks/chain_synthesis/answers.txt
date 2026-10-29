@@ -1,0 +1,29 @@
+=== g2-15
+QUESTION: Vilka av dessa dokument innehåller en klausul om sekretess? (Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal, Avtal_15_Bonusavtal, Avtal_11_Distansarbetsavtal)
+CHAIN_C: FEL: invalid LLM answer "AVTAL_06_SEKRETESSAVTAL_ENSIDIGT_NDA," (content: "Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal")
+CHAIN_D_NEEDS: FEL: invalid LLM answer "SEKRETESS,KLAUSUL,AVTAL,DOKUMENT" (content: "sekretess,klausul,avtal,dokument")
+CHAIN_D: FEL: invalid LLM answer "AVTAL_06_SEKRETESSAVTAL_ENSIDIGT_NDA," (content: "Avtal_06_Sekretessavtal_ensidigt_NDA, Avtal_05_Konsultavtal")
+
+=== g2-17
+QUESTION: Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_15_Bonusavtal, Avtal_02_Provanstallningsavtal)
+CHAIN_C: FEL: invalid LLM answer "AVTAL_05_KONSULTAVTAL," (content: "Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal.")
+CHAIN_D_NEEDS: FEL: invalid LLM answer "UPPSÄGNINGSTID,KLAUSUL,AVTAL,DOCUMENT,AVTAL_05_KONSULTAVTAL,AVTAL_01_TILLSVIDAREANSTALLNINGSAVTAL,AVTAL_15_BONUSAVTAL,AVTAL_02_PROVANSTALLNINGSAVTAL" (content: "uppsägningstid,klausul,avtal,document,Avtal_05_Konsultavtal,Avtal_01_Tillsvidareanstallningsavtal,Avtal_15_Bonusavtal,Avtal_02_Provanstallningsavtal")
+CHAIN_D: FEL: invalid LLM answer "AVTAL_05_KONSULTAVTAL," (content: "Avtal_05_Konsultavtal, Avtal_01_Tillsvidareanstallningsavtal, Avtal_02_Provanstallningsavtal")
+
+=== g2-29
+QUESTION: Vilka av dessa dokument innehåller en klausul om uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_17_Hyresavtal_lokal, Avtal_15_Bonusavtal, Avtal_03_Visstidsanstallning)
+CHAIN_C: FEL: invalid LLM answer "AVTAL_01_TILLSVIDAREANSTALLNINGSAVTAL," (content: "Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning")
+CHAIN_D_NEEDS: FEL: invalid LLM answer "UPPSÄGNINGSTID,KLAUSUL,AVTAL_01_TILLSVIDAREANSTALLNINGSAVTAL,AVTAL_17_HYRESAVTAL_LOKAL,AVTAL_15_BONUSAVTAL,AVTAL_03_VISSTIDSANSTALLNING" (content: "uppsägningstid,klausul,Avtal_01_Tillsvidareanstallningsavtal,Avtal_17_Hyresavtal_lokal,Avtal_15_Bonusavtal,Avtal_03_Visstidsanstallning")
+CHAIN_D: FEL: invalid LLM answer "INGEN" (content: "Ingen information om uppsägningstid i de angivna dokumenten.")
+
+=== g2-20
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_01_Tillsvidareanstallningsavtal, Avtal_03_Visstidsanstallning, Avtal_11_Distansarbetsavtal)
+CHAIN_C: FEL: invalid LLM answer "UPPGIFT" (content: "Uppgift saknas.")
+CHAIN_D_NEEDS: FEL: invalid LLM answer "UPPSÄGNINGSTID,LÄNGST,AVTAL_01_TILLSVIDAREANSTALLNINGSAVTAL,AVTAL_03_VISSTIDSANSTALLNING,AVTAL_11_DISTANSARBETSAVTAL" (content: "uppsägningstid,längst,Avtal_01_Tillsvidareanstallningsavtal,Avtal_03_Visstidsanstallning,Avtal_11_Distansarbetsavtal")
+CHAIN_D: FEL: invalid LLM answer "UPPGIFT" (content: "Uppgift saknas.")
+
+=== g2-23
+QUESTION: Vilket av dessa dokument har längst uppsägningstid? (Avtal_18_Hyresavtal_bostad, Avtal_22_Kontorshotell_coworking, Avtal_28_Aktieagaravtal)
+CHAIN_C: FEL: invalid LLM answer "INGEN" (content: "Ingen information om uppsägningstid finns i den angivna evidensen.")
+CHAIN_D_NEEDS: FEL: invalid LLM answer "UPPSÄGNINGSTID,LÄNGSTA,DOKUMENT,AVTAL_18_HYRESAVTAL_BOSTAD,AVTAL_22_KONTORSHOTELL_COWORKING,AVTAL_28_AKTIEAGARAVTAL" (content: "uppsägningstid,längsta,dokument,Avtal_18_Hyresavtal_bostad,Avtal_22_Kontorshotell_coworking,Avtal_28_Aktieagaravtal")
+CHAIN_D: FEL: invalid LLM answer "INGEN" (content: "Ingen information om uppsägningstid finns i den angivna evidensen.")

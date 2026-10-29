@@ -16,8 +16,11 @@ HANDLER_NAMES = frozenset(
         "sufficiency.prepare",
         "sufficiency.evaluate_one",
         "sufficiency.aggregate",
+        "sufficiency.prepare_pairs",
+        "sufficiency.evaluate_pair",
+        "sufficiency.aggregate_pairs",
+        "sufficiency.gap_review",
         "sufficiency.route",
-        "sufficiency.resolve",
         "sufficiency.narrative",
         "sufficiency.emit",
     }
@@ -26,7 +29,7 @@ HANDLER_NAMES = frozenset(
 _WORKFLOW_LIMITS = {"max_steps": 2_000, "max_depth": 6, "timeout_seconds": 1_800}
 
 
-def _document(concurrency: int) -> dict[str, Any]:
+def _document(concurrency: int, pair_concurrency: int) -> dict[str, Any]:
     return {
         "version": "1.0",
         "name": "evidence_sufficiency",
@@ -57,6 +60,29 @@ def _document(concurrency: int) -> dict[str, Any]:
             "aggregate": {
                 "type": "task",
                 "handler": "sufficiency.aggregate",
+                "next": "prepare_pairs",
+            },
+            "prepare_pairs": {
+                "type": "task",
+                "handler": "sufficiency.prepare_pairs",
+                "next": "pair_jobs",
+            },
+            "pair_jobs": {
+                "type": "map",
+                "items": "$.prepare_pairs.result.jobs",
+                "child": "evaluate_pair",
+                "concurrency": pair_concurrency,
+                "next": "aggregate_pairs",
+            },
+            "evaluate_pair": {"type": "task", "handler": "sufficiency.evaluate_pair"},
+            "aggregate_pairs": {
+                "type": "task",
+                "handler": "sufficiency.aggregate_pairs",
+                "next": "gap_review",
+            },
+            "gap_review": {
+                "type": "task",
+                "handler": "sufficiency.gap_review",
                 "next": "route",
             },
             "route": {
@@ -70,23 +96,7 @@ def _document(concurrency: int) -> dict[str, Any]:
                 "condition": {
                     "eq": [{"var": "$.route.result.finish"}, {"const": True}]
                 },
-                "routes": {"true": "emit", "false": "sub_gate"},
-            },
-            "sub_gate": {
-                "type": "decision",
-                "evaluator": "expression",
-                "condition": {
-                    "eq": [
-                        {"var": "$.route.result.run_subworkflow"},
-                        {"const": True},
-                    ]
-                },
-                "routes": {"true": "resolve", "false": "escalate_gate"},
-            },
-            "resolve": {
-                "type": "task",
-                "handler": "sufficiency.resolve",
-                "next": "aggregate",
+                "routes": {"true": "emit", "false": "escalate_gate"},
             },
             "escalate_gate": {
                 "type": "decision",
@@ -108,5 +118,10 @@ def _document(concurrency: int) -> dict[str, Any]:
 
 
 @cache
-def compile_sufficiency_workflow(concurrency: int = 8) -> CompiledDefinition:
-    return compile_definition(_document(concurrency), handlers=HANDLER_NAMES)
+def compile_sufficiency_workflow(
+    concurrency: int = 8,
+    pair_concurrency: int = 8,
+) -> CompiledDefinition:
+    return compile_definition(
+        _document(concurrency, pair_concurrency), handlers=HANDLER_NAMES
+    )

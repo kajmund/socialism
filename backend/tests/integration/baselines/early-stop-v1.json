@@ -1,0 +1,1013 @@
+{
+  "measurement": "early_stop",
+  "note": "Exhaustive vs existential (verified blocking conflict) with D config; production behavior unchanged.",
+  "reps": 2,
+  "arms": {
+    "exhaustive": {
+      "config": {
+        "jev_concurrency": 8,
+        "jev_timeout_seconds": 5.0,
+        "jev_model": "jev-latest",
+        "max_passage_chars": 1500,
+        "max_narrative_depth": 1,
+        "max_jev_calls": 2000,
+        "max_steps": 2000,
+        "max_depth": 6,
+        "timeout_seconds": 1800,
+        "support_threshold": 0.6,
+        "contradict_threshold": 0.6,
+        "max_tool_calls": 8,
+        "max_narrative_input_chars": 12000,
+        "min_claim_chars": 20,
+        "max_claim_chars": 500,
+        "min_claim_words": 4,
+        "max_claims_per_need": 200,
+        "max_pairs_per_need": 40,
+        "embedding_neighbors": 3,
+        "pair_strategy": "hybrid",
+        "pair_ordering": "metadata",
+        "stop_mode": "exhaustive",
+        "route_authority": true,
+        "legacy_duplicate_resolution": false,
+        "pair_judgement": true,
+        "pair_jev_concurrency": 8,
+        "pair_jev_timeout_seconds": 5.0,
+        "gap_review_enabled": false,
+        "max_gap_input_chars": 12000,
+        "max_pair_state_chars": 6000,
+        "max_pair_jev_calls": 200
+      },
+      "rows": [
+        {
+          "mode": "exhaustive",
+          "rep": 0,
+          "case_id": "tail_counterevidence",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 56,
+          "latency_ms": 3507.938541995827,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 0,
+          "case_id": "late_evidence",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 629,
+          "latency_ms": 42407.80729200924,
+          "selected_pairs": 40,
+          "evaluated_pairs": 40,
+          "skipped_pairs": 0,
+          "started_pairs": 40,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "COVERAGE_INCOMPLETE",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 0,
+          "case_id": "duplicate_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 6,
+          "latency_ms": 1129.340624960605,
+          "selected_pairs": 3,
+          "evaluated_pairs": 3,
+          "skipped_pairs": 0,
+          "started_pairs": 3,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 0,
+          "case_id": "independent_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 6,
+          "latency_ms": 977.3237080080435,
+          "selected_pairs": 3,
+          "evaluated_pairs": 3,
+          "skipped_pairs": 0,
+          "started_pairs": 3,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 0,
+          "case_id": "tail_claim_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 49,
+          "latency_ms": 10426.621165999677,
+          "selected_pairs": 40,
+          "evaluated_pairs": 40,
+          "skipped_pairs": 0,
+          "started_pairs": 40,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "COVERAGE_INCOMPLETE",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 0,
+          "case_id": "candidate_miss_synonyms",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 889.8432909627445,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "NONE",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": false,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 0,
+          "case_id": "synonym_contradiction_semester",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 1143.6484169680625,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "NONE",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": false,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 0,
+          "case_id": "synonym_contradiction_notice",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 1003.6931250360794,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 1,
+          "case_id": "tail_counterevidence",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 56,
+          "latency_ms": 2942.622416012455,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 1,
+          "case_id": "late_evidence",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 629,
+          "latency_ms": 42975.31308303587,
+          "selected_pairs": 40,
+          "evaluated_pairs": 40,
+          "skipped_pairs": 0,
+          "started_pairs": 40,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "COVERAGE_INCOMPLETE",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 1,
+          "case_id": "duplicate_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 6,
+          "latency_ms": 942.7693749894388,
+          "selected_pairs": 3,
+          "evaluated_pairs": 3,
+          "skipped_pairs": 0,
+          "started_pairs": 3,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 1,
+          "case_id": "independent_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 6,
+          "latency_ms": 979.7079580021091,
+          "selected_pairs": 3,
+          "evaluated_pairs": 3,
+          "skipped_pairs": 0,
+          "started_pairs": 3,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 1,
+          "case_id": "tail_claim_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 49,
+          "latency_ms": 12795.546624984127,
+          "selected_pairs": 40,
+          "evaluated_pairs": 40,
+          "skipped_pairs": 0,
+          "started_pairs": 40,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "COVERAGE_INCOMPLETE",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 1,
+          "case_id": "candidate_miss_synonyms",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 1323.9080419880338,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "NONE",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": false,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 1,
+          "case_id": "synonym_contradiction_semester",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 999.5990419993177,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "NONE",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": false,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "exhaustive",
+          "rep": 1,
+          "case_id": "synonym_contradiction_notice",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 895.2888750354759,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXHAUSTIVE",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        }
+      ],
+      "totals": {
+        "runs": 16,
+        "correct": 16,
+        "false_sufficient": 0,
+        "jev_calls": 1516,
+        "latency_ms": 125341.0,
+        "evaluated_pairs": 180,
+        "skipped_pairs": 0,
+        "in_flight_at_stop": 0,
+        "partial_runs": 0,
+        "invalid_stops": 0,
+        "sufficient_presented_as_partial": 0
+      }
+    },
+    "existential": {
+      "config": {
+        "jev_concurrency": 8,
+        "jev_timeout_seconds": 5.0,
+        "jev_model": "jev-latest",
+        "max_passage_chars": 1500,
+        "max_narrative_depth": 1,
+        "max_jev_calls": 2000,
+        "max_steps": 2000,
+        "max_depth": 6,
+        "timeout_seconds": 1800,
+        "support_threshold": 0.6,
+        "contradict_threshold": 0.6,
+        "max_tool_calls": 8,
+        "max_narrative_input_chars": 12000,
+        "min_claim_chars": 20,
+        "max_claim_chars": 500,
+        "min_claim_words": 4,
+        "max_claims_per_need": 200,
+        "max_pairs_per_need": 40,
+        "embedding_neighbors": 3,
+        "pair_strategy": "hybrid",
+        "pair_ordering": "metadata",
+        "stop_mode": "existential",
+        "route_authority": true,
+        "legacy_duplicate_resolution": false,
+        "pair_judgement": true,
+        "pair_jev_concurrency": 8,
+        "pair_jev_timeout_seconds": 5.0,
+        "gap_review_enabled": false,
+        "max_gap_input_chars": 12000,
+        "max_pair_state_chars": 6000,
+        "max_pair_jev_calls": 200
+      },
+      "rows": [
+        {
+          "mode": "existential",
+          "rep": 0,
+          "case_id": "tail_counterevidence",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 56,
+          "latency_ms": 2783.1189590506256,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 0,
+          "case_id": "late_evidence",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 597,
+          "latency_ms": 40937.763083027676,
+          "selected_pairs": 40,
+          "evaluated_pairs": 8,
+          "skipped_pairs": 32,
+          "started_pairs": 8,
+          "in_flight_at_stop": 7,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "PARTIAL",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "COVERAGE_INCOMPLETE",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 0,
+          "case_id": "duplicate_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 6,
+          "latency_ms": 891.9532090076245,
+          "selected_pairs": 3,
+          "evaluated_pairs": 3,
+          "skipped_pairs": 0,
+          "started_pairs": 3,
+          "in_flight_at_stop": 2,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 0,
+          "case_id": "independent_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 6,
+          "latency_ms": 944.5201249909587,
+          "selected_pairs": 3,
+          "evaluated_pairs": 3,
+          "skipped_pairs": 0,
+          "started_pairs": 3,
+          "in_flight_at_stop": 2,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 0,
+          "case_id": "tail_claim_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 22,
+          "latency_ms": 9317.240667005535,
+          "selected_pairs": 40,
+          "evaluated_pairs": 13,
+          "skipped_pairs": 27,
+          "started_pairs": 13,
+          "in_flight_at_stop": 5,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "PARTIAL",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "COVERAGE_INCOMPLETE",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 0,
+          "case_id": "candidate_miss_synonyms",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 888.7961250147782,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "NONE",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": false,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 0,
+          "case_id": "synonym_contradiction_semester",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 948.0504160164855,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 0,
+          "case_id": "synonym_contradiction_notice",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 900.2836250001565,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 1,
+          "case_id": "tail_counterevidence",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 56,
+          "latency_ms": 2966.2201660103165,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 1,
+          "case_id": "late_evidence",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 597,
+          "latency_ms": 41988.393375009764,
+          "selected_pairs": 40,
+          "evaluated_pairs": 8,
+          "skipped_pairs": 32,
+          "started_pairs": 8,
+          "in_flight_at_stop": 7,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "PARTIAL",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "COVERAGE_INCOMPLETE",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 1,
+          "case_id": "duplicate_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 6,
+          "latency_ms": 979.6870829886757,
+          "selected_pairs": 3,
+          "evaluated_pairs": 3,
+          "skipped_pairs": 0,
+          "started_pairs": 3,
+          "in_flight_at_stop": 2,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 1,
+          "case_id": "independent_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 6,
+          "latency_ms": 1009.872708003968,
+          "selected_pairs": 3,
+          "evaluated_pairs": 3,
+          "skipped_pairs": 0,
+          "started_pairs": 3,
+          "in_flight_at_stop": 2,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 1,
+          "case_id": "tail_claim_contradiction",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 21,
+          "latency_ms": 9616.592500009574,
+          "selected_pairs": 40,
+          "evaluated_pairs": 12,
+          "skipped_pairs": 28,
+          "started_pairs": 12,
+          "in_flight_at_stop": 7,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "PARTIAL",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "COVERAGE_INCOMPLETE",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 1,
+          "case_id": "candidate_miss_synonyms",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 925.479625002481,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "NONE",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": false,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 1,
+          "case_id": "synonym_contradiction_semester",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 940.3062910423614,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "NONE",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": false,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        },
+        {
+          "mode": "existential",
+          "rep": 1,
+          "case_id": "synonym_contradiction_notice",
+          "expected": "insufficient",
+          "draft": "insufficient",
+          "status": "uncertain",
+          "correct": true,
+          "false_sufficient": false,
+          "jev_calls": 4,
+          "latency_ms": 910.2918340358883,
+          "selected_pairs": 1,
+          "evaluated_pairs": 1,
+          "skipped_pairs": 0,
+          "started_pairs": 1,
+          "in_flight_at_stop": 0,
+          "stop": {
+            "goal": "EXISTS_BLOCKING_CONFLICT",
+            "result": "CONFLICT_FOUND",
+            "investigation_status": "COMPLETE",
+            "evidence_status": "UNVERIFIED"
+          },
+          "stop_blocking": true,
+          "diagnostics": [
+            "CONTRADICTION_FOUND",
+            "TECHNICAL_FAILURE"
+          ]
+        }
+      ],
+      "totals": {
+        "runs": 16,
+        "correct": 16,
+        "false_sufficient": 0,
+        "jev_calls": 1397,
+        "latency_ms": 116948.6,
+        "evaluated_pairs": 61,
+        "skipped_pairs": 119,
+        "in_flight_at_stop": 34,
+        "partial_runs": 4,
+        "invalid_stops": 0,
+        "sufficient_presented_as_partial": 0
+      }
+    }
+  },
+  "actual_avoided_calls": 119,
+  "wall_time_delta_ms": 8392.4
+}

@@ -27,7 +27,7 @@ def draft_from_aggregations(
             sufficient=item.sufficient and status == "sufficient",
             supporting_evidence_ids=list(item.supporting_evidence_ids),
             missing_or_weak=item.missing_or_weak,
-            contradictions=list(item.contradictions),
+            contradictions=list(item.unresolved_conflicts),
         )
         for item in aggregations
     ]
