@@ -1,0 +1,138 @@
+# Utvärdering av GLiNER2 och JevSpan för Socialism
+
+**Status:** Utredning — ingen produktionsimplementation beslutad.
+**Datum:** 2026-10-29. Underlag: kodinventering av denna repo, primärkällor för båda projekten
+([GLiNER2-rapport](gliner2-engineering-evaluation.md), JevSpan-rapport nedan), och en avgränsad
+offline-körning.
+
+## A. Teknisk inventering — vad finns redan, vad överlappar JevSpan?
+
+JevSpans flerstegsprocess jämförd steg för steg med Socialisms befintliga kod:
+
+| JevSpan-steg | Socialism-motsvarighet | Överlapp | Bedömning |
+|---|---|---|---|
+| 1. Segmentering | `experiments/overgraph_ingest/overgraph_ingest/extraction/{docx,pdf}.py` (strukturella block: rubriker, tabeller, listor), `segmentation/` (structural-v1), `extraction/model.py::assign_canonical_offsets` (exakta offsets i kanonisk text) | **Delvis** | Vår segmentering är dokumentstruktur-medveten och starkare för avtal än JevSpans generiska menings-/klausul-delning (`segmenter.py`) |
+| 2. Kandidatspann | `jev/predicate.py::candidate_spans` — "Code proposes spans. Jev only picks. It cannot generate text." (`split_predications`, labeled units, resolved references). Retrieval-kandidater: `jev/candidates.py` (frysta hybridträffar, k=50) | **Identisk begränsning** | JevSpans dokumenterade tak — "an entity that no window covers cannot be found" — gäller redan i vår kod. Det är vår svagaste punkt (g4-05). JevSpans skjutfönster (upp till 32 enheter, max 12 latinska ord) tillför inget för långa svenska sammansättningar; våra strukturspann är annorlunda men inte bättre på just detta |
+| 3. JEV Choice för kandidatidentifiering | `jev/classify.py::classify_candidates` (batcherade choice-frågor), `jev/predicate.py::predicate_questions` (span-choice med "none"-kriterium), swe-gym `crates/swe-gym/src/provider.rs::HttpJevProvider` (choice + criteria) | **Helt överlappande** | Samma mekanism: choice-frågor med kriterier. Inget att hämta |
+| 4. JEV-verifiering av entitetstyp | `backend/app/swe/providers.py` (research assessment Noul-frågor + `classify_research_decision`), `backend/app/jev/system.py` (`JevSystemOne`, `parse_noul`, `noul_confidence`), swe-gym providers (choice → score_bp 9500/500/4500) | **Helt överlappande** | Vår verifiering är bredare (noul + choice + confidence-sammanslagning) |
+| 5. Spann-gränsjustering | `graph/verifier.py::_bound_errors` (validerar gränser mot kanonisk rekonstruktion — upptäcker, justerar inte) | **Saknas** | JevSpans `_boundary_variants` (trim/extend ±2–3 enheter + JEV-omval) är den enda teknik vi inte har. Liten, kopierbar idé |
+| 6. Överlapp/upprepade omnämnanden | `ids.py` (dedup på kanoniska offsets), `doctags`; JevSpans propagate-steg (dokumentomfattande ytforms-sökning) | **Delvis** | Propagate är ett rimligt recall-komplement, trivialt att återskapa mot våra TextUnits |
+| 7. Entiteter + offsets + scores + beslutsspår | `ExtractedBlock` (BBox + offsets), `JevUsage`/`raw`, swe-gym fixtures (råa svar sparas) | **Helt överlappande** | Redan täckt |
+
+**Slutsats A:** JevSpan som helhet är ett parallellt NER-system över en JEV-klient vi redan har
+(steg 3–4, 7 är våra egna). De enda delar som *inte* finns hos oss: (5) boundary-refinement och
+(6) propagate. Båda är små, välavgränsade idéer. **Att införa hela JevSpan är inte motiverat.**
+Samtidigt bekräftar JevSpans egen dokumentation precis vår svagaste punkt: kandidatgeneratorn är
+taket. Ingen av våra generatorer (strukturspann, predikatdelning) föreslår *lärt* genererade
+entitetsspann — och det är där GLiNER2 kommer in.
+
+## B. Projektutvärdering
+
+### B.1 GLiNER2
+- **Vad:** schema-konditionerad encoder: zero-shot NER, klassificering, strukturerad extraktion,
+  relationer, span-attribut — en forward-pass. Två arkitekturer: span (max ~12 ord) och
+  **boundary (GLiNER2.5, obegränsad spannlängd i 4 096-ord-fönster)** — det senare är direkt
+  relevant för långa juridiska uttryck.
+- **Checkpoints:** 74M–340M, alla vikter Apache-2.0 (kommersiellt bruk tillåtet; koden Apache-2.0).
+  **Svenska: ingen checkpoint listar svenska, inga svenska benchmarks finns.** Encodern
+  (mDeBERTa-v3-base, CC100, 100 språk inkl. svenska) gör zero-shot svenska plausibel men
+  **overifierad** — måste benchmarkas lokalt.
+- **Körning:** CPU-först, ingen GPU krävs; ~0.3 s per ~4 000 tecken på CPU (community-mätt);
+  287M-modellen ≈ 594 MB FP16. Ingen officiell ONNX (öppen issue), fp16 + torch.compile.
+- **Hälsa:** 2 426 stjärnor, senaste push 2026-10-20, v2.1.0 2026-10-09. Kända kvalitetsissues:
+  relationer delvis trasiga (#101), långdokument-bugg (#137). Svensk sammansättning: whitespace-
+  tokenizern behåller sammansatta ord hela — ingen känd svensk-specifik issue.
+- Fullständig rapport med källor: [docs/gliner2-engineering-evaluation.md](gliner2-engineering-evaluation.md).
+
+### B.2 JevSpan
+- **Vad:** zero-shot NER-pipeline över TypeSafe JEV (choice-frågor). Sjustegsprocessen enligt ovan.
+- **Resultat:** 73.7 medel-strict-F1 på 12 kinesiska/engelska NER-set — författarens egna körningar,
+  ingen peer review, **ingen svensk eller juridisk utvärdering; språk explicit zh/en**.
+- **Licens/beroenden:** MIT; fastapi/httpx/python-dotenv/uvicorn. **Hälsa: skapat 2026-09-27,
+  sista commit 2026-09-28, 10 stjärnor, en författare — färskt, inaktivt, obevisat.**
+- **Begränsningen (exakt citat, README "Limitations"):** "Spans come from the segmenter. Jev only
+  scores candidates, so an entity that no window covers cannot be found."
+- **Ingen relationsextraktion, ingen entity linking** — bara spann + typ.
+
+### B.3 Den kombination användaren pekade på
+GLiNER2:s lärda kandidatspann + vår befintliga JEV-verifiering (steg 3–4 ovan) **utan** JevSpans
+infrastruktur. Det fyller exakt det gap inventeringen fann: kandidatgeneratorn. JEV behöver
+spann för att verifiera; GLiNER2 föreslår spann oberoende av formulering. Inget nytt NER-ramverk,
+ingen ny JEV-klient, ingen parallell pipeline.
+
+## C. Experimentdesign
+
+**Hypoteser:**
+- H1: GLiNER2.5-multi zero-shot hittar entitetsspann i svenska avtalsklausuler som vår
+  deterministiska extraktor missar (särskilt avgångsvederlag, ansvarstak, undantag).
+- H2: GLiNER2-spann + befintlig JEV-verifiering ger högre strict-span-F1 än JEV ensam på
+  samma chunkar, till lägre kostnad än JevSpans skjutfönster-approach.
+- H3: (fine-tuning, separat experiment) domänfinjustering reducerar JEV-verifieringsbehovet
+  mätbart utan överanpassning.
+
+**Data:** frysta `golden_v4`-chunkar + `action_market/states.txt` + ett separat testset med nya
+avtalsformuleringar (nästa steg — får inte blandas med g4).
+
+**Tre skilda uppgifter (blandas aldrig):**
+1. **NER:** rätt entitet + exakt spann (strict span P/R/F1).
+2. **Relationer:** rätt entitet kopplad till rätt roll/villkor/värde (relation P/R).
+3. **Evidensrelevans:** förstår systemet varför klausulen behövs för frågan (SWE answer
+   correctness — g4-utvärderingen).
+
+**Mått:** strict span P/R/F1, entity linking accuracy, relation P/R, FN/FP, confidence-kalibrering
+(scores vs faktisk korrekthet), JEV-anrop (marginalkostnad), CPU-tid/latens, SWE answer
+correctness. Kandidatfel/behovsfel/svarsfel separata. Facit enbart i utvärderingen.
+
+**Jämförelsearmar (samma frysta underlag):**
+- Arm 0: befintlig extraktor (deterministisk + selektiv JEV) — baseline.
+- Arm A: GLiNER2 som primär extraktor, JEV vid osäkerhet.
+- Arm B: GLiNER2-spann + befintlig JEV-verifiering (hybriden; inget JevSpan).
+- Arm C: GLiNER2 + JevSpan som oberoende upptäcktsarm (endast om B motiverar det).
+
+## D. Experimentresultat (avgränsad offline-körning)
+
+Körd: `fastino/gliner2.5-multi-v1` (boundary-arkitektur, zero-shot, inga svenska etiketter i
+träningsdatan), isolerad venv (`/tmp/gliner_venv`, ingen produktionspåverkan), 8 frysta
+g4-evidenschunkar, svenska etiketter. Skript: `crates/swe-gym/tools/eval_gliner.py`; resultat:
+`crates/swe-gym/benchmarks/gliner_spans.json`.
+
+| Mått | Värde |
+|---|---|
+| Strict span precision | 0.28 |
+| Strict span recall | **0.70** |
+| Strict span F1 | 0.40 |
+| TP / FP / FN (distinkta spann) | 7 / 18 / 3 |
+
+**Tolkning (ärligt):** zero-shot hittar de juridiska kärnspannen — alla fyra tidsvärdena
+("sex (6) månader", "tolv (12) månader", "tre (3) månader" ×2), "avgångsvederlag" och
+"omedelbar verkan" — recall 0.70. Men precisionen är låg (0.28): 18 falska positiva med
+generiska etiketter (parter, datum, rubriker övertriggras). Det är exakt den profil som gör
+hybriden rätt: **GLiNER2 som spann-förslagsgivare (recall), befintlig JEV som verifierare
+(precision)** — de spann som ska verifieras är i praktiken just de som GLiNER2 hittar, medan
+JEV redan bevisat 0.92–0.95 precision på verifieringssidan (§27).
+
+**Kända mätbegränsningar:** denna API-nivå returnerar spann som strängar utan offsets och
+confidence — offset-/kalibreringsmätning kräver boundary-extraktorns råa API (nästa steg).
+Modellen dubbelrapporterade ett spann (känt issue #137). Inga tränings-/testdokument överlappar
+g4-facit.
+
+**Miljönot:** körningen krävde torch (CPU) + transformers + gliner2 i en separat venv —
+~1 GB nedladdning, ~1 s/chunk på CPU. Ingen ändring av produktionsberoenden.
+
+## E. Arkitekturrekommendation (preliminär, givet A–C)
+
+1. **Behåll befintlig implementation** som baslinje och som verifieringsskikt.
+2. **Komplettera kandidatgeneratorn med GLiNER2-spann** — hybriden i B.3 — som en isolerad,
+   avstängbar spann-förslagsgivare vars utdata går in i den befintliga selektiva JEV-verifieringen
+   med `verification_status: "CANDIDATE"` (illustrativt kontrakt i specen; vi har redan
+   TextUnit-id + offsets + raw-trace i befintliga strukturer — ingen ny datamodell).
+3. **Återanvänd max två JevSpan-idéer om D visar värde:** boundary-refinement (trim/extend-varianter
+   + JEV-omval) och propagate (ytforms-sökning över TextUnits). **Inte** JevSpan som paket.
+4. **Fine-tuning:** separat experiment, JEV/GLiNER-etiketter som granskade kandidater, aldrig
+   automatiskt facit; tränings-/testdokument åtskilda; golden-testsetet orört.
+5. **Oförändrat:** SWE:s fyra lager, operationsgrinden, ingen RL, ingen produktionsingest.
+   En NER-confidence får aldrig ensam kringgå ett operationskontrakt eller markera ett behov
+   som RESOLVED.
+
+**Acceptanskriterier** (specens §10): 1–2 täcks av A–B ovan; 3 av C; 4–5 av C+D; 6 av E —
+med slutgiltig rekommendation villkorad av D:s mätvärden.
