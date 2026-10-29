@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "counts": {
+    "correct_answer": 10,
+    "incorrect_abstention": 3,
+    "correct_answer_boundary_variant": 5,
+    "correct_abstention_external_need": 1,
+    "correct_abstention": 1
+  },
+  "rows": [
+    {
+      "case_id": "bt-01",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "expected": "5 000 kr (garanterat minimibelopp)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-02",
+      "verdict": "unsolved",
+      "class": "incorrect_abstention",
+      "expected": "12 maj (skylten tillhanda senast)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-03",
+      "verdict": "false_resolved",
+      "class": "correct_answer_boundary_variant",
+      "expected": "30 dagar (betalningsfrist)",
+      "answerable": true,
+      "competing": [
+        "inom 30 dagar"
+      ],
+      "note": "extractor span 'inom 30 dagar': same fact, boundary difference only"
+    },
+    {
+      "case_id": "bt-04",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "expected": "500 kr (garanterat lägsta belopp)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-05",
+      "verdict": "resolved",
+      "class": "correct_answer_boundary_variant",
+      "expected": "Norrköpings Kappsimningsklubb (part)",
+      "answerable": true,
+      "competing": [
+        "nkk"
+      ],
+      "note": "extra approval 'nkk' = the party's abbreviation, factually correct"
+    },
+    {
+      "case_id": "bt-06",
+      "verdict": "unsolved",
+      "class": "incorrect_abstention",
+      "expected": "10-11 juni och 30 juni-2 juli (exponeringsdatum)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-07",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "expected": "2020-08-01 (tillträdesdag)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-08",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "expected": "45 000 kr + 50% av fakturerat belopp över 120 000 kr",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-09",
+      "verdict": "unsolved",
+      "class": "correct_abstention_external_need",
+      "expected": "Uppsägningstid enligt LAS",
+      "answerable": false,
+      "competing": [],
+      "note": "new information need requiring an external legal source — not a NER task"
+    },
+    {
+      "case_id": "bt-10",
+      "verdict": "resolved",
+      "class": "correct_answer_boundary_variant",
+      "expected": "30 dagar per år (semester)",
+      "answerable": true,
+      "competing": [
+        "semester 30 dagar"
+      ],
+      "note": "extractor span 'Semester 30 dagar': same fact, boundary difference"
+    },
+    {
+      "case_id": "bt-11",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "expected": "Erik Fremred Aktiebolag (part)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-12",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "expected": "begränsat till arvodet för Tjänsten (ansvarstak)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-13",
+      "verdict": "resolved",
+      "class": "correct_answer_boundary_variant",
+      "expected": "12 månader (relevansperiod för arvodet)",
+      "answerable": true,
+      "competing": [
+        "12 m å naderna"
+      ],
+      "note": "competing '12 m å naderna': morphological variant of the same fact"
+    },
+    {
+      "case_id": "bt-14",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "expected": "30 dagar (betalningsvillkor)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-15",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "expected": "840 kr/h (timpris)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-16",
+      "verdict": "resolved",
+      "class": "correct_answer_boundary_variant",
+      "expected": "2 veckors uppsägningstid",
+      "answerable": true,
+      "competing": [
+        "2 veckors"
+      ],
+      "note": "competing '2 veckors': genitive variant of the same fact"
+    },
+    {
+      "case_id": "bt-17",
+      "verdict": "ambiguous",
+      "class": "correct_abstention",
+      "expected": "6 månader (avtalets längd)",
+      "answerable": true,
+      "competing": [
+        "2 veckors",
+        "i 6 månader"
+      ],
+      "note": "gold approved but contract withheld on two competing same-role spans; context-JEV could resolve"
+    },
+    {
+      "case_id": "bt-18",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "expected": "2021-01-01 (startdatum)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-19",
+      "verdict": "unsolved",
+      "class": "incorrect_abstention",
+      "expected": "100 dagars konsultersättning (rekryteringsersättning)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-20",
+      "verdict": "resolved",
+      "class": "correct_answer",
+      "expected": "Ateles Consulting AB och Erik Fremred Aktiebolag (parter)",
+      "answerable": true,
+      "competing": [],
+      "note": ""
+    }
+  ]
+}
