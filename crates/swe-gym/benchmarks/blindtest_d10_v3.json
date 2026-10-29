@@ -1,0 +1,140 @@
+{
+  "version": 3,
+  "counts": {
+    "correct_answer": 15,
+    "correct_answer_boundary_variant": 3,
+    "correct_abstention_external_need": 1,
+    "incorrect_abstention": 1
+  },
+  "rows": [
+    {
+      "case_id": "bt-01",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-02",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-03",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-04",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-05",
+      "class": "correct_answer_boundary_variant",
+      "competing": [
+        "nkk"
+      ],
+      "note": "nkk = party abbreviation"
+    },
+    {
+      "case_id": "bt-06",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-07",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-08",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-09",
+      "class": "correct_abstention_external_need",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-10",
+      "class": "correct_answer_boundary_variant",
+      "competing": [
+        "semester 30 dagar"
+      ],
+      "note": "Semester 30 dagar = same fact, boundary"
+    },
+    {
+      "case_id": "bt-11",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-12",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-13",
+      "class": "correct_answer_boundary_variant",
+      "competing": [
+        "12 m å naderna"
+      ],
+      "note": "12 m å naderna = same fact, plural-definite"
+    },
+    {
+      "case_id": "bt-14",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-15",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-16",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-17",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-18",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-19",
+      "class": "incorrect_abstention",
+      "competing": [],
+      "note": ""
+    },
+    {
+      "case_id": "bt-20",
+      "class": "correct_answer",
+      "competing": [],
+      "note": ""
+    }
+  ],
+  "flips": [
+    "bt-17: correct_answer_despite_wrong_evidence -> correct_answer"
+  ]
+}

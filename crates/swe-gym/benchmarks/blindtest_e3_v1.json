@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "need_roles": {
+    "bt-01": "MONEY",
+    "bt-02": "DEADLINE",
+    "bt-03": "DEADLINE",
+    "bt-04": "MONEY",
+    "bt-05": "PARTY",
+    "bt-06": "EVENT",
+    "bt-07": "EVENT",
+    "bt-08": "MONEY",
+    "bt-09": "NOTICE",
+    "bt-10": "SEMESTER",
+    "bt-11": "PARTY",
+    "bt-12": "LIABILITY",
+    "bt-13": "MONEY",
+    "bt-14": "DEADLINE",
+    "bt-15": "MONEY",
+    "bt-16": "NOTICE",
+    "bt-17": "DURATION",
+    "bt-18": "EVENT",
+    "bt-19": "MONEY",
+    "bt-20": "PARTY"
+  },
+  "rows": [
+    {
+      "case_id": "bt-01",
+      "verdict": "resolved",
+      "need_role": "MONEY",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-02",
+      "verdict": "resolved",
+      "need_role": "DEADLINE",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-03",
+      "verdict": "resolved",
+      "need_role": "DEADLINE",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-04",
+      "verdict": "resolved",
+      "need_role": "MONEY",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-05",
+      "verdict": "resolved",
+      "need_role": "PARTY",
+      "competing": [
+        "nkk"
+      ],
+      "role_of_competing": {
+        "nkk": null
+      }
+    },
+    {
+      "case_id": "bt-06",
+      "verdict": "resolved",
+      "need_role": "EVENT",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-07",
+      "verdict": "resolved",
+      "need_role": "EVENT",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-08",
+      "verdict": "resolved",
+      "need_role": "MONEY",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-09",
+      "verdict": "unsolved",
+      "need_role": "NOTICE",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-10",
+      "verdict": "resolved",
+      "need_role": "SEMESTER",
+      "competing": [
+        "semester 30 dagar"
+      ],
+      "role_of_competing": {
+        "semester 30 dagar": null
+      }
+    },
+    {
+      "case_id": "bt-11",
+      "verdict": "resolved",
+      "need_role": "PARTY",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-12",
+      "verdict": "resolved",
+      "need_role": "LIABILITY",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-13",
+      "verdict": "resolved",
+      "need_role": "MONEY",
+      "competing": [
+        "12 m å naderna"
+      ],
+      "role_of_competing": {
+        "12 m å naderna": "MONEY"
+      }
+    },
+    {
+      "case_id": "bt-14",
+      "verdict": "resolved",
+      "need_role": "DEADLINE",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-15",
+      "verdict": "resolved",
+      "need_role": "MONEY",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-16",
+      "verdict": "resolved",
+      "need_role": "NOTICE",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-17",
+      "verdict": "resolved",
+      "need_role": "DURATION",
+      "competing": [],
+      "role_of_competing": {
+        "2 veckor": "NOTICE"
+      }
+    },
+    {
+      "case_id": "bt-18",
+      "verdict": "resolved",
+      "need_role": "EVENT",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-19",
+      "verdict": "unsolved",
+      "need_role": "MONEY",
+      "competing": [],
+      "role_of_competing": {}
+    },
+    {
+      "case_id": "bt-20",
+      "verdict": "resolved",
+      "need_role": "PARTY",
+      "competing": [],
+      "role_of_competing": {}
+    }
+  ],
+  "flips": [
+    "bt-02: unsolved -> resolved",
+    "bt-03: false_resolved -> resolved",
+    "bt-06: unsolved -> resolved",
+    "bt-17: ambiguous -> resolved"
+  ]
+}
