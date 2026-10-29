@@ -517,3 +517,30 @@ Den iterativa kedjan: initial retrieval → gap identifierar tre REQUIRED-behov 
 
 **Reservationen kvarstår:** ett fall bevisar mekanismen, inte frekvensen. Nästa steg: fler fall med samma parvisa jämförelse, och en valideringspolicy som lär sig *när* en "inget"-bedömning förtjänar en ny bedömning med förtydligande kontext — den tredje hypotesen (H3) i skarpare form.
 
+## 27. Åtgärdsmarknaden: facit på kontrafaktiska investeringar
+
+Nivå 1 av tre-nivå-gymmet är byggd: **104 frysta undersökningstillstånd** (kandidat + baslinjebedömning) från alla 12 fall — facit-evidens som baslinjen missat plus äkta negativa — och varje tillämplig åtgärd körd från exakt samma tillstånd. Facit:
+
+| Åtgärd | Återfunna fakta (av 13 missade) | Falska positiva (av 79) | Kostnad per återfunnet |
+|---|---|---|---|
+| Acceptera NONE | 0 | 0 | ∞ |
+| Förtydligad JEV | 11 | 3 | ~8 400 |
+| Kontext-JEV | 11 | 2 | ~8 400 |
+| Deterministisk extraktion | 11 | 3 | ~8 400 |
+
+**Osäkerhetssplitten, mätt:** av de 13 falskt negativa är **11 verifieringsosäkerhet** (värdet är extraherbart — informationen FINNS i chunket) och 2 epistemiska. På de 11 tillstånden är ny retrieval och graftraversering kontrafaktiskt värdelösa; validering återfinner fakta till 1 coin per styck. Det är exakt den åtskillnad granskningen krävde — och den mäts nu, inte antas: SWE kan veta *vilken sorts* osäkerhet ett tillstånd bär och därmed vilken marknad investeringen tillhör.
+
+**Signalkalibreringen (fallgropen hanterad):** NONE betraktas inte som låg relevans — oberoende signaler kalibreras mot facit:
+
+| Signal | Precision / Recall |
+|---|---|
+| Baslinje-fynd | 1.00 / 0.32 |
+| Förtydligad-fynd | 0.86 / 0.76 |
+| Kontext-fynd | 0.92 / 0.88 |
+| Extraherbart värde | 0.86 / 0.76 |
+| Fynd OCH värde | 0.95 / 0.76 |
+
+Baslinjen är precisionssäker men blind; kombinationen "förtydligat fynd OCH extraherbart värde" har bäst precision (0.95) — kalibrerad, inte betrodd för att signalerna råkar vara överens.
+
+**Nivå 2 och 3 återstår:** sekvensvärde (varje åtgärd skapar ett nytt tillstånd — fungerar extraktion→kontext-JEV bättre än omvänd ordning?) och beslutspolicy (fasta heuristiker vs kostnadsmedveten greedy vs lärd). Nästa milstolpe: SWE väljer mellan informationsanskaffning, omvalidering och stopp på denna tillståndskorpus och slår både statisk retrieval och en fast valideringsstrategi i kostnadsjusterad korrekthet. Först då finns data som motiverar en lärande Sweycoin-förvaltare.
+
