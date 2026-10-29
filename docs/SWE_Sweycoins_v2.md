@@ -497,3 +497,23 @@ Granskningens exekveringsmodell implementerad som **deterministisk kontrollogik*
 
 **Arkitekturen (beroendegrafer):** behoven bildar nu en implicit graf — REQUIRED-behov per dokument → jämförelsenod → svar. Jämförelsenoden är deterministisk (normalisera värden, jämför) och kräver ingen LLM; riskallokering skulle ha en resonemangsnod. SWE kan därmed välja syntesförmåga utifrån den återstående operationen — nästa steg formaliserar grafen som data.
 
+## 26. Verifieringssignalen, behovs-noderna och milstolpen
+
+**Del 1 — signal-experimentet (fryst, g3-01:s klausuler):** baslinjen gav 2/3 falska negativa och de var **konsekventa** (Avtal_17:9 fick "inget" 3/3 vid repetition) — missförståndet är systematiskt, inte brus, och majoritetsröstning hade inte hjälpt (granskningens varning bekräftad). Förtydligandet — "olika formuleringar är ekvivalenta: 'sägs upp senast X månader före utgång' betyder 'har X månaders uppsägningstid'" — gav 3/3 korrekta fynd och 0 falska positiva; klausulkontext gav samma. Den deterministiska extraktorn hämtade alla tre värdena (9/3/6 månader) **utan modellanrop** — det sista steget behöver ingen probabilistisk bedömning.
+
+**Del 2 — behov som noder:** fynd är separata evidensobjekt `{chunk, verdict, value}`; behovets tillstånd **härleds** (DISCOVERED → SUPPORTED → RESOLVED) från evidensen — ingen modell skriver RESOLVED direkt. En TextUnit kan bli SUPPORTED av ett JEV-fynd *eller* av att den deterministiska extraktorn hittar värdet.
+
+**Milstolpen — samma fråga, alla kriterier:**
+
+| Kedja | Resultat | Kostnad |
+|---|---|---|
+| Statisk (top-8) | fel (0 fynd i toppen) | 18 000 |
+| K-expansion (top-16) | fel (saknar rank 17-evidensen) | 26 000 |
+| Iterativ (behov → validering → deterministisk jämförelse) | **rätt: Avtal_17** | **21 000** |
+
+Den iterativa kedjan: initial retrieval → gap identifierar tre REQUIRED-behov → validering av behovens kandidater med den förtydligade signalen (3 anrop) → READY_TO_SYNTHESIZE → deterministisk jämförelse 9 > 6 > 3 → korrekt slutsats — **billigare än K-expansionen, och facit rörde aldrig beslutsprocessen** (kandidater från rankningen, behov från gap:en, verifiering live, jämförelse deterministisk).
+
+**Sweycoins-konsekvensen:** fallet realiserar granskningens distinktion mellan **informationsanskaffning** och **informationsvalidering**: i stället för 8 nya retrieval-verifieringar (K-expansion) investerade kedjan 3 coins i att validera redan hämtade kandidater. Det är två olika ekonomiska beslut — och det första mätbara fallet där behovsstyrd iteration skapar ett eget, kausalt beläggbart värde som varken statisk retrieval eller K-expansion når.
+
+**Reservationen kvarstår:** ett fall bevisar mekanismen, inte frekvensen. Nästa steg: fler fall med samma parvisa jämförelse, och en valideringspolicy som lär sig *när* en "inget"-bedömning förtjänar en ny bedömning med förtydligande kontext — den tredje hypotesen (H3) i skarpare form.
+

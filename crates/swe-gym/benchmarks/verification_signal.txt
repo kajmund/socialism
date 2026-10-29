@@ -1,0 +1,6 @@
+Avtal_17_Hyresavtal_lokal:9|inget|fynd|fynd|rep1=inget;rep2=inget;rep3=inget
+Avtal_18_Hyresavtal_bostad:5|inget|fynd|fynd|rep1=inget;rep2=fynd;rep3=inget
+Avtal_20_Arrendeavtal_lagenhetsarrende:7|fynd|fynd|fynd|rep1=fynd;rep2=fynd;rep3=fynd
+Avtal_17_Hyresavtal_lokal:1|inget|inget|inget|rep1=inget;rep2=inget;rep3=inget
+Avtal_18_Hyresavtal_bostad:2|inget|inget|inget|rep1=inget;rep2=inget;rep3=inget
+Avtal_20_Arrendeavtal_lagenhetsarrende:1|inget|inget|inget|rep1=inget;rep2=inget;rep3=inget
