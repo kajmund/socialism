@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "name": "blindtest-d10-v1",
+  "provenance": "Answer-level facit for the D10 follow-up on blindtest-v1, annotated by agent (Team Lead) 2026-10-29 by reading the extracted documents (same procedure as gold review v3). References the frozen blindtest_facit_v1.json case ids; does not modify it. 'answerable' = the document itself states the answer; bt-09 is recorded as a new information need (external legal source, LAS).",
+  "cases": {
+    "bt-01": {
+      "expected": "5 000 kr (garanterat minimibelopp)",
+      "answerable": true
+    },
+    "bt-02": {
+      "expected": "12 maj (skylten tillhanda senast)",
+      "answerable": true
+    },
+    "bt-03": {
+      "expected": "30 dagar (betalningsfrist)",
+      "answerable": true,
+      "engine_note": "extractor span 'inom 30 dagar': same fact, boundary difference only"
+    },
+    "bt-04": {
+      "expected": "500 kr (garanterat lägsta belopp)",
+      "answerable": true
+    },
+    "bt-05": {
+      "expected": "Norrköpings Kappsimningsklubb (part)",
+      "answerable": true,
+      "engine_note": "extra approval 'nkk' = the party's abbreviation, factually correct"
+    },
+    "bt-06": {
+      "expected": "10-11 juni och 30 juni-2 juli (exponeringsdatum)",
+      "answerable": true
+    },
+    "bt-07": {
+      "expected": "2020-08-01 (tillträdesdag)",
+      "answerable": true
+    },
+    "bt-08": {
+      "expected": "45 000 kr + 50% av fakturerat belopp över 120 000 kr",
+      "answerable": true
+    },
+    "bt-09": {
+      "expected": "Uppsägningstid enligt LAS",
+      "answerable": false,
+      "engine_note": "new information need requiring an external legal source — not a NER task"
+    },
+    "bt-10": {
+      "expected": "30 dagar per år (semester)",
+      "answerable": true,
+      "engine_note": "extractor span 'Semester 30 dagar': same fact, boundary difference"
+    },
+    "bt-11": {
+      "expected": "Erik Fremred Aktiebolag (part)",
+      "answerable": true
+    },
+    "bt-12": {
+      "expected": "begränsat till arvodet för Tjänsten (ansvarstak)",
+      "answerable": true
+    },
+    "bt-13": {
+      "expected": "12 månader (relevansperiod för arvodet)",
+      "answerable": true,
+      "engine_note": "competing '12 m å naderna': morphological variant of the same fact"
+    },
+    "bt-14": {
+      "expected": "30 dagar (betalningsvillkor)",
+      "answerable": true
+    },
+    "bt-15": {
+      "expected": "840 kr/h (timpris)",
+      "answerable": true
+    },
+    "bt-16": {
+      "expected": "2 veckors uppsägningstid",
+      "answerable": true,
+      "engine_note": "competing '2 veckors': genitive variant of the same fact"
+    },
+    "bt-17": {
+      "expected": "6 månader (avtalets längd)",
+      "answerable": true,
+      "engine_note": "gold approved but contract withheld on two competing same-role spans; context-JEV could resolve"
+    },
+    "bt-18": {
+      "expected": "2021-01-01 (startdatum)",
+      "answerable": true
+    },
+    "bt-19": {
+      "expected": "100 dagars konsultersättning (rekryteringsersättning)",
+      "answerable": true
+    },
+    "bt-20": {
+      "expected": "Ateles Consulting AB och Erik Fremred Aktiebolag (parter)",
+      "answerable": true
+    }
+  }
+}
