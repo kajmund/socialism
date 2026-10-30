@@ -216,6 +216,7 @@ class SpanVerdict:
     prompt_version: str
     choice: str  # YES / NO / UNCERTAIN
     unit_id: str = ""
+    unit_text: str = ""
 
 
 @dataclass(frozen=True)
@@ -227,6 +228,9 @@ class ContractFinding:
     need_type: str
     state: str  # VERIFIED / AMBIGUOUS / REJECTED
     role: str | None = None
+    prompt_version: str = ""
+    unit_id: str = ""
+    choice: str = ""
 
 
 @dataclass(frozen=True)
@@ -245,17 +249,17 @@ def derive_findings(
     *,
     need_type: str,
     need_role: str,
-    unit_text: str,
 ) -> list[ContractFinding]:
-    """Frozen contract over one unit's verdicts for one need.
+    """Frozen contract over ALL units' verdicts for one need.
 
     - REJECTED: Jev answered NO or UNCERTAIN.
     - A Jev YES alone never makes a finding usable: the type question was
       need-specific, but the value must also be unambiguous for the need's
-      operational role (E3).
+      operational role (E3) across every scanned unit.
     - AMBIGUOUS: two or more distinct canonical values compete for the same
-      operational role. A span whose role cannot be determined always counts
-      as competing — the conflict never disappears silently.
+      operational role — aggregated across units, not per unit. A span whose
+      role cannot be determined always counts as competing, and a span with a
+      determinable different role neither competes nor belongs to this need.
     - Without a declared need role, every YES span counts as competing
       (fail-safe default, pre-E3 strictness).
     """
@@ -269,13 +273,16 @@ def derive_findings(
                     value=canon_value(verdict.span),
                     need_type=need_type,
                     state=REJECTED,
+                    prompt_version=verdict.prompt_version,
+                    unit_id=verdict.unit_id,
+                    choice=verdict.choice,
                 )
             )
     if not approved:
         return findings
     roles: dict[str, str | None] = {}
     for verdict in approved:
-        roles[verdict.span] = operational_role(verdict.span, unit_text)
+        roles[verdict.span] = operational_role(verdict.span, verdict.unit_text)
     # E3: a span with a determinable role that differs from the need's role
     # is another operational fact — it neither competes nor belongs to this
     # need's findings. Undeterminable roles always compete (fail-safe).
@@ -299,6 +306,9 @@ def derive_findings(
                 need_type=need_type,
                 state=state,
                 role=roles[verdict.span],
+                prompt_version=verdict.prompt_version,
+                unit_id=verdict.unit_id,
+                choice=verdict.choice,
             )
         )
     return findings

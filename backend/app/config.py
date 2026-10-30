@@ -21,7 +21,7 @@ LLMReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]  #
 CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
 CEREBRAS_DEFAULT_BASE_URL = "https://api.cerebras.ai/v1"
 class Settings(LiveSpeechSettings, BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", env_nested_delimiter="__", extra="ignore")
     database_url: str
     elevenlabs_llm: str = "gpt-4.1"
     elevenlabs_session_ttl_seconds: int = Field(default=3600, ge=300, le=14400)

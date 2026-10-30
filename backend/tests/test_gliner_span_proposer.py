@@ -1,30 +1,47 @@
 """Unit + integration tests for the optional GLiNER2 span proposer.
 
-Covers the frozen E1–E3 contract rules, the proposer lifecycle and typed
-errors, the opt-in gating, the split-phase database discipline, and the
-frozen experiment outcomes (PR #443–#446) as regression tests.
+Covers the frozen E1–E3 contract rules (including cross-unit ambiguity), the
+subprocess proposer lifecycle and typed errors, the opt-in gating, persisted
+runtime needs and assessment rows, retry idempotency, explicit Jev budgets,
+invalid Jev schema errors, the refreshed assessment, and the wave-body path.
 """
 
 from __future__ import annotations
 
 import asyncio
-import builtins
-import sys
-import time
-import types
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.config import settings
-from app.database.models import Base, EvidenceSet, ExecutionRun, Kund
+from app.database.knowledge_scope import customer_scope
+from app.database.models import (
+    Base,
+    EvidenceSet,
+    EvidenceSetItem,
+    ExecutionAttempt,
+    ExecutionRun,
+    Kund,
+    ResearchAssessment,
+    ResearchNeedExecution,
+    ResearchRuntimeNeed,
+)
+from app.services.execution.service import (
+    add_evidence_items,
+    list_evidence_quality,
+    persist_runtime_needs,
+    runtime_need_from_row,
+)
+from app.services.execution.snapshots import EvidenceItemSnapshot
 from app.services.research.assessment import (
     ResearchAssessmentDraft,
     ResearchNeedAssessment,
 )
+from app.services.research.followup import RuntimeResearchNeed
 from app.services.research.gliner import proposer, service
 from app.services.research.gliner.contract import (
     AMBIGUOUS,
@@ -45,6 +62,7 @@ from app.services.research.gliner.proposer import (
 )
 from app.services.research.models import (
     InvalidResearchPlanError,
+    ResearchContext,
     ResearchNeed,
     ResearchPlan,
 )
@@ -60,7 +78,7 @@ BT13_CLAUSE = (
 
 def make_attempt(*, opted_in: bool = False) -> SimpleNamespace:
     snapshot = {"gliner_span_proposer": True} if opted_in else {}
-    return SimpleNamespace(configuration_snapshot=snapshot)
+    return SimpleNamespace(id="at-1", configuration_snapshot=snapshot)
 
 
 def make_need(
@@ -79,14 +97,28 @@ def make_need(
     )
 
 
-def make_assessment(needs: list[ResearchNeed]) -> ResearchAssessmentDraft:
-    return ResearchAssessmentDraft(
+def make_assessment_row(needs: list[ResearchNeed]) -> SimpleNamespace:
+    """A persisted-research-assessment-like row (need_assessments are JSON)."""
+    return SimpleNamespace(
         result="insufficient",
         rationale="test",
         need_assessments=[
-            ResearchNeedAssessment(research_need_id=need.id, sufficient=False)
+            {
+                "research_need_id": need.id,
+                "sufficient": False,
+                "supporting_evidence_ids": [],
+                "missing_or_weak": "",
+                "contradictions": [],
+                "further_information": None,
+            }
             for need in needs
         ],
+        gaps=[],
+        contradictions=[],
+        considered_evidence_ids=[],
+        model_provider=None,
+        model_name=None,
+        model_version=None,
     )
 
 
@@ -98,7 +130,6 @@ def test_canon_and_canon_value_frozen_rules():
     assert canon_value("inom 30 dagar") == "30 dagar"
     assert canon_value("2 veckors") == "2 veckor"
     assert canon_value("i 6 månader") == "6 månader"
-    # Quantifiers carry semantic load and are never stripped.
     assert canon_value("minst 500 kr") == "minst 500 kr"
 
 
@@ -108,7 +139,6 @@ def test_operational_role_bt17():
 
 
 def test_operational_role_word_boundary_guard():
-    # "senast" must not match inside "senaste"; arvodet is the nearest cue.
     assert operational_role("12 m å naderna", BT13_CLAUSE) == "MONEY"
 
 
@@ -116,74 +146,73 @@ def test_operational_role_unknown():
     assert operational_role("finns inte", BT17_CLAUSE) is None
 
 
+def _verdict(span: str, choice: str = "YES", unit_text: str = "") -> SpanVerdict:
+    return SpanVerdict(
+        span=span,
+        need_type="PERIOD",
+        prompt_version="span-need-contrast-v1",
+        choice=choice,
+        unit_id="u1",
+        unit_text=unit_text,
+    )
+
+
 def test_derive_findings_single_yes():
     findings = derive_findings(
-        [SpanVerdict(span="6 månader", need_type="PERIOD",
-                     prompt_version="x", choice="YES")],
+        [_verdict("6 månader", unit_text=BT17_CLAUSE)],
         need_type="PERIOD",
         need_role="DURATION",
-        unit_text=BT17_CLAUSE,
     )
     assert [f.state for f in findings] == [VERIFIED]
     assert findings[0].value == "6 månader"
+    assert findings[0].prompt_version == "span-need-contrast-v1"
+    assert findings[0].unit_id == "u1"
 
 
 def test_derive_findings_rejected():
     findings = derive_findings(
-        [SpanVerdict(span="Enligt LAS", need_type="NOTICE_PERIOD",
-                     prompt_version="x", choice="NO")],
+        [_verdict("Enligt LAS", choice="NO", unit_text="Uppsägningstid Enligt LAS")],
         need_type="NOTICE_PERIOD",
         need_role="NOTICE",
-        unit_text="Uppsägningstid Enligt LAS",
     )
     assert [f.state for f in findings] == [REJECTED]
 
 
 def test_derive_findings_bt17_role_split():
-    """E3: a different operational role neither competes nor persists."""
     findings = derive_findings(
         [
-            SpanVerdict(span="6 månader", need_type="PERIOD",
-                        prompt_version="x", choice="YES"),
-            SpanVerdict(span="2 veckors", need_type="PERIOD",
-                        prompt_version="x", choice="YES"),
+            _verdict("6 månader", unit_text=BT17_CLAUSE),
+            _verdict("2 veckors", unit_text=BT17_CLAUSE),
         ],
         need_type="PERIOD",
         need_role="DURATION",
-        unit_text=BT17_CLAUSE,
     )
     by_span = {f.span: f.state for f in findings}
     assert by_span["6 månader"] == VERIFIED
-    assert "2 veckors" not in by_span  # role NOTICE != need role DURATION
+    assert "2 veckors" not in by_span
 
 
-def test_derive_findings_ambiguous_same_role():
+def test_derive_findings_ambiguous_across_units():
+    """Two competing values in DIFFERENT TextUnits must collide into AMBIGUOUS."""
     findings = derive_findings(
         [
-            SpanVerdict(span="30 dagar", need_type="PERIOD",
-                        prompt_version="x", choice="YES"),
-            SpanVerdict(span="60 dagar", need_type="PERIOD",
-                        prompt_version="x", choice="YES"),
+            _verdict("30 dagar", unit_text="Betalning inom 30 dagar."),
+            _verdict("60 dagar", unit_text="Leverans inom 60 dagar."),
         ],
         need_type="PERIOD",
         need_role="DEADLINE",
-        unit_text="Betalning inom 30 dagar, leverans inom 60 dagar.",
     )
     assert {f.state for f in findings} == {AMBIGUOUS}
 
 
 def test_derive_findings_unknown_role_fails_safe():
-    """A span with an undeterminable role always competes."""
     findings = derive_findings(
         [
-            SpanVerdict(span="6 månader", need_type="PERIOD",
-                        prompt_version="x", choice="YES"),
-            SpanVerdict(span="finns inte i texten", need_type="PERIOD",
-                        prompt_version="x", choice="YES"),
+            _verdict("6 månader", unit_text=BT17_CLAUSE),
+            _verdict("finns inte i texten", unit_text=BT17_CLAUSE),
         ],
         need_type="PERIOD",
         need_role="DURATION",
-        unit_text=BT17_CLAUSE,
     )
     assert {f.state for f in findings} == {AMBIGUOUS}
 
@@ -191,14 +220,11 @@ def test_derive_findings_unknown_role_fails_safe():
 def test_derive_findings_no_role_fails_safe():
     findings = derive_findings(
         [
-            SpanVerdict(span="6 månader", need_type="PERIOD",
-                        prompt_version="x", choice="YES"),
-            SpanVerdict(span="2 veckors", need_type="PERIOD",
-                        prompt_version="x", choice="YES"),
+            _verdict("6 månader", unit_text=BT17_CLAUSE),
+            _verdict("2 veckors", unit_text=BT17_CLAUSE),
         ],
         need_type="PERIOD",
         need_role="",
-        unit_text=BT17_CLAUSE,
     )
     assert {f.state for f in findings} == {AMBIGUOUS}
 
@@ -214,76 +240,60 @@ def test_verification_question_versions():
 # ---------------------------------------------------------------- proposer
 
 
-def test_proposer_loads_model_once(monkeypatch):
-    loads = {"count": 0}
-    fake = types.ModuleType("gliner2")
-
-    class FakeExtractor:
-        def extract_entities(self, text, *, entity_types, threshold, format_results):
-            return {"entities": []}
-
-    def from_pretrained(model):
-        loads["count"] += 1
-        return FakeExtractor()
-
-    fake.AutoExtractor = SimpleNamespace(from_pretrained=from_pretrained)
-    monkeypatch.setitem(sys.modules, "gliner2", fake)
-    proposer.reset_model_cache()
-    try:
-        first = proposer._load_model()
-        second = proposer._load_model()
-        assert first is second
-        assert loads["count"] == 1
-    finally:
-        proposer.reset_model_cache()
+class FakeProcess:
+    returncode: int | None = None
 
 
-def test_proposer_missing_dependencies(monkeypatch):
-    real_import = builtins.__import__
+def test_proposer_spawns_worker_once(monkeypatch):
+    spawns = {"count": 0}
 
-    def blocked(name, *args, **kwargs):
-        if name == "gliner2":
-            raise ImportError("no gliner2")
-        return real_import(name, *args, **kwargs)
+    async def fake_spawn():
+        spawns["count"] += 1
+        return FakeProcess()
 
-    monkeypatch.setattr(builtins, "__import__", blocked)
-    proposer.reset_model_cache()
+    async def fake_request(process, payload, timeout):
+        return {
+            "ok": True,
+            "result": [
+                {"unit_id": "u1", "proposals": [{"span": "12 maj", "label": "Datum"}]}
+            ],
+        }
+
+    monkeypatch.setattr(proposer, "_spawn_worker", fake_spawn)
+    monkeypatch.setattr(proposer, "_request", fake_request)
+    proposer.reset_worker()
 
     async def run():
-        with pytest.raises(GlinerProposerError) as excinfo:
-            await proposer.propose_spans(
-                (ProposalUnit(unit_id="u1", text="text"),), ("Datum",)
-            )
-        assert excinfo.value.reason == "missing_dependencies"
+        first = await proposer.propose_spans(
+            (ProposalUnit(unit_id="u1", text="text"),), ("Datum",)
+        )
+        second = await proposer.propose_spans(
+            (ProposalUnit(unit_id="u1", text="text"),), ("Datum",)
+        )
+        return first, second
 
-    asyncio.run(run())
-
-
-def test_proposer_load_failed(monkeypatch):
-    fake = types.ModuleType("gliner2")
-    fake.AutoExtractor = SimpleNamespace(
-        from_pretrained=lambda model: (_ for _ in ()).throw(RuntimeError("boom"))
-    )
-    monkeypatch.setitem(sys.modules, "gliner2", fake)
-    proposer.reset_model_cache()
-
-    async def run():
-        with pytest.raises(GlinerProposerError) as excinfo:
-            await proposer.propose_spans(
-                (ProposalUnit(unit_id="u1", text="text"),), ("Datum",)
-            )
-        assert excinfo.value.reason == "load_failed"
-
-    asyncio.run(run())
+    first, second = asyncio.run(run())
+    assert spawns["count"] == 1
+    assert first[0].proposals[0].span == "12 maj"
+    assert second[0].proposals[0].span == "12 maj"
 
 
-def test_proposer_timeout(monkeypatch):
-    def slow(units, labels):
-        time.sleep(0.2)
-        return []
+def test_proposer_timeout_kills_worker(monkeypatch):
+    killed = {"ok": False}
 
-    monkeypatch.setattr(proposer, "_propose_sync", slow)
-    monkeypatch.setattr(proposer, "_model", object())  # skip loading
+    async def fake_spawn():
+        return FakeProcess()
+
+    async def fake_request(process, payload, timeout):
+        raise TimeoutError
+
+    async def fake_kill(process):
+        killed["ok"] = True
+
+    monkeypatch.setattr(proposer, "_spawn_worker", fake_spawn)
+    monkeypatch.setattr(proposer, "_request", fake_request)
+    monkeypatch.setattr(proposer, "_kill_worker", fake_kill)
+    proposer.reset_worker()
 
     async def run():
         with pytest.raises(GlinerProposerError) as excinfo:
@@ -293,6 +303,27 @@ def test_proposer_timeout(monkeypatch):
                 timeout_seconds=0.01,
             )
         assert excinfo.value.reason == "timeout"
+
+    asyncio.run(run())
+    assert killed["ok"] is True
+
+
+def test_proposer_missing_dependencies(monkeypatch):
+    async def fake_spawn():
+        raise GlinerProposerError(
+            "gliner_span_proposer is enabled but gliner2 is not installed",
+            reason="missing_dependencies",
+        )
+
+    monkeypatch.setattr(proposer, "_spawn_worker", fake_spawn)
+    proposer.reset_worker()
+
+    async def run():
+        with pytest.raises(GlinerProposerError) as excinfo:
+            await proposer.propose_spans(
+                (ProposalUnit(unit_id="u1", text="text"),), ("Datum",)
+            )
+        assert excinfo.value.reason == "missing_dependencies"
 
     asyncio.run(run())
 
@@ -320,13 +351,15 @@ async def test_step_disabled_is_no_op(monkeypatch):
         raise AssertionError("proposer must not run when disabled")
 
     monkeypatch.setattr(service, "propose_spans", fail)
-    report = await service.maybe_run_gliner_step(
-        SimpleNamespace(), None, attempt=make_attempt(opted_in=True),
-        plan=ResearchPlan(), assessment=ResearchAssessmentDraft(
-            result="insufficient", rationale="", need_assessments=[]
-        ),
+    need = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
+    result = await service.maybe_run_gliner_step(
+        SimpleNamespace(), None,
+        attempt=make_attempt(opted_in=True),
+        plan=ResearchPlan(needs=[need]),
+        assessment=make_assessment_row([need]),
+        wave=0,
     )
-    assert report is None
+    assert result is None
 
 
 @pytest.mark.asyncio
@@ -337,13 +370,15 @@ async def test_step_opted_out_is_no_op(monkeypatch):
         raise AssertionError("proposer must not run when the run did not opt in")
 
     monkeypatch.setattr(service, "propose_spans", fail)
-    report = await service.maybe_run_gliner_step(
-        SimpleNamespace(), None, attempt=make_attempt(opted_in=False),
-        plan=ResearchPlan(), assessment=ResearchAssessmentDraft(
-            result="insufficient", rationale="", need_assessments=[]
-        ),
+    need = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
+    result = await service.maybe_run_gliner_step(
+        SimpleNamespace(), None,
+        attempt=make_attempt(opted_in=False),
+        plan=ResearchPlan(needs=[need]),
+        assessment=make_assessment_row([need]),
+        wave=0,
     )
-    assert report is None
+    assert result is None
 
 
 @pytest.mark.asyncio
@@ -354,13 +389,17 @@ async def test_step_sufficient_assessment_is_no_op(monkeypatch):
         raise AssertionError("proposer must not run when nothing is missing")
 
     monkeypatch.setattr(service, "propose_spans", fail)
-    report = await service.maybe_run_gliner_step(
-        SimpleNamespace(), None, attempt=make_attempt(opted_in=True),
-        plan=ResearchPlan(), assessment=ResearchAssessmentDraft(
-            result="sufficient", rationale="", need_assessments=[]
-        ),
+    need = make_need("n1", span_types=["PERIOD"])
+    row = make_assessment_row([need])
+    row.result = "sufficient"
+    result = await service.maybe_run_gliner_step(
+        SimpleNamespace(), None,
+        attempt=make_attempt(opted_in=True),
+        plan=ResearchPlan(needs=[need]),
+        assessment=row,
+        wave=0,
     )
-    assert report is None
+    assert result is None
 
 
 @pytest.mark.asyncio
@@ -371,12 +410,15 @@ async def test_step_no_span_types_is_no_op(monkeypatch):
         raise AssertionError("proposer must not run without declared span types")
 
     monkeypatch.setattr(service, "propose_spans", fail)
-    need = make_need("n1", span_types=None)
-    report = await service.maybe_run_gliner_step(
-        SimpleNamespace(), None, attempt=make_attempt(opted_in=True),
-        plan=ResearchPlan(needs=[need]), assessment=make_assessment([need]),
+    need = make_need("n1")
+    result = await service.maybe_run_gliner_step(
+        SimpleNamespace(), None,
+        attempt=make_attempt(opted_in=True),
+        plan=ResearchPlan(needs=[need]),
+        assessment=make_assessment_row([need]),
+        wave=0,
     )
-    assert report is None
+    assert result is None
 
 
 # ---------------------------------------------------------------- plan
@@ -398,7 +440,72 @@ def test_plan_validation_span_vocabulary():
         )
 
 
-# ---------------------------------------------------------------- service
+# ---------------------------------------------------------------- db helpers
+
+
+async def _seed_research(factory, *, excerpt1: str, excerpt2: str | None = None):
+    async with factory() as session:
+        session.add(Kund(id=1, name="Test", slug="test", available_modules=[]))
+        session.add(
+            ExecutionRun(id="run-1", customer_id=1, module="dd", title="t", context={})
+        )
+        session.add(
+            ExecutionAttempt(
+                id="at-1",
+                run_id="run-1",
+                attempt_type="research",
+                status="researching",
+                configuration_snapshot={"gliner_span_proposer": True},
+                input_snapshot={},
+                research_wave=0,
+            )
+        )
+        session.add(EvidenceSet(id="es-1", run_id="run-1", status="building"))
+        session.add(
+            ResearchNeedExecution(
+                id="ne-1", attempt_id="at-1", research_need_id="n1", status="completed"
+            )
+        )
+        session.add(
+            ResearchRuntimeNeed(
+                id="rn-1",
+                attempt_id="at-1",
+                research_need_id="n1",
+                question="Vilken betalningsfrist gäller?",
+                why_needed="test",
+                question_key="qk1",
+                span_types=["PERIOD"],
+                span_role="DEADLINE",
+                origin="initial",
+                wave_number=0,
+            )
+        )
+        await session.commit()
+    excerpts = [excerpt1] + ([excerpt2] if excerpt2 else [])
+    async with factory() as session:
+        stored = await add_evidence_items(
+            session,
+            evidence_set_id="es-1",
+            items=[
+                EvidenceItemSnapshot(
+                    research_need_id="n1",
+                    source_type="swedish_law",
+                    status="found",
+                    title="t",
+                    excerpt=excerpt,
+                    locator=None,
+                    source_id=f"s{index}",
+                    source_url=None,
+                    provider="test",
+                    score=None,
+                    provenance={},
+                    retrieved_at=datetime.now(timezone.utc),
+                )
+                for index, excerpt in enumerate(excerpts)
+            ],
+        )
+        await session.commit()
+    return [item.id for item in stored]
 
 
 @pytest.fixture
@@ -417,73 +524,47 @@ async def db_factory():
         await engine.dispose()
 
 
-async def seed_database(factory, *, need_id: str, excerpt: str | None):
-    async with factory() as session:
-        session.add(Kund(id=1, name="Test", slug="test", available_modules=[]))
-        session.add(
-            ExecutionRun(
-                id="run-1", customer_id=1, module="dd", title="t", context={}
-            )
-        )
-        session.add(EvidenceSet(id="es-1", run_id="run-1", status="building"))
-        await session.commit()
-    if excerpt is None:
-        return None
-    from app.services.execution.service import add_evidence_items
-    from app.services.execution.snapshots import EvidenceItemSnapshot
-
-    async with factory() as session:
-        stored = await add_evidence_items(
-            session,
-            evidence_set_id="es-1",
-            items=[
-                EvidenceItemSnapshot(
-                    research_need_id=need_id,
-                    source_type="swedish_law",
-                    status="found",
-                    title="t",
-                    excerpt=excerpt,
-                    locator=None,
-                    source_id="s1",
-                    source_url=None,
-                    provider="test",
-                    score=None,
-                    provenance={},
-                    retrieved_at=datetime.now(timezone.utc),
-                )
-            ],
-        )
-        await session.commit()
-    return stored[0].id
-
-
-class FakeJev:
+class CountingJev:
     def __init__(self, choice: str = "YES") -> None:
         self.choice = choice
-        self.calls: list[str] = []
+        self.calls = 0
 
     async def ask(self, *, state, questions, model, timeout_seconds):
-        self.calls.append(questions["evidence"]["instructions"])
+        self.calls += 1
         return SimpleNamespace(answers={"evidence": {"choice": self.choice}})
 
 
-def fake_propose(proposals_by_unit: dict[str, list[tuple[str, str]]]):
+def fake_propose(proposals: dict[str, list[tuple[str, str]]]):
     async def propose(units, labels):
-        return [
-            UnitProposals(
-                unit_id=unit.unit_id,
-                proposals=tuple(
-                    SpanProposal(span=span, label=label)
-                    for span, label in proposals_by_unit.get(unit.unit_id, [])
-                ),
+        out = []
+        for unit in units:
+            entries = proposals.get(unit.unit_id, [])
+            out.append(
+                UnitProposals(
+                    unit_id=unit.unit_id,
+                    proposals=tuple(
+                        SpanProposal(span=span, label=label) for span, label in entries
+                    ),
+                )
             )
-            for unit in units
-        ]
+        return out
 
     return propose
 
 
-async def run_step(factory, *, need, jev, propose):
+class _StepAssessor:
+    async def assess(self, plan, evidence):
+        return ResearchAssessmentDraft(
+            result="insufficient",
+            rationale="test",
+            need_assessments=[
+                ResearchNeedAssessment(research_need_id=need.id, sufficient=False)
+                for need in plan.needs
+            ],
+        )
+
+
+async def run_step(factory, *, need, jev, propose, attempt=None):
     import app.services.research.gliner.service as svc
 
     monkeypatch = pytest.MonkeyPatch()
@@ -493,172 +574,374 @@ async def run_step(factory, *, need, jev, propose):
     try:
         async with factory() as session:
             return await svc.maybe_run_gliner_step(
-                SimpleNamespace(factory=factory, evidence_set_id="es-1"),
+                SimpleNamespace(
+                    factory=factory,
+                    evidence_set_id="es-1",
+                    assessor=_StepAssessor(),
+                    router=None,
+                    provider_descriptors=None,
+                    relevance_assessor=None,
+                ),
                 session,
-                attempt=make_attempt(opted_in=True),
+                attempt=attempt or make_attempt(opted_in=True),
                 plan=ResearchPlan(needs=[need]),
-                assessment=make_assessment([need]),
+                assessment=make_assessment_row([need]),
+                wave=0,
             )
     finally:
         monkeypatch.undo()
 
 
+async def _gliner_items(factory):
+    async with factory() as session:
+        rows = (
+            await session.execute(
+                select(EvidenceSetItem).where(EvidenceSetItem.evidence_set_id == "es-1")
+            )
+        ).scalars().all()
+    return [
+        row for row in rows
+        if (row.provenance or {}).get("derivation") == "gliner_span_proposal"
+    ]
+
+
+# ---------------------------------------------------------------- service
+
+
 @pytest.mark.asyncio
-async def test_full_run_persists_verified_findings(db_factory):
+async def test_step_persists_verified_findings(db_factory):
     engine, factory = db_factory
-    item_id = await seed_database(factory, need_id="n1", excerpt=BT17_CLAUSE)
+    item_ids = await _seed_research(factory, excerpt1=BT17_CLAUSE)
     need = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
-    jev = FakeJev(choice="YES")
-    propose = fake_propose({item_id: [("6 månader", "Tidsperiod")]})
+    jev = CountingJev("YES")
+    propose = fake_propose({item_ids[0]: [("6 månader", "Tidsperiod")]})
     try:
-        report = await run_step(factory, need=need, jev=jev, propose=propose)
-        assert report is not None
+        result = await run_step(factory, need=need, jev=jev, propose=propose)
+        assert result is not None
+        report = result.report
+        assert report.units_scanned == 1
         assert report.inferences == 1
         assert report.jev_calls == 1
         assert report.findings_persisted == 1
+        items = await _gliner_items(factory)
+        assert len(items) == 1
+        provenance = items[0].provenance
+        assert provenance["verified_spans"][0]["span"] == "6 månader"
+        assert (
+            provenance["verified_spans"][0]["prompt_version"]
+            == "span-need-contrast-v1"
+        )
+        assert provenance["verified_spans"][0]["unit_id"] == item_ids[0]
         async with factory() as session:
-            from sqlalchemy import select
-
-            from app.database.models import EvidenceSetItem
-
             rows = (
                 await session.execute(
-                    select(EvidenceSetItem).where(
-                        EvidenceSetItem.evidence_set_id == "es-1"
-                    )
+                    select(ResearchAssessment)
+                    .where(ResearchAssessment.attempt_id == "at-1")
+                    .order_by(ResearchAssessment.assessment_pass)
                 )
             ).scalars().all()
-        gliner_items = [
-            row for row in rows if row.provenance.get("derivation") == "gliner_span_proposal"
-        ]
-        assert len(gliner_items) == 1
-        assert "6 månader" in gliner_items[0].excerpt
-        assert gliner_items[0].provenance["need_role"] == "DURATION"
+        assert [row.assessment_pass for row in rows] == [1]
     finally:
         await engine.dispose()
 
 
 @pytest.mark.asyncio
-async def test_jev_no_persists_nothing(db_factory):
+async def test_step_two_competing_units_become_ambiguous(db_factory):
     engine, factory = db_factory
-    item_id = await seed_database(factory, need_id="n1", excerpt=BT17_CLAUSE)
-    need = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
-    jev = FakeJev(choice="NO")
-    propose = fake_propose({item_id: [("6 månader", "Tidsperiod")]})
+    item_ids = await _seed_research(
+        factory,
+        excerpt1="Betalning erläggs inom 30 dagar efter erhållen faktura.",
+        excerpt2="Leverans sker inom 60 dagar från order.",
+    )
+    need = make_need("n1", span_types=["PERIOD"], span_role="DEADLINE")
+    jev = CountingJev("YES")
+    propose = fake_propose(
+        {
+            item_ids[0]: [("30 dagar", "Tidsperiod")],
+            item_ids[1]: [("60 dagar", "Tidsperiod")],
+        }
+    )
     try:
-        report = await run_step(factory, need=need, jev=jev, propose=propose)
-        assert report is not None
-        assert report.findings_persisted == 0
+        result = await run_step(factory, need=need, jev=jev, propose=propose)
+        assert result is not None
+        assert result.report.jev_calls == 2
+        items = await _gliner_items(factory)
+        assert len(items) == 1
+        provenance = items[0].provenance
+        assert provenance["verified_spans"] == []
+        assert len(provenance["conflicting_spans"]) == 2
+        assert "Motstridigt" in items[0].excerpt
     finally:
         await engine.dispose()
 
 
 @pytest.mark.asyncio
-async def test_existing_gliner_item_skips_reproposal(db_factory):
+async def test_step_retry_never_reproposes(db_factory):
     engine, factory = db_factory
-    await seed_database(factory, need_id="n1", excerpt=None)
-    from app.services.execution.service import add_evidence_items
-    from app.services.execution.snapshots import EvidenceItemSnapshot
-
-    async with factory() as session:
-        await add_evidence_items(
-            session,
-            evidence_set_id="es-1",
-            items=[
-                EvidenceItemSnapshot(
-                    research_need_id="n1",
-                    source_type="derived",
-                    status="found",
-                    title="old",
-                    excerpt="old finding",
-                    locator=None,
-                    source_id="s2",
-                    source_url=None,
-                    provider="gliner_span_proposer",
-                    score=None,
-                    provenance={"derivation": "gliner_span_proposal"},
-                    retrieved_at=datetime.now(timezone.utc),
-                )
-            ],
-        )
-        await session.commit()
+    item_ids = await _seed_research(factory, excerpt1=BT17_CLAUSE)
     need = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
-    jev = FakeJev(choice="YES")
+    first = await run_step(
+        factory,
+        need=need,
+        jev=CountingJev("YES"),
+        propose=fake_propose({item_ids[0]: [("6 månader", "Tidsperiod")]}),
+    )
+    assert first is not None
+    calls = {"propose": 0, "jev": 0}
 
     async def fail_propose(units, labels):
-        raise AssertionError("need already proposed — must not run again")
+        calls["propose"] += 1
+        raise AssertionError("retry must not call the model again")
+
+    class FailJev:
+        async def ask(self, **kwargs):
+            calls["jev"] += 1
+            raise AssertionError("retry must not call Jev again")
 
     try:
-        report = await run_step(factory, need=need, jev=jev, propose=fail_propose)
-        assert report is not None
-        assert report.units_scanned == 0
-        assert report.inferences == 0
+        second = await run_step(factory, need=need, jev=FailJev(), propose=fail_propose)
+        assert second is None
+        assert calls == {"propose": 0, "jev": 0}
     finally:
         await engine.dispose()
 
 
 @pytest.mark.asyncio
-async def test_no_connection_held_during_external_phase(tmp_path):
-    """Root rule: another client must acquire a connection while the
-    GLiNER2/Jev phase is pending. A one-connection pool makes retention fail."""
-    engine = create_async_engine(
-        f"sqlite+aiosqlite:///{tmp_path / 'release.db'}", pool_size=1
+async def test_step_jev_budget_is_enforced_and_reported(db_factory):
+    engine, factory = db_factory
+    item_ids = await _seed_research(
+        factory,
+        excerpt1="Betalning inom 30 dagar.",
+        excerpt2="Leverans inom 60 dagar.",
     )
-    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    await seed_database(factory, need_id="n1", excerpt=BT17_CLAUSE)
-    need = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
-    jev = FakeJev(choice="YES")
-    released = asyncio.Event()
-
-    async def propose_impl(units, labels):
-        await asyncio.wait_for(released.wait(), timeout=5)
-        return [
-            UnitProposals(
-                unit_id=unit.unit_id,
-                proposals=(SpanProposal(span="6 månader", label="Tidsperiod"),),
-            )
-            for unit in units
-        ]
-
+    need = make_need("n1", span_types=["PERIOD"], span_role="DEADLINE")
+    jev = CountingJev("YES")
+    propose = fake_propose(
+        {
+            item_ids[0]: [("30 dagar", "Tidsperiod")],
+            item_ids[1]: [("60 dagar", "Tidsperiod")],
+        }
+    )
     import app.services.research.gliner.service as svc
 
     monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    monkeypatch.setattr(settings.gliner_span_proposer, "max_jev_calls_per_need", 1)
     monkeypatch.setattr(svc, "HttpJevSystemOne", lambda: jev)
-    monkeypatch.setattr(svc, "propose_spans", propose_impl)
-    step_task: asyncio.Task | None = None
+    monkeypatch.setattr(svc, "propose_spans", propose)
     try:
-        async def run_step_here():
-            async with factory() as session:
-                return await svc.maybe_run_gliner_step(
-                    SimpleNamespace(factory=factory, evidence_set_id="es-1"),
-                    session,
-                    attempt=make_attempt(opted_in=True),
-                    plan=ResearchPlan(needs=[need]),
-                    assessment=make_assessment([need]),
-                )
-
-        step_task = asyncio.create_task(run_step_here())
-        await asyncio.sleep(0.2)  # let the step enter the external phase
-
-        from sqlalchemy import select
-
-        async def second_client():
-            async with factory() as session:
-                await session.execute(select(EvidenceSet.id).limit(1))
-            return True
-
-        second = asyncio.create_task(second_client())
-        done, _pending = await asyncio.wait({second}, timeout=3)
-        assert done, "second client could not acquire a connection"
-        released.set()
-        report = await step_task
-        assert report is not None
+        async with factory() as session:
+            result = await svc.maybe_run_gliner_step(
+                SimpleNamespace(
+                    factory=factory,
+                    evidence_set_id="es-1",
+                    assessor=_StepAssessor(),
+                    router=None,
+                    provider_descriptors=None,
+                    relevance_assessor=None,
+                ),
+                session,
+                attempt=make_attempt(opted_in=True),
+                plan=ResearchPlan(needs=[need]),
+                assessment=make_assessment_row([need]),
+                wave=0,
+            )
+        assert result is not None
+        assert result.report.jev_calls == 1
+        assert result.report.jev_budget_truncated is True
+        items = await _gliner_items(factory)
+        assert items[0].provenance["jev_budget_truncated"] is True
     finally:
-        released.set()
-        if step_task is not None:
-            await asyncio.gather(step_task, return_exceptions=True)
         monkeypatch.undo()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_step_invalid_jev_choice_fails_loudly(db_factory):
+    engine, factory = db_factory
+    item_ids = await _seed_research(factory, excerpt1=BT17_CLAUSE)
+    need = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
+
+    class BadJev:
+        async def ask(self, **kwargs):
+            return SimpleNamespace(answers={"evidence": {"choice": "MAYBE"}})
+
+    try:
+        with pytest.raises(service.GlinerStepError, match="invalid choice"):
+            await run_step(
+                factory,
+                need=need,
+                jev=BadJev(),
+                propose=fake_propose({item_ids[0]: [("6 månader", "Tidsperiod")]}),
+            )
+    finally:
+        await engine.dispose()
+
+
+# ---------------------------------------------------------------- runtime needs
+
+
+@pytest.mark.asyncio
+async def test_runtime_need_roundtrip_keeps_span_fields(db_factory):
+    engine, factory = db_factory
+    await _seed_research(factory, excerpt1=BT17_CLAUSE)
+    async with factory() as session:
+        await persist_runtime_needs(
+            session,
+            attempt_id="at-1",
+            needs=[
+                RuntimeResearchNeed(
+                    research_need_id="n2",
+                    question="Vilken uppsägningstid gäller?",
+                    why_needed="test",
+                    source_types=["swedish_law"],
+                    span_types=["NOTICE_PERIOD"],
+                    span_role="NOTICE",
+                )
+            ],
+        )
+        await session.commit()
+        rows = (
+            await session.execute(
+                select(ResearchRuntimeNeed)
+                .where(ResearchRuntimeNeed.attempt_id == "at-1")
+                .order_by(ResearchRuntimeNeed.wave_number)
+            )
+        ).scalars().all()
+    try:
+        by_id = {row.research_need_id: row for row in rows}
+        assert by_id["n1"].span_types == ["PERIOD"]
+        converted = runtime_need_from_row(by_id["n2"])
+        assert converted.span_types == ["NOTICE_PERIOD"]
+        assert converted.span_role == "NOTICE"
+        assert converted.as_need().span_types == ["NOTICE_PERIOD"]
+        assert converted.as_need().span_role == "NOTICE"
+    finally:
+        await engine.dispose()
+
+
+# ---------------------------------------------------------------- env
+
+
+def test_env_nested_delimiter_overrides_gliner_settings(monkeypatch):
+    from app.config import Settings
+
+    monkeypatch.setenv("GLINER_SPAN_PROPOSER__ENABLED", "true")
+    instance = Settings(_env_file=None, database_url="sqlite+aiosqlite://")
+    assert instance.gliner_span_proposer.enabled is True
+    monkeypatch.delenv("GLINER_SPAN_PROPOSER__ENABLED")
+    instance = Settings(_env_file=None, database_url="sqlite+aiosqlite://")
+    assert instance.gliner_span_proposer.enabled is False
+
+
+# ---------------------------------------------------------------- wave body
+
+
+class FakeAssessor:
+    def __init__(self) -> None:
+        self.calls: list[int] = []
+
+    async def assess(self, plan, evidence):
+        self.calls.append(len(evidence))
+        return ResearchAssessmentDraft(
+            result="insufficient",
+            rationale="test",
+            need_assessments=[
+                ResearchNeedAssessment(research_need_id=need.id, sufficient=False)
+                for need in plan.needs
+            ],
+            considered_evidence_ids=[item.evidence_id for item in evidence],
+        )
+
+
+@pytest.mark.asyncio
+async def test_finish_wave_runs_gliner_and_refreshes_assessment(db_factory, monkeypatch):
+    """End-to-end through finish_research_wave: persisted runtime needs carry
+    span declarations, two competing TextUnits become a visible conflict, the
+    new evidence is scored and re-assessed before the decision, and a retry
+    never repeats model or Jev calls."""
+    import app.services.research.loop_control as loop_control
+    from app.services.research.loop_control import ResearchWaveConfig, finish_research_wave
+
+    engine, factory = db_factory
+    await _seed_research(
+        factory,
+        excerpt1="Betalning erläggs inom 30 dagar efter erhållen faktura.",
+        excerpt2="Leverans sker inom 60 dagar från order.",
+    )
+    need = make_need(
+        "n1", span_types=["PERIOD"], span_role="DEADLINE"
+    )  # runtime needs carry the same declaration
+    plan = ResearchPlan(needs=[need])
+    assessor = FakeAssessor()
+    jev = CountingJev("YES")
+    calls = {"propose": 0}
+
+    async def propose(units, labels):
+        calls["propose"] += 1
+        out = []
+        for unit in units:
+            span = "30 dagar" if "30 dagar" in unit.text else "60 dagar"
+            out.append(
+                UnitProposals(
+                    unit_id=unit.unit_id,
+                    proposals=(SpanProposal(span=span, label="Tidsperiod"),),
+                )
+            )
+        return out
+
+    monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    monkeypatch.setattr(service, "HttpJevSystemOne", lambda: jev)
+    monkeypatch.setattr(service, "propose_spans", propose)
+
+    async def no_decision(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(loop_control, "_decide_research_wave", no_decision)
+
+    config = ResearchWaveConfig(
+        factory=factory,
+        attempt_id="at-1",
+        evidence_set_id="es-1",
+        context=ResearchContext(scope=customer_scope(1), limit=10, attempt_id="at-1"),
+        router=None,
+        router_factory=None,
+        question_graph=SimpleNamespace(),
+        assessor=assessor,
+        planner=SimpleNamespace(),
+        completeness_reviewer=SimpleNamespace(),
+        relevance_assessor=None,
+        provider_descriptors=(),
+        concurrency=1,
+        max_follow_up_waves=0,
+        max_needs=4,
+        max_completeness_passes=1,
+        need_normalizer=None,
+    )
+    try:
+        result = await finish_research_wave(config, snapshot_plan=plan, wave=0)
+        assert result is None
+        items = await _gliner_items(factory)
+        assert len(items) == 1
+        assert len(items[0].provenance["conflicting_spans"]) == 2
+        assert items[0].provenance["verified_spans"] == []
+        assert "Motstridigt" in items[0].excerpt
+        async with factory() as session:
+            quality = await list_evidence_quality(session, "es-1")
+            passes = (
+                await session.execute(
+                    select(ResearchAssessment)
+                    .where(ResearchAssessment.attempt_id == "at-1")
+                    .order_by(ResearchAssessment.assessment_pass)
+                )
+            ).scalars().all()
+        assert any(row.evidence_set_item_id == items[0].id for row in quality)
+        assert [row.assessment_pass for row in passes] == [1]
+        assert assessor.calls == [2, 3]  # first wave saw 2 items, refresh sees 3
+        propose_calls = calls["propose"]
+        jev_calls = jev.calls
+        await finish_research_wave(config, snapshot_plan=plan, wave=1)
+        assert calls["propose"] == propose_calls
+        assert jev.calls == jev_calls
+    finally:
         await engine.dispose()

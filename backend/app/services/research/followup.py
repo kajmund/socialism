@@ -94,6 +94,8 @@ class RuntimeResearchNeed:
     generated_from_question_id: str = ""
     trigger_claim_id: str = ""
     trigger_graph_event_id: str = ""
+    span_types: list[str] = field(default_factory=list)
+    span_role: str = ""
 
     def __post_init__(self) -> None:
         if self.origin not in RESEARCH_NEED_ORIGINS:
@@ -103,6 +105,7 @@ class RuntimeResearchNeed:
         object.__setattr__(self, "domains", list(self.domains))
         object.__setattr__(self, "modalities", list(self.modalities))
         object.__setattr__(self, "capabilities", list(self.capabilities))
+        object.__setattr__(self, "span_types", list(self.span_types))
         key = self.question_key or research_question_key(self.question)
         object.__setattr__(self, "question_key", key)
 
@@ -122,7 +125,17 @@ class RuntimeResearchNeed:
             normalization_reason=self.normalization_reason,
             already_normalized=self.already_normalized,
             knowledge_question_id=self.knowledge_question_id,
+            span_types=list(self.span_types),
+            span_role=self.span_role,
         )
+
+
+def span_fields(source: object) -> dict[str, object]:
+    """Copy the optional GLiNER2 span declaration from a row or a need."""
+    return {
+        "span_types": list(getattr(source, "span_types", ()) or ()),
+        "span_role": getattr(source, "span_role", "") or "",
+    }
 
 
 class FollowUpResearchPlanner(Protocol):
