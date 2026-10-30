@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 
@@ -17,25 +18,53 @@ class FakeProcess:
     returncode: int | None = None
 
 
-# ---------------------------------------------------------------- proposer
+class FakeReader:
+    def __init__(self, payload: bytes) -> None:
+        self.payload = payload
+
+    async def read(self) -> bytes:
+        return self.payload
+
+
+class ExitProcess:
+    def __init__(self, returncode: int, stderr: bytes) -> None:
+        self.returncode = returncode
+        self.stderr = FakeReader(stderr)
+
+    async def wait(self) -> int:
+        return self.returncode
+
+
+async def fake_spawn():
+    return FakeProcess()
+
+
+def fake_reply(payload: bytes) -> dict[str, object]:
+    """Echo the request id like the real worker does."""
+    request_id = json.loads(payload)["request_id"]
+    return {
+        "ok": True,
+        "request_id": request_id,
+        "result": [
+            {"unit_id": "u1", "proposals": [{"span": "12 maj", "label": "Datum"}]}
+        ],
+    }
+
+
+# ---------------------------------------------------------------- lifecycle
 
 
 def test_proposer_spawns_worker_once(monkeypatch):
     spawns = {"count": 0}
 
-    async def fake_spawn():
+    async def counting_spawn():
         spawns["count"] += 1
         return FakeProcess()
 
     async def fake_request(process, payload, timeout):
-        return {
-            "ok": True,
-            "result": [
-                {"unit_id": "u1", "proposals": [{"span": "12 maj", "label": "Datum"}]}
-            ],
-        }
+        return fake_reply(payload)
 
-    monkeypatch.setattr(proposer, "_spawn_worker", fake_spawn)
+    monkeypatch.setattr(proposer, "_spawn_worker", counting_spawn)
     monkeypatch.setattr(proposer, "_request", fake_request)
     proposer.reset_worker()
 
@@ -56,9 +85,6 @@ def test_proposer_spawns_worker_once(monkeypatch):
 
 def test_proposer_timeout_kills_worker(monkeypatch):
     killed = {"ok": False}
-
-    async def fake_spawn():
-        return FakeProcess()
 
     async def fake_request(process, payload, timeout):
         raise TimeoutError
@@ -84,14 +110,70 @@ def test_proposer_timeout_kills_worker(monkeypatch):
     assert killed["ok"] is True
 
 
+def test_proposer_cancellation_kills_worker(monkeypatch):
+    """A lost lease cancels the await; the worker must die so no stale reply
+    can be consumed by the next request."""
+    started = asyncio.Event()
+    killed = {"count": 0}
+
+    async def blocking_request(process, payload, timeout):
+        started.set()
+        await asyncio.sleep(60)
+
+    async def fake_kill(process):
+        killed["count"] += 1
+
+    monkeypatch.setattr(proposer, "_spawn_worker", fake_spawn)
+    monkeypatch.setattr(proposer, "_request", blocking_request)
+    monkeypatch.setattr(proposer, "_kill_worker", fake_kill)
+    proposer.reset_worker()
+
+    async def run():
+        task = asyncio.create_task(
+            proposer.propose_spans((ProposalUnit(unit_id="u1", text="text"),), ("Datum",))
+        )
+        await started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(run())
+    assert killed["count"] == 1
+
+
+def test_proposer_rejects_stale_reply(monkeypatch):
+    async def stale_request(process, payload, timeout):
+        return {"ok": True, "request_id": "not-this-request", "result": []}
+
+    killed = {"count": 0}
+
+    async def fake_kill(process):
+        killed["count"] += 1
+
+    monkeypatch.setattr(proposer, "_spawn_worker", fake_spawn)
+    monkeypatch.setattr(proposer, "_request", stale_request)
+    monkeypatch.setattr(proposer, "_kill_worker", fake_kill)
+    proposer.reset_worker()
+
+    async def run():
+        with pytest.raises(GlinerProposerError) as excinfo:
+            await proposer.propose_spans(
+                (ProposalUnit(unit_id="u1", text="text"),), ("Datum",)
+            )
+        assert "stale" in str(excinfo.value)
+
+    asyncio.run(run())
+    assert killed["count"] == 1
+
+
 def test_proposer_missing_dependencies(monkeypatch):
-    async def fake_spawn():
+    async def failing_spawn():
         raise GlinerProposerError(
             "gliner_span_proposer is enabled but gliner2 is not installed",
             reason="missing_dependencies",
         )
 
-    monkeypatch.setattr(proposer, "_spawn_worker", fake_spawn)
+    monkeypatch.setattr(proposer, "_spawn_worker", failing_spawn)
     proposer.reset_worker()
 
     async def run():
@@ -116,44 +198,76 @@ def test_proposer_invalid_labels():
     asyncio.run(run())
 
 
+# ---------------------------------------------------------------- exit classes
 
 
-# ---------------------------------------------------------------- worker protocol
-
-
-class FakeReader:
-    def __init__(self, payload: bytes) -> None:
-        self.payload = payload
-
-    async def read(self) -> bytes:
-        return self.payload
-
-
-class ExitProcess:
-    def __init__(self, returncode: int, stderr: bytes) -> None:
-        self.returncode = returncode
-        self.stderr = FakeReader(stderr)
-
-    async def wait(self) -> int:
-        return self.returncode
-
-
-def test_worker_exit_code_maps_to_typed_reason():
+def test_startup_exit_code_3_is_missing_dependencies():
     async def run():
         detail, reason = await proposer._worker_exit_detail(
-            ExitProcess(3, b"ModuleNotFoundError: no module named gliner2")
+            ExitProcess(3, b"ModuleNotFoundError: no module named gliner2"),
+            phase="startup",
         )
         assert reason == "missing_dependencies"
         assert "gliner2" in detail
+
+    asyncio.run(run())
+
+
+def test_startup_other_exit_is_load_failure():
+    async def run():
         _detail, reason = await proposer._worker_exit_detail(
-            ExitProcess(1, b"RuntimeError: load failed")
+            ExitProcess(1, b"RuntimeError: load failed"), phase="startup"
         )
         assert reason == "load_failed"
 
     asyncio.run(run())
 
 
-def test_worker_request_eof_is_a_typed_worker_failure(monkeypatch):
+def test_request_exit_is_inference_failure():
+    async def run():
+        _detail, reason = await proposer._worker_exit_detail(
+            ExitProcess(1, b"RuntimeError: inference boom"), phase="request"
+        )
+        assert reason == "inference_failed"
+
+    asyncio.run(run())
+
+
+def test_spawn_eof_maps_exit_code_to_missing_dependencies(monkeypatch):
+    class SpawnFailProcess:
+        returncode = 3
+
+        class stdout:
+            @staticmethod
+            async def readline() -> bytes:
+                return b""
+
+        class stderr:
+            @staticmethod
+            async def read() -> bytes:
+                return b"ModuleNotFoundError: gliner2"
+
+        def kill(self) -> None:
+            pass
+
+        async def wait(self) -> int:
+            return 3
+
+    async def fake_create(*args, **kwargs):
+        return SpawnFailProcess()
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create)
+    proposer.reset_worker()
+
+    async def run():
+        with pytest.raises(GlinerProposerError) as excinfo:
+            await proposer._spawn_worker()
+        assert excinfo.value.reason == "missing_dependencies"
+
+    asyncio.run(run())
+
+
+def test_request_eof_is_an_inference_failure(monkeypatch):
     class StoppedProcess(ExitProcess):
         class stdin:
             @staticmethod
@@ -169,19 +283,26 @@ def test_worker_request_eof_is_a_typed_worker_failure(monkeypatch):
             async def readline() -> bytes:
                 return b""
 
+    async def fake_kill(process):
+        pass
+
+    monkeypatch.setattr(proposer, "_kill_worker", fake_kill)
     proposer.reset_worker()
 
     async def run():
         with pytest.raises(GlinerProposerError) as excinfo:
             await proposer._request(
                 StoppedProcess(1, b"Traceback: crashed"),
-                b'{"units": [], "labels": []}\n',
+                b'{"unit_id": "x", "request_id": "r"}\n',
                 5.0,
             )
-        assert excinfo.value.reason == "worker_failed"
+        assert excinfo.value.reason == "inference_failed"
         assert "Traceback: crashed" in str(excinfo.value)
 
     asyncio.run(run())
+
+
+# ---------------------------------------------------------------- worker protocol
 
 
 def test_worker_handler_rejects_malformed_requests():
@@ -191,13 +312,18 @@ def test_worker_handler_rejects_malformed_requests():
     assert result["reason"] == "invalid_request"
 
 
-def test_worker_handler_uses_model(monkeypatch):
+def test_worker_handler_uses_model_and_echoes_request_id():
     from app.services.research.gliner import worker
 
     class FakeModel:
         def extract_entities(self, text, **kwargs):
             return {"entities": [{"Datum": ["12 maj"]}]}
 
-    result = worker._handle_line(FakeModel(), '{"units": [{"unit_id": "u1", "text": "x"}], "labels": ["Datum"], "threshold": 0.3}')
+    result = worker._handle_line(
+        FakeModel(),
+        '{"request_id": "abc", "units": [{"unit_id": "u1", "text": "x"}], '
+        '"labels": ["Datum"], "threshold": 0.3}',
+    )
     assert result["ok"] is True
+    assert result["request_id"] == "abc"
     assert result["result"][0]["proposals"] == [{"span": "12 maj", "label": "Datum"}]

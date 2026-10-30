@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import uuid
 from dataclasses import dataclass
 
 from app.config import settings
@@ -127,6 +128,15 @@ async def _spawn_worker() -> asyncio.subprocess.Process:
         raise GlinerProposerError(
             "GLiNER2 worker did not become ready in time", reason="load_failed"
         ) from None
+    except asyncio.CancelledError:
+        await asyncio.shield(_kill_worker(process))
+        raise
+    if not line:
+        detail, reason = await _worker_exit_detail(process, phase="startup")
+        await _kill_worker(process)
+        raise GlinerProposerError(
+            f"GLiNER2 worker failed to start: {detail or reason}", reason=reason
+        )
     message = _parse_line(line)
     if not message.get("ok"):
         await _kill_worker(process)
@@ -137,8 +147,14 @@ async def _spawn_worker() -> asyncio.subprocess.Process:
     return process
 
 
-async def _worker_exit_detail(process: asyncio.subprocess.Process) -> tuple[str, str]:
-    """Read the worker's exit code and stderr tail after it stopped."""
+async def _worker_exit_detail(
+    process: asyncio.subprocess.Process, *, phase: str
+) -> tuple[str, str]:
+    """Read the worker's exit code and stderr tail; classify by the phase.
+
+    Startup failures are missing dependencies (exit code 3) or a load
+    failure. A worker that dies during a request is an inference failure.
+    """
     try:
         await asyncio.wait_for(process.wait(), timeout=5)
     except TimeoutError:
@@ -150,6 +166,8 @@ async def _worker_exit_detail(process: asyncio.subprocess.Process) -> tuple[str,
         except TimeoutError:
             stderr = b""
     detail = stderr.decode("utf-8", "replace").strip()[-500:]
+    if phase == "request":
+        return detail, "inference_failed"
     if process.returncode == 3:
         return detail, "missing_dependencies"
     return detail, "load_failed"
@@ -176,9 +194,9 @@ async def _request(
     except BrokenPipeError:
         line = b""
     if not line:
-        detail, reason = await _worker_exit_detail(process)
+        detail, reason = await _worker_exit_detail(process, phase="request")
         raise GlinerProposerError(
-            f"GLiNER2 worker stopped: {detail or reason}", reason="worker_failed"
+            f"GLiNER2 worker stopped: {detail or reason}", reason=reason
         )
     return _parse_line(line)
 
@@ -208,9 +226,11 @@ async def propose_spans(
         if timeout_seconds is not None
         else settings.gliner_span_proposer.inference_timeout_seconds
     )
+    request_id = uuid.uuid4().hex
     payload = (
         json.dumps(
             {
+                "request_id": request_id,
                 "units": [{"unit_id": unit.unit_id, "text": unit.text} for unit in units],
                 "labels": list(labels),
                 "threshold": settings.gliner_span_proposer.threshold,
@@ -224,6 +244,11 @@ async def propose_spans(
         process = await _ensure_worker()
         try:
             message = await _request(process, payload, timeout)
+        except asyncio.CancelledError:
+            # The lease was lost while the model worked: stop it and drop the
+            # handle so no stale reply can be read by the next request.
+            await asyncio.shield(_kill_worker(process))
+            raise
         except TimeoutError:
             # Kill the process so the model work actually stops.
             await _kill_worker(process)
@@ -231,8 +256,12 @@ async def propose_spans(
                 f"GLiNER2 inference timed out after {timeout:.0f}s",
                 reason="timeout",
             ) from None
-    if not message.get("ok"):
+    if not message.get("ok") or str(message.get("request_id") or "") != request_id:
         await _kill_worker(process)
+        if message.get("ok"):
+            raise GlinerProposerError(
+                "GLiNER2 worker replied to a stale request", reason="worker_failed"
+            )
         _raise_worker_error(
             str(message.get("reason") or "worker_failed"),
             str(message.get("error") or ""),

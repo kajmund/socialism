@@ -284,8 +284,11 @@ async def _persist_findings(
             if not findings:
                 continue
             lines, claims, provenance = _need_item_lines(findings)
-            if not lines:
-                continue
+            # Rejected-only runs still persist a not_found checkpoint: it keeps
+            # the rejected provenance visible and makes the retry idempotent.
+            has_content = bool(lines)
+            if not has_content:
+                lines = ["Inga verifierade fynd: alla förslag avvisades."]
             digest = hashlib.sha256(
                 json.dumps(provenance, sort_keys=True, ensure_ascii=False).encode()
             ).hexdigest()[:16]
@@ -301,7 +304,7 @@ async def _persist_findings(
                     research_evidence(
                         research_need_id=need.id,
                         source_type="derived",
-                        status="found",
+                        status="found" if has_content else "not_found",
                         title=need.question,
                         excerpt="\n".join(lines),
                         provider="gliner_span_proposer",

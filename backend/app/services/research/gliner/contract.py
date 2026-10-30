@@ -280,23 +280,21 @@ def derive_findings(
             )
     if not approved:
         return findings
-    roles: dict[str, str | None] = {}
-    for verdict in approved:
-        roles[verdict.span] = operational_role(verdict.span, verdict.unit_text)
+    # The role belongs to the verdict IN ITS UNIT: the same span text can be
+    # a notice period in one TextUnit and a payment deadline in another, so
+    # roles are index-aligned with verdicts — never keyed by span text.
+    roles = [operational_role(verdict.span, verdict.unit_text) for verdict in approved]
     # E3: a span with a determinable role that differs from the need's role
     # is another operational fact — it neither competes nor belongs to this
     # need's findings. Undeterminable roles always compete (fail-safe).
-    if need_role:
-        relevant = [
-            verdict
-            for verdict in approved
-            if roles[verdict.span] is None or roles[verdict.span] == need_role
-        ]
-    else:
-        relevant = approved
-    distinct_values = {canon_value(verdict.span) for verdict in relevant}
+    relevant = [
+        (verdict, role)
+        for verdict, role in zip(approved, roles, strict=True)
+        if not need_role or role is None or role == need_role
+    ]
+    distinct_values = {canon_value(verdict.span) for verdict, _role in relevant}
     ambiguous_values = distinct_values if len(distinct_values) >= 2 else set()
-    for verdict in relevant:
+    for verdict, role in relevant:
         value = canon_value(verdict.span)
         state = AMBIGUOUS if value in ambiguous_values else VERIFIED
         findings.append(
@@ -305,7 +303,7 @@ def derive_findings(
                 value=value,
                 need_type=need_type,
                 state=state,
-                role=roles[verdict.span],
+                role=role,
                 prompt_version=verdict.prompt_version,
                 unit_id=verdict.unit_id,
                 choice=verdict.choice,

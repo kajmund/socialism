@@ -179,6 +179,8 @@ def runtime_needs_from_plan(
             domains=list(need.domains),
             modalities=list(need.modalities),
             capabilities=list(need.capabilities),
+            span_types=list(need.span_types),
+            span_role=need.span_role,
             origin="initial",
             wave_number=wave_number,
             generated_from=need.generated_from,

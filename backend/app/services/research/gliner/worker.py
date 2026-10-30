@@ -36,6 +36,7 @@ def _handle_line(model: object, line: str) -> dict[str, object]:
         request = json.loads(line)
     except json.JSONDecodeError as exc:
         return {"ok": False, "reason": "invalid_request", "error": str(exc)}
+    request_id = request.get("request_id")
     result = []
     for unit in request.get("units", []):
         raw = model.extract_entities(
@@ -49,7 +50,7 @@ def _handle_line(model: object, line: str) -> dict[str, object]:
             for label, spans in entry.items():
                 proposals.extend({"span": span, "label": label} for span in spans)
         result.append({"unit_id": unit["unit_id"], "proposals": proposals})
-    return {"ok": True, "result": result}
+    return {"ok": True, "request_id": request_id, "result": result}
 
 
 def main() -> int:

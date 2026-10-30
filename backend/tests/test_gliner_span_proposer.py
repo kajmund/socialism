@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.config import settings
-from app.database.knowledge_scope import customer_scope
+from app.services.knowledge.models import KnowledgeScope
 from app.database.models import (
     Base,
     EvidenceSet,
@@ -40,7 +40,10 @@ from app.services.research.assessment import (
     ResearchAssessmentDraft,
     ResearchNeedAssessment,
 )
-from app.services.research.followup import RuntimeResearchNeed
+from app.services.research.followup import (
+    RuntimeResearchNeed,
+    runtime_needs_from_plan,
+)
 from app.services.research.gliner import service
 from app.services.research.gliner.contract import (
     AMBIGUOUS,
@@ -200,6 +203,24 @@ def test_derive_findings_ambiguous_across_units():
         need_role="DEADLINE",
     )
     assert {f.state for f in findings} == {AMBIGUOUS}
+
+
+def test_same_span_different_units_keeps_per_unit_roles():
+    """The same span text can carry different operational roles in different
+    TextUnits; findings must not depend on verdict order."""
+    notice_unit = "Uppsägningstid 30 dagar."
+    deadline_unit = "Betalning inom 30 dagar."
+    verdicts = [
+        _verdict("30 dagar", unit_text=notice_unit),
+        _verdict("30 dagar", unit_text=deadline_unit),
+    ]
+    for ordered in (verdicts, list(reversed(verdicts))):
+        findings = derive_findings(
+            ordered, need_type="PERIOD", need_role="DEADLINE"
+        )
+        assert [(f.span, f.state, f.role) for f in findings] == [
+            ("30 dagar", VERIFIED, "DEADLINE")
+        ]
 
 
 def test_derive_findings_unknown_role_fails_safe():
@@ -570,6 +591,41 @@ async def test_step_two_competing_units_become_ambiguous(db_factory):
 
 
 @pytest.mark.asyncio
+async def test_step_all_rejected_persists_checkpoint_and_retry_skips(db_factory):
+    engine, factory = db_factory
+    item_ids = await _seed_research(factory, excerpt1=BT17_CLAUSE)
+    need = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
+    first = await run_step(
+        factory,
+        need=need,
+        jev=CountingJev("NO"),
+        propose=fake_propose({item_ids[0]: [("6 månader", "Tidsperiod")]}),
+    )
+    assert first is not None
+    items = await _gliner_items(factory)
+    assert len(items) == 1
+    assert items[0].status == "not_found"
+    assert len(items[0].provenance["rejected_spans"]) == 1
+    calls = {"propose": 0, "jev": 0}
+
+    async def fail_propose(units, labels):
+        calls["propose"] += 1
+        raise AssertionError("retry after a rejected checkpoint must not run")
+
+    class FailJev:
+        async def ask(self, **kwargs):
+            calls["jev"] += 1
+            raise AssertionError("retry after a rejected checkpoint must not run")
+
+    try:
+        second = await run_step(factory, need=need, jev=FailJev(), propose=fail_propose)
+        assert second is None
+        assert calls == {"propose": 0, "jev": 0}
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_step_retry_never_reproposes(db_factory):
     engine, factory = db_factory
     item_ids = await _seed_research(factory, excerpt1=BT17_CLAUSE)
@@ -714,6 +770,67 @@ async def test_runtime_need_roundtrip_keeps_span_fields(db_factory):
         await engine.dispose()
 
 
+@pytest.mark.asyncio
+async def test_runtime_needs_from_plan_keeps_span_declaration():
+    plan = ResearchPlan(
+        needs=[make_need("n1", span_types=["PERIOD"], span_role="DURATION")]
+    )
+    rows = runtime_needs_from_plan(plan)
+    assert rows[0].span_types == ["PERIOD"]
+    assert rows[0].span_role == "DURATION"
+
+
+@pytest.mark.asyncio
+async def test_inventory_persists_span_declaration(db_factory):
+    """Full path: ResearchPlan -> _ensure_research_inventory -> runtime plan."""
+    from app.services.research.execution import _ensure_research_inventory
+
+    engine, factory = db_factory
+    from tests.question_graph_memory import InMemoryQuestionEvidenceGraph
+
+    async with factory() as session:
+        session.add(Kund(id=1, name="Test", slug="test", available_modules=[]))
+        session.add(
+            ExecutionRun(id="run-1", customer_id=1, module="dd", title="t", context={})
+        )
+        session.add(
+            ExecutionAttempt(
+                id="at-1",
+                run_id="run-1",
+                attempt_type="research",
+                status="created",
+                configuration_snapshot={"gliner_span_proposer": True},
+                input_snapshot={},
+                research_wave=0,
+            )
+        )
+        await session.commit()
+        attempt = await session.get(ExecutionAttempt, "at-1")
+        run = await session.get(ExecutionRun, "run-1")
+        plan = ResearchPlan(
+            needs=[make_need("n1", span_types=["PERIOD"], span_role="DURATION")]
+        )
+        await _ensure_research_inventory(
+            session,
+            attempt=attempt,
+            run=run,
+            plan=plan,
+            question_graph=InMemoryQuestionEvidenceGraph(),
+            context=ResearchContext(
+                scope=KnowledgeScope(customer_id=1), limit=10, attempt_id="at-1"
+            ),
+        )
+        await session.commit()
+        from app.services.research.execution import runtime_plan
+
+        active = await runtime_plan(session, "at-1")
+    try:
+        assert active.needs[0].span_types == ["PERIOD"]
+        assert active.needs[0].span_role == "DURATION"
+    finally:
+        await engine.dispose()
+
+
 # ---------------------------------------------------------------- env
 
 
@@ -797,7 +914,9 @@ async def test_finish_wave_runs_gliner_and_refreshes_assessment(db_factory, monk
         factory=factory,
         attempt_id="at-1",
         evidence_set_id="es-1",
-        context=ResearchContext(scope=customer_scope(1), limit=10, attempt_id="at-1"),
+        context=ResearchContext(
+            scope=KnowledgeScope(customer_id=1), limit=10, attempt_id="at-1"
+        ),
         router=None,
         router_factory=None,
         question_graph=SimpleNamespace(),
