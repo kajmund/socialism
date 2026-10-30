@@ -1,16 +1,18 @@
 """Persistence for GLiNER2 span-proposal outcomes.
 
-Findings and checkpoints enter the EvidenceSet as derived items with full
-provenance; the wave assessment row is invalidated in the SAME transaction so
-a cancellation can never leave new evidence behind a stale assessment. The
-new items are then scored and the wave pass is recomputed before the decision.
+A need's findings are only usable once EVERY qualified unit has been scanned
+and all batches' verdicts are aggregated: partial batches persist as
+non-usable checkpoints, and the final batch derives findings across the
+scanned set (earlier batches included). The wave assessment row is
+invalidated in the SAME transaction as the items, so a cancellation can
+never leave new evidence behind a stale assessment.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.services.research.gliner.contract import (
     AMBIGUOUS,
@@ -19,18 +21,65 @@ from app.services.research.gliner.contract import (
     REJECTED,
     VERIFIED,
     ContractFinding,
+    SpanVerdict,
     canon,
+    derive_findings,
 )
+from app.services.research.gliner.proposal import (
+    PER_NEED_JEV_BUDGET,
+    SPAN_CAP,
+    STEP_JEV_BUDGET,
+)
+
+_REASON_TEXT = {
+    SPAN_CAP: "spann-taket per enhet nåddes",
+    PER_NEED_JEV_BUDGET: "JEV-budgeten för behovet tog slut",
+    STEP_JEV_BUDGET: "steg-budgeten för JEV tog slut",
+}
+
+#: Provenance key holding a batch's raw verdict slots (reused by later batches).
+SCANNED_SPANS = "scanned_spans"
+
+
+@dataclass(frozen=True)
+class PersistContext:
+    fingerprints: dict[str, str]
+    processed_units: dict[str, list[str]]
+    complete_by_need: dict[str, bool]
+    attempt_id: str
+    assessment_pass: int
+
+
+@dataclass(frozen=True)
+class NeedPersistenceInput:
+    need: object
+    verdicts: list[SpanVerdict]  # this batch's raw verdicts
+    findings: list[ContractFinding]  # aggregated over all batches (complete only)
+    complete: bool
+    truncation_reasons: frozenset[str]
+    unprocessed: list[dict[str, object]] = field(default_factory=list)
+    fingerprint: str = ""
+    processed_units: list[str] = field(default_factory=list)
+
+
+def _scan_provenance(verdicts: list[SpanVerdict]) -> list[dict[str, object]]:
+    return [
+        {
+            "span": verdict.span,
+            "need_type": verdict.need_type,
+            "choice": verdict.choice,
+            "role": verdict.role,
+            "prompt_version": verdict.prompt_version,
+            "unit_id": verdict.unit_id,
+        }
+        for verdict in verdicts
+    ]
 
 
 def build_item_lines(
     findings: list[ContractFinding],
 ) -> tuple[list[str], list[dict], list[dict]]:
-    """Build excerpt lines, claim rows and provenance rows for one need.
-
-    Conflicts stay visible: AMBIGUOUS spans are written into the excerpt and
-    metadata, and REJECTED spans are recorded in provenance.
-    """
+    """Build excerpt lines, claim rows and provenance rows for one need."""
     lines: list[str] = []
     claims: list[dict] = []
     provenance: list[dict] = []
@@ -65,14 +114,57 @@ def build_item_lines(
     return lines, claims, provenance
 
 
-@dataclass(frozen=True)
-class NeedPersistenceInput:
-    need: object
-    findings: list[ContractFinding]
-    truncated: bool
-    unprocessed: list[dict[str, object]]
-    fingerprint: str
-    processed_units: list[str]
+def _incomplete_excerpt(complete: bool, reasons: frozenset[str]) -> str:
+    if not complete:
+        return "Ofullständig verifiering: ytterligare enheter återstår att skanna."
+    texts = ", ".join(_REASON_TEXT.get(reason, reason) for reason in sorted(reasons))
+    return (
+        "Ofullständig verifiering: "
+        f"{texts} innan alla kandidater verifierades."
+    )
+
+
+def _build_metadata(
+    data: NeedPersistenceInput,
+    *,
+    claims: list[dict],
+    provenance: list[dict],
+) -> dict[str, object]:
+    reasons = sorted(data.truncation_reasons)
+    incomplete = (not data.complete) or bool(reasons)
+    metadata: dict[str, object] = {
+        "derived": True,
+        "primary_source": False,
+        "source_nature": "secondary",
+        "derivation": DERIVATION,
+        "input_fingerprint": data.fingerprint,
+        "processed_units": data.processed_units,
+        SCANNED_SPANS: _scan_provenance(data.verdicts),
+        "need_types": data.need.span_types,
+        "need_role": getattr(data.need, "span_role", "") or "",
+        "incomplete": incomplete,
+        "incomplete_reason": (
+            "truncated" if reasons else ("partial_batch" if not data.complete else "")
+        ),
+        "truncation_reasons": reasons,
+        "unprocessed_candidates": data.unprocessed,
+        "verified_spans": [
+            finding for finding in provenance if finding["state"] == VERIFIED
+        ],
+        "conflicting_spans": [
+            finding for finding in provenance if finding["state"] == AMBIGUOUS
+        ],
+        "rejected_spans": [
+            finding for finding in provenance if finding["state"] == REJECTED
+        ],
+        "derived_claims": claims,
+        "empty_proposals": not metadata_has_findings(data),
+    }
+    return metadata
+
+
+def metadata_has_findings(data: NeedPersistenceInput) -> bool:
+    return bool(data.findings)
 
 
 async def _persist_need_item(
@@ -85,96 +177,91 @@ async def _persist_need_item(
     from app.services.execution.service import add_evidence_items
     from app.services.research.models import research_evidence
 
-    need = data.need
-    findings = data.findings
-    truncated = data.truncated
-    unprocessed = data.unprocessed
-    fingerprint = data.fingerprint
-    processed_units = data.processed_units
-    lines, claims, provenance = build_item_lines(findings)
-    has_usable_content = bool(lines) and not truncated
-    metadata_extra: dict[str, object] = {}
-    if truncated:
-        # A truncated need has NOT seen every candidate: never usable as
-        # verified evidence. Keep the partial and unprocessed spans visible.
-        metadata_extra = {
-            "incomplete": True,
-            "partial_spans": provenance,
-            "unprocessed_candidates": unprocessed,
-        }
-        lines = [
-            "Ofullständig verifiering: JEV-budgeten tog slut innan alla "
-            "kandidater verifierades."
-        ]
-        claims = []
-        provenance = []
+    lines, claims, provenance = build_item_lines(data.findings)
+    reasons = sorted(data.truncation_reasons)
+    incomplete = (not data.complete) or bool(reasons)
+    has_usable_content = (not incomplete) and bool(claims)
+    if incomplete:
+        lines = [_incomplete_excerpt(data.complete, data.truncation_reasons)]
+        claims, provenance = [], []
     elif not lines:
-        if findings:
-            lines = ["Inga verifierade fynd: alla förslag avvisades."]
-        else:
-            lines = ["Inga kandidater föreslogs."]
+        lines = (
+            ["Inga verifierade fynd: alla förslag avvisades."]
+            if data.findings
+            else ["Inga kandidater föreslogs."]
+        )
+    metadata = _build_metadata(data, claims=claims, provenance=provenance)
     digest = hashlib.sha256(
         json.dumps(
             {
                 "provenance": provenance,
-                "fingerprint": fingerprint,
-                "processed_units": processed_units,
-                "incomplete": truncated,
+                "fingerprint": data.fingerprint,
+                "processed_units": data.processed_units,
+                "incomplete": incomplete,
             },
             sort_keys=True,
             ensure_ascii=False,
         ).encode()
     ).hexdigest()[:16]
     for claim in claims:
-        claim["research_need_id"] = need.id
+        claim["research_need_id"] = data.need.id
         claim["id"] = hashlib.sha256(
-            f"{need.id}:{digest}:{claim['id']}".encode()
+            f"{data.need.id}:{digest}:{claim['id']}".encode()
         ).hexdigest()
     stored = await add_evidence_items(
         write_session,
         evidence_set_id=evidence_set_id,
         items=[
             research_evidence(
-                research_need_id=need.id,
+                research_need_id=data.need.id,
                 source_type="derived",
                 status="found" if has_usable_content else "not_found",
-                title=need.question,
+                title=data.need.question,
                 excerpt="\n".join(lines),
                 provider="gliner_span_proposer",
-                source_id=f"gliner:{need.id}:{digest}",
-                metadata={
-                    "derived": True,
-                    "primary_source": False,
-                    "source_nature": "secondary",
-                    "derivation": DERIVATION,
-                    "input_fingerprint": fingerprint,
-                    "need_types": need.span_types,
-                    "need_role": getattr(need, "span_role", "") or "",
-                    "processed_units": processed_units,
-                    "jev_budget_truncated": truncated,
-                    "verified_spans": [
-                        finding
-                        for finding in provenance
-                        if finding["state"] == VERIFIED
-                    ],
-                    "conflicting_spans": [
-                        finding
-                        for finding in provenance
-                        if finding["state"] == AMBIGUOUS
-                    ],
-                    "rejected_spans": [
-                        finding
-                        for finding in provenance
-                        if finding["state"] == REJECTED
-                    ],
-                    "derived_claims": claims,
-                    "empty_proposals": not findings and not truncated,
-                    **metadata_extra,
-                },
+                source_id=f"gliner:{data.need.id}:{digest}",
+                metadata=metadata,
             )
         ],
     )
     return stored
+
+
+def _prior_verdicts(items: list[object], need: object) -> list[SpanVerdict]:
+    """Rebuild earlier batches' verdicts from checkpoint provenance."""
+    prior: list[SpanVerdict] = []
+    for item in items:
+        provenance = item.provenance or {}
+        if provenance.get("derivation") != DERIVATION:
+            continue
+        if item.research_need_id != need.id:
+            continue
+        for entry in provenance.get(SCANNED_SPANS) or []:
+            prior.append(
+                SpanVerdict(
+                    span=str(entry.get("span") or ""),
+                    need_type=str(entry.get("need_type") or ""),
+                    prompt_version=str(entry.get("prompt_version") or ""),
+                    choice=str(entry.get("choice") or "UNCERTAIN"),
+                    unit_id=str(entry.get("unit_id") or ""),
+                    unit_text="",
+                    role=entry.get("role"),
+                    role_locked=True,
+                )
+            )
+    return prior
+
+
+def aggregate_findings(need: object, verdicts: list[SpanVerdict]) -> list[ContractFinding]:
+    """Derive findings over ALL scanned batches for one need."""
+    need_role = getattr(need, "span_role", "") or ""
+    findings: list[ContractFinding] = []
+    for need_type in dict.fromkeys(verdict.need_type for verdict in verdicts):
+        scoped = [verdict for verdict in verdicts if verdict.need_type == need_type]
+        findings.extend(
+            derive_findings(scoped, need_type=need_type, need_role=need_role)
+        )
+    return findings
 
 
 async def persist_findings_and_invalidate(
@@ -182,10 +269,7 @@ async def persist_findings_and_invalidate(
     targets: list[object],
     outcome: object,
     *,
-    fingerprints: dict[str, str],
-    processed_units: dict[str, list[str]],
-    attempt_id: str,
-    assessment_pass: int,
+    context: PersistContext,
 ) -> set[str]:
     """Persist findings/checkpoints and invalidate the wave assessment.
 
@@ -193,29 +277,45 @@ async def persist_findings_and_invalidate(
     cancellation between persist and refresh can never leave the new evidence
     behind a stale assessment.
     """
-    from app.services.execution.service import get_research_assessment
+    from app.services.execution.service import (
+        get_research_assessment,
+        list_evidence_items,
+    )
 
     persisted: set[str] = set()
     async with config.factory() as write_session:
+        items = await list_evidence_items(write_session, config.evidence_set_id)
         for need in targets:
             if need.id not in outcome.proposed_needs:
                 continue
+            complete = context.complete_by_need.get(need.id, False)
+            reasons = outcome.truncation_reasons.get(need.id, frozenset())
+            current = outcome.verdicts_by_need.get(need.id, [])
+            findings = (
+                aggregate_findings(need, _prior_verdicts(items, need) + current)
+                if complete and not reasons
+                else []
+            )
             stored = await _persist_need_item(
                 write_session,
                 data=NeedPersistenceInput(
                     need=need,
-                    findings=outcome.findings_by_need.get(need.id, []),
-                    truncated=need.id in outcome.truncated_needs,
+                    verdicts=current,
+                    findings=findings,
+                    complete=complete,
+                    truncation_reasons=reasons,
                     unprocessed=outcome.unprocessed.get(need.id, []),
-                    fingerprint=fingerprints[need.id],
-                    processed_units=processed_units.get(need.id, []),
+                    fingerprint=context.fingerprints[need.id],
+                    processed_units=context.processed_units.get(need.id, []),
                 ),
                 evidence_set_id=config.evidence_set_id,
             )
             persisted.update(item.id for item in stored)
         if persisted:
             superseded = await get_research_assessment(
-                write_session, attempt_id, assessment_pass=assessment_pass
+                write_session,
+                context.attempt_id,
+                assessment_pass=context.assessment_pass,
             )
             if superseded is not None:
                 await write_session.delete(superseded)

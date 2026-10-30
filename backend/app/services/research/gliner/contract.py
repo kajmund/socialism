@@ -223,6 +223,10 @@ class SpanVerdict:
     choice: str  # YES / NO / UNCERTAIN
     unit_id: str = ""
     unit_text: str = ""
+    # Roles resolved when the verdict was made; role_locked is set when a
+    # verdict is reconstructed from checkpoint provenance (no unit text).
+    role: str | None = None
+    role_locked: bool = False
 
 
 @dataclass(frozen=True)
@@ -289,7 +293,12 @@ def derive_findings(
     # The role belongs to the verdict IN ITS UNIT: the same span text can be
     # a notice period in one TextUnit and a payment deadline in another, so
     # roles are index-aligned with verdicts — never keyed by span text.
-    roles = [operational_role(verdict.span, verdict.unit_text) for verdict in approved]
+    roles = [
+        verdict.role
+        if verdict.role_locked
+        else operational_role(verdict.span, verdict.unit_text)
+        for verdict in approved
+    ]
     # E3: a span with a determinable role that differs from the need's role
     # is another operational fact — it neither competes nor belongs to this
     # need's findings. Undeterminable roles always compete (fail-safe).

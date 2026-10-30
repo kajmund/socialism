@@ -398,6 +398,55 @@ async def test_step_batches_beyond_the_unit_limit(db_factory):
 
 
 @pytest.mark.asyncio
+async def test_step_batches_aggregate_before_usable_evidence(db_factory):
+    """Cross-unit competition must aggregate across batches: a partial batch is
+    a non-usable checkpoint, and the final batch derives over all batches."""
+    engine, factory = db_factory
+    item_ids = await _seed_research(
+        factory,
+        excerpt1="Betalning erläggs inom 30 dagar efter erhållen faktura.",
+        excerpt2="Leverans sker inom 60 dagar från order.",
+    )
+    need = make_need("n1", span_types=["PERIOD"], span_role="DEADLINE")
+    propose = fake_propose(
+        {
+            item_ids[0]: [("30 dagar", "Tidsperiod")],
+            item_ids[1]: [("60 dagar", "Tidsperiod")],
+        }
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    monkeypatch.setattr(settings.gliner_span_proposer, "max_units_per_need", 1)
+    try:
+        first = await run_step(
+            factory, need=need, jev=CountingJev("YES"), propose=propose
+        )
+        assert first is not None
+        items = await _gliner_items(factory)
+        assert len(items) == 1
+        assert items[0].status == "not_found"  # partial batch: not usable
+        assert items[0].provenance["incomplete_reason"] == "partial_batch"
+        assert items[0].provenance["derived_claims"] == []
+        assert items[0].provenance["verified_spans"] == []
+        second = await run_step(
+            factory, need=need, jev=CountingJev("YES"), propose=propose
+        )
+        assert second is not None
+        items = await _gliner_items(factory)
+        final = [item for item in items if item.provenance["processed_units"] == [item_ids[1]]]
+        assert len(final) == 1
+        provenance = final[0].provenance
+        # Prior batch's verdict participates in the aggregation.
+        assert len(provenance["conflicting_spans"]) == 2
+        assert provenance["derived_claims"] == []
+        assert final[0].status == "not_found"
+        assert "Motstridigt" in final[0].excerpt
+    finally:
+        monkeypatch.undo()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_step_retry_never_reproposes(db_factory):
     engine, factory = db_factory
     item_ids = await _seed_research(factory, excerpt1=BT17_CLAUSE)
@@ -471,25 +520,26 @@ async def test_step_jev_budget_is_enforced_and_reported(db_factory):
             )
         assert result is not None
         assert result.report.jev_calls == 1
-        assert result.report.jev_budget_truncated is True
+        assert result.report.truncation_reasons == ("per_need_jev_budget",)
         items = await _gliner_items(factory)
         provenance = items[0].provenance
         # A truncated need has not seen every candidate: never usable evidence.
         assert items[0].status == "not_found"
         assert provenance["incomplete"] is True
+        assert provenance["incomplete_reason"] == "truncated"
+        assert provenance["truncation_reasons"] == ["per_need_jev_budget"]
         assert provenance["verified_spans"] == []
         assert len(provenance["unprocessed_candidates"]) == 1
         assert provenance["derived_claims"] == []
-        assert "Ofullständig verifiering" in items[0].excerpt
+        assert "JEV-budgeten för behovet" in items[0].excerpt
     finally:
         monkeypatch.undo()
         await engine.dispose()
 
 
 @pytest.mark.asyncio
-async def test_step_span_cap_overflow_is_truncation(db_factory):
-    """Dropping proposals at the per-unit span cap must never leave a
-    falsely verified survivor."""
+async def test_step_span_cap_is_per_unit(db_factory):
+    """The per-unit span cap: two units at exactly the cap are NOT truncation."""
     import app.services.research.gliner.proposal as proposal_mod
     import app.services.research.gliner.service as svc
 
@@ -497,13 +547,13 @@ async def test_step_span_cap_overflow_is_truncation(db_factory):
     item_ids = await _seed_research(
         factory,
         excerpt1="Betalning inom 30 dagar.",
-        excerpt2="Leverans inom 60 dagar.",
+        excerpt2="Betalning inom 30 dagar efter fakturadatum.",
     )
     need = make_need("n1", span_types=["PERIOD"], span_role="DEADLINE")
     propose = fake_propose(
         {
             item_ids[0]: [("30 dagar", "Tidsperiod")],
-            item_ids[1]: [("60 dagar", "Tidsperiod")],
+            item_ids[1]: [("30 dagar", "Tidsperiod")],
         }
     )
     monkeypatch = pytest.MonkeyPatch()
@@ -529,13 +579,60 @@ async def test_step_span_cap_overflow_is_truncation(db_factory):
                 wave=0,
             )
         assert result is not None
-        assert result.report.jev_budget_truncated is True
+        assert result.report.truncation_reasons == ()
+        items = await _gliner_items(factory)
+        assert items[0].status == "found"
+        assert items[0].provenance["incomplete"] is False
+        assert len(items[0].provenance["verified_spans"]) == 2
+    finally:
+        monkeypatch.undo()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_step_span_cap_overflow_is_typed_truncation(db_factory):
+    """A unit with cap+1 proposals is truncated with reason span_cap."""
+    import app.services.research.gliner.proposal as proposal_mod
+    import app.services.research.gliner.service as svc
+
+    engine, factory = db_factory
+    item_ids = await _seed_research(factory, excerpt1="Betalning inom 30 dagar.")
+    need = make_need("n1", span_types=["PERIOD"], span_role="DEADLINE")
+    propose = fake_propose(
+        {item_ids[0]: [("30 dagar", "Tidsperiod"), ("60 dagar", "Tidsperiod")]}
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    monkeypatch.setattr(settings.gliner_span_proposer, "max_spans_per_unit", 1)
+    monkeypatch.setattr(svc, "HttpJevSystemOne", lambda: CountingJev("YES"))
+    monkeypatch.setattr(proposal_mod, "propose_spans", propose)
+    try:
+        async with factory() as session:
+            result = await svc.maybe_run_gliner_step(
+                SimpleNamespace(
+                    factory=factory,
+                    evidence_set_id="es-1",
+                    assessor=StepAssessor(),
+                    router=None,
+                    provider_descriptors=None,
+                    relevance_assessor=None,
+                ),
+                session,
+                attempt=make_attempt(opted_in=True),
+                plan=ResearchPlan(needs=[need]),
+                assessment=make_assessment_row([need]),
+                wave=0,
+            )
+        assert result is not None
+        assert result.report.truncation_reasons == ("span_cap",)
         items = await _gliner_items(factory)
         provenance = items[0].provenance
         assert items[0].status == "not_found"
         assert provenance["incomplete"] is True
+        assert provenance["truncation_reasons"] == ["span_cap"]
         assert provenance["verified_spans"] == []
         assert len(provenance["unprocessed_candidates"]) == 1
+        assert "spann-taket per enhet" in items[0].excerpt
     finally:
         monkeypatch.undo()
         await engine.dispose()

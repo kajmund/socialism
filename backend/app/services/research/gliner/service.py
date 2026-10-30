@@ -25,6 +25,7 @@ from app.services.research.gliner.contract import (
     NEED_LABELS,
 )
 from app.services.research.gliner.persistence import (
+    PersistContext,
     persist_findings_and_invalidate,
     refresh_assessment,
 )
@@ -49,7 +50,7 @@ class GlinerStepReport:
     inferences: int
     jev_calls: int
     findings_persisted: int
-    jev_budget_truncated: bool = False
+    truncation_reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -207,17 +208,24 @@ async def maybe_run_gliner_step(
     units_by_need: dict[str, tuple[ProposalUnit, ...]] = {}
     fingerprints: dict[str, str] = {}
     processed_units: dict[str, list[str]] = {}
+    complete_by_need: dict[str, bool] = {}
     for need in targets:
         eligible = _eligible_items(need, items)
         if not eligible:
             continue
-        batch = _batch_units(eligible, _processed_unit_ids(need, items))
+        processed = _processed_unit_ids(need, items)
+        batch = _batch_units(eligible, processed)
         if not batch:
             continue
+        batch_ids = {unit.unit_id for unit in batch}
+        complete = all(
+            item.id in processed or item.id in batch_ids for item in eligible
+        )
         # The fingerprint covers the FULL qualified input set, so late evidence
         # is visible even when a batch boundary hides it from this run.
         fingerprints[need.id] = _input_fingerprint(eligible, _labels_for(need))
-        processed_units[need.id] = [unit.unit_id for unit in batch]
+        processed_units[need.id] = list(batch_ids)
+        complete_by_need[need.id] = complete
         units_by_need[need.id] = batch
         pending.append(need)
     if not pending:
@@ -230,10 +238,13 @@ async def maybe_run_gliner_step(
         config,
         pending,
         outcome,
-        fingerprints=fingerprints,
-        processed_units=processed_units,
-        attempt_id=attempt.id,
-        assessment_pass=next_assessment_pass(wave),
+        context=PersistContext(
+            fingerprints=fingerprints,
+            processed_units=processed_units,
+            complete_by_need=complete_by_need,
+            attempt_id=attempt.id,
+            assessment_pass=next_assessment_pass(wave),
+        ),
     )
     if not persisted_ids:
         return None
@@ -248,6 +259,6 @@ async def maybe_run_gliner_step(
             inferences=outcome.stats.units,
             jev_calls=outcome.stats.jev_calls,
             findings_persisted=len(persisted_ids),
-            jev_budget_truncated=outcome.stats.jev_budget_truncated,
+            truncation_reasons=tuple(sorted(outcome.stats.truncation_reasons)),
         ),
     )
