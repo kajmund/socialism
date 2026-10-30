@@ -107,6 +107,22 @@ async def list_document_versions(
     return list((await session.execute(stmt)).scalars().all())
 
 
+async def write_segmented_document_text_units(
+    segmented: SegmentedDocument,
+    scope: KnowledgeTenantScope,
+) -> None:
+    """Materialize TextUnits in the Owner after the SQL transaction commits."""
+    client = get_owner_runtime().require_client()
+    await write_text_units_via_owner(
+        client,
+        segmented.text_units,
+        scope=scope,
+        embeddings=[None for _ in segmented.text_units],
+        section_titles={section.id: section.title or "" for section in segmented.sections},
+        section_ordinals={section.id: section.ordinal for section in segmented.sections},
+    )
+
+
 async def persist_segmented_document(
     session: AsyncSession,
     *,
@@ -114,6 +130,7 @@ async def persist_segmented_document(
     customer_id: int | None = None,
     scope: KnowledgeTenantScope | None = None,
     source_object_id: str | None = None,
+    materialize_graph: bool = True,
 ) -> PersistedDocumentGraph:
     now = utcnow()
     document = segmented.document
@@ -183,17 +200,8 @@ async def persist_segmented_document(
     session.add(version_row)
     await session.flush()
     await _insert_sections(session, version_row, segmented.sections, resolved)
-    # TextUnits are authoritative in OverGraph and now go through its single
-    # writer. Missing owner is a hard failure; there is no direct fallback.
-    client = get_owner_runtime().require_client()
-    await write_text_units_via_owner(
-        client,
-        segmented.text_units,
-        scope=resolved,
-        embeddings=[None for _ in segmented.text_units],
-        section_titles={section.id: section.title or "" for section in segmented.sections},
-        section_ordinals={section.id: section.ordinal for section in segmented.sections},
-    )
+    if materialize_graph:
+        await write_segmented_document_text_units(segmented, resolved)
     return PersistedDocumentGraph(document=row, version=version_row, reused_current=False)
 
 
