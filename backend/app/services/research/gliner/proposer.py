@@ -191,7 +191,7 @@ async def _request(
         process.stdin.write(payload)  # type: ignore[union-attr]
         await process.stdin.drain()  # type: ignore[union-attr]
         line = await asyncio.wait_for(process.stdout.readline(), timeout=timeout)  # type: ignore[union-attr]
-    except BrokenPipeError:
+    except (BrokenPipeError, ConnectionResetError):
         line = b""
     if not line:
         detail, reason = await _worker_exit_detail(process, phase="request")

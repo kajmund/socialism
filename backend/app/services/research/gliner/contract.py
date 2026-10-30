@@ -46,6 +46,12 @@ NEED_LABELS = {
     "PERIOD": "Tidsperiod",
 }
 
+#: Reverse label map so each proposal is verified against its own type.
+LABEL_TO_TYPE = {label: span_type for span_type, label in NEED_LABELS.items()}
+
+#: Evidence-item provenance marker for checkpoints and findings.
+DERIVATION = "gliner_span_proposal"
+
 #: Frozen contrast rules per concept class (JEV arm D), not per golden case.
 CONTRASTS = {
     "Uppsägningstid": "En uppsägningstid är inte samma sak som avtalstid, förlängningsperiod eller betalningsfrist.",
