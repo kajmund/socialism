@@ -61,6 +61,7 @@ class ResearchObsStats:
     jev_screen_cache_hits: int = 0
     eager_quality_items: int = 0
     barrier_quality_items: int = 0
+    gliner_inferences: int = 0
 
 
 _stats: ContextVar[ResearchObsStats | None] = ContextVar(
@@ -96,6 +97,13 @@ def record_jev_call(latency_ms: float) -> None:
         return
     stats.jev_call_count += 1
     stats.jev_total_latency_ms += latency_ms
+
+
+def record_gliner_inference(count: int) -> None:
+    stats = _stats.get()
+    if stats is None:
+        return
+    stats.gliner_inferences += count
 
 
 def record_assessor_llm(*, skipped: bool) -> None:
@@ -433,6 +441,7 @@ def emit_research_execution_summary(
         "jev_screen_cache_hits": stats.jev_screen_cache_hits,
         "eager_quality_items": stats.eager_quality_items,
         "barrier_quality_items": stats.barrier_quality_items,
+        "gliner_inferences": stats.gliner_inferences,
     }
     if stats.provider_calls is not None:
         research["provider_calls"] = stats.provider_calls

@@ -95,7 +95,7 @@ def test_head_drops_unused_graph_revalidation_queues(tmp_path: Path, monkeypatch
     } <= after
     assert "graph_fact_question_dependencies" not in after
     assert ScriptDirectory.from_config(config).get_current_head() == (
-        "195_stt_correction"
+        "196_gliner_runtime_span_fields"
     )
     assert {
         "tabular_reviews",
@@ -191,7 +191,7 @@ def test_fresh_database_upgrades_to_head_without_a_parity_approval(
     assert "graph_facts" not in names
     assert "knowledge_claims" not in names
     assert {"graph_ingest_work", "knowledge_answer_reviews", "graph_embedding_cache"} <= names
-    assert ScriptDirectory.from_config(config).get_current_head() == "195_stt_correction"
+    assert ScriptDirectory.from_config(config).get_current_head() == "196_gliner_runtime_span_fields"
     assert {"tabular_reviews", "tabular_review_columns", "tabular_review_cells"} <= names
 
 

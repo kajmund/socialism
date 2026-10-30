@@ -2244,6 +2244,8 @@ class ResearchRuntimeNeed(Base):
     domains: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     modalities: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     capabilities: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    span_types: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    span_role: Mapped[str] = mapped_column(String(16), nullable=False, default="", server_default="")
     origin: Mapped[str] = mapped_column(String(32), nullable=False, default="initial")
     wave_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     parent_research_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -2255,9 +2257,7 @@ class ResearchRuntimeNeed(Base):
     original_need_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     original_question: Mapped[str | None] = mapped_column(Text, nullable=True)
     normalization_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    already_normalized: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="0"
-    )
+    already_normalized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     knowledge_question_id: Mapped[str | None] = mapped_column(
         ForeignKey("knowledge_questions.id", ondelete="SET NULL"),
         nullable=True,

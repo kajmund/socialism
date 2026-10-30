@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
+from app.services.research.gliner.contract import ROLES, SPAN_TYPES
 from app.services.research.models import (
     RESEARCH_SOURCE_TYPES,
     InvalidResearchPlanError,
@@ -35,6 +36,17 @@ def validate_research_plan(plan: ResearchPlan) -> ResearchPlan:
         if not question:
             raise InvalidResearchPlanError(f"ResearchNeed {need_id} question is required")
         source_types = _require_source_types(need.source_types, need_id=need_id)
+        span_types = list(getattr(need, "span_types", ()) or ())
+        for span_type in span_types:
+            if span_type not in SPAN_TYPES:
+                raise InvalidResearchPlanError(
+                    f"ResearchNeed {need_id} unknown span_types entry: {span_type!r}"
+                )
+        span_role = str(getattr(need, "span_role", "") or "")
+        if span_role and span_role not in ROLES:
+            raise InvalidResearchPlanError(
+                f"ResearchNeed {need_id} unknown span_role: {span_role!r}"
+            )
         validated.append(
             replace(
                 need,
@@ -60,6 +72,8 @@ def validate_research_plan(plan: ResearchPlan) -> ResearchPlan:
                 normalization_reason=str(getattr(need, "normalization_reason", "") or ""),
                 already_normalized=bool(getattr(need, "already_normalized", False)),
                 knowledge_question_id=str(getattr(need, "knowledge_question_id", "") or ""),
+                span_types=span_types,
+                span_role=span_role,
             )
         )
     return ResearchPlan(needs=validated)
@@ -94,6 +108,10 @@ def _need_snapshot(need: ResearchNeed) -> dict[str, Any]:
         payload["already_normalized"] = True
     if need.knowledge_question_id:
         payload["knowledge_question_id"] = need.knowledge_question_id
+    if need.span_types:
+        payload["span_types"] = list(need.span_types)
+    if need.span_role:
+        payload["span_role"] = need.span_role
     return payload
 
 
@@ -143,6 +161,8 @@ def research_plan_from_snapshot(raw: object) -> ResearchPlan:
                 normalization_reason=str(item.get("normalization_reason") or ""),
                 already_normalized=bool(item.get("already_normalized") or False),
                 knowledge_question_id=str(item.get("knowledge_question_id") or ""),
+                span_types=[str(value) for value in (item.get("span_types") or [])],
+                span_role=str(item.get("span_role") or ""),
             )
         )
     return validate_research_plan(ResearchPlan(needs=needs))

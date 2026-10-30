@@ -6,6 +6,7 @@ from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from app.database_url import normalize_database_url
 from app.live_speech_settings import LiveSpeechSettings
+from app.gliner_settings import GlinerSpanProposerSettings
 EMBEDDING_MODEL_DIMENSIONS = {
     "text-embedding-3-large": 3072,
     "text-embedding-3-small": 1536,
@@ -16,12 +17,11 @@ SimulationEngine = Literal["none", "oasis"]
 PersonaGenerator = Literal["deepseek", "stub"]
 LLMProvider = Literal["cerebras", "deepseek"]
 LiveVoiceProviderName = Literal["gemini", "elevenlabs", "socialism"]
-# Cerebras: low|medium|high. DeepSeek: none|low|high|max (medium/xhigh map on API).
-LLMReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]
+LLMReasoningEffort = Literal["none", "low", "medium", "high", "xhigh", "max"]  # Cerebras: low|medium|high. DeepSeek: none|low|high|max (medium/xhigh map on API).
 CEREBRAS_DEFAULT_MODEL = "gpt-oss-120b"
 CEREBRAS_DEFAULT_BASE_URL = "https://api.cerebras.ai/v1"
 class Settings(LiveSpeechSettings, BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", env_nested_delimiter="__", extra="ignore")
     database_url: str
     elevenlabs_llm: str = "gpt-4.1"
     elevenlabs_session_ttl_seconds: int = Field(default=3600, ge=300, le=14400)
@@ -45,8 +45,7 @@ class Settings(LiveSpeechSettings, BaseSettings):
     llm_model: str = ""
     llm_reasoning_effort: LLMReasoningEffort = "medium"
     llm_max_tokens: int = Field(default=8192, ge=1)
-    # None = omit sampling param (provider default).
-    llm_temperature: float | None = Field(default=None, ge=0, le=2)
+    llm_temperature: float | None = Field(default=None, ge=0, le=2)  # None = omit sampling param (provider default).
     llm_top_p: float | None = Field(default=None, gt=0, le=1)
     llm_timeout_seconds: float = 60.0
     expert_tool_timeout_seconds: float = Field(default=45.0, gt=0, le=180)
@@ -221,6 +220,7 @@ class Settings(LiveSpeechSettings, BaseSettings):
     research_jev_concurrency: int = Field(default=8, ge=1, le=32)
     research_jev_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     research_jev_evidence_screen_enabled: bool = True
+    gliner_span_proposer: GlinerSpanProposerSettings = GlinerSpanProposerSettings()  # Optional GLiNER2 span proposer for incomplete research needs; off by default.
     # Parallel relevance judge() calls at the quality barrier. 1 stays serial.
     research_relevance_concurrency: int = Field(default=8, ge=1, le=32)
     # llm = injected EvidenceRelevanceAssessor only (production default).

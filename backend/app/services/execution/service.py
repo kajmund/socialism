@@ -81,7 +81,7 @@ from app.services.research.evidence_identity import (
     evidence_passage_id,
     evidence_source_id,
 )
-from app.services.research.followup import RuntimeResearchNeed
+from app.services.research.followup import RuntimeResearchNeed, span_fields
 from app.services.research.models import ResearchEvidence
 from app.services.research.quality import (
     EvidenceQualityDraft,
@@ -1246,6 +1246,7 @@ def runtime_need_from_row(row: ResearchRuntimeNeed) -> RuntimeResearchNeed:
         domains=list(row.domains or []),
         modalities=list(row.modalities or []),
         capabilities=list(row.capabilities or []),
+        **span_fields(row),
         origin=_require_need_origin(row.origin),
         wave_number=row.wave_number,
         parent_research_need_id=row.parent_research_need_id,
@@ -1313,8 +1314,7 @@ async def persist_runtime_needs(
     for need in needs:
         if need.research_need_id in by_id:
             continue
-        session.add(
-            ResearchRuntimeNeed(
+        session.add(ResearchRuntimeNeed(
                 id=new_id(),
                 attempt_id=attempt_id,
                 research_need_id=need.research_need_id,
@@ -1325,6 +1325,7 @@ async def persist_runtime_needs(
                 domains=list(need.domains),
                 modalities=list(need.modalities),
                 capabilities=list(need.capabilities),
+                **span_fields(need),
                 origin=_require_need_origin(need.origin),
                 wave_number=need.wave_number,
                 parent_research_need_id=need.parent_research_need_id,
@@ -1341,8 +1342,7 @@ async def persist_runtime_needs(
                 generated_from_question_id=need.generated_from_question_id or None,
                 trigger_claim_id=need.trigger_claim_id or None,
                 trigger_graph_event_id=need.trigger_graph_event_id or None,
-            )
-        )
+            ))
     await session.flush()
     return await list_runtime_needs(session, attempt_id)
 

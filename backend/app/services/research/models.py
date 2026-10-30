@@ -75,6 +75,12 @@ class ResearchNeed:
     normalization_reason: str = ""
     already_normalized: bool = False
     knowledge_question_id: str = ""
+    # Optional GLiNER2 span-proposer contract. Empty span_types means the
+    # tool never applies to this need. span_role refines the operational
+    # role for the E3 ambiguity check; empty falls back to the stricter
+    # fail-safe (every same-type value competes).
+    span_types: list[str] = field(default_factory=list)
+    span_role: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "requested_by", list(self.requested_by))
@@ -82,6 +88,7 @@ class ResearchNeed:
         object.__setattr__(self, "domains", list(self.domains))
         object.__setattr__(self, "modalities", list(self.modalities))
         object.__setattr__(self, "capabilities", list(self.capabilities))
+        object.__setattr__(self, "span_types", list(self.span_types))
 
 
 @dataclass(frozen=True)

@@ -15,6 +15,7 @@ from app.services.execution.service import (
     set_research_loop_state,
 )
 from app.services.research.assessment import ResearchAssessor
+from app.services.research.gliner.service import maybe_run_gliner_step
 from app.services.research.completeness import ResearchCompletenessReviewer
 from app.services.research.execution import (
     _assert_need_barrier,
@@ -158,6 +159,21 @@ async def finish_research_wave(
                 descriptors=descriptors,
                 relevance_assessor=config.relevance_assessor,
             )
+            if assessment.result == "insufficient":
+                # Optional GLiNER2 span proposal for incomplete needs.
+                # No-op when the global switch or the run opt-in is off.
+                step = await maybe_run_gliner_step(
+                    config,
+                    barrier_session,
+                    attempt=attempt,
+                    plan=quality_plan,
+                    assessment=assessment,
+                    wave=wave,
+                )
+                if step is not None:
+                    # The new evidence was scored and re-assessed for the next
+                    # pass; the wave decision must judge it, not the stale draft.
+                    assessment = step.assessment
             await set_research_loop_state(
                 barrier_session,
                 config.attempt_id,
