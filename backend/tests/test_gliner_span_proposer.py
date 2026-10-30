@@ -945,3 +945,88 @@ async def test_finish_wave_runs_gliner_and_refreshes_assessment(db_factory, monk
         assert jev.calls == jev_calls
     finally:
         await engine.dispose()
+
+
+# ---------------------------------------------------------------- worker protocol
+
+
+class FakeReader:
+    def __init__(self, payload: bytes) -> None:
+        self.payload = payload
+
+    async def read(self) -> bytes:
+        return self.payload
+
+
+class ExitProcess:
+    def __init__(self, returncode: int, stderr: bytes) -> None:
+        self.returncode = returncode
+        self.stderr = FakeReader(stderr)
+
+    async def wait(self) -> int:
+        return self.returncode
+
+
+def test_worker_exit_code_maps_to_typed_reason():
+    async def run():
+        detail, reason = await proposer._worker_exit_detail(
+            ExitProcess(3, b"ModuleNotFoundError: no module named gliner2")
+        )
+        assert reason == "missing_dependencies"
+        assert "gliner2" in detail
+        _detail, reason = await proposer._worker_exit_detail(
+            ExitProcess(1, b"RuntimeError: load failed")
+        )
+        assert reason == "load_failed"
+
+    asyncio.run(run())
+
+
+def test_worker_request_eof_is_a_typed_worker_failure(monkeypatch):
+    class StoppedProcess(ExitProcess):
+        class stdin:
+            @staticmethod
+            def write(payload: bytes) -> None:
+                pass
+
+            @staticmethod
+            async def drain() -> None:
+                pass
+
+        class stdout:
+            @staticmethod
+            async def readline() -> bytes:
+                return b""
+
+    proposer.reset_worker()
+
+    async def run():
+        with pytest.raises(GlinerProposerError) as excinfo:
+            await proposer._request(
+                StoppedProcess(1, b"Traceback: crashed"),
+                b'{"units": [], "labels": []}\n',
+                5.0,
+            )
+        assert excinfo.value.reason == "worker_failed"
+        assert "Traceback: crashed" in str(excinfo.value)
+
+    asyncio.run(run())
+
+
+def test_worker_handler_rejects_malformed_requests():
+    from app.services.research.gliner import worker
+
+    result = worker._handle_line(object(), "not json")
+    assert result["reason"] == "invalid_request"
+
+
+def test_worker_handler_uses_model(monkeypatch):
+    from app.services.research.gliner import worker
+
+    class FakeModel:
+        def extract_entities(self, text, **kwargs):
+            return {"entities": [{"Datum": ["12 maj"]}]}
+
+    result = worker._handle_line(FakeModel(), '{"units": [{"unit_id": "u1", "text": "x"}], "labels": ["Datum"], "threshold": 0.3}')
+    assert result["ok"] is True
+    assert result["result"][0]["proposals"] == [{"span": "12 maj", "label": "Datum"}]
