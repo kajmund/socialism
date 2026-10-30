@@ -1,0 +1,277 @@
+{
+  "version": 2,
+  "redacted": true,
+  "redaction_note": "Span and clause texts removed (public repository); digests keep the frozen Jev answers verifiable against the local full material.",
+  "entries": [
+    {
+      "key": "066f26a9bd52eb8d",
+      "case_id": "v2-pm-07",
+      "need_type": "PARTY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "span_canon_sha256": "26cc19db2162e5f4303464b3b142d38d05c828d080ef5814b10f3f4c1ded5970",
+      "clause_sha256": "3f762a8c97620e9441bb244dea48e5f3b0bfecb754422faf810aa395cb386577"
+    },
+    {
+      "key": "0819aea9ac78d955",
+      "case_id": "v2-if-04",
+      "need_type": "DATE",
+      "prompt_version": "span-date-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6",
+      "clause_sha256": "d6b7ce29784d345ec6c99100b649db8434ac45ce7a2a209d279c76f6a9e68ace"
+    },
+    {
+      "key": "093f568c534d7000",
+      "case_id": "v2-sv-01",
+      "need_type": "PARTY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836",
+      "clause_sha256": "b0764a0f319cbe4f81ed51b03867764d6abf2c5380bd7ceb3431dec685354564"
+    },
+    {
+      "key": "0a4370f0f5b1a4bf",
+      "case_id": "v2-sv-03",
+      "need_type": "DATE",
+      "prompt_version": "span-date-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "span_canon_sha256": "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95",
+      "clause_sha256": "c8f36fb55715ee6fb05557b1b2f6ce2e131cb05d63d6a0dbf8c136d7cf7d82b5"
+    },
+    {
+      "key": "2eb96e529cefd1bc",
+      "case_id": "v2-pm-02",
+      "need_type": "LIABILITY_CAP",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "33b1b8a949de68d0788c7c7fc9002901cb7d1e9d06cbf42580aa3cf1822d685b",
+      "clause_sha256": "af5d93a2c60eeada1f617e69543811ec04688ebe02f22138caff409bbc3db041"
+    },
+    {
+      "key": "317fb5868f37c678",
+      "case_id": "v2-sv-01",
+      "need_type": "PARTY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847",
+      "clause_sha256": "b0764a0f319cbe4f81ed51b03867764d6abf2c5380bd7ceb3431dec685354564"
+    },
+    {
+      "key": "508db73babfbf152",
+      "case_id": "v2-pm-05",
+      "need_type": "PERIOD",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "span_canon_sha256": "8df8e0dbc5eb49421d90a53bc4f0c15f53b9e6e726b8a7daf614624f08501645",
+      "clause_sha256": "15e277e0a9aef00749089b95f330466737b57a21008011afcf6457f2d716602c"
+    },
+    {
+      "key": "52d8852f6b2b7e7e",
+      "case_id": "v2-if-05",
+      "need_type": "PARTY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "UNCERTAIN",
+      "span_canon_sha256": "1b241265c89e411ec34997a20b18be3bce1dfdfcf42172c580faa77393070d54",
+      "clause_sha256": "61a7d34a5585b27f239ebd76cea7facd388cdfcccd969996a3a473e1a93fa2e6"
+    },
+    {
+      "key": "87cebf4ab1bc3e46",
+      "case_id": "v2-if-03",
+      "need_type": "PERIOD",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e",
+      "clause_sha256": "cd995d4ca692c51f77c54fb87d2a1474b145298ddcb93ba2ebff32f1b1337c73"
+    },
+    {
+      "key": "884557c20d9b3b1b",
+      "case_id": "v2-pm-07",
+      "need_type": "PARTY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0",
+      "clause_sha256": "3f762a8c97620e9441bb244dea48e5f3b0bfecb754422faf810aa395cb386577"
+    },
+    {
+      "key": "8a652c00c8ab502d",
+      "case_id": "v2-pm-06",
+      "need_type": "PERIOD",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e",
+      "clause_sha256": "1dfecc02d471e0a9f257492ae9b1dc5951692b0ef6cf0a0252ea5cd29156c178"
+    },
+    {
+      "key": "9e9f398294ba0041",
+      "case_id": "v2-if-03",
+      "need_type": "PERIOD",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "span_canon_sha256": "b0129a96caed304c7bbe8dbc5826f0d3d2152c6161ec1682852e001004697a64",
+      "clause_sha256": "cd995d4ca692c51f77c54fb87d2a1474b145298ddcb93ba2ebff32f1b1337c73"
+    },
+    {
+      "key": "a0fba77489790ee7",
+      "case_id": "v2-if-01",
+      "need_type": "MONEY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1",
+      "clause_sha256": "14500d9ec7db08953f495b0150828b82f9d857cf888483ca3dd684ee68b79359"
+    },
+    {
+      "key": "a711a61950c8c568",
+      "case_id": "v2-pm-03",
+      "need_type": "MONEY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66",
+      "clause_sha256": "7f6671558e97a3b44759e946cd2403e39397456e2fbcf64f4c0f836556d9f476"
+    },
+    {
+      "key": "b1f150fda5d15bb3",
+      "case_id": "v2-pm-03",
+      "need_type": "MONEY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "04b23dfaad48555dd0aeb8d7057fa3af3626deaf9751cae6cadff521ee05b1ce",
+      "clause_sha256": "7f6671558e97a3b44759e946cd2403e39397456e2fbcf64f4c0f836556d9f476"
+    },
+    {
+      "key": "b37056a047634e0d",
+      "case_id": "v2-if-05",
+      "need_type": "PARTY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "span_canon_sha256": "c3f39f3f1cf3db4f77d39887230bb26f5eb9706b727e91a656d9a33b7779aece",
+      "clause_sha256": "61a7d34a5585b27f239ebd76cea7facd388cdfcccd969996a3a473e1a93fa2e6"
+    },
+    {
+      "key": "b535171421b5dc8c",
+      "case_id": "v2-sv-01",
+      "need_type": "PARTY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5",
+      "clause_sha256": "b0764a0f319cbe4f81ed51b03867764d6abf2c5380bd7ceb3431dec685354564"
+    },
+    {
+      "key": "b9f0039df93cf577",
+      "case_id": "v2-if-06",
+      "need_type": "PARTY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "span_canon_sha256": "c1db72d15cc92fa8cd1fd2c0eac6da1f086b1701368ff37789032c85de45986f",
+      "clause_sha256": "0f5cbd2198638bd90af7c0bfd23c144b6f695cccbdc089d5e51a3333799530d0"
+    },
+    {
+      "key": "bc2c2fd81598280e",
+      "case_id": "v2-sv-02",
+      "need_type": "PERIOD",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7",
+      "clause_sha256": "f312ad0c40b316c15155d3924537d0cbe7ff34038fdb02712ccbef45a7b0d543"
+    },
+    {
+      "key": "bed5282ec075f3b0",
+      "case_id": "v2-pm-01",
+      "need_type": "NOTICE_PERIOD",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede",
+      "clause_sha256": "6084751f6af44ba6dc0928c9b2cdaee028ff24a9022116ab835d906149a59f43"
+    },
+    {
+      "key": "c9b5b54b9b16ae01",
+      "case_id": "v2-pm-03",
+      "need_type": "MONEY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "6afd0b3ec66f6816de76cb3a5c72129b631c0299d654163bdc66a99c0c771177",
+      "clause_sha256": "7f6671558e97a3b44759e946cd2403e39397456e2fbcf64f4c0f836556d9f476"
+    },
+    {
+      "key": "d5fbfb8c5d0c2546",
+      "case_id": "v2-if-02",
+      "need_type": "MONEY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb",
+      "clause_sha256": "875bf992a092a5c0f16e481ba7b01953a8946573097d0780537de4126372b172"
+    },
+    {
+      "key": "d8ccbebf629a6cf8",
+      "case_id": "v2-pm-01",
+      "need_type": "NOTICE_PERIOD",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "584b95bfb9bec9ad1f8ec3a172bd33a1cb0de98f599c99a2e67a3d2b84f9888b",
+      "clause_sha256": "6084751f6af44ba6dc0928c9b2cdaee028ff24a9022116ab835d906149a59f43"
+    },
+    {
+      "key": "dd0d83a5e1d756fd",
+      "case_id": "v2-pm-07",
+      "need_type": "PARTY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "span_canon_sha256": "c56bf52986c3fcf24f8084f0c5dca3c8f43a1ba5f5becba95872a422a9432b9e",
+      "clause_sha256": "3f762a8c97620e9441bb244dea48e5f3b0bfecb754422faf810aa395cb386577"
+    },
+    {
+      "key": "e31e6e970941bd82",
+      "case_id": "v2-if-06",
+      "need_type": "PARTY",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "UNCERTAIN",
+      "span_canon_sha256": "397ca47d9719a45c7951cdb12ea7a0aca3bfab333f67ece0fbb310d7eeec45ec",
+      "clause_sha256": "0f5cbd2198638bd90af7c0bfd23c144b6f695cccbdc089d5e51a3333799530d0"
+    },
+    {
+      "key": "e8be637989d0d108",
+      "case_id": "v2-pm-04",
+      "need_type": "PERIOD",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES",
+      "span_canon_sha256": "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63",
+      "clause_sha256": "01a62c49b8fb757a8a470252d590cea7c0f274384f070572f99b725c5d8859d4"
+    },
+    {
+      "key": "f442774c04e98922",
+      "case_id": "v2-if-03",
+      "need_type": "PERIOD",
+      "prompt_version": "span-need-contrast-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO",
+      "span_canon_sha256": "518ee2681a4d5042c8ecefe51637eecb0fdaffcbe9130013cf7cd8dcc3177ba9",
+      "clause_sha256": "cd995d4ca692c51f77c54fb87d2a1474b145298ddcb93ba2ebff32f1b1337c73"
+    }
+  ]
+}

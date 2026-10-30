@@ -1,0 +1,380 @@
+{
+  "version": 2,
+  "name": "blindtest-v2",
+  "redacted": true,
+  "redaction_note": "The repository is public. Contract files and contract text are NOT committed: clauses and gold spans are represented by SHA-256 digests (clause_sha256 over the verbatim clause, span_canon_sha256 over the canonical span). The full runnable facit and the extracted material are kept locally outside the repository; their extraction hashes are below so the reading source stays verifiable.",
+  "provenance": "Gold-review-v3 procedure: annotated 2026-10-30 by READING the extracted text of three real contracts OUTSIDE the test corpus and never used in blindtest v1, D10 or E1-E3 (a supplier-terms annex for consultant services, a servitude agreement and an insurance specification/terms). The regex generator and the GLiNER2 outputs were NOT consulted. Clause selection rule: every clause expressing an available concept type (uppsägningstid, ansvarsbegränsning, ersättning/belopp, tidsfrister/datum, avtalstid, parter). One need per case with the concept type and the operational role a production planner would declare.",
+  "material": [
+    {
+      "document": "leverantorsvillkor",
+      "description": "Leverantörsvillkor för konsulttjänster (10 sidor)",
+      "extraction_chars": 35404,
+      "extraction_sha256": "13ca4808b50d115adcfc8d5c75e9d573cabb662d42ff868c618ad4b08a01d815"
+    },
+    {
+      "document": "servitutsavtal",
+      "description": "Servitutsavtal (6 sidor)",
+      "extraction_chars": 4010,
+      "extraction_sha256": "7b20efa09f449538c47c9c717ceb22cd3b68d0c1800823805d8f68943f2fdc04"
+    },
+    {
+      "document": "forsakringsvillkor",
+      "description": "Försäkringsspecifikation och villkor (11 sidor)",
+      "extraction_chars": 20042,
+      "extraction_sha256": "42adde684bf7224f98d20988ccb4e2e9a33a33110b0776cde4a18dd8ccef3bc7"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "v2-pm-01",
+      "document": "leverantorsvillkor",
+      "question_type": "uppsägningsvillkor",
+      "clause_sha256": "6084751f6af44ba6dc0928c9b2cdaee028ff24a9022116ab835d906149a59f43",
+      "clause_chars": 262,
+      "needs": [
+        {
+          "need_id": "v2-pm-01-n1",
+          "type": "NOTICE_PERIOD",
+          "role": "NOTICE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-pm-01-s1",
+          "type": "NOTICE_PERIOD",
+          "span_canon_sha256": "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-pm-02",
+      "document": "leverantorsvillkor",
+      "question_type": "ansvarsbegränsning",
+      "clause_sha256": "af5d93a2c60eeada1f617e69543811ec04688ebe02f22138caff409bbc3db041",
+      "clause_chars": 213,
+      "needs": [
+        {
+          "need_id": "v2-pm-02-n1",
+          "type": "LIABILITY_CAP",
+          "role": "LIABILITY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-pm-02-s1",
+          "type": "LIABILITY_CAP",
+          "span_canon_sha256": "33b1b8a949de68d0788c7c7fc9002901cb7d1e9d06cbf42580aa3cf1822d685b"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-pm-03",
+      "document": "leverantorsvillkor",
+      "question_type": "ersättning",
+      "clause_sha256": "7f6671558e97a3b44759e946cd2403e39397456e2fbcf64f4c0f836556d9f476",
+      "clause_chars": 201,
+      "needs": [
+        {
+          "need_id": "v2-pm-03-n1",
+          "type": "MONEY",
+          "role": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-pm-03-s1",
+          "type": "MONEY",
+          "span_canon_sha256": "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-pm-04",
+      "document": "leverantorsvillkor",
+      "question_type": "tidsfrister",
+      "clause_sha256": "01a62c49b8fb757a8a470252d590cea7c0f274384f070572f99b725c5d8859d4",
+      "clause_chars": 159,
+      "needs": [
+        {
+          "need_id": "v2-pm-04-n1",
+          "type": "PERIOD",
+          "role": "DEADLINE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-pm-04-s1",
+          "type": "PERIOD",
+          "span_canon_sha256": "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-pm-05",
+      "document": "leverantorsvillkor",
+      "question_type": "tidsfrister",
+      "clause_sha256": "15e277e0a9aef00749089b95f330466737b57a21008011afcf6457f2d716602c",
+      "clause_chars": 175,
+      "needs": [
+        {
+          "need_id": "v2-pm-05-n1",
+          "type": "PERIOD",
+          "role": "DEADLINE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-pm-05-s1",
+          "type": "PERIOD",
+          "span_canon_sha256": "8df8e0dbc5eb49421d90a53bc4f0c15f53b9e6e726b8a7daf614624f08501645"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-pm-06",
+      "document": "leverantorsvillkor",
+      "question_type": "tidsfrister",
+      "clause_sha256": "1dfecc02d471e0a9f257492ae9b1dc5951692b0ef6cf0a0252ea5cd29156c178",
+      "clause_chars": 179,
+      "needs": [
+        {
+          "need_id": "v2-pm-06-n1",
+          "type": "PERIOD",
+          "role": "DEADLINE"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-pm-06-s1",
+          "type": "PERIOD",
+          "span_canon_sha256": "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-pm-07",
+      "document": "leverantorsvillkor",
+      "question_type": "parter",
+      "clause_sha256": "3f762a8c97620e9441bb244dea48e5f3b0bfecb754422faf810aa395cb386577",
+      "clause_chars": 178,
+      "needs": [
+        {
+          "need_id": "v2-pm-07-n1",
+          "type": "PARTY",
+          "role": "PARTY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-pm-07-s1",
+          "type": "PARTY",
+          "span_canon_sha256": "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0"
+        },
+        {
+          "span_id": "v2-pm-07-s2",
+          "type": "PARTY",
+          "span_canon_sha256": "c56bf52986c3fcf24f8084f0c5dca3c8f43a1ba5f5becba95872a422a9432b9e"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-sv-01",
+      "document": "servitutsavtal",
+      "question_type": "parter",
+      "clause_sha256": "b0764a0f319cbe4f81ed51b03867764d6abf2c5380bd7ceb3431dec685354564",
+      "clause_chars": 333,
+      "needs": [
+        {
+          "need_id": "v2-sv-01-n1",
+          "type": "PARTY",
+          "role": "PARTY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-sv-01-s1",
+          "type": "PARTY",
+          "span_canon_sha256": "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847"
+        },
+        {
+          "span_id": "v2-sv-01-s2",
+          "type": "PARTY",
+          "span_canon_sha256": "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5"
+        },
+        {
+          "span_id": "v2-sv-01-s3",
+          "type": "PARTY",
+          "span_canon_sha256": "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-sv-02",
+      "document": "servitutsavtal",
+      "question_type": "avtalstid",
+      "clause_sha256": "f312ad0c40b316c15155d3924537d0cbe7ff34038fdb02712ccbef45a7b0d543",
+      "clause_chars": 288,
+      "needs": [
+        {
+          "need_id": "v2-sv-02-n1",
+          "type": "PERIOD",
+          "role": "DURATION"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-sv-02-s1",
+          "type": "PERIOD",
+          "span_canon_sha256": "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-sv-03",
+      "document": "servitutsavtal",
+      "question_type": "tidsfrister",
+      "clause_sha256": "c8f36fb55715ee6fb05557b1b2f6ce2e131cb05d63d6a0dbf8c136d7cf7d82b5",
+      "clause_chars": 113,
+      "needs": [
+        {
+          "need_id": "v2-sv-03-n1",
+          "type": "DATE",
+          "role": ""
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-sv-03-s1",
+          "type": "DATE",
+          "span_canon_sha256": "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-if-01",
+      "document": "forsakringsvillkor",
+      "question_type": "ersättning",
+      "clause_sha256": "14500d9ec7db08953f495b0150828b82f9d857cf888483ca3dd684ee68b79359",
+      "clause_chars": 17,
+      "needs": [
+        {
+          "need_id": "v2-if-01-n1",
+          "type": "MONEY",
+          "role": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-if-01-s1",
+          "type": "MONEY",
+          "span_canon_sha256": "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-if-02",
+      "document": "forsakringsvillkor",
+      "question_type": "ersättning",
+      "clause_sha256": "875bf992a092a5c0f16e481ba7b01953a8946573097d0780537de4126372b172",
+      "clause_chars": 28,
+      "needs": [
+        {
+          "need_id": "v2-if-02-n1",
+          "type": "MONEY",
+          "role": "MONEY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-if-02-s1",
+          "type": "MONEY",
+          "span_canon_sha256": "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-if-03",
+      "document": "forsakringsvillkor",
+      "question_type": "avtalstid",
+      "clause_sha256": "cd995d4ca692c51f77c54fb87d2a1474b145298ddcb93ba2ebff32f1b1337c73",
+      "clause_chars": 73,
+      "needs": [
+        {
+          "need_id": "v2-if-03-n1",
+          "type": "PERIOD",
+          "role": "DURATION"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-if-03-s1",
+          "type": "PERIOD",
+          "span_canon_sha256": "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-if-04",
+      "document": "forsakringsvillkor",
+      "question_type": "tidsfrister",
+      "clause_sha256": "d6b7ce29784d345ec6c99100b649db8434ac45ce7a2a209d279c76f6a9e68ace",
+      "clause_chars": 31,
+      "needs": [
+        {
+          "need_id": "v2-if-04-n1",
+          "type": "DATE",
+          "role": ""
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-if-04-s1",
+          "type": "DATE",
+          "span_canon_sha256": "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-if-05",
+      "document": "forsakringsvillkor",
+      "question_type": "parter",
+      "clause_sha256": "61a7d34a5585b27f239ebd76cea7facd388cdfcccd969996a3a473e1a93fa2e6",
+      "clause_chars": 47,
+      "needs": [
+        {
+          "need_id": "v2-if-05-n1",
+          "type": "PARTY",
+          "role": "PARTY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-if-05-s1",
+          "type": "PARTY",
+          "span_canon_sha256": "1b241265c89e411ec34997a20b18be3bce1dfdfcf42172c580faa77393070d54"
+        }
+      ]
+    },
+    {
+      "case_id": "v2-if-06",
+      "document": "forsakringsvillkor",
+      "question_type": "parter",
+      "clause_sha256": "0f5cbd2198638bd90af7c0bfd23c144b6f695cccbdc089d5e51a3333799530d0",
+      "clause_chars": 28,
+      "needs": [
+        {
+          "need_id": "v2-if-06-n1",
+          "type": "PARTY",
+          "role": "PARTY"
+        }
+      ],
+      "gold": [
+        {
+          "span_id": "v2-if-06-s1",
+          "type": "PARTY",
+          "span_canon_sha256": "397ca47d9719a45c7951cdb12ea7a0aca3bfab333f67ece0fbb310d7eeec45ec"
+        }
+      ]
+    }
+  ]
+}

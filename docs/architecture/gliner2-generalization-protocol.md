@@ -83,3 +83,65 @@ GLiNER2 förblir experimentell och valbar.**
 3. **Om bt-03 ("en dagfrist") är ett semantiskt fel eller enbart en
    spannavgränsningsskillnad avgörs i D10-uppföljningen** på samtliga 20 fall — inte
    här, och inte i facit.
+
+## Blindtest v2 — andra ärliga mätningen (utförd 2026-10-30)
+
+**Material:** tre nya, verkliga avtal utanför korpusen som varken v1, D10 eller E1–E3
+använt: (1) ett leverantörsvillkor för konsulttjänster, (2) ett servitutsavtal,
+(3) en försäkringsspecifikation med villkor. Dokumenten är privata och ingår **inte**
+i repot. 16 klausulfall med ett behov vardera; oberoende facit annoterat genom att LÄSA
+den extraherade texten. **Repot är publikt:** facit, eval och JEV-fixture är redigerade —
+klausultexter och spannvärden representeras av SHA-256-digest, aldrig av text; de
+fullständiga artefakterna förvaras lokalt utanför repot. Runner: `crates/swe-gym/tools/run_blindtest_v2.py` — den **färdiga** kedjan
+(E1–E3-kontraktet importerat från `backend/app/services/research/gliner/contract.py`,
+arm D + `span-date-v1`, GLiNER2 `fastino/gliner2.5-multi-v1` threshold 0.3). JEV-svar
+frysta i `jev_span_fixtures_v2.json`; omkörning återskapade alla aggregat med 0 nya
+JEV-anrop. Mätningen gjordes en gång enligt protokollet; endast en mappningsbugg i
+instrumentets false-RESOLVED-mått rättades före frysning (kedja och facit oförändrade).
+
+| Mått | Resultat |
+|---|---|
+| Lösta behov, baslinje (extraktor + JEV) | **2/16** |
+| Lösta behov, frusen kombination (S2) | **7/16** |
+| Unik kandidattäckning (verifierad) | 1/2 |
+| Falskt RESOLVED per need_id | **0** |
+| AMBIGUOUS (korrekt återhållet) | 2 (v2-pm-03, v2-sv-01) |
+| Kostnad per ytterligare löst behov (S2) | 13 inferenser + 24 JEV-anrop för 5 extra behov |
+
+**Per frågetyp:** avtalstid 2/2, ersättning 2/3, tidsfrister 3/5, parter 0/4,
+ansvarsbegränsning 0/1, uppsägningsvillkor 0/1.
+
+### Slutsatser (frysta med resultatet, inga regeländringar)
+
+1. **Kedjan håller riktningsmässigt på nya dokument:** 2→7 lösta behov (+5), 0 falskt
+   RESOLVED och 2 korrekt AMBIGUOUS. Absolutnivån är lägre än v1 (14/20), men materialet
+   är andra dokumenttyper (leverantörsvillkor, servitut, försäkringsspecifikation) —
+   inte fler av samma avtalstyp. Det adresserar v1:s öppna punkt om större/annat
+   dokumentset, men ger inte v1:s per-typ-säkerhet.
+2. **Per-typ-siffrorna är ojämna — två bokförda orsaker.** (a) E3-rollklassningen kan
+   exkludera ett korrekt ansvarstak när en MONEY-kue ("belopp") ligger närmare spannet
+   än LIABILITY-kueen (v2-pm-02: JEV YES, roll MONEY → exkluderas). (b) Det integrerade
+   kontraktet antar ett värde per behov, så flerpartinehov blir AMBIGUOUS (v2-sv-01),
+   medan v1-instrumentet tillät flera gold-värden i samma behov. Detta är en känd
+   begränsning i den valda kontraktsformen, inte en regeländring i efterhand.
+3. **Artefaktklasser för en separat nästa version** (protokollets princip 5):
+   radbrytningsartefakter inuti spann (v2-pm-05, v2-sv-03) gav JEV NO trots korrekt
+   innebörd; minimala klausuler (v2-if-05, v2-if-06) gav UNCERTAIN för korrekta
+   partsnamn; en gold-span avvisades felaktigt av JEV (v2-pm-07: kundens partnamn fick NO).
+   Nästa experiment: whitespace-normalisering före spannbildning och klausulfönster med
+   mer kontext — som ny version, inte som justering här.
+4. **Beslutsunderlag:** blindtest v2 ger underlag för fortsatt integration som **valbar,
+   avstängd** förmåga, men **inte** för bredare aktivering: parter/ansvarsbegränsning
+   och artefaktklasserna är för svaga. Svarsnivåkontamination (D10) är inte mätt på
+   v2-materialet och är nästa steg före bredare aktivering.
+
+**Artefakter (redigerade för publikt repo):** `blindtest_facit_v2.json`,
+`blindtest_facit_v2_eval.json`, `jev_span_fixtures_v2.json`,
+`crates/swe-gym/tools/run_blindtest_v2.py`. Varje fall bär `clause_sha256` och
+`span_canon_sha256`; extraktionshasharna i `material` verifierar läskällan. Körbara
+fullartefakter (klausuler, spann, kandidater) hålls utanför repot och committas aldrig.
+
+**Redigeringspolicy (gäller alla blindtester):** avtalsdokument, klausultexter,
+spannvärden och identifierande namn committas aldrig; committade artefakter får bara
+innehålla typ/id, aggregerade mått, domar och SHA-256-digest. Fullständiga artefakter
+förvaras lokalt utanför repot för omkörning och verifiering.
