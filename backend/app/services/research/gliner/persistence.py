@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 
 from app.services.research.gliner.contract import (
     AMBIGUOUS,
@@ -64,20 +65,32 @@ def build_item_lines(
     return lines, claims, provenance
 
 
+@dataclass(frozen=True)
+class NeedPersistenceInput:
+    need: object
+    findings: list[ContractFinding]
+    truncated: bool
+    unprocessed: list[dict[str, object]]
+    fingerprint: str
+    processed_units: list[str]
+
+
 async def _persist_need_item(
     write_session: object,
     *,
-    need: object,
-    findings: list[ContractFinding],
-    truncated: bool,
-    unprocessed: list[dict[str, object]],
-    fingerprint: str,
+    data: NeedPersistenceInput,
     evidence_set_id: str,
 ) -> list[object]:
     """Persist one need's checkpoint/findings and return stored items."""
     from app.services.execution.service import add_evidence_items
     from app.services.research.models import research_evidence
 
+    need = data.need
+    findings = data.findings
+    truncated = data.truncated
+    unprocessed = data.unprocessed
+    fingerprint = data.fingerprint
+    processed_units = data.processed_units
     lines, claims, provenance = build_item_lines(findings)
     has_usable_content = bool(lines) and not truncated
     metadata_extra: dict[str, object] = {}
@@ -105,6 +118,7 @@ async def _persist_need_item(
             {
                 "provenance": provenance,
                 "fingerprint": fingerprint,
+                "processed_units": processed_units,
                 "incomplete": truncated,
             },
             sort_keys=True,
@@ -136,6 +150,7 @@ async def _persist_need_item(
                     "input_fingerprint": fingerprint,
                     "need_types": need.span_types,
                     "need_role": getattr(need, "span_role", "") or "",
+                    "processed_units": processed_units,
                     "jev_budget_truncated": truncated,
                     "verified_spans": [
                         finding
@@ -168,6 +183,7 @@ async def persist_findings_and_invalidate(
     outcome: object,
     *,
     fingerprints: dict[str, str],
+    processed_units: dict[str, list[str]],
     attempt_id: str,
     assessment_pass: int,
 ) -> set[str]:
@@ -186,11 +202,14 @@ async def persist_findings_and_invalidate(
                 continue
             stored = await _persist_need_item(
                 write_session,
-                need=need,
-                findings=outcome.findings_by_need.get(need.id, []),
-                truncated=need.id in outcome.truncated_needs,
-                unprocessed=outcome.unprocessed.get(need.id, []),
-                fingerprint=fingerprints[need.id],
+                data=NeedPersistenceInput(
+                    need=need,
+                    findings=outcome.findings_by_need.get(need.id, []),
+                    truncated=need.id in outcome.truncated_needs,
+                    unprocessed=outcome.unprocessed.get(need.id, []),
+                    fingerprint=fingerprints[need.id],
+                    processed_units=processed_units.get(need.id, []),
+                ),
                 evidence_set_id=config.evidence_set_id,
             )
             persisted.update(item.id for item in stored)

@@ -327,3 +327,83 @@ def test_worker_handler_uses_model_and_echoes_request_id():
     assert result["ok"] is True
     assert result["request_id"] == "abc"
     assert result["result"][0]["proposals"] == [{"span": "12 maj", "label": "Datum"}]
+
+
+# ---------------------------------------------------------------- atomic reset
+
+
+class ManagedProcess:
+    """A process whose ``wait()`` blocks until released."""
+
+    def __init__(self) -> None:
+        self.returncode: int | None = None
+        self.killed = False
+
+    def kill(self) -> None:
+        self.killed = True
+
+    async def wait(self) -> int:
+        self.returncode = 1
+        return 1
+
+
+def test_kill_worker_clears_handle_before_waiting():
+    """The handle is cleared before the wait so a concurrent caller can never
+    observe the dying worker as the current one."""
+    released = asyncio.Event()
+    started = asyncio.Event()
+
+    class SlowProcess(ManagedProcess):
+        async def wait(self) -> int:
+            started.set()
+            await released.wait()
+            self.returncode = 1
+            return 1
+
+    process = SlowProcess()
+    proposer.reset_worker()
+    proposer._worker = process
+
+    async def run():
+        task = asyncio.create_task(proposer._kill_worker(process))
+        await started.wait()
+        assert proposer._worker is None  # cleared before wait completes
+        released.set()
+        await task
+
+    asyncio.run(run())
+    assert process.killed is True
+
+
+def test_stale_reply_resets_worker_before_next_call(monkeypatch):
+    """After a stale/mismatched reply the next call must spawn a fresh worker,
+    not reuse the one being torn down."""
+    spawns = {"count": 0}
+
+    async def spawn():
+        spawns["count"] += 1
+        return ManagedProcess()
+
+    async def request(process, payload, timeout):
+        request_id = json.loads(payload)["request_id"]
+        if spawns["count"] == 1:
+            return {"ok": True, "request_id": "stale", "result": []}
+        return {"ok": True, "request_id": request_id, "result": []}
+
+    monkeypatch.setattr(proposer, "_spawn_worker", spawn)
+    monkeypatch.setattr(proposer, "_request", request)
+    proposer.reset_worker()
+
+    async def run():
+        with pytest.raises(GlinerProposerError):
+            await proposer.propose_spans(
+                (ProposalUnit(unit_id="u1", text="text"),), ("Datum",)
+            )
+        assert proposer._worker is None  # reset before the next caller
+        result = await proposer.propose_spans(
+            (ProposalUnit(unit_id="u1", text="text"),), ("Datum",)
+        )
+        assert result == []
+
+    asyncio.run(run())
+    assert spawns["count"] == 2  # a fresh worker, never the dying one

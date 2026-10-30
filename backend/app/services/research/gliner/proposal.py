@@ -110,16 +110,21 @@ async def run_proposal_phase(
         by_unit = {entry.unit_id: entry for entry in proposed}
         need_verdicts: list[SpanVerdict] = []
         need_calls = 0
+        need_considered = 0
         truncated_here = False
         for unit in units:
             entry = by_unit.get(unit.unit_id)
             if entry is None or not entry.proposals:
                 continue
-            for proposal in entry.proposals[: settings.gliner_span_proposer.max_spans_per_unit]:
+            for proposal in entry.proposals:
                 need_type = LABEL_TO_TYPE.get(proposal.label)
                 if need_type is None:
                     continue
-                if need_calls >= per_need_budget or jev_total >= step_budget:
+                # The per-unit span cap is a truncation too: a dropped competing
+                # candidate must never leave a falsely "verified" survivor.
+                over_cap = need_considered >= settings.gliner_span_proposer.max_spans_per_unit
+                over_budget = need_calls >= per_need_budget or jev_total >= step_budget
+                if over_cap or over_budget:
                     truncated_here = True
                     truncated_needs.add(need.id)
                     unprocessed.setdefault(need.id, []).append(
@@ -130,6 +135,7 @@ async def run_proposal_phase(
                         }
                     )
                     continue
+                need_considered += 1
                 need_verdicts.append(
                     await _verify_span(
                         jev, unit=unit, need_type=need_type, span=proposal.span

@@ -235,6 +235,169 @@ async def test_step_zero_proposals_persists_checkpoint_and_reruns_on_new_evidenc
 
 
 @pytest.mark.asyncio
+async def test_step_scans_passages_shared_with_secondary_needs(db_factory, monkeypatch):
+    """Deduplicated passages are linked to additional needs via need_links;
+    the secondary need must scan them too."""
+    import app.services.research.gliner.proposal as proposal_mod
+    import app.services.research.gliner.service as svc
+
+    engine, factory = db_factory
+    item_ids = await _seed_research(factory, excerpt1=BT17_CLAUSE)
+    async with factory() as session:
+        stored = await add_evidence_items(
+            session,
+            evidence_set_id="es-1",
+            items=[
+                EvidenceItemSnapshot(
+                    research_need_id="n2",  # same passage identity as s0
+                    source_type="swedish_law",
+                    status="found",
+                    title="t",
+                    excerpt=BT17_CLAUSE,
+                    locator=None,
+                    source_id="s0",
+                    source_url=None,
+                    provider="test",
+                    score=None,
+                    provenance={},
+                    retrieved_at=datetime.now(timezone.utc),
+                )
+            ],
+        )
+        await session.commit()
+    assert [item.id for item in stored] == item_ids  # deduplicated, not a new row
+    seen: list[tuple[str, tuple[str, ...]]] = []
+
+    async def capture(units, labels):
+        seen.append((units[0].unit_id if units else "", labels))
+        return []
+
+    monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    monkeypatch.setattr(svc, "HttpJevSystemOne", lambda: CountingJev("YES"))
+    monkeypatch.setattr(proposal_mod, "propose_spans", capture)
+    need_first = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
+    need_second = make_need("n2", span_types=["PERIOD"], span_role="DURATION")
+    plan = ResearchPlan(needs=[need_first, need_second])
+    try:
+        async with factory() as session:
+            await svc.maybe_run_gliner_step(
+                SimpleNamespace(
+                    factory=factory,
+                    evidence_set_id="es-1",
+                    assessor=StepAssessor(),
+                    router=None,
+                    provider_descriptors=None,
+                    relevance_assessor=None,
+                ),
+                session,
+                attempt=make_attempt(opted_in=True),
+                plan=plan,
+                assessment=SimpleNamespace(
+                    result="insufficient",
+                    rationale="test",
+                    need_assessments=[
+                        {
+                            "research_need_id": "n1",
+                            "sufficient": False,
+                            "supporting_evidence_ids": [],
+                            "missing_or_weak": "",
+                            "contradictions": [],
+                            "further_information": None,
+                        },
+                        {
+                            "research_need_id": "n2",
+                            "sufficient": False,
+                            "supporting_evidence_ids": [],
+                            "missing_or_weak": "",
+                            "contradictions": [],
+                            "further_information": None,
+                        },
+                    ],
+                    gaps=[],
+                    contradictions=[],
+                    considered_evidence_ids=[],
+                    model_provider=None,
+                    model_name=None,
+                    model_version=None,
+                ),
+                wave=0,
+            )
+        assert {unit for unit, _labels in seen} == {item_ids[0]}
+        assert len(seen) == 2  # both needs scanned the shared passage
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_step_batches_beyond_the_unit_limit(db_factory):
+    """Units beyond max_units_per_need are processed in later deterministic
+    batches, and late evidence is never blocked by an old checkpoint."""
+    engine, factory = db_factory
+    await _seed_research(
+        factory,
+        excerpt1="Betalning inom 30 dagar.",
+        excerpt2="Leverans inom 60 dagar.",
+    )
+    need = make_need("n1", span_types=["PERIOD"], span_role="DEADLINE")
+    calls = {"propose": 0}
+
+    async def no_proposals(units, labels):
+        calls["propose"] += 1
+        return []
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    monkeypatch.setattr(settings.gliner_span_proposer, "max_units_per_need", 1)
+    try:
+        first = await run_step(
+            factory, need=need, jev=CountingJev("YES"), propose=no_proposals
+        )
+        assert first is not None
+        assert calls["propose"] == 1
+        second = await run_step(
+            factory, need=need, jev=CountingJev("YES"), propose=no_proposals
+        )
+        assert second is not None
+        assert calls["propose"] == 2  # the second unit is a new batch
+        third = await run_step(
+            factory, need=need, jev=CountingJev("YES"), propose=no_proposals
+        )
+        assert third is None  # everything is processed
+        assert calls["propose"] == 2
+        # A later wave with new evidence becomes the next unprocessed batch.
+        async with factory() as session:
+            await add_evidence_items(
+                session,
+                evidence_set_id="es-1",
+                items=[
+                    EvidenceItemSnapshot(
+                        research_need_id="n1",
+                        source_type="swedish_law",
+                        status="found",
+                        title="t3",
+                        excerpt="Avtalet gäller i sex månader.",
+                        locator=None,
+                        source_id="s3",
+                        source_url=None,
+                        provider="test",
+                        score=None,
+                        provenance={},
+                        retrieved_at=datetime.now(timezone.utc),
+                    )
+                ],
+            )
+            await session.commit()
+        fourth = await run_step(
+            factory, need=need, jev=CountingJev("YES"), propose=no_proposals
+        )
+        assert fourth is not None
+        assert calls["propose"] == 3
+    finally:
+        monkeypatch.undo()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_step_retry_never_reproposes(db_factory):
     engine, factory = db_factory
     item_ids = await _seed_research(factory, excerpt1=BT17_CLAUSE)
@@ -318,6 +481,61 @@ async def test_step_jev_budget_is_enforced_and_reported(db_factory):
         assert len(provenance["unprocessed_candidates"]) == 1
         assert provenance["derived_claims"] == []
         assert "Ofullständig verifiering" in items[0].excerpt
+    finally:
+        monkeypatch.undo()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_step_span_cap_overflow_is_truncation(db_factory):
+    """Dropping proposals at the per-unit span cap must never leave a
+    falsely verified survivor."""
+    import app.services.research.gliner.proposal as proposal_mod
+    import app.services.research.gliner.service as svc
+
+    engine, factory = db_factory
+    item_ids = await _seed_research(
+        factory,
+        excerpt1="Betalning inom 30 dagar.",
+        excerpt2="Leverans inom 60 dagar.",
+    )
+    need = make_need("n1", span_types=["PERIOD"], span_role="DEADLINE")
+    propose = fake_propose(
+        {
+            item_ids[0]: [("30 dagar", "Tidsperiod")],
+            item_ids[1]: [("60 dagar", "Tidsperiod")],
+        }
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    monkeypatch.setattr(settings.gliner_span_proposer, "max_spans_per_unit", 1)
+    monkeypatch.setattr(svc, "HttpJevSystemOne", lambda: CountingJev("YES"))
+    monkeypatch.setattr(proposal_mod, "propose_spans", propose)
+    try:
+        async with factory() as session:
+            result = await svc.maybe_run_gliner_step(
+                SimpleNamespace(
+                    factory=factory,
+                    evidence_set_id="es-1",
+                    assessor=StepAssessor(),
+                    router=None,
+                    provider_descriptors=None,
+                    relevance_assessor=None,
+                ),
+                session,
+                attempt=make_attempt(opted_in=True),
+                plan=ResearchPlan(needs=[need]),
+                assessment=make_assessment_row([need]),
+                wave=0,
+            )
+        assert result is not None
+        assert result.report.jev_budget_truncated is True
+        items = await _gliner_items(factory)
+        provenance = items[0].provenance
+        assert items[0].status == "not_found"
+        assert provenance["incomplete"] is True
+        assert provenance["verified_spans"] == []
+        assert len(provenance["unprocessed_candidates"]) == 1
     finally:
         monkeypatch.undo()
         await engine.dispose()

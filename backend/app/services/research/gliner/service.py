@@ -75,17 +75,17 @@ def _labels_for(need: object) -> tuple[str, ...]:
     return tuple(NEED_LABELS[span_type] for span_type in span_types)
 
 
-def _input_fingerprint(units: tuple[ProposalUnit, ...], labels: tuple[str, ...]) -> str:
-    """Stable identity of the inputs a proposal run would see.
+def _input_fingerprint(items: list[object], labels: tuple[str, ...]) -> str:
+    """Stable identity of the FULL qualified input set for a need.
 
-    New evidence (or new labels/model) changes the fingerprint and therefore
-    may trigger a new run; identical inputs never re-run.
+    New evidence (or new labels/model) changes the fingerprint even when a
+    batch boundary hides the new item from the current run.
     """
     payload = json.dumps(
         {
             "units": [
-                [unit.unit_id, hashlib.sha256(unit.text.encode()).hexdigest()]
-                for unit in units
+                [item.id, hashlib.sha256((item.excerpt or "").encode()).hexdigest()]
+                for item in items
             ],
             "labels": list(labels),
             "model": settings.gliner_span_proposer.model,
@@ -97,19 +97,43 @@ def _input_fingerprint(units: tuple[ProposalUnit, ...], labels: tuple[str, ...])
     return hashlib.sha256(payload.encode()).hexdigest()[:32]
 
 
-def _prior_fingerprints(need_id: str, items: list[object]) -> set[str]:
-    """Fingerprints of earlier proposal runs for this need."""
-    fingerprints: set[str] = set()
+def _need_ids_for(item: object) -> tuple[str, ...]:
+    """Needs that share a stored passage (deduplicated evidence).
+
+    Shared passages are linked through EvidenceSetItemNeed; the primary need
+    column is only a fallback.
+    """
+    links = tuple(link.research_need_id for link in (item.need_links or ()))
+    if links:
+        return links
+    primary = item.research_need_id
+    return (primary,) if primary else ()
+
+
+def _eligible_items(need: object, items: list[object]) -> list[object]:
+    """All evidence items this need may scan, in deterministic order."""
+    eligible = [
+        item
+        for item in items
+        if need.id in _need_ids_for(item)
+        and item.status == "found"
+        and item.excerpt
+        and (item.provenance or {}).get("derivation") != DERIVATION
+    ]
+    return sorted(eligible, key=lambda item: (item.ordinal or 0, item.id))
+
+
+def _processed_unit_ids(need: object, items: list[object]) -> set[str]:
+    """Unit ids already scanned by earlier proposal runs for this need."""
+    processed: set[str] = set()
     for item in items:
         provenance = item.provenance or {}
-        if item.research_need_id != need_id:
-            continue
         if provenance.get("derivation") != DERIVATION:
             continue
-        fingerprint = str(provenance.get("input_fingerprint") or "")
-        if fingerprint:
-            fingerprints.add(fingerprint)
-    return fingerprints
+        if need.id not in _need_ids_for(item):
+            continue
+        processed.update(str(unit_id) for unit_id in provenance.get("processed_units") or [])
+    return processed
 
 
 def _target_needs(plan: object, draft: object) -> list[object]:
@@ -124,26 +148,20 @@ def _target_needs(plan: object, draft: object) -> list[object]:
     ]
 
 
-def _unit_texts(need: object, items: list[object]) -> tuple[ProposalUnit, ...]:
+def _batch_units(eligible: list[object], processed: set[str]) -> tuple[ProposalUnit, ...]:
+    """Next deterministic batch of not-yet-scanned units."""
+    limit = settings.gliner_span_proposer.max_units_per_need
     units: list[ProposalUnit] = []
-    seen: set[str] = set()
-    for item in items:
-        if item.research_need_id != need.id:
+    for item in eligible:
+        if item.id in processed:
             continue
-        if item.status != "found" or not item.excerpt:
-            continue
-        if (item.provenance or {}).get("derivation") == DERIVATION:
-            continue
-        if item.id in seen:
-            continue
-        seen.add(item.id)
         units.append(
             ProposalUnit(
                 unit_id=item.id,
                 text=item.excerpt[: settings.gliner_span_proposer.max_excerpt_chars],
             )
         )
-        if len(units) >= settings.gliner_span_proposer.max_units_per_need:
+        if len(units) >= limit:
             break
     return tuple(units)
 
@@ -185,17 +203,22 @@ async def maybe_run_gliner_step(
     from app.services.research.followup import next_assessment_pass
 
     items = await list_evidence_items(session, config.evidence_set_id)
-    units_by_need = {need.id: _unit_texts(need, items) for need in targets}
-    fingerprints: dict[str, str] = {}
     pending: list[object] = []
+    units_by_need: dict[str, tuple[ProposalUnit, ...]] = {}
+    fingerprints: dict[str, str] = {}
+    processed_units: dict[str, list[str]] = {}
     for need in targets:
-        units = units_by_need[need.id]
-        if not units:
+        eligible = _eligible_items(need, items)
+        if not eligible:
             continue
-        fingerprint = _input_fingerprint(units, _labels_for(need))
-        if fingerprint in _prior_fingerprints(need.id, items):
+        batch = _batch_units(eligible, _processed_unit_ids(need, items))
+        if not batch:
             continue
-        fingerprints[need.id] = fingerprint
+        # The fingerprint covers the FULL qualified input set, so late evidence
+        # is visible even when a batch boundary hides it from this run.
+        fingerprints[need.id] = _input_fingerprint(eligible, _labels_for(need))
+        processed_units[need.id] = [unit.unit_id for unit in batch]
+        units_by_need[need.id] = batch
         pending.append(need)
     if not pending:
         return None
@@ -208,6 +231,7 @@ async def maybe_run_gliner_step(
         pending,
         outcome,
         fingerprints=fingerprints,
+        processed_units=processed_units,
         attempt_id=attempt.id,
         assessment_pass=next_assessment_pass(wave),
     )

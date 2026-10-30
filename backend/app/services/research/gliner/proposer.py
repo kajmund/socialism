@@ -96,15 +96,20 @@ def _parse_line(line: bytes) -> dict[str, object]:
 
 
 async def _kill_worker(process: asyncio.subprocess.Process | None) -> None:
+    """Clear the handle FIRST, then stop the process.
+
+    Clearing before awaiting ``wait()`` makes the reset atomic: a concurrent
+    caller can never observe the dying worker as the current one.
+    """
     global _worker
+    if _worker is process:
+        _worker = None
     if process is not None and process.returncode is None:
         try:
             process.kill()
         except ProcessLookupError:
             pass
         await process.wait()
-    if _worker is process:
-        _worker = None
 
 
 async def _spawn_worker() -> asyncio.subprocess.Process:
@@ -256,16 +261,18 @@ async def propose_spans(
                 f"GLiNER2 inference timed out after {timeout:.0f}s",
                 reason="timeout",
             ) from None
-    if not message.get("ok") or str(message.get("request_id") or "") != request_id:
-        await _kill_worker(process)
-        if message.get("ok"):
-            raise GlinerProposerError(
-                "GLiNER2 worker replied to a stale request", reason="worker_failed"
+        # Validate and reset INSIDE the lock: the next caller must never see
+        # the dying worker as the current one.
+        if not message.get("ok") or str(message.get("request_id") or "") != request_id:
+            await _kill_worker(process)
+            if message.get("ok"):
+                raise GlinerProposerError(
+                    "GLiNER2 worker replied to a stale request", reason="worker_failed"
+                )
+            _raise_worker_error(
+                str(message.get("reason") or "worker_failed"),
+                str(message.get("error") or ""),
             )
-        _raise_worker_error(
-            str(message.get("reason") or "worker_failed"),
-            str(message.get("error") or ""),
-        )
     result: list[UnitProposals] = []
     for entry in message.get("result", []):  # type: ignore[union-attr]
         proposals = tuple(
