@@ -44,6 +44,7 @@ SCANNED_SPANS = "scanned_spans"
 @dataclass(frozen=True)
 class PersistContext:
     fingerprints: dict[str, str]
+    config_fingerprints: dict[str, str]
     processed_units: dict[str, list[str]]
     complete_by_need: dict[str, bool]
     attempt_id: str
@@ -62,6 +63,7 @@ class NeedPersistenceInput:
     # resolve either: they keep the need incomplete.
     unresolved: list[dict[str, object]] = field(default_factory=list)
     fingerprint: str = ""
+    config_fingerprint: str = ""
     processed_units: list[str] = field(default_factory=list)
 
 
@@ -156,6 +158,7 @@ def _build_metadata(
         "source_nature": "secondary",
         "derivation": DERIVATION,
         "input_fingerprint": data.fingerprint,
+        "proposal_config_fingerprint": data.config_fingerprint,
         "processed_units": data.processed_units,
         SCANNED_SPANS: _scan_provenance(data.verdicts),
         "need_types": data.need.span_types,
@@ -216,6 +219,7 @@ async def _persist_need_item(
             {
                 "provenance": provenance,
                 "fingerprint": data.fingerprint,
+                "config_fingerprint": data.config_fingerprint,
                 "processed_units": data.processed_units,
                 "incomplete": incomplete,
             },
@@ -247,14 +251,18 @@ async def _persist_need_item(
     return stored
 
 
-def _prior_verdicts(items: list[object], need: object) -> list[SpanVerdict]:
-    """Rebuild earlier batches' verdicts from checkpoint provenance."""
+def _prior_verdicts(
+    items: list[object], need: object, config_fingerprint: str
+) -> list[SpanVerdict]:
+    """Rebuild earlier batches' verdicts from checkpoints of the SAME config."""
     prior: list[SpanVerdict] = []
     for item in items:
         provenance = item.provenance or {}
         if provenance.get("derivation") != DERIVATION:
             continue
         if item.research_need_id != need.id:
+            continue
+        if provenance.get("proposal_config_fingerprint") != config_fingerprint:
             continue
         for entry in provenance.get(SCANNED_SPANS) or []:
             prior.append(
@@ -312,8 +320,12 @@ async def persist_findings_and_invalidate(
             reasons = outcome.truncation_reasons.get(need.id, frozenset())
             unresolved = outcome.unresolved.get(need.id, [])
             current = outcome.verdicts_by_need.get(need.id, [])
+            config_fingerprint = context.config_fingerprints.get(need.id, "")
             findings = (
-                aggregate_findings(need, _prior_verdicts(items, need) + current)
+                aggregate_findings(
+                    need,
+                    _prior_verdicts(items, need, config_fingerprint) + current,
+                )
                 if complete and not reasons and not unresolved
                 else []
             )
@@ -328,6 +340,7 @@ async def persist_findings_and_invalidate(
                     unprocessed=outcome.unprocessed.get(need.id, []),
                     unresolved=outcome.unresolved.get(need.id, []),
                     fingerprint=context.fingerprints[need.id],
+                    config_fingerprint=context.config_fingerprints.get(need.id, ""),
                     processed_units=context.processed_units.get(need.id, []),
                 ),
                 evidence_set_id=config.evidence_set_id,

@@ -65,6 +65,8 @@ class ProposalPhaseOutcome:
     truncation_reasons: dict[str, frozenset[str]] = field(default_factory=dict)
     unprocessed: dict[str, list[dict[str, object]]] = field(default_factory=dict)
     unresolved: dict[str, list[dict[str, object]]] = field(default_factory=dict)
+    #: Targets never scanned because an earlier need consumed the step budget.
+    deferred_needs: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -277,9 +279,13 @@ async def run_proposal_phase(
     unresolved: dict[str, list[dict[str, object]]] = {}
     units_total = 0
     jev_total = 0
+    deferred_needs: list[str] = []
     step_budget = settings.gliner_span_proposer.max_jev_calls_per_step
-    for need in targets:
+    for index, need in enumerate(targets):
         if jev_total >= step_budget:
+            # Skipped targets are explicit: the last wave must never freeze
+            # silently because a previous need consumed the step budget.
+            deferred_needs = [target.id for target in targets[index:]]
             break
         units_total += len(phase.units_by_need[need.id])
         scan = await _scan_need(jev, need, phase=phase, step_calls=jev_total)
@@ -295,6 +301,8 @@ async def run_proposal_phase(
     all_reasons = frozenset(
         reason for reasons in truncation_reasons.values() for reason in reasons
     )
+    if deferred_needs:
+        all_reasons = all_reasons | {STEP_JEV_BUDGET}
     return ProposalPhaseOutcome(
         verdicts_by_need=verdicts_by_need,
         stats=ProposalPhaseStats(
@@ -306,4 +314,5 @@ async def run_proposal_phase(
         truncation_reasons=truncation_reasons,
         unprocessed=unprocessed,
         unresolved=unresolved,
+        deferred_needs=frozenset(deferred_needs),
     )

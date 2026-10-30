@@ -532,3 +532,113 @@ async def test_step_same_span_is_verified_per_declared_type(db_factory):
     finally:
         monkeypatch.undo()
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_step_exhausted_budget_marks_deferred_needs(db_factory):
+    """A need skipped because the step budget was exactly reached is explicit:
+    the reason is recorded together with the deferred needs."""
+    engine, factory = db_factory
+    item_ids = await _seed_research(factory, excerpt1=BT17_CLAUSE)
+    async with factory() as session:
+        stored = await add_evidence_items(
+            session,
+            evidence_set_id="es-1",
+            items=[
+                EvidenceItemSnapshot(
+                    research_need_id="n2",
+                    source_type="swedish_law",
+                    status="found",
+                    title="t2",
+                    excerpt=BT17_CLAUSE,
+                    locator=None,
+                    source_id="s2",
+                    source_url=None,
+                    provider="test",
+                    score=None,
+                    provenance={},
+                    retrieved_at=datetime.now(timezone.utc),
+                )
+            ],
+        )
+        await session.commit()
+        n2_id = stored[0].id
+    need_first = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
+    need_second = make_need("n2", span_types=["PERIOD"], span_role="DURATION")
+    jev = CountingJev("YES")
+    propose = fake_propose(
+        {
+            item_ids[0]: [("6 månader", "Tidsperiod")],
+            n2_id: [("6 månader", "Tidsperiod")],
+        }
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    monkeypatch.setattr(settings.gliner_span_proposer, "max_jev_calls_per_step", 1)
+    monkeypatch.setattr(service, "HttpJevSystemOne", lambda: jev)
+    import app.services.research.gliner.proposal as proposal_mod
+
+    monkeypatch.setattr(proposal_mod, "propose_spans", propose)
+    try:
+        async with factory() as session:
+            result = await service.maybe_run_gliner_step(
+                SimpleNamespace(
+                    factory=factory,
+                    evidence_set_id="es-1",
+                    assessor=StepAssessor(),
+                    router=None,
+                    provider_descriptors=None,
+                    relevance_assessor=None,
+                ),
+                session,
+                attempt=make_attempt(opted_in=True),
+                plan=ResearchPlan(needs=[need_first, need_second]),
+                assessment=make_assessment_row([need_first, need_second]),
+                wave=0,
+            )
+        assert result is not None
+        assert jev.calls == 1
+        assert "step_jev_budget" in result.report.truncation_reasons
+        assert result.report.deferred_needs == ("n2",)
+    finally:
+        monkeypatch.undo()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_step_checkpoint_is_reused_only_for_matching_config(db_factory):
+    """A checkpoint from another model/threshold/labels is stale: changing the
+    threshold must trigger a new run instead of returning None."""
+    engine, factory = db_factory
+    await _seed_research(factory, excerpt1=BT17_CLAUSE)
+    need = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
+    calls = {"propose": 0}
+
+    async def no_proposals(units, labels):
+        calls["propose"] += 1
+        return []
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    try:
+        first = await run_step(
+            factory, need=need, jev=CountingJev("YES"), propose=no_proposals
+        )
+        assert first is not None
+        assert calls["propose"] == 1
+        items = await _gliner_items(factory)
+        assert items[0].provenance["proposal_config_fingerprint"]
+        second = await run_step(
+            factory, need=need, jev=CountingJev("YES"), propose=no_proposals
+        )
+        assert second is None  # same config: checkpoint is valid
+        assert calls["propose"] == 1
+        monkeypatch.setattr(settings.gliner_span_proposer, "threshold", 0.4)
+        third = await run_step(
+            factory, need=need, jev=CountingJev("YES"), propose=no_proposals
+        )
+        assert third is not None  # new config: the checkpoint is stale
+        assert calls["propose"] == 2
+    finally:
+        monkeypatch.undo()
+        await engine.dispose()

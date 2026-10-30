@@ -54,6 +54,7 @@ class GlinerStepReport:
     jev_calls: int
     findings_persisted: int
     truncation_reasons: tuple[str, ...] = ()
+    deferred_needs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -79,21 +80,33 @@ def _labels_for(need: object) -> tuple[str, ...]:
     return tuple(NEED_LABELS[span_type] for span_type in span_types)
 
 
-def _input_fingerprint(items: list[object], labels: tuple[str, ...]) -> str:
-    """Stable identity of the FULL qualified input set for a need.
+def _input_fingerprint(items: list[object]) -> str:
+    """Stable identity of the FULL qualified evidence set for a need.
 
-    New evidence (or new labels/model) changes the fingerprint even when a
-    batch boundary hides the new item from the current run.
+    New evidence changes the fingerprint even when a batch boundary hides the
+    new item from the current run. Configuration identity is separate: a
+    checkpoint is only reused when model, threshold and labels match.
     """
     payload = json.dumps(
         {
             "units": [
                 [item.id, hashlib.sha256((item.excerpt or "").encode()).hexdigest()]
                 for item in items
-            ],
-            "labels": list(labels),
+            ]
+        },
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()[:32]
+
+
+def _config_fingerprint(labels: tuple[str, ...]) -> str:
+    """Model, threshold and declared labels: the checkpoint's validity scope."""
+    payload = json.dumps(
+        {
             "model": settings.gliner_span_proposer.model,
             "threshold": settings.gliner_span_proposer.threshold,
+            "labels": list(labels),
         },
         sort_keys=True,
         ensure_ascii=False,
@@ -128,13 +141,20 @@ def _eligible_items(need: object, items: list[object]) -> list[object]:
 
 
 def _processed_unit_ids(need: object, items: list[object]) -> set[str]:
-    """Unit ids already scanned by earlier proposal runs for this need."""
+    """Unit ids already scanned under the CURRENT configuration.
+
+    Checkpoints produced by another model/threshold/labels are stale and are
+    never reused as processed markers.
+    """
+    config = _config_fingerprint(_labels_for(need))
     processed: set[str] = set()
     for item in items:
         provenance = item.provenance or {}
         if provenance.get("derivation") != DERIVATION:
             continue
         if need.id not in _need_ids_for(item):
+            continue
+        if provenance.get("proposal_config_fingerprint") != config:
             continue
         processed.update(str(unit_id) for unit_id in provenance.get("processed_units") or [])
     return processed
@@ -148,6 +168,10 @@ def _scanned_keys(items: list[object], need: object) -> set[tuple[str, str, str]
         if provenance.get("derivation") != DERIVATION:
             continue
         if item.research_need_id != need.id:
+            continue
+        if provenance.get("proposal_config_fingerprint") != _config_fingerprint(
+            _labels_for(need)
+        ):
             continue
         for entry in provenance.get("scanned_spans") or []:
             keys.add(
@@ -261,6 +285,7 @@ async def maybe_run_gliner_step(
     retry_by_need: dict[str, list[dict[str, object]]] = {}
     unit_texts: dict[str, str] = {}
     fingerprints: dict[str, str] = {}
+    config_fingerprints: dict[str, str] = {}
     processed_units: dict[str, list[str]] = {}
     complete_by_need: dict[str, bool] = {}
     for need in targets:
@@ -276,7 +301,9 @@ async def maybe_run_gliner_step(
         )
         # The fingerprint covers the FULL qualified input set, so late evidence
         # is visible even when a batch boundary hides it from this run.
-        fingerprints[need.id] = _input_fingerprint(eligible, _labels_for(need))
+        labels = _labels_for(need)
+        fingerprints[need.id] = _input_fingerprint(eligible)
+        config_fingerprints[need.id] = _config_fingerprint(labels)
         processed_units[need.id] = [unit.unit_id for unit in batch]
         complete_by_need[need.id] = complete
         units_by_need[need.id] = batch
@@ -310,6 +337,7 @@ async def maybe_run_gliner_step(
         outcome,
         context=PersistContext(
             fingerprints=fingerprints,
+            config_fingerprints=config_fingerprints,
             processed_units=processed_units,
             complete_by_need=complete_by_need,
             attempt_id=attempt.id,
@@ -330,5 +358,6 @@ async def maybe_run_gliner_step(
             jev_calls=outcome.stats.jev_calls,
             findings_persisted=len(persisted_ids),
             truncation_reasons=tuple(sorted(outcome.stats.truncation_reasons)),
+            deferred_needs=tuple(sorted(outcome.deferred_needs)),
         ),
     )
