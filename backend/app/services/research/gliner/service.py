@@ -32,6 +32,7 @@ from app.services.research.gliner.persistence import (
 from app.jev.system import HttpJevSystemOne
 from app.services.research.gliner.proposal import (
     GlinerStepError,
+    PhaseInput,
     run_proposal_phase,
 )
 from app.services.research.gliner.proposer import ProposalUnit
@@ -137,6 +138,28 @@ def _processed_unit_ids(need: object, items: list[object]) -> set[str]:
     return processed
 
 
+def _prior_unprocessed(need: object, items: list[object]) -> list[dict[str, object]]:
+    """Candidates an earlier truncation left unprocessed, in scan order."""
+    seen: set[tuple[str, str]] = set()
+    leftover: list[dict[str, object]] = []
+    for item in items:
+        provenance = item.provenance or {}
+        if provenance.get("derivation") != DERIVATION:
+            continue
+        if item.research_need_id != need.id:
+            continue
+        for candidate in provenance.get("unprocessed_candidates") or []:
+            key = (
+                str(candidate.get("unit_id") or ""),
+                str(candidate.get("span") or "").lower(),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            leftover.append(dict(candidate))
+    return leftover
+
+
 def _target_needs(plan: object, draft: object) -> list[object]:
     """Needs that are insufficient AND declare span types."""
     insufficient = {
@@ -206,16 +229,17 @@ async def maybe_run_gliner_step(
     items = await list_evidence_items(session, config.evidence_set_id)
     pending: list[object] = []
     units_by_need: dict[str, tuple[ProposalUnit, ...]] = {}
+    retry_by_need: dict[str, list[dict[str, object]]] = {}
+    unit_texts: dict[str, str] = {}
     fingerprints: dict[str, str] = {}
     processed_units: dict[str, list[str]] = {}
     complete_by_need: dict[str, bool] = {}
     for need in targets:
         eligible = _eligible_items(need, items)
-        if not eligible:
-            continue
         processed = _processed_unit_ids(need, items)
         batch = _batch_units(eligible, processed)
-        if not batch:
+        retry = _prior_unprocessed(need, items)
+        if not batch and not retry:
             continue
         batch_ids = {unit.unit_id for unit in batch}
         complete = all(
@@ -224,15 +248,32 @@ async def maybe_run_gliner_step(
         # The fingerprint covers the FULL qualified input set, so late evidence
         # is visible even when a batch boundary hides it from this run.
         fingerprints[need.id] = _input_fingerprint(eligible, _labels_for(need))
-        processed_units[need.id] = list(batch_ids)
+        processed_units[need.id] = [unit.unit_id for unit in batch]
         complete_by_need[need.id] = complete
         units_by_need[need.id] = batch
+        retry_by_need[need.id] = retry
+        unit_texts.update(
+            {
+                item.id: (item.excerpt or "")[
+                    : settings.gliner_span_proposer.max_excerpt_chars
+                ]
+                for item in eligible
+            }
+        )
         pending.append(need)
     if not pending:
         return None
     await session.commit()
 
-    outcome = await run_proposal_phase(HttpJevSystemOne(), pending, units_by_need)
+    outcome = await run_proposal_phase(
+        HttpJevSystemOne(),
+        pending,
+        PhaseInput(
+            units_by_need=units_by_need,
+            retry_candidates=retry_by_need,
+            unit_texts=unit_texts,
+        ),
+    )
     record_gliner_inference(outcome.stats.units)
     persisted_ids = await persist_findings_and_invalidate(
         config,

@@ -58,6 +58,9 @@ class NeedPersistenceInput:
     complete: bool
     truncation_reasons: frozenset[str]
     unprocessed: list[dict[str, object]] = field(default_factory=list)
+    # Candidates an earlier truncation left unprocessed and this run could not
+    # resolve either: they keep the need incomplete.
+    unresolved: list[dict[str, object]] = field(default_factory=list)
     fingerprint: str = ""
     processed_units: list[str] = field(default_factory=list)
 
@@ -114,14 +117,28 @@ def build_item_lines(
     return lines, claims, provenance
 
 
-def _incomplete_excerpt(complete: bool, reasons: frozenset[str]) -> str:
+def _incomplete_excerpt(
+    complete: bool,
+    reasons: frozenset[str],
+    unresolved: list[dict[str, object]],
+) -> str:
+    """Name every reason the evidence is unusable — partial AND truncated."""
+    parts: list[str] = []
     if not complete:
-        return "Ofullständig verifiering: ytterligare enheter återstår att skanna."
-    texts = ", ".join(_REASON_TEXT.get(reason, reason) for reason in sorted(reasons))
-    return (
-        "Ofullständig verifiering: "
-        f"{texts} innan alla kandidater verifierades."
-    )
+        parts.append("ytterligare enheter återstår att skanna")
+    if reasons:
+        texts = ", ".join(
+            _REASON_TEXT.get(reason, reason) for reason in sorted(reasons)
+        )
+        parts.append(f"{texts} innan alla kandidater verifierades")
+    if unresolved:
+        parts.append(
+            f"{len(unresolved)} kandidat(er) från en tidigare trunkering "
+            "kunde inte verifieras"
+        )
+    if not parts:
+        parts.append("ofullständig verifiering")
+    return "Ofullständig verifiering: " + "; ".join(parts) + "."
 
 
 def _build_metadata(
@@ -131,7 +148,8 @@ def _build_metadata(
     provenance: list[dict],
 ) -> dict[str, object]:
     reasons = sorted(data.truncation_reasons)
-    incomplete = (not data.complete) or bool(reasons)
+    incomplete = (not data.complete) or bool(reasons) or bool(data.unresolved)
+    unprocessed = list(data.unprocessed) + list(data.unresolved)
     metadata: dict[str, object] = {
         "derived": True,
         "primary_source": False,
@@ -144,10 +162,12 @@ def _build_metadata(
         "need_role": getattr(data.need, "span_role", "") or "",
         "incomplete": incomplete,
         "incomplete_reason": (
-            "truncated" if reasons else ("partial_batch" if not data.complete else "")
+            "truncated"
+            if reasons or data.unresolved
+            else ("partial_batch" if not data.complete else "")
         ),
         "truncation_reasons": reasons,
-        "unprocessed_candidates": data.unprocessed,
+        "unprocessed_candidates": unprocessed,
         "verified_spans": [
             finding for finding in provenance if finding["state"] == VERIFIED
         ],
@@ -158,13 +178,9 @@ def _build_metadata(
             finding for finding in provenance if finding["state"] == REJECTED
         ],
         "derived_claims": claims,
-        "empty_proposals": not metadata_has_findings(data),
+        "empty_proposals": not (data.verdicts or unprocessed or data.findings),
     }
     return metadata
-
-
-def metadata_has_findings(data: NeedPersistenceInput) -> bool:
-    return bool(data.findings)
 
 
 async def _persist_need_item(
@@ -179,10 +195,14 @@ async def _persist_need_item(
 
     lines, claims, provenance = build_item_lines(data.findings)
     reasons = sorted(data.truncation_reasons)
-    incomplete = (not data.complete) or bool(reasons)
+    incomplete = (not data.complete) or bool(reasons) or bool(data.unresolved)
     has_usable_content = (not incomplete) and bool(claims)
     if incomplete:
-        lines = [_incomplete_excerpt(data.complete, data.truncation_reasons)]
+        lines = [
+            _incomplete_excerpt(
+                data.complete, data.truncation_reasons, data.unresolved
+            )
+        ]
         claims, provenance = [], []
     elif not lines:
         lines = (
@@ -290,10 +310,11 @@ async def persist_findings_and_invalidate(
                 continue
             complete = context.complete_by_need.get(need.id, False)
             reasons = outcome.truncation_reasons.get(need.id, frozenset())
+            unresolved = outcome.unresolved.get(need.id, [])
             current = outcome.verdicts_by_need.get(need.id, [])
             findings = (
                 aggregate_findings(need, _prior_verdicts(items, need) + current)
-                if complete and not reasons
+                if complete and not reasons and not unresolved
                 else []
             )
             stored = await _persist_need_item(
@@ -305,6 +326,7 @@ async def persist_findings_and_invalidate(
                     complete=complete,
                     truncation_reasons=reasons,
                     unprocessed=outcome.unprocessed.get(need.id, []),
+                    unresolved=outcome.unresolved.get(need.id, []),
                     fingerprint=context.fingerprints[need.id],
                     processed_units=context.processed_units.get(need.id, []),
                 ),

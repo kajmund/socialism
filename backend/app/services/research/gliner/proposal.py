@@ -4,9 +4,11 @@ Pure I/O against the model and Jev — no database access, no persistence.
 The orchestrating step materializes inputs, calls this phase with no
 connection held, and persists the outcome in a new short transaction.
 
-Truncation is typed: dropping candidates because of the per-unit span cap,
-the per-need Jev budget or the step Jev budget never masquerades as another
-cause, and a truncated need never yields usable evidence.
+Candidates omitted by an earlier truncation are retried FIRST on the next
+run, so a later batch can resolve the earlier incompleteness instead of
+inheriting usable evidence from an incomplete candidate picture. Truncation
+is typed: dropping candidates because of the per-unit span cap, the per-need
+Jev budget or the step Jev budget never masquerades as another cause.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from app.services.research.gliner.contract import (
     LABEL_TO_TYPE,
     NEED_LABELS,
     SpanVerdict,
+    canon,
     operational_role,
     verification_question,
 )
@@ -39,6 +42,15 @@ class GlinerStepError(Exception):
 
 
 @dataclass(frozen=True)
+class PhaseInput:
+    """Everything the external phase needs, materialized before it runs."""
+
+    units_by_need: dict[str, tuple[ProposalUnit, ...]]
+    retry_candidates: dict[str, list[dict[str, object]]]
+    unit_texts: dict[str, str]
+
+
+@dataclass(frozen=True)
 class ProposalPhaseStats:
     units: int
     jev_calls: int
@@ -52,6 +64,7 @@ class ProposalPhaseOutcome:
     proposed_needs: frozenset[str] = frozenset()
     truncation_reasons: dict[str, frozenset[str]] = field(default_factory=dict)
     unprocessed: dict[str, list[dict[str, object]]] = field(default_factory=dict)
+    unresolved: dict[str, list[dict[str, object]]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -60,19 +73,21 @@ class _NeedScan:
     jev_calls: int
     reasons: frozenset[str]
     unprocessed: list[dict[str, object]]
+    unresolved: list[dict[str, object]]
 
 
 async def _verify_span(
     jev: object,
     *,
-    unit: ProposalUnit,
+    unit_id: str,
+    unit_text: str,
     need_type: str,
     span: str,
 ) -> SpanVerdict:
     question = verification_question(need_type, span)
     started = time.perf_counter()
     result = await jev.ask(
-        state={"text": unit.text},
+        state={"text": unit_text},
         questions=question["question"],
         model=settings.research_jev_model or settings.jev_model,
         timeout_seconds=settings.jev_timeout_seconds,
@@ -84,16 +99,16 @@ async def _verify_span(
     if choice not in JEV_CHOICES:
         raise GlinerStepError(
             f"Jev returned an invalid choice {raw_choice!r} for span {span!r} "
-            f"in unit {unit.unit_id!r}"
+            f"in unit {unit_id!r}"
         )
     return SpanVerdict(
         span=span,
         need_type=need_type,
         prompt_version=str(question["prompt_version"]),
         choice=choice,
-        unit_id=unit.unit_id,
-        unit_text=unit.text,
-        role=operational_role(span, unit.text),
+        unit_id=unit_id,
+        unit_text=unit_text,
+        role=operational_role(span, unit_text),
         role_locked=True,
     )
 
@@ -121,26 +136,68 @@ def _truncation_reason(
     return ""
 
 
-async def _proposals_for_need(need: object, units: tuple[ProposalUnit, ...]) -> dict:
-    proposed = await propose_spans(units, _labels_for(need))
-    return {entry.unit_id: entry for entry in proposed}
+async def _retry_candidates(
+    jev: object,
+    need: object,
+    candidates: list[dict[str, object]],
+    unit_texts: dict[str, str],
+) -> tuple[list[SpanVerdict], list[dict[str, object]], set[str], int]:
+    """Verify candidates an earlier truncation left unprocessed."""
+    verdicts: list[SpanVerdict] = []
+    unresolved: list[dict[str, object]] = []
+    reasons: set[str] = set()
+    calls = 0
+    per_need_budget = settings.gliner_span_proposer.max_jev_calls_per_need
+    step_budget = settings.gliner_span_proposer.max_jev_calls_per_step
+    for candidate in candidates:
+        unit_id = str(candidate.get("unit_id") or "")
+        span = str(candidate.get("span") or "")
+        label = str(candidate.get("label") or "")
+        need_type = LABEL_TO_TYPE.get(label)
+        if need_type is None or unit_id not in unit_texts or not span:
+            # An unverifiable leftover keeps the need incomplete (fail-safe).
+            unresolved.append(dict(candidate))
+            continue
+        if calls >= per_need_budget or calls >= step_budget:
+            reason = (
+                PER_NEED_JEV_BUDGET if calls >= per_need_budget else STEP_JEV_BUDGET
+            )
+            reasons.add(reason)
+            unresolved.append(dict(candidate))
+            continue
+        verdicts.append(
+            await _verify_span(
+                jev,
+                unit_id=unit_id,
+                unit_text=unit_texts[unit_id],
+                need_type=need_type,
+                span=span,
+            )
+        )
+        calls += 1
+    return verdicts, unresolved, reasons, calls
 
 
 async def _scan_need(
     jev: object,
     need: object,
-    units: tuple[ProposalUnit, ...],
     *,
-    step_calls: int,
+    phase: PhaseInput,
 ) -> _NeedScan:
-    """Scan one need: per-unit span cap, typed truncation, Jev verification."""
-    by_unit = await _proposals_for_need(need, units)
-    verdicts: list[SpanVerdict] = []
-    reasons: set[str] = set()
+    """Scan one need: retried candidates, then this batch's units."""
+    units = phase.units_by_need[need.id]
+    by_unit = {
+        entry.unit_id: entry
+        for entry in await propose_spans(units, _labels_for(need))
+    }
+    retry_verdicts, unresolved, reasons, need_calls = await _retry_candidates(
+        jev, need, phase.retry_candidates.get(need.id, []), phase.unit_texts
+    )
+    verdicts: list[SpanVerdict] = list(retry_verdicts)
+    seen = {(verdict.unit_id, canon(verdict.span)) for verdict in retry_verdicts}
     unprocessed: list[dict[str, object]] = []
     per_need_budget = settings.gliner_span_proposer.max_jev_calls_per_need
     step_budget = settings.gliner_span_proposer.max_jev_calls_per_step
-    need_calls = 0
     for unit in units:
         entry = by_unit.get(unit.unit_id)
         if entry is None or not entry.proposals:
@@ -152,10 +209,12 @@ async def _scan_need(
             need_type = LABEL_TO_TYPE.get(proposal.label)
             if need_type is None:
                 continue
+            if (unit.unit_id, canon(proposal.span)) in seen:
+                continue
             reason = _truncation_reason(
                 unit_considered=unit_considered,
                 need_calls=need_calls,
-                step_calls=step_calls + need_calls,
+                step_calls=need_calls,
                 per_need_budget=per_need_budget,
                 step_budget=step_budget,
             )
@@ -170,9 +229,14 @@ async def _scan_need(
                 )
                 continue
             unit_considered += 1
+            seen.add((unit.unit_id, canon(proposal.span)))
             verdicts.append(
                 await _verify_span(
-                    jev, unit=unit, need_type=need_type, span=proposal.span
+                    jev,
+                    unit_id=unit.unit_id,
+                    unit_text=unit.text,
+                    need_type=need_type,
+                    span=proposal.span,
                 )
             )
             need_calls += 1
@@ -181,28 +245,29 @@ async def _scan_need(
         jev_calls=need_calls,
         reasons=frozenset(reasons),
         unprocessed=unprocessed,
+        unresolved=unresolved,
     )
 
 
 async def run_proposal_phase(
     jev: object,
     targets: list[object],
-    units_by_need: dict[str, tuple[ProposalUnit, ...]],
+    phase: PhaseInput,
 ) -> ProposalPhaseOutcome:
     """GLiNER2 + Jev for every targeted need. No database access here."""
     verdicts_by_need: dict[str, list[SpanVerdict]] = {}
     proposed_needs: set[str] = set()
     truncation_reasons: dict[str, frozenset[str]] = {}
     unprocessed: dict[str, list[dict[str, object]]] = {}
+    unresolved: dict[str, list[dict[str, object]]] = {}
     units_total = 0
     jev_total = 0
     step_budget = settings.gliner_span_proposer.max_jev_calls_per_step
     for need in targets:
         if jev_total >= step_budget:
             break
-        units = units_by_need[need.id]
-        units_total += len(units)
-        scan = await _scan_need(jev, need, units, step_calls=jev_total)
+        units_total += len(phase.units_by_need[need.id])
+        scan = await _scan_need(jev, need, phase=phase)
         proposed_needs.add(need.id)
         verdicts_by_need[need.id] = scan.verdicts
         jev_total += scan.jev_calls
@@ -210,6 +275,8 @@ async def run_proposal_phase(
             truncation_reasons[need.id] = scan.reasons
         if scan.unprocessed:
             unprocessed[need.id] = scan.unprocessed
+        if scan.unresolved:
+            unresolved[need.id] = scan.unresolved
     all_reasons = frozenset(
         reason for reasons in truncation_reasons.values() for reason in reasons
     )
@@ -223,4 +290,5 @@ async def run_proposal_phase(
         proposed_needs=frozenset(proposed_needs),
         truncation_reasons=truncation_reasons,
         unprocessed=unprocessed,
+        unresolved=unresolved,
     )
