@@ -1,0 +1,302 @@
+{
+  "facit": "crates/swe-gym/benchmarks/blindtest_facit_v2.json",
+  "facit_provenance": "See blindtest_facit_v2.json: provenance recorded there; contract text is redacted and represented by hashes.",
+  "chain": "E1-E3 frozen contract + arm D / span-date-v1",
+  "contract_module": "backend/app/services/research/gliner/contract.py",
+  "model": "jev-1.13.0",
+  "prompt_versions": {
+    "arm_d": "span-need-contrast-v1",
+    "date": "span-date-v1"
+  },
+  "unique_verified": 1,
+  "unique_total": 2,
+  "false_resolved_need_ids": [],
+  "ambiguous_need_ids": [
+    "v2-pm-03-n1",
+    "v2-sv-01-n1"
+  ],
+  "needs_total": 16,
+  "needs_solved_s2": 7,
+  "strategies": {
+    "baseline": {
+      "needs": 2
+    },
+    "s1": {
+      "needs": 7,
+      "gliner_runs": 16,
+      "jev_calls": 28
+    },
+    "s2": {
+      "needs": 7,
+      "gliner_runs": 13,
+      "jev_calls": 24
+    }
+  },
+  "per_question_type": {
+    "uppsägningsvillkor": {
+      "unique_total": 0,
+      "unique_survived": 0,
+      "needs": 1,
+      "solved": 0,
+      "false_resolved": 0,
+      "ambiguous": 0
+    },
+    "ansvarsbegränsning": {
+      "unique_total": 0,
+      "unique_survived": 0,
+      "needs": 1,
+      "solved": 0,
+      "false_resolved": 0,
+      "ambiguous": 0
+    },
+    "ersättning": {
+      "unique_total": 0,
+      "unique_survived": 0,
+      "needs": 3,
+      "solved": 2,
+      "false_resolved": 0,
+      "ambiguous": 1
+    },
+    "tidsfrister": {
+      "unique_total": 2,
+      "unique_survived": 1,
+      "needs": 5,
+      "solved": 3,
+      "false_resolved": 0,
+      "ambiguous": 0
+    },
+    "parter": {
+      "unique_total": 0,
+      "unique_survived": 0,
+      "needs": 4,
+      "solved": 0,
+      "false_resolved": 0,
+      "ambiguous": 1
+    },
+    "avtalstid": {
+      "unique_total": 0,
+      "unique_survived": 0,
+      "needs": 2,
+      "solved": 2,
+      "false_resolved": 0,
+      "ambiguous": 0
+    }
+  },
+  "per_case": [
+    {
+      "case_id": "v2-pm-01",
+      "need_id": "v2-pm-01-n1",
+      "question_type": "uppsägningsvillkor",
+      "need_type": "NOTICE_PERIOD",
+      "role": "NOTICE",
+      "state": "unsolved",
+      "baseline_state": "unsolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 1,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-pm-02",
+      "need_id": "v2-pm-02-n1",
+      "question_type": "ansvarsbegränsning",
+      "need_type": "LIABILITY_CAP",
+      "role": "LIABILITY",
+      "state": "unsolved",
+      "baseline_state": "unsolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 0,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-pm-03",
+      "need_id": "v2-pm-03-n1",
+      "question_type": "ersättning",
+      "need_type": "MONEY",
+      "role": "MONEY",
+      "state": "ambiguous",
+      "baseline_state": "resolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 2,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-pm-04",
+      "need_id": "v2-pm-04-n1",
+      "question_type": "tidsfrister",
+      "need_type": "PERIOD",
+      "role": "DEADLINE",
+      "state": "resolved",
+      "baseline_state": "resolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 1,
+      "n_extracted_same_type": 1
+    },
+    {
+      "case_id": "v2-pm-05",
+      "need_id": "v2-pm-05-n1",
+      "question_type": "tidsfrister",
+      "need_type": "PERIOD",
+      "role": "DEADLINE",
+      "state": "unsolved",
+      "baseline_state": "unsolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 1,
+      "n_extracted_same_type": 1
+    },
+    {
+      "case_id": "v2-pm-06",
+      "need_id": "v2-pm-06-n1",
+      "question_type": "tidsfrister",
+      "need_type": "PERIOD",
+      "role": "DEADLINE",
+      "state": "resolved",
+      "baseline_state": "resolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 1,
+      "n_extracted_same_type": 1
+    },
+    {
+      "case_id": "v2-pm-07",
+      "need_id": "v2-pm-07-n1",
+      "question_type": "parter",
+      "need_type": "PARTY",
+      "role": "PARTY",
+      "state": "unsolved",
+      "baseline_state": "unsolved",
+      "n_gold": 2,
+      "n_gliner_candidates": 1,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-sv-01",
+      "need_id": "v2-sv-01-n1",
+      "question_type": "parter",
+      "need_type": "PARTY",
+      "role": "PARTY",
+      "state": "ambiguous",
+      "baseline_state": "ambiguous",
+      "n_gold": 3,
+      "n_gliner_candidates": 0,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-sv-02",
+      "need_id": "v2-sv-02-n1",
+      "question_type": "avtalstid",
+      "need_type": "PERIOD",
+      "role": "DURATION",
+      "state": "resolved",
+      "baseline_state": "resolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 0,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-sv-03",
+      "need_id": "v2-sv-03-n1",
+      "question_type": "tidsfrister",
+      "need_type": "DATE",
+      "role": "",
+      "state": "unsolved",
+      "baseline_state": "unsolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 1,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-if-01",
+      "need_id": "v2-if-01-n1",
+      "question_type": "ersättning",
+      "need_type": "MONEY",
+      "role": "MONEY",
+      "state": "resolved",
+      "baseline_state": "resolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 0,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-if-02",
+      "need_id": "v2-if-02-n1",
+      "question_type": "ersättning",
+      "need_type": "MONEY",
+      "role": "MONEY",
+      "state": "resolved",
+      "baseline_state": "resolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 0,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-if-03",
+      "need_id": "v2-if-03-n1",
+      "question_type": "avtalstid",
+      "need_type": "PERIOD",
+      "role": "DURATION",
+      "state": "resolved",
+      "baseline_state": "resolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 2,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-if-04",
+      "need_id": "v2-if-04-n1",
+      "question_type": "tidsfrister",
+      "need_type": "DATE",
+      "role": "",
+      "state": "resolved",
+      "baseline_state": "resolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 1,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-if-05",
+      "need_id": "v2-if-05-n1",
+      "question_type": "parter",
+      "need_type": "PARTY",
+      "role": "PARTY",
+      "state": "unsolved",
+      "baseline_state": "unsolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 1,
+      "n_extracted_same_type": 0
+    },
+    {
+      "case_id": "v2-if-06",
+      "need_id": "v2-if-06-n1",
+      "question_type": "parter",
+      "need_type": "PARTY",
+      "role": "PARTY",
+      "state": "unsolved",
+      "baseline_state": "unsolved",
+      "n_gold": 1,
+      "n_gliner_candidates": 1,
+      "n_extracted_same_type": 0
+    }
+  ],
+  "jev_new_calls": 0,
+  "scope_note": "Answer-level contamination is not measured at clause level; D10 procedure follows after this run.",
+  "redaction_note": "Span texts and clause texts removed from the committed artifacts because the repository is public; per-case counts and states are preserved, and the full artifacts live outside the repository.",
+  "material": [
+    {
+      "document": "leverantorsvillkor",
+      "description": "Leverantörsvillkor för konsulttjänster (10 sidor)",
+      "extraction_chars": 35404,
+      "extraction_sha256": "13ca4808b50d115adcfc8d5c75e9d573cabb662d42ff868c618ad4b08a01d815"
+    },
+    {
+      "document": "servitutsavtal",
+      "description": "Servitutsavtal (6 sidor)",
+      "extraction_chars": 4010,
+      "extraction_sha256": "7b20efa09f449538c47c9c717ceb22cd3b68d0c1800823805d8f68943f2fdc04"
+    },
+    {
+      "document": "forsakringsvillkor",
+      "description": "Försäkringsspecifikation och villkor (11 sidor)",
+      "extraction_chars": 20042,
+      "extraction_sha256": "42adde684bf7224f98d20988ccb4e2e9a33a33110b0776cde4a18dd8ccef3bc7"
+    }
+  ]
+}

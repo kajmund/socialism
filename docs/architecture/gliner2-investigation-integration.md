@@ -21,6 +21,16 @@ oberoende test på osedda dokument verifierar den färdiga versionens
 generalisering. Detta **blockerar inte** en isolerad, avstängd integration men
 måste vara gjort innan någon bredare aktivering.
 
+**Uppdatering 2026-10-30 — blindtest v2 utfört:** den färdiga kedjan mättes på tre
+nya, osedda avtal (leverantörsvillkor, servitut, försäkringsspecifikation):
+baslinje 2/16 → frusen kombination 7/16, 0 falskt RESOLVED, 2 korrekt AMBIGUOUS,
+13 inferenser + 24 JEV-anrop för 5 extra lösta behov. Resultatet ger underlag för
+fortsatt integration som valbar, avstängd förmåga men **inte** för bredare
+aktivering: parter (0/4) och ansvarsbegränsning (0/1) är svaga, och två
+artefaktklasser (radbrytningar i spann, minimala klausuler) plus E3-rollklassning
+av ansvarstak behöver ett separat nästa experiment. Detaljer och frysta
+slutsatser: `docs/architecture/gliner2-generalization-protocol.md`.
+
 ## 2. Vad som integreras (den frusna kombinationen, oförändrad)
 
 - **GLiNER2** `fastino/gliner2.5-multi-v1`, threshold 0.3, CPU — som
