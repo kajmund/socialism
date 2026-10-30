@@ -712,3 +712,127 @@ async def test_finish_wave_runs_gliner_and_refreshes_assessment(db_factory, monk
         assert jev.calls == jev_calls
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_finish_wave_persists_a_deferred_need_checkpoint(
+    db_factory, monkeypatch
+):
+    """Through the production wave body: when the step budget runs out, the
+    deferred need gets a durable checkpoint naming the budget cause."""
+    import app.services.research.loop_control as loop_control
+    from app.services.research.loop_control import ResearchWaveConfig, finish_research_wave
+
+    engine, factory = db_factory
+    await _seed_research(
+        factory,
+        excerpt1="Betalning erläggs inom 30 dagar efter erhållen faktura.",
+    )
+    async with factory() as session:
+        stored = await add_evidence_items(
+            session,
+            evidence_set_id="es-1",
+            items=[
+                EvidenceItemSnapshot(
+                    research_need_id="n2",
+                    source_type="swedish_law",
+                    status="found",
+                    title="t2",
+                    excerpt="Leverans sker inom 60 dagar från order.",
+                    locator=None,
+                    source_id="s2",
+                    source_url=None,
+                    provider="test",
+                    score=None,
+                    provenance={},
+                    retrieved_at=datetime.now(timezone.utc),
+                )
+            ],
+        )
+        await session.commit()
+        n2_item_id = stored[0].id
+        await persist_runtime_needs(
+            session,
+            attempt_id="at-1",
+            needs=[
+                RuntimeResearchNeed(
+                    research_need_id="n2",
+                    question="Vilken leveranstid gäller?",
+                    why_needed="test",
+                    source_types=["swedish_law"],
+                    span_types=["PERIOD"],
+                    span_role="DEADLINE",
+                    origin="initial",
+                    wave_number=0,
+                )
+            ],
+        )
+        await session.commit()
+    need_first = make_need("n1", span_types=["PERIOD"], span_role="DEADLINE")
+    need_second = make_need("n2", span_types=["PERIOD"], span_role="DEADLINE")
+    plan = ResearchPlan(needs=[need_first, need_second])
+    jev = CountingJev("YES")
+
+    async def propose(units, labels):
+        return [
+            UnitProposals(
+                unit_id=unit.unit_id,
+                proposals=(
+                    SpanProposal(
+                        span="30 dagar" if "30 dagar" in unit.text else "60 dagar",
+                        label="Tidsperiod",
+                    ),
+                ),
+            )
+            for unit in units
+        ]
+
+    import app.services.research.gliner.proposal as proposal_mod
+
+    monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    monkeypatch.setattr(settings.gliner_span_proposer, "max_jev_calls_per_step", 1)
+    monkeypatch.setattr(service, "HttpJevSystemOne", lambda: jev)
+    monkeypatch.setattr(proposal_mod, "propose_spans", propose)
+
+    async def no_decision(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(loop_control, "_decide_research_wave", no_decision)
+
+    config = ResearchWaveConfig(
+        factory=factory,
+        attempt_id="at-1",
+        evidence_set_id="es-1",
+        context=ResearchContext(
+            scope=KnowledgeScope(customer_id=1), limit=10, attempt_id="at-1"
+        ),
+        router=None,
+        router_factory=None,
+        question_graph=SimpleNamespace(),
+        assessor=WaveAssessor(),
+        planner=SimpleNamespace(),
+        completeness_reviewer=SimpleNamespace(),
+        relevance_assessor=None,
+        provider_descriptors=(),
+        concurrency=1,
+        max_follow_up_waves=0,
+        max_needs=4,
+        max_completeness_passes=1,
+        need_normalizer=None,
+    )
+    try:
+        result = await finish_research_wave(config, snapshot_plan=plan, wave=0)
+        assert result is None
+        assert jev.calls == 1
+        items = await _gliner_items(factory)
+        deferred = [item for item in items if item.provenance.get("deferred")]
+        assert len(deferred) == 1
+        checkpoint = deferred[0]
+        assert checkpoint.research_need_id == "n2"
+        assert checkpoint.status == "not_found"
+        assert checkpoint.provenance["incomplete_reason"] == "deferred"
+        assert checkpoint.provenance["truncation_reasons"] == ["step_jev_budget"]
+        assert "steg-budgeten för JEV" in checkpoint.excerpt
+        assert n2_item_id
+    finally:
+        await engine.dispose()

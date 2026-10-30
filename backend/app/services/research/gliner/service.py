@@ -191,6 +191,7 @@ def _prior_unprocessed(need: object, items: list[object]) -> list[dict[str, obje
     longer outstanding, so a resolved retry never runs again.
     """
     resolved = _scanned_keys(items, need)
+    config = _config_fingerprint(_labels_for(need))
     seen: set[tuple[str, str, str]] = set()
     leftover: list[dict[str, object]] = []
     for item in items:
@@ -198,6 +199,10 @@ def _prior_unprocessed(need: object, items: list[object]) -> list[dict[str, obje
         if provenance.get("derivation") != DERIVATION:
             continue
         if item.research_need_id != need.id:
+            continue
+        # Candidates proposed under another model/threshold/labels must never
+        # be verified under the current configuration.
+        if provenance.get("proposal_config_fingerprint") != config:
             continue
         for candidate in provenance.get("unprocessed_candidates") or []:
             need_type = LABEL_TO_TYPE.get(str(candidate.get("label") or ""), "")

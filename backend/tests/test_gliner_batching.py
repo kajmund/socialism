@@ -642,3 +642,50 @@ async def test_step_checkpoint_is_reused_only_for_matching_config(db_factory):
     finally:
         monkeypatch.undo()
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_step_old_config_candidates_are_not_retried(db_factory):
+    """After a configuration change, an unfinished candidate from the old
+    model must not be JEV-verified into current-config evidence."""
+    engine, factory = db_factory
+    item_ids = await _seed_research(factory, excerpt1=BT17_CLAUSE)
+    need = make_need("n1", span_types=["PERIOD"], span_role="DURATION")
+    propose_with_both = fake_propose(
+        {item_ids[0]: [("6 månader", "Tidsperiod"), ("2 veckors", "Tidsperiod")]}
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(settings.gliner_span_proposer, "enabled", True)
+    monkeypatch.setattr(settings.gliner_span_proposer, "max_spans_per_unit", 1)
+    try:
+        jev = CountingJev("YES")
+        first = await run_step(
+            factory, need=need, jev=jev, propose=propose_with_both
+        )
+        assert first is not None
+        assert jev.calls == 1  # the second candidate was left unprocessed
+        assert first.report.truncation_reasons == ("span_cap",)
+
+        monkeypatch.setattr(settings.gliner_span_proposer, "threshold", 0.4)
+
+        class FailJev:
+            async def ask(self, **kwargs):
+                raise AssertionError(
+                    "an old-config candidate must not be Jev-verified"
+                )
+
+        async def no_proposals(units, labels):
+            return []
+
+        second = await run_step(
+            factory, need=need, jev=FailJev(), propose=no_proposals
+        )
+        items = await _gliner_items(factory)
+        assert all(item.status == "not_found" for item in items)
+        assert second is not None  # the new config scans again (empty result)
+        assert all(
+            not item.provenance.get("derived_claims") for item in items
+        )
+    finally:
+        monkeypatch.undo()
+        await engine.dispose()

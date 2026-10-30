@@ -65,6 +65,8 @@ class NeedPersistenceInput:
     fingerprint: str = ""
     config_fingerprint: str = ""
     processed_units: list[str] = field(default_factory=list)
+    #: True when the step budget ran out before this need was scanned at all.
+    deferred: bool = False
 
 
 def _scan_provenance(verdicts: list[SpanVerdict]) -> list[dict[str, object]]:
@@ -123,8 +125,15 @@ def _incomplete_excerpt(
     complete: bool,
     reasons: frozenset[str],
     unresolved: list[dict[str, object]],
+    *,
+    deferred: bool = False,
 ) -> str:
     """Name every reason the evidence is unusable — partial AND truncated."""
+    if deferred:
+        return (
+            "Ofullständig verifiering: steg-budgeten för JEV tog slut innan "
+            "behovet skannades."
+        )
     parts: list[str] = []
     if not complete:
         parts.append("ytterligare enheter återstår att skanna")
@@ -165,10 +174,15 @@ def _build_metadata(
         "need_role": getattr(data.need, "span_role", "") or "",
         "incomplete": incomplete,
         "incomplete_reason": (
-            "truncated"
-            if reasons or data.unresolved
-            else ("partial_batch" if not data.complete else "")
+            "deferred"
+            if data.deferred
+            else (
+                "truncated"
+                if reasons or data.unresolved
+                else ("partial_batch" if not data.complete else "")
+            )
         ),
+        "deferred": data.deferred,
         "truncation_reasons": reasons,
         "unprocessed_candidates": unprocessed,
         "verified_spans": [
@@ -198,12 +212,20 @@ async def _persist_need_item(
 
     lines, claims, provenance = build_item_lines(data.findings)
     reasons = sorted(data.truncation_reasons)
-    incomplete = (not data.complete) or bool(reasons) or bool(data.unresolved)
+    incomplete = (
+        (not data.complete)
+        or bool(reasons)
+        or bool(data.unresolved)
+        or data.deferred
+    )
     has_usable_content = (not incomplete) and bool(claims)
     if incomplete:
         lines = [
             _incomplete_excerpt(
-                data.complete, data.truncation_reasons, data.unresolved
+                data.complete,
+                data.truncation_reasons,
+                data.unresolved,
+                deferred=data.deferred,
             )
         ]
         claims, provenance = [], []
@@ -249,6 +271,28 @@ async def _persist_need_item(
         ],
     )
     return stored
+
+
+def _deferred_checkpoint_exists(
+    items: list[object],
+    need: object,
+    *,
+    config_fingerprint: str,
+    fingerprint: str,
+) -> bool:
+    """The same deferral for the same inputs is recorded only once."""
+    for item in items:
+        provenance = item.provenance or {}
+        if provenance.get("derivation") != DERIVATION:
+            continue
+        if item.research_need_id != need.id or not provenance.get("deferred"):
+            continue
+        if (
+            provenance.get("proposal_config_fingerprint") == config_fingerprint
+            and provenance.get("input_fingerprint") == fingerprint
+        ):
+            return True
+    return False
 
 
 def _prior_verdicts(
@@ -314,6 +358,32 @@ async def persist_findings_and_invalidate(
     async with config.factory() as write_session:
         items = await list_evidence_items(write_session, config.evidence_set_id)
         for need in targets:
+            if need.id in outcome.deferred_needs:
+                config_fingerprint = context.config_fingerprints.get(need.id, "")
+                fingerprint = context.fingerprints.get(need.id, "")
+                if _deferred_checkpoint_exists(
+                    items,
+                    need,
+                    config_fingerprint=config_fingerprint,
+                    fingerprint=fingerprint,
+                ):
+                    continue
+                stored = await _persist_need_item(
+                    write_session,
+                    data=NeedPersistenceInput(
+                        need=need,
+                        verdicts=[],
+                        findings=[],
+                        complete=False,
+                        truncation_reasons=frozenset({STEP_JEV_BUDGET}),
+                        fingerprint=fingerprint,
+                        config_fingerprint=config_fingerprint,
+                        deferred=True,
+                    ),
+                    evidence_set_id=config.evidence_set_id,
+                )
+                persisted.update(item.id for item in stored)
+                continue
             if need.id not in outcome.proposed_needs:
                 continue
             complete = context.complete_by_need.get(need.id, False)
