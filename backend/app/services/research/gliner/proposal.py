@@ -141,6 +141,8 @@ async def _retry_candidates(
     need: object,
     candidates: list[dict[str, object]],
     unit_texts: dict[str, str],
+    *,
+    step_calls: int,
 ) -> tuple[list[SpanVerdict], list[dict[str, object]], set[str], int]:
     """Verify candidates an earlier truncation left unprocessed."""
     verdicts: list[SpanVerdict] = []
@@ -158,9 +160,11 @@ async def _retry_candidates(
             # An unverifiable leftover keeps the need incomplete (fail-safe).
             unresolved.append(dict(candidate))
             continue
-        if calls >= per_need_budget or calls >= step_budget:
+        if calls >= per_need_budget or step_calls + calls >= step_budget:
             reason = (
-                PER_NEED_JEV_BUDGET if calls >= per_need_budget else STEP_JEV_BUDGET
+                PER_NEED_JEV_BUDGET
+                if calls >= per_need_budget
+                else STEP_JEV_BUDGET
             )
             reasons.add(reason)
             unresolved.append(dict(candidate))
@@ -183,6 +187,7 @@ async def _scan_need(
     need: object,
     *,
     phase: PhaseInput,
+    step_calls: int,
 ) -> _NeedScan:
     """Scan one need: retried candidates, then this batch's units."""
     units = phase.units_by_need[need.id]
@@ -191,10 +196,17 @@ async def _scan_need(
         for entry in await propose_spans(units, _labels_for(need))
     }
     retry_verdicts, unresolved, reasons, need_calls = await _retry_candidates(
-        jev, need, phase.retry_candidates.get(need.id, []), phase.unit_texts
+        jev,
+        need,
+        phase.retry_candidates.get(need.id, []),
+        phase.unit_texts,
+        step_calls=step_calls,
     )
     verdicts: list[SpanVerdict] = list(retry_verdicts)
-    seen = {(verdict.unit_id, canon(verdict.span)) for verdict in retry_verdicts}
+    seen = {
+        (verdict.unit_id, verdict.need_type, canon(verdict.span))
+        for verdict in retry_verdicts
+    }
     unprocessed: list[dict[str, object]] = []
     per_need_budget = settings.gliner_span_proposer.max_jev_calls_per_need
     step_budget = settings.gliner_span_proposer.max_jev_calls_per_step
@@ -209,12 +221,15 @@ async def _scan_need(
             need_type = LABEL_TO_TYPE.get(proposal.label)
             if need_type is None:
                 continue
-            if (unit.unit_id, canon(proposal.span)) in seen:
+            # A span proposed for several declared types is verified per type:
+            # the Jev question and the contract differ per need_type.
+            key = (unit.unit_id, need_type, canon(proposal.span))
+            if key in seen:
                 continue
             reason = _truncation_reason(
                 unit_considered=unit_considered,
                 need_calls=need_calls,
-                step_calls=need_calls,
+                step_calls=step_calls + need_calls,
                 per_need_budget=per_need_budget,
                 step_budget=step_budget,
             )
@@ -229,7 +244,7 @@ async def _scan_need(
                 )
                 continue
             unit_considered += 1
-            seen.add((unit.unit_id, canon(proposal.span)))
+            seen.add(key)
             verdicts.append(
                 await _verify_span(
                     jev,
@@ -267,7 +282,7 @@ async def run_proposal_phase(
         if jev_total >= step_budget:
             break
         units_total += len(phase.units_by_need[need.id])
-        scan = await _scan_need(jev, need, phase=phase)
+        scan = await _scan_need(jev, need, phase=phase, step_calls=jev_total)
         proposed_needs.add(need.id)
         verdicts_by_need[need.id] = scan.verdicts
         jev_total += scan.jev_calls

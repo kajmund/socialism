@@ -22,7 +22,9 @@ from app.config import settings
 from app.observability.research import record_gliner_inference
 from app.services.research.gliner.contract import (
     DERIVATION,
+    LABEL_TO_TYPE,
     NEED_LABELS,
+    canon,
 )
 from app.services.research.gliner.persistence import (
     PersistContext,
@@ -138,9 +140,34 @@ def _processed_unit_ids(need: object, items: list[object]) -> set[str]:
     return processed
 
 
+def _scanned_keys(items: list[object], need: object) -> set[tuple[str, str, str]]:
+    """Every (unit, need_type, span) that already received a verdict."""
+    keys: set[tuple[str, str, str]] = set()
+    for item in items:
+        provenance = item.provenance or {}
+        if provenance.get("derivation") != DERIVATION:
+            continue
+        if item.research_need_id != need.id:
+            continue
+        for entry in provenance.get("scanned_spans") or []:
+            keys.add(
+                (
+                    str(entry.get("unit_id") or ""),
+                    str(entry.get("need_type") or ""),
+                    canon(str(entry.get("span") or "")),
+                )
+            )
+    return keys
+
+
 def _prior_unprocessed(need: object, items: list[object]) -> list[dict[str, object]]:
-    """Candidates an earlier truncation left unprocessed, in scan order."""
-    seen: set[tuple[str, str]] = set()
+    """Candidates an earlier truncation left unprocessed and still unresolved.
+
+    A candidate that later received a verdict (for its own need_type) is no
+    longer outstanding, so a resolved retry never runs again.
+    """
+    resolved = _scanned_keys(items, need)
+    seen: set[tuple[str, str, str]] = set()
     leftover: list[dict[str, object]] = []
     for item in items:
         provenance = item.provenance or {}
@@ -149,11 +176,13 @@ def _prior_unprocessed(need: object, items: list[object]) -> list[dict[str, obje
         if item.research_need_id != need.id:
             continue
         for candidate in provenance.get("unprocessed_candidates") or []:
+            need_type = LABEL_TO_TYPE.get(str(candidate.get("label") or ""), "")
             key = (
                 str(candidate.get("unit_id") or ""),
-                str(candidate.get("span") or "").lower(),
+                need_type,
+                canon(str(candidate.get("span") or "")),
             )
-            if key in seen:
+            if key in resolved or key in seen:
                 continue
             seen.add(key)
             leftover.append(dict(candidate))
