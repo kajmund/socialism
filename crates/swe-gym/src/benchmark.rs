@@ -14,11 +14,11 @@ use swe_native::{
 };
 
 use crate::driver::{build_chain_document_for, build_chunk_input_with_texts, CallRecord};
-use swe_budget::{Amount, Ledger, LedgerError};
 use crate::provider::ResearchProvider;
 use crate::strategy::{
     BranchPlan, Continuation, Observations, Question, ScanDecision, ScanState, Strategy, Tariffs,
 };
+use swe_budget::{Amount, Ledger, LedgerError};
 
 pub const RUN_ID: &str = "bench";
 

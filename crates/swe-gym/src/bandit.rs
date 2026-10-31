@@ -8,11 +8,11 @@
 use std::collections::HashMap;
 
 use crate::benchmark::{run_arm, ArmReport};
-use swe_budget::Amount;
 use crate::strategy::{
     rank_unresolved_by_score, BranchPlan, Continuation, Observations, ProviderKind, Question,
     QuestionView, ScanDecision, ScanState, Strategy, Tariffs,
 };
+use swe_budget::Amount;
 
 /// Context dimension: bias, gap, top1..top3 scores, affordable deep calls.
 pub const DIM: usize = 6;

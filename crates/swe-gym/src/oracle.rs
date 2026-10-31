@@ -12,8 +12,8 @@
 //! results.
 
 use crate::env::{gain_tiers, terminal_reward, EnvConfig, STRATEGY_COUNT};
-use swe_budget::Amount;
 use std::collections::HashMap;
+use swe_budget::Amount;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct State {

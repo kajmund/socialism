@@ -27,9 +27,9 @@ use crate::env::{
     budget_bracket, Action, Observation, Status, StepInfo, INVEST_AMOUNTS_MILLI, MIN_INVEST_MILLI,
     STRATEGY_COUNT, TIER_MAX,
 };
-use swe_budget::{Amount, Ledger};
 use crate::provider::{ReplayProvider, ResearchProvider};
 use crate::train::EpisodeReport;
+use swe_budget::{Amount, Ledger};
 
 /// Retrieval lookup tariff: 0.05 coin per surfaced chunk (the SSR-anchor
 /// / embedding-side cost; the index itself is already amortized).
