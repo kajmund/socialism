@@ -296,6 +296,56 @@ Flaken ligger alltså i testet, inte i B1, och den enda ändringen jag gjorde i
 filen är importvägen för `WorkflowHostContext`. Den bör åtgärdas separat (göra
 testet deterministiskt) och **inte** blandas in i B1.
 
+## 7.4 Oberoende kodgranskning av B1 — fynd och rättelser
+
+Projektägarens arkitekturgodkännande ersätter inte kodgranskningen. En oberoende
+granskning av `2053ea2c..ddbbe5c3` gav **changes required**. Det mest allvarliga
+fyndet var mitt eget fel: jag verifierade aldrig den **fulla** sviten.
+
+| Allvarlighet | Fynd | Rättelse |
+| --- | --- | --- |
+| **Blockerande** | `app/swe/features.py` togs bort men två `scripts/`-filer importerade den. `tests/test_benchmark_research_swe_v2.py` importerar v2-skriptet → **pytest kunde inte ens samla in** under det filter `CI`-checken använder. Granskaren bevisade att det var en B1-regression (14 passed på basen). | Två importrader → `app.services.swe_host`. Verifierat: 14 passed, och `--collect-only` med CI-filtret ger 0 fel. |
+| **Hög** | Import-gaten hade en tyst full bypass: `from app import services` laddade hela appen men matchade inte regexet. Detsamma gällde `importlib`/`__import__`/`exec`/`eval`. | Gaten parsar nu med `ast` (`Import`/`ImportFrom` inkl. `from app import X`), flaggar dynamiska importer och skannar subpaket (`rglob`). Bevisat: vardera kringgåendet får gaten att faila. |
+| **Medel** | Ett test kunde aldrig faila: `assert hasattr(...) or forbidden == "FEATURE_IDS"`. Det dolde att `FEATURE_IDS` inte exporterades från `app.services.swe_host`. | `FEATURE_IDS` exporteras nu; escape-hatchen borttagen; två parametriserade tester (host äger namnet / motorn definierar det inte). |
+| **Låg** | Planen föreskrev en injicerbar `Renderer` som inte implementerades. | Avsiktligt utelämnad: ingen förhandsskapad abstraktion. `10` §2 är rättad så att planen matchar koden. |
+| **Låg** | Kvarvarande gamla sökvägar i `docs/specs/swe-overgraph.md`, `swe-provider.md`, `swe-runtime.md`. | Rättade. |
+
+Granskaren verifierade också positivt (mutationstestade) det som höll: noll
+domänimporter, fail-closed vid kompilering **och** exekvering (borttagen grind →
+exakt de tester som skulle fånga det failar), att happy-path-testet faktiskt
+renderar en prompt (`{'prompt': 'decide', 'prompt_key': 'research.assessment.user'}`
+innan `completed`), att filflyttarna är identiska (`git mv`, ingen kopia) och att
+`swe_bridge.py`-diffen är en enda kommentarsrad.
+
+### Verifiering efter rättelserna
+
+```console
+$ .venv/bin/python -m pytest -m "not smoke and not research_reuse and not swe_runtime" --collect-only -q
+4017/4331 tests collected (314 deselected)          # 0 insamlingsfel
+$ .venv/bin/python -m pytest -m "not smoke and not research_reuse and not swe_runtime" -q
+3981 passed, 36 skipped, 314 deselected in 1045.82s (0:17:25)
+$ .venv/bin/python -m ruff check app tests
+All checks passed!
+$ .venv/bin/python scripts/check_maintainability.py
+Maintainability check passed (1405 modules, 52 baselined)
+$ .venv/bin/python -m pytest tests/test_benchmark_research_swe_v2.py -q
+14 passed
+$ .venv/bin/python -m pytest tests/test_swe_*.py tests/test_swe_host_context.py \
+    tests/test_swe_import_boundary.py tests/test_research_swe \
+    tests/test_sufficiency_experiment_reuse.py tests/test_benchmark_research_swe_v2.py \
+    tests/test_check_maintainability.py -q
+168 passed
+```
+
+`runtime.py` gick över 500-radersgränsen när allowlisten lades till.
+`WorkflowResources` flyttades därför till `run_store.py`, där
+durable-run-kontraktet och de injicerade resurserna hör ihop; `runtime.py` är
+493 rader och maintainability-checken är grön.
+
+**Lärdom som gäller resten av B1–B3:** varje PR ska verifieras med den exakta
+kommando-rad CI använder (inklusive `--collect-only`), inte bara de riktade
+sviterna. En borttagen modul bryter collection globalt, vilket ruff inte fångar.
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console
