@@ -10,11 +10,9 @@ import pytest
 
 pytest.importorskip("swe_native")
 
-from app.config import settings
-from app.jev.system import JevClientError, JevSystemOneResult, JevUsage
+from app.jev.system import JevSystemOneResult, JevUsage
 from app.services.overgraph.jev_cache import JevDecisionCache, decision_cache_key
 from app.swe.definition import CompiledDefinition, compile_definition
-from app.services.research.swe_providers import make_jev_provider
 from app.swe.runtime import WorkflowResources, run_workflow
 from app.swe.runtime_errors import SwePreflightError
 from tests.swe.runtime_helpers import swe_tasks
@@ -329,45 +327,3 @@ async def test_l2_cache_survives_a_new_instance(tmp_path: Any) -> None:
     assert hit is True
     assert answer["choice"] == "yes"
     assert second.l2_hits == 1
-
-
-async def test_jev_provider_maps_answers_to_a_choice(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(settings, "research_jev_enabled", True)
-    monkeypatch.setattr(settings, "typesafe_api_key", "test-typesafe-key")
-    client = _FakeJev(SUFFICIENT_ANSWERS)
-    provider = make_jev_provider(client=client)
-
-    result = await run_workflow(
-        _compile(),
-        {},
-        INPUT,
-        resources=_resources(provider),
-    )
-
-    assert result.status == "completed"
-    assert result.output["evaluate"]["choice"] == "sufficient"
-    assert result.output["evaluate"]["provider"] == "jev"
-    assert client.calls == 1
-
-
-async def test_jev_provider_rejects_out_of_contract_outcome(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(settings, "research_jev_enabled", True)
-    monkeypatch.setattr(settings, "typesafe_api_key", "test-typesafe-key")
-    client = _FakeJev(SUFFICIENT_ANSWERS)
-    provider = make_jev_provider(client=client)
-
-    with pytest.raises(JevClientError, match="not a declared choice"):
-        await provider(
-            {
-                "provider": "jev",
-                "prompt_key": PROMPT_KEY,
-                "prompt": "rendered",
-                "input": {},
-                "choices": ("yes", "no"),
-                "cache_policy": "off",
-            }
-        )

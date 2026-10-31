@@ -346,6 +346,47 @@ durable-run-kontraktet och de injicerade resurserna hör ihop; `runtime.py` är
 kommando-rad CI använder (inklusive `--collect-only`), inte bara de riktade
 sviterna. En borttagen modul bryter collection globalt, vilket ruff inte fångar.
 
+## 7.5 Beslut: `make_jev_provider` borttagen (2026-10-31)
+
+Projektägarens princip: en funktion utan produktionsanropare ska inte leva kvar
+som generellt gränssnitt "för att den kan bli användbar". Därför undersöktes om
+`make_jev_provider` var en faktisk integration eller en övergiven
+implementation.
+
+**Undersökningen:**
+
+| Fråga | Svar | Bevis |
+| --- | --- | --- |
+| Har den produktionsanropare? | **Nej** | `grep -rn make_jev_provider app/` → endast definitionen |
+| Vem anropar den? | Endast `tests/test_swe_provider.py` | två tester |
+| Hur fattar production-Research sina JEV-beslut då? | Via `fast_controller._decision_from_result` → `classify_research_decision` | `app/services/research/fast_controller.py:255-290` |
+| Är det samma frågor/trösklar? | Ja, samma NOUL-frågor och `research_jev_*`-trösklar — men kopplade direkt till det kompakta research-tillståndet, inte till en SWE-provider-nod | `fast_controller.py:263-290` |
+| Finns planerad användning? | **Nej** — `docs/specs/swe-provider.md` beskrev den som en framtida adapter, inte som en använd väg | inventering `02` E10 |
+
+**Beslut:** `app/services/research/swe_providers.py` och dess två tester togs
+bort. Provider-**kontraktet** (nodformat, `WorkflowResources.providers`,
+validering av `choice`, ingen fallback) är oförändrat och fortsatt publik; det
+testas fortfarande av de generiska provider-testerna. Att lägga till en
+JEV-decision-provider igen är ett Host-ansvar i `app/services/research/`, inte i
+motorn.
+
+Rättade dokument: `docs/specs/swe-provider.md` (avsnittet "Jev provider" ersatt
+med en beslutsnot), `docs/specs/swe-overgraph.md`, `docs/specs/swe-runtime.md`.
+
+Verifiering efter borttagningen:
+
+```console
+$ .venv/bin/python -m ruff check app tests
+All checks passed!
+$ .venv/bin/python -m pytest tests/test_swe_provider.py -q
+11 passed            # de generiska provider-/cache-testerna kvar
+$ grep -rn "make_jev_provider\|swe_providers" app/ tests/ scripts/
+                     # inga träffar
+```
+
+Detta räknas inte som en "ny förmåga" under separationen — det är borttagning av
+död kod enligt `AGENTS.md` ("No backwards-compat shims", "remove legacy paths").
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console
