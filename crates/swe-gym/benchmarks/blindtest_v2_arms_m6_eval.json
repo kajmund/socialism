@@ -1,0 +1,1398 @@
+{
+  "version": 1,
+  "name": "blindtest-v2-arms-m6",
+  "redacted": true,
+  "redaction_note": "M6 selective verification recovery on the frozen v2 material. No contract text: case ids, types, counts, states, hashes and decisions only.",
+  "design": {
+    "arms": {
+      "m0": "frozen reference",
+      "m6": "selective recovery only",
+      "m12+m3+m4+m5": "accumulated M1-M5, no recovery",
+      "m12+m3+m4+m5+m6": "accumulated + selective recovery"
+    },
+    "trigger": [
+      "span is a GLiNER2 candidate (proposal, never gold)",
+      "deterministic detector recognises a value of the need's type",
+      "operational role matches the need role (or is undeterminable)",
+      "first Jev assessment was NO"
+    ],
+    "guards": {
+      "no_blind_review": "a NO alone never triggers a new call",
+      "single_supplementary": "exactly one supplementary assessment per triggered NO",
+      "no_auto_resolved": "the recovered answer enters the ordinary contract (type/role/cardinality/evidence)"
+    },
+    "recovery_prompt_version": "span-need-recovery-v1",
+    "fixture_identity": "case + span digest + context digest",
+    "control_group": "candidate NOs that fail the trigger are never re-reviewed; re-reviewed correct NOs are counted and must stay NO",
+    "m5_untouched": "the M5 cardinality policy is reused, not modified"
+  },
+  "metrics": {
+    "m0": {
+      "needs_total": 16,
+      "needs_solved": 7,
+      "needs_partial": 0,
+      "false_resolved_need_ids": [],
+      "contaminated_need_ids": []
+    },
+    "m6": {
+      "needs_total": 16,
+      "needs_solved": 9,
+      "needs_partial": 0,
+      "false_resolved_need_ids": [],
+      "contaminated_need_ids": []
+    },
+    "m12+m3+m4+m5": {
+      "needs_total": 16,
+      "needs_solved": 14,
+      "needs_partial": 1,
+      "false_resolved_need_ids": [],
+      "contaminated_need_ids": []
+    },
+    "m12+m3+m4+m5+m6": {
+      "needs_total": 16,
+      "needs_solved": 15,
+      "needs_partial": 1,
+      "false_resolved_need_ids": [],
+      "contaminated_need_ids": []
+    }
+  },
+  "recovery": {
+    "m0": {
+      "candidate_nos": 0,
+      "triggers": 0,
+      "recovered": 0,
+      "retained": 0,
+      "guard_blocked": 0,
+      "supplementary_calls": 0
+    },
+    "m6": {
+      "candidate_nos": 7,
+      "triggers": 3,
+      "recovered": 2,
+      "retained": 1,
+      "guard_blocked": 4,
+      "supplementary_calls": 3
+    },
+    "m12+m3+m4+m5": {
+      "candidate_nos": 0,
+      "triggers": 0,
+      "recovered": 0,
+      "retained": 0,
+      "guard_blocked": 0,
+      "supplementary_calls": 0
+    },
+    "m12+m3+m4+m5+m6": {
+      "candidate_nos": 3,
+      "triggers": 1,
+      "recovered": 1,
+      "retained": 0,
+      "guard_blocked": 2,
+      "supplementary_calls": 1
+    }
+  },
+  "costs": {
+    "m0": {
+      "execution_jev_calls": 32,
+      "experiment_new_calls": 0,
+      "supplementary_calls": 0,
+      "gliner_inferences": 0
+    },
+    "m6": {
+      "execution_jev_calls": 35,
+      "experiment_new_calls": 3,
+      "supplementary_calls": 3,
+      "gliner_inferences": 0
+    },
+    "m12+m3+m4+m5": {
+      "execution_jev_calls": 26,
+      "experiment_new_calls": 0,
+      "supplementary_calls": 0,
+      "gliner_inferences": 0
+    },
+    "m12+m3+m4+m5+m6": {
+      "execution_jev_calls": 27,
+      "experiment_new_calls": 0,
+      "supplementary_calls": 1,
+      "gliner_inferences": 0
+    }
+  },
+  "per_case": [
+    {
+      "case_id": "v2-pm-01",
+      "need_type": "NOTICE_PERIOD",
+      "question_type": "uppsägningsvillkor",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "unsolved",
+        "m6": "unsolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": [
+        "m12+m3+m4+m5",
+        "m12+m3+m4+m5+m6"
+      ]
+    },
+    {
+      "case_id": "v2-pm-02",
+      "need_type": "LIABILITY_CAP",
+      "question_type": "ansvarsbegränsning",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "unsolved",
+        "m6": "unsolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": [
+        "m12+m3+m4+m5",
+        "m12+m3+m4+m5+m6"
+      ]
+    },
+    {
+      "case_id": "v2-pm-03",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "ambiguous",
+        "m6": "ambiguous",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": [
+        "m12+m3+m4+m5",
+        "m12+m3+m4+m5+m6"
+      ]
+    },
+    {
+      "case_id": "v2-pm-04",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "resolved",
+        "m6": "resolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-pm-05",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "unsolved",
+        "m6": "resolved",
+        "m12+m3+m4+m5": "unsolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": [
+        "m6",
+        "m12+m3+m4+m5+m6"
+      ]
+    },
+    {
+      "case_id": "v2-pm-06",
+      "need_type": "PERIOD",
+      "question_type": "tidsfrister",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "resolved",
+        "m6": "resolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-pm-07",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "cardinality": "MULTIPLE",
+      "states": {
+        "m0": "unsolved",
+        "m6": "unsolved",
+        "m12+m3+m4+m5": "partial",
+        "m12+m3+m4+m5+m6": "partial"
+      },
+      "changed_by": [
+        "m12+m3+m4+m5",
+        "m12+m3+m4+m5+m6"
+      ],
+      "m12+m3+m4+m5_found_expected": 1,
+      "m12+m3+m4+m5_missing": 1,
+      "m12+m3+m4+m5_extras": 0,
+      "m12+m3+m4+m5+m6_found_expected": 1,
+      "m12+m3+m4+m5+m6_missing": 1,
+      "m12+m3+m4+m5+m6_extras": 0
+    },
+    {
+      "case_id": "v2-sv-01",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "cardinality": "MULTIPLE",
+      "states": {
+        "m0": "ambiguous",
+        "m6": "ambiguous",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": [
+        "m12+m3+m4+m5",
+        "m12+m3+m4+m5+m6"
+      ],
+      "m12+m3+m4+m5_found_expected": 3,
+      "m12+m3+m4+m5_missing": 0,
+      "m12+m3+m4+m5_extras": 0,
+      "m12+m3+m4+m5+m6_found_expected": 3,
+      "m12+m3+m4+m5+m6_missing": 0,
+      "m12+m3+m4+m5+m6_extras": 0
+    },
+    {
+      "case_id": "v2-sv-02",
+      "need_type": "PERIOD",
+      "question_type": "avtalstid",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "resolved",
+        "m6": "resolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-sv-03",
+      "need_type": "DATE",
+      "question_type": "tidsfrister",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "unsolved",
+        "m6": "resolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": [
+        "m6",
+        "m12+m3+m4+m5",
+        "m12+m3+m4+m5+m6"
+      ]
+    },
+    {
+      "case_id": "v2-if-01",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "resolved",
+        "m6": "resolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-02",
+      "need_type": "MONEY",
+      "question_type": "ersättning",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "resolved",
+        "m6": "resolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-03",
+      "need_type": "PERIOD",
+      "question_type": "avtalstid",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "resolved",
+        "m6": "resolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-04",
+      "need_type": "DATE",
+      "question_type": "tidsfrister",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "resolved",
+        "m6": "resolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": []
+    },
+    {
+      "case_id": "v2-if-05",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "unsolved",
+        "m6": "unsolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": [
+        "m12+m3+m4+m5",
+        "m12+m3+m4+m5+m6"
+      ]
+    },
+    {
+      "case_id": "v2-if-06",
+      "need_type": "PARTY",
+      "question_type": "parter",
+      "cardinality": "SINGLE",
+      "states": {
+        "m0": "unsolved",
+        "m6": "unsolved",
+        "m12+m3+m4+m5": "resolved",
+        "m12+m3+m4+m5+m6": "resolved"
+      },
+      "changed_by": [
+        "m12+m3+m4+m5",
+        "m12+m3+m4+m5+m6"
+      ]
+    }
+  ],
+  "details": {
+    "m0": {
+      "v2-pm-01": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-pm-02": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "33b1b8a949de68d0788c7c7fc9002901cb7d1e9d06cbf42580aa3cf1822d685b"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-pm-03": {
+        "base_state": "ambiguous",
+        "approved_value_sha256": [
+          "04b23dfaad48555dd0aeb8d7057fa3af3626deaf9751cae6cadff521ee05b1ce",
+          "6afd0b3ec66f6816de76cb3a5c72129b631c0299d654163bdc66a99c0c771177",
+          "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        ],
+        "gold_value_sha256": [
+          "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "ambiguous"
+      },
+      "v2-pm-04": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "gold_value_sha256": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-05": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-pm-06": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "gold_value_sha256": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-07": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0"
+        ],
+        "gold_value_sha256": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0",
+          "c56bf52986c3fcf24f8084f0c5dca3c8f43a1ba5f5becba95872a422a9432b9e"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-sv-01": {
+        "base_state": "ambiguous",
+        "approved_value_sha256": [
+          "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5",
+          "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847",
+          "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836"
+        ],
+        "gold_value_sha256": [
+          "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5",
+          "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847",
+          "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "ambiguous"
+      },
+      "v2-sv-02": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "gold_value_sha256": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-sv-03": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-if-01": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "gold_value_sha256": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-02": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "gold_value_sha256": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-03": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "gold_value_sha256": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-04": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "gold_value_sha256": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-05": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "1b241265c89e411ec34997a20b18be3bce1dfdfcf42172c580faa77393070d54"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-if-06": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "397ca47d9719a45c7951cdb12ea7a0aca3bfab333f67ece0fbb310d7eeec45ec"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      }
+    },
+    "m6": {
+      "v2-pm-01": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-pm-02": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "33b1b8a949de68d0788c7c7fc9002901cb7d1e9d06cbf42580aa3cf1822d685b"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-pm-03": {
+        "base_state": "ambiguous",
+        "approved_value_sha256": [
+          "04b23dfaad48555dd0aeb8d7057fa3af3626deaf9751cae6cadff521ee05b1ce",
+          "6afd0b3ec66f6816de76cb3a5c72129b631c0299d654163bdc66a99c0c771177",
+          "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        ],
+        "gold_value_sha256": [
+          "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "ambiguous"
+      },
+      "v2-pm-04": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "gold_value_sha256": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-05": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab"
+        ],
+        "gold_value_sha256": [
+          "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab"
+        ],
+        "recovery_events": [
+          {
+            "span_sha256": "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab",
+            "detector": true,
+            "role_match": true,
+            "first_choice": "NO",
+            "supplementary_choice": "YES",
+            "recovered": true,
+            "recovered_value_in_gold": true
+          }
+        ],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-06": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "gold_value_sha256": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-07": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0"
+        ],
+        "gold_value_sha256": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0",
+          "c56bf52986c3fcf24f8084f0c5dca3c8f43a1ba5f5becba95872a422a9432b9e"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-sv-01": {
+        "base_state": "ambiguous",
+        "approved_value_sha256": [
+          "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5",
+          "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847",
+          "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836"
+        ],
+        "gold_value_sha256": [
+          "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5",
+          "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847",
+          "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "ambiguous"
+      },
+      "v2-sv-02": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "gold_value_sha256": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-sv-03": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95"
+        ],
+        "gold_value_sha256": [
+          "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95"
+        ],
+        "recovery_events": [
+          {
+            "span_sha256": "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95",
+            "detector": true,
+            "role_match": true,
+            "first_choice": "NO",
+            "supplementary_choice": "YES",
+            "recovered": true,
+            "recovered_value_in_gold": true
+          }
+        ],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-01": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "gold_value_sha256": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-02": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "gold_value_sha256": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-03": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "gold_value_sha256": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-04": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "gold_value_sha256": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-05": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "1b241265c89e411ec34997a20b18be3bce1dfdfcf42172c580faa77393070d54"
+        ],
+        "recovery_events": [],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-if-06": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "397ca47d9719a45c7951cdb12ea7a0aca3bfab333f67ece0fbb310d7eeec45ec"
+        ],
+        "recovery_events": [
+          {
+            "span_sha256": "c1db72d15cc92fa8cd1fd2c0eac6da1f086b1701368ff37789032c85de45986f",
+            "detector": true,
+            "role_match": true,
+            "first_choice": "NO",
+            "supplementary_choice": "NO",
+            "recovered": false,
+            "recovered_value_in_gold": false
+          }
+        ],
+        "m4_window": null,
+        "cardinality": null,
+        "state": "unsolved"
+      }
+    },
+    "m12+m3+m4+m5": {
+      "v2-pm-01": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede"
+        ],
+        "gold_value_sha256": [
+          "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-02": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "33b1b8a949de68d0788c7c7fc9002901cb7d1e9d06cbf42580aa3cf1822d685b"
+        ],
+        "gold_value_sha256": [
+          "33b1b8a949de68d0788c7c7fc9002901cb7d1e9d06cbf42580aa3cf1822d685b"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-03": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        ],
+        "gold_value_sha256": [
+          "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-04": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "gold_value_sha256": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-05": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [],
+        "gold_value_sha256": [
+          "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "unsolved"
+      },
+      "v2-pm-06": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "gold_value_sha256": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-07": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0"
+        ],
+        "gold_value_sha256": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0",
+          "c56bf52986c3fcf24f8084f0c5dca3c8f43a1ba5f5becba95872a422a9432b9e"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 230,
+          "clause_chars": 178,
+          "lines": 3,
+          "has_heading": true,
+          "context_sha256": "638ae57ece817dd819cbf919196eb7a8f7fc6df88fa748973ef71a17c929d123"
+        },
+        "cardinality": {
+          "cardinality": "MULTIPLE",
+          "expected": 2
+        },
+        "state": "partial"
+      },
+      "v2-sv-01": {
+        "base_state": "ambiguous",
+        "approved_value_sha256": [
+          "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5",
+          "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847",
+          "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836"
+        ],
+        "gold_value_sha256": [
+          "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5",
+          "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847",
+          "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 341,
+          "clause_chars": 333,
+          "lines": 1,
+          "has_heading": false,
+          "context_sha256": "f5567069b0d8990a41cab758d26486333c7eb1bad2b71b9c057853807c0c48bf"
+        },
+        "cardinality": {
+          "cardinality": "MULTIPLE",
+          "expected": 3
+        },
+        "state": "resolved"
+      },
+      "v2-sv-02": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "gold_value_sha256": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-sv-03": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b"
+        ],
+        "gold_value_sha256": [
+          "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-01": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "gold_value_sha256": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-02": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "gold_value_sha256": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-03": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "gold_value_sha256": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-04": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "gold_value_sha256": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-05": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "1b241265c89e411ec34997a20b18be3bce1dfdfcf42172c580faa77393070d54"
+        ],
+        "gold_value_sha256": [
+          "1b241265c89e411ec34997a20b18be3bce1dfdfcf42172c580faa77393070d54"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 98,
+          "clause_chars": 47,
+          "lines": 5,
+          "has_heading": true,
+          "context_sha256": "228839bcf598fcad0de07dacbab17e55f1059f8171eab19e7e9d5d36f31f281d"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-06": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "397ca47d9719a45c7951cdb12ea7a0aca3bfab333f67ece0fbb310d7eeec45ec"
+        ],
+        "gold_value_sha256": [
+          "397ca47d9719a45c7951cdb12ea7a0aca3bfab333f67ece0fbb310d7eeec45ec"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 381,
+          "clause_chars": 28,
+          "lines": 15,
+          "has_heading": true,
+          "context_sha256": "93657561d3af53e88ec50cb56b974479b879838bd39a9215faac7492804d7680"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      }
+    },
+    "m12+m3+m4+m5+m6": {
+      "v2-pm-01": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede"
+        ],
+        "gold_value_sha256": [
+          "4f24fd09cce4cad9f0764c44ed1abee5bed2536e254ca35ae715293c8e97bede"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-02": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "33b1b8a949de68d0788c7c7fc9002901cb7d1e9d06cbf42580aa3cf1822d685b"
+        ],
+        "gold_value_sha256": [
+          "33b1b8a949de68d0788c7c7fc9002901cb7d1e9d06cbf42580aa3cf1822d685b"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-03": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        ],
+        "gold_value_sha256": [
+          "b7dff049d446a72fa5360bb5f2c118a5ba42e36501af0165ae4065831d65ca66"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-04": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "gold_value_sha256": [
+          "8cf66297379318c75cee1aaae0c25b6e7edc713830d5a0305b89df04a7c85e63"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-05": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab"
+        ],
+        "gold_value_sha256": [
+          "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab"
+        ],
+        "recovery_events": [
+          {
+            "span_sha256": "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab",
+            "detector": true,
+            "role_match": true,
+            "first_choice": "NO",
+            "supplementary_choice": "YES",
+            "recovered": true,
+            "recovered_value_in_gold": true
+          }
+        ],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-06": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "gold_value_sha256": [
+          "c311d34de2a0671a91bec81145b11d1f88fef59957bb8b2d6fbc8d6baf47db6e"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-pm-07": {
+        "base_state": "unsolved",
+        "approved_value_sha256": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0"
+        ],
+        "gold_value_sha256": [
+          "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0",
+          "c56bf52986c3fcf24f8084f0c5dca3c8f43a1ba5f5becba95872a422a9432b9e"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 230,
+          "clause_chars": 178,
+          "lines": 3,
+          "has_heading": true,
+          "context_sha256": "638ae57ece817dd819cbf919196eb7a8f7fc6df88fa748973ef71a17c929d123"
+        },
+        "cardinality": {
+          "cardinality": "MULTIPLE",
+          "expected": 2
+        },
+        "state": "partial"
+      },
+      "v2-sv-01": {
+        "base_state": "ambiguous",
+        "approved_value_sha256": [
+          "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5",
+          "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847",
+          "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836"
+        ],
+        "gold_value_sha256": [
+          "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5",
+          "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847",
+          "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 341,
+          "clause_chars": 333,
+          "lines": 1,
+          "has_heading": false,
+          "context_sha256": "f5567069b0d8990a41cab758d26486333c7eb1bad2b71b9c057853807c0c48bf"
+        },
+        "cardinality": {
+          "cardinality": "MULTIPLE",
+          "expected": 3
+        },
+        "state": "resolved"
+      },
+      "v2-sv-02": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "gold_value_sha256": [
+          "680d4b064d31da6eea7ec247337a81b8b411ef487804888839f248955c8193e7"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-sv-03": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b"
+        ],
+        "gold_value_sha256": [
+          "f8d2f9086e45f1719566cb263735cf36f03b7cadf1f4046b16d2c1b589a4d72b"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-01": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "gold_value_sha256": [
+          "53f43a804c530887d520d5c7594b176262f4c4cda6085984efc7d76919e0c4c1"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-02": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "gold_value_sha256": [
+          "37b8a41fcb35d6799b201687be319aee25e01934e8d80048653ebb7399ae5edb"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-03": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "gold_value_sha256": [
+          "a91796c629eb1ef2ce139a8e700040dbb23f1465f41fc2afe1aaf5c1bfa2405e"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-04": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "gold_value_sha256": [
+          "630706fbc03e04e86c7e5e005600be779093701be7723e7f551f8af2b10298e6"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": false,
+          "reason": "non-party need keeps the clause"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-05": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "1b241265c89e411ec34997a20b18be3bce1dfdfcf42172c580faa77393070d54"
+        ],
+        "gold_value_sha256": [
+          "1b241265c89e411ec34997a20b18be3bce1dfdfcf42172c580faa77393070d54"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 98,
+          "clause_chars": 47,
+          "lines": 5,
+          "has_heading": true,
+          "context_sha256": "228839bcf598fcad0de07dacbab17e55f1059f8171eab19e7e9d5d36f31f281d"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      },
+      "v2-if-06": {
+        "base_state": "resolved",
+        "approved_value_sha256": [
+          "397ca47d9719a45c7951cdb12ea7a0aca3bfab333f67ece0fbb310d7eeec45ec"
+        ],
+        "gold_value_sha256": [
+          "397ca47d9719a45c7951cdb12ea7a0aca3bfab333f67ece0fbb310d7eeec45ec"
+        ],
+        "recovery_events": [],
+        "m4_window": {
+          "expanded": true,
+          "window_chars": 381,
+          "clause_chars": 28,
+          "lines": 15,
+          "has_heading": true,
+          "context_sha256": "93657561d3af53e88ec50cb56b974479b879838bd39a9215faac7492804d7680"
+        },
+        "cardinality": null,
+        "state": "resolved"
+      }
+    }
+  },
+  "d10_proxy": {
+    "note": "Clause-level proxy: a resolved need using an outside-expected value. True D10 runs on the new unseen set.",
+    "contaminated_answers": 0
+  },
+  "reservation": "The 16 cases developed M1-M6, so even a perfect score would not prove generalization. The next step is a new blind test with the whole chain, no adjustments. M6 stays separate from M5."
+}

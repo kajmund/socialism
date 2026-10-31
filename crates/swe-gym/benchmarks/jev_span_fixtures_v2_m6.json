@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "redacted": true,
+  "redaction_note": "M6 recovery answers keyed by the whole assessment task; no contract text.",
+  "entries": [
+    {
+      "key": "8ccdc62e908f8e45",
+      "case_id": "v2-if-06",
+      "span_canon_sha256": "c1db72d15cc92fa8cd1fd2c0eac6da1f086b1701368ff37789032c85de45986f",
+      "context_sha256": "0f5cbd2198638bd90af7c0bfd23c144b6f695cccbdc089d5e51a3333799530d0",
+      "prompt_version": "span-need-recovery-v1",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "f2417dac9ff17158",
+      "case_id": "v2-pm-05",
+      "span_canon_sha256": "855abdadc0902bd35d969dd6878332491881fc3d2e86dbe0f3e354b995f100ab",
+      "context_sha256": "15e277e0a9aef00749089b95f330466737b57a21008011afcf6457f2d716602c",
+      "prompt_version": "span-need-recovery-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "f764ed465fac3650",
+      "case_id": "v2-sv-03",
+      "span_canon_sha256": "222cbf40938cfed80893a0242a19894c5f7a8ea58f0adba74b175fa20f75ef95",
+      "context_sha256": "c8f36fb55715ee6fb05557b1b2f6ce2e131cb05d63d6a0dbf8c136d7cf7d82b5",
+      "prompt_version": "span-need-recovery-v1",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    }
+  ]
+}
