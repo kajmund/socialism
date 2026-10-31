@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "redacted": true,
+  "redaction_note": "M3/M4 fixture: answers identified by the whole assessment task (span digest + context digest + prompt version); no contract text.",
+  "entries": [
+    {
+      "key": "2d01473be111273f",
+      "case_id": "v2-sv-01",
+      "span_canon_sha256": "d5ba231c19a8a6e5d73dc5ba4455497c1e2e0d500e334e068518f2074a4ff836",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "f5567069b0d8990a41cab758d26486333c7eb1bad2b71b9c057853807c0c48bf",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "357e036924828436",
+      "case_id": "v2-if-06",
+      "span_canon_sha256": "c1db72d15cc92fa8cd1fd2c0eac6da1f086b1701368ff37789032c85de45986f",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "93657561d3af53e88ec50cb56b974479b879838bd39a9215faac7492804d7680",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "3f6767876cb15a29",
+      "case_id": "v2-if-05",
+      "span_canon_sha256": "c3f39f3f1cf3db4f77d39887230bb26f5eb9706b727e91a656d9a33b7779aece",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "228839bcf598fcad0de07dacbab17e55f1059f8171eab19e7e9d5d36f31f281d",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "4f5f2b5db3577aab",
+      "case_id": "v2-pm-07",
+      "span_canon_sha256": "26cc19db2162e5f4303464b3b142d38d05c828d080ef5814b10f3f4c1ded5970",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "638ae57ece817dd819cbf919196eb7a8f7fc6df88fa748973ef71a17c929d123",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    },
+    {
+      "key": "70ceb19bc8148486",
+      "case_id": "v2-if-05",
+      "span_canon_sha256": "1b241265c89e411ec34997a20b18be3bce1dfdfcf42172c580faa77393070d54",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "228839bcf598fcad0de07dacbab17e55f1059f8171eab19e7e9d5d36f31f281d",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "a64b2d623073a21e",
+      "case_id": "v2-pm-07",
+      "span_canon_sha256": "33a151ea011e8e9eaf448371aa5974bf15cc876b41d8be72e6193f4deb2bdcc0",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "638ae57ece817dd819cbf919196eb7a8f7fc6df88fa748973ef71a17c929d123",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "aeb33b8e1e4122d0",
+      "case_id": "v2-sv-01",
+      "span_canon_sha256": "2bf4a26fa9da48370fe4c6a6c1fc6d528b97810fdafd9e15a09f10ee09cd9ab5",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "f5567069b0d8990a41cab758d26486333c7eb1bad2b71b9c057853807c0c48bf",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "dc2e720f210c854b",
+      "case_id": "v2-if-06",
+      "span_canon_sha256": "397ca47d9719a45c7951cdb12ea7a0aca3bfab333f67ece0fbb310d7eeec45ec",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "93657561d3af53e88ec50cb56b974479b879838bd39a9215faac7492804d7680",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "e31595abbb8575df",
+      "case_id": "v2-sv-01",
+      "span_canon_sha256": "2da3a3667a8730a1289f69b429a8dc3548b1566afa534ae7c048686c48cb8847",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "f5567069b0d8990a41cab758d26486333c7eb1bad2b71b9c057853807c0c48bf",
+      "model": "jev-1.13.0",
+      "choice": "YES"
+    },
+    {
+      "key": "eb0db3b7affab16d",
+      "case_id": "v2-pm-07",
+      "span_canon_sha256": "c56bf52986c3fcf24f8084f0c5dca3c8f43a1ba5f5becba95872a422a9432b9e",
+      "prompt_version": "span-need-contrast-v1",
+      "context_sha256": "638ae57ece817dd819cbf919196eb7a8f7fc6df88fa748973ef71a17c929d123",
+      "model": "jev-1.13.0",
+      "choice": "NO"
+    }
+  ]
+}
