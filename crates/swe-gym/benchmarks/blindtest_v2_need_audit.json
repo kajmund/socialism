@@ -1,0 +1,372 @@
+{
+  "version": 1,
+  "name": "blindtest-v2-need-audit",
+  "redacted": true,
+  "redaction_note": "Audit of the unresolved blindtest v2 needs. The repository is public: no contract text, spans or identifying names are committed; only case ids, types, layer classifications and counts. Full material stays outside the repo.",
+  "method": "Each of the 9 unresolved needs was reconstructed from the frozen v2 facit, candidate lists and JEV answers, and each needed fact was checked against the extracted source document (despaced substring check). The first pipeline layer that lost the evidence is recorded, plus contributing layers. No model or prompt was changed: this is an audit of the frozen run.",
+  "pipeline_layers": [
+    "retrieval_context",
+    "candidate_generation",
+    "verification",
+    "contract_role",
+    "contract_aggregation",
+    "need_model",
+    "material_preprocessing"
+  ],
+  "material": [
+    {
+      "document": "leverantorsvillkor",
+      "description": "Leverantörsvillkor för konsulttjänster"
+    },
+    {
+      "document": "servitutsavtal",
+      "description": "Servitutsavtal"
+    },
+    {
+      "document": "forsakringsvillkor",
+      "description": "Försäkringsspecifikation och villkor"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "v2-pm-01",
+      "document": "leverantorsvillkor",
+      "question_type": "uppsägningsvillkor",
+      "need_type": "NOTICE_PERIOD",
+      "need_role": "NOTICE",
+      "gold_span_count": 1,
+      "status": "unsolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "candidate_generation",
+      "contributing_layers": [
+        "contract_role"
+      ],
+      "solvability": "solvable_after_tool_extension",
+      "resolution_path": "span-boundary merge + role-cue correction",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-pm-02",
+      "document": "leverantorsvillkor",
+      "question_type": "ansvarsbegränsning",
+      "need_type": "LIABILITY_CAP",
+      "need_role": "LIABILITY",
+      "gold_span_count": 1,
+      "status": "unsolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "contract_role",
+      "contributing_layers": [],
+      "solvability": "solvable_with_existing_tools",
+      "resolution_path": "role-cue correction",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-pm-03",
+      "document": "leverantorsvillkor",
+      "question_type": "ersättning",
+      "need_type": "MONEY",
+      "need_role": "MONEY",
+      "gold_span_count": 1,
+      "status": "ambiguous",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "candidate_generation",
+      "contributing_layers": [
+        "contract_aggregation"
+      ],
+      "solvability": "solvable_after_tool_extension",
+      "resolution_path": "partial-span merge before aggregation",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-pm-04",
+      "document": "leverantorsvillkor",
+      "question_type": "tidsfrister",
+      "need_type": "PERIOD",
+      "need_role": "DEADLINE",
+      "gold_span_count": 1,
+      "status": "resolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "",
+      "contributing_layers": [],
+      "solvability": "solved",
+      "resolution_path": "",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-pm-05",
+      "document": "leverantorsvillkor",
+      "question_type": "tidsfrister",
+      "need_type": "PERIOD",
+      "need_role": "DEADLINE",
+      "gold_span_count": 1,
+      "status": "unsolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "material_preprocessing",
+      "contributing_layers": [
+        "verification"
+      ],
+      "solvability": "solvable_with_existing_tools",
+      "resolution_path": "whitespace normalization of extracted spans",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-pm-06",
+      "document": "leverantorsvillkor",
+      "question_type": "tidsfrister",
+      "need_type": "PERIOD",
+      "need_role": "DEADLINE",
+      "gold_span_count": 1,
+      "status": "resolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "",
+      "contributing_layers": [],
+      "solvability": "solved",
+      "resolution_path": "",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-pm-07",
+      "document": "leverantorsvillkor",
+      "question_type": "parter",
+      "need_type": "PARTY",
+      "need_role": "PARTY",
+      "gold_span_count": 2,
+      "status": "unsolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "verification",
+      "contributing_layers": [
+        "need_model",
+        "candidate_generation"
+      ],
+      "solvability": "requires_new_capability",
+      "resolution_path": "multi-value need model + verification recovery",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-sv-01",
+      "document": "servitutsavtal",
+      "question_type": "parter",
+      "need_type": "PARTY",
+      "need_role": "PARTY",
+      "gold_span_count": 3,
+      "status": "ambiguous",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "need_model",
+      "contributing_layers": [],
+      "solvability": "requires_new_capability",
+      "resolution_path": "multi-value need model",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-sv-02",
+      "document": "servitutsavtal",
+      "question_type": "avtalstid",
+      "need_type": "PERIOD",
+      "need_role": "DURATION",
+      "gold_span_count": 1,
+      "status": "resolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "",
+      "contributing_layers": [],
+      "solvability": "solved",
+      "resolution_path": "",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-sv-03",
+      "document": "servitutsavtal",
+      "question_type": "tidsfrister",
+      "need_type": "DATE",
+      "need_role": "",
+      "gold_span_count": 1,
+      "status": "unsolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "material_preprocessing",
+      "contributing_layers": [
+        "verification"
+      ],
+      "solvability": "solvable_with_existing_tools",
+      "resolution_path": "whitespace normalization of extracted spans",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-if-01",
+      "document": "forsakringsvillkor",
+      "question_type": "ersättning",
+      "need_type": "MONEY",
+      "need_role": "MONEY",
+      "gold_span_count": 1,
+      "status": "resolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "",
+      "contributing_layers": [],
+      "solvability": "solved",
+      "resolution_path": "",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-if-02",
+      "document": "forsakringsvillkor",
+      "question_type": "ersättning",
+      "need_type": "MONEY",
+      "need_role": "MONEY",
+      "gold_span_count": 1,
+      "status": "resolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "",
+      "contributing_layers": [],
+      "solvability": "solved",
+      "resolution_path": "",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-if-03",
+      "document": "forsakringsvillkor",
+      "question_type": "avtalstid",
+      "need_type": "PERIOD",
+      "need_role": "DURATION",
+      "gold_span_count": 1,
+      "status": "resolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "",
+      "contributing_layers": [],
+      "solvability": "solved",
+      "resolution_path": "",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-if-04",
+      "document": "forsakringsvillkor",
+      "question_type": "tidsfrister",
+      "need_type": "DATE",
+      "need_role": "",
+      "gold_span_count": 1,
+      "status": "resolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "",
+      "contributing_layers": [],
+      "solvability": "solved",
+      "resolution_path": "",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-if-05",
+      "document": "forsakringsvillkor",
+      "question_type": "parter",
+      "need_type": "PARTY",
+      "need_role": "PARTY",
+      "gold_span_count": 1,
+      "status": "unsolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "retrieval_context",
+      "contributing_layers": [
+        "verification"
+      ],
+      "solvability": "solvable_with_existing_tools",
+      "resolution_path": "need-aware context window",
+      "correct_abstention": false
+    },
+    {
+      "case_id": "v2-if-06",
+      "document": "forsakringsvillkor",
+      "question_type": "parter",
+      "need_type": "PARTY",
+      "need_role": "PARTY",
+      "gold_span_count": 1,
+      "status": "unsolved",
+      "evidence_present_in_document": true,
+      "first_loss_layer": "retrieval_context",
+      "contributing_layers": [
+        "candidate_generation"
+      ],
+      "solvability": "solvable_with_existing_tools",
+      "resolution_path": "need-aware context window + span-boundary merge",
+      "correct_abstention": false
+    }
+  ],
+  "metrics": {
+    "needs_total": 16,
+    "needs_solved": 7,
+    "needs_unresolved": 9,
+    "evidence_present_in_document": 16,
+    "solvable_needs": 16,
+    "solved_of_solvable": "7/16",
+    "unsolvable_needs": 0,
+    "correct_abstentions": "0/0 (n/a — inget behov i v2 saknar källa)",
+    "first_loss_layer_counts": {
+      "candidate_generation": 2,
+      "contract_role": 1,
+      "material_preprocessing": 2,
+      "verification": 1,
+      "need_model": 1,
+      "retrieval_context": 2
+    },
+    "solvability_counts": {
+      "solvable_after_tool_extension": 2,
+      "solvable_with_existing_tools": 5,
+      "solved": 7,
+      "requires_new_capability": 2
+    }
+  },
+  "counterfactual_hypotheses": [
+    {
+      "intervention": "whitespace normalization of extracted spans",
+      "expected_additional_solved": 2,
+      "cases": [
+        "v2-pm-05",
+        "v2-sv-03"
+      ],
+      "confidence": "high"
+    },
+    {
+      "intervention": "span-boundary merge/dedupe before aggregation",
+      "expected_additional_solved": 1,
+      "cases": [
+        "v2-pm-03"
+      ],
+      "confidence": "high"
+    },
+    {
+      "intervention": "role-cue correction",
+      "expected_additional_solved": 1,
+      "cases": [
+        "v2-pm-02"
+      ],
+      "confidence": "medium"
+    },
+    {
+      "intervention": "need-aware context window",
+      "expected_additional_solved": 2,
+      "cases": [
+        "v2-if-05",
+        "v2-if-06"
+      ],
+      "confidence": "medium"
+    },
+    {
+      "intervention": "multi-value need model",
+      "expected_additional_solved": 1,
+      "cases": [
+        "v2-sv-01"
+      ],
+      "confidence": "high"
+    },
+    {
+      "intervention": "combined fixes",
+      "expected_additional_solved": 9,
+      "cases": [
+        "v2-pm-01",
+        "v2-pm-02",
+        "v2-pm-03",
+        "v2-pm-05",
+        "v2-pm-07",
+        "v2-sv-01",
+        "v2-sv-03",
+        "v2-if-05",
+        "v2-if-06"
+      ],
+      "confidence": "hypothesis — needs a separate ablation experiment"
+    }
+  ],
+  "scope_note": "Counterfactual hypotheses are estimates from the frozen trace, NOT measurements. Per the frozen protocol they must be tested as a new experiment version with its own artifacts; the blindtest v2 facit and results are not modified."
+}
