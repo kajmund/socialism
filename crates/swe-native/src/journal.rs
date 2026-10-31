@@ -708,12 +708,19 @@ mod tests {
     fn one_delivery_reserves_at_most_one_charge() {
         // A retry of the same logical delivery must not reserve a second cost.
         let mut journal = Journal::new();
-        journal.append(start("a1", Delivery::ExternalIdempotent)).unwrap();
-        journal.append(start("a2", Delivery::ExternalIdempotent)).unwrap();
+        journal
+            .append(start("a1", Delivery::ExternalIdempotent))
+            .unwrap();
+        journal
+            .append(start("a2", Delivery::ExternalIdempotent))
+            .unwrap();
         journal.append(reserve("c1", "a1", "key")).unwrap();
         let outcome = journal.append(reserve("c2", "a2", "key"));
         assert!(matches!(outcome, Err(JournalError::Conflict(_))));
-        assert!(outcome.unwrap_err().to_string().contains("already has a reservation"));
+        assert!(outcome
+            .unwrap_err()
+            .to_string()
+            .contains("already has a reservation"));
     }
 
     #[test]
@@ -730,7 +737,9 @@ mod tests {
     fn an_unknown_cost_cannot_be_released_without_evidence() {
         // Writing an unknown cost off as zero is exactly what must not happen.
         let mut journal = Journal::new();
-        journal.append(start("a1", Delivery::ExternalNonIdempotent)).unwrap();
+        journal
+            .append(start("a1", Delivery::ExternalNonIdempotent))
+            .unwrap();
         journal.append(reserve("c1", "a1", "key")).unwrap();
         journal
             .append(JournalEvent::ChargePendingReconciliation {
@@ -778,7 +787,10 @@ mod tests {
         let open = unresolved_charges(&journal);
         let ids: Vec<&str> = open.iter().map(|(id, _)| *id).collect();
         assert!(ids.contains(&"c2"), "a reconciling charge must be visible");
-        assert!(ids.contains(&"c3"), "an untouched reservation must be visible");
+        assert!(
+            ids.contains(&"c3"),
+            "an untouched reservation must be visible"
+        );
         assert!(!ids.contains(&"c1"), "a settled charge needs no attention");
     }
 
