@@ -71,7 +71,8 @@ cargo clippy --offline --all-targets -- -D warnings
 ```
 
 Everything is offline. The only dependencies are the path crates
-`../swe-native` and `../swe-budget`; `Cargo.lock` is committed.
+`../swe-native` and `../swe-budget`; `Cargo.lock` is committed. It does not
+depend on `swe-gym`.
 
 ## Walkthrough: the ten required demonstrations
 
@@ -86,7 +87,7 @@ Everything is offline. The only dependencies are the path crates
 | 7 | Abstain with `INSUFFICIENT_EVIDENCE` | The `missing_evidence` provider scenario loses `beta.req_c` (rejected) and makes `gamma.price` conflicting (ambiguous). Screening's gate fails, the workflow routes to an `end` node with status `incomplete`, and the terminal output is `status/conclusion = INSUFFICIENT_EVIDENCE` with an explicit reason. | `build_abstain_handler`, `abstain_screen`/`insufficient_end` nodes |
 | 8 | Actual Sweycoin consumption per action + total | Every handler and provider call is `reserve`d and `settled` in the reused ledger, then reported per action and summed. The binary asserts `sum(per action) == ledger.spent`. | `host::Session::dispatch`, `RunReport::action_totals` |
 | 9 | Pause/resume without recharging or re-executing | With a spend checkpoint, segment 1 pauses and returns a journal (definition SHA-256, document, input, completed invocation results, charges, ledger events). Resume replays completions into a fresh machine in effect order and rebuilds the ledger with `Ledger::replay`, then finishes with the remaining budget. Tests assert identical total spend, identical unique execution count, identical charges and an identical ledger event log compared to an uninterrupted run. | `host::run`/`resume`, `journal.rs` |
-| 10 | `NeedMore(NeedRef)` resolved and the operation re-run | Screening discovers that Alpha fails requirement C and that its static contract does not cover the documented exception. The operation returns the typed `OpOutcome::NeedMore(Vec<Need>)` (serialised to `status: "need_more"` with `alpha.c_exception`); the workflow resolves that need through the same map/provider path, merges the evidence and routes back to `screen_compliance`, which now completes. | `operations::screen_compliance` (`OpOutcome`), `extra_evidence`/`evidence` nodes |
+| 10 | `NeedMore(NeedRef)` resolved and the operation re-run | Screening discovers that Alpha fails requirement C and that its static contract does not cover the documented exception. The operation returns the engine's singular `OpOutcome::NeedMore(NeedRef)` (serialised to `status: "need_more"` with `alpha.c_exception`); the workflow resolves that need through the same map/provider path, merges the evidence and routes back to `screen_compliance`, which now completes. | `operations::screen_compliance` (`OpOutcome`), `extra_evidence`/`evidence` nodes |
 
 ## Expected output (excerpt)
 
@@ -210,7 +211,7 @@ walkthrough):
 
 ## Tests
 
-`cargo test --offline` runs twelve integration tests:
+`cargo test --offline` runs twenty-six integration tests:
 
 1. `conclusion_is_beta` — completed run, conclusion Beta, 950 SEK, 13 verified
    evidence entries with provenance.
