@@ -1,0 +1,424 @@
+{
+  "version": 3,
+  "name": "blindtest-v3-facit-redacted",
+  "redacted": true,
+  "provenance": "Independent facit by reading the public documents; no candidate/model output consulted. Frozen before the run. Repository stores hashes only; full facit lives outside the repo.",
+  "material": [
+    {
+      "document": "goteborg-samarbetsavtal",
+      "description": "Mall för samarbetsavtal (Göteborgs Stad, publik handling)",
+      "extraction_sha256": "176ca8a22bc5e5b550af4f49130fb79499bcb76fded05997051e7088c1900f5f",
+      "extraction_chars": 4875
+    },
+    {
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "description": "Anbudsförfrågan/avtalsvillkor — upphandling lieslåtter (Länsstyrelsen Gotland, publik handling)",
+      "extraction_sha256": "719cacfe9a87cb76b32735ad1fb663847073e5251a889036baf46a044459580f",
+      "extraction_chars": 31140
+    },
+    {
+      "document": "nacka-avtalad-tjanst",
+      "description": "Avtalsbilaga — avtalad tjänst bostad med särskild service (Nacka kommun, publik handling)",
+      "extraction_sha256": "af4a054c3272a57c36ba4bc4004a8ac59243fa49fc07ff3e4ced3c0a28c7cb14",
+      "extraction_chars": 57174
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "v3-gbg-01",
+      "document": "goteborg-samarbetsavtal",
+      "question_type": "parter",
+      "needs": [
+        {
+          "need_id": "v3-gbg-01-n1",
+          "type": "PARTY",
+          "role": "PARTY",
+          "cardinality": "MULTIPLE_UNKNOWN"
+        }
+      ],
+      "clause": {
+        "chars": 195,
+        "sha256": "cd316716d38ef49e13f9e69ebc1d2429fc27dd3ce3bb1a735adef6fb92d5bc02"
+      },
+      "gold": [
+        {
+          "span_id": "v3-gbg-01-s1",
+          "type": "PARTY",
+          "chars": 33,
+          "sha256": "cc44ae1db7ad5ac9687c03cd11164d03ff9c634991418692f29e4ac76a1fbe0e"
+        }
+      ],
+      "answer_facit": {
+        "answerable": false,
+        "expected_kind": "incomplete",
+        "expected_answer_chars": 111,
+        "expected_answer_sha256": "8d1bfd99dcc5b259dabb5376111e39b211ad66bdbfbb48c4c8bf4fac8171dc94"
+      }
+    },
+    {
+      "case_id": "v3-gbg-02",
+      "document": "goteborg-samarbetsavtal",
+      "question_type": "uppsägningsvillkor",
+      "needs": [
+        {
+          "need_id": "v3-gbg-02-n1",
+          "type": "TERMINATION_CONDITION",
+          "role": "",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 205,
+        "sha256": "1d45674e62c79f4913d64583685af96d59fcdf7bcf1ca3f725f293c18c7f1421"
+      },
+      "gold": [
+        {
+          "span_id": "v3-gbg-02-s1",
+          "type": "TERMINATION_CONDITION",
+          "chars": 23,
+          "sha256": "2fd8d4bb050f81c42e3347c3d32b23acc4c51adf89e4170440308c266c1099ab"
+        }
+      ],
+      "answer_facit": {
+        "answerable": true,
+        "expected_kind": "value",
+        "expected_answer_chars": 140,
+        "expected_answer_sha256": "f7ad95c3a53db65472ef3529d83c74f8319c708473c54f873b9e87251bf749d6"
+      }
+    },
+    {
+      "case_id": "v3-gbg-03",
+      "document": "goteborg-samarbetsavtal",
+      "question_type": "avtalstid",
+      "needs": [
+        {
+          "need_id": "v3-gbg-03-n1",
+          "type": "PERIOD",
+          "role": "DURATION",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 109,
+        "sha256": "572ff528c54109fb23ec42e83da6f45286711ce5ba62b2488d3628245a921819"
+      },
+      "gold": [],
+      "answer_facit": {
+        "answerable": false,
+        "expected_kind": "incomplete",
+        "expected_answer_chars": 95,
+        "expected_answer_sha256": "4972647c8224633017679b34714a1d850f1ba5a12e8d4bbf3e872400789dc53b"
+      }
+    },
+    {
+      "case_id": "v3-lst-01",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "question_type": "parter",
+      "needs": [
+        {
+          "need_id": "v3-lst-01-n1",
+          "type": "PARTY",
+          "role": "PARTY",
+          "cardinality": "MULTIPLE_UNKNOWN"
+        }
+      ],
+      "clause": {
+        "chars": 124,
+        "sha256": "d9ee9e539c978874ed8a9dadc7d1c9e8e9b5cd1e0ed50b927f144705cf2e1583"
+      },
+      "gold": [
+        {
+          "span_id": "v3-lst-01-s1",
+          "type": "PARTY",
+          "chars": 28,
+          "sha256": "e67eee28a0312d1fc9a17a1cde82b22e41c62389615b4b53c7cf911e8dab712e"
+        }
+      ],
+      "answer_facit": {
+        "answerable": false,
+        "expected_kind": "incomplete",
+        "expected_answer_chars": 114,
+        "expected_answer_sha256": "e865416f889aaf3d57ee3f74892c42959e3f2262806d03d440a7ce0984056c61"
+      }
+    },
+    {
+      "case_id": "v3-lst-02",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "question_type": "avtalstid",
+      "needs": [
+        {
+          "need_id": "v3-lst-02-n1",
+          "type": "PERIOD",
+          "role": "DURATION",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 161,
+        "sha256": "ce3ef01a312f6bde2f7b706c74078e2518b849deffe00829eff22d32672cc84b"
+      },
+      "gold": [
+        {
+          "span_id": "v3-lst-02-s1",
+          "type": "PERIOD",
+          "chars": 9,
+          "sha256": "d8ce4fa21722e73d8c153d5e222b7d0e80627e3daec938ec625249976bc797de"
+        }
+      ],
+      "answer_facit": {
+        "answerable": true,
+        "expected_kind": "value",
+        "expected_answer_chars": 49,
+        "expected_answer_sha256": "031a5f585acd08eece0320043c4026e8946d39ba58e12f35db578c24ce0a113d"
+      }
+    },
+    {
+      "case_id": "v3-lst-03",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "question_type": "tidsfrister",
+      "needs": [
+        {
+          "need_id": "v3-lst-03-n1",
+          "type": "PERIOD",
+          "role": "DEADLINE",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 65,
+        "sha256": "099577ff899db8e6c4706b013d9d6bbbc07d14fec8250439b180789f2b446dbf"
+      },
+      "gold": [
+        {
+          "span_id": "v3-lst-03-s1",
+          "type": "PERIOD",
+          "chars": 8,
+          "sha256": "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        }
+      ],
+      "answer_facit": {
+        "answerable": true,
+        "expected_kind": "value",
+        "expected_answer_chars": 65,
+        "expected_answer_sha256": "099577ff899db8e6c4706b013d9d6bbbc07d14fec8250439b180789f2b446dbf"
+      }
+    },
+    {
+      "case_id": "v3-lst-04",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "question_type": "uppsägningsvillkor",
+      "needs": [
+        {
+          "need_id": "v3-lst-04-n1",
+          "type": "NOTICE_PERIOD",
+          "role": "NOTICE",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 122,
+        "sha256": "c051b67f2ff50619298df422901d4dbb52c20b9b194a7a29541f23945ac0ec5e"
+      },
+      "gold": [
+        {
+          "span_id": "v3-lst-04-s1",
+          "type": "NOTICE_PERIOD",
+          "chars": 8,
+          "sha256": "5114ca3102100b4294c8794198f33b0af0f51b9b009d62a81c5644cc8fa80e8a"
+        }
+      ],
+      "answer_facit": {
+        "answerable": true,
+        "expected_kind": "value",
+        "expected_answer_chars": 70,
+        "expected_answer_sha256": "241a7277430b468a223435cf9fc62c8a1cf45964d9dac08878369f444456bb21"
+      }
+    },
+    {
+      "case_id": "v3-lst-05",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "question_type": "tidsfrister",
+      "needs": [
+        {
+          "need_id": "v3-lst-05-n1",
+          "type": "PERIOD",
+          "role": "DEADLINE",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 147,
+        "sha256": "2b6c0998cd77ab2c8a21b0dcbf21723aa645212df34aa052a04501eeba46ff88"
+      },
+      "gold": [
+        {
+          "span_id": "v3-lst-05-s1",
+          "type": "PERIOD",
+          "chars": 13,
+          "sha256": "ebde252a0920aeae260b074b15b11748706f42968f8b9bd4633bf9771d26e616"
+        }
+      ],
+      "answer_facit": {
+        "answerable": true,
+        "expected_kind": "value",
+        "expected_answer_chars": 77,
+        "expected_answer_sha256": "8eb584cdaa6e7ad338e54df02b3dd3cfdf861d3b44e7c2cc5f349bed307091f2"
+      }
+    },
+    {
+      "case_id": "v3-lst-06",
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "question_type": "uppsägningsvillkor",
+      "needs": [
+        {
+          "need_id": "v3-lst-06-n1",
+          "type": "TERMINATION_CONDITION",
+          "role": "",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 77,
+        "sha256": "83d40efb4351a751009ddb4e185bf11dfc1829921d9e63b2fe72a9a0d9aa74d6"
+      },
+      "gold": [
+        {
+          "span_id": "v3-lst-06-s1",
+          "type": "TERMINATION_CONDITION",
+          "chars": 16,
+          "sha256": "367f6706eb44a435b45f8a2c1396a78d58b0c516e2c6a450c2c5cf750056e81e"
+        }
+      ],
+      "answer_facit": {
+        "answerable": true,
+        "expected_kind": "value",
+        "expected_answer_chars": 66,
+        "expected_answer_sha256": "042b250ee4201382bbfe489fd04cea2089ed4ce10c544148224d170aa0274c58"
+      }
+    },
+    {
+      "case_id": "v3-nac-01",
+      "document": "nacka-avtalad-tjanst",
+      "question_type": "ansvarsbegränsning",
+      "needs": [
+        {
+          "need_id": "v3-nac-01-n1",
+          "type": "LIABILITY_CAP",
+          "role": "LIABILITY",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 199,
+        "sha256": "6fcb75c1f1eff0ded90b8ece18bedb662c420603b7126397a45712e2f50a035a"
+      },
+      "gold": [
+        {
+          "span_id": "v3-nac-01-s1",
+          "type": "LIABILITY_CAP",
+          "chars": 52,
+          "sha256": "917d3e0a6568412dc4a5c497a6d62966581ef132826a2798db955deb94f71eeb"
+        }
+      ],
+      "answer_facit": {
+        "answerable": true,
+        "expected_kind": "value",
+        "expected_answer_chars": 104,
+        "expected_answer_sha256": "65fe4a11ef90c99b8f99464f455cd121cb031cae40a77eb8da702f8d1d280364"
+      }
+    },
+    {
+      "case_id": "v3-nac-02",
+      "document": "nacka-avtalad-tjanst",
+      "question_type": "tidsfrister",
+      "needs": [
+        {
+          "need_id": "v3-nac-02-n1",
+          "type": "PERIOD",
+          "role": "DEADLINE",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 194,
+        "sha256": "aecc4806f51da8928c7bf942e50c8e0b67f08468e4c215a14d690132f139b378"
+      },
+      "gold": [
+        {
+          "span_id": "v3-nac-02-s1",
+          "type": "PERIOD",
+          "chars": 10,
+          "sha256": "42d77ee66bbf97b39da1831f1fa144904a0ac9e424b0aa28c1f2c6a2f58f6534"
+        }
+      ],
+      "answer_facit": {
+        "answerable": true,
+        "expected_kind": "value",
+        "expected_answer_chars": 96,
+        "expected_answer_sha256": "10089dbf2ac588fd6e3af73b3dd8067138bbc7ebcb01734d6e0f42ffd3b857f7"
+      }
+    },
+    {
+      "case_id": "v3-nac-03",
+      "document": "nacka-avtalad-tjanst",
+      "question_type": "uppsägningsvillkor",
+      "needs": [
+        {
+          "need_id": "v3-nac-03-n1",
+          "type": "NOTICE_PERIOD",
+          "role": "NOTICE",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 174,
+        "sha256": "a6b70b9c850564e31bf5ba6ca0692b4215545cca5682e4a2e601c73ee4d94095"
+      },
+      "gold": [
+        {
+          "span_id": "v3-nac-03-s1",
+          "type": "NOTICE_PERIOD",
+          "chars": 16,
+          "sha256": "64c727f3f40f5ab9205be9d6ac8cfcedac471a1b297435bcbf73ea73938233cb"
+        }
+      ],
+      "answer_facit": {
+        "answerable": true,
+        "expected_kind": "value",
+        "expected_answer_chars": 107,
+        "expected_answer_sha256": "64b75f871aa3eccf5ee675eed79aa42aca506dcf07edcb1e5d69785a1f33e1cd"
+      }
+    },
+    {
+      "case_id": "v3-nac-04",
+      "document": "nacka-avtalad-tjanst",
+      "question_type": "uppsägningsvillkor",
+      "needs": [
+        {
+          "need_id": "v3-nac-04-n1",
+          "type": "NOTICE_PERIOD",
+          "role": "NOTICE",
+          "cardinality": "SINGLE"
+        }
+      ],
+      "clause": {
+        "chars": 233,
+        "sha256": "8d46866e13e27d6543af5fdf02e347e3b45cfcdc2159abc67f99c0d43f5d3895"
+      },
+      "gold": [
+        {
+          "span_id": "v3-nac-04-s1",
+          "type": "NOTICE_PERIOD",
+          "chars": 13,
+          "sha256": "55b5de58dff4c6df3c3d9bcb6c14e524037527edb477dbdb2fc4adea3411b343"
+        }
+      ],
+      "answer_facit": {
+        "answerable": true,
+        "expected_kind": "value",
+        "expected_answer_chars": 118,
+        "expected_answer_sha256": "7dd22490c45a43afe5c9e8eed06c907964737785dc0956e030b3fbd97e86e447"
+      }
+    }
+  ]
+}
