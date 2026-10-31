@@ -802,7 +802,9 @@ pub enum GateError {
   slutsats om världen.
 - Python-bindningen kastar `ValueError` med behovet namngivet.
 - Regeln har **en** implementation: `ensure_unique_state`, som både
-  `OperationSpec::gate` och `execute` anropar. `execute` validerar före loopen,
+  `OperationSpec::gate` och `execute` anropar. Resolver-skyddet i `execute` är
+  ingen andra validering utan **prevention**: det hindrar loopen från att skapa
+  den dubblett valideringen skulle avvisa. `execute` validerar före loopen,
   så `max_rounds = 0` inte kan förvandla en felaktig statuslista till ett
   `RoundLimit`-avslut.
 
@@ -865,7 +867,7 @@ Standardens avsnitt *Tillämpning* kräver fyra rader. Här är de:
 | Krav | Redovisning |
 | --- | --- |
 | Nya kritiska tester **med vilken mutation som bevisar var och en** | Se tabellen nedan. |
-| Missade mutationer | **12 av 40** i runda 8 (rapporterade i `7.11`). I den första versionen av runda 9 hittade granskningen **9 missade**: B1-self-jämförelsen, `execute`-armen, `gate_failure_json`, `Screening::Insufficient`, gym-siffran, tre dokumentfynd (`07`, `13`, `08`) och indataordningen — alltså 9 punkter, inte 8. Alla nio är stängda. Kvar som dokumenterad svaghet: `execute`-gränssnittet är publik API men bara anropad från tester. |
+| Missade mutationer | **12 av 40** i runda 8 (rapporterade i `7.11`). I den första versionen av runda 9 hittade granskningen **9 missade**: B1-self-jämförelsen, `execute`-armen, `gate_failure_json`, `Screening::Insufficient`, gym-siffran, tre dokumentfynd (`swe-reference/README.md`, `src/lib.rs`, `src/evidence.rs`) och indataordningen — alltså 9 punkter, inte 8. Alla nio är stängda. Kvar som dokumenterad svaghet: `execute`-gränssnittet är publik API men bara anropad från tester. |
 | Differentialtest-audit | Alla 31 tester i `test_swe_core_differential.py` genomgångna: nio fall jämför nu mot `CASES`-literaler och båda sidor prövas; den tidigare självjämförelsen är borttagen. `test_need_projection_emits_the_wire_shape` döptes om eftersom den aldrig anropar motorn; `test_unknown_role_counts_as_competing_in_both_layers` prövar nu båda sidor. Kvarvarande jämförelser är mot explicita literaler eller mot motorns payload i rent formatkontrollsyfte. |
 | Grön baslinje efter varje återställning | Bekräftad efter varje mutation: `swe-native` 74 lib-tester, `swe-reference` 30 integrationstester (+ 5 codec), Python 31 differentialtester. |
 
@@ -878,10 +880,10 @@ härledda):
 | `the_demo_cannot_accept_an_input_the_engine_refuses` | mappar `AMBIGUOUS` som användbar | 4 |
 | `a_discovered_fact_the_engine_refuses_stops_the_investigation` | lokal `GateFailure` i stället för motorns anrop | 1 |
 | `the_refusal_payload_reports_every_missing_input_and_its_status` | `gate_failure_json` tappar `missing` | 2 |
-| fem kärntester för dubbletter | tar bort den enda dubblettregeln (`ensure_unique_state`) | 8 kärntester |
-| (samma fem) | tar bort enbart `execute`s förkontroll | 1 (`a_zero_round_budget_cannot_hide_a_duplicate`) |
-| `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining` | tar bort förkontrollen **och** återställer armens `DuplicateState` → `InsufficientEvidence` | 2 (denna + `a_zero_round_budget_cannot_hide_a_duplicate`) |
-| `execute_refuses_a_duplicate_that_the_resolver_creates` | tar bort resolver-kontrollen **och** återställer armens `DuplicateState` → `InsufficientEvidence` | 1 |
+| de fem grindtesterna för dubbletter | tar bort den enda regeln (`ensure_unique_state` → `Ok`) | 7 kärntester (de fem + `a_zero_round_budget_cannot_hide_a_duplicate` + `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining`) |
+| (samma) | samma mutation **plus** borttaget resolver-skydd | 8 kärntester |
+| `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining` | tar bort förkontrollen **och** återställer armens `DuplicateState` → `InsufficientEvidence` | 2 (denna + `a_zero_round_budget_cannot_hide_a_duplicate`); **enbart den första åtgärden ger 0** |
+| `execute_refuses_a_duplicate_that_the_resolver_creates` | tar bort resolver-kontrollen **och** återställer armens `DuplicateState` → `InsufficientEvidence` | 1; **enbart den första åtgärden ger 0** |
 | `a_zero_round_budget_cannot_hide_a_duplicate` | tar bort förkontrollen före loopen | 1 |
 | `the_named_duplicate_follows_input_order_not_identity_order` | namnger lexikografiskt minsta dubblett | 1 |
 | fyra Python-fall för ordningar + namn + inte-abstention | tar bort dubblettkontrollen i `gate` | 6 (Python) |
