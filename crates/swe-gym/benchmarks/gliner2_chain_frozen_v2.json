@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "name": "gliner2-chain-m1m6-v1",
+  "frozen_at": "2026-10-31",
+  "status": "development-frozen experiment chain; NOT active in production; not a generalization proof",
+  "scope": "Frozen combination of the M1-M6 post-processing and contract improvements measured on the blindtest v2 diagnostic development set (16 cases). This manifest is the reference for the next independent blind test: the whole chain must run unchanged on new unseen documents.",
+  "models": {
+    "gliner2": {
+      "model": "fastino/gliner2.5-multi-v1",
+      "threshold": 0.3,
+      "device": "cpu"
+    },
+    "jev": {
+      "model": "jev-1.13.0"
+    }
+  },
+  "prompt_versions": {
+    "arm_d": "span-need-contrast-v1",
+    "date": "span-date-v1",
+    "recovery": "span-need-recovery-v1",
+    "recovery_question": "supplementary assessment; states the need's operational role and asks whether the span itself expresses the requested value"
+  },
+  "chain_order": [
+    "context: clause; PARTY needs use the M4 structural window (block + heading, max 8 lines per direction, boundaries at blank line/page marker/heading)",
+    "candidate generation: frozen GLiNER2 candidates (no new model inference in M1-M6 arms)",
+    "M1 presentation normalization: collapse whitespace; repair a space after a hyphen inside a date token; despace(original)==despace(normalized); original hash + clause offsets kept",
+    "M2 span-boundary consolidation: drop a candidate only when its canonical form is a strict substring of a longer span in the same case; no proximity merges",
+    "first verification: arm D / span-date-v1",
+    "M3 role robustness: declared need role breaks a role tie only when its cue occurs in the span's sentence (word-boundary + common Swedish inflection suffixes)",
+    "M6 selective recovery: exactly one supplementary assessment for a first NO when the span is a candidate, a deterministic detector recognises a value of the need's type, the operational role matches, and the first answer was NO; recovered answers enter the ordinary contract",
+    "contract findings: VERIFIED / AMBIGUOUS / REJECTED (E1-E3)",
+    "M5 cardinality: SINGLE unchanged; MULTIPLE (expected_count from facit; resolved only when all expected values verified, no extras) with explicit PARTIAL; UNKNOWN never resolves from values alone",
+    "assessment/usage: no automatic RESOLVED; normal evidence-quality and assessment contract applies"
+  ],
+  "rules": {
+    "M1": "presentation-only; no canonical content change; provenance (original hash + clause offsets) retained",
+    "M2": "strict canonical containment inside the same case; no proximity heuristic",
+    "M3": "declared-role tie-break only; classifier role stands when the declared cue is absent",
+    "M4": "PARTY needs only; structural block + heading; max 8 lines per direction; blank line/page marker/heading boundaries; no arbitrary char count",
+    "M5": "need-level cardinality (not a party special case); expected_count from facit, never from verified candidates; found != complete; UNKNOWN requires a completeness result",
+    "M6": "one supplementary assessment per triggered candidate NO; three guards: no blind re-review, single supplementary, no automatic RESOLVED"
+  },
+  "cost_definitions": {
+    "execution_jev_calls": "verification decisions the strategy performs from an empty cache, including supplementary recovery calls",
+    "experiment_new_calls": "JEV calls actually made beyond frozen fixtures; never used as the strategy's cost",
+    "gliner_inferences": "counted model inference scans",
+    "rule": "economic comparisons use execution_jev_calls"
+  },
+  "measured_on": {
+    "dataset": "blindtest v2 diagnostic development set, 16 needs / 3 unseen contracts",
+    "frozen_reference": "M0: 7/16, 32 execution JEV calls",
+    "frozen_chain": "M1-M6 accumulated: 15/16 solved, 1 PARTIAL, 27 execution JEV calls, 0 false RESOLVED, 0 clause-level contamination, 0 model inferences in the post-processing arms"
+  },
+  "known_limits": [
+    "the 16 cases developed M1-M6; the result is not a generalization proof",
+    "v2-pm-07 remains PARTIAL: the second party is never proposed by GLiNER2 (candidate-generation gap, not verification)",
+    "M5 UNKNOWN cardinality is implemented and conformance-tested synthetically but has no real case in v2",
+    "D10 answer-level contamination has not been run on the improved chain; only a clause-level proxy exists",
+    "answer-level correctness must be measured separately from clause resolution"
+  ],
+  "frozen_files": {
+    "contract": {
+      "path": "backend/app/services/research/gliner/contract.py",
+      "sha256": "dec61b0238e706025be171b6c40c63fbfb847879c850223f6d14dc4fe7e79a6b"
+    },
+    "runner_arms": {
+      "path": "crates/swe-gym/tools/blindtest_v2_arms.py",
+      "sha256": "1a57446efa6fc9dd6611017148ad5bf7b131d326197c379499a7a317d88425b3"
+    },
+    "runner_m3m4": {
+      "path": "crates/swe-gym/tools/blindtest_v2_arms_m3_m4.py",
+      "sha256": "281c2c614fb0c330943bf6d38003bc0938e7d68427990b05589daacefbf2c67b"
+    },
+    "runner_m5": {
+      "path": "crates/swe-gym/tools/blindtest_v2_arms_m5.py",
+      "sha256": "cb7ce7bb27179bf18bc942840b61ec33b95bc5d6641527d1d9dd0fa9ec2a0137"
+    },
+    "runner_m6": {
+      "path": "crates/swe-gym/tools/blindtest_v2_arms_m6.py",
+      "sha256": "67e7f09c05340a46e9eac2721d8057456dc96bfc3ed37c2bf4b1d82a8f4237f6"
+    },
+    "facit_v2": {
+      "path": "crates/swe-gym/benchmarks/blindtest_facit_v2.json",
+      "sha256": "1a1f55c33bd1d545d5fa2fd53c2425c01757efc2b0de45704b2531f37899a984"
+    },
+    "facit_v2_eval": {
+      "path": "crates/swe-gym/benchmarks/blindtest_facit_v2_eval.json",
+      "sha256": "dae732cda4a65ae7a43d8efe6d453ff777684901ca8df7f50a0d1ced4d053d22"
+    },
+    "jev_fixtures_v2": {
+      "path": "crates/swe-gym/benchmarks/jev_span_fixtures_v2.json",
+      "sha256": "e8cfa3fd0a31a1236817482011b7e834d802c8c37b4c482cc95dc1ea2d972511"
+    },
+    "need_audit": {
+      "path": "crates/swe-gym/benchmarks/blindtest_v2_need_audit.json",
+      "sha256": "3d81d05a6a820434adfed98d01199f2bb3044da4b5f78828b9ebd7f83813047a"
+    },
+    "arms_eval_m1m2": {
+      "path": "crates/swe-gym/benchmarks/blindtest_v2_arms_eval.json",
+      "sha256": "5cc1c64e15dbfc87a8f3401749b39d8859694063e5c97f29fd25260cbc60fb45"
+    },
+    "arms_fixture_m1m2": {
+      "path": "crates/swe-gym/benchmarks/jev_span_fixtures_v2_arms.json",
+      "sha256": "e2739c597c7bde1a88b1082a598d2c81beb8bdbd4adf909c6f1a1ed3be0d95df"
+    },
+    "arms_eval_m3m4": {
+      "path": "crates/swe-gym/benchmarks/blindtest_v2_arms_m3_m4_eval.json",
+      "sha256": "5fc00b9782c3ce0cf69317631f136d96cf49c70157e20422a8bebe2d441dc344"
+    },
+    "arms_fixture_m3m4": {
+      "path": "crates/swe-gym/benchmarks/jev_span_fixtures_v2_m3m4.json",
+      "sha256": "02132117865b85466c5a8c6147783f88d362edcca99298efbddeb92f98dc99f7"
+    },
+    "arms_eval_m5": {
+      "path": "crates/swe-gym/benchmarks/blindtest_v2_arms_m5_eval.json",
+      "sha256": "b65de7a9fdbe204297977399196976e7697c925d2739522e48d2c32a4c8aebe6"
+    },
+    "arms_eval_m6": {
+      "path": "crates/swe-gym/benchmarks/blindtest_v2_arms_m6_eval.json",
+      "sha256": "35d9b580e0843805369a3e7c01aa6b0d39192e73e22059a1720b42cbee9a78fa"
+    },
+    "arms_fixture_m6": {
+      "path": "crates/swe-gym/benchmarks/jev_span_fixtures_v2_m6.json",
+      "sha256": "bfb2549f731957e56779506d3806e1671811aa0ca69d096df82d10cab97be620"
+    }
+  },
+  "artifacts": {
+    "manifest": "crates/swe-gym/benchmarks/gliner2_chain_frozen_v2.json",
+    "documentation": "docs/architecture/gliner2-frozen-chain-m1-m6.md"
+  },
+  "next_step": "Independent blind test on entirely new documents: frozen original chain vs frozen M1-M6 chain, no adjustments; include simple and hard needs and multi-value needs with UNKNOWN cardinality; run real D10 at answer level."
+}
