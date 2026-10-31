@@ -882,7 +882,7 @@ härledda):
 | `the_refusal_payload_reports_every_missing_input_and_its_status` | `gate_failure_json` tappar `missing` | 2 |
 | de fem grindtesterna för dubbletter | tar bort den enda regeln (`ensure_unique_state` → `Ok`) | 7 kärntester (de fem + `a_zero_round_budget_cannot_hide_a_duplicate` + `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining`) |
 | (samma) | samma mutation **plus** borttaget resolver-skydd | 8 kärntester |
-| `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining` | tar bort förkontrollen **och** återställer armens `DuplicateState` → `InsufficientEvidence` | 2 (denna + `a_zero_round_budget_cannot_hide_a_duplicate`); **enbart den första åtgärden ger 0** |
+| `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining` | tar bort förkontrollen **och** återställer armens `DuplicateState` → `InsufficientEvidence` | 2 (denna + `a_zero_round_budget_cannot_hide_a_duplicate`); enbart den första åtgärden fäller inte denna test, men ger 1 rött totalt (`a_zero_round_budget_cannot_hide_a_duplicate`) |
 | `execute_refuses_a_duplicate_that_the_resolver_creates` | tar bort resolver-kontrollen **och** återställer armens `DuplicateState` → `InsufficientEvidence` | 1; **enbart den första åtgärden ger 0** |
 | `a_zero_round_budget_cannot_hide_a_duplicate` | tar bort förkontrollen före loopen | 1 |
 | `the_named_duplicate_follows_input_order_not_identity_order` | namnger lexikografiskt minsta dubblett | 1 |
