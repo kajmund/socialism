@@ -14,9 +14,12 @@
 //! - `swe_budget`: the append-only Sweycoin ledger (`allocate` /
 //!   `reserve` / `settle` / `replay`) used for the budget and its journal.
 //!
-//! Evidence, information needs, operation contracts, the ALL_REQUIRED gate,
-//! the mock provider and the resume journal are application layer for this
-//! demo, not engine primitives. See the README section "Gaps found".
+//! Information needs, their status, evidence classification and the
+//! ALL_REQUIRED gate are **engine** primitives (`swe_native::needs`,
+//! `swe_native::evidence`, `swe_native::operations`). This crate owns only its
+//! domain vocabulary (a supplier register, its facts and its screening rule)
+//! and the mapping onto those primitives; it decides nothing the engine decides.
+//! See the README section "What is reused vs. what is application layer".
 
 mod domain;
 mod evidence;

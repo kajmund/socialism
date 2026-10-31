@@ -25,6 +25,10 @@ pub enum Scenario {
     /// Two suppliers fail requirement C, so a single round discovers two
     /// separate missing facts. Exercises one need per round.
     TwoExceptions,
+    /// The discovered exception fact exists but its source is ambiguous, so the
+    /// screening operation cannot use it. Exercises the path where a discovered
+    /// need is refused by the engine's gate rather than by a demo-side rule.
+    AmbiguousException,
 }
 
 impl Scenario {
@@ -34,6 +38,7 @@ impl Scenario {
             Self::MissingEvidence => "missing_evidence",
             Self::NoCompliantSupplier => "no_compliant_supplier",
             Self::TwoExceptions => "two_exceptions",
+            Self::AmbiguousException => "ambiguous_exception",
         }
     }
 
@@ -43,6 +48,7 @@ impl Scenario {
             "missing_evidence" => Ok(Self::MissingEvidence),
             "no_compliant_supplier" => Ok(Self::NoCompliantSupplier),
             "two_exceptions" => Ok(Self::TwoExceptions),
+            "ambiguous_exception" => Ok(Self::AmbiguousException),
             other => Err(DemoError::new(format!("unknown scenario {other:?}"))),
         }
     }
@@ -166,6 +172,18 @@ pub(crate) fn fetch_observation(
             &source_ref,
         ));
     };
+    // One discovered fact has two equally weighted sources: it exists, but it is
+    // not usable. The engine's gate must refuse it.
+    if scenario == Scenario::AmbiguousException && fact == "c_exception" {
+        return Ok(obj([
+            ("choice", Json::from("found")),
+            ("value", Json::from(record.exception)),
+            ("source_ref", Json::from(source_ref.as_str())),
+            ("confidence_bp", Json::from_u64(4_000)),
+            ("conflicting_sources", Json::Bool(true)),
+        ]));
+    }
+
     let observation = match fact {
         "price" => found(Json::from_u64(record.price_sek)),
         "req_a" => found(Json::Bool(record.requirements[0])),

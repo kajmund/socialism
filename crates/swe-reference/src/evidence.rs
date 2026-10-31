@@ -10,7 +10,9 @@
 //! - `AMBIGUOUS`: sources disagree, or confidence is below the threshold.
 //! - `REJECTED`: no value, or no provenance at all.
 //!
-//! The ALL_REQUIRED gate treats both `AMBIGUOUS` and `REJECTED` as missing.
+//! This module classifies evidence in the demo's vocabulary. Whether a status is
+//! usable is the engine's decision: `gate_inputs` maps these values onto
+//! `swe_native::NeedStatus` and asks `swe_native::OperationSpec::gate`.
 
 use std::collections::BTreeMap;
 

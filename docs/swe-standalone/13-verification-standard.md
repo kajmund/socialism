@@ -65,6 +65,12 @@ Om samma regel finns i två implementationer är det en bugg även när båda ä
 korrekta, eftersom de kan glida isär. Referensdemon fick därför inte behålla sin
 egen `all_required`: den anropar kärnans grind och formaterar bara svaret.
 
+**Känt undantag:** `swe-gym` bär fortfarande en egen `ALL_REQUIRED`-grind
+(`crates/swe-gym/src/ops.rs` och `tools/measure_ops.py`). Den är spårad i
+`05-gym-split` §9 G4 och ligger utanför extraktionsmålet. Kravet gäller därför
+`crates/swe-native` och `crates/swe-reference`; gym-dubbletten ska stängas i G4,
+inte döljas.
+
 Konsekvens för testning: ett test som visar att kopian stämmer med originalet
 låser in dubbletten. Testet ska i stället visa att konsumenten **anropar**
 källan — t.ex. genom att mutation av källan får konsumentens test att falla.

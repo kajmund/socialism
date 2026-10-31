@@ -827,13 +827,51 @@ att samma felform återkommit i B1, B2, B3 och runda 8. Kärnan i kravet:
 4. en grind får inte tyst välja vid tvetydig indata;
 5. ett fel får inte kunna förklä sig som ett svar.
 
+### 4. Granskningsfynd som stängdes i samma runda
+
+Den sista oberoende granskningen fällde den första versionen av denna runda på
+fem punkter. Alla är åtgärdade:
+
+| Fynd | Vad som var fel | Nu |
+| --- | --- | --- |
+| **B1** `test_swe_core_differential.py:85` | `assert projected["status"] == read_need_state(engine)["status"]` — exakt den förbjudna formen `read == f(engine)`. Kunde aldrig upptäcka en divergens. | Varje fall bär en **separat förväntad status** (`CASES`), och både motor och adapter prövas mot den literalen. Mutationsbevis: låter adaptern rapportera `AMBIGUOUS` som `RESOLVED` blir **7 tester röda** (tidigare 0). |
+| **B2** `execute()` | Kastade `GateError::DuplicateState` som `StopReason::InsufficientEvidence` — Req 5 bruten, och nåbar både via anroparens statuslista och via en resolver som svarar för ett redan känt behov. | `execute` returnerar `Result<Investigation, GateError>`; endast `Unsatisfied` blir en slutsats. Två nya tester (anropardubblett, resolver-skapad dubblett). |
+| **B3** denna sektion | Saknade standardens egna redovisningskrav. | Denna tabell. |
+| **M4** `Screening::Insufficient` | Demon avgjorde lokalt (`if !entry.is_verified()`) och motorn anropades bara för att bekräfta; grenen var otestad och en mutation förbi anropet förblev grön. | `screen_candidate` frågar `gate_inputs` **först** och grenar på motorns utfall. Nytt `AmbiguousException`-scenario gör grenen nåbar; testet kräver statusen `AMBIGUOUS` som bara motorn kan ge. Mutationsbevis: lokal `GateFailure` i stället för motorns → testet rött. |
+| **M5/M6/M7** | "enda implementationen" gällde inte repo-vid täckning (`swe-gym` har en egen grind, G4); gym sades ha 13 tester (faktiskt 97); `swe-reference` README/lib/evidence sade att grinden var applikationslager. | Påståendet skopat till `swe-native` + `swe-reference` med gym-dubbletten namngiven som G4; siffran rättad; dokumenten uppdaterade. |
+
+Mindre fynd som också stängdes:
+
+- dubblettnamnet var inte pinnat till indataordning (lexikografisk implementation
+  förblev grön) → nytt test där första dubbletten **inte** är minst, plus
+  mutation;
+- `gate_failure_json` hade inget test → ny payload-assertion (`missing[].need`,
+  `missing[].status`, `detail`), plus mutation;
+- `Screening::Insufficient` tappade `missing` ur payloaden → rättat, och
+  upptäcktes av det nya testet.
+
+**Kvar som dokumenterad svaghet:** `execute()` är publik men bara anropad från
+tester idag. Dess `Result`-form är rätt, men gränssnittet bör ses över när en
+riktig värd börjar använda det.
+
+### 5. Redovisning enligt 13-verification-standard.md
+
+Standardens avsnitt *Tillämpning* kräver fyra rader. Här är de:
+
+| Krav | Redovisning |
+| --- | --- |
+| Nya kritiska tester med mutation | `the_gate_is_the_engines_and_lists_every_missing_input`, `the_demo_cannot_accept_an_input_the_engine_refuses`, `a_discovered_fact_the_engine_refuses_stops_the_investigation`, `the_refusal_payload_reports_every_missing_input_and_its_status`, fem kärntester för dubbletter, `execute_refuses_a_caller_supplied_duplicate_instead_of_abstaining`, `execute_refuses_a_duplicate_that_the_resolver_creates`, `the_named_duplicate_follows_input_order_not_identity_order`, fyra Python-fall för ordningar + namn + inte-abstention. Var och en har minst en mutation som gör den röd. |
+| Missade mutationer | **12 av 40** i runda 8 (rapporterade i `7.11`), **8 av 8** i den första versionen av runda 9 innan rättelserna: B1-self-jämförelsen, `execute`-armen, `gate_failure_json`, `Screening::Insufficient`, gym-siffran, de tre dokumentfynden och indataordningen. Alla utom `execute`-gränssnittsanmärkningen är nu stängda. |
+| Differentialtest-audit | Alla 31 tester i `test_swe_core_differential.py` genomgångna: nio fall jämför nu mot `CASES`-literaler; `test_need_projection_round_trips_through_the_wire_shape` döptes om eftersom den aldrig anropar motorn; `test_unknown_role_counts_as_competing_in_both_layers` prövar nu båda sidor. Kvarvarande jämförelser är mot explicita literaler eller mot motorns payload i rent formatkontrollsyfte. |
+| Grön baslinje efter varje återställning | Bekräftad efter varje mutation: `swe-native` 73 lib-tester, `swe-reference` 30, Python 31 differentialtester. |
+
 ### Resultat
 
 ```console
-crates/swe-native     85 tester   (71 lib + 2 boundary + 12 machine)
+crates/swe-native     87 tester   (73 lib + 2 boundary + 12 machine)
 crates/swe-budget      9 tester
-crates/swe-reference  28 tester; walkthrough exit 0
-crates/swe-gym       13 tester
+crates/swe-reference  30 tester; walkthrough exit 0
+crates/swe-gym       97 tester   (17 targets)
 backend SWE+research 170 tester; ruff och maintainability rena
 ```
 

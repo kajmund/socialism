@@ -389,7 +389,10 @@ enum Screening {
     Compliant(String),
     NonCompliant(String),
     NeedsException(Need),
-    Insufficient { need: NeedRef, reason: String },
+    Insufficient {
+        failure: swe_native::GateFailure,
+        reason: String,
+    },
 }
 
 /// Handler wrapper: serialises the typed [`OpOutcome`] for the kernel.
@@ -424,17 +427,17 @@ pub fn screen_compliance(input: &Json) -> DemoResult<OperationResult> {
                 supplier_states.push(supplier_state(candidate, false, reason));
             }
             Screening::NeedsException(need) => needs.push(need),
-            Screening::Insufficient { need, reason } => {
-                let Some(failure) =
-                    gate_inputs(SCREEN_OPERATION, std::slice::from_ref(&need), &evidence)?
-                else {
-                    return Err(DemoError::new(
-                        "the engine accepted an input the screening rule found unusable",
-                    ));
-                };
+            Screening::Insufficient { failure, reason } => {
+                // The failure came from the engine inside `screen_candidate`;
+                // nothing is re-decided here. The payload keeps the engine's
+                // missing list and adds the demo's explanatory reason.
+                let mut payload = gate_failure_json(&failure);
+                if let Json::Object(object) = &mut payload {
+                    object.insert("reason".to_string(), Json::from(reason));
+                }
                 return Ok(OperationResult {
                     outcome: OpOutcome::InsufficientEvidence(failure),
-                    payload: obj([("reason", Json::from(reason))]),
+                    payload,
                 });
             }
         }
@@ -477,24 +480,25 @@ fn screen_candidate(candidate: &Candidate, evidence: &EvidenceSet) -> DemoResult
     }
     let exception = need_ref(&candidate.id, EXCEPTION_FACT);
     let exception_id = exception.id();
-    match evidence.get(&exception_id) {
-        None => Ok(Screening::NeedsException(Need::new(
+    // Whether the discovered fact is usable is the engine's decision, not this
+    // function's. Ask it, and report its verdict.
+    let refusal = gate_inputs(SCREEN_OPERATION, std::slice::from_ref(&exception), evidence)?;
+    match (evidence.get(&exception_id), refusal) {
+        (None, _) => Ok(Screening::NeedsException(Need::new(
             exception,
             format!(
                 "requirement C is not met for {}; the screening rule needs the documented exception before it can decide",
                 candidate.name
             ),
         ))),
-        Some(entry) if !entry.is_verified() => Ok(Screening::Insufficient {
-            need: exception,
+        (Some(_), Some(failure)) => Ok(Screening::Insufficient {
             reason: format!(
-                "INSUFFICIENT_EVIDENCE: exception fact {} is {}: {}",
-                exception_id,
-                entry.status.as_str(),
-                entry.reason
+                "INSUFFICIENT_EVIDENCE: the engine refused the discovered fact {}: {}",
+                exception_id, failure
             ),
+            failure,
         }),
-        Some(entry) => {
+        (Some(entry), None) => {
             if entry.value.as_bool() == Some(true) {
                 Ok(Screening::Compliant(
                     "meets requirements A and B; requirement C is covered by a granted exception"

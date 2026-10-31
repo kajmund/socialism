@@ -370,6 +370,51 @@ fn the_gate_is_the_engines_and_lists_every_missing_input() {
 }
 
 #[test]
+fn the_refusal_payload_reports_every_missing_input_and_its_status() {
+    // The handler protocol's `missing` array is a rendering of the engine's
+    // failure; dropping any of it would hide what blocked the operation.
+    let required = vec![
+        swe_reference::need_ref("alpha", "price"),
+        swe_reference::need_ref("beta", "price"),
+    ];
+    let mut evidence = EvidenceSet::new();
+    let mut ambiguous = verified("alpha.price", "alpha", "price", Json::from_u64(800));
+    ambiguous.status = EvidenceStatus::Ambiguous;
+    evidence.insert(ambiguous);
+
+    let failure = gate_inputs("OP", &required, &evidence)
+        .expect("call")
+        .expect("two inputs are missing");
+    let payload = swe_reference::gate_failure_json(&failure);
+    let missing = payload
+        .get("missing")
+        .and_then(Json::as_array)
+        .expect("missing array");
+    assert_eq!(missing.len(), 2, "both missing inputs must be reported");
+    assert_eq!(
+        missing[0].get("status").and_then(Json::as_str),
+        Some("AMBIGUOUS")
+    );
+    assert_eq!(
+        missing[1].get("status").and_then(Json::as_str),
+        Some("UNRESOLVED")
+    );
+    assert_eq!(
+        missing[0]
+            .get("need")
+            .and_then(|need| need.get("id"))
+            .and_then(Json::as_str),
+        Some("alpha.price")
+    );
+    let detail = payload
+        .get("detail")
+        .and_then(Json::as_str)
+        .expect("detail");
+    assert!(detail.contains("ALL_REQUIRED"), "detail was {detail:?}");
+    assert!(detail.contains("alpha.price"));
+}
+
+#[test]
 fn the_demo_cannot_accept_an_input_the_engine_refuses() {
     // Pins the direction of the dependency: whatever the demo's evidence says,
     // the verdict is the engine's. A VERIFIED entry is the only thing that
@@ -395,6 +440,58 @@ fn the_demo_cannot_accept_an_input_the_engine_refuses() {
     assert!(gate_inputs("OP", &required, &EvidenceSet::new())
         .expect("call")
         .is_some());
+}
+
+#[test]
+fn a_discovered_fact_the_engine_refuses_stops_the_investigation() {
+    // The screening rule discovers a conditional fact whose source is
+    // ambiguous. Whether that fact is usable is the engine's decision: the demo
+    // asks the gate and reports its verdict, status included.
+    let report = run(
+        &document(),
+        &input(),
+        Scenario::AmbiguousException,
+        &RunConfig::new("test-ambiguous-exception", 100_000),
+    )
+    .expect("run starts")
+    .into_finished()
+    .expect("run finishes");
+
+    assert_eq!(report.status, RunStatus::Incomplete);
+    assert_eq!(
+        report
+            .conclusion
+            .as_ref()
+            .and_then(|value| value.get("conclusion")),
+        Some(&Json::from("INSUFFICIENT_EVIDENCE"))
+    );
+    let screens: Vec<&InvocationLog> = report
+        .invocations
+        .iter()
+        .filter(|invocation| invocation.node_id == "screen")
+        .collect();
+    let last = screens.last().expect("the screen operation ran");
+    assert_eq!(last.status(), Some("insufficient"));
+
+    // The status is the engine's assessment of the evidence, not a demo guess:
+    // a locally built failure would report UNRESOLVED here.
+    let missing = last
+        .output
+        .get("missing")
+        .and_then(Json::as_array)
+        .expect("the refusal lists the missing input");
+    assert_eq!(missing.len(), 1);
+    assert_eq!(
+        missing[0].get("status").and_then(Json::as_str),
+        Some("AMBIGUOUS")
+    );
+    let need = missing[0].get("need").expect("the need is named");
+    assert_eq!(
+        need.get("id").and_then(Json::as_str),
+        Some("alpha.c_exception")
+    );
+    // And nothing decided the price.
+    assert_eq!(report.charge_count("reference.select_cheapest"), 0);
 }
 
 #[test]

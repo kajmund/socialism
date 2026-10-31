@@ -39,10 +39,13 @@ The mock provider serves three deterministic scenarios, all offline:
 | SWD 1.0 document loading, SHA-256 definition hash, canonical JSON | `swe-native` | Embedded definition is hashed and executed as-is |
 | Host-paced machine, effects, routing, fork/join, map, expression + provider decisions, `end` statuses | `swe-native` | The workflow graph; the host only answers effects |
 | Append-only Sweycoin ledger (`allocate` / `reserve` / `settle` / `balance` / `events` / `replay`) | `swe-budget` | Budget, per-action metering and deduplicated (at-most-once) settlement |
-| Evidence, information needs, operation contracts (typed `OpOutcome`: `Answer` / `NeedMore` / `Insufficient`), ALL_REQUIRED gate, supplier register, mock provider, run journal | **This crate (application layer)** | Demo-level objects. `swe-native` has no such primitives today |
+| Information needs and status (`NeedRef`, `NeedStatus`, `derive_needs`), evidence classification (`EvidenceAssessment` → `EvidenceStatus`), operation contracts and the ALL_REQUIRED gate (`OperationSpec::gate`, typed `OpOutcome`, `GateError`) | `swe-native` | The engine decides; this crate projects |
+| Supplier register, its facts and screening rule, mock provider, run journal, handler protocol | **This crate (application layer)** | Demo-level objects the engine must not know about |
 
 No engine logic is copied: the only "driver" code here is effect dispatch,
-metering, and the pause/resume journal, mirroring `swe-gym/src/driver.rs`.
+metering, and the pause/resume journal, mirroring `swe-gym/src/driver.rs`. The
+operations gate is **called**, not reimplemented — `gate_inputs` builds the
+engine's `NeedStatus` list and asks `OperationSpec::gate`.
 
 ## Layout
 
@@ -50,8 +53,8 @@ metering, and the pause/resume journal, mirroring `swe-gym/src/driver.rs`.
 src/lib.rs            crate docs, error type, small JSON helpers
 src/domain.rs         supplier register + the two provider scenarios
 src/mock_provider.rs  deterministic offline provider (found / missing)
-src/evidence.rs       VERIFIED / AMBIGUOUS / REJECTED, provenance, evidence merge
-src/operations.rs     needs, contracts, ALL_REQUIRED gate, screening, comparison, reports
+src/evidence.rs       the demo's VERIFIED / AMBIGUOUS / REJECTED vocabulary and its mapping to NeedStatus
+src/operations.rs     supplier needs/contracts, gate projection, screening, comparison, reports
 src/workflow.rs       embedded SWD 1.0 definition + run input
 src/journal.rs        pause/resume journal (canonical JSON file)
 src/host.rs           effect dispatch, metering, pause/resume driver
@@ -82,7 +85,7 @@ depend on `swe-gym`.
 | 2 | Retrieval through a deterministic mock provider | Fetching is a provider `decision` node; the host answers every `InvokeProvider` effect from a pure `(scenario, supplier, fact)` function. No network, no time, no randomness. | `mock_provider.rs`, `domain::fetch_observation` |
 | 3 | Detect and handle missing data | The provider has a `missing` choice; the `missing` route records a rejected observation instead of guessing. | `evidence::record_missing_handler` |
 | 4 | Evidence verification with generic statuses + provenance | Every observation becomes evidence with `VERIFIED` / `AMBIGUOUS` / `REJECTED`, a confidence and a per-fact `source_ref`. Rules: no value or no provenance → `REJECTED`; conflicting sources or low confidence → `AMBIGUOUS`; otherwise `VERIFIED`. | `evidence::verify` |
-| 5 | ALL_REQUIRED gate on operation `required_inputs` | Both operations gate on every declared input before running; the gate returns the exact missing list with the reason. `AMBIGUOUS` and `REJECTED` both fail the gate. | `operations::all_required`, `screen_compliance_handler`, `select_cheapest_handler` |
+| 5 | ALL_REQUIRED gate on operation `required_inputs` | Both operations gate on every declared input before running; the gate returns the exact missing list with the reason. `AMBIGUOUS` and `REJECTED` both fail the gate. | `operations::gate_inputs` (calls `swe_native::OperationSpec::gate`), `screen_compliance_handler`, `select_cheapest_handler` |
 | 6 | Deterministic comparison | Lowest price among compliant suppliers, tie-broken by supplier id, so map completion order can never change the answer. | `operations::cheapest_compliant` |
 | 7 | Abstain with `INSUFFICIENT_EVIDENCE` | The `missing_evidence` provider scenario loses `beta.req_c` (rejected) and makes `gamma.price` conflicting (ambiguous). Screening's gate fails, the workflow routes to an `end` node with status `incomplete`, and the terminal output is `status/conclusion = INSUFFICIENT_EVIDENCE` with an explicit reason. | `build_abstain_handler`, `abstain_screen`/`insufficient_end` nodes |
 | 8 | Actual Sweycoin consumption per action + total | Every handler and provider call is `reserve`d and `settled` in the reused ledger, then reported per action and summed. The binary asserts `sum(per action) == ledger.spent`. | `host::Session::dispatch`, `RunReport::action_totals` |
@@ -237,7 +240,7 @@ unit tests in `src/journal.rs`):
 - `a_run_priced_with_custom_tariffs_round_trips_and_resumes`
 - `a_tampered_journal_is_rejected`
 - `a_tampered_tariff_hash_is_refused`
-- `all_required_gate_lists_every_missing_input`
+- `the_gate_is_the_engines_and_lists_every_missing_input`
 - `conclusion_is_beta`
 - `confirmed_outcomes_survive_the_round_trip`
 - `deterministic_comparison_prefers_cheapest_compliant`
