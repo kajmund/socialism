@@ -635,6 +635,82 @@ en evidensreferens får ordinal 0, vilket inte är garanterat när
 panelsessionen bygger referenserna). Att röra den vore att blanda in en
 oberoende bugg i en arkitektur-PR.
 
+## 7.11 Runda 8: journal-roundtrip, H1/M1, operationstyper i demon, Python-bindningar
+
+Projektägarens lägesbild var skarpare än min: **B1 stängd, B2/B3 kärnimplementation
+stängd, B2/B3 integrationsbevis fortfarande öppet, PR #458 inte mergeklar, GO
+väntar.** Den här rundan stängde integrationsbeviset och de öppna
+journalfrågorna, i den ordning ägaren angav.
+
+### 1. Journal v1: förlustfri och fail-closed roundtrip
+
+Ägarens fynd bekräftades alla fyra:
+
+| Fynd | Före | Nu |
+| --- | --- | --- |
+| Saknad `contract_version` | blev automatiskt aktuell version | **obligatoriskt fält**, frånvaro ger typat fel |
+| Saknad/felskriven `journal_events` | blev en tom logg | **obligatoriskt**, måste vara en array |
+| Tids-/tariffält | kunde bli `0` | **obligatoriska** |
+| `ResultConfirmed` | bara en bool → Ok/Error/Cancelled kollapsade | **förlustfri kodning**, payload bevaras |
+
+### 2. H1 och M1
+
+- **H1:** journalen spelar nu in den beroendekarta den körde under, och
+  `validate()` jämför den mot **den aktuella** kartan. Kärnans jämförelse är
+  symmetrisk: ett beroende som världen kräver men journalen aldrig spelade in
+  avvisas också.
+- **M1:** tarifferna pinnas av `tariff_sha256` — självkonsistens prövas vid
+  inläsning, och vid resume jämförs de mot den återuppspelande värden.
+
+### 3. Demon konsumerar kärnans operationsmodell
+
+- `NeedRef` re-exporteras från `swe_native`; demon mappar leverantör → `subject`
+  och faktum → `fact`.
+- `OperationResult` omsluter kärnans `OpOutcome` (`Answer`, **singulär**
+  `NeedMore(NeedRef)`, `InsufficientEvidence(GateFailure)`) och bär bara den JSON
+  handlern returnerar. **Kärnan breddades inte till en lista** — demon väljer
+  första upptäckta behov deterministiskt per runda.
+- Nytt `TwoExceptions`-scenario: en runda upptäcker två saknade fakta, och
+  `several_discovered_needs_are_resolved_over_several_rounds` visar att de löses
+  över flera rundor, att varje extra runda kostar pengar och att budgeten går
+  jämnt ut.
+
+### 4. Python-bindningar
+
+`swe_native.derive_needs` och `swe_native.operation_gate` exponerar kärnans
+behovshärledning och grind. Adaptern (`read_operation_gate`,
+`read_derived_needs`) rapporterar motorns utfall och omtolkar det aldrig.
+Differentialtesterna täcker härledda behov och fyra grindsituationer.
+
+### Mutationstabell — 5 av 5 efter rättelse
+
+| Garanti | Mutation | Fångas av |
+| --- | --- | --- |
+| Obligatorisk `contract_version` | återinför default | `a_journal_without_a_contract_version_is_refused` |
+| Obligatorisk `journal_events` | återinför tom logg | samma |
+| Förlustfri utfallskodning | kollapsa till bool | `confirmed_outcomes_survive_the_round_trip` |
+| Tariff-hash prövas vid inläsning | hoppa över kontrollen | `a_tampered_tariff_hash_is_refused` |
+| Beroenden jämförs inspelat mot aktuellt (H1) | jämför mot sig själv | `a_journal_recording_another_dependency_version_is_refused` + `a_journal_missing_a_recorded_dependency_is_refused` |
+| Grinden avvisar ofullständig indata | `if true` i stället för `status.is_resolved()` | `test_the_gate_can_never_report_ready_with_a_missing_input` |
+
+**Två av dessa fångades inte första gången**, precis som i tidigare rundor:
+
+1. **`delivery_key`-stabiliteten** (B3) — testet jämförde nyckeln med sig själv.
+2. **H1:s beroendejämförelse** — jämförde en konstant mot sig själv; mitt första
+   test slog inte igenom eftersom `verify()` körde på en karta som byggdes från
+   samma konstant. Testet som fångar det kräver nu att *filen* bär en annan
+   version och att resume avvisar den.
+
+### Resultat
+
+```console
+crates/swe-native     80 tester   (66 lib + 2 boundary + 12 machine)
+crates/swe-budget      9 tester
+crates/swe-reference  26 tester; walkthrough exit 0
+backend SWE+research 162 tester; ruff och maintainability rena
+CI                    alla 13 checks gröna
+```
+
 ## 8. Vad denna PR innehåller (scope)
 
 ```console
