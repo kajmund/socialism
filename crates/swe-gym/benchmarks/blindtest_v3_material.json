@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "name": "blindtest-v3-material",
+  "frozen_at": "2026-10-31",
+  "status": "material and protocol frozen BEFORE annotation and BEFORE any model run; full texts live outside the repository",
+  "selection_rule": "Entirely new, publicly available Swedish real documents, unused in blindtest v1/v2, D10 or E1-E3, and not part of the test corpus. Chosen to support simple and hard needs and multi-value needs with UNKNOWN cardinality. The extracted text is the reading source; hashes freeze it.",
+  "material": [
+    {
+      "document": "goteborg-samarbetsavtal",
+      "description": "Mall för samarbetsavtal (Göteborgs Stad, public document)",
+      "source_url": "https://www5.goteborg.se/prod/intraservice/namndhandlingar/namndhandlingararkiv/samrumportalarkiv.nsf/93ec9160f537fa30c12572aa004b6c1a/881ecc63e0eddb37c1257b6d002e0752/$FILE/9_Bilaga4_Mall_samarbetsavtal.pdf",
+      "pdf_sha256": "718c98cdc3658f683949ba3e8808ed7b6e708bed829fcd89d700bd89fd87a29e",
+      "extraction_sha256": "176ca8a22bc5e5b550af4f49130fb79499bcb76fded05997051e7088c1900f5f",
+      "extraction_chars": 4875
+    },
+    {
+      "document": "lansstyrelsen-upphandling-lieslatter",
+      "description": "Anbudsförfrågan/avtalsvillkor — upphandling lieslåtter (Länsstyrelsen Gotland, public document)",
+      "source_url": "https://www.lansstyrelsen.se/download/18.6395bf21784b0add95fd2c/1617195663926/Upphandling%20g%C3%A4llande%20liesl%C3%A5tter%20i%20H%C3%A4ssle%C3%A4nget%20(002).pdf",
+      "pdf_sha256": "52aba7540b973a1025154863f3bf39235d29198986ca1266cfec51cee1ba8f2a",
+      "extraction_sha256": "719cacfe9a87cb76b32735ad1fb663847073e5251a889036baf46a044459580f",
+      "extraction_chars": 31140
+    },
+    {
+      "document": "nacka-avtalad-tjanst",
+      "description": "Avtalsbilaga — avtalad tjänst bostad med särskild service (Nacka kommun, public document)",
+      "source_url": "https://www.nacka.se/4ac182/globalassets/underwebbar/anordnare-socialtjanst/avtalad-tjanst-bostad-med-sarskild-service-2020.pdf",
+      "pdf_sha256": "c65b9f5ad2f2c19edb3e72d7f37d37843f185115ee44f677eb2b091b4813fcde",
+      "extraction_sha256": "af4a054c3272a57c36ba4bc4004a8ac59243fa49fc07ff3e4ced3c0a28c7cb14",
+      "extraction_chars": 57174
+    }
+  ],
+  "redaction_note": "The repository is public: no contract text is committed. Only document ids, public source URLs, descriptions and SHA-256 hashes are stored here; the full extractions stay outside the repository.",
+  "next": "Independent facit annotated by reading the extracted text, with answer-level D10 facit and multi-value needs declared with UNKNOWN cardinality (no expected_count exposed to the chain); then one frozen run: M0 vs frozen M1-M6, no adjustments."
+}
